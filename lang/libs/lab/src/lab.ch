@@ -72,6 +72,13 @@ public struct PathResolutionResult {
 @compiler.interface
 public struct BuildContext {
 
+    /**
+     * create a module from a directory that contains a chemical.mod or build.lab file, the scope name and mod name is given to check if module by that name already
+     * has been parsed so we return it fast, the path is the absolute path to directory, the returned module may be null, in that case error is set to error_msg
+     * it can be that an unknown error happened and we didn't set the error, however module is still null, important to check returned module for nullability
+     */
+    func module_from_directory(&self, path : &std::string_view, scope_name : &std::string_view, mod_name : &std::string_view, error_msg : &mut std::string) : *mut Module
+
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 

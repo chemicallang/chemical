@@ -3,6 +3,7 @@
 #include <span>
 #include "BuildContextCBI.h"
 #include "compiler/lab/LabBuildContext.h"
+#include "compiler/lab/LabBuildCompiler.h"
 #include "utils/ProcessUtils.h"
 #include "utils/PathUtils.h"
 #include "compiler/lab/Utils.h"
@@ -14,6 +15,10 @@
 #ifdef COMPILER_BUILD
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);
 #endif
+
+LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg) {
+    return self->module_from_directory(*path, *scope_name, *mod_name, *error_msg);
+}
 
 LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
     return self->files_module(*scope_name, *name, path, path_len, dependencies->ptr, dependencies->size);
@@ -104,7 +109,7 @@ bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_
 }
 
 void BuildContextbuild_path(chem::string* str, LabBuildContext* self) {
-    init_chem_string(str)->append(self->options->build_dir);
+    init_chem_string(str)->append(self->compiler.options->build_dir);
 }
 
 bool BuildContexthas_arg(LabBuildContext* self, chem::string_view* name) {
@@ -160,7 +165,8 @@ int BuildContextlink_objects(LabBuildContext* self, StringViewSpan* string_arr, 
     for(auto i = 0; i < string_arr->size; i++) {
         linkables.emplace_back(chem::string::make_view(string_arr->ptr[i]));
     }
-    return link_objects(self->options->exe_path, linkables, output_path->str(), self->options->target_triple);
+    auto& options = *self->compiler.options;
+    return link_objects(options.exe_path, linkables, output_path->str(), options.target_triple);
 }
 
 int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr) {

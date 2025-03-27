@@ -687,7 +687,7 @@ int main(int argc, char *argv[]) {
         }
 
         LabBuildContext context(
-                &compiler_opts,
+                compiler,
                 compiler.path_handler,
                 compiler.mod_storage,
                 compiler.binder,

@@ -24,6 +24,7 @@ chem::string* init_chem_string(chem::string* str) {
 }
 
 const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
+        { "BuildContextmodule_from_directory", (void*) BuildContextmodule_from_directory },
         { "BuildContextfiles_module", (void*) BuildContextfiles_module },
         { "BuildContextchemical_files_module", (void*) BuildContextchemical_files_module },
         { "BuildContextchemical_dir_module", (void*) BuildContextchemical_dir_module },

@@ -2224,10 +2224,18 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     create_dir(lab_dir);
     create_dir(lab_mods_dir);
 
+    // set resources for nested builds of module dependencies from build.lab calls
+    context.resources.emplace(lab_processor, c_visitor, output_ptr);
+
     // call the function
-    return built_lab_file(
+    const auto result = built_lab_file(
         context, path, lab_processor, c_visitor, output_ptr
     );
+
+    // reset resources to prevent dangling references
+    context.resources = std::nullopt;
+
+    return result;
 
 }
 
@@ -2278,10 +2286,18 @@ LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std:
     create_dir(lab_dir);
     create_dir(lab_mods_dir);
 
+    // set resources for nested builds of module dependencies from build.lab calls
+    context.resources.emplace(lab_processor, c_visitor, output_ptr);
+
     // call the function
-    return build_module_from_mod_file(
+    const auto result = build_module_from_mod_file(
             context, path, lab_processor, c_visitor, output_ptr
     );
+
+    // reset resources to prevent dangling references
+    context.resources = std::nullopt;
+
+    return result;
 
 }
 

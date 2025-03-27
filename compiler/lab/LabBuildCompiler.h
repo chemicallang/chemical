@@ -253,7 +253,7 @@ public:
      */
     LabModule* build_module_from_mod_file(
             LabBuildContext& context,
-            const std::string& modFilePath,
+            const std::string_view& modFilePath,
             ASTProcessor& processor,
             ToCAstVisitor& c_visitor,
             std::stringstream& output_ptr
@@ -265,7 +265,7 @@ public:
      */
     TCCState* built_lab_file(
         LabBuildContext& context,
-        const std::string& path,
+        const std::string_view& path,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
         std::stringstream& output_ptr
@@ -274,12 +274,22 @@ public:
     /**
      * will build the lab file and return the callable tcc state
      */
-    TCCState* built_lab_file(LabBuildContext& context, const std::string& path);
+    TCCState* built_lab_file(LabBuildContext& context, const std::string_view& path);
+
+    /**
+     * create a module out of mod file
+     */
+    LabModule* built_mod_file(LabBuildContext& context, const std::string_view& path);
 
     /**
      * will build the lab file
      */
-    int build_lab_file(LabBuildContext& context, const std::string& path);
+    int build_lab_file(LabBuildContext& context, const std::string_view& path);
+
+    /**
+     * build the mod file given at path, into an executable at outputPath
+     */
+    int build_mod_file(LabBuildContext& context, const std::string_view& path, chem::string outputPath);
 
     /**
      * the destructor

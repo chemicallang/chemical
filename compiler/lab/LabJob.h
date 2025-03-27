@@ -19,35 +19,106 @@ enum class LabJobStatus {
 };
 
 struct LabJob {
-    // the type of job, the type is user specific
-    // which type of job user want's to perform
+
+    /**
+     * the type of job, the type is user specific
+     * which type of job user want's to perform
+     */
     LabJobType type;
-    // name of the job / executable / lib
+
+    /**
+     * name of the job / executable / lib
+     */
     chem::string name;
-    // absolute path to the job's output (exe or lib)
+
+    /**
+     * absolute path to the job's output (exe or lib)
+     */
     chem::string abs_path;
-    // absolute path to build dir for this job
+
+    /**
+     * absolute path to build dir for this job
+     */
     chem::string build_dir;
-    // the status of the job
+
+    /**
+     * the status of the job
+     */
     LabJobStatus status = LabJobStatus::Pending;
-    // these are linkable object or bitcode files required by the job
+
+    /**
+     * these are linkable object or bitcode files required by the job
+     */
     std::vector<chem::string> linkables;
-    // dependencies are the pointers to modules that this job depends on
-    // these modules will be compiled first
+
+    /**
+     * dependencies are the pointers to modules that this job depends on
+     * these modules will be compiled first
+     */
     std::vector<LabModule*> dependencies;
+
     /**
      * path aliases are used to basically alias a path using '@'
      * when user will import using an '@' we will replace it with the actual path
      */
     std::unordered_map<std::string, std::string> path_aliases;
+
     /**
      * definitions are user defined build variables, that user can use at compile
      * time to trigger different code paths and generate different code
      */
     std::unordered_map<std::string, bool> definitions;
+
+    /**
+     * constructor
+     */
+    inline LabJob(
+            LabJobType type,
+            chem::string name
+    ) : type(type), name(std::move(name)) {
+
+    }
+
+    /**
+     * constructor
+     */
+    inline LabJob(
+            LabJobType type,
+            chem::string name,
+            chem::string abs_path,
+            chem::string build_dir
+    ) : type(type), name(std::move(name)), abs_path(std::move(abs_path)), build_dir(std::move(build_dir)) {
+
+    }
+
 };
 
 struct LabJobCBI : public LabJob {
 public:
+    /**
+     * which cbi types is this job targeting
+     * this determines which functions would be called in the cbi
+     */
     std::vector<CBIType> cbiTypes;
+
+    /**
+     * constructor
+     */
+    inline LabJobCBI(
+            chem::string name
+    ) : LabJob(LabJobType::CBI, std::move(name)) {
+
+    }
+
+    /**
+     * constructor
+     */
+    inline LabJobCBI(
+            chem::string name,
+            chem::string abs_path,
+            chem::string build_dir
+    ) : LabJob(LabJobType::CBI, std::move(name), std::move(abs_path), std::move(build_dir)) {
+
+    }
+
 };

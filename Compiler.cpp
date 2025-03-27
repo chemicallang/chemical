@@ -380,22 +380,22 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
             auto cbiDataItr = compiler.binder.data.find(name.str());
             if(cbiDataItr != compiler.binder.data.end()) {
                 auto& cbiData = cbiDataItr->second;
-                if(cbiData.modules.empty()) {
+                if(cbiData.module == nullptr) {
                     std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't have any data present" << rang::fg::reset << std::endl;
                     continue;
                 }
-                cbiData.entry_module = cbiData.modules[0];
-                auto sym = tcc_get_symbol(cbiData.entry_module, "initializeLexer");
+                const auto module = cbiData.module;
+                auto sym = tcc_get_symbol(module, "initializeLexer");
                 if(!sym) {
                     std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'initializeLexer'" << rang::fg::reset << std::endl;
                     continue;
                 }
-                auto sym2 = tcc_get_symbol(cbiData.entry_module, "parseMacroValue");
+                auto sym2 = tcc_get_symbol(module, "parseMacroValue");
                 if(!sym2) {
                     std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroValue'" << rang::fg::reset << std::endl;
                     continue;
                 }
-                auto sym3 = tcc_get_symbol(cbiData.entry_module, "parseMacroNode");
+                auto sym3 = tcc_get_symbol(module, "parseMacroNode");
                 if(!sym3) {
                     std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroNode'" << rang::fg::reset << std::endl;
                     continue;

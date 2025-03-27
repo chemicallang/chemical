@@ -54,8 +54,14 @@ public struct LabJob {
     var status : LabJobStatus
 }
 
-public enum CBIImportKind {
-    Lexer
+@no_init
+public struct LabJobCBI {
+
+}
+
+public enum CBIType {
+    MacroLexer,
+    MacroParser
 }
 
 public struct PathResolutionResult {
@@ -108,7 +114,10 @@ public struct BuildContext {
     func build_dynamic_lib (&self, name : *std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    func build_cbi (&self, name : *std::string_view, entry : *Module, dependencies : std::span<*Module>) : *mut LabJob
+    func build_cbi (&self, name : *std::string_view, dependencies : std::span<*Module>) : *mut LabJobCBI
+
+    // add the given cbi to a cbi job
+    func add_cbi_type(&self, job : *mut LabJobCBI, type : CBIType) : bool
 
     // add a linkable object (.o file)
     func add_object (&self, job : *LabJob, path : &std::string_view) : void;

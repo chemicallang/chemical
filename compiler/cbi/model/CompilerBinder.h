@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include "std/chem_string_view.h"
 #include "compiler/cbi/bindings/CBI.h"
+#include "compiler/lab/CBIType.h"
 
 class ASTProcessor;
 
@@ -15,30 +16,6 @@ class Parser;
 class CSTConverter;
 
 class CSTToken;
-
-/**
- * a compile result
- */
-struct BinderResult {
-
-    TCCState* module;
-    std::string error;
-
-    /**
-     * constructor
-     */
-    BinderResult(std::string err) : error(std::move(err)), module(nullptr) {
-
-    }
-
-    /**
-     * constructor
-     */
-    BinderResult(TCCState* module) : module(module) {
-
-    }
-
-};
 
 /**
  * compiler binder based on tiny c compiler
@@ -75,11 +52,6 @@ public:
     std::unordered_map<chem::string_view, std::span<const std::pair<chem::string_view, void*>>> interface_maps;
 
     /**
-     * diagnostics during compilation of c files
-     */
-    std::vector<std::string> diagnostics;
-
-    /**
      * path to current executable, resources required by tcc are located relative to it
      */
     std::string exe_path;
@@ -90,24 +62,24 @@ public:
     explicit CompilerBinder(std::string exe_path);
 
     /**
-     * creates a cbi, in which multiple modules can exist
-     */
-    CBIData* create_cbi(const std::string& name, unsigned int mod_count);
-
-    /**
-     * following c program will be compiled as the cbi
-     */
-    BinderResult compile(
-        CBIData& cbiData,
-        const std::string& program,
-        const std::vector<std::string>& compiler_interfaces,
-        ASTProcessor& processor
-    );
-
-    /**
      * imports the given compiler interfaces
      */
     static void import_compiler_interface(const std::span<const std::pair<chem::string_view, void*>>& interface, TCCState* state);
+
+    /**
+     * a macro lexer is prepared from the given tcc state
+     */
+    const char* prepare_macro_lexer_from(const chem::string_view& cbiName, TCCState* state);
+
+    /**
+     * a macro parser is prepared from the given tcc state
+     */
+    const char* prepare_macro_parser_from(const chem::string_view& cbiName, TCCState* state);
+
+    /**
+     * prepare the cbi type with given state
+     */
+    const char* prepare_with_type(const chem::string_view& cbiName, TCCState* state, CBIType type);
 
     /**
      * import compiler interface with the given name

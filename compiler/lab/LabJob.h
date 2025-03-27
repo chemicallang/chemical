@@ -7,6 +7,7 @@
 #include "std/chem_string.h"
 #include "LabJobType.h"
 #include "compiler/cbi/model/CBIData.h"
+#include "CBIType.h"
 
 struct LabModule;
 
@@ -47,9 +48,6 @@ struct LabJob {
 };
 
 struct LabJobCBI : public LabJob {
-    /**
-     * the entry module is provided when cbi is created
-     * it is looked for all public functions like lex, parse and others
-     */
-    LabModule* entry_module = nullptr;
+public:
+    std::vector<CBIType> cbiTypes;
 };

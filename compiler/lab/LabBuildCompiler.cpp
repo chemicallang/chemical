@@ -542,8 +542,7 @@ int LabBuildCompiler::process_module_tcc(
         const std::string& mod_timestamp_file,
         const std::string& out_c_file,
         bool do_compile,
-        std::stringstream& output_ptr,
-        LabJobCBI* cbiJob
+        std::stringstream& output_ptr
 ) {
 
     // variables
@@ -698,35 +697,6 @@ int LabBuildCompiler::process_module_tcc(
             copyFile(mod->paths[0].to_view(), out_c_file);
         } else {
             writeToFile(out_c_file, program);
-        }
-    }
-
-    if(cbiJob && c_visitor.compiler_interfaces) {
-        auto& compiler_interfaces = *c_visitor.compiler_interfaces;
-        auto cbiName = cbiJob->name.to_std_string();
-        auto& cbiData = binder.data[cbiName];
-        auto bResult = binder.compile(
-                cbiData,
-                program,
-                compiler_interfaces,
-                processor
-        );
-        if(options->verbose || options->benchmark || !bResult.error.empty()) {
-            for(auto& diag : binder.diagnostics) {
-                std::cerr << rang::fg::red << "[lab:cbi] " << diag << std::endl << rang::fg::reset;
-            }
-        }
-        binder.diagnostics.clear();
-        if(!bResult.error.empty()) {
-            auto out_path = resolve_rel_child_path_str(cbiJob->build_dir.data(),mod->name.to_std_string() + ".2c.c");
-            writeToFile(out_path, program);
-            std::cerr << rang::fg::red << "[lab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << cbiJob->name.data() << "' with error '" << bResult.error << "' written at '" << out_path << '\'' << rang::fg::reset << std::endl;
-            return 1;
-        }
-        compiler_interfaces.clear();
-        // marking entry of the cbi module, if this module is the entry
-        if(cbiJob->entry_module == mod) {
-            cbiData.entry_module = bResult.module;
         }
     }
 
@@ -1174,15 +1144,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     mod_storage.index_modules(dependencies);
 
     // allocating required variables before going into loop
-    bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
-
-    // create cbi before hand, for reserving allocation
-    if(job_type == LabJobType::CBI) {
-        if(verbose) {
-            std::cout << "[lab] " << "creating a compiler binding interface for '" << exe->name << "'" << std::endl;
-        }
-        binder.create_cbi(exe->name.to_std_string(), dependencies.size());
-    }
+    bool do_compile = job_type != LabJobType::ToCTranslation;
 
     // if not a single module has changed, we consider it true
     bool has_any_changed = false;
@@ -1284,16 +1246,76 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             }
         }
 
-        // get the cbi job pointer, if it's a cbi
-        LabJobCBI* cbiJob = get_job_type == LabJobType::CBI ? (LabJobCBI*) job : nullptr;
-
-        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile, output_ptr, cbiJob);
+        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile, output_ptr);
         if(result == 1) {
             return 1;
         }
 
         if(do_compile) {
             job->linkables.emplace_back(mod->object_path.copy());
+        }
+
+    }
+
+    if(get_job_type == LabJobType::CBI) {
+
+        const auto cbiJob = (LabJobCBI*) job;
+        auto& job_name = job->name;
+        auto cbiName = cbiJob->name.to_std_string();
+        auto& cbiData = binder.data[cbiName];
+        auto& outModDependencies = dependencies;
+
+        const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+        if(state == nullptr) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+            std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
+            return 1;
+        }
+
+        // add module object files
+        for(const auto dep : outModDependencies) {
+            if(tcc_add_file(state, dep->object_path.data()) == -1) {
+                std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of cbi '" << job_name << '\'' << std::endl;
+                tcc_delete(state);
+                return 1;
+            }
+        }
+
+        // prepare for jit
+        prepare_tcc_state_for_jit(state);
+
+        // import all compiler interfaces the modules require
+        for(const auto mod : outModDependencies) {
+            for(auto& interface : mod->compiler_interfaces) {
+                CompilerBinder::import_compiler_interface(interface, state);
+            }
+        }
+
+        // relocate the code before calling
+        if(tcc_relocate(state) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate cbi '" << job_name << '\'' << std::endl;
+            tcc_delete(state);
+            return 1;
+        }
+
+        // we compile the entirety of this module and store it
+        // here putting this module in cbi is what will delete it
+        // this is very important, otherwise tcc_delte won't be called on it
+        cbiData.module = state;
+
+        // error out if cbi types are empty
+        if(cbiJob->cbiTypes.empty()) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "cbi job has no cbi types'" << job_name << '\'' << std::endl;
+            return 1;
+        }
+
+        // preparing cbi types
+        for(const auto cbiType : cbiJob->cbiTypes) {
+            const auto err = binder.prepare_with_type(job_name.to_chem_view(), state, cbiType);
+            if(err != nullptr) {
+                std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << err << " in " << job_name << std::endl;
+                return 1;
+            }
         }
 
     }
@@ -1984,7 +2006,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");
 
         // compile the module
-        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true, output_ptr, nullptr);
+        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true, output_ptr);
         if(module_result == 1) {
             return nullptr;
         }

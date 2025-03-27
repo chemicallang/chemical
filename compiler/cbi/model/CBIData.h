@@ -8,13 +8,8 @@
 struct CBIData {
 
     /**
-     * all the modules in this CBI
-     */
-    std::vector<TCCState*> modules;
-
-    /**
      * the module in which public functions are searched
      */
-    TCCState* entry_module = nullptr;
+    TCCState* module = nullptr;
 
 };

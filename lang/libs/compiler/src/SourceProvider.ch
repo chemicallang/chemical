@@ -12,7 +12,7 @@ const BufferCapacity = 1024
  * provides access to the source code provided by the user
  */
 @compiler.interface
-struct SourceProvider {
+public struct SourceProvider {
 
     var lineNumber : uint
 

@@ -6,6 +6,10 @@ import "@compiler/ASTBuilder.ch"
 import "@compiler/ChemicalTokenType.ch"
 import "./lexer/CSSLexer.ch"
 import "./parser/cssom.ch"
+import "@compiler/ast/base/Value.ch"
+import "@compiler/ast/base/ASTNode.ch"
+import "@compiler/SymbolResolver.ch"
+
 
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro node\n");

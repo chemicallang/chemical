@@ -1,7 +1,7 @@
 import "@std/string_view.ch"
 
 @compiler.interface
-struct SerialStrAllocator {
+public struct SerialStrAllocator {
 
     /**
      * Dispose the current string you've built and start a new one

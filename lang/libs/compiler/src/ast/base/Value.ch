@@ -3,7 +3,7 @@ import "./ASTNode.ch"
 import "./BaseType.ch"
 import "../../SymbolResolver.ch"
 
-struct Value {
+public struct Value {
 
     func getKind(&self) : ValueKind
 

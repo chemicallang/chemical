@@ -1,4 +1,4 @@
-enum Operation {
+public enum Operation {
     // Grouping and scope resolution operators
     Grouping,
     ScopeResolutionUnary,

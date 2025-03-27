@@ -373,6 +373,23 @@ namespace chem {
             return size() == 0;
         }
 
+        void clear() {
+            switch(state) {
+                case '0':
+                    storage.constant.data = "";
+                    storage.constant.length = 0;
+                    break;
+                case '1':
+                    storage.sso.buffer[0] = '\0';
+                    storage.sso.length = 0;
+                    break;
+                case '2':
+                    storage.heap.data[0] = '\0';
+                    storage.heap.length = 0;
+                    break;
+            }
+        }
+
         [[nodiscard]]
         size_t capacity() const {
             switch(state) {

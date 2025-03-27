@@ -671,7 +671,7 @@ void ASTProcessor::figure_out_module_dependency_based_on_import(
 
                 // now we put this module dependency in the vector
                 // because this module needs to be built before this file can be imported
-                dependencies.emplace_back(std::move(dir_path.replaced), &imported, modIdentifier.scope_name, modIdentifier.module_name);
+                dependencies.emplace_back(std::move(dir_path.replaced), &imported, chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
 
             } else {
 

@@ -3,7 +3,7 @@ import "ASTBuilder.ch"
 import "@std/string_view.ch"
 
 @compiler.interface
-struct Parser {
+public struct Parser {
 
     func getTokenPtr(&self) : *mut *mut Token
 

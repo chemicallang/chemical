@@ -1,7 +1,7 @@
 import "ASTNodeKind.ch"
 import "../../SymbolResolver.ch"
 
-struct ASTNode {
+public struct ASTNode {
 
     func getKind(&self) : ASTNodeKind
 

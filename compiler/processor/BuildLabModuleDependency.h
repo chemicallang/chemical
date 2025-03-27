@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include <std/chem_string.h>
 
 class ASTFileResult;
 
@@ -35,12 +36,12 @@ struct BuildLabModuleDependency {
     /**
      * the scope name given by the user
      */
-    chem::string_view scope_name;
+    chem::string scope_name;
 
     /**
      * the module name given by the user
      */
-    chem::string_view mod_name;
+    chem::string mod_name;
 
     /**
      * constructor
@@ -48,9 +49,9 @@ struct BuildLabModuleDependency {
     BuildLabModuleDependency(
             std::string module_dir_path,
             ASTFileResult* fileResult,
-            chem::string_view scope_name,
-            chem::string_view mod_name
-    ) : module_dir_path(std::move(module_dir_path)), fileResult(fileResult), scope_name(scope_name), mod_name(mod_name) {
+            chem::string scope_name,
+            chem::string mod_name
+    ) : module_dir_path(std::move(module_dir_path)), fileResult(fileResult), scope_name(std::move(scope_name)), mod_name(std::move(mod_name)) {
 
     }
 

@@ -1,4 +1,4 @@
-enum BaseTypeKind {
+public enum BaseTypeKind {
 
     Any,
     Array,

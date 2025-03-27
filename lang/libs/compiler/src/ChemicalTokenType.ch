@@ -1,4 +1,4 @@
-enum ChemicalTokenType {
+public enum ChemicalTokenType {
 
     // when reached the end of file
     EndOfFile,

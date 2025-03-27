@@ -109,12 +109,20 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         } },
         { "compiler.interface", [](Parser* parser, ASTNode* node) -> void {
-            const auto def = node->as_struct_def();
-            if(def) {
-                def->set_compiler_interface(true);
-                def->set_no_mangle(true);
-            } else {
-                parser->error("couldn't make struct a compiler interface");
+            switch(node->kind()) {
+                case ASTNodeKind::StructDecl: {
+                    const auto def = node->as_struct_def_unsafe();
+                    def->set_no_mangle(true);
+                    break;
+                }
+                case ASTNodeKind::InterfaceDecl: {
+                    const auto def = node->as_interface_def_unsafe();
+                    def->set_no_mangle(true);
+                    break;
+                }
+                default:
+                    parser->error("couldn't make struct / interface a compiler interface");
+                    break;
             }
         } },
         { "no_mangle", [](Parser* parser, ASTNode* node) -> void {

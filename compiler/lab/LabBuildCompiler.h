@@ -253,7 +253,6 @@ public:
      */
     LabModule* build_module_from_mod_file(
             LabBuildContext& context,
-            BuildLabModuleDependency& dependency,
             const std::string& modFilePath,
             ASTProcessor& processor,
             ToCAstVisitor& c_visitor,

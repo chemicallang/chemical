@@ -1113,12 +1113,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
-    // TODO this is only required in CBI
-    std::vector<std::string> compiler_interfaces;
-
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
@@ -1649,7 +1646,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         const auto modFilePath = resolve_rel_child_path_str(module_path, "chemical.mod");
         if(std::filesystem::exists(modFilePath)) {
 
-            return build_module_from_mod_file(context, dependency, modFilePath, processor, c_visitor, output_ptr);
+            return build_module_from_mod_file(context, modFilePath, processor, c_visitor, output_ptr);
 
         } else {
 
@@ -1665,7 +1662,6 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
-        BuildLabModuleDependency& dependency,
         const std::string& modFilePath,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
@@ -1674,7 +1670,6 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     auto& lab_processor = processor;
     auto& lab_resolver = *processor.resolver;
-    auto& module_dir = dependency.module_dir_path;
     const auto verbose = options->verbose;
 
     if(verbose) {
@@ -1729,7 +1724,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // TODO: support allowing src directory inside the .mod file
     // since currently we don't support custom source directory
     // we'll assume the source is present in 'src' directory and and use that as module directory path
-    auto srcDirPath = resolve_rel_child_path_str(module_dir, "src");
+    auto srcDirPath = resolve_sibling(modFilePath, "src");
 
     // create a new module
     auto path_view = chem::string_view(srcDirPath);
@@ -2157,11 +2152,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     prepare_tcc_state_for_jit(state);
 
     // import all compiler interfaces the lab files import
-    for(const auto& interface : *c_visitor.compiler_interfaces) {
-        if(!binder.import_compiler_interface(interface, state)) {
-            std::cerr << rang::fg::red << "[lab] failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
-            tcc_delete(state);
-            return nullptr;
+    // import all compiler interfaces the modules require
+    for(const auto mod : outModDependencies) {
+        for(auto& interface : mod->compiler_interfaces) {
+            CompilerBinder::import_compiler_interface(interface, state);
         }
     }
 
@@ -2212,9 +2206,8 @@ TCCState* LabBuildCompiler::built_lab_file(LabBuildContext& context, const std::
     create_or_rebind_container(this, global, lab_resolver);
 
     // compiler interfaces the lab files imports
-    std::vector<std::string> compiler_interfaces;
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, &compiler_interfaces);
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context

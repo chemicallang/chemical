@@ -84,9 +84,9 @@ extern "C" {
 
     bool BuildContextundefine(LabBuildContext* self, LabJob* job, chem::string_view* name);
 
-    int BuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window);
+    int AppBuildContextlaunch_executable(LabBuildContext* self, chem::string_view* path, bool same_window);
 
-    void BuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data);
+    void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data);
 
     int BuildContextlink_objects(LabBuildContext* self, StringViewSpan* string_arr, chem::string_view* output_path);
 

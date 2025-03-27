@@ -54,6 +54,8 @@ extern "C" {
 
     void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path);
 
+    void BuildContextresolve_native_lib_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* scope_name, chem::string_view* mod_name);
+
     void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string_view* header);
 
     LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string_view* output_path);

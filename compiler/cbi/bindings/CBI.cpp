@@ -33,6 +33,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "BuildContextobject_module", (void*) BuildContextobject_module },
         { "BuildContextadd_compiler_interface", (void*) BuildContextadd_compiler_interface },
         { "BuildContextresolve_import_path", (void*) BuildContextresolve_import_path },
+        { "BuildContextresolve_native_lib_path", (void*) BuildContextresolve_native_lib_path },
         { "BuildContextinclude_header", (void*) BuildContextinclude_header },
         { "BuildContexttranslate_to_chemical", (void*) BuildContexttranslate_to_chemical },
         { "BuildContexttranslate_to_c", (void*) BuildContexttranslate_to_c },

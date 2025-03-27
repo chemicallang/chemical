@@ -272,11 +272,6 @@ public:
     );
 
     /**
-     * will build the lab file and return the callable tcc state
-     */
-    TCCState* built_lab_file(LabBuildContext& context, const std::string_view& path);
-
-    /**
      * create a module out of mod file
      */
     LabModule* built_mod_file(LabBuildContext& context, const std::string_view& path);

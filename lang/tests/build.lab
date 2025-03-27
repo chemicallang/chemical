@@ -117,7 +117,7 @@ func build(ctx : *mut AppBuildContext) {
 
     // the std module
     var std_module = ctx.native_lib_module(std::string_view("std"));
-    if(cstd_module == null) {
+    if(std_module == null) {
         return null
     }
 
@@ -191,14 +191,14 @@ func build(ctx : *mut AppBuildContext) {
     const def = std::string_view("CHECK_DEF")
 
     if(do_dyn_lib) {
-        const job = ctx.build_dynamic_lib(&exe_name, { module });
+        const job = ctx.build_dynamic_lib(exe_name, { module });
         ctx.define(job, def);
         if(do_one_job) {
             return;
         }
     }
 
-    const exe_job = ctx.build_exe(&exe_name, { module })
+    const exe_job = ctx.build_exe(exe_name, { module })
     ctx.define(exe_job, def);
     jc.ctx = ctx;
     jc.job = exe_job;

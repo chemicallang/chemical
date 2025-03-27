@@ -1150,7 +1150,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     for(const auto mod : dependencies) {
 
         // determining module's direct files
-        processor.determine_module_files(mod->direct_files, mod);
+        processor.determine_module_files(mod);
 
         // creating the module directory and getting the timestamp file path
         const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
@@ -1385,7 +1385,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     for(const auto mod : dependencies) {
 
         // determining module's direct files
-        processor.determine_module_files(mod->direct_files, mod);
+        processor.determine_module_files(mod);
 
         // creating the module directory and getting the timestamp file path
         const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
@@ -1591,10 +1591,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 
 LabModule* LabBuildCompiler::create_module_for_dependency(
         LabBuildContext& context,
-        BuildLabModuleDependency& dependency,
-        ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
+        BuildLabModuleDependency& dependency
 ) {
 
     const auto module = context.storage.find_module(dependency.scope_name, dependency.mod_name);
@@ -1614,9 +1611,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // build lab file into a tcc state
         // TODO verify the build method signature in the build.lab file
-        const auto state = built_lab_file(
-            context, buildLabPath, processor, c_visitor, output_ptr
-        );
+        const auto state = built_lab_file(context, dependency, buildLabPath);
 
         // emit a warning or error
         if(state == nullptr) {
@@ -1646,7 +1641,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         const auto modFilePath = resolve_rel_child_path_str(module_path, "chemical.mod");
         if(std::filesystem::exists(modFilePath)) {
 
-            return build_module_from_mod_file(context, modFilePath, processor, c_visitor, output_ptr);
+            return built_mod_file(context, modFilePath);
 
         } else {
 
@@ -1662,14 +1657,9 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
-        const std::string_view& modFilePathView,
-        ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
+        const std::string_view& modFilePathView
 ) {
 
-    auto& lab_processor = processor;
-    auto& lab_resolver = *processor.resolver;
     const auto verbose = options->verbose;
 
     if(verbose) {
@@ -1709,7 +1699,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     ModuleFileData modFileData;
 
     // import the file into result (lex and parse)
-    if (!lab_processor.import_chemical_mod_file(modResult, modFileData, buildLabFileId, modFilePath)) {
+    if (!ASTProcessor::import_chemical_mod_file(*this, modResult, modFileData, buildLabFileId, modFilePath)) {
         return nullptr;
     }
 
@@ -1757,7 +1747,18 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
             imp_module_dir_path.clear();
             imp_scope_name = "";
             imp_mod_name = "";
-            if(impStmt->filePath.empty()) {
+            if(impStmt->identifier.empty() && !impStmt->filePath.empty()) {
+                // here we will consider this file path given a scope name and module name identifier
+                auto v = impStmt->filePath.view();
+                auto colInd = v.find(':');
+                if(colInd != std::string_view::npos) {
+                    imp_scope_name = chem::string_view(v.data(), colInd);
+                    imp_mod_name = chem::string_view(v.data() + colInd + 1, v.size() - colInd);
+                } else {
+                    // consider the identifier a module name with scope name empty
+                    imp_mod_name = impStmt->filePath;
+                }
+            } else if(!impStmt->identifier.empty()) {
                 const auto idSize = impStmt->identifier.size();
                 if (idSize == 1) {
                     imp_mod_name = impStmt->identifier[0];
@@ -1767,13 +1768,17 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
                 } else {
                     // TODO handle the error
                 }
+            }
+            if(!imp_mod_name.empty()) {
                 auto result = path_handler.resolve_lib_dir_path(imp_scope_name, imp_mod_name);
                 if(result.error.empty()) {
                     imp_module_dir_path.append(result.replaced);
                 } else {
                     // TODO handle the error
                 }
-            } else {
+            }
+            if(!impStmt->filePath.empty() && !impStmt->identifier.empty()) {
+                // TODO: explicit import for a directory with scope name and module name
                 imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
             }
             buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), nullptr, imp_scope_name, imp_mod_name);
@@ -1784,7 +1789,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // however we must build their build.lab or chemical.mod into a LabModule*
     for(auto& mod_ptr : buildLabModuleDependencies) {
         // get the module pointer
-        const auto modDependency = create_module_for_dependency(context, mod_ptr, lab_processor, c_visitor, output_ptr);
+        const auto modDependency = create_module_for_dependency(context, mod_ptr);
         if(modDependency == nullptr) {
             return nullptr;
         }
@@ -1812,6 +1817,7 @@ FunctionDeclaration* find_lab_build_method(const std::string& abs_path, std::vec
 
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
+        BuildLabModuleDependency& dependency,
         const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
@@ -1878,8 +1884,18 @@ TCCState* LabBuildCompiler::built_lab_file(
     auto module_files = flatten(files_to_flatten);
 
     // the build lab object file (cached)
-    const auto buildLabObj = resolve_rel_child_path_str(options->build_dir, "build.lab.o");
-    const auto buildLabTimestamp = resolve_rel_child_path_str(options->build_dir, "build.lab.dat");
+    const auto labDir = resolve_rel_child_path_str(options->build_dir, "lab");
+    const auto labBuildDir = resolve_rel_child_path_str(labDir, "build");
+    const auto labModDir = resolve_rel_child_path_str(labBuildDir, LabModule::format(dependency.scope_name, dependency.mod_name, '.'));
+
+    // create required directories
+    create_dir(labDir);
+    create_dir(labBuildDir);
+    create_dir(labModDir);
+
+    // figure out where to store the build lab object and dat file
+    const auto buildLabObj = resolve_rel_child_path_str(labModDir, "build.lab.o");
+    const auto buildLabTimestamp = resolve_rel_child_path_str(labModDir, "build.lab.dat");
 
     // determine if build lab has changed
     const auto has_buildLabChanged = determine_if_files_have_changed(this, module_files, buildLabObj, buildLabTimestamp);
@@ -1900,7 +1916,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     // however we must build their build.lab or chemical.mod into a LabModule*
     for(auto& mod_ptr : buildLabModuleDependencies) {
         // get the module pointer
-        const auto mod = create_module_for_dependency(context, mod_ptr, processor, c_visitor, output_ptr);
+        const auto mod = create_module_for_dependency(context, mod_ptr);
         if(mod == nullptr) {
             return nullptr;
         }
@@ -1928,7 +1944,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     for(const auto mod : outModDependencies) {
 
         // determining module's direct files
-        processor.determine_module_files(mod->direct_files, mod);
+        processor.determine_module_files(mod);
 
         // the timestamp file is what determines whether the module needs to be rebuilt again
         const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
@@ -2043,9 +2059,8 @@ TCCState* LabBuildCompiler::built_lab_file(
                 return nullptr;
             }
 
-            if (!verify_app_build_func_type(found, file.abs_path)) {
-                return nullptr;
-            }
+            // TODO: we cannot verify the app build.lab method, because it
+            // maybe actually a library being imported (due to a call from another build.lab)
 
             // expose the last file's build method, so it's callable
             found->set_specifier_fast(AccessSpecifier::Public);
@@ -2124,13 +2139,13 @@ TCCState* LabBuildCompiler::built_lab_file(
     // creating a new tcc state
     const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
     if(state == nullptr) {
-        const auto out_path = resolve_rel_child_path_str(options->build_dir, "build.lab.c");
+        const auto out_path = resolve_rel_child_path_str(labModDir, "build.lab.c");
         writeToFile(out_path, str);
         std::cerr << rang::fg::red << "[lab] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
         return nullptr;
     } else {
         // TODO place a check to only output this when need be
-        const auto out_path = resolve_rel_child_path_str(options->build_dir, "build.lab.c");
+        const auto out_path = resolve_rel_child_path_str(labModDir, "build.lab.c");
         writeToFile(out_path, str);
     }
 
@@ -2179,42 +2194,6 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std::string_view& path) {
 
-#ifdef DEBUG
-    if(!context.storage.get_modules().empty()) {
-        throw std::runtime_error("please clean the module storage before using it with another mod file");
-    }
-#endif
-
-    // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
-
-    // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
-
-    // the processor that does everything for build.lab files only
-    ASTProcessor lab_processor(
-            path_handler,
-            options,
-            mod_storage,
-            loc_man,
-            &lab_resolver,
-            binder,
-            *job_allocator,
-            *mod_allocator,
-            *file_allocator
-    );
-
-    // creates or rebinds the global container
-    create_or_rebind_container(this, global, lab_resolver);
-
-    // compiler interfaces the lab files imports
-    std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
-    ToCBackendContext c_context(&c_visitor);
-
-    // set the backend context
-    global.backend_context = &c_context;
-
     // create a directory for lab processing and dependent modules
     // we'll call it 'lab' inside the build directory
     const auto lab_dir = resolve_rel_child_path_str(options->build_dir, "lab");
@@ -2224,16 +2203,10 @@ LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std:
     create_dir(lab_dir);
     create_dir(lab_mods_dir);
 
-    // set resources for nested builds of module dependencies from build.lab calls
-    context.resources.emplace(lab_processor, c_visitor, output_ptr);
-
     // call the function
     const auto result = build_module_from_mod_file(
-            context, path, lab_processor, c_visitor, output_ptr
+            context, path
     );
-
-    // reset resources to prevent dangling references
-    context.resources = std::nullopt;
 
     return result;
 
@@ -2273,29 +2246,11 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 
 }
 
-int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string_view& path) {
-
-    // allocating ast allocators
-    const auto job_mem_size = 100000; // 100 kb
-    const auto mod_mem_size = 100000; // 100 kb
-    const auto file_mem_size = 100000; // 100 kb
-    ASTAllocator _job_allocator(job_mem_size);
-    ASTAllocator _mod_allocator(mod_mem_size);
-    ASTAllocator _file_allocator(file_mem_size);
-
-    // the allocators that will be used for all jobs
-    job_allocator = &_job_allocator;
-    mod_allocator = &_mod_allocator;
-    file_allocator = &_file_allocator;
-
-    // mkdir the build directory
-    create_dir(options->build_dir);
-
-#ifdef DEBUG
-    if(!context.storage.get_modules().empty()) {
-        throw std::runtime_error("please clean the module storage before using it with another lab file");
-    }
-#endif
+TCCState* LabBuildCompiler::built_lab_file(
+        LabBuildContext& context,
+        BuildLabModuleDependency& dependency,
+        const std::string_view& path
+) {
 
     // a global interpret scope required to evaluate compile time things
     GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
@@ -2336,13 +2291,38 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     create_dir(lab_dir);
     create_dir(lab_mods_dir);
 
-    // set resources for nested builds of module dependencies from build.lab calls
-    context.resources.emplace(lab_processor, c_visitor, output_ptr);
-
     // get build lab file into a tcc state
     const auto state = built_lab_file(
-            context, path, lab_processor, c_visitor, output_ptr
+            context, dependency, path, lab_processor, c_visitor, output_ptr
     );
+
+    return state;
+
+}
+
+int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string_view& path) {
+
+    // allocating ast allocators
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
+
+    // the allocators that will be used for all jobs
+    job_allocator = &_job_allocator;
+    mod_allocator = &_mod_allocator;
+    file_allocator = &_file_allocator;
+
+    // mkdir the build directory
+    create_dir(options->build_dir);
+
+    // this is the root build.lab dependency
+    BuildLabModuleDependency buildLabDependency("", nullptr, "chemical", "lab");
+
+    // get build lab file into a tcc state
+    const auto state = built_lab_file(context, buildLabDependency, path);
     if(!state) {
         return 1;
     }
@@ -2393,9 +2373,6 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     if(context.on_finished) {
         context.on_finished(context.on_finished_data);
     }
-
-    // reset resources to prevent dangling references
-    context.resources = std::nullopt;
 
     return job_result;
 

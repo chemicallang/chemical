@@ -25,17 +25,6 @@ class ASTProcessor;
 
 class ToCAstVisitor;
 
-struct BuildResources {
-public:
-
-    ASTProcessor& processor;
-
-    ToCAstVisitor& c_visitor;
-
-    std::stringstream& output_ptr;
-
-};
-
 /**
  * A Lab build context is just a container
  * for all the modules user creates, build variables, any resources
@@ -80,11 +69,6 @@ public:
      * the compiler binder is used to provide the binding support
      */
     CompilerBinder& binder;
-
-    /**
-     * the build resources if present allow us to build nested build files
-     */
-    std::optional<BuildResources> resources;
 
     /**
      * the compiler is available to build nested modules

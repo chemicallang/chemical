@@ -95,16 +95,10 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
 }
 
 LabModule* LabBuildContext::module_from_directory(const chem::string_view& path, const chem::string_view& scope_name, const chem::string_view& mod_name, chem::string& error_msg) {
-    if(resources.has_value()) {
-        auto& res = resources.value();
-        BuildLabModuleDependency dep(path.str(), nullptr, scope_name, mod_name);
-        // TODO we cannot get the error yet
-        // instead of returning error, create_module_for_dependency just prints it to stdout
-        return compiler.create_module_for_dependency(*this, dep, res.processor, res.c_visitor, res.output_ptr);
-    } else {
-        error_msg.append("resources not available for building nested module");
-        return nullptr;
-    }
+    BuildLabModuleDependency dep(path.str(), nullptr, scope_name, mod_name);
+    // TODO we cannot get the error yet
+    // instead of returning error, create_module_for_dependency just prints it to stdcerr
+    return compiler.create_module_for_dependency(*this, dep);
 }
 
 LabModule* LabBuildContext::add_with_type(

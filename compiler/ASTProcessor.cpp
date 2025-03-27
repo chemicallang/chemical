@@ -70,10 +70,12 @@ void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view&
     std::cout << std::flush;
 }
 
-void ASTProcessor::determine_module_files(
-        std::vector<ASTFileMetaData>& files,
-        LabModule* module
-) {
+void ASTProcessor::determine_module_files(LabModule* module) {
+    auto& files = module->direct_files;
+    if(!files.empty()) {
+        // it seems the files have already been determined
+        return;
+    }
     path_handler.module_src_dir_path = "";
     switch(module->type) {
         case LabModuleType::Files: {
@@ -557,6 +559,7 @@ bool ASTProcessor::import_chemical_file(
 }
 
 bool ASTProcessor::import_chemical_mod_file(
+        LabBuildCompiler& compiler,
         ASTFileResult& result,
         ModuleFileData& data,
         unsigned int fileId,
@@ -564,6 +567,8 @@ bool ASTProcessor::import_chemical_mod_file(
 ) {
 
     auto& unit = result.unit;
+    const auto options = compiler.options;
+    const auto is64Bit = options->is64Bit;
 
     std::unique_ptr<BenchmarkResults> lex_bm;
     std::unique_ptr<BenchmarkResults> parse_bm;
@@ -580,7 +585,7 @@ bool ASTProcessor::import_chemical_mod_file(
         return false;
     }
 
-    Lexer lexer(std::string(abs_path), &inp_source, &binder, file_allocator);
+    Lexer lexer(std::string(abs_path), &inp_source, &compiler.binder, *compiler.file_allocator);
     std::vector<Token> tokens;
 
     if(options->benchmark) {
@@ -600,11 +605,11 @@ bool ASTProcessor::import_chemical_mod_file(
             fileId,
             abs_path,
             tokens.data(),
-            resolver->comptime_scope.loc_man,
-            job_allocator,
-            mod_allocator,
-            resolver->is64Bit,
-            &binder
+            compiler.loc_man,
+            *compiler.job_allocator,
+            *compiler.mod_allocator,
+            is64Bit,
+            &compiler.binder
     );
 
     // put the lexing diagnostic into the parser diagnostic for now

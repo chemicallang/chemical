@@ -4,13 +4,13 @@
  */
 if(def.win64) {
     @extern
-public type ptrdiff_t = bigint
+    public type ptrdiff_t = bigint
 } else if(def.win32) {
     @extern
-public type ptrdiff_t = long
+    public type ptrdiff_t = long
 } else {
     @extern
-public type ptrdiff_t = long
+    public type ptrdiff_t = long
 }
 
 /**
@@ -19,13 +19,13 @@ public type ptrdiff_t = long
  */
 if(def.win64) {
     @extern
-public type size_t = ubigint
+    public type size_t = ubigint
 } else if(def.win32) {
     @extern
-public type size_t = ulong
+    public type size_t = ulong
 } else {
     @extern
-public type size_t = ulong
+    public type size_t = ulong
 }
 
 /**

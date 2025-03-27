@@ -1,8 +1,9 @@
 import "@std/string.ch"
 import "@std/unordered_map.ch"
 import "@std/string_view.ch"
+import "@std/std.ch"
 
-struct HtmlPage {
+public struct HtmlPage {
 
     var pageHead : std::string
 

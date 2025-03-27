@@ -241,10 +241,7 @@ public:
      */
     LabModule* create_module_for_dependency(
         LabBuildContext& context,
-        BuildLabModuleDependency& dependency,
-        ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
+        BuildLabModuleDependency& dependency
     );
 
     /**
@@ -253,10 +250,7 @@ public:
      */
     LabModule* build_module_from_mod_file(
             LabBuildContext& context,
-            const std::string_view& modFilePath,
-            ASTProcessor& processor,
-            ToCAstVisitor& c_visitor,
-            std::stringstream& output_ptr
+            const std::string_view& modFilePath
     );
 
     /**
@@ -265,6 +259,7 @@ public:
      */
     TCCState* built_lab_file(
         LabBuildContext& context,
+        BuildLabModuleDependency& dependency,
         const std::string_view& path,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
@@ -275,6 +270,15 @@ public:
      * create a module out of mod file
      */
     LabModule* built_mod_file(LabBuildContext& context, const std::string_view& path);
+
+    /**
+     * create a module out of a build.lab file
+     */
+    TCCState* built_lab_file(
+            LabBuildContext& context,
+            BuildLabModuleDependency& dependency,
+            const std::string_view& path
+    );
 
     /**
      * will build the lab file

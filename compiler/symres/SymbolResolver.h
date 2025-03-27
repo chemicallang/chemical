@@ -461,4 +461,14 @@ public:
      */
     void unsatisfied_type_err(Value* value, BaseType* type);
 
+    /**
+     * will clear the symbol resolver, to make it ready for another compilation
+     */
+    void clear() {
+        table.clear();
+        declared_files.clear();
+        stored_file_symbols.clear();
+        current_func_type = nullptr;
+    }
+
 };

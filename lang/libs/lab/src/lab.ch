@@ -118,13 +118,13 @@ public struct BuildContext {
     func translate_to_c (&self, name : &std::string_view, dependencies : std::span<*Module>, output_dir : &std::string_view) : *mut LabJob
 
     // build executable using module dependencies
-    func build_exe (&self, name : *std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
+    func build_exe (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
 
     // build a dynamic library using executable dependencies
-    func build_dynamic_lib (&self, name : *std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
+    func build_dynamic_lib (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    func build_cbi (&self, name : *std::string_view, dependencies : std::span<*Module>) : *mut LabJobCBI
+    func build_cbi (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJobCBI
 
     // add the given cbi to a cbi job
     func add_cbi_type(&self, job : *mut LabJobCBI, type : CBIType) : bool

@@ -253,8 +253,7 @@ public:
     LabJob* build_cbi(
             chem::string_view* name,
             LabModule** dependencies,
-            unsigned int dep_len,
-            LabModule* entry
+            unsigned int dep_len
     );
 
     /**

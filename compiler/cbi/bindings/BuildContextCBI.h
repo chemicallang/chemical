@@ -5,6 +5,7 @@
 #include "CBIUtils.h"
 #include "std/chem_string.h"
 #include "std/chem_string_view.h"
+#include "compiler/lab/CBIType.h"
 #include <cstddef>
 
 struct LabBuildContext;
@@ -61,7 +62,9 @@ extern "C" {
 
     LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies);
 
-    LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, LabModule* entry, ModuleSpan* dependencies);
+    LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies);
+
+    bool BuildContextadd_cbi_type(LabBuildContext* self, LabJob* job, int type);
 
     void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string_view* path);
 

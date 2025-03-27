@@ -14,11 +14,6 @@
 #include "compiler/cbi/bindings/CBI.h"
 #include "rang.hpp"
 
-void handle_error(void *opaque, const char *msg){
-    const auto binder = (CompilerBinder*) opaque;
-    binder->diagnostics.emplace_back(msg);
-}
-
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
     prepare_cbi_maps(interface_maps);
 }
@@ -26,6 +21,38 @@ CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_pa
 void CompilerBinder::import_compiler_interface(const std::span<const std::pair<chem::string_view, void*>>& interface, TCCState* state) {
     for(auto& sym : interface) {
         tcc_add_symbol(state, sym.first.data(), sym.second);
+    }
+}
+
+const char* CompilerBinder::prepare_macro_lexer_from(const chem::string_view& cbiName, TCCState* state) {
+    auto sym = tcc_get_symbol(state, "initializeLexer");
+    if(!sym) {
+        return "doesn't contain function 'initializeLexer'";
+    }
+    initializeLexerFunctions[cbiName] = (UserLexerInitializeFn) sym;
+    return nullptr;
+}
+
+const char* CompilerBinder::prepare_macro_parser_from(const chem::string_view& cbiName, TCCState* state) {
+    auto sym2 = tcc_get_symbol(state, "parseMacroValue");
+    if(!sym2) {
+        return "doesn't contain function 'parseMacroValue'";
+    }
+    auto sym3 = tcc_get_symbol(state, "parseMacroNode");
+    if(!sym3) {
+        return "doesn't contain function 'parseMacroNode'";
+    }
+    parseMacroValueFunctions[cbiName] = (UserParserParseMacroValueFn) sym2;
+    parseMacroNodeFunctions[cbiName] = (UserParserParseMacroNodeFn) sym3;
+    return nullptr;
+}
+
+const char* CompilerBinder::prepare_with_type(const chem::string_view& cbiName, TCCState* state, CBIType type) {
+    switch(type) {
+        case CBIType::MacroLexer:
+            return prepare_macro_lexer_from(cbiName, state);
+        case CBIType::MacroParser:
+            return prepare_macro_parser_from(cbiName, state);
     }
 }
 
@@ -41,75 +68,8 @@ bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState
     }
 }
 
-CBIData* CompilerBinder::create_cbi(const std::string& name, unsigned int mod_count) {
-    auto found = data.find(name);
-    if(found != data.end()) {
-        return nullptr;
-    }
-    auto& mod_data = data[name]; // <------ auto creation
-    mod_data.modules.reserve(mod_count);
-    return &mod_data;
-}
-
-BinderResult CompilerBinder::compile(
-    CBIData& cbiData,
-    const std::string& program,
-    const std::vector<std::string>& compiler_interfaces,
-    ASTProcessor& processor
-) {
-    auto state = tcc_new();
-    if(!state) {
-        return {"couldn't initialize tcc state in tcc compiler binder"};
-    }
-    tcc_set_error_func(state, this, handle_error);
-    auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
-    auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
-    auto lib_dir = resolve_rel_child_path_str(tcc_dir, "lib");
-    int result;
-    result = tcc_add_include_path(state, include_dir.c_str());
-    if(result == -1) {
-        return { "couldn't add include path 'packages/tcc/include' in tcc compiler binder" };
-    }
-    result = tcc_add_library_path(state, lib_dir.c_str());
-    if(result == -1) {
-        return { "couldn't add library path 'packages/tcc/lib' in tcc compiler binder" };
-    }
-    result = tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
-    if(result == -1) {
-        return { "couldn't set tcc output memory in tcc compiler binder" };
-    }
-
-    // compile
-    result = tcc_compile_string(state, program.c_str());
-    if(result == -1) {
-        return { "couldn't compile c code in binder" };
-    }
-
-    // adding compiler interfaces requested
-    for(auto& interface : compiler_interfaces) {
-        if(!import_compiler_interface(interface, state)) {
-            return { "couldn't import compiler interface by name " + interface };
-        }
-    }
-
-    // add functions like malloc and free
-    prepare_tcc_state_for_jit(state);
-
-    // relocate the code
-    result = tcc_relocate(state);
-    if(result == -1) {
-        return { "couldn't relocate c code in binder"};
-    }
-
-    cbiData.modules.emplace_back(state);
-
-    return { state };
-}
-
 CompilerBinder::~CompilerBinder() {
     for(auto& unit : data) {
-        for(auto& mod : unit.second.modules) {
-            tcc_delete(mod);
-        }
+        tcc_delete(unit.second.module);
     }
 }

@@ -418,6 +418,13 @@ void ASTProcessor::figure_out_direct_imports(
                         // however currently we do allow user to declare an alias for a path using '@'
                         // it could be an alias as well, however checking alias for each import would lead to bad performance
 
+                        // we should do alias for modules instead, because then a module would be resolved by find_module call
+                        // and if not, we can error out based on a flag, because build.lab's direct imports can include modules
+                        // that haven't been created yet, so we must not error there
+
+                        // we could do also alias for paths inside external modules, we can still resolve the module, and change the
+                        // path appropriately, it would require some changes in our path resolver
+
                     }
 
                 }

@@ -145,8 +145,7 @@ public:
         const std::string& mod_timestamp_file,
         const std::string& out_c_file,
         bool do_compile,
-        std::stringstream& output_ptr,
-        LabJobCBI* cbiJob
+        std::stringstream& output_ptr
     );
 
 #ifdef COMPILER_BUILD

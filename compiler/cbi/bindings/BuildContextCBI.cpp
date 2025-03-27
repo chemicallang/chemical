@@ -82,8 +82,17 @@ LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* 
     return self->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
 }
 
-LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, LabModule* entry, ModuleSpan* dependencies) {
-    return self->build_cbi(name, dependencies->ptr, dependencies->size, entry);
+LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
+    return self->build_cbi(name, dependencies->ptr, dependencies->size);
+}
+
+bool BuildContextadd_cbi_type(LabBuildContext* self, LabJob* job, int type) {
+    if(job->type == LabJobType::CBI && type >= 0 && type <= static_cast<int>(CBIType::IndexLast)) {
+        ((LabJobCBI*) job)->cbiTypes.emplace_back(static_cast<CBIType>(type));
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string_view* path) {

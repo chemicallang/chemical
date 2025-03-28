@@ -109,21 +109,9 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         } },
         { "compiler.interface", [](Parser* parser, ASTNode* node) -> void {
-            switch(node->kind()) {
-                case ASTNodeKind::StructDecl: {
-                    const auto def = node->as_struct_def_unsafe();
-                    def->set_no_mangle(true);
-                    break;
-                }
-                case ASTNodeKind::InterfaceDecl: {
-                    const auto def = node->as_interface_def_unsafe();
-                    def->set_no_mangle(true);
-                    break;
-                }
-                default:
-                    parser->error("couldn't make struct / interface a compiler interface");
-                    break;
-            }
+            // we used to make these structs no_mangle by default
+            // but now we don't, because now we put module name prefix
+            // in the symbols we provide to the module using cbi
         } },
         { "no_mangle", [](Parser* parser, ASTNode* node) -> void {
             if(!make_node_no_mangle(node)) {

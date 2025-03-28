@@ -1,3 +1,7 @@
+import "@compiler/Parser.ch"
+import "@compiler/ASTBuilder.ch"
+import "@std/hashing/fnv1.ch"
+
 func (cssParser : &mut CSSParser) parseTransform(
     parser : *mut Parser,
     builder : *mut ASTBuilder,

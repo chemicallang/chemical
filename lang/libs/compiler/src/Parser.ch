@@ -26,21 +26,21 @@ public struct Parser {
 
 }
 
-func (parser : &mut Parser) getToken() : *mut Token {
+public func (parser : &mut Parser) getToken() : *mut Token {
     return *parser.getTokenPtr();
 }
 
-func (parser : &mut Parser) setToken(token : *mut Token) {
+public func (parser : &mut Parser) setToken(token : *mut Token) {
     var ptr = parser.getTokenPtr()
     *ptr = token;
 }
 
-func (parser : &mut Parser) increment() {
+public func (parser : &mut Parser) increment() {
     var ptr = parser.getTokenPtr();
     *ptr = (*ptr) + 1
 }
 
-func (parser : &mut Parser) increment_if(type : int) : bool {
+public func (parser : &mut Parser) increment_if(type : int) : bool {
     var ptr = parser.getTokenPtr();
     var token = *ptr;
     if(token.type == type) {
@@ -51,7 +51,7 @@ func (parser : &mut Parser) increment_if(type : int) : bool {
     }
 }
 
-func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token {
+public func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token {
     var ptr = parser.getTokenPtr();
     var token = *ptr;
     if(token.type == type) {
@@ -62,15 +62,15 @@ func (parser : &mut Parser) get_incrementing_if(type : int) : *mut Token {
     }
 }
 
-func (parser : &mut Parser) getParentNode() : *mut ASTNode {
+public func (parser : &mut Parser) getParentNode() : *mut ASTNode {
     return *parser.getParentNodePtr();
 }
 
-func (parser : &mut Parser) setParentNode(node : *mut ASTNode) {
+public func (parser : &mut Parser) setParentNode(node : *mut ASTNode) {
     var ptr = parser.getParentNodePtr();
     *ptr = node;
 }
 
-func (parser : &mut Parser) error(msg : std::string_view) {
+public func (parser : &mut Parser) error(msg : std::string_view) {
     return parser.error_at(msg, parser.getToken())
 }

@@ -1,6 +1,8 @@
 import "@std/string.ch"
 import "@std/string_view.ch"
 import "@compiler/ast/base/Value.ch"
+import "@compiler/ast/base/BaseTypeKind.ch"
+import "@compiler/ast/base/ValueKind.ch"
 import "@compiler/PtrVec.ch"
 import "@compiler/SymbolResolver.ch"
 import "@compiler/ast/base/ASTNode.ch"
@@ -1012,6 +1014,7 @@ func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut Symbol
     put_view_chain(resolver, builder, vec, parent, std::string_view(&className[0], 9u))
 }
 
+@extern
 func rand() : int;
 
 func generate_random_32bit() : uint32_t {

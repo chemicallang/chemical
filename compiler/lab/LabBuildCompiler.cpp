@@ -419,12 +419,6 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
 
             // module has not changed, lets mark it unchanged
             mod->has_changed = false;
-
-            // consider all its dependencies changed as well
-            for(const auto dep : mod->dependents) {
-                dep->has_changed = true;
-            }
-
             return false;
 
         } else if (verbose) {
@@ -437,6 +431,16 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
 
         std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "' for module '" << mod->scope_name << ':' << mod->name << std::endl;
 
+    }
+
+    // module has changed, lets mark it changed
+    mod->has_changed = true;
+
+    // consider all its dependents changed as well
+    // since this module has changed, all modules that depend on this module
+    // should also be recompiled
+    for(const auto dep : mod->dependents) {
+        dep->has_changed = true;
     }
 
     return true;
@@ -549,6 +553,28 @@ void process_cached_module(ASTProcessor& processor, std::vector<ASTFileResult*>&
     }
 }
 
+// TODO: we have to do this on every file, this takes time (not the ideal solution)
+void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileResult*>& module_files) {
+    // going over each file in the module, to remove non-public nodes
+    // so when we declare the nodes in other module, we don't consider non-public nodes
+    // because non-public nodes are only present in the module allocator which will be cleared
+    for(const auto file : module_files) {
+        auto file_unit = processor.compiled_units.find(file->abs_path);
+        if(file_unit != processor.compiled_units.end()) {
+            auto& nodes = file_unit->second.scope.body.nodes;
+            auto itr = nodes.begin();
+            while(itr != nodes.end()) {
+                auto& node = *itr;
+                if(is_node_exported(node)) {
+                    itr++;
+                } else {
+                    itr = nodes.erase(itr);
+                }
+            }
+        }
+    }
+}
+
 int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
@@ -646,6 +672,12 @@ int LabBuildCompiler::process_module_tcc(
             }
         }
 
+        // removing non public nodes, because these would be disposed when allocator clears
+        remove_non_public_nodes(processor, module_files);
+
+        // disposing data
+        mod_allocator->clear();
+
         // the module hasn't changed
         return 0;
 
@@ -661,30 +693,11 @@ int LabBuildCompiler::process_module_tcc(
     );
 
     if(verbose) {
-        std::cout << "[lab] " << "disposing symbols in the module" << std::endl;
+        std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
     }
 
-    // going over each file in the module, to remove non-public nodes
-    // so when we declare the nodes in other module, we don't consider non-public nodes
-    // because non-public nodes are only present in the module allocator which will be cleared
-    for(const auto file : module_files) {
-        auto file_unit = processor.compiled_units.find(file->abs_path);
-        if(file_unit != processor.compiled_units.end()) {
-            auto& nodes = file_unit->second.scope.body.nodes;
-            auto itr = nodes.begin();
-            while(itr != nodes.end()) {
-                auto& node = *itr;
-                if(is_node_exported(node)) {
-                    itr++;
-                } else {
-                    itr = nodes.erase(itr);
-                }
-            }
-        }
-    }
-
-    // dispose module symbols in symbol resolver
-    // resolver.dispose_module_symbols_now(mod->name.data());
+    // removing non public nodes, because these would be disposed when allocator clears
+    remove_non_public_nodes(processor, module_files);
 
     // disposing data
     mod_allocator->clear();
@@ -856,6 +869,12 @@ int LabBuildCompiler::process_module_gen(
             }
         }
 
+        // removing non public nodes, because these would be disposed when allocator clears
+        remove_non_public_nodes(processor, module_files);
+
+        // disposing data
+        mod_allocator->clear();
+
         // the module hasn't changed
         return 0;
 
@@ -872,27 +891,11 @@ int LabBuildCompiler::process_module_gen(
     );
 
     if(verbose) {
-        std::cout << "[lab] " << "disposing symbols in the module" << std::endl;
+        std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
     }
 
-    // going over each file in the module, to remove non-public nodes
-    // so when we declare the nodes in other module, we don't consider non-public nodes
-    // because non-public nodes are only present in the module allocator which will be cleared
-    for(const auto file : module_files) {
-        auto file_unit = processor.compiled_units.find(file->abs_path);
-        if(file_unit != processor.compiled_units.end()) {
-            auto& nodes = file_unit->second.scope.body.nodes;
-            auto itr = nodes.begin();
-            while(itr != nodes.end()) {
-                auto& node = *itr;
-                if(is_node_exported(node)) {
-                    itr++;
-                } else {
-                    itr = nodes.erase(itr);
-                }
-            }
-        }
-    }
+    // removing non public nodes, because these would be disposed when allocator clears
+    remove_non_public_nodes(processor, module_files);
 
     if(gen.has_errors) {
         std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;
@@ -1057,7 +1060,7 @@ std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod)
 
 std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
-    const auto is_use_obj_format = compiler->options->use_mod_obj_format;
+    const auto is_use_obj_format = compiler->options->use_mod_obj_format || mod->type == LabModuleType::CFile;
     // creating the module directory
     auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
     auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
@@ -1072,14 +1075,12 @@ std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob
         }
     }
     if(job_type == LabJobType::Executable || job_type == LabJobType::CBI || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
-        if (is_use_obj_format || mod->type == LabModuleType::CFile) {
-            if (mod->object_path.empty()) {
-                mod->object_path.append(mod_obj_path);
-            }
+        if (is_use_obj_format) {
+            mod->object_path.clear();
+            mod->object_path.append(mod_obj_path);
         } else {
-            if (mod->bitcode_path.empty()) {
-                mod->bitcode_path.append(mod_obj_path);
-            }
+            mod->bitcode_path.clear();
+            mod->bitcode_path.append(mod_obj_path);
         }
     }
     return mod_timestamp_file;
@@ -2382,6 +2383,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         job_result = do_job(exe.get());
         if(job_result == 1) {
             std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code 1" << rang::fg::reset << std::endl;
+            break;
         }
 
         // clearing all allocations done in all the allocators
@@ -2392,7 +2394,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     }
 
     // running the on_finished lambda
-    if(context.on_finished) {
+    if(job_result == 0 && context.on_finished) {
         context.on_finished(context.on_finished_data);
     }
 

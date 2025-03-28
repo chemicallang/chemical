@@ -8,6 +8,8 @@
 #include "ast/structures/FileScope.h"
 #include "ast/structures/ModuleScope.h"
 #include "ast/structures/Namespace.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/base/LocatedIdentifier.h"
 #include "ast/structures/If.h"
 
@@ -94,6 +96,20 @@ void declare_node(SymbolDeclarer<T>& declarer, ASTNode* node, AccessSpecifier at
                         declare_node(declarer, child, at_least_spec);
                     }
                 }
+            }
+            break;
+        }
+        case ASTNodeKind::FunctionDecl: {
+            const auto decl = node->as_function_unsafe();
+            if(!decl->isExtensionFn() && decl->specifier() >= at_least_spec) {
+                declarer.casted_declare(decl->name_view(), decl);
+            }
+            break;
+        }
+        case ASTNodeKind::GenericFuncDecl: {
+            const auto decl = node->as_gen_func_decl_unsafe();
+            if(!decl->master_impl->isExtensionFn() && decl->master_impl->specifier() >= at_least_spec) {
+                declarer.casted_declare(decl->name_view(), decl);
             }
             break;
         }

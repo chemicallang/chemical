@@ -836,10 +836,13 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::v
     }
 }
 
-void FunctionCall::link_gen_args(SymbolResolver &linker) {
+bool FunctionCall::link_gen_args(SymbolResolver &linker) {
     for(const auto type : generic_list) {
-        type->link(linker);
+        if(!type->link(linker)) {
+            return false;
+        }
     }
+    return true;
 }
 
 //std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
@@ -1131,7 +1134,8 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
 //    }
 
     relink_multi_func(resolver.allocator, &resolver);
-    link_gen_args(resolver);
+    const auto gen_args_linked = link_gen_args(resolver);
+
     // this contains which args linked successfully
     std::vector<bool> properly_linked_args(values.size());
     // link the values, based on which constructor is determined
@@ -1141,6 +1145,13 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         const auto member = linked->as_variant_member_unsafe();
         const auto variant = member->parent();
     }
+
+    if(!gen_args_linked) {
+        // link_constructor may try to register a generic instantiation
+        // if generic args aren't linked, we don't want to do that
+        return false;
+    }
+
     link_constructor(resolver.allocator, resolver.genericInstantiator);
 
     if(gen_decl || gen_var_decl) {

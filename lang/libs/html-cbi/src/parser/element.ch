@@ -3,9 +3,8 @@ import "@compiler/ASTBuilder.ch"
 import "../utils/stdutils.ch"
 import "./attribute.ch"
 import "@std/hashing/fnv1.ch"
-
-// forward declare
-func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild
+import "@std/std.ch"
+import "@cstd/string.ch"
 
 func isTagNameSelfClosing(ptr : *char) : bool {
     switch(fnv1_hash(ptr)) {

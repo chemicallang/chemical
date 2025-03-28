@@ -1228,9 +1228,9 @@ Value *FunctionDeclaration::call(
     callScope = call_scope;
     auto& allocator = fn_scope->allocator;
     auto self_param = get_self_param();
-    auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
-    if (params.size() != params_given) {
-        fn_scope->error("function " + name_str() + " requires " + std::to_string(params.size()) + ", but given args are " +
+    auto expected_args = expectedArgsSize();
+    if (call_args.size() != expected_args) {
+        fn_scope->error("function " + name_str() + " requires " + std::to_string(expected_args) + ", but given args are " +
                         std::to_string(call_args.size()), debug_value);
         return nullptr;
     }

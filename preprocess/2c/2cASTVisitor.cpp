@@ -777,8 +777,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             if (is_memcpy_ref_str) {
                 visitor.write("({ ");
                 temp_struct_name = visitor.get_local_temp_var_name();
-                auto t = val->create_type(visitor.allocator);
-                visitor.visit(t);
+                visitor.visit(param->type);
                 visitor.write(' ');
                 visitor.write(temp_struct_name);
                 visitor.write(" = ");

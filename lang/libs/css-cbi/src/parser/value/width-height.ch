@@ -1,3 +1,10 @@
+import "@compiler/Token.ch"
+import "@compiler/ASTBuilder.ch"
+import "@compiler/Parser.ch"
+import "@std/std.ch"
+import "@std/string_view.ch"
+import "@std/hashing/fnv1.ch"
+
 func getWidthCSSKeywordKind(hash : size_t) : CSSKeywordKind {
     switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }

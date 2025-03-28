@@ -5,6 +5,7 @@ import "/ast/CSSKeywordKind.ch"
 import "/utils/color_utils.ch"
 import "@compiler/ASTBuilder.ch"
 import "@compiler/Parser.ch"
+import "@std/string_view.ch"
 
 func alloc_value_keyword(
     builder : *mut ASTBuilder,

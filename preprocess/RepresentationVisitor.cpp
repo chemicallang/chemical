@@ -876,13 +876,20 @@ void RepresentationVisitor::VisitReferenceType(ReferenceType *type) {
 }
 
 void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
-    const auto id = type->linked->get_located_id();
-    if(id) {
-        write(id->identifier);
-    } else if(type->linked->kind() == ASTNodeKind::GenericTypeParam) {
-        write(type->linked->as_generic_type_param_unsafe()->identifier);
+    if(type->linked) {
+        const auto id = type->linked->get_located_id();
+        if (id) {
+            write(id->identifier);
+        } else if (type->linked->kind() == ASTNodeKind::GenericTypeParam) {
+            write(type->linked->as_generic_type_param_unsafe()->identifier);
+        } else {
+            write("TODO");
+        }
     } else {
-        write("TODO");
+        // unsafely converting to a named linked type
+        // this is being assumed that every linked type is already linked
+        // only named linked types have the potential to not be linked
+        write(((NamedLinkedType*) type)->debug_link_name());
     }
 }
 

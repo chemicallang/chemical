@@ -44,7 +44,7 @@ public:
      */
     void link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked);
 
-    void link_gen_args(SymbolResolver &linker);
+    bool link_gen_args(SymbolResolver &linker);
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final {
         if(!parent_val->link(linker, (Value*&) parent_val, nullptr)) {

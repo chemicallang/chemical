@@ -7,7 +7,12 @@ import "@compiler/ChemicalTokenType.ch"
 import "./ast/HtmlElement.ch"
 import "./lexer/HtmlLexer.ch"
 import "./parser/root.ch"
+import "@compiler/ast/base/Value.ch"
+import "@compiler/SymbolResolver.ch"
+import "@compiler/ast/base/ASTNode.ch"
+import "@std/std.ch"
 
+@no_mangle
 public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro value\n");
     const loc = compiler::get_raw_location();
@@ -37,6 +42,7 @@ func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolReso
     return scope;
 }
 
+@no_mangle
 public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
@@ -79,6 +85,7 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     return t;
 }
 
+@no_mangle
 public func initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;

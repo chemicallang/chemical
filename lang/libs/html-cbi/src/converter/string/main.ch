@@ -1,8 +1,12 @@
 import "@std/string.ch"
 import "@std/std.ch"
-import "@compiler/ast/ASTBuilder.ch"
+import "@compiler/ASTBuilder.ch"
 import "@compiler/SymbolResolver.ch"
 import "@compiler/PtrVec.ch"
+import "@compiler/ast/base/ASTNode.ch"
+import "@compiler/ast/base/BaseTypeKind.ch"
+import "@compiler/ast/base/Value.ch"
+import "@compiler/ast/base/ValueKind.ch"
 import "../../utils/stdutils.ch"
 import "../../utils/comptime_utils.ch"
 

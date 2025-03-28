@@ -70,6 +70,8 @@ bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState
 
 CompilerBinder::~CompilerBinder() {
     for(auto& unit : data) {
-        tcc_delete(unit.second.module);
+        if(unit.second.module != nullptr) {
+            tcc_delete(unit.second.module);
+        }
     }
 }

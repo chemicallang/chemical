@@ -1,6 +1,7 @@
 import "@std/hashing/fnv1.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
+import "@std/string_view.ch"
 import "/ast/CSSLengthKind.ch"
 
 func getLengthKind(str : *char) : CSSLengthKind {

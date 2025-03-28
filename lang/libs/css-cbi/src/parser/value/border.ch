@@ -1,5 +1,7 @@
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
+import "@std/hashing/hash.ch"
+import "@std/hashing/fnv1.ch"
 
 func getLineStyleKeyword(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {

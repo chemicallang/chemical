@@ -133,10 +133,12 @@ void Parser::parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data)
                     } else {
                         error() << "unknown compiler binding interface '" << id->value << '\'';
                     }
-                } else {
-                    break;
                 }
+                break;
             }
+            case TokenType::NewLine:
+                token++;
+                continue;
             case TokenType::VarKw:
             case TokenType::ConstKw:
                 // TODO handle these

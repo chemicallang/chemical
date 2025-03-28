@@ -3,6 +3,7 @@
 #pragma once
 
 #include "std/chem_string_view.h"
+#include "std/chem_string.h"
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/ASTAllocator.h"
@@ -52,6 +53,14 @@ struct SymResScope {
 };
 
 struct SymbolRef {
+#ifdef DEBUG
+private:
+    /**
+     * stored during debug only
+     */
+    chem::string debug_name;
+#endif
+public:
 
     /**
      * the symbol view
@@ -62,6 +71,29 @@ struct SymbolRef {
      * the node symbol is pointing to
      */
     ASTNode* node;
+
+#ifdef DEBUG
+    /**
+     * constructor
+     */
+    inline SymbolRef(
+            chem::string_view symbol,
+            ASTNode* node
+    ) : symbol(symbol), node(node), debug_name(symbol) {
+
+    }
+#else
+    /**
+     * constructor
+     */
+    inline SymbolRef(
+        chem::string_view symbol,
+        ASTNode* node
+    ) : symbol(symbol), node(node) {
+
+    }
+#endif
+
 
 };
 

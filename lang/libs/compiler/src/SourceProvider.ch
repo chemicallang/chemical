@@ -82,7 +82,7 @@ public struct SourceProvider {
 
 }
 
-func (provider : &SourceProvider) getPosition() : Position {
+public func (provider : &SourceProvider) getPosition() : Position {
     return Position {
         line : provider.lineNumber,
         character : provider.lineCharacterNumber

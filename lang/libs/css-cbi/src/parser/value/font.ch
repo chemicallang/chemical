@@ -1,6 +1,8 @@
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@std/string_view.ch"
+import "@std/std.ch"
+import "@std/hashing/fnv1.ch"
 
 func parseFontValueKeywordKind(builder : *mut ASTBuilder, font : &mut CSSFontValueData, value : &std::string_view, hash : size_t) : CSSKeywordKind {
     const fontStyleKw = getFontStyleKeywordKind(hash)

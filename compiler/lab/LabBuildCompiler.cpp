@@ -397,6 +397,15 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
 
     auto& direct_files = mod->direct_files;
     const auto verbose = compiler->options->verbose;
+    const auto caching = compiler->options->is_caching_enabled;
+
+    if(!caching) {
+        if(verbose) {
+            std::cout << "[lab] " << "skipping cache use, caching disabled" << std::endl;
+        }
+        mod->has_changed = true;
+        return true;
+    }
 
     if(verbose) {
         std::cout << "[lab] " << "checking if module " << mod->scope_name << ':' << mod->name << " has changed" << std::endl;
@@ -705,6 +714,11 @@ int LabBuildCompiler::process_module_tcc(
     // getting the c program
     const auto& program = output_ptr.str();
 
+    // TODO place a check here
+    // writing the c output for debugging
+    const auto out_path = resolve_sibling(mod->object_path.to_std_string(), mod->name.to_std_string() + ".debug.c");
+    writeToFile(out_path, program);
+
     // compiling the c program, if required
     if(do_compile) {
         auto obj_path = mod->object_path.to_std_string();
@@ -713,7 +727,6 @@ int LabBuildCompiler::process_module_tcc(
         }
         const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
         if (compile_c_result == 1) {
-            const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
             writeToFile(out_path, program);
             std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
             return 1;

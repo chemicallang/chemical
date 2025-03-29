@@ -17,9 +17,8 @@ public:
     CValueDeclarationVisitor* value_visitor;
 
     /**
-     * this boolean is set to true when we have already declared the nodes
-     * it means nodes are being declared for which code has already been generated
-     * in another module, for example this allows to redefine generics that were already declared
+     * this boolean indicates that we're dealing with nodes imported from external module
+     * that have been implemented before (for example var init needs to know about imported global variables)
      */
     bool external_module = false;
 
@@ -51,9 +50,13 @@ public:
 
     void declare_struct_iterations(StructDefinition* def);
 
-    void declare_interface(InterfaceDefinition* interface);
+    void declare_union_def_only(UnionDef* def);
 
-    void declare_interface_iterations(InterfaceDefinition* def);
+    void declare_union_functions(UnionDef* def);
+
+    void declare_union_iterations(UnionDef* def);
+
+    void declare_interface(InterfaceDefinition* interface);
 
     void declare_variant_def_only(VariantDefinition* def);
 

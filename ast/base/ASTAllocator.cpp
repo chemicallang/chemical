@@ -4,6 +4,7 @@
 #include <mutex>
 #include <cassert>
 #include "cstring"
+#include "libtcc.h"
 
 BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatchSize), heap_batch_size(heapBatchSize) {
     if(heapBatchSize > 0) {

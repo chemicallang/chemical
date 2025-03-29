@@ -338,6 +338,20 @@ public:
     }
 
     /**
+     * forward declare a node
+     */
+    void fwd_declare(ASTNode* node);
+
+    /**
+     * forward declare these nodes
+     */
+    void fwd_declare(std::vector<ASTNode*>& nodes) {
+        for(const auto node : nodes) {
+            fwd_declare(node);
+        }
+    }
+
+    /**
      * will only declare these external (from another module) nodes
      */
     void external_declare(std::vector<ASTNode*>& nodes);

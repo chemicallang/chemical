@@ -13,8 +13,6 @@ class ASTProcessor;
 
 class Parser;
 
-class CSTConverter;
-
 class CSTToken;
 
 /**

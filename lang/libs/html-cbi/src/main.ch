@@ -33,6 +33,8 @@ func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolRe
 }
 
 func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
+    printf("running html symResNodeReplacement\n");
+    fflush(null)
     const loc = compiler::get_raw_location();
     const root = data as *mut HtmlRoot;
     var scope = builder.make_scope(root.parent, loc);

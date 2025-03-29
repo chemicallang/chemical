@@ -4,7 +4,13 @@ import "@std/string_view.ch"
 
 public func build(ctx : *mut BuildContext) : *Module {
 
+    // the std module
+    var std_module = ctx.native_lib_module(std::string_view("std"));
+    if(std_module == null) {
+        return null
+    }
+
     const path = lab::rel_path_to("src")
-    return ctx.chemical_dir_module(std::string_view(""), std::string_view("submod2"), std::string_view(path), { })
+    return ctx.chemical_dir_module(std::string_view(""), std::string_view("submod2"), std::string_view(path), { std_module })
 
 }

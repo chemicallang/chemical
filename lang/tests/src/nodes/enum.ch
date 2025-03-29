@@ -54,6 +54,11 @@ enum MultiNum {
     AnotherSecond = Second
 }
 
+func take_addr_of_enum_param(check : MultiNum) : MultiNum {
+    var addr = &check
+    return *addr;
+}
+
 func test_enum() {
     test("enum index works", () => {
         return Thing.Fruit == 0 && Thing.Veg == 1;
@@ -123,5 +128,8 @@ func test_enum() {
     })
     test("enums inside namespace work too", () => {
         return enum_parent_ns::favorite.fruit == 0 && enum_parent_ns::favorite.veges == 1 && enum_parent_ns::favorite.coke == 2
+    })
+    test("address of enum works in function", () => {
+        return take_addr_of_enum_param(MultiNum.Second) == MultiNum.Second
     })
 }

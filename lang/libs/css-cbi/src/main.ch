@@ -12,7 +12,7 @@ import "@compiler/SymbolResolver.ch"
 import "@std/std.ch"
 
 @no_mangle
-public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro node\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
@@ -44,8 +44,9 @@ func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolReso
 }
 
 @no_mangle
-public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    printf("wow create macro node\n");
+public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+    printf("running css_parseMacroNode\n");
+    fflush(null)
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
         var root = parseCSSOM(parser, builder);
@@ -58,6 +59,7 @@ public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         return node;
     } else {
         parser.error("expected a lbrace");
+        return null;
     }
 }
 
@@ -87,7 +89,7 @@ public func getNextToken(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
 }
 
 @no_mangle
-public func initializeLexer(lexer : *mut Lexer) {
+public func css_initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(sizeof(CSSLexer), alignof(CSSLexer)) as *mut CSSLexer;
     new (ptr) CSSLexer {

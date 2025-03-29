@@ -1099,20 +1099,20 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         return false;
     }
     if(container->extension_functions.contains(name_view())) {
-        diagnoser.error(receiver.type) << "container already contains an extension function by the same name";
-    } else {
-        const auto field_func = linked->child(name_view());
-        if (field_func != nullptr && field_func != generic_parent) {
-            diagnoser.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
-            return false;
-        }
-        if(generic_parent) {
-            container->add_extension_func(name_view(), generic_parent);
-        } else {
-            container->add_extension_func(name_view(), this);
-        }
-        return true;
+        diagnoser.error(receiver.type) << "container already contains an extension function by the name '" << name_view() << '\'';
+        return false;
     }
+    const auto field_func = linked->child(name_view());
+    if (field_func != nullptr && field_func != generic_parent) {
+        diagnoser.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
+        return false;
+    }
+    if(generic_parent) {
+        container->add_extension_func(name_view(), generic_parent);
+    } else {
+        container->add_extension_func(name_view(), this);
+    }
+    return true;
 }
 
 void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {

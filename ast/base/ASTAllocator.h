@@ -75,6 +75,13 @@ public:
     }
 
     /**
+     * stores the cleanup function to be called at destruction
+     */
+    inline void store_cleanup_fn(void* instance, void* cleanup_fn) {
+        cleanup_fns.emplace_back(instance, (void(*)(void*)) cleanup_fn);
+    }
+
+    /**
      * when called, will free everything, and make this allocator available
      * for more allocations, basically reusing previously allocated memory
      */
@@ -115,12 +122,5 @@ protected:
      * destructs clean up functions
      */
     void destruct_cleanup_storage();
-
-    /**
-     * stores the cleanup function to be called at destruction
-     */
-    inline void store_cleanup_fn(void* instance, void* cleanup_fn) {
-        cleanup_fns.emplace_back(instance, (void(*)(void*)) cleanup_fn);
-    }
 
 };

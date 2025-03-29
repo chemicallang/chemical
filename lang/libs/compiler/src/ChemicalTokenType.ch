@@ -66,6 +66,7 @@ public enum ChemicalTokenType {
     ImplKw,
     NamespaceKw,
     EnumKw,
+    AliasKw,
     VarKw,
     UsingKw,
     ComptimeKw,

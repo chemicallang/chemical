@@ -828,31 +828,39 @@ int ASTProcessor::translate_module(
     std::vector<ASTFileResult*>& files
 ) {
 
-    // The first loop deals with declaring files that have been imported from other modules
-    // declaring means (only prototypes, no function bodies, struct prototypes...)
+    // NOTE: here's the design guidelines for translating a module
+    // please note that not all guidelines are implemented in this function, some are implemented in
+    // the visitor, these only protect from referencing any struct from any module
+    // 1 - forward declare all the structs/unions/variants generic or non generic of both modules
+    // - before proceeding, now every function in both modules can reference any struct as a pointer
+    // - since we only use pointer types in functions, all functions can be declared
+    // 2 - declare top level with early declare composed variables and inherited types along with functions, all at once,
+    // - do not early declare function params and return type because function types will use only pointer and we have forward declared them
+    // - early declare var init type, typealias actual type (do not use canonical type, because if its a typealias, that probably also early declared itself)
+    // 3 - declare external module and internal module, before proceeding to implementing any generics
+    // - because external module generic can compose the struct of a internal module
+    // - we just make a single has_declared check before declaring struct definition, so if early declare has done it, we don't define it twice
+    // 4 - now all the structs are declared, functions are declared, only function implementations are remaining
+    // - so yeah that's what we will do, without checking, just implement all the functions of external
+    //               - or internal modules, implement only the remaining generics
+
+
+    // we forward declare all files (external or internal)
+    // so all functions when declared of any module (external or internal) are valid
+    // since they always use function pointers, so we don't need to have complete declarations of structs
     for(auto file_ptr : files) {
 
         auto& file = *file_ptr;
         auto& result = file;
 
-        auto imported = compiled_units.find(file.abs_path);
-        if(imported == compiled_units.end()) {
-            // not external module file
-            continue;
-        }
-
-        ASTUnit& unit = imported->second;
+        ASTUnit& unit = file.unit;
 
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+            std::cout << rang::style::bold << rang::fg::magenta << "[FwdDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 
-        auto declared_in = unit.declared_in.find(module);
-        if(declared_in == unit.declared_in.end()) {
-            // this is probably a different module, so we'll declare the file (if not declared)
-            external_declare_in_c(c_visitor, unit.scope.body, file.abs_path);
-        }
+        c_visitor.fwd_declare(unit.scope.body.nodes);
 
     }
 
@@ -863,10 +871,7 @@ int ASTProcessor::translate_module(
         auto& file = *file_ptr;
         auto& result = file;
 
-        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
-            // external module file
-            continue;
-        }
+        const auto external_module_file = compiled_units.find(file.abs_path) != compiled_units.end();
 
         ASTUnit& unit = file.unit;
 
@@ -876,12 +881,17 @@ int ASTProcessor::translate_module(
             print_results(result, chem::string_view(file.abs_path), options->benchmark);
         }
 
-        // translating to c
-        declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
+        // declaring functions and structs
+        if(external_module_file) {
+            external_declare_in_c(c_visitor, unit.scope.body, file.abs_path);
+        } else {
+            declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
+        }
 
     }
 
     // The third loop deals with implementing files that have been imported from other modules
+    // this only implements the generics imported from other files
     for(auto file_ptr : files) {
 
         auto& file = *file_ptr;

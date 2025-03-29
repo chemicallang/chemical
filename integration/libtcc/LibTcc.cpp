@@ -8,6 +8,7 @@
 #include "rang.hpp"
 #include <fstream>
 #include <sstream>
+#include <setjmp.h>
 
 void handle_tcc_error(void *opaque, const char *msg){
     std::cout << rang::fg::red << msg << " in " << ((char*) opaque) << rang::fg::reset << std::endl;
@@ -148,12 +149,14 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
         // Generate additional support code to check memory allocations and array/pointer bounds. -g is implied. Note that the generated code is slower and bigger in this case.
         // Note: -b is only available on i386 when using libtcc for the moment.
         // -bt N Display N callers in stack traces. This is useful with -g or -b.
-        tcc_set_options(s, "-g -bt 4");
+        tcc_set_options(s, "-g -bt 4 -m64");
         tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func, const char *msg) {
             std::cerr << rang::fg::red << "error: " << rang::fg::reset;
             std::cerr << '\'' << msg << "' in runtime function " << func << " at " << file << ':' << line << std::endl;
             return 1;
         });
+    } else {
+        tcc_set_options(s, "-m64");
     }
 
     result = tcc_set_output_type(s, outputType);
@@ -169,14 +172,27 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
 }
 
 void prepare_tcc_state_for_jit(TCCState* s) {
+
+    // Install the jump buffer into TCC.
+    // Cast the pointers to void* as required by _tcc_setjmp.
+    // TODO figure out how to use this
+//    void *result = _tcc_setjmp(s, (void *)&tcc_jmp_buffer, (void *)my_top_func, (void *)longjmp);
+//    if (result == nullptr) {
+//        // Something went wrong when setting up the jump buffer.
+//        fprintf(stderr, "Error setting up jump environment.\n");
+//    }
+
     tcc_undefine_symbol(s, "malloc");
     tcc_undefine_symbol(s, "realloc");
     tcc_undefine_symbol(s, "free");
     tcc_undefine_symbol(s, "memcpy");
+    tcc_undefine_symbol(s, "memmove");
     tcc_add_symbol(s, "malloc", (void*) malloc);
     tcc_add_symbol(s, "realloc", (void*) realloc);
     tcc_add_symbol(s, "free", (void*) free);
     tcc_add_symbol(s, "memcpy", (void*) memcpy);
+    tcc_add_symbol(s, "memmove", (void*) memmove);
+
 }
 
 TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {

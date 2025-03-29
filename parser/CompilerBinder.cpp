@@ -25,22 +25,29 @@ void CompilerBinder::import_compiler_interface(const std::span<const std::pair<c
 }
 
 const char* CompilerBinder::prepare_macro_lexer_from(const chem::string_view& cbiName, TCCState* state) {
-    auto sym = tcc_get_symbol(state, "initializeLexer");
+    std::string funcName(cbiName.data(), cbiName.size());
+    funcName.append("_initializeLexer");
+    auto sym = tcc_get_symbol(state, funcName.data());
     if(!sym) {
-        return "doesn't contain function 'initializeLexer'";
+        return "doesn't contain function 'initializeLexer' prefixed with cbi name";
     }
     initializeLexerFunctions[cbiName] = (UserLexerInitializeFn) sym;
     return nullptr;
 }
 
 const char* CompilerBinder::prepare_macro_parser_from(const chem::string_view& cbiName, TCCState* state) {
-    auto sym2 = tcc_get_symbol(state, "parseMacroValue");
+    std::string funcName(cbiName.data(), cbiName.size());
+    funcName.append("_parseMacroValue");
+    auto sym2 = tcc_get_symbol(state, funcName.data());
     if(!sym2) {
-        return "doesn't contain function 'parseMacroValue'";
+        return "doesn't contain function 'parseMacroValue' prefixed with cbi name";
     }
-    auto sym3 = tcc_get_symbol(state, "parseMacroNode");
+    funcName.clear();
+    funcName.append(cbiName.data(), cbiName.size());
+    funcName.append("_parseMacroNode");
+    auto sym3 = tcc_get_symbol(state, funcName.data());
     if(!sym3) {
-        return "doesn't contain function 'parseMacroNode'";
+        return "doesn't contain function 'parseMacroNode' prefixed with cbi name";
     }
     parseMacroValueFunctions[cbiName] = (UserParserParseMacroValueFn) sym2;
     parseMacroNodeFunctions[cbiName] = (UserParserParseMacroNodeFn) sym3;

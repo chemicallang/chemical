@@ -158,6 +158,47 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
     }
 }
 
+void ToCAstVisitor::fwd_declare(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+            new_line();
+            write("struct ");
+            mangle(node);
+            write(';');
+            break;
+        case ASTNodeKind::UnionDecl:
+            new_line();
+            write("union ");
+            mangle(node);
+            write(';');
+            break;
+        case ASTNodeKind::GenericStructDecl:{
+            const auto decl = node->as_gen_struct_def_unsafe();
+            for(const auto inst : decl->instantiations) {
+                fwd_declare(inst);
+            }
+            break;
+        }
+        case ASTNodeKind::GenericVariantDecl:{
+            const auto decl = node->as_gen_variant_decl_unsafe();
+            for(const auto inst : decl->instantiations) {
+                fwd_declare(inst);
+            }
+            break;
+        }
+        case ASTNodeKind::GenericUnionDecl:{
+            const auto decl = node->as_gen_union_decl_unsafe();
+            for(const auto inst : decl->instantiations) {
+                fwd_declare(inst);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
     auto& vis = tld;
     auto prev = vis.external_module;
@@ -1111,7 +1152,7 @@ void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identif
     }
 }
 
-void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bool initialize = true, bool is_extern = false) {
+void var_init(ToCAstVisitor& visitor, VarInitStatement* init, BaseType* init_type, bool is_static, bool initialize = true, bool is_extern = false) {
     if(init->is_comptime()) {
         return;
     }
@@ -1120,7 +1161,6 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bo
     } else if(is_extern) {
         visitor.write("extern ");
     }
-    auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
     value_alloca_store(visitor, init->name_view(), init_type, initialize ? init->value : nullptr);
 }
 
@@ -2312,18 +2352,10 @@ void early_declare_type(CTopLevelDeclarationVisitor& visitor, BaseType* type) {
     }
 }
 
-void early_declare_func_type(CTopLevelDeclarationVisitor& visitor, FunctionType* func_type) {
-    for(const auto param : func_type->params) {
-        early_declare_type(visitor, param->type);
-    }
-    early_declare_type(visitor, func_type->returnType);
-}
-
 void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
     if(decl->is_comptime()) {
         return;
     }
-    early_declare_func_type(*tld, decl);
     declare_params(tld->value_visitor, decl->params);
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
@@ -2338,7 +2370,6 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     if(decl->is_comptime()) {
         return;
     }
-    early_declare_func_type(*tld, decl);
     declare_params(tld->value_visitor, decl->params);
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
@@ -2389,9 +2420,11 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
+    const auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
+    early_declare_type(*this, init_type);
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
-    var_init(visitor, init, !is_exported, !external_module, is_exported && external_module);
+    var_init(visitor, init, init_type, !is_exported, !external_module, is_exported && external_module);
 }
 
 void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
@@ -2432,6 +2465,7 @@ void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
 }
 
 void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
+    early_declare_type(visitor.tld, stmt->actual_type);
     visitor.new_line_and_indent();
     visitor.write("typedef ");
     const auto kind = stmt->actual_type->kind();
@@ -2521,47 +2555,67 @@ void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
 
 void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def) {
-    if(external_module) {
-        if(!has_declared(def)) {
-            def->iterations_declared = 1;
-            set_declared(def);
-            declare_struct_def_only(def);
-        }
-    } else if(def->iterations_declared == 0) {
-        def->iterations_declared = 1;
+    if(!has_declared(def)) {
+        set_declared(def);
         declare_struct_def_only(def);
     }
 }
 
 void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
-    if(external_module) {
-        if(!has_declared(def)) {
-
-            // we must also set iterations_declared to 1 why is that ?
-            // let's see, because when a generic struct contains a function pointer to this struct (generically monomorphised)
-            // that struct calls early_declare_node on this struct (declares it early)
-            // however since the generic struct is in an external module and if iterations_declared is not set to 1, which means when this
-            // struct is visited in it's own module, it will end up being declared again
-            // (however it has already been declared because the generic struct present in external module is being declared in this module)
-
-            // you may think this has one con -> that the struct won't be declared in its own module because we are setting it to have been declared
-            // however that's not the case, because if an external module is early declaring this struct it means, it's external module is being declared
-            // in this struct's module (because that struct won't know this struct exists but since it knows it means that during symbol resolution of this module)
-            // we notified that struct of presence of this struct
-
-            def->iterations_declared = 2;
-            set_declared(def);
-            declare_struct_def_only(def);
-            declare_struct_functions(def);
-        }
-    } else if(def->iterations_declared == 0) {
-        def->iterations_declared = 2;
+    if(!has_declared(def)) {
+        set_declared(def);
         declare_struct_def_only(def);
-        declare_struct_functions(def);
-    } else if(def->iterations_declared == 1) {
-        def->iterations_declared = 2;
-        declare_struct_functions(def);
     }
+    declare_struct_functions(def);
+}
+
+void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
+    for(const auto mem : def->variables()) {
+        value_visitor->visit(mem);
+    }
+    // before we declare this struct, we must early declare any direct struct type variables
+    // inside this struct, because some structs get used inside which are present in other modules
+    // will be declared later, so C responds with incomplete type
+    early_declare_composed_variables(*this, *def);
+    visitor.new_line_and_indent();
+    write("union ");
+    visitor.mangle(def);
+    write(" {");
+    visitor.indentation_level+=1;
+    for(auto& inherits : def->inherited) {
+        const auto struct_def = inherits.type->linked_struct_def();
+        if(struct_def) {
+            visitor.new_line_and_indent();
+            visitor.write("struct ");
+            visitor.mangle(struct_def);
+            visitor.space();
+            visitor.write(struct_def->name_view());
+            visitor.write(';');
+        }
+    }
+    for(const auto var : def->variables()) {
+        visitor.new_line_and_indent();
+        visitor.visit(var);
+    }
+    visitor.indentation_level-=1;
+    visitor.new_line_and_indent();
+    write("};");
+}
+
+void CTopLevelDeclarationVisitor::declare_union_functions(UnionDef* def) {
+    for(auto& func : def->instantiated_functions()) {
+        if(def->get_overriding_interface(func) == nullptr) {
+            declare_contained_func(this, func, false);
+        }
+    }
+}
+
+void CTopLevelDeclarationVisitor::declare_union_iterations(UnionDef* def) {
+    if(!has_declared(def)) {
+        set_declared(def);
+        declare_union_def_only(def);
+    }
+    declare_union_functions(def);
 }
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
@@ -2657,47 +2711,18 @@ void CTopLevelDeclarationVisitor::declare_variant_functions(VariantDefinition* d
 void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def);
 
 void CTopLevelDeclarationVisitor::early_declare_variant_def(VariantDefinition* def) {
-    if(external_module) {
-        if(!has_declared(def)) {
-            def->iterations_declared = 2;
-            set_declared(def);
-            declare_variant_def_only(def);
-            declare_variant_functions(def);
-        }
-    } else if(def->iterations_declared == 0) {
-        def->iterations_declared = 1;
+    if(!has_declared(def)) {
+        set_declared(def);
         declare_variant_def_only(def);
     }
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
-    if(external_module) {
-        if(!has_declared(def)) {
-
-            // we must also set iterations_declared to 1 why is that ?
-            // let's see, because when a generic struct contains a function pointer to this struct (generically monomorphised)
-            // that struct calls early_declare_node on this struct (declares it early)
-            // however since the generic struct is in an external module and if iterations_declared is not set to 1, which means when this
-            // struct is visited in it's own module, it will end up being declared again
-            // (however it has already been declared because the generic struct present in external module is being declared in this module)
-
-            // you may think this has one con -> that the struct won't be declared in its own module because we are setting it to have been declared
-            // however that's not the case, because if an external module is early declaring this struct it means, it's external module is being declared
-            // in this struct's module (because that struct won't know this struct exists but since it knows it means that during symbol resolution of this module)
-            // we notified that struct of presence of this struct
-            def->iterations_declared = 2;
-            set_declared(def);
-            declare_variant_def_only(def);
-            declare_variant_functions(def);
-        }
-    } else if(def->iterations_declared == 0) {
-        def->iterations_declared = 2;
+    if(!has_declared(def)) {
+        set_declared(def);
         declare_variant_def_only(def);
-        declare_variant_functions(def);
-    } else if(def->iterations_declared == 1) {
-        def->iterations_declared = 2;
-        declare_variant_functions(def);
     }
+    declare_variant_functions(def);
 }
 
 void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {
@@ -2825,13 +2850,6 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_interface_iterations(InterfaceDefinition* def) {
-    if(external_module || def->iterations_declared == 0) {
-        def->iterations_declared = 1;
-        declare_interface(def);
-    }
-}
-
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
     // forward declaring the structs of users, because currently we only need to use them
     // as pointers, even if user returns a struct, the function only takes a pointer (to memcpy)
@@ -2841,7 +2859,7 @@ void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
         node_name(visitor, use.first);
         write(';');
     }
-    declare_interface_iterations(def);
+    declare_interface(def);
 }
 
 void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
@@ -2965,7 +2983,8 @@ std::string ToCAstVisitor::string_accept(Value* any) {
 
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->is_top_level()) return;
-    var_init(*this, init, false);
+    auto init_type = init->type ? init->type : init->value->create_type(allocator);
+    var_init(*this, init, init_type, false);
     destructor->VisitVarInitStmt(init);
 }
 
@@ -3754,6 +3773,13 @@ static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition*
     }
 }
 
+static void contained_union_functions(ToCAstVisitor& visitor, UnionDef* def) {
+    for(auto& func : def->instantiated_functions()) {
+        const auto overriding = def->get_func_overriding_info(func);
+        contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
+    }
+}
+
 void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
@@ -3767,10 +3793,7 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
             }
         }
     }
-    if(def->iterations_body_done == 0) {
-        contained_struct_functions(*this, def);
-        def->iterations_body_done = 1;
-    }
+    contained_struct_functions(*this, def);
     current_members_container = prev_members_container;
 }
 
@@ -3824,9 +3847,20 @@ void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
-    for(auto& func : def->instantiated_functions()) {
-        contained_func_decl(*this, func, false, def);
+    auto prev_members_container = current_members_container;
+    current_members_container = def;
+    for (auto& inherits: def->inherited) {
+        const auto overridden = inherits.type->linked_node()->as_interface_def();
+        if (overridden) {
+            for (auto& func: overridden->instantiated_functions()) {
+                if (!def->contains_func(func->name_view())) {
+                    contained_func_decl(*this, func, false, def);
+                }
+            }
+        }
     }
+    contained_union_functions(*this, def);
+    current_members_container = prev_members_container;
 }
 
 void ToCAstVisitor::VisitNamespaceDecl(Namespace *ns) {

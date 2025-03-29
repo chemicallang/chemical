@@ -13,7 +13,7 @@ import "@compiler/ast/base/ASTNode.ch"
 import "@std/std.ch"
 
 @no_mangle
-public func parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro value\n");
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
@@ -43,8 +43,9 @@ func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolReso
 }
 
 @no_mangle
-public func parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    printf("wow create macro node\n");
+public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+    printf("running html_parseMacroNode\n");
+    fflush(null)
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
         var root = parseHtmlRoot(parser, builder);
@@ -86,7 +87,7 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 }
 
 @no_mangle
-public func initializeLexer(lexer : *mut Lexer) {
+public func html_initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;
     new (ptr) HtmlLexer {

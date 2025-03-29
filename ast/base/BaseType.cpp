@@ -342,6 +342,27 @@ FunctionDeclaration* BaseType::implicit_constructor_for(ASTAllocator& allocator,
     return nullptr;
 }
 
+bool BaseType::isIntegerLikeStorage() {
+    switch(kind()) {
+        case BaseTypeKind::IntN:
+            return true;
+        case BaseTypeKind::Linked:{
+            const auto linked = as_linked_type_unsafe()->linked;
+            switch(linked->kind()) {
+                case ASTNodeKind::EnumDecl:
+                    return true;
+                case ASTNodeKind::TypealiasStmt: {
+                    return linked->as_typealias_unsafe()->actual_type->isIntegerLikeStorage();
+                }
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
 bool BaseType::make_mutable() {
     switch(kind()) {
         case BaseTypeKind::Pointer: {

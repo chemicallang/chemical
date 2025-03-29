@@ -66,6 +66,10 @@ llvm::Type *UnionDef::llvm_type(Codegen &gen) {
     return stored;
 }
 
+llvm::Type *UnionDef::llvm_param_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
 llvm::Type* llvm_union_chain_type(VariablesContainer* container, Codegen& gen, std::vector<ChainValue*> &values, unsigned int index) {
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();

@@ -794,13 +794,6 @@ void ASTProcessor::external_declare_in_c(
         Scope& import_res,
         const std::string& abs_path
 ) {
-    // translating the nodes
-//    std::vector<ASTNode*> imported_generics;
-//    imported_generics.reserve(resolver->imported_generic.size());
-//    for(auto& node : resolver->imported_generic) {
-//        imported_generics.emplace_back(node.first);
-//    }
-//    visitor.translate(imported_generics);
     visitor.external_declare(import_res.nodes);
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");

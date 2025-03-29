@@ -68,7 +68,7 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
         do {
             consumeNewLines();
-            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(decl, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
@@ -115,7 +115,12 @@ UnsafeBlock* parseMemberUnsafeBlock(Parser& parser, ASTAllocator& allocator, Acc
     }
 }
 
-ASTNode* parseNestedLevelMemberStatementTokens(Parser& parser, ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* parseNestedLevelMemberStatementTokens(Parser& parser, ASTAllocator& fn_allocator, AccessSpecifier specifier) {
+    // struct members need to be allocated globally
+    // because they are part of struct prototype, which should always be allocated globally
+    // because structs can be used with imported public generic structs, internal structs would need to be
+    // declared in another module
+    auto& allocator = parser.global_allocator;
     switch(parser.token->type) {
         case TokenType::VarKw:
         case TokenType::ConstKw:
@@ -139,7 +144,7 @@ ASTNode* parseNestedLevelMemberStatementTokens(Parser& parser, ASTAllocator& all
             return parser.parseUnnamedUnion(allocator, specifier);
         }
         case TokenType::FuncKw: {
-            return parser.parseFunctionStructureTokens(allocator, specifier, true, false);
+            return parser.parseFunctionStructureTokens(fn_allocator, specifier, true, false);
         }
         default:
             return nullptr;
@@ -289,8 +294,15 @@ bool Parser::parseContainerMembersInto(VariablesContainer* decl, ASTAllocator& a
     }
 }
 
-ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::StructKw)) {
+
+        // all the structs are allocated on global allocator
+        // WHY? because when used with imported public generics, the generics tend to instantiate with types
+        // referencing the internal structs, which now must be declared inside another module
+        // because generics don't check whether the type being used with it is valid in another module
+        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
+        auto& allocator = global_allocator;
 
         auto identifier = consumeIdentifierOrKeyword();
         if (!identifier) {
@@ -345,7 +357,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
 
         do {
             consumeNewLines();
-            if(parseVariableMemberInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

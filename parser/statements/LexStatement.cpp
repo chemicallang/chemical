@@ -24,7 +24,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
     auto& allocator = spec == AccessSpecifier::Public ? global_allocator : local_allocator;
     switch (token->type) {
         case TokenType::FuncKw:
-            return (ASTNode*) parseFunctionStructureTokens(allocator, spec, true, true);
+            return (ASTNode*) parseFunctionStructureTokens(allocator, spec, false, true);
         case TokenType::EnumKw:
             return (ASTNode*) parseEnumStructureTokens(allocator, spec);
         case TokenType::StructKw:
@@ -95,7 +95,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
             // on global allocator, so other modules can import nodes inside the if
             return (ASTNode*) parseIfStatement(global_allocator, false, false, true);
         case TokenType::FuncKw:
-            return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, true, true);
+            return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, false, true);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
         default:

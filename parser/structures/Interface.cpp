@@ -8,19 +8,27 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 
-ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
 
     auto& tok = *token;
 
     if (tok.type == TokenType::InterfaceKw) {
         token++;
+
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
             error("expected interface name after the interface keyword");
             return nullptr;
         }
-        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
 
+        // all the structs are allocated on global allocator
+        // WHY? because when used with imported public generics, the generics tend to instantiate with types
+        // referencing the internal structs, which now must be declared inside another module
+        // because generics don't check whether the type being used with it is valid in another module
+        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
+        auto& allocator = global_allocator;
+
+        auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
         annotate(decl);
 
         auto prev_parent_node = parent_node;
@@ -68,7 +76,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& allocator, AccessSp
 
         do {
             consumeNewLines();
-            if(parseContainerMembersInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

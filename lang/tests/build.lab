@@ -149,6 +149,7 @@ func build(ctx : *mut AppBuildContext) {
 
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, submod)
+        gen_ir(ctx, &exe_name, submod2)
         gen_ir(ctx, &exe_name, std_module);
         gen_ir(ctx, &exe_name, module);
     }

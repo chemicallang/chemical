@@ -248,6 +248,11 @@ public:
     }
 
     /**
+     * returns true for numbers and enums
+     */
+    bool isIntegerLikeStorage();
+
+    /**
      * will make the type mutable, completely pointer type, linked type, generic type
      * everything inside will become mutable, as if you wrote mut keyword before the type
      */

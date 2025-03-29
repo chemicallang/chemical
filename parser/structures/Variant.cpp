@@ -91,7 +91,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
     return false;
 }
 
-ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
     if(consumeWSOfType(TokenType::VariantKw)) {
 
         auto id = consumeIdentifierOrKeyword();
@@ -99,6 +99,13 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpec
             error("expected a identifier as struct name");
             return nullptr;
         }
+
+        // all the structs are allocated on global allocator
+        // WHY? because when used with imported public generics, the generics tend to instantiate with types
+        // referencing the internal structs, which now must be declared inside another module
+        // because generics don't check whether the type being used with it is valid in another module
+        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
+        auto& allocator = global_allocator;
 
         const auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, loc_single(id), specifier);
 
@@ -137,7 +144,7 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& allocator, AccessSpec
 
         do {
             consumeNewLines();
-            if(parseAnyVariantMember(allocator, decl, AccessSpecifier::Public)) {
+            if(parseAnyVariantMember(passed_allocator, decl, AccessSpecifier::Public)) {
                 consumeOfType(TokenType::SemiColonSym);
             } else {
                 break;

@@ -53,7 +53,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 }
 
-ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
 
     if(consumeWSOfType(TokenType::UnionKw)) {
 
@@ -62,6 +62,13 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
             error("expected a identifier as struct name");
             return nullptr;
         }
+
+        // all the structs are allocated on global allocator
+        // WHY? because when used with imported public generics, the generics tend to instantiate with types
+        // referencing the internal structs, which now must be declared inside another module
+        // because generics don't check whether the type being used with it is valid in another module
+        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
+        auto& allocator = global_allocator;
 
         auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
         annotate(decl);
@@ -100,7 +107,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
 
         do {
             consumeNewLines();
-            if(parseContainerMembersInto(decl, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

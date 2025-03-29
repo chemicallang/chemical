@@ -20,6 +20,9 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
         value : null
     }
 
+    printf("parsing attribute name %s\n", attr.name.data());
+    fflush(null)
+
     const equal = parser.getToken();
     if(equal.type != TokenType.Equal) {
         return attr;

@@ -30,6 +30,6 @@ func build(ctx : *mut BuildContext) : *Module {
     ctx.add_cbi_type(cbi, CBIType.MacroLexer)
     ctx.add_cbi_type(cbi, CBIType.MacroParser)
 
-    return module;
+    return std_module;
 
 }

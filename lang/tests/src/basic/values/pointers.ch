@@ -11,6 +11,11 @@ func ret_ptr_to_struct22(ptr : *mut PMC22) : *mut PMC22 {
     return ptr;
 }
 
+func take_addr_of_pointer(ptr : *mut int) : *mut int {
+    var x = &ptr;
+    return *x
+}
+
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
@@ -106,5 +111,11 @@ func test_pointer_math() {
         const ptr = &x
         const other_ptr = ptr + 1
         return *(other_ptr - 1) == '6'
+    })
+    test("taking address of pointer works", () => {
+        var ptr = 33
+        // TODO taking address directly probably takes address of the expression
+        const thing = *take_addr_of_pointer(&ptr);
+        return thing == 33
     })
 }

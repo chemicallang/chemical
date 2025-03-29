@@ -65,8 +65,9 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
     auto arg = gen.current_function->getArg(index);
     if (arg) {
         if(has_address_taken()) {
-            if(type->isIntegerLikeStorage()) {
-                const auto allocaInstr = gen.builder->CreateAlloca(type->llvm_type(gen));
+            const auto pure = type->pure_type(gen.allocator);
+            if(pure->kind() == BaseTypeKind::Pointer || pure->isIntegerLikeStorage()) {
+                const auto allocaInstr = gen.builder->CreateAlloca(pure->llvm_type(gen));
                 gen.di.instr(allocaInstr, this);
                 pointer = allocaInstr;
                 const auto storeInstr = gen.builder->CreateStore(arg, allocaInstr);

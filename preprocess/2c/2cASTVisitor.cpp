@@ -517,10 +517,29 @@ std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* ty
     return {nullptr, nullptr};
 }
 
+bool is_value_param_hidden_pointer(Value* value) {
+    const auto linked = value->linked_node();
+    if(linked) {
+        switch(linked->kind()) {
+            case ASTNodeKind::FunctionParam:{
+                const auto type = linked->as_func_param_unsafe()->type;
+                if(type->is_reference()) {
+                    return true;
+                }
+                return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
+            }
+            default:
+                return false;
+        }
+    } else {
+        return false;
+    }
+}
+
 // structs, or variants or references to them are passed in functions as pointers
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
-bool is_value_param_pointer_like(Value* value) {
+bool is_value_param_pointer_or_ref_like(Value* value) {
     const auto linked = value->linked_node();
     if(linked) {
         switch(linked->kind()) {
@@ -537,6 +556,10 @@ bool is_value_param_pointer_like(Value* value) {
     } else {
         return false;
     }
+}
+
+bool is_value_param_pointer_like(Value* value) {
+    return is_value_param_pointer_or_ref_like(value);
 }
 
 // structs, or variants or references to them are passed in functions as pointers
@@ -5014,7 +5037,7 @@ void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
 }
 
 void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
-    if(!is_value_param_pointer_like(value)) {
+    if(!is_value_param_hidden_pointer(value)) {
         write('&');
     }
     visit(value->value);

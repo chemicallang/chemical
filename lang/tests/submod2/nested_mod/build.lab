@@ -1,9 +1,0 @@
-import "@lab/lab.ch"
-import "@std/string.ch"
-
-func build(ctx : *mut BuildContext) : *Module {
-
-    const path = lab::rel_path_to("src")
-    return ctx.chemical_dir_module(std::string_view(""), std::string_view("nested_mod"), std::string_view(path), { })
-
-}

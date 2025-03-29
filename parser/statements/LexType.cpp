@@ -214,7 +214,7 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
 
         do {
             consumeNewLines();
-            if(parseVariableMemberInto(type, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(type, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;
@@ -254,7 +254,7 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
 
         do {
             consumeNewLines();
-            if(parseVariableMemberInto(type, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(type, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

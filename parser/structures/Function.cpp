@@ -247,7 +247,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool allow_declaration, bool allow_extensions) {
+ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool member, bool allow_extensions) {
 
     if(!consumeWSOfType(TokenType::FuncKw)) {
         return nullptr;
@@ -263,9 +263,15 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         }
     }
 
-    // generic functions are also allocated on the global allocator
-    // so that further implementations can be generated in other modules
-    auto& allocator = is_comptime ? global_allocator : passed_allocator;
+    // comptime functions must be allocated on global allocator
+    // they can be called from external modules, without being public
+    auto& body_allocator = is_comptime ? global_allocator : passed_allocator;
+    // this allocator is for the prototype
+    // all member functions (inside structs/variants), must allocate prototypes on global allocator
+    // because they can be used with imported public generic structs, which may declare them in another modules (not because of usage)
+    // because generics don't check whether the type being used with it is valid in another module
+    // once we can be sure which instantiations of generics are being used in module, we can eliminate this check
+    auto& allocator = member ? global_allocator : body_allocator;
 
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), nullptr, false, parent_node, 0, specifier, false);
     annotate(decl);
@@ -375,12 +381,10 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         decl->returnType = new (allocator.allocate<VoidType>()) VoidType(loc_single(tok));
     }
 
-    auto block = parseBraceBlock("function", decl, allocator);
+    auto block = parseBraceBlock("function", decl, body_allocator);
     if(block.has_value()) {
         decl->body.emplace(block->parent(), block->encoded_location());
         decl->body->nodes = std::move(block->nodes);
-    } else if(!allow_declaration) {
-        error("expected the function definition after the signature");
     }
     parent_node = prev_parent_node;
 

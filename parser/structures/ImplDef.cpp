@@ -70,7 +70,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
         parent_node = impl;
         do {
             consumeNewLines();
-            if(parseVariableMemberInto(impl, allocator, AccessSpecifier::Public)) {
+            if(parseContainerMembersInto(impl, allocator, AccessSpecifier::Public)) {
                 consumeToken(TokenType::SemiColonSym);
             } else {
                 break;

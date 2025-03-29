@@ -566,7 +566,7 @@ public:
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
-    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allow_declaration = false, bool allow_extensions = false);
+    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool member, bool allow_extensions = false);
 
     /**
      * parses a interface structure
@@ -592,14 +592,6 @@ public:
      * parses members of a container, for example (struct / union members) or even compile time if statements
      */
     bool parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
-
-    /**
-     * just a helper function
-     * @deprecated
-     */
-    inline bool parseVariableMemberInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier) {
-        return parseContainerMembersInto(container, allocator, specifier);
-    }
 
     /**
      * lexes a struct block

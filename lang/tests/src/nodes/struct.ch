@@ -125,6 +125,20 @@ func give_explicit_return() : ImpPair {
     return ImpPair(65)
 }
 
+// ----------------- Code Gen TEST Start ----------------------
+
+// this test is that a type referencing a struct below it
+// which uses the type directly should succeed
+type IndirectFnRef = (r : *mut IndirectFnStructPtr) => void
+
+// this test is that a type referencing a struct below it
+// which uses the type directly should succeed
+struct IndirectFnStructPtr {
+    var thing : IndirectFnRef
+}
+
+// ----------------- Code Gen TEST End ----------------------
+
 func test_structs() {
     test("can return a newly created struct", () => {
         var pair = create_pair();

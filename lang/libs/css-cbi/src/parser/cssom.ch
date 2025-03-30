@@ -9,7 +9,8 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
     new (root) CSSOM {
         parent : parser.getParentNode(),
         has_dynamic_values : false,
-        declarations : std::vector<*mut CSSDeclaration>()
+        declarations : std::vector<*mut CSSDeclaration>(),
+        className : std::string_view()
     }
     var cssParser = CSSParser();
     while(true) {

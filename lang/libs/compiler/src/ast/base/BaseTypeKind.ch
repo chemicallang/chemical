@@ -28,7 +28,6 @@ public enum BaseTypeKind {
     Void,
 
     ExpressionType,
-    TypeReturningValue,
 
     Unknown
 

@@ -53,9 +53,10 @@ public enum ValueKind {
     VariantCase,
     AddrOfValue,
     PointerValue,
+    BlockValue,
     TypeInsideValue,
     WrapValue,
 
-    TypeContainingValue
+    DestructValue,
 
 }

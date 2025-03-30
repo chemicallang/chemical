@@ -11,21 +11,38 @@ import "@compiler/ast/base/ASTNode.ch"
 import "@compiler/SymbolResolver.ch"
 import "@std/std.ch"
 
+func symResValueReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut Value {
+    printf("running css symResValueReplacement\n");
+    fflush(null)
+    const loc = compiler::get_raw_location();
+    const root = data as *mut CSSOM;
+    var scope = builder.make_block_value(root.parent, loc);
+    var scope_nodes = scope.get_body();
+    var str = std::string();
+    convertCSSOM(resolver, builder, root, scope_nodes, str);
+    const classNameVal = builder.make_string_value(root.className, loc)
+    const node = builder.make_value_wrapper(classNameVal, root.parent)
+    scope_nodes.push(node)
+    return scope;
+}
+
 @no_mangle
 public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    printf("wow create macro node\n");
+    printf("running css_parseMacroValue\n");
+    fflush(null)
     const loc = compiler::get_raw_location();
     if(parser.increment_if(TokenType.LBrace)) {
         var root = parseCSSOM(parser, builder);
         printf("parsed to css om\n")
         fflush(null)
-        const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
+        const value = builder.make_sym_res_value(symResValueReplacement, root, loc);
         if(!parser.increment_if(TokenType.RBrace)) {
-            parser.error("expected a rbrace for ending the html macro");
+            parser.error("expected a rbrace for ending the css macro");
         }
-        return node;
+        return value;
     } else {
         parser.error("expected a lbrace");
+        return null;
     }
 }
 

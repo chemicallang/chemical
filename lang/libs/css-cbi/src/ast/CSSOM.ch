@@ -1,5 +1,6 @@
 import "./CSSDeclaration.ch"
 import "@std/vector.ch"
+import "@std/string_view.ch"
 import "@compiler/ast/base/ASTNode.ch"
 
 struct CSSOM {
@@ -11,5 +12,7 @@ struct CSSOM {
     var has_dynamic_values : bool
 
     var declarations : std::vector<*mut CSSDeclaration>
+
+    var className : std::string_view
 
 }

@@ -1001,7 +1001,8 @@ func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::str
 func put_hashed_string_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
     // calculate the hash before making any changes
     const hash = fnv1a_hash_32(str.data());
-    put_append_css_value_chain(resolver, builder, vec, parent, allocate_view_with_classname(builder, str, hash), hash)
+    const classNameView = allocate_view_with_classname(builder, str, hash)
+    put_append_css_value_chain(resolver, builder, vec, parent, classNameView, hash)
 }
 
 func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode) {
@@ -1015,7 +1016,7 @@ func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut Symbol
 }
 
 @extern
-func rand() : int;
+public func rand() : int;
 
 func generate_random_32bit() : uint32_t {
     return (rand() as uint32_t << 16) | rand() as uint32_t;
@@ -1026,7 +1027,17 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
     if(size > 0) {
         if(om.has_dynamic_values) {
             const hash = generate_random_32bit();
-            put_class_name_chain(hash, 'r', resolver, builder, vec, om.parent)
+            var className : char[10] = {};
+            className[0] = '.'
+            className[1] = 'r'
+            base64_encode_32bit(hash, &className[2])
+            className[8] = '{'
+            className[9] = '\0'
+            const total = builder.allocate_view(std::string_view(&className[0], 9u));
+            put_view_chain(resolver, builder, vec, om.parent, total)
+            // TODO this doesn't work
+            // const dataPtr = total.data() + 1
+            // om.className = std::string_view(dataPtr, 7)
         }
         var i = 0
         while(i < size) {
@@ -1039,7 +1050,10 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
         } else {
             // end the string here
             if(!om.has_dynamic_values) {
-                put_hashed_string_chain(resolver, builder, vec, om.parent, str)
+                // calculate the hash before making any changes
+                const hash = fnv1a_hash_32(str.data());
+                om.className = allocate_view_with_classname(builder, str, hash)
+                put_append_css_value_chain(resolver, builder, vec, om.parent, om.className, hash)
             } else {
                 str.append('}')
                 put_chain_in(resolver, builder, vec, om.parent, str);

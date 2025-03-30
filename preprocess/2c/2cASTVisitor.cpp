@@ -517,6 +517,9 @@ std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* ty
     return {nullptr, nullptr};
 }
 
+// structs, or variants or references to them are passed in functions as pointers
+// if you took address of using '&' of the parameter that is already reference or pointer
+// we must not write '&' in the output C
 bool is_value_param_hidden_pointer(Value* value) {
     const auto linked = value->linked_node();
     if(linked) {
@@ -536,9 +539,6 @@ bool is_value_param_hidden_pointer(Value* value) {
     }
 }
 
-// structs, or variants or references to them are passed in functions as pointers
-// if you took address of using '&' of the parameter that is already reference or pointer
-// we must not write '&' in the output C
 bool is_value_param_pointer_or_ref_like(Value* value) {
     const auto linked = value->linked_node();
     if(linked) {
@@ -5070,7 +5070,7 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
     new_line_and_indent();
     scope_no_parens(*this, blockVal->scope);
     new_line_and_indent();
-    write(")}");
+    write("})");
 }
 
 void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {

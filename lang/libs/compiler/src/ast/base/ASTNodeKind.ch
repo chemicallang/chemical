@@ -61,4 +61,8 @@ public enum ASTNodeKind {
     GenericImplDecl,
     GenericTypeDecl,
 
+    FileScope,
+    ModuleScope,
+    PackageDef,
+
 }

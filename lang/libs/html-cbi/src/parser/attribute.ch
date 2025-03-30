@@ -110,7 +110,7 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
 
                 // single value
 
-                if(next.type == TokenType.RBrace) {
+                if(next.type == ChemicalTokenType.RBrace) {
                     parser.increment();
                 } else {
                     parser.error("expected a '}' after the chemical expression");

@@ -495,6 +495,11 @@ bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vect
 
 void set_generated_instantiations(ASTNode* node) {
     switch(node->kind()) {
+        case ASTNodeKind::GenericFuncDecl: {
+            const auto func = node->as_gen_func_decl_unsafe();
+            func->total_bodied_instantiations = func->instantiations.size();
+            break;
+        }
         case ASTNodeKind::NamespaceDecl:{
             const auto ns = node->as_namespace_unsafe();
             for(const auto child : ns->nodes) {

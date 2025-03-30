@@ -181,11 +181,13 @@ func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuil
                 str.append_with_len(value.text.data(), value.text.size())
             }
             AttributeValueKind.Chemical => {
+                str.append('"');
                 if(!str.empty()) {
                     put_chain_in(resolver, builder, vec, parent, str);
                 }
                 const value = attr.value as *mut ChemicalAttributeValue
                 put_chemical_value_in(resolver, builder, vec, parent, value.value)
+                str.append('"');
             }
             AttributeValueKind.ChemicalValues => {
                 if(!str.empty()) {

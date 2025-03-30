@@ -1052,8 +1052,9 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
             if(!om.has_dynamic_values) {
                 // calculate the hash before making any changes
                 const hash = fnv1a_hash_32(str.data());
-                om.className = allocate_view_with_classname(builder, str, hash)
-                put_append_css_value_chain(resolver, builder, vec, om.parent, om.className, hash)
+                const totalView = allocate_view_with_classname(builder, str, hash)
+                om.className = std::string_view(totalView.data() + 1, 7u)
+                put_append_css_value_chain(resolver, builder, vec, om.parent, totalView, hash)
             } else {
                 str.append('}')
                 put_chain_in(resolver, builder, vec, om.parent, str);

@@ -9,6 +9,7 @@
 #include "ast/structures/ModuleScope.h"
 #include "compiler/processor/ASTFileMetaData.h"
 #include <span>
+#include <optional>
 
 struct LabModule {
 
@@ -99,10 +100,9 @@ struct LabModule {
     /**
      * this flag is calculated before compilation based on whether the module's files
      * have changed or any module it depends on has changed
-     * NOTE: we consider every module changed by default, meaning every module
-     * must be compiled, however we can switch this flag when determined that nothing has changed
+     * NOTE: nullopt means we haven't determined it
      */
-    bool has_changed = true;
+    std::optional<bool> has_changed = std::nullopt;
 
     /**
      * formats the scope name module name into a single string separated by colon

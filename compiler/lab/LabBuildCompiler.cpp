@@ -393,7 +393,7 @@ inline bool is_node_exported(ASTNode* node) {
     }
 }
 
-bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
+bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
 
     auto& direct_files = mod->direct_files;
     const auto verbose = compiler->options->verbose;
@@ -403,7 +403,6 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
         if(verbose) {
             std::cout << "[lab] " << "skipping cache use, caching disabled" << std::endl;
         }
-        mod->has_changed = true;
         return true;
     }
 
@@ -426,8 +425,6 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
 
             }
 
-            // module has not changed, lets mark it unchanged
-            mod->has_changed = false;
             return false;
 
         } else if (verbose) {
@@ -442,18 +439,35 @@ bool determine_if_module_has_changed(LabBuildCompiler* compiler, LabModule* mod,
 
     }
 
-    // module has changed, lets mark it changed
-    mod->has_changed = true;
-
-    // consider all its dependents changed as well
-    // since this module has changed, all modules that depend on this module
-    // should also be recompiled
-    for(const auto dep : mod->dependents) {
-        dep->has_changed = true;
-    }
-
     return true;
 
+}
+
+std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod) {
+    auto f = mod->format('.');
+    f.append("/timestamp.dat");
+    return resolve_rel_child_path_str(build_dir, f);
+}
+
+bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir) {
+    bool has_deps_changed = false;
+    for(const auto dep : module->dependencies) {
+        if(has_module_changed(compiler, dep, build_dir)) {
+            has_deps_changed = true;
+            break;
+        }
+    }
+    if(has_deps_changed) {
+        module->has_changed = true;
+        return true;
+    }
+    if(module->has_changed.has_value()) {
+        return module->has_changed.value();
+    }
+    auto mod_timestamp_file = get_mod_timestamp_path(build_dir, module);
+    const auto has_changed = determine_change_in_files(compiler, module, mod_timestamp_file);
+    module->has_changed = has_changed;
+    return has_changed;
 }
 
 bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vector<ASTFileResult*>& files, const std::string_view& object_path, const std::string& mod_timestamp_file) {
@@ -668,7 +682,7 @@ int LabBuildCompiler::process_module_tcc(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (we make the check when setting the boolean)
-    if(!mod->has_changed) {
+    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
 
         if(verbose) {
             std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, skipping compilation" << std::endl;
@@ -869,7 +883,7 @@ int LabBuildCompiler::process_module_gen(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (currently
-    if(!mod->has_changed) {
+    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
 
         if(verbose) {
             std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
@@ -1070,29 +1084,23 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
     return 0;
 }
 
-std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod) {
-    auto f = mod->format('.');
-    f.append("/timestamp.dat");
-    return resolve_rel_child_path_str(build_dir, f);
-}
-
-std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
+void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto is_use_obj_format = compiler->options->use_mod_obj_format || mod->type == LabModuleType::CFile;
     // creating the module directory
     auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
-    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path,  (is_use_obj_format ? "object.o" : "object.bc"));
-    auto mod_timestamp_file = resolve_rel_child_path_str(module_dir_path, "timestamp.dat");
-    if(!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
+    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (is_use_obj_format ? "object.o" : "object.bc"));
+    if (!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
         const auto mod_dir_exists = fs::exists(module_dir_path);
         if (!mod_dir_exists) {
-            if(verbose) {
+            if (verbose) {
                 std::cout << "[lab] " << "creating module directory at path '" << module_dir_path << "'" << std::endl;
             }
             fs::create_directory(module_dir_path);
         }
     }
-    if(job_type == LabJobType::Executable || job_type == LabJobType::CBI || job_type == LabJobType::ProcessingOnly || job_type == LabJobType::Library) {
+    if (job_type == LabJobType::Executable || job_type == LabJobType::CBI || job_type == LabJobType::ProcessingOnly ||
+        job_type == LabJobType::Library) {
         if (is_use_obj_format) {
             mod->object_path.clear();
             mod->object_path.append(mod_obj_path);
@@ -1101,11 +1109,6 @@ std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob
             mod->bitcode_path.append(mod_obj_path);
         }
     }
-    return mod_timestamp_file;
-}
-
-inline std::string create_mod_dir_get_timestamp_path(LabBuildCompiler* compiler, LabJob* job, LabModule* mod) {
-    return create_mod_dir_get_timestamp_path(compiler, job->type, job->build_dir.to_std_string(), mod);
 }
 
 inline void create_dir(const std::string& build_dir) {
@@ -1182,8 +1185,8 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // allocating required variables before going into loop
     bool do_compile = job_type != LabJobType::ToCTranslation;
 
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
+    // build dir
+    auto build_dir = exe->build_dir.to_std_string();
 
     // for each module, let's determine its files and whether it has changed
     for(const auto mod : dependencies) {
@@ -1191,17 +1194,23 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         // determining module's direct files
         processor.determine_module_files(mod);
 
+        // we must recalculate whether module's files have changed
+        mod->has_changed = std::nullopt;
+
         // creating the module directory and getting the timestamp file path
-        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+        create_mod_dir(this, exe->type, build_dir, mod);
 
-        // lets determine if the module has changed (one of the file of module has changed)
-        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+    }
 
-        // set that a single module exists that has changed
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    // now we check which module trees have changed
+    for(const auto mod : exe->dependencies) {
+        auto has_changed = has_module_changed(this, mod, build_dir);
         if(has_changed) {
             has_any_changed = true;
         }
-
     }
 
     if(!has_any_changed && do_compile) {
@@ -1227,7 +1236,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // creating the module directory and getting the timestamp file path
-        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+        const auto mod_timestamp_file = get_mod_timestamp_path(build_dir, mod);
 
         if(do_compile) {
             switch (mod->type) {
@@ -1417,8 +1426,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // index the modules, so imports can be resolved
     mod_storage.index_modules(dependencies);
 
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
+    // build dir
+    auto build_dir = job->build_dir.to_std_string();
 
     // for each module, let's determine its files and whether it has changed
     for(const auto mod : dependencies) {
@@ -1427,16 +1436,18 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         processor.determine_module_files(mod);
 
         // creating the module directory and getting the timestamp file path
-        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, job, mod);
+        create_mod_dir(this, job->type, build_dir, mod);
 
-        // lets determine if the module has changed (one of the file of module has changed)
-        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+    }
 
-        // set that a single module exists that has changed
-        if(has_changed) {
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    for(const auto mod : job->dependencies) {
+        const auto changed = has_module_changed(this, mod, build_dir);
+        if(changed) {
             has_any_changed = true;
         }
-
     }
 
     if(!has_any_changed) {
@@ -1976,26 +1987,29 @@ TCCState* LabBuildCompiler::built_lab_file(
     // figure out path for lab modules directory
     const auto lab_mods_dir = resolve_rel_child_path_str(options->build_dir, "lab/modules");
 
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
-
     // for each module, let's determine its files and whether it has changed
     for(const auto mod : outModDependencies) {
 
         // determining module's direct files
         processor.determine_module_files(mod);
 
-        // the timestamp file is what determines whether the module needs to be rebuilt again
-        const auto mod_timestamp_file = create_mod_dir_get_timestamp_path(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
+        // we must recalculate which files have changed
+        mod->has_changed = std::nullopt;
 
-        // lets determine if the module has changed (one of the file of module has changed)
-        const auto has_changed = determine_if_module_has_changed(this, mod, mod_timestamp_file);
+        // create the module directory
+        create_mod_dir(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
 
-        // set that a single module exists that has changed
-        if(has_changed) {
+    }
+
+    // if not a single module has changed, we consider it true
+    bool has_any_changed = false;
+
+    // check which modules have changed
+    for(const auto mod : mod_dependencies) {
+        const auto changed = has_module_changed(this, mod, lab_mods_dir);
+        if(changed) {
             has_any_changed = true;
         }
-
     }
 
     if(!has_any_changed && !has_buildLabChanged) {

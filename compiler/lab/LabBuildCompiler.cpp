@@ -1435,6 +1435,9 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         // determining module's direct files
         processor.determine_module_files(mod);
 
+        // we must recalculate which files have changed
+        mod->has_changed = std::nullopt;
+
         // creating the module directory and getting the timestamp file path
         create_mod_dir(this, job->type, build_dir, mod);
 

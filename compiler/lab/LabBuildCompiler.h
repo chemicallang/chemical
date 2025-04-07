@@ -178,10 +178,17 @@ public:
 #endif
 
     /**
+     * should use tcc for this job type
+     */
+    inline bool use_tcc(LabJobType type) {
+        return options->use_tcc || type == LabJobType::ToCTranslation || type == LabJobType::CBI;
+    }
+
+    /**
      * should use tcc for the job
      */
     inline bool use_tcc(LabJob* job) {
-        return options->use_tcc || job->type == LabJobType::ToCTranslation || job->type == LabJobType::CBI;
+        return use_tcc(job->type);
     }
 
     /**

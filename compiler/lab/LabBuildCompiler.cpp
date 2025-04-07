@@ -443,16 +443,16 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
 
 }
 
-std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod) {
+std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod, bool use_tcc) {
     auto f = mod->format('.');
-    f.append("/timestamp.dat");
+    f.append(use_tcc ? "/timestamp_tcc.dat" : "/timestamp.dat");
     return resolve_rel_child_path_str(build_dir, f);
 }
 
-bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir) {
+bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
     bool has_deps_changed = false;
     for(const auto dep : module->dependencies) {
-        if(has_module_changed(compiler, dep, build_dir)) {
+        if(has_module_changed(compiler, dep, build_dir, use_tcc)) {
             has_deps_changed = true;
             break;
         }
@@ -464,7 +464,7 @@ bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std
     if(module->has_changed.has_value()) {
         return module->has_changed.value();
     }
-    auto mod_timestamp_file = get_mod_timestamp_path(build_dir, module);
+    auto mod_timestamp_file = get_mod_timestamp_path(build_dir, module, use_tcc);
     const auto has_changed = determine_change_in_files(compiler, module, mod_timestamp_file);
     module->has_changed = has_changed;
     return has_changed;
@@ -1086,10 +1086,11 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
 
 void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
-    const auto is_use_obj_format = compiler->options->use_mod_obj_format || mod->type == LabModuleType::CFile;
+    const auto use_tcc = compiler->use_tcc(job_type);
+    const auto is_use_obj_format = use_tcc || compiler->options->use_mod_obj_format || mod->type == LabModuleType::CFile;
     // creating the module directory
     auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
-    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (is_use_obj_format ? "object.o" : "object.bc"));
+    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (is_use_obj_format ? use_tcc ? "object_tcc.o" : "object.o" : "object.bc"));
     if (!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
         const auto mod_dir_exists = fs::exists(module_dir_path);
         if (!mod_dir_exists) {
@@ -1207,7 +1208,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // now we check which module trees have changed
     for(const auto mod : exe->dependencies) {
-        auto has_changed = has_module_changed(this, mod, build_dir);
+        auto has_changed = has_module_changed(this, mod, build_dir, use_tcc(job));
         if(has_changed) {
             has_any_changed = true;
         }
@@ -1236,7 +1237,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // creating the module directory and getting the timestamp file path
-        const auto mod_timestamp_file = get_mod_timestamp_path(build_dir, mod);
+        const auto mod_timestamp_file = get_mod_timestamp_path(build_dir, mod, use_tcc(job));
 
         if(do_compile) {
             switch (mod->type) {
@@ -1447,7 +1448,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     bool has_any_changed = false;
 
     for(const auto mod : job->dependencies) {
-        const auto changed = has_module_changed(this, mod, build_dir);
+        const auto changed = has_module_changed(this, mod, build_dir, use_tcc(job));
         if(changed) {
             has_any_changed = true;
         }
@@ -1476,7 +1477,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         }
 
         // get the timestamp file path
-        const auto mod_timestamp_file = get_mod_timestamp_path(job->build_dir.to_std_string(), mod);
+        const auto mod_timestamp_file = get_mod_timestamp_path(job->build_dir.to_std_string(), mod, use_tcc(job));
 
         // handle c and cpp file modules
         switch (mod->type) {
@@ -2000,7 +2001,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         mod->has_changed = std::nullopt;
 
         // create the module directory
-        create_mod_dir(this, LabJobType::ProcessingOnly, lab_mods_dir, mod);
+        create_mod_dir(this, LabJobType::CBI, lab_mods_dir, mod);
 
     }
 
@@ -2009,7 +2010,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // check which modules have changed
     for(const auto mod : mod_dependencies) {
-        const auto changed = has_module_changed(this, mod, lab_mods_dir);
+        const auto changed = has_module_changed(this, mod, lab_mods_dir, true);
         if(changed) {
             has_any_changed = true;
         }
@@ -2069,7 +2070,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     for(const auto mod : outModDependencies) {
 
         // the timestamp file is what determines whether the module needs to be rebuilt again
-        const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod);
+        const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod, true);
 
         // the c output for this module, so we can debug
         const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");

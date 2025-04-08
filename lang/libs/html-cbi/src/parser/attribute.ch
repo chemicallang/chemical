@@ -82,8 +82,7 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
 
                         } else {
 
-                            printf("WHAT ::::: couldn't get expression\n")
-                            fflush(null)
+                            parser.error("expected a chemical expression value");
                             break;
 
                         }

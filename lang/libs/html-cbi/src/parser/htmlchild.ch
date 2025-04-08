@@ -49,7 +49,7 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         }
 
         const next = parser.getToken();
-        if(next.type == TokenType.RBrace) {
+        if(next.type == ChemicalTokenType.RBrace) {
             parser.increment();
         } else {
             printf("boo has error %s\n", parser.getToken().value.data())

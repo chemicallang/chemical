@@ -1107,6 +1107,67 @@ inline void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
     create_job_build_dir(compiler->options->verbose, job->build_dir.to_std_string());
 }
 
+int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& dependencies) {
+
+    auto& job_name = cbiJob->name;
+    auto cbiName = cbiJob->name.to_std_string();
+    auto& cbiData = binder.data[cbiName];
+    auto& outModDependencies = dependencies;
+
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+    if(state == nullptr) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
+        return 1;
+    }
+
+    // add module object files
+    for(const auto dep : outModDependencies) {
+        if(tcc_add_file(state, dep->object_path.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of cbi '" << job_name << '\'' << std::endl;
+            tcc_delete(state);
+            return 1;
+        }
+    }
+
+    // prepare for jit
+    prepare_tcc_state_for_jit(state);
+
+    // import all compiler interfaces the modules require
+    for(const auto mod : outModDependencies) {
+        for(auto& interface : mod->compiler_interfaces) {
+            CompilerBinder::import_compiler_interface(interface, state);
+        }
+    }
+
+    // relocate the code before calling
+    if(tcc_relocate(state) == -1) {
+        std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate cbi '" << job_name << '\'' << std::endl;
+        tcc_delete(state);
+        return 1;
+    }
+
+    // we compile the entirety of this module and store it
+    // here putting this module in cbi is what will delete it
+    // this is very important, otherwise tcc_delte won't be called on it
+    cbiData.module = state;
+
+    // error out if cbi types are empty
+    if(cbiJob->cbiTypes.empty()) {
+        std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "cbi job has no cbi types'" << job_name << '\'' << std::endl;
+        return 1;
+    }
+
+    // preparing cbi types
+    for(const auto cbiType : cbiJob->cbiTypes) {
+        const auto err = binder.prepare_with_type(job_name.to_chem_view(), state, cbiType);
+        if(err != nullptr) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << err << " in " << job_name << std::endl;
+            return 1;
+        }
+    }
+}
+
 int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
 
@@ -1199,6 +1260,14 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             job->linkables.emplace_back(mod->object_path.to_chem_view());
         }
 
+        if(get_job_type == LabJobType::CBI) {
+            const auto cbiJob = (LabJobCBI*) job;
+            const auto jobDone = link_cbi_job(cbiJob, dependencies);
+            if(jobDone != 0) {
+                return jobDone;
+            }
+        }
+
         job->path_aliases = std::move(processor.path_handler.path_aliases);
         return 0;
 
@@ -1279,66 +1348,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     if(get_job_type == LabJobType::CBI) {
-
         const auto cbiJob = (LabJobCBI*) job;
-        auto& job_name = job->name;
-        auto cbiName = cbiJob->name.to_std_string();
-        auto& cbiData = binder.data[cbiName];
-        auto& outModDependencies = dependencies;
-
-        const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
-        if(state == nullptr) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
-            std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
-            return 1;
+        const auto jobDone = link_cbi_job(cbiJob, dependencies);
+        if(jobDone != 0) {
+            return jobDone;
         }
-
-        // add module object files
-        for(const auto dep : outModDependencies) {
-            if(tcc_add_file(state, dep->object_path.data()) == -1) {
-                std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of cbi '" << job_name << '\'' << std::endl;
-                tcc_delete(state);
-                return 1;
-            }
-        }
-
-        // prepare for jit
-        prepare_tcc_state_for_jit(state);
-
-        // import all compiler interfaces the modules require
-        for(const auto mod : outModDependencies) {
-            for(auto& interface : mod->compiler_interfaces) {
-                CompilerBinder::import_compiler_interface(interface, state);
-            }
-        }
-
-        // relocate the code before calling
-        if(tcc_relocate(state) == -1) {
-            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate cbi '" << job_name << '\'' << std::endl;
-            tcc_delete(state);
-            return 1;
-        }
-
-        // we compile the entirety of this module and store it
-        // here putting this module in cbi is what will delete it
-        // this is very important, otherwise tcc_delte won't be called on it
-        cbiData.module = state;
-
-        // error out if cbi types are empty
-        if(cbiJob->cbiTypes.empty()) {
-            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "cbi job has no cbi types'" << job_name << '\'' << std::endl;
-            return 1;
-        }
-
-        // preparing cbi types
-        for(const auto cbiType : cbiJob->cbiTypes) {
-            const auto err = binder.prepare_with_type(job_name.to_chem_view(), state, cbiType);
-            if(err != nullptr) {
-                std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << err << " in " << job_name << std::endl;
-                return 1;
-            }
-        }
-
     }
 
     exe->path_aliases = std::move(processor.path_handler.path_aliases);

@@ -164,6 +164,11 @@ public:
 #endif
 
     /**
+     * cbi job
+     */
+    int link_cbi_job(LabJobCBI* job, std::vector<LabModule*>& dependencies);
+
+    /**
      * use tcc to process the job
      */
     int process_job_tcc(LabJob* job);

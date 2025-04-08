@@ -98,31 +98,6 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     return new_modules;
 }
 
-// this works on dependents instead of dependencies, making sure dependents are compiled later
-void recursive_dedupe_wd(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
-    auto found = imported.find(file);
-    if(found == imported.end()) {
-        imported[file] = true;
-        flat_map.emplace_back(file);
-        for(auto nested : file->dependents) {
-            recursive_dedupe(nested, imported, flat_map);
-        }
-    }
-}
-
-/**
- * same as above, only it operates on multiple modules, it de-dupes the dependent modules
- * of the given list of modules and also sorts them
- */
-std::vector<LabModule*> flatten_dedupe_sorted_wd(const std::vector<LabModule*>& modules) {
-    std::vector<LabModule*> new_modules;
-    std::unordered_map<LabModule*, bool> imported;
-    for(auto mod : modules) {
-        recursive_dedupe_wd(mod, imported, new_modules);
-    }
-    return new_modules;
-}
-
 namespace fs = std::filesystem;
 
 /**

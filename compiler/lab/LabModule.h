@@ -92,12 +92,6 @@ struct LabModule {
     std::vector<LabModule*> dependencies;
 
     /**
-     * dependents are the pointers to modules that depend on this module
-     * these modules will be compiled after this module has been compiled
-     */
-    std::vector<LabModule*> dependents;
-
-    /**
      * this flag is calculated before compilation based on whether the module's files
      * have changed or any module it depends on has changed
      * NOTE: nullopt means we haven't determined it
@@ -148,18 +142,10 @@ struct LabModule {
     }
 
     /**
-     * get the dependents of this module
-     */
-    const std::vector<LabModule*>& get_dependents() {
-        return dependents;
-    }
-
-    /**
      * add a module dependency into this module
      */
     inline void add_dependency(LabModule* dependency) {
         dependencies.emplace_back(dependency);
-        dependency->dependents.emplace_back(this);
     }
 
     /**

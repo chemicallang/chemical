@@ -429,7 +429,6 @@ bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std
     for(const auto dep : module->dependencies) {
         if(has_module_changed(compiler, dep, build_dir, use_tcc)) {
             has_deps_changed = true;
-            break;
         }
     }
     if(has_deps_changed) {
@@ -1029,7 +1028,7 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
     }
 }
 
-int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
+int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
     const auto is_use_obj_format = compiler->options->use_mod_obj_format;
     std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
     if(mod->type == LabModuleType::CFile) {
@@ -1056,6 +1055,9 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod) {
         return 1;
     }
 #endif
+    std::vector<std::string_view> paths;
+    paths.emplace_back(mod->paths[0].to_view());
+    save_mod_timestamp(paths, mod_timestamp_file);
     return 0;
 }
 
@@ -1294,7 +1296,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                     continue;
                 }
                 case LabModuleType::CFile: {
-                    const auto c_res = compile_c_or_cpp_module(this, mod);
+                    const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
                     if(c_res == 0) {
                         job->linkables.emplace_back(mod->object_path.copy());
                         continue;
@@ -1472,7 +1474,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         switch (mod->type) {
             case LabModuleType::CFile:
             case LabModuleType::CPPFile: {
-                const auto c_res = compile_c_or_cpp_module(this, mod);
+                const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
                 if(c_res == 0) {
                     job->linkables.emplace_back(mod->object_path.copy());
                     continue;

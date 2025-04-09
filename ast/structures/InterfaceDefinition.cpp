@@ -83,12 +83,12 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
                 active_user = use.first;
                 auto found = user.find(func);
                 if (func->has_self_param()) {
-                    if((found == user.end() || found->second == nullptr)) {
+                    if(found == user.end()) {
                         // if no implementation (function pointer exists, we declare and generate the body so users (structs) can override it)
                         func->code_gen_declare(gen, this);
                         func->code_gen_body(gen, this);
                     } else {
-                        // since function pointer exists and is not null pointer
+                        // since function pointer exists
                         // however because the function is from other module, this function pointer is invalid in this module
                         // we must declare the function and reset the function pointer for the user
                         func->code_gen_external_declare(gen);

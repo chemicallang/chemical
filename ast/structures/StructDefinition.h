@@ -90,8 +90,7 @@ public:
      * the key here is the generic iteration, where as the value corresponds to
      * a llvm struct type, we create a struct type once, and then cache it
      */
-    std::unordered_map<int16_t, llvm::StructType*> llvm_struct_types;
-    llvm::GlobalVariable* vtable_pointer = nullptr;
+    llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
     /**

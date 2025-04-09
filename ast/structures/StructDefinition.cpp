@@ -140,7 +140,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
 
 void StructDefinition::code_gen_external_declare(Codegen &gen) {
     // clear the stored llvm types, so they must be declared again by StructType
-    llvm_struct_types.clear();
+    llvm_struct_type = nullptr;
     extendable_external_declare(gen);
 }
 
@@ -206,12 +206,12 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sour
 }
 
 llvm::StructType* StructDefinition::llvm_stored_type() {
-    return llvm_struct_types[0];
+    return llvm_struct_type;
 }
 
 void StructDefinition::llvm_store_type(llvm::StructType* type) {
     // auto creation
-    llvm_struct_types[0] = type;
+    llvm_struct_type = type;
 }
 
 llvm::Type* StructDefinition::with_elements_type(

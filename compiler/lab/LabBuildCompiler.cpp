@@ -499,10 +499,19 @@ void set_generated_instantiations(ASTNode* node) {
             // interfaces generate vtables for structs
             const auto interface = node->as_interface_def_unsafe();
 #ifdef COMPILER_BUILD
-            for(auto user : interface->users) {
+            // indicate that functions have been generated
+            for(const auto func : interface->instantiated_functions()) {
+                for(auto& use : interface->users) {
+                    auto& user = interface->users[use.first];
+                    user[func] = nullptr;
+                }
+            }
+            // indicate vtables have been generated
+            for(auto& user : interface->users) {
                 interface->vtable_pointers[user.first] = nullptr;
             }
 #else
+            // indicate that functions have been generated
             for(auto user : interface->users) {
                 interface->users[user.first] = true;
             }

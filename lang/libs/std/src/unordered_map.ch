@@ -87,7 +87,7 @@ public struct unordered_map<Key, Value> {
     // Insert or update a key-value pair
     func insert(&self, key : Key, value : Value) {
 
-        if ((_size as float) / capacity > 0.75f) {
+        if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD) {
             resize();
         }
 

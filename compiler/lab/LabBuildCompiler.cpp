@@ -391,20 +391,48 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
             std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp" << std::endl;
         }
 
-        // let's check if module timestamp file exists and is valid (files haven't changed)
-        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+        if(mod->type == LabModuleType::CFile || mod->type == LabModuleType::CPPFile) {
 
-            if (verbose) {
+            std::vector<std::string_view> paths;
+            for(auto& path : mod->paths) {
+                paths.emplace_back(path.to_view());
+            }
 
-                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+            // let's check if module timestamp file exists and is valid (files haven't changed)
+            if (compare_mod_timestamp(paths, mod_timestamp_file)) {
+
+                if (verbose) {
+
+                    std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+
+                }
+
+                return false;
+
+            } else if (verbose) {
+
+                std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
 
             }
 
-            return false;
+        } else {
 
-        } else if (verbose) {
+            // let's check if module timestamp file exists and is valid (files haven't changed)
+            if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
 
-            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+                if (verbose) {
+
+                    std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+
+                }
+
+                return false;
+
+            } else if (verbose) {
+
+                std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+
+            }
 
         }
 
@@ -1061,7 +1089,9 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     }
 #endif
     std::vector<std::string_view> paths;
-    paths.emplace_back(mod->paths[0].to_view());
+    for(auto& path : mod->paths) {
+        paths.emplace_back(path.to_view());
+    }
     save_mod_timestamp(paths, mod_timestamp_file);
     return 0;
 }
@@ -1301,12 +1331,17 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                     continue;
                 }
                 case LabModuleType::CFile: {
-                    const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
-                    if(c_res == 0) {
+                    if(!mod->has_changed.has_value() || mod->has_changed.value()) {
+                        const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
+                        if (c_res == 0) {
+                            job->linkables.emplace_back(mod->object_path.copy());
+                            continue;
+                        } else {
+                            return 1;
+                        }
+                    } else {
                         job->linkables.emplace_back(mod->object_path.copy());
                         continue;
-                    } else {
-                        return 1;
                     }
                 }
                 case LabModuleType::ObjFile:
@@ -1479,12 +1514,17 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         switch (mod->type) {
             case LabModuleType::CFile:
             case LabModuleType::CPPFile: {
-                const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
-                if(c_res == 0) {
+                if(!mod->has_changed.has_value() || mod->has_changed.value()) {
+                    const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
+                    if(c_res == 0) {
+                        job->linkables.emplace_back(mod->object_path.copy());
+                        continue;
+                    } else {
+                        return 1;
+                    }
+                } else {
                     job->linkables.emplace_back(mod->object_path.copy());
                     continue;
-                } else {
-                    return 1;
                 }
             }
             case LabModuleType::ObjFile:

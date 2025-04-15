@@ -1062,6 +1062,12 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
 }
 
 int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
+#ifndef COMPILER_BUILD
+    if(mod->type == LabModuleType::CPPFile) {
+        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
+        return 2;
+    }
+#endif
     const auto is_use_obj_format = compiler->options->use_mod_obj_format;
     std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
     if(mod->type == LabModuleType::CFile) {
@@ -1322,19 +1328,14 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
         if(do_compile) {
             switch (mod->type) {
-                case LabModuleType::CPPFile: {
-                    // TODO we cannot yet compile cpp module when linking using tcc
-                    // that's because we must figure out if this is a compiler executable and use clang
-                    // to emit a executable that tiny cc can link easily, however this might not be possible
-                    // since clang may not generate code like tiny cc does
-                    std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
-                    continue;
-                }
+                case LabModuleType::CPPFile:
                 case LabModuleType::CFile: {
                     if(!mod->has_changed.has_value() || mod->has_changed.value()) {
                         const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
                         if (c_res == 0) {
                             job->linkables.emplace_back(mod->object_path.copy());
+                            continue;
+                        } else if(c_res == 2) {
                             continue;
                         } else {
                             return 1;

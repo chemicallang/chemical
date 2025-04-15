@@ -334,14 +334,15 @@ bool ASTProcessor::import_chemical_files(
             auto found = cache.find(abs_path);
             if (found != cache.end()) {
 //                 std::cout << "not launching file : " << fileData.abs_path << std::endl;
-                futures.emplace_back(&found->second);
+                futures.emplace_back(found->second.get());
                 continue;
             }
 
 //            std::cout << "launching file : " << fileData.abs_path << std::endl;
             // we must try to store chem::string_view into the fileData, from the beginning
-            cache.emplace(abs_path, ASTFileResult(file_id, "", fileData.module));
-            out_file = &cache.find(abs_path)->second;
+            const auto ptr = new ASTFileResult(file_id, "", fileData.module);
+            cache.emplace(abs_path, ptr);
+            out_file = ptr;
         }
 
         // copy the metadata into it

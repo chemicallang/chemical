@@ -1,7 +1,3 @@
-import "./std.ch"
-import "./hashing/hash.ch"
-import "./hashing/fnv1.ch"
-
 public namespace std {
 
 @comptime

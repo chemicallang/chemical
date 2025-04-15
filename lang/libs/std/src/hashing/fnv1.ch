@@ -1,5 +1,3 @@
-import "../std.ch"
-
 public func fnv1a_hash_32(str : *char) : uint {
     var ptr = str;
     var hash : uint = 2166136261U;

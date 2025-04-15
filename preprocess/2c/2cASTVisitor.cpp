@@ -160,6 +160,11 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
 
 void ToCAstVisitor::fwd_declare(ASTNode* node) {
     switch(node->kind()) {
+        case ASTNodeKind::NamespaceDecl:
+            for(const auto child : node->as_namespace_unsafe()->nodes) {
+                fwd_declare(child);
+            }
+            break;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
             new_line();

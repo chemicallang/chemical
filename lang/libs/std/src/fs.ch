@@ -1,5 +1,3 @@
-import "@std/string.ch"
-import "@std/string_view.ch"
 import "@cstd/stdio.ch"
 
 // TODO these functions should not be public

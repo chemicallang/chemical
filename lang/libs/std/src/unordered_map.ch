@@ -1,4 +1,3 @@
-import "@std/std.ch"
 import "hashing/hash.ch"
 
 public namespace std {

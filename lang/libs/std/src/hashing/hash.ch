@@ -1,6 +1,3 @@
-import "@std/hashing/murmur.ch"
-import "@std/std.ch"
-
 @comptime
 const KnuthsMultiplicativeConstant = 2654435769ui32
 

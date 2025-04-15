@@ -1,5 +1,3 @@
-import "./std.ch"
-
 public namespace std {
 
 public variant Result<T, E> {

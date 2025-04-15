@@ -1,8 +1,3 @@
-import "./std.ch"
-import "./hashing/fnv1.ch"
-import "./hashing/hash.ch"
-import "./string.ch"
-
 public namespace std {
 
     struct string_view : Hashable, Eq {

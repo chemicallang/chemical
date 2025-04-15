@@ -1,6 +1,3 @@
-import "./vector.ch"
-import "./std.ch"
-
 public namespace std {
 
 public struct span<T> {

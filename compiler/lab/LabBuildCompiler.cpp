@@ -716,10 +716,14 @@ int LabBuildCompiler::process_module_tcc(
     // getting the c program
     const auto& program = output_ptr.str();
 
-    // TODO place a check here
-    // writing the c output for debugging
-    const auto out_path = resolve_sibling(mod->object_path.to_std_string(), mod->name.to_std_string() + ".debug.c");
-    writeToFile(out_path, program);
+    // writing the translated c file (if user required)
+    if(!out_c_file.empty()) {
+        if(mod->type == LabModuleType::CFile) {
+            copyFile(mod->paths[0].to_view(), out_c_file);
+        } else {
+            writeToFile(out_c_file, program);
+        }
+    }
 
     // compiling the c program, if required
     if(do_compile) {
@@ -729,6 +733,7 @@ int LabBuildCompiler::process_module_tcc(
         }
         const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
         if (compile_c_result == 1) {
+            const auto out_path = resolve_sibling(mod->object_path.to_std_string(), mod->name.to_std_string() + ".debug.c");
             writeToFile(out_path, program);
             std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
             return 1;
@@ -736,15 +741,6 @@ int LabBuildCompiler::process_module_tcc(
         // exe->linkables.emplace_back(obj_path);
         if(caching) {
             save_mod_timestamp(direct_files, mod_timestamp_file);
-        }
-    }
-
-    // writing the translated c file (if user required)
-    if(!out_c_file.empty()) {
-        if(mod->type == LabModuleType::CFile) {
-            copyFile(mod->paths[0].to_view(), out_c_file);
-        } else {
-            writeToFile(out_c_file, program);
         }
     }
 

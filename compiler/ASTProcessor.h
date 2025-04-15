@@ -93,7 +93,7 @@ public:
      * cache is where files parsed are stored, before parsing the
      * file we search for it in this cache
      */
-    std::unordered_map<std::string, ASTFileResult> cache;
+    std::unordered_map<std::string, std::unique_ptr<ASTFileResult>> cache;
 
     /**
      * the compiler binder that will be used

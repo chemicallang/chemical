@@ -10,7 +10,7 @@ public struct unordered_map_node<Key, Value> {
 };
 
 @comptime
-const LOAD_FACTOR_THRESHOLD : float = 0.75f
+public const LOAD_FACTOR_THRESHOLD : float = 0.75f
 
 public struct unordered_map<Key, Value> {
 
@@ -87,7 +87,7 @@ public struct unordered_map<Key, Value> {
     // Insert or update a key-value pair
     func insert(&self, key : Key, value : Value) {
 
-        if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD) {
+        if ((_size as float) / capacity > 0.75f) {
             resize();
         }
 

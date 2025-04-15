@@ -198,7 +198,8 @@ void VarInitStatement::put_destructible(Codegen& gen) {
 }
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {
-    if(is_comptime()) {
+    if(is_comptime() && is_const()) {
+        llvm_ptr = initializer_value(gen);
         return;
     }
     code_gen_global_var(gen, false);

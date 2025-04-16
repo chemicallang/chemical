@@ -79,7 +79,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
             break;
         }
         default:
-            auto variantMember = parseVariantMember(allocator, def);
+            auto variantMember = parseVariantMember(global_allocator, def);
             if(variantMember) {
 //                def->get_parsed_nodes_container().emplace_back(variantMember);
                 if(!def->insert_variable(variantMember)) {

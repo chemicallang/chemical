@@ -582,9 +582,9 @@ void set_generated_instantiations(ASTNode* node) {
     }
 }
 
-void process_cached_module(ASTProcessor& processor, std::vector<ASTFileResult*>& files) {
-    for(const auto file : files) {
-        auto& nodes = file->unit.scope.body.nodes;
+void process_cached_module(ASTProcessor& processor, std::vector<ASTFileMetaData>& files) {
+    for(const auto& file : files) {
+        auto& nodes = file.result->unit.scope.body.nodes;
         for(const auto node : nodes) {
             set_generated_instantiations(node);
         }
@@ -698,13 +698,16 @@ int LabBuildCompiler::process_module_tcc(
 
         // this will set all the generic instantiations to generated
         // which means generic decls won't generate those instantiations
-        process_cached_module(processor, flattened_files);
+        process_cached_module(processor, mod->direct_files);
+        for(const auto dep : mod->dependencies) {
+            process_cached_module(processor, dep->direct_files);
+        }
 
         // let's put all files to compiled units
         auto& compiled_units = processor.compiled_units;
-        for(const auto file : flattened_files) {
-            if(compiled_units.find(file->abs_path) == compiled_units.end()) {
-                compiled_units.emplace(file->abs_path, file->unit);
+        for(auto& file : mod->direct_files) {
+            if(compiled_units.find(file.abs_path) == compiled_units.end()) {
+                compiled_units.emplace(file.abs_path, file.result->unit);
             }
         }
 
@@ -895,7 +898,10 @@ int LabBuildCompiler::process_module_gen(
 
         // this will set all the generic instantiations to generated
         // which means generic decls won't generate those instantiations
-        process_cached_module(processor, flattened_files);
+        process_cached_module(processor, mod->direct_files);
+        for(const auto dep : mod->dependencies) {
+            process_cached_module(processor, dep->direct_files);
+        }
 
         // let's put all files to compiled units
         auto& compiled_units = processor.compiled_units;

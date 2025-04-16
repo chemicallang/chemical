@@ -884,27 +884,18 @@ int ASTProcessor::translate_module(
 
     // The second loop deals with declaring files that are present in this module
     // declaring means (only prototypes, no function bodies, struct prototypes...)
-    for(auto file_ptr : files) {
+    for(auto& file_ptr : module->direct_files) {
 
-        auto& file = *file_ptr;
-        auto& result = file;
-
-        const auto external_module_file = compiled_units.find(file.abs_path) != compiled_units.end();
-
-        ASTUnit& unit = file.unit;
+        auto& file = *file_ptr.result;
+        auto& unit = file.unit;
 
         // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(result)) {
+        if((options->benchmark || options->verbose) && !empty_diags(file)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            print_results(result, chem::string_view(file.abs_path), options->benchmark);
+            print_results(file, chem::string_view(file.abs_path), options->benchmark);
         }
 
-        // declaring functions and structs
-        if(external_module_file) {
-            // external_declare_in_c(c_visitor, unit.scope.body, file.abs_path);
-        } else {
-            declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
-        }
+        declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
 
     }
 
@@ -921,19 +912,17 @@ int ASTProcessor::translate_module(
     }
 
     // The fourth loop deals with generating function bodies present in the current module
-    for(auto file_ptr : files) {
+    for(auto& file_ptr : module->direct_files) {
 
-        auto& file = *file_ptr;
+        auto& file = *file_ptr.result;
         auto& result = file;
 
-        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
-            // external module file
-            continue;
-        }
-
         ASTUnit& unit = file.unit;
+
         // translating to c
         translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);
+
+        // TODO cannot remove this because remove_non_public_nodes uses it
         // save the file result, for future retrievals
         compiled_units.emplace(file.abs_path, result.unit);
 

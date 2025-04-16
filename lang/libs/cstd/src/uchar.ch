@@ -1,7 +1,3 @@
-import "./common/std_types.ch"
-import "./common/char_types.ch"
-import "./common/multibyte_char_types.ch"
-
 /**
  * Converts a narrow multibyte character to UTF-8 encoding.
  * If s is not a null pointer, inspects at most n bytes of the multibyte character string, beginning with the byte pointed to by s to determine the number of bytes necessary to complete the next multibyte character (including any shift sequences). If the function determines that the next multibyte character in s is complete and valid, converts it to UTF-8 and stores the first UTF-8 code unit in *pc8 (if pc8 is not null).

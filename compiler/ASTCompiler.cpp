@@ -126,64 +126,45 @@ int ASTProcessor::compile_module(
     std::vector<ASTFileResult*>& files
 ) {
 
-    // first loop will only handle files that have been already compiled
-    // meaning they have been imported from other modules (which have been compiled)
-    // since we already have compiled them (function bodies compiled), now we just declare them (only prototypes of functions and structs)
-    for(auto file_ptr : files) {
+    // we will declare the direct dependencies of this module
+    for(const auto dep : module->dependencies) {
+        for(auto& metaFile : dep->direct_files) {
+            if(metaFile.result != nullptr) {
+                auto& file = *metaFile.result;
+                auto& body = file.unit.scope.body;
+                auto& abs_path = file.abs_path;
 
-        auto& file = *file_ptr;
-        auto& result = file;
+                // this is probably a different module, so we'll declare the file (if not declared)
+                if(gen.di.isEnabled) {
 
-        auto present_unit = compiled_units.find(file.abs_path);
-        if(present_unit == compiled_units.end()) {
-            // not external module file
-            continue;
-        }
+                    // we create the file di compile unit again
+                    // that's because every module has a single di builder
+                    // when the module completes it dies along with compile units
+                    // so we create it again
+                    const auto abs_path_view = chem::string_view(abs_path.data(), abs_path.size());
+                    const auto fileDiCompileUnit = gen.di.createDiCompileUnit(abs_path_view);
+                    file.diCompileUnit = fileDiCompileUnit;
 
-        ASTUnit& unit = present_unit->second;
+                    // start the di compile unit
+                    gen.di.start_di_compile_unit(fileDiCompileUnit);
 
-        // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-        }
+                    // declare external nodes
+                    external_declare_nodes(gen, body, file.abs_path);
 
-        auto& abs_path = file.abs_path;
+                    // end the di compile unit scope
+                    gen.di.end_di_compile_unit();
 
-        auto declared_in = unit.declared_in.find(module);
-        if(declared_in == unit.declared_in.end()) {
+                } else {
 
-            // this is probably a different module, so we'll declare the file (if not declared)
-            if(gen.di.isEnabled) {
+                    // declare external nodes
+                    external_declare_nodes(gen, body, file.abs_path);
 
-                // we create the file di compile unit again
-                // that's because every module has a single di builder
-                // when the module completes it dies along with compile units
-                // so we create it again
-                const auto abs_path_view = chem::string_view(abs_path.data(), abs_path.size());
-                const auto fileDiCompileUnit = gen.di.createDiCompileUnit(abs_path_view);
-                file.diCompileUnit = fileDiCompileUnit;
-
-                // start the di compile unit
-                gen.di.start_di_compile_unit(fileDiCompileUnit);
-
-                // declare external nodes
-                external_declare_nodes(gen, unit.scope.body, file.abs_path);
-
-                // end the di compile unit scope
-                gen.di.end_di_compile_unit();
+                }
 
             } else {
-
-                // declare external nodes
-                external_declare_nodes(gen, unit.scope.body, file.abs_path);
-
+                throw std::runtime_error("result is null");
             }
-
         }
-
-        // clear everything we allocated using file allocator to make it re-usable
-        safe_clear_file_allocator();
-
     }
 
     // The second loop deals with files that are within current module
@@ -239,58 +220,36 @@ int ASTProcessor::compile_module(
 
     }
 
-    // the third loop implements the externally imported nodes
-    // only generics require implementing nodes, because new instantiations may be generated
-    // due to usage in this module
-    for(auto file_ptr : files) {
+    // we will implement the direct dependencies of this module
+    for(const auto dep : module->dependencies) {
+        for(auto& metaFile : dep->direct_files) {
+            if(metaFile.result != nullptr) {
+                auto& file = *metaFile.result;
+                auto& body = file.unit.scope.body;
 
-        auto& file = *file_ptr;
-        auto& result = file;
+                // this is probably a different module, so we'll declare the file (if not declared)
+                if(gen.di.isEnabled) {
 
-        auto present_unit = compiled_units.find(file.abs_path);
-        if(present_unit == compiled_units.end()) {
-            // not external module file
-            continue;
-        }
+                    // start the di compile unit
+                    gen.di.start_di_compile_unit(file.diCompileUnit);
 
-        ASTUnit& unit = present_unit->second;
+                    // declare external nodes
+                    code_gen_external_implement(gen, body.nodes, file.abs_path);
 
-        // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[ExtDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-        }
+                    // end the di compile unit scope
+                    gen.di.end_di_compile_unit();
 
-        auto& abs_path = file.abs_path;
+                } else {
 
-        auto declared_in = unit.declared_in.find(module);
-        if(declared_in == unit.declared_in.end()) {
+                    // declare external nodes
+                    code_gen_external_implement(gen, body.nodes, file.abs_path);
 
-            // this is probably a different module, so we'll declare the file (if not declared)
-            if(gen.di.isEnabled) {
-
-                // start the di compile unit
-                gen.di.start_di_compile_unit(file.diCompileUnit);
-
-                // declare external nodes
-                code_gen_external_implement(gen, unit.scope.body.nodes, file.abs_path);
-
-                // end the di compile unit scope
-                gen.di.end_di_compile_unit();
+                }
 
             } else {
-
-                // declare external nodes
-                code_gen_external_implement(gen, unit.scope.body.nodes, file.abs_path);
-
+                throw std::runtime_error("result is null");
             }
-
-            unit.declared_in[module] = true;
-
         }
-
-        // clear everything we allocated using file allocator to make it re-usable
-        safe_clear_file_allocator();
-
     }
 
     // The fourth loop also only compiles the files that present inside this module

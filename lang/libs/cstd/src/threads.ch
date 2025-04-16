@@ -1,5 +1,3 @@
-import "./time.ch"
-
 /**
  * TODO mtx_t is implementation defined
  * @see https://en.cppreference.com/w/c/thread

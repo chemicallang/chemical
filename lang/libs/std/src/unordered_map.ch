@@ -1,5 +1,3 @@
-import "hashing/hash.ch"
-
 public namespace std {
 
 public struct unordered_map_node<Key, Value> {

@@ -1,5 +1,3 @@
-import "./integer_types.ch"
-
 /**
  * @see https://en.cppreference.com/w/c/string/multibyte/char8_t
  */

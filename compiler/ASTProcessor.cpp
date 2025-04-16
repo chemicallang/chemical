@@ -920,39 +920,6 @@ int ASTProcessor::translate_module(
         }
     }
 
-    // The third loop deals with implementing files that have been imported from other modules
-    // this only implements the generics imported from other files
-//    for(auto file_ptr : files) {
-//
-//        auto& file = *file_ptr;
-//        auto& result = file;
-//
-//        auto imported = compiled_units.find(file.abs_path);
-//        if(imported == compiled_units.end()) {
-//            // not external module file
-//            continue;
-//        }
-//
-//        ASTUnit& unit = imported->second;
-//
-//        // print the benchmark or verbose output received from processing
-//        if((options->benchmark || options->verbose) && !empty_diags(result)) {
-//            std::cout << rang::style::bold << rang::fg::magenta << "[ExtImplement] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-//        }
-//
-//        auto declared_in = unit.declared_in.find(module);
-//        if(declared_in == unit.declared_in.end()) {
-//            // this is probably a different module, so we'll declare the file (if not declared)
-//            external_implement_in_c(c_visitor, unit.scope.body, file.abs_path);
-//            unit.declared_in[module] = true;
-//
-//            // clear everything we allocated using file allocator to make it re-usable
-//            safe_clear_file_allocator();
-//
-//        }
-//
-//    }
-
     // The fourth loop deals with generating function bodies present in the current module
     for(auto file_ptr : files) {
 

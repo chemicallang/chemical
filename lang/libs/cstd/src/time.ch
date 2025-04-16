@@ -1,6 +1,3 @@
-import "./common/std_types.ch"
-import "./common/time_types.ch"
-
 /**
  * Computes difference between two calendar times as time_t objects (time_end - time_beg) in seconds. If time_end refers to time point before time_beg then the result is negative.
  * @param time_beg, time_end	-	times to compare

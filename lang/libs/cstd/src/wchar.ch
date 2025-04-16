@@ -1,10 +1,3 @@
-import "./common/std_types.ch"
-import "./common/wchar_types.ch"
-import "./common/multibyte_char_types.ch"
-import "./common/io_types.ch"
-import "./common/arg_types.ch"
-import "./common/time_types.ch"
-
 /**
  * If mode > 0, attempts to make stream wide-oriented. If mode < 0, attempts to make stream byte-oriented. If mode==0, only queries the current orientation of the stream.
  * If the orientation of the stream has already been decided (by executing output or by an earlier call to fwide), this function does nothing.

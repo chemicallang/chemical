@@ -1,7 +1,3 @@
-import "./common/arg_types.ch"
-import "./common/std_types.ch"
-import "./common/io_types.ch"
-
 /**
  * TODO fpos_t is implementation defined
  * fpos_t is a non-array complete object type, can be used to store (by fgetpos) and restore (by fsetpos) the position and multibyte parser state (if any) for a C stream.

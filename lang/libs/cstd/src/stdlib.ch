@@ -1,6 +1,3 @@
-import "./common/std_types.ch"
-import "./common/wchar_types.ch"
-
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
  * Function discards any whitespace characters (as determined by isspace) until first non-whitespace character is found. Then it takes as many characters as possible to form a valid floating-point representation and converts them to a floating-point value. The valid floating-point value can be one of the following:

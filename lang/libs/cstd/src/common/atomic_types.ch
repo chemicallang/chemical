@@ -1,7 +1,3 @@
-import "./char_types.ch"
-import "./wchar_types.ch"
-import "./std_types.ch"
-
 /**
  * TODO this type should be atomic
  * @see https://en.cppreference.com/w/c/thread#Atomic_operations

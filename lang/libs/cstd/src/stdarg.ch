@@ -1,5 +1,3 @@
-import "./common/arg_types.ch"
-
 /**
  * The va_start macro enables access to the variable arguments following the named argument parmN(until C23).
  * va_start shall be invoked with an instance to a valid va_list object ap before any calls to va_arg.

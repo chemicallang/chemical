@@ -1,5 +1,3 @@
-import "common/integer_types.ch"
-
 /**
  * TODO Some types aren't exact
  * TODO we must go over these again, to make sure these types work with functions in C and are completely compatible

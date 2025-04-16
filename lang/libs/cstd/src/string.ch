@@ -1,5 +1,3 @@
-import "./common/std_types.ch"
-
 /**
  * Copies the null-terminated byte string pointed to by src, including the null terminator, to the character array whose first element is pointed to by dest.
  *      The behavior is undefined if the dest array is not large enough. The behavior is undefined if the strings overlap. The behavior is undefined if either dest is not a pointer to a character array or src is not a pointer to a null-terminated byte string.

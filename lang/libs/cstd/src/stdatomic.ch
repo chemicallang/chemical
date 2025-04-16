@@ -1,5 +1,3 @@
-import "./common/atomic_types.ch"
-
 /**
  * TODO These macros are implementation defined
  * #define ATOMIC_BOOL_LOCK_FREE     // implementation-defined

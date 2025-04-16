@@ -1,5 +1,3 @@
-import "./common/wchar_types.ch"
-
 /**
  * TODO wctype_t is implementation defined
  * @see https://en.cppreference.com/w/c/string/wide

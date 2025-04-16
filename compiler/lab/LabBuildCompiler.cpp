@@ -1974,6 +1974,15 @@ TCCState* LabBuildCompiler::built_lab_file(
     // flatten the files to module files (in sorted order of independence)
     auto module_files = flatten(files_to_flatten);
 
+    // we figure out all the files that belong to this build.lab module
+    direct_files_in_lab.clear();
+    for(const auto f : module_files) {
+        if(f->abs_path.ends_with(".lab")) {
+            f->result = f;
+            direct_files_in_lab.emplace_back(*f);
+        }
+    }
+
     // the build lab object file (cached)
     const auto labDir = resolve_rel_child_path_str(options->build_dir, "lab");
     const auto labBuildDir = resolve_rel_child_path_str(labDir, "build");

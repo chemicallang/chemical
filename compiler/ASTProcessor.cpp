@@ -334,6 +334,7 @@ bool ASTProcessor::import_chemical_files(
             auto found = cache.find(abs_path);
             if (found != cache.end()) {
 //                 std::cout << "not launching file : " << fileData.abs_path << std::endl;
+                fileData.result = found->second.get();
                 futures.emplace_back(found->second.get());
                 continue;
             }
@@ -341,6 +342,7 @@ bool ASTProcessor::import_chemical_files(
 //            std::cout << "launching file : " << fileData.abs_path << std::endl;
             // we must try to store chem::string_view into the fileData, from the beginning
             const auto ptr = new ASTFileResult(file_id, "", fileData.module);
+            fileData.result = ptr;
             cache.emplace(abs_path, ptr);
             out_file = ptr;
         }
@@ -672,7 +674,17 @@ void ASTProcessor::figure_out_module_dependency_based_on_import(
 
                 // now we put this module dependency in the vector
                 // because this module needs to be built before this file can be imported
-                dependencies.emplace_back(std::move(dir_path.replaced), &imported, chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
+                bool exists = false;
+                for(const auto& dep : dependencies) {
+                    if(dep.mod_name.to_chem_view() == modIdentifier.module_name && dep.scope_name.to_chem_view() == modIdentifier.scope_name) {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if(!exists) {
+                    dependencies.emplace_back(std::move(dir_path.replaced), &imported, chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
+                }
 
             } else {
 
@@ -858,6 +870,18 @@ int ASTProcessor::translate_module(
 
     }
 
+    // we will declare the direct dependencies of this module
+    for(const auto dep : module->dependencies) {
+        for(auto& file : dep->direct_files) {
+            if(file.result != nullptr) {
+                auto& body = file.result->unit.scope.body;
+                external_declare_in_c(c_visitor, body, file.abs_path);
+            } else {
+                throw std::runtime_error("result is null");
+            }
+        }
+    }
+
     // The second loop deals with declaring files that are present in this module
     // declaring means (only prototypes, no function bodies, struct prototypes...)
     for(auto file_ptr : files) {
@@ -877,45 +901,57 @@ int ASTProcessor::translate_module(
 
         // declaring functions and structs
         if(external_module_file) {
-            external_declare_in_c(c_visitor, unit.scope.body, file.abs_path);
+            // external_declare_in_c(c_visitor, unit.scope.body, file.abs_path);
         } else {
             declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
         }
 
     }
 
+    // we will implement the direct dependencies of this module
+    for(const auto dep : module->dependencies) {
+        for(auto& file : dep->direct_files) {
+            if(file.result != nullptr) {
+                auto& body = file.result->unit.scope.body;
+                external_implement_in_c(c_visitor, body, file.abs_path);
+            } else {
+                throw std::runtime_error("result is null");
+            }
+        }
+    }
+
     // The third loop deals with implementing files that have been imported from other modules
     // this only implements the generics imported from other files
-    for(auto file_ptr : files) {
-
-        auto& file = *file_ptr;
-        auto& result = file;
-
-        auto imported = compiled_units.find(file.abs_path);
-        if(imported == compiled_units.end()) {
-            // not external module file
-            continue;
-        }
-
-        ASTUnit& unit = imported->second;
-
-        // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[ExtImplement] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-        }
-
-        auto declared_in = unit.declared_in.find(module);
-        if(declared_in == unit.declared_in.end()) {
-            // this is probably a different module, so we'll declare the file (if not declared)
-            external_implement_in_c(c_visitor, unit.scope.body, file.abs_path);
-            unit.declared_in[module] = true;
-
-            // clear everything we allocated using file allocator to make it re-usable
-            safe_clear_file_allocator();
-
-        }
-
-    }
+//    for(auto file_ptr : files) {
+//
+//        auto& file = *file_ptr;
+//        auto& result = file;
+//
+//        auto imported = compiled_units.find(file.abs_path);
+//        if(imported == compiled_units.end()) {
+//            // not external module file
+//            continue;
+//        }
+//
+//        ASTUnit& unit = imported->second;
+//
+//        // print the benchmark or verbose output received from processing
+//        if((options->benchmark || options->verbose) && !empty_diags(result)) {
+//            std::cout << rang::style::bold << rang::fg::magenta << "[ExtImplement] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+//        }
+//
+//        auto declared_in = unit.declared_in.find(module);
+//        if(declared_in == unit.declared_in.end()) {
+//            // this is probably a different module, so we'll declare the file (if not declared)
+//            external_implement_in_c(c_visitor, unit.scope.body, file.abs_path);
+//            unit.declared_in[module] = true;
+//
+//            // clear everything we allocated using file allocator to make it re-usable
+//            safe_clear_file_allocator();
+//
+//        }
+//
+//    }
 
     // The fourth loop deals with generating function bodies present in the current module
     for(auto file_ptr : files) {

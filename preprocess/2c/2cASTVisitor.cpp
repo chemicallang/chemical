@@ -2321,33 +2321,45 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl)
     }
 }
 
+void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node);
+
+void early_declare_struct(CTopLevelDeclarationVisitor& visitor, StructDefinition* def) {
+    // declare inherited types
+    for(auto& inherit : def->inherited) {
+        auto in_node = inherit.type->get_direct_linked_node();
+        if(in_node) {
+            early_declare_node(visitor, in_node);
+        }
+    }
+    // declare sub variables
+    for(const auto var : def->variables()) {
+        const auto known_t = var->known_type();
+        if(known_t) {
+            auto sub_node = known_t->get_direct_linked_node();
+            if (sub_node) {
+                early_declare_node(visitor, sub_node);
+            }
+        }
+    }
+    visitor.early_declare_struct_def(def);
+}
+
 void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
-    const auto node_kind = node->kind();
-    if (node_kind == ASTNodeKind::StructDecl) {
-        const auto def = node->as_struct_def_unsafe();
-        // declare inherited types
-        for(auto& inherit : def->inherited) {
-            auto in_node = inherit.type->get_direct_linked_node();
-            if(in_node) {
-                early_declare_node(visitor, in_node);
-            }
-        }
-        // declare sub variables
-        for(const auto var : def->variables()) {
-            const auto known_t = var->known_type();
-            if(known_t) {
-                auto sub_node = known_t->get_direct_linked_node();
-                if (sub_node) {
-                    early_declare_node(visitor, sub_node);
-                }
-            }
-        }
-        visitor.early_declare_struct_def(def);
-    } else if (node_kind == ASTNodeKind::VariantDecl) {
-        const auto def = node->as_variant_def_unsafe();
-        visitor.early_declare_variant_def(def);
-    } else if (node_kind == ASTNodeKind::UnionDecl) {
-        // TODO this
+    switch(node->kind()) {
+        case ASTNodeKind::TypealiasStmt:
+            visitor.VisitTypealiasStmt(node->as_typealias_unsafe());
+            break;
+        case ASTNodeKind::StructDecl:
+            early_declare_struct(visitor, node->as_struct_def_unsafe());
+            break;
+        case ASTNodeKind::VariantDecl:
+            visitor.early_declare_variant_def(node->as_variant_def_unsafe());
+            break;
+        case ASTNodeKind::UnionDecl:
+            // TODO this
+            break;
+        default:
+            break;
     }
 }
 
@@ -2511,7 +2523,10 @@ void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
 }
 
 void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
-    type_def_stmt(visitor, stmt);
+    if(!has_declared(stmt)) {
+        set_declared(stmt);
+        type_def_stmt(visitor, stmt);
+    }
 }
 
 void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {

@@ -7,6 +7,8 @@
 
 class LabModule;
 
+class ASTFileResult;
+
 struct ASTFileMetaData {
 
     /**
@@ -38,6 +40,11 @@ struct ASTFileMetaData {
      * the as identifier is used with import statements to import files
      */
     std::string as_identifier;
+
+    /**
+     * this contains the parse result of the file
+     */
+    ASTFileResult* result = nullptr;
 
     /**
      * the file meta data

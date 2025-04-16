@@ -238,7 +238,7 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         }
 
         // clear everything allocated during symbol resolution of current file
-        safe_clear_file_allocator();
+        file_allocator.clear();
 
     }
 
@@ -927,7 +927,7 @@ int ASTProcessor::translate_module(
         compiled_units.emplace(file.abs_path, result.unit);
 
         // clear everything we allocated using file allocator to make it re-usable
-        safe_clear_file_allocator();
+        file_allocator.clear();
 
     }
 

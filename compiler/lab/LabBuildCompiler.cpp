@@ -926,7 +926,7 @@ int LabBuildCompiler::process_module_gen(
 
     // compile the whole module
     processor.compile_module(
-            gen, mod, flattened_files
+            gen, mod
     );
 
     if(verbose) {

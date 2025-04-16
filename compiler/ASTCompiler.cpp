@@ -122,8 +122,7 @@ void ASTProcessor::external_declare_nodes(
 
 int ASTProcessor::compile_module(
     Codegen& gen,
-    LabModule* module,
-    std::vector<ASTFileResult*>& files
+    LabModule* module
 ) {
 
     // we will declare the direct dependencies of this module
@@ -170,15 +169,10 @@ int ASTProcessor::compile_module(
     // The second loop deals with files that are within current module
     // We just declare the files in current module in this loop that's it, we create prototypes of structs and functions
     // in the next loop we will finally create bodies
-    for(auto file_ptr : files) {
+    for(auto& file_ptr : module->direct_files) {
 
-        auto& file = *file_ptr;
+        auto& file = *file_ptr.result;
         auto& result = file;
-
-        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
-            // external module file
-            continue;
-        }
 
         ASTUnit& unit = file.unit;
 
@@ -216,7 +210,7 @@ int ASTProcessor::compile_module(
         }
 
         // clear everything we allocated using file allocator to make it re-usable
-        safe_clear_file_allocator();
+        file_allocator.clear();
 
     }
 
@@ -254,15 +248,10 @@ int ASTProcessor::compile_module(
 
     // The fourth loop also only compiles the files that present inside this module
     // This loop will compile the bodies of the functions inside the current module
-    for(auto file_ptr : files) {
+    for(auto& file_ptr : module->direct_files) {
 
-        auto& file = *file_ptr;
+        auto& file = *file_ptr.result;
         auto& result = file;
-
-        if(compiled_units.find(file.abs_path) != compiled_units.end()) {
-            // external module file
-            continue;
-        }
 
         ASTUnit& unit = file.unit;
 
@@ -288,7 +277,7 @@ int ASTProcessor::compile_module(
         compiled_units.emplace(file.abs_path, result.unit);
 
         // clear everything we allocated using file allocator to make it re-usable
-        safe_clear_file_allocator();
+        file_allocator.clear();
 
     }
 

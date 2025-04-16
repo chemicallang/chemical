@@ -150,18 +150,6 @@ public:
     }
 
     /**
-     * the reason we clear the file allocator like this is because maybe a single allocator
-     * is being used for file, module and job, this would mean clearing the file allocator
-     * would clear things allocated for module or job
-     * for example when building the build.lab we use a single allocator
-     */
-    inline void safe_clear_file_allocator() {
-        if(&file_allocator != &mod_allocator && &file_allocator != &job_allocator) {
-            file_allocator.clear();
-        }
-    }
-
-    /**
      * this imports the given files in parallel using the given thread pool
      * @return true if succeeding importing all files with continue_processing, false otherwise
      */
@@ -422,8 +410,7 @@ public:
      */
     int compile_module(
         Codegen& gen,
-        LabModule* module,
-        std::vector<ASTFileResult*>& files
+        LabModule* module
     );
 
 #endif

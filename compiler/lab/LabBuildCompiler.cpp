@@ -583,7 +583,6 @@ void set_generated_instantiations(ASTNode* node) {
 }
 
 void process_cached_module(ASTProcessor& processor, std::vector<ASTFileResult*>& files) {
-    auto& compiled_units = processor.compiled_units;
     for(const auto file : files) {
         auto& nodes = file->unit.scope.body.nodes;
         for(const auto node : nodes) {
@@ -593,22 +592,20 @@ void process_cached_module(ASTProcessor& processor, std::vector<ASTFileResult*>&
 }
 
 // TODO: we have to do this on every file, this takes time (not the ideal solution)
-void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileResult*>& module_files) {
+void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileMetaData>& module_files) {
     // going over each file in the module, to remove non-public nodes
     // so when we declare the nodes in other module, we don't consider non-public nodes
     // because non-public nodes are only present in the module allocator which will be cleared
-    for(const auto file : module_files) {
-        auto file_unit = processor.compiled_units.find(file->abs_path);
-        if(file_unit != processor.compiled_units.end()) {
-            auto& nodes = file_unit->second.scope.body.nodes;
-            auto itr = nodes.begin();
-            while(itr != nodes.end()) {
-                auto& node = *itr;
-                if(is_node_exported(node)) {
-                    itr++;
-                } else {
-                    itr = nodes.erase(itr);
-                }
+    for(const auto& file : module_files) {
+        auto& file_unit = *file.result;
+        auto& nodes = file_unit.unit.scope.body.nodes;
+        auto itr = nodes.begin();
+        while(itr != nodes.end()) {
+            auto& node = *itr;
+            if(is_node_exported(node)) {
+                itr++;
+            } else {
+                itr = nodes.erase(itr);
             }
         }
     }
@@ -712,7 +709,7 @@ int LabBuildCompiler::process_module_tcc(
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
-        remove_non_public_nodes(processor, module_files);
+        remove_non_public_nodes(processor, mod->direct_files);
 
         // disposing data
         mod_allocator->clear();
@@ -736,7 +733,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // removing non public nodes, because these would be disposed when allocator clears
-    remove_non_public_nodes(processor, module_files);
+    remove_non_public_nodes(processor, mod->direct_files);
 
     // disposing data
     mod_allocator->clear();
@@ -909,7 +906,7 @@ int LabBuildCompiler::process_module_gen(
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
-        remove_non_public_nodes(processor, module_files);
+        remove_non_public_nodes(processor, mod->direct_files);
 
         // disposing data
         mod_allocator->clear();
@@ -934,7 +931,7 @@ int LabBuildCompiler::process_module_gen(
     }
 
     // removing non public nodes, because these would be disposed when allocator clears
-    remove_non_public_nodes(processor, module_files);
+    remove_non_public_nodes(processor, mod->direct_files);
 
     if(gen.has_errors) {
         std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;

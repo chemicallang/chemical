@@ -88,6 +88,7 @@ func add(a: int, b: int): int {
 | Component                  | Status         |
 |----------------------------|----------------|
 | Lexer, Parser, Sym Res     | ✅              |
+| Codegen & C Translation    | ✅              |
 | Basic LSP                  | ✅              |
 | Native Codegen (LLVM)      | ✅              |
 | C Translation & TCC JIT    | ✅              |

@@ -6,7 +6,7 @@
 
 [Website](https://chemical.qinetik.org)
 | [Docs](https://github.com/chemicallang/chemical/blob/main/lang/docs/README.md)
-| [Changelog](https://github.com/chemicallang/chemical/blob/main/lang/docs/CHANGELOG.md)
+| [Changelog](https://github.com/chemicallang/chemical/releases)
 | [Speed](https://chemical.qinetik.org/speed)
 | [Contributing & compiler design](https://github.com/chemicallang/chemical/blob/main/lang/docs/CONTRIBUTING.md)
 
@@ -101,8 +101,6 @@ func add(a: int, b: int): int {
 | Multi-threaded Compiler    | 🔄 Planned     |
 | Compiler Plugins           | 🔄 Planned     |
 | Mobile & Web Support       | 🔄 Planned     |
-
-*More details in the [CHANGELOG](https://github.com/chemicallang/chemical/blob/main/lang/docs/CHANGELOG.md).*
 
 ---
 

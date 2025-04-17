@@ -473,9 +473,6 @@ bool ASTProcessor::import_chemical_file(
 
     auto& unit = result.unit;
 
-    std::unique_ptr<BenchmarkResults> lex_bm;
-    std::unique_ptr<BenchmarkResults> parse_bm;
-
     FileInputSource inp_source(abs_path.data());
     if(inp_source.has_error()) {
         result.continue_processing = false;

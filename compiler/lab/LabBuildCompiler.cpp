@@ -2018,19 +2018,23 @@ TCCState* LabBuildCompiler::built_lab_file(
     // these are modules imported by the build.lab
     // however we must build their build.lab or chemical.mod into a LabModule*
     for(auto& mod_ptr : buildLabModuleDependencies) {
+
         // get the module pointer
         const auto mod = create_module_for_dependency(context, mod_ptr);
         if(mod == nullptr) {
             return nullptr;
         }
 
-        // we imported this file from this module and it thinks that
-        // it belongs to the build.lab module we created above (because we hadn't created this module before)
-        // lets change this
-        mod_ptr.fileResult->module = &mod->module_scope;
-        mod_ptr.fileResult->unit.scope.set_parent(&mod->module_scope);
+        for(const auto fileResult : mod_ptr.imports) {
+            // we imported this file from this module and it thinks that
+            // it belongs to the build.lab module we created above (because we hadn't created this module before)
+            // lets change this
+            fileResult->module = &mod->module_scope;
+            fileResult->unit.scope.set_parent(&mod->module_scope);
+        }
 
         mod_dependencies.emplace_back(mod);
+
     }
 
     // including all (+nested) dependencies in a single vector

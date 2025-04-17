@@ -5,6 +5,7 @@ import "./attribute.ch"
 import "@std/hashing/fnv1.ch"
 import "@std/std.ch"
 import "@cstd/string.ch"
+import "@cstd/stdio.ch"
 
 func isTagNameSelfClosing(ptr : *char) : bool {
     switch(fnv1_hash(ptr)) {

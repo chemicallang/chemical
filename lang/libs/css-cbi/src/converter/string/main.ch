@@ -13,6 +13,7 @@ import "@compiler/ASTBuilder.ch"
 import "@std/hashing/fnv1.ch"
 import "@cstd/common/integer_types.ch"
 import "/ast/CSSLengthKind.ch"
+import "@cstd/stdio.ch"
 
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());

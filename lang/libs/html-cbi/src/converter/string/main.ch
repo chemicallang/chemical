@@ -7,6 +7,7 @@ import "@compiler/ast/base/ASTNode.ch"
 import "@compiler/ast/base/BaseTypeKind.ch"
 import "@compiler/ast/base/Value.ch"
 import "@compiler/ast/base/ValueKind.ch"
+import "@cstd/stdio.ch"
 import "../../utils/stdutils.ch"
 import "../../utils/comptime_utils.ch"
 

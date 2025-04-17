@@ -2371,6 +2371,12 @@ void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, Vari
             early_declare_node(visitor, node);
         }
     }
+    for(auto& inh : container.inherited) {
+        const auto node = inh.type->get_direct_linked_node();
+        if(node) {
+            early_declare_node(visitor, node);
+        }
+    }
 }
 
 void early_declare_type(CTopLevelDeclarationVisitor& visitor, BaseType* type) {

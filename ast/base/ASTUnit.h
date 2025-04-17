@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <vector>
-#include <unordered_map>
-#include <memory>
 #include "ast/structures/FileScope.h"
 
 class BaseType;
@@ -12,7 +9,7 @@ class Value;
 class LabModule;
 
 /**
- * an ASTUnit is the complete AST of a single file (mostly)
+ * an ASTUnit is the complete AST of a single file
  * It represents everything allocated after parsing the tokens
  */
 class ASTUnit {
@@ -22,12 +19,6 @@ public:
      * file scope contains the file scope
      */
     FileScope scope;
-
-    /**
-     * modules in which this ast unit has been declared in,
-     * this is necessary because a file is supposed to be declared in a module once
-     */
-    std::unordered_map<LabModule*, bool> declared_in;
 
     /**
      * empty constructor

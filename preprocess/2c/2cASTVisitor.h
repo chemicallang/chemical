@@ -285,10 +285,10 @@ public:
      */
     void debug_comment(const chem::string_view& value, bool new_line = true) {
         if(debug_comments) {
+            if(new_line) new_line_and_indent();
             write("/** ");
             write(value);
             write(" **/");
-            if(new_line) new_line_and_indent();
         }
     }
 

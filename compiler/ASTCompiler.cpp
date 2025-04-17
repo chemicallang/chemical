@@ -125,8 +125,12 @@ int ASTProcessor::compile_module(
     LabModule* module
 ) {
 
+    // let's create a flat vector of direct dependencies, that we want to process
+    std::vector<LabModule*> dependencies;
+    shallow_dedupe_sorted(dependencies, module->dependencies);
+
     // we will declare the direct dependencies of this module
-    for(const auto dep : module->dependencies) {
+    for(const auto dep : dependencies) {
         for(auto& metaFile : dep->direct_files) {
             if(metaFile.result != nullptr) {
                 auto& file = *metaFile.result;
@@ -215,7 +219,7 @@ int ASTProcessor::compile_module(
     }
 
     // we will implement the direct dependencies of this module
-    for(const auto dep : module->dependencies) {
+    for(const auto dep : dependencies) {
         for(auto& metaFile : dep->direct_files) {
             if(metaFile.result != nullptr) {
                 auto& file = *metaFile.result;

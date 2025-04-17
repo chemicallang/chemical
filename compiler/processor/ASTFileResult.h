@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include "ast/base/ASTUnit.h"
 #include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/llvmfwd.h"
+#include "utils/Benchmark.h"
+#include "integration/common/Diagnostic.h"
 
 struct ASTFileResult : ASTFileMetaData {
 

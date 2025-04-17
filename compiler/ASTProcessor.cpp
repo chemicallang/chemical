@@ -674,17 +674,14 @@ void ASTProcessor::figure_out_module_dependency_based_on_import(
 
                 // now we put this module dependency in the vector
                 // because this module needs to be built before this file can be imported
-                bool exists = false;
-                for(const auto& dep : dependencies) {
+                for(auto& dep : dependencies) {
                     if(dep.mod_name.to_chem_view() == modIdentifier.module_name && dep.scope_name.to_chem_view() == modIdentifier.scope_name) {
-                        exists = true;
-                        break;
+                        dep.imports.emplace_back(&imported);
+                        return;
                     }
                 }
 
-                if(!exists) {
-                    dependencies.emplace_back(std::move(dir_path.replaced), &imported, chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
-                }
+                dependencies.emplace_back(std::move(dir_path.replaced), &imported, chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
 
             } else {
 

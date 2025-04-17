@@ -65,6 +65,12 @@ void GenericFuncDecl::link_signature(SymbolResolver &linker) {
     for(const auto inst : instantiations) {
         finalize_signature(allocator, inst);
     }
+    auto resolved_sig = master_impl->data.signature_resolved;
+    // since these instantiations were created before link signature
+    // we must set the resolved_signature to true, which is false before link signature
+    for(const auto inst : instantiations) {
+        inst->data.signature_resolved = resolved_sig;
+    }
     // finalize the signatures of all instantiations
     // this basically visits the instantiations signature and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(this, instantiations);

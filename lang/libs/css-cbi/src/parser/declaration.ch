@@ -11,6 +11,7 @@ import "/ast/CSSKeywordKind.ch"
 import "/utils/color_utils.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
+import "@cstd/stdio.ch"
 
 func getCSSGlobalKeywordKind(ptr : *char) : CSSKeywordKind {
     switch(fnv1_hash(ptr)) {

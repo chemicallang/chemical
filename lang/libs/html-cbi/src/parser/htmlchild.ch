@@ -3,6 +3,7 @@ import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@compiler/ChemicalTokenType.ch"
 import "@std/std.ch"
+import "@cstd/stdio.ch"
 
 func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
 

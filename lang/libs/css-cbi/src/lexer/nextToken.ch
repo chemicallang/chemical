@@ -5,6 +5,7 @@ import "@cstd/ctype.ch"
 import "./TokenType.ch"
 import "./readutils.ch"
 import "../utils/comptime_utils.ch"
+import "@cstd/stdio.ch"
 
 func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     const provider = &lexer.provider;

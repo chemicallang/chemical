@@ -8,8 +8,6 @@ import "@compiler/ast/base/BaseTypeKind.ch"
 import "@compiler/ast/base/Value.ch"
 import "@compiler/ast/base/ValueKind.ch"
 import "@cstd/stdio.ch"
-import "../../utils/stdutils.ch"
-import "../../utils/comptime_utils.ch"
 
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());

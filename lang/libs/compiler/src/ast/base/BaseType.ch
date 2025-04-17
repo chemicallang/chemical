@@ -1,6 +1,3 @@
-import "./BaseTypeKind.ch"
-import "../../SymbolResolver.ch"
-
 public struct BaseType {
 
     func getKind(&self) : BaseTypeKind

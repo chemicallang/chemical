@@ -1,13 +1,6 @@
-import "AccessSpecifier.ch"
 import "./PtrVec.ch"
 import "@std/string_view.ch"
 import "@std/std.ch"
-import "./BatchAllocator.ch"
-import "./ast/base/ASTNode.ch"
-import "./ast/base/Value.ch"
-import "./ast/base/BaseType.ch"
-import "./SymbolResolver.ch"
-import "./Operation.ch"
 
 using namespace std;
 

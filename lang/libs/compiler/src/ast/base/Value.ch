@@ -1,8 +1,3 @@
-import "./ValueKind.ch"
-import "./ASTNode.ch"
-import "./BaseType.ch"
-import "../../SymbolResolver.ch"
-
 public struct Value {
 
     func getKind(&self) : ValueKind

@@ -1,4 +1,3 @@
-import "./element.ch"
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
 import "@compiler/ChemicalTokenType.ch"

@@ -1,9 +1,5 @@
 import "@std/string_view.ch"
 import "@std/vector.ch"
-import "./CSSValueKind.ch"
-import "./CSSLengthKind.ch"
-import "./CSSColorKind.ch"
-import "./CSSKeywordKind.ch"
 
 enum CSSPropertyKind {
 

@@ -1,7 +1,5 @@
 import "@compiler/ASTBuilder.ch"
 import "@compiler/Parser.ch"
-import "../ast/HtmlRoot.ch"
-import "./element.ch"
 
 func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
     var rootElement = parseElement(parser, builder);

@@ -52,6 +52,14 @@ void GenericInterfaceDecl::link_signature(SymbolResolver &linker) {
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(this, instantiations);
+    // since these instantiations were created before link_signature
+    // the functions have signature_resolved set to false, we must fix that
+    for(const auto inst : instantiations) {
+        for(const auto func : inst->master_functions()) {
+            // TODO set it to true, if its actually resolved
+            func->FunctionType::data.signature_resolved = true;
+        }
+    }
 }
 
 void GenericInterfaceDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {

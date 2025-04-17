@@ -118,7 +118,7 @@ very innovative things are planned.
   - [ ] AST Transformation Plugins (ATP)
   - [ ] Annotation / Symbol Processing
 - [x] Build System based on Chemical
-  - [ ] Advanced caching support for modules
+  - [x] Advanced caching support for modules
   - [x] Modes of build
     - [x] Simple and easy 'chemical.mod' files
     - [x] Advanced and powerful 'build.lab' files

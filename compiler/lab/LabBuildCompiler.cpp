@@ -683,7 +683,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_module(flattened_files);
+    const auto sym_res_status = processor.sym_res_module(mod);
     if(sym_res_status == 1) {
         return 1;
     }
@@ -701,14 +701,6 @@ int LabBuildCompiler::process_module_tcc(
         process_cached_module(processor, mod->direct_files);
         for(const auto dep : mod->dependencies) {
             process_cached_module(processor, dep->direct_files);
-        }
-
-        // let's put all files to compiled units
-        auto& compiled_units = processor.compiled_units;
-        for(auto& file : mod->direct_files) {
-            if(compiled_units.find(file.abs_path) == compiled_units.end()) {
-                compiled_units.emplace(file.abs_path, file.result->unit);
-            }
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
@@ -871,19 +863,22 @@ int LabBuildCompiler::process_module_gen(
         return 1;
     }
 
-    if(verbose) {
-        std::cout << "[lab] " << "flattening the module import graph" << std::endl;
-    }
-
-    // get the files flattened
-    auto flattened_files = flatten(module_files);
+    // we don't need to flatten the import graph
+    // because we never process it at the moment
+    // commenting it if ever needed
+//    if(verbose) {
+//        std::cout << "[lab] " << "flattening the module import graph" << std::endl;
+//    }
+//
+//    // get the files flattened
+//    auto flattened_files = flatten(module_files);
 
     if(verbose) {
         std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = processor.sym_res_module(flattened_files);
+    const auto sym_res_status = processor.sym_res_module(mod);
     if(sym_res_status == 1) {
         return 1;
     }
@@ -901,14 +896,6 @@ int LabBuildCompiler::process_module_gen(
         process_cached_module(processor, mod->direct_files);
         for(const auto dep : mod->dependencies) {
             process_cached_module(processor, dep->direct_files);
-        }
-
-        // let's put all files to compiled units
-        auto& compiled_units = processor.compiled_units;
-        for(const auto file : flattened_files) {
-            if(compiled_units.find(file->abs_path) == compiled_units.end()) {
-                compiled_units.emplace(file->abs_path, file->unit);
-            }
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
@@ -2139,7 +2126,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = lab_processor.sym_res_module(module_files);
+    const auto sym_res_status = lab_processor.sym_res_module(&chemical_lab_module);
     if(sym_res_status == 1) {
         return nullptr;
     }

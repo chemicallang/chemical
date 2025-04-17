@@ -277,9 +277,6 @@ int ASTProcessor::compile_module(
 
         }
 
-        // save the file result, for future retrievals
-        compiled_units.emplace(file.abs_path, result.unit);
-
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();
 

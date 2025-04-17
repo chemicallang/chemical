@@ -74,22 +74,6 @@ public:
     std::mutex import_mutex;
 
     /**
-     * When a file is processed, we shrink it's nodes (remove function bodies) using the
-     * ShrinkingVisitor and then keep them on this map, with absolute path to files as keys
-     *
-     * Now when user has a module that depends on another module, We don't want to waste memory
-     * We first process the first module, each file's nodes are shrinked and put on this map
-     *
-     * When user imports a file, in the other module, this map is checked to see if that file has been
-     * already processed (generated code for), if it has, this map contains function signatures alive and well
-     * we declare those functions in this module basically importing them
-     *
-     * This Allows caching files in a module that have been processed to be imported by other modules that depend on it
-     *
-     */
-    std::unordered_map<std::string, ASTUnit&> compiled_units;
-
-    /**
      * cache is where files parsed are stored, before parsing the
      * file we search for it in this cache
      */
@@ -275,15 +259,9 @@ public:
     void sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
 
     /**
-     * all these files would be symbol resolved, 1 is returned in case
-     * errors are encountered during symbol resolution of one file
-     */
-    int sym_res_files(std::vector<ASTFileResult*>& files);
-
-    /**
      * symbol resolves the module, creating the scope
      */
-    int sym_res_module(std::vector<ASTFileResult*>& mod_files);
+    int sym_res_module(LabModule* module);
 
     /**
      * print given benchmark results

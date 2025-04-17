@@ -182,60 +182,53 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
     }
 }
 
-int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
+int ASTProcessor::sym_res_module(LabModule* module) {
+
+    const auto mod_index = resolver->module_scope_start();
 
     // declare symbols for all files once in the module
-    int i = -1;
-    for(auto file_ptr : files) {
-        i++;
 
-        auto& file = *file_ptr;
-        bool already_imported = compiled_units.find(file.abs_path) != compiled_units.end();
+    for(auto& file_ptr : module->direct_files) {
 
-        if(!already_imported) {
-            file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.abs_path);
-            // report and clear diagnostics
-            if (resolver->has_errors && !options->ignore_errors) {
-                std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                return 1;
-            }
-            resolver->reset_errors();
+        auto& file = *file_ptr.result;
+
+        file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.abs_path);
+
+        // report and clear diagnostics
+        if (resolver->has_errors && !options->ignore_errors) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+            return 1;
         }
+        resolver->reset_errors();
 
     }
 
     // link the signature of the files
-    for(auto file_ptr : files) {
-        auto& file = *file_ptr;
-        bool already_imported = compiled_units.find(file.abs_path) != compiled_units.end();
-        if(!already_imported) {
-            sym_res_link_sig_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
-            // report and clear diagnostics
-            if (resolver->has_errors && !options->ignore_errors) {
-                std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                return 1;
-            }
-            resolver->reset_errors();
+    for(auto& file_ptr : module->direct_files) {
+
+        auto& file = *file_ptr.result;
+
+        sym_res_link_sig_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
+        // report and clear diagnostics
+        if (resolver->has_errors && !options->ignore_errors) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+            return 1;
         }
+        resolver->reset_errors();
+
     }
 
     // sequentially symbol resolve all the files in the module
-    for(auto file_ptr : files) {
+    for(auto& file_ptr : module->direct_files) {
 
-        auto& file = *file_ptr;
+        auto& file = *file_ptr.result;
 
-        auto imported = compiled_units.find(file.abs_path);
-        bool already_imported = imported != compiled_units.end();
-
-        // symbol resolution
-        if(!already_imported) {
-            sym_res_link_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
-            if (resolver->has_errors && !options->ignore_errors) {
-                std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-                return 1;
-            }
-            resolver->reset_errors();
+        sym_res_link_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
+        if (resolver->has_errors && !options->ignore_errors) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+            return 1;
         }
+        resolver->reset_errors();
 
         // clear everything allocated during symbol resolution of current file
         file_allocator.clear();
@@ -252,16 +245,9 @@ int ASTProcessor::sym_res_files(std::vector<ASTFileResult*>& files) {
         main_func->as_function_unsafe()->set_no_mangle(true);
     }
 
-    return 0;
-
-}
-
-int ASTProcessor::sym_res_module(std::vector<ASTFileResult*>& mod_files) {
-    const auto mod_index = resolver->module_scope_start();
-    const auto res = sym_res_files(mod_files);
     resolver->module_scope_end(mod_index);
     resolver->stored_file_symbols.clear();
-    return res;
+    return 0;
 }
 
 void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, BenchmarkResults* bm_results) {
@@ -973,10 +959,6 @@ int ASTProcessor::translate_module(
 
         // translating to c
         translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);
-
-        // TODO cannot remove this because remove_non_public_nodes uses it
-        // save the file result, for future retrievals
-        compiled_units.emplace(file.abs_path, result.unit);
 
         // clear everything we allocated using file allocator to make it re-usable
         file_allocator.clear();

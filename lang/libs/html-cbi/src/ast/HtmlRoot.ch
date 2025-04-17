@@ -1,4 +1,3 @@
-import "./HtmlElement.ch"
 import "@compiler/ast/base/ASTNode.ch"
 
 struct HtmlRoot {

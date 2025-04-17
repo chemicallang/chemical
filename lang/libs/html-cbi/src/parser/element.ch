@@ -1,6 +1,5 @@
 import "@compiler/Parser.ch"
 import "@compiler/ASTBuilder.ch"
-import "./attribute.ch"
 import "@std/hashing/fnv1.ch"
 import "@std/std.ch"
 import "@cstd/string.ch"

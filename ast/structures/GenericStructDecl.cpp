@@ -53,6 +53,14 @@ void GenericStructDecl::link_signature(SymbolResolver &linker) {
     // this basically visits the instantiations body and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(this, instantiations);
     // since these instantiations were created before link_signature
+    // the functions have signature_resolved set to false, we must fix that
+    for(const auto inst : instantiations) {
+        for(const auto func : inst->master_functions()) {
+            // TODO set it to true, if its actually resolved
+            func->FunctionType::data.signature_resolved = true;
+        }
+    }
+    // since these instantiations were created before link_signature
     // they don't have any generated functions like default constructor / destructor
     for(const auto inst : instantiations) {
         // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor

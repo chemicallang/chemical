@@ -825,6 +825,34 @@ void ASTProcessor::external_implement_in_c(
     visitor.reset_errors();
 }
 
+/**
+ * these two functions have following purpose
+ * 1 - we need to process only direct dependencies, so 'outMods' only contains modules that are given to us in 'inMods'
+ * 2 - this sorts the modules in the order of independence, so modules that are least dependent are processed first
+ *   - this way if module a depends on module b, however both are present in inMods (in any order), we'll process b first since a needs it
+ * 3 - a module will only appear once, however inMods could contain the module as many times as it wants
+ */
+void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::unordered_map<LabModule*, bool>& modsMap, LabModule* mod) {
+    for(const auto dep : mod->dependencies) {
+        shallow_dedupe_sorted(outMods, modsMap, dep);
+    }
+    auto found = modsMap.find(mod);
+    if(found != modsMap.end() && found->second) {
+        outMods.emplace_back(mod);
+        found->second = false;
+    }
+}
+void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<LabModule*>& inMods) {
+    std::unordered_map<LabModule*, bool> direct_mods(inMods.size());
+    // save these modules in direct_mods
+    for(const auto mod : inMods) {
+        direct_mods[mod] = true;
+    }
+    for(const auto mod : inMods) {
+        shallow_dedupe_sorted(outMods, direct_mods, mod);
+    }
+}
+
 int ASTProcessor::translate_module(
     ToCAstVisitor& c_visitor,
     LabModule* module,
@@ -863,15 +891,29 @@ int ASTProcessor::translate_module(
             std::cout << rang::style::bold << rang::fg::magenta << "[FwdDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 
+#ifdef DEBUG
+        c_visitor.debug_comment(chem::string_view(("FwdDeclare " + file.abs_path)));
+#endif
+
         c_visitor.fwd_declare(unit.scope.body.nodes);
 
     }
 
+    // let's create a flat vector of direct dependencies, that we want to process
+    std::vector<LabModule*> dependencies;
+    shallow_dedupe_sorted(dependencies, module->dependencies);
+
     // we will declare the direct dependencies of this module
-    for(const auto dep : module->dependencies) {
+    for(const auto dep : dependencies) {
         for(auto& file : dep->direct_files) {
             if(file.result != nullptr) {
+
                 auto& body = file.result->unit.scope.body;
+
+#ifdef DEBUG
+                c_visitor.debug_comment(chem::string_view(("ExtDeclare " + file.abs_path)));
+#endif
+
                 external_declare_in_c(c_visitor, body, file.abs_path);
             } else {
                 throw std::runtime_error("result is null");
@@ -892,15 +934,24 @@ int ASTProcessor::translate_module(
             print_results(file, chem::string_view(file.abs_path), options->benchmark);
         }
 
+#ifdef DEBUG
+        c_visitor.debug_comment(chem::string_view(("Declare " + file.abs_path)));
+#endif
+
         declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
 
     }
 
     // we will implement the direct dependencies of this module
-    for(const auto dep : module->dependencies) {
+    for(const auto dep : dependencies) {
         for(auto& file : dep->direct_files) {
             if(file.result != nullptr) {
                 auto& body = file.result->unit.scope.body;
+
+#ifdef DEBUG
+                c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
+#endif
+
                 external_implement_in_c(c_visitor, body, file.abs_path);
             } else {
                 throw std::runtime_error("result is null");
@@ -915,6 +966,10 @@ int ASTProcessor::translate_module(
         auto& result = file;
 
         ASTUnit& unit = file.unit;
+
+#ifdef DEBUG
+        c_visitor.debug_comment(chem::string_view(("Translate " + file.abs_path)));
+#endif
 
         // translating to c
         translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);

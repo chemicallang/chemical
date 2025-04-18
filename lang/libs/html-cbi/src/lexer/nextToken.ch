@@ -12,11 +12,43 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     printf("reading character : %d\n", c);
     switch(c) {
         '<' => {
-            html.has_lt = true;
-            return Token {
-                type : TokenType.LessThan,
-                value : view("<"),
-                position : position
+            if(provider.peek() == '!') {
+                provider.readCharacter();
+                const next = provider.peek()
+                if(next == '-') {
+
+                    // its a comment
+                    provider.readCharacter()
+                    if(provider.peek() == '-') {
+                        provider.readCharacter()
+                    }
+                    html.is_comment = true;
+
+                    return Token {
+                        type : TokenType.CommentStart,
+                        value : view("<!--"),
+                        position : position
+                    }
+
+                } else if(isalpha(next)) {
+
+                    // its a directive
+                    // TODO handle this case
+
+                } else {
+                    return Token {
+                        type : TokenType.Unexpected,
+                        value : view("expected directive or comment"),
+                        position : position
+                    }
+                }
+            } else {
+                html.has_lt = true;
+                return Token {
+                    type : TokenType.LessThan,
+                    value : view("<"),
+                    position : position
+                }
             }
         }
         '}' => {

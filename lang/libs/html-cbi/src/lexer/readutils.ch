@@ -26,6 +26,35 @@ func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::st
     return str.finalize_view();
 }
 
+// returns true if comment has ended
+func (provider : &SourceProvider) read_comment_text(str : &SerialStrAllocator) : bool {
+    while(true) {
+        const c = provider.peek();
+        if(c != -1 && c != '-' && c != '{') {
+            str.append(provider.readCharacter());
+        } else {
+            if(c == '-') {
+                provider.readCharacter()
+                if(provider.peek() == '-') {
+                    provider.readCharacter()
+                    if(provider.peek() == '>') {
+                        provider.readCharacter()
+                        return true;
+                    } else {
+                        str.append('-');
+                        str.append('-');
+                    }
+                } else {
+                    str.append('-');
+                }
+            } else {
+                break;
+            }
+        }
+    }
+    return false
+}
+
 func (provider : &SourceProvider) read_single_quoted_value(str : &SerialStrAllocator) : std::string_view {
     while(true) {
         const c = provider.peek();

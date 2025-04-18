@@ -253,6 +253,10 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
             }
 
         }
+        HtmlChildKind.Comment => {
+            // we can just skip comments
+            // TODO provide an option to write out comments
+        }
         HtmlChildKind.ChemicalValue => {
             if(!str.empty()) {
                 put_chain_in(resolver, builder, vec, parent, str);

@@ -19,4 +19,9 @@ enum TokenType {
 
     FwdSlash,
 
+    DeclarationStart, // <!DOC
+    CommentStart, // <!--
+    CommentText,
+
+
 }

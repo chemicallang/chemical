@@ -33,6 +33,7 @@ public struct string : Hashable, Eq {
         storage.constant.data = value;
         storage.constant.length = length;
         state = '0'
+        // TODO ensure mut
     }
 
     @constructor
@@ -47,6 +48,7 @@ public struct string : Hashable, Eq {
         storage.constant.data = value;
         storage.constant.length = strlen(value);
         state = '0'
+        // TODO ensure mut
     }
 
     @constructor

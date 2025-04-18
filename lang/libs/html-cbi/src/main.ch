@@ -80,6 +80,19 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             return nested;
         }
     }
+    if(html.is_comment) {
+        const provider = &lexer.provider
+        const position = provider.getPosition();
+        if(provider.read_comment_text(lexer.str)) {
+            // comment has ended
+            html.is_comment = false;
+        }
+        return Token {
+            type : TokenType.CommentText,
+            value : lexer.str.finalize_view(),
+            position : position
+        }
+    }
     const t = getNextToken2(html, lexer);
     printf("I created token : '%s' with type %d\n", t.value.data(), t.type);
     return t;
@@ -91,6 +104,7 @@ public func html_initializeLexer(lexer : *mut Lexer) {
     const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;
     new (ptr) HtmlLexer {
         has_lt : false,
+        is_comment : false,
         other_mode : false,
         chemical_mode : false,
         lb_count : 0

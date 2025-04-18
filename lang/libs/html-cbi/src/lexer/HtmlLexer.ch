@@ -10,6 +10,11 @@ struct HtmlLexer {
     var has_lt : bool
 
     /**
+     * is inside a comment (it has a comment start)
+     */
+    var is_comment : bool
+
+    /**
      * when other_mode is active it means, some other mode is active, we are lexing
      * chemical code or some other syntax that is part of html and requiring multiple
      * tokens to represent

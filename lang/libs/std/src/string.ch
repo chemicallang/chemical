@@ -45,8 +45,9 @@ public struct string : Hashable, Eq {
 
     @constructor
     func make_no_len(value : *char) {
+        const length = strlen(value)
         storage.constant.data = value;
-        storage.constant.length = strlen(value);
+        storage.constant.length = length;
         state = '0'
         // TODO ensure mut
     }

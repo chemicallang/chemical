@@ -20,6 +20,9 @@ inline int get_parse_num_base(const char* num, std::size_t num_size) {
             case 'b':
             case 'B':
                 return 2;
+            case 'o':
+            case 'O':
+                return 8;
             default:
                 return 10;
         }

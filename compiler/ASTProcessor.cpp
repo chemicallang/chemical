@@ -899,14 +899,14 @@ int ASTProcessor::translate_module(
     std::vector<LabModule*> dependencies;
     shallow_dedupe_sorted(dependencies, module->dependencies);
 
-    // forward declare dependencies & dependencies of dependencies & current module
-    for(const auto dep1 : dependencies) {
-        for(const auto dep : dep1->dependencies) {
-            forward_declare_in_c(c_visitor, this, dep, "Ext2FwdDeclare");
-        }
-        forward_declare_in_c(c_visitor, this, dep1, "ExtFwdDeclare");
-    }
-    forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
+//    // forward declare dependencies & dependencies of dependencies & current module
+//    for(const auto dep1 : dependencies) {
+//        for(const auto dep : dep1->dependencies) {
+//            forward_declare_in_c(c_visitor, this, dep, "Ext2FwdDeclare");
+//        }
+//        forward_declare_in_c(c_visitor, this, dep1, "ExtFwdDeclare");
+//    }
+//    forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
 
     // we will declare the direct dependencies of this module
     for(const auto dep : dependencies) {

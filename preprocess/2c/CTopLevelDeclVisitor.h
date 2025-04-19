@@ -48,13 +48,21 @@ public:
 
     void early_declare_struct_def(StructDefinition* def);
 
-    void declare_struct_iterations(StructDefinition* def);
+    inline void declare_struct_iterations(StructDefinition* def) {
+        early_declare_struct_def(def);
+        declare_struct_functions(def);
+    }
 
     void declare_union_def_only(UnionDef* def);
 
     void declare_union_functions(UnionDef* def);
 
-    void declare_union_iterations(UnionDef* def);
+    void early_declare_union_def(UnionDef* def);
+
+    inline void declare_union_iterations(UnionDef* def) {
+        early_declare_union_def(def);
+        declare_union_functions(def);
+    }
 
     void declare_interface(InterfaceDefinition* interface);
 
@@ -64,7 +72,10 @@ public:
 
     void early_declare_variant_def(VariantDefinition* def);
 
-    void declare_variant_iterations(VariantDefinition* def);
+    inline void declare_variant_iterations(VariantDefinition* def) {
+        early_declare_variant_def(def);
+        declare_variant_functions(def);
+    }
 
     void declare_func(FunctionDeclaration* decl);
 

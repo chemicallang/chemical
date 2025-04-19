@@ -1156,6 +1156,28 @@ public:
     }
 };
 
+class InterpretGetBuildDir : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+
+    explicit InterpretGetBuildDir(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_build_dir"),
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), stringType(ZERO_LOC) {
+        set_compiler_decl(true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        auto& fileId = call_scope->global->build_compiler->options->build_dir;
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->encoded_location());
+    }
+};
+
 class InterpretGetCurrentFilePath : public FunctionDeclaration {
 public:
 
@@ -1332,6 +1354,7 @@ public:
     InterpretGetCallerLineNo get_caller_line_no;
     InterpretGetCallerCharacterNo get_caller_char_no;
     InterpretGetTarget get_target_fn;
+    InterpretGetBuildDir get_build_dir;
     InterpretGetCurrentFilePath get_current_file_path;
     InterpretGetLocFilePath get_loc_file_path;
     InterpretGetChildFunction get_child_fn;
@@ -1342,13 +1365,13 @@ public:
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         interpretSupports(this), printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
-        get_target_fn(this), get_current_file_path(this), get_loc_file_path(this), get_child_fn(this), error_fn(this)
+        get_target_fn(this), get_build_dir(this), get_current_file_path(this), get_loc_file_path(this), get_child_fn(this), error_fn(this)
     {
         set_compiler_decl(true);
         nodes = {
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
             &satisfiesFn, &get_raw_location, &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_current_file_path, &get_loc_file_path, &get_child_fn, &error_fn
+            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_child_fn, &error_fn
         };
     }
 

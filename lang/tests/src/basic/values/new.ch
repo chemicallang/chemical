@@ -1,4 +1,3 @@
-import "@std/std.ch"
 
 struct PointNew12 {
     var a : int

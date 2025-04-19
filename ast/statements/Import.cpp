@@ -43,7 +43,7 @@ void ImportStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_p
         auto itr = get_iterator(linker, this);
         if(itr.start) {
             const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;
-            SymbolResolverDeclarer d(linker);
+            SymbolResolverFileLvlDeclarer d(linker);
             while (itr.start != itr.end) {
                 const auto node = *itr.start;
                 declare_node(d, node, at_least_spec);

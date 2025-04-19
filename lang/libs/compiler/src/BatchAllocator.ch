@@ -1,5 +1,3 @@
-import "@std/std.ch"
-import "@std/string_view.ch"
 
 @compiler.interface
 public struct BatchAllocator {

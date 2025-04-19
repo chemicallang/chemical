@@ -1,5 +1,3 @@
-import "@compiler/Parser.ch"
-import "@compiler/ASTBuilder.ch"
 
 func (cssParser : &mut CSSParser) parseBoxShadow(
     parser : *mut Parser,

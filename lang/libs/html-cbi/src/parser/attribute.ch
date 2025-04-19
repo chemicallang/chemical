@@ -1,9 +1,3 @@
-import "@compiler/Parser.ch"
-import "@compiler/ASTBuilder.ch"
-import "@compiler/ChemicalTokenType.ch"
-import "@compiler/ast/base/Value.ch"
-import "@std/std.ch"
-import "@cstd/stdio.ch"
 
 func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
 

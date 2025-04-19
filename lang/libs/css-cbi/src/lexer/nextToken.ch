@@ -1,8 +1,3 @@
-import "@compiler/Lexer.ch"
-import "@compiler/Token.ch"
-import "@std/std.ch"
-import "@cstd/ctype.ch"
-import "@cstd/stdio.ch"
 
 func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     const provider = &lexer.provider;

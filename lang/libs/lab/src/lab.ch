@@ -1,9 +1,3 @@
-import "@std/string.ch"
-import "@std/string_view.ch"
-import "@std/span.ch"
-import "@std/fs.ch"
-import "@std/std.ch"
-
 public enum ModuleType {
     File,
     CFile,

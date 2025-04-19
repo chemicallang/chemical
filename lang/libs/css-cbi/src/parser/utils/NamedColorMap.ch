@@ -1,5 +1,3 @@
-import "@std/unordered_map.ch"
-import "@std/string_view.ch"
 
 struct NamedColorMap {
 

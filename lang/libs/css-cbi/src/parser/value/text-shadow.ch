@@ -1,6 +1,3 @@
-import "@compiler/Token.ch"
-import "@compiler/ASTBuilder.ch"
-import "@compiler/Parser.ch"
 
 func (cssParser : &mut CSSParser) parseTextShadow(
     parser  : *mut Parser,

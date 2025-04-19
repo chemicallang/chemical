@@ -1,5 +1,3 @@
-import "@cstd/stdio.ch"
-
 // TODO these functions should not be public
 // we just require that their linkage is public
 // the posix one could be called by the user

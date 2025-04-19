@@ -1,8 +1,3 @@
-import "@compiler/Token.ch"
-import "@compiler/ASTBuilder.ch"
-import "@compiler/Parser.ch"
-import "@std/std.ch"
-import "@std/hashing/fnv1.ch"
 
 func (parser : &mut Parser) parseLinearEasingPoints(builder : *mut ASTBuilder) : *CSSLinearEasingPoint {
 

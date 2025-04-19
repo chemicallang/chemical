@@ -1,13 +1,3 @@
-import "@compiler/Token.ch"
-import "@compiler/Lexer.ch"
-import "@compiler/Parser.ch"
-import "@compiler/ASTBuilder.ch"
-import "@compiler/ChemicalTokenType.ch"
-import "@compiler/ast/base/Value.ch"
-import "@compiler/SymbolResolver.ch"
-import "@compiler/ast/base/ASTNode.ch"
-import "@std/std.ch"
-import "@cstd/stdio.ch"
 
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {

@@ -631,14 +631,9 @@ int LabBuildCompiler::process_module_tcc(
     // direct files are stored inside the module
     auto& direct_files = mod->direct_files;
 
-    // this will include the direct files (nested included) for the module
-    // these will be lexed and parsed
-    // these direct files will have "imports" field, which can be accessed to check each file's imports
-    std::vector<ASTFileResult*> module_files;
-
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    if(!processor.import_module_files(pool, module_files, direct_files, mod)) {
+    if(!processor.import_module_files(pool, direct_files, mod)) {
         return 1;
     }
 
@@ -659,24 +654,6 @@ int LabBuildCompiler::process_module_tcc(
 
     // preparing translation
     c_visitor.prepare_translate();
-
-    if(verbose) {
-        std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
-    }
-
-    // check module files for import cycles (direct or indirect)
-    ImportCycleCheckResult importCycle { false, loc_man };
-    check_imports_for_cycles(importCycle, module_files);
-    if(importCycle.has_cyclic_dependencies) {
-        return 1;
-    }
-
-    if(verbose) {
-        std::cout << "[lab] " << "flattening the module import graph" << std::endl;
-    }
-
-    // get the files flattened
-    auto flattened_files = flatten(module_files);
 
     if(verbose) {
         std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
@@ -720,7 +697,7 @@ int LabBuildCompiler::process_module_tcc(
 
     // compile the whole module
     processor.translate_module(
-            c_visitor, mod, flattened_files
+            c_visitor, mod
     );
 
     if(verbose) {
@@ -789,14 +766,9 @@ int LabBuildCompiler::process_module_gen(
     auto& resolver = *processor.resolver;
     auto& direct_files = mod->direct_files;
 
-    // this will include the direct files (nested included) for the module
-    // these will be lexed and parsed
-    // these direct files will have "imports" field, which can be accessed to check each file's imports
-    std::vector<ASTFileResult*> module_files;
-
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    processor.import_module_files(pool, module_files, direct_files, mod);
+    processor.import_module_files(pool, direct_files, mod);
 
     const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
     if(mod_data_path) {
@@ -851,27 +823,6 @@ int LabBuildCompiler::process_module_gen(
             node->code_gen_declare(gen);
         }
     }
-
-    if(verbose) {
-        std::cout << "[lab] " << "detecting import cycles in the imports" << std::endl;
-    }
-
-    // check module files for import cycles (direct or indirect)
-    ImportCycleCheckResult importCycle { false, loc_man };
-    check_imports_for_cycles(importCycle, module_files);
-    if(importCycle.has_cyclic_dependencies) {
-        return 1;
-    }
-
-    // we don't need to flatten the import graph
-    // because we never process it at the moment
-    // commenting it if ever needed
-//    if(verbose) {
-//        std::cout << "[lab] " << "flattening the module import graph" << std::endl;
-//    }
-//
-//    // get the files flattened
-//    auto flattened_files = flatten(module_files);
 
     if(verbose) {
         std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
@@ -2215,7 +2166,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // translating the build.lab module
     lab_processor.translate_module(
-        c_visitor, &chemical_lab_module, module_files
+        c_visitor, &chemical_lab_module
     );
 
     // compiling the c output from build.labs

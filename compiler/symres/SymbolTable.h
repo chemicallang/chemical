@@ -309,18 +309,22 @@ public:
         const auto hash = computeHash(key);
         const auto bucketIndex = hash & bucketMask;
         Bucket &bucket = buckets[bucketIndex];
-        const auto index = put_entry(key, hash, node);
 
         if (bucket.index == -1) {
             // Bucket is empty; insert directly.
+            const auto index = put_entry(key, hash, node);
             set_to_bucket(bucket, key, hash, node, index, nullptr);
         } else {
             if (bucket.hash == hash && bucket.key == key) {
-                // Same key: shadow the current active symbol.
-                const auto next = allocateBucketSymbol(bucket);
-                set_to_bucket(bucket, key, hash, node, index, next);
+                if(bucket.activeNode != node) {
+                    // Same key: shadow the current active symbol.
+                    const auto next = allocateBucketSymbol(bucket);
+                    const auto index = put_entry(key, hash, node);
+                    set_to_bucket(bucket, key, hash, node, index, next);
+                }
             } else {
                 // Collision: different key but same bucket.
+                const auto index = put_entry(key, hash, node);
                 const auto extra = allocateBucketSymbol(key, hash, node, index, bucket.collision);
                 bucket.collision = extra;
             }

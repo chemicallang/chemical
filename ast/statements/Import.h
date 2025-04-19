@@ -21,8 +21,8 @@ public:
     /**
      * a single identifier or a identifier list can be held
      * usually written like this import a from "something" <-- single identifier
-     * import a::b::c from "something2", every import statement can import a single identifier
-     * from a file from a module or the file itself
+     * import a::b::c from "something2", every import statement can import a single decl
+     * from a file or from a module, or import a complete file
      */
     std::vector<chem::string_view> identifier;
     chem::string_view filePath; ///< The file path to import.

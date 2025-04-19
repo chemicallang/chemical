@@ -170,10 +170,11 @@ public:
      */
     inline bool import_module_files(
             ctpl::thread_pool& pool,
-            std::vector<ASTFileResult*>& out_files,
             std::vector<ASTFileMetaData>& files,
             LabModule* module
     ) {
+        // TODO out_files is not required
+        std::vector<ASTFileResult*> out_files;
         return import_module_files(pool, out_files, files, module, false);
     }
 
@@ -329,8 +330,7 @@ public:
      */
     int translate_module(
         ToCAstVisitor& visitor,
-        LabModule* module,
-        std::vector<ASTFileResult*>& files
+        LabModule* module
     );
 
 #ifdef COMPILER_BUILD

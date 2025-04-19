@@ -871,8 +871,7 @@ void forward_declare_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModul
 
 int ASTProcessor::translate_module(
     ToCAstVisitor& c_visitor,
-    LabModule* module,
-    std::vector<ASTFileResult*>& files
+    LabModule* module
 ) {
 
     // NOTE: here's the design guidelines for translating a module

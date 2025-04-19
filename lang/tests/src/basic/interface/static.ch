@@ -1,4 +1,3 @@
-import "@submod/interface/external_static.ch"
 
 @static
 interface StaticSummer {

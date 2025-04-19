@@ -36,6 +36,17 @@ public:
     }
 };
 
+class SymbolResolverFileLvlDeclarer : public NodeSymbolDeclarer<SymbolResolverFileLvlDeclarer> {
+public:
+    SymbolResolver& resolver;
+    inline SymbolResolverFileLvlDeclarer(SymbolResolver& resolver) : resolver(resolver) {
+
+    }
+    inline void declare(const chem::string_view& sym, ASTNode* node) {
+        resolver.declare_file_disposable(sym, node);
+    }
+};
+
 class SymbolResolverDeclarer : public NodeSymbolDeclarer<SymbolResolverDeclarer> {
 public:
     SymbolResolver& resolver;
@@ -43,7 +54,7 @@ public:
 
     }
     inline void declare(const chem::string_view& sym, ASTNode* node) {
-        resolver.declare_file_disposable(sym, node);
+        resolver.declare(sym, node);
     }
 };
 

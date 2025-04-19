@@ -1,4 +1,3 @@
-import "@submod/interface/external.ch"
 
 public struct ExtPubNormInterfaceImpl3 : ExtPubNormInterface {
 

@@ -1,6 +1,3 @@
-import "@submod/check.ch"
-import "@submod/indirect.ch"
-import "@submod2/main.ch"
 
 func test_imported_modules() {
     test("function imported from other module works", () => {

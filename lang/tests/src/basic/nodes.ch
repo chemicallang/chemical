@@ -1,4 +1,3 @@
-import "@std/std.ch"
 
 interface UnInheritedInterface {
     // this method should be removed from final code_gen

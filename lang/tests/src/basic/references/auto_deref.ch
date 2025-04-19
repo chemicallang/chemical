@@ -1,4 +1,3 @@
-import "@std/std.ch"
 
 func take_int(i : int) : int {
     return i;

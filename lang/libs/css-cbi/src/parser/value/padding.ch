@@ -1,7 +1,4 @@
 import "/ast/CSSDeclaration.ch"
-import "@compiler/Token.ch"
-import "@compiler/ASTBuilder.ch"
-import "@compiler/Parser.ch"
 import "/lexer/TokenType.ch"
 import "/parser/value/length.ch"
 import "/parser/CSSParser.ch"

@@ -1,4 +1,3 @@
-import "@std/string_view.ch"
 
 public struct Token {
 

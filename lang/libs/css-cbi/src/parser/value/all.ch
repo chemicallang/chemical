@@ -1,7 +1,3 @@
-import "@std/unordered_map.ch"
-import "@std/string_view.ch"
-import "@std/std.ch"
-import "@cstd/stdio.ch"
 
 func (map : &mut std::unordered_map<std::string_view, void*>) put(view : &std::string_view, val : void*) {
     var f : void*

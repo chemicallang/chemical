@@ -1,5 +1,3 @@
-import "@compiler/Parser.ch"
-import "@compiler/ASTBuilder.ch"
 
 func (cssParser : &mut CSSParser) parseBorderRadius(
     parser : *mut Parser,

@@ -1,5 +1,3 @@
-import "@std/unordered_map.ch"
-import "@std/string_view.ch"
 
 func putAllCSSValueParsers(
     map : &mut std::unordered_map<std::string_view, void*>

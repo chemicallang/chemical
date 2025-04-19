@@ -1,4 +1,3 @@
-import "@std/std.ch"
 
 @compiler.interface
 public struct PtrVec {

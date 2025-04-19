@@ -1,5 +1,3 @@
-import "@compiler/ASTBuilder.ch"
-import "@compiler/Parser.ch"
 
 func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
     var root = builder.allocate<CSSOM>()

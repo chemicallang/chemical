@@ -1,13 +1,3 @@
-import "@std/string.ch"
-import "@std/std.ch"
-import "@compiler/ASTBuilder.ch"
-import "@compiler/SymbolResolver.ch"
-import "@compiler/PtrVec.ch"
-import "@compiler/ast/base/ASTNode.ch"
-import "@compiler/ast/base/BaseTypeKind.ch"
-import "@compiler/ast/base/Value.ch"
-import "@compiler/ast/base/ValueKind.ch"
-import "@cstd/stdio.ch"
 
 func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());

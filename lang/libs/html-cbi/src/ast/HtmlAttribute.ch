@@ -1,5 +1,3 @@
-import "@std/vector.ch"
-import "@compiler/ast/base/Value.ch"
 
 enum AttributeValueKind {
     Text,

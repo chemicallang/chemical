@@ -850,6 +850,25 @@ void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<LabModu
     }
 }
 
+void forward_declare_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModule* mod, const char* name) {
+    for(auto& file_ptr : mod->direct_files) {
+        auto& result = *file_ptr.result;
+        auto& file = result;
+        ASTUnit& unit = file.unit;
+        // print the benchmark or verbose output received from processing
+        if((proc->options->benchmark || proc->options->verbose) && !ASTProcessor::empty_diags(result)) {
+            std::cout << rang::style::bold << rang::fg::magenta << '[' << name << "] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+        }
+
+#ifdef DEBUG
+        auto str = (name + std::string(" ") + file.abs_path);
+        c_visitor.debug_comment(chem::string_view(str));
+#endif
+
+        c_visitor.fwd_declare(unit.scope.body.nodes);
+    }
+}
+
 int ASTProcessor::translate_module(
     ToCAstVisitor& c_visitor,
     LabModule* module,
@@ -873,32 +892,18 @@ int ASTProcessor::translate_module(
     //               - or internal modules, implement only the remaining generics
 
 
-    // we forward declare all files (external or internal)
-    // so all functions when declared of any module (external or internal) are valid
-    // since they always use function pointers, so we don't need to have complete declarations of structs
-    for(auto file_ptr : files) {
-
-        auto& file = *file_ptr;
-        auto& result = file;
-
-        ASTUnit& unit = file.unit;
-
-        // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[FwdDeclare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-        }
-
-#ifdef DEBUG
-        c_visitor.debug_comment(chem::string_view(("FwdDeclare " + file.abs_path)));
-#endif
-
-        c_visitor.fwd_declare(unit.scope.body.nodes);
-
-    }
-
     // let's create a flat vector of direct dependencies, that we want to process
     std::vector<LabModule*> dependencies;
     shallow_dedupe_sorted(dependencies, module->dependencies);
+
+    // forward declare dependencies & dependencies of dependencies & current module
+    for(const auto dep1 : dependencies) {
+        for(const auto dep : dep1->dependencies) {
+            forward_declare_in_c(c_visitor, this, dep, "Ext2FwdDeclare");
+        }
+        forward_declare_in_c(c_visitor, this, dep1, "ExtFwdDeclare");
+    }
+    forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
 
     // we will declare the direct dependencies of this module
     for(const auto dep : dependencies) {

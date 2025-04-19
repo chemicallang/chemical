@@ -40,11 +40,14 @@ std::string ASTProcessorOptions::get_resources_path() {
 void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string& dirPath) {
     for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
         if (entry.is_regular_file()) {
-            filePaths.emplace_back(canonical_path(entry.path().string()));
-            if(filePaths.back().empty()) {
-                // will not happen most of the time, since OS is providing us the paths
-                std::cerr << "error: couldn't determine canonical path for the file '" << entry.path().string() << '\'' << std::endl;
-                filePaths.pop_back();
+            const auto fPath = entry.path().string();
+            if(fPath.ends_with(".ch")) {
+                filePaths.emplace_back(canonical_path(fPath));
+                if (filePaths.back().empty()) {
+                    // will not happen most of the time, since OS is providing us the paths
+                    std::cerr << "error: couldn't determine canonical path for the file '" << entry.path().string() << '\'' << std::endl;
+                    filePaths.pop_back();
+                }
             }
         } else if(entry.is_directory()) {
             getFilesInDirectory(filePaths, entry.path().string());

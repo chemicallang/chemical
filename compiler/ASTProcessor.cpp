@@ -3,7 +3,6 @@
 #include "ASTProcessor.h"
 
 #include <memory>
-#include "compiler/cbi/model/CompilerBinder.h"
 #include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/2c/2cASTVisitor.h"
@@ -13,7 +12,6 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
 #include "rang.hpp"
-#include "compiler/cbi/bindings/CBI.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include <filesystem>
@@ -22,6 +20,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "preprocess/ImportPathHandler.h"
 #include "ast/statements/Import.h"
+#include "compiler/symres/NodeSymbolDeclarer.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -188,6 +187,18 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
 int ASTProcessor::sym_res_module(LabModule* module) {
 
     const auto mod_index = resolver->module_scope_start();
+
+    // declare symbols of directly imported modules
+
+    SymbolResolverDeclarer declarer(*resolver);
+    for(const auto dep : module->dependencies) {
+        for(auto& file_ptr : dep->direct_files) {
+            auto& file = *file_ptr.result;
+            for(const auto node : file.unit.scope.body.nodes) {
+                declare_node(declarer, node, AccessSpecifier::Public);
+            }
+        }
+    }
 
     // declare symbols for all files once in the module
 

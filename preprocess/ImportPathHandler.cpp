@@ -4,6 +4,7 @@
 #include <filesystem>
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
+#include "ast/statements/Import.h"
 
 AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::string& filePath, unsigned int slash) {
     auto headerPath = filePath.substr(slash + 1);
@@ -185,5 +186,62 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string& base_p
         return { "", "couldn't find the file to import " + import_path + " relative to base path " + resolve_parent_path(base_path) };
     } else {
         return { std::move(resolved), "" };
+    }
+}
+
+void ImportPathHandler::figure_out_mod_dep_using_imports(
+        std::vector<BuildLabModuleDependency>& buildLabModuleDependencies,
+        std::vector<ASTNode*>& nodes
+) {
+    // some variables for processing
+    std::string imp_module_dir_path;
+    chem::string imp_scope_name;
+    chem::string imp_mod_name;
+
+    for(const auto stmt : nodes) {
+        if(stmt->kind() == ASTNodeKind::ImportStmt) {
+            const auto impStmt = stmt->as_import_stmt_unsafe();
+            if(!impStmt->filePath.empty() && impStmt->filePath.ends_with(".lab")) {
+                continue;
+            }
+            imp_module_dir_path.clear();
+            imp_scope_name.clear();
+            imp_mod_name.clear();
+            if(impStmt->identifier.empty() && !impStmt->filePath.empty()) {
+                // here we will consider this file path given a scope name and module name identifier
+                auto v = impStmt->filePath.view();
+                auto colInd = v.find(':');
+                if(colInd != std::string_view::npos) {
+                    imp_scope_name.append(chem::string_view(v.data(), colInd));
+                    imp_mod_name.append(chem::string_view(v.data() + colInd + 1, v.size() - colInd));
+                } else {
+                    // consider the identifier a module name with scope name empty
+                    imp_mod_name.append(impStmt->filePath);
+                }
+            } else if(!impStmt->identifier.empty()) {
+                const auto idSize = impStmt->identifier.size();
+                if (idSize == 1) {
+                    imp_mod_name.append(impStmt->identifier[0]);
+                } else if (idSize == 2) {
+                    imp_scope_name.append(impStmt->identifier[0]);
+                    imp_mod_name.append(impStmt->identifier[1]);
+                } else {
+                    // TODO handle the error
+                }
+            }
+            if(!imp_mod_name.empty()) {
+                auto result = resolve_lib_dir_path(imp_scope_name.to_chem_view(), imp_mod_name.to_chem_view());
+                if(result.error.empty()) {
+                    imp_module_dir_path.append(result.replaced);
+                } else {
+                    // TODO handle the error
+                }
+            }
+            if(!impStmt->filePath.empty() && !impStmt->identifier.empty()) {
+                // TODO: explicit import for a directory with scope name and module name
+                imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
+            }
+            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), std::move(imp_scope_name), std::move(imp_mod_name));
+        }
     }
 }

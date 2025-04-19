@@ -392,6 +392,11 @@ void ASTProcessor::figure_out_direct_imports(
 
             auto stmt = node->as_import_stmt_unsafe();
 
+            if(stmt->filePath.empty()) {
+                // this must be 'import std' in build.lab
+                continue;
+            }
+
             // resolve the import path of this import statement
             auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.str());
 
@@ -673,12 +678,11 @@ void ASTProcessor::figure_out_module_dependency_based_on_import(
                 // because this module needs to be built before this file can be imported
                 for(auto& dep : dependencies) {
                     if(dep.mod_name.to_chem_view() == modIdentifier.module_name && dep.scope_name.to_chem_view() == modIdentifier.scope_name) {
-                        dep.imports.emplace_back(&imported);
                         return;
                     }
                 }
 
-                dependencies.emplace_back(std::move(dir_path.replaced), &imported, chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
+                dependencies.emplace_back(std::move(dir_path.replaced), chem::string(modIdentifier.scope_name), chem::string(modIdentifier.module_name));
 
             } else {
 

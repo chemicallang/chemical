@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include "std/chem_string_view.h"
+#include "compiler/processor/BuildLabModuleDependency.h"
 
 std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
@@ -21,6 +22,8 @@ struct ModuleIdentifier {
     chem::string_view scope_name;
     chem::string_view module_name;
 };
+
+class ASTNode;
 
 class ImportPathHandler;
 
@@ -111,6 +114,15 @@ public:
      * resolve given import path
      */
     AtReplaceResult resolve_import_path(const std::string& base_path, const std::string& import_path);
+
+    /**
+     * in .mod or build.lab files imports on modules are done using import statements
+     * this function figures out those dependencies
+     */
+    void figure_out_mod_dep_using_imports(
+            std::vector<BuildLabModuleDependency>& buildLabModuleDependencies,
+            std::vector<ASTNode*>& nodes
+    );
 
 
 };

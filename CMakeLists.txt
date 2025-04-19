@@ -549,6 +549,7 @@ set(COMMON_SOURCES
         compiler/cbi/model/CompilerBinder.h
         compiler/processor/ModuleFileData.h
         compiler/lab/CBIType.h
+        compiler/symres/NodeSymbolDeclarer.h
 )
 
 # Chemical LSP Executable Target

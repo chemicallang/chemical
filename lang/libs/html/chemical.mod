@@ -1,5 +1,5 @@
 module html
 
 import std
-import "html-cbi"
-import "css-cbi"
+import html_cbi
+import css_cbi

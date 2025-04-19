@@ -16,7 +16,7 @@
  * in a build.lab, in that case this file may have been processed already before
  *
  */
-struct BuildLabModuleDependency {
+struct ModuleDependencyRecord {
 
     /**
      * the absolute path to the directory of the module
@@ -36,7 +36,7 @@ struct BuildLabModuleDependency {
     /**
      * constructor
      */
-    BuildLabModuleDependency(
+    ModuleDependencyRecord(
             std::string module_dir_path,
             chem::string scope_name,
             chem::string mod_name

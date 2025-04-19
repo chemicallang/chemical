@@ -1520,7 +1520,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 
 LabModule* LabBuildCompiler::create_module_for_dependency(
         LabBuildContext& context,
-        BuildLabModuleDependency& dependency
+        ModuleDependencyRecord& dependency
 ) {
 
     const auto module = context.storage.find_module(dependency.scope_name.to_chem_view(), dependency.mod_name.to_chem_view());
@@ -1662,10 +1662,14 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     modResult.module = &module->module_scope;
 
     // module dependencies we determined from directly imported files
-    std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
+    std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
 
     // this function figures out dependencies based on import statements
-    path_handler.figure_out_mod_dep_using_imports(buildLabModuleDependencies, modResult.unit.scope.body.nodes);
+    path_handler.figure_out_mod_dep_using_imports(
+            buildLabModuleDependencies,
+            modResult.unit.scope.body.nodes,
+            container
+    );
 
     // these are modules imported by the build.lab
     // however we must build their build.lab or chemical.mod into a LabModule*
@@ -1699,7 +1703,7 @@ FunctionDeclaration* find_lab_build_method(const std::string& abs_path, std::vec
 
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
-        BuildLabModuleDependency& dependency,
+        ModuleDependencyRecord& dependency,
         const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
@@ -1792,12 +1796,13 @@ TCCState* LabBuildCompiler::built_lab_file(
     const auto has_buildLabChanged = determine_if_files_have_changed(this, module_files, buildLabObj, buildLabTimestamp);
 
     // module dependencies we determined from directly imported files
-    std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
+    std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
 
     // based on imports figures out which modules have been imported
     path_handler.figure_out_mod_dep_using_imports(
         buildLabModuleDependencies,
-        labFileResult.unit.scope.body.nodes
+        labFileResult.unit.scope.body.nodes,
+        container
     );
 
     // direct module dependencies (in no valid order)
@@ -2140,7 +2145,7 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
-        BuildLabModuleDependency& dependency,
+        ModuleDependencyRecord& dependency,
         const std::string_view& path
 ) {
 
@@ -2211,7 +2216,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     create_dir(options->build_dir);
 
     // this is the root build.lab dependency
-    BuildLabModuleDependency buildLabDependency("", chem::string("chemical"), chem::string("lab"));
+    ModuleDependencyRecord buildLabDependency("", chem::string("chemical"), chem::string("lab"));
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(context, buildLabDependency, path);

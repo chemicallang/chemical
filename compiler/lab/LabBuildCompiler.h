@@ -11,7 +11,7 @@
 #include "preprocess/ImportPathHandler.h"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/ModuleStorage.h"
-#include "compiler/processor/BuildLabModuleDependency.h"
+#include "compiler/processor/ModuleDependencyRecord.h"
 
 class ASTAllocator;
 
@@ -252,8 +252,8 @@ public:
      * it's build.lab or chemical.mod file
      */
     LabModule* create_module_for_dependency(
-        LabBuildContext& context,
-        BuildLabModuleDependency& dependency
+            LabBuildContext& context,
+            ModuleDependencyRecord& dependency
     );
 
     /**
@@ -270,12 +270,12 @@ public:
      * however using the given resources
      */
     TCCState* built_lab_file(
-        LabBuildContext& context,
-        BuildLabModuleDependency& dependency,
-        const std::string_view& path,
-        ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
+            LabBuildContext& context,
+            ModuleDependencyRecord& dependency,
+            const std::string_view& path,
+            ASTProcessor& processor,
+            ToCAstVisitor& c_visitor,
+            std::stringstream& output_ptr
     );
 
     /**
@@ -288,7 +288,7 @@ public:
      */
     TCCState* built_lab_file(
             LabBuildContext& context,
-            BuildLabModuleDependency& dependency,
+            ModuleDependencyRecord& dependency,
             const std::string_view& path
     );
 

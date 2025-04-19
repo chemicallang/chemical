@@ -27,6 +27,7 @@ public:
     std::vector<chem::string_view> identifier;
     chem::string_view filePath; ///< The file path to import.
     chem::string_view as_identifier;
+    chem::string_view if_condition;
     std::unordered_map<chem::string_view, ASTNode*>* symbols = nullptr;
 
     /**

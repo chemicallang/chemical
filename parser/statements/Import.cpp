@@ -18,7 +18,7 @@ inline bool consumeDotOrDCol(Parser& parser) {
     }
 }
 
-bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatement* stmt, bool require_path) {
+bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
     if (parser.consumeWSOfType(TokenType::FromKw)) {
         auto str2 = parser.parseStringValue(allocator);
         if(str2) {
@@ -28,20 +28,17 @@ bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatemen
             parser.error("expected path after 'from' in import statement");
             return false;
         }
-    } else if(require_path) {
-        parser.error("expected keyword 'from' after the identifier");
-        return false;
     } else {
         return true;
     }
 }
 
-ImportStatement* Parser::parseImportStmtAfterKw(ASTAllocator& allocator, bool require_path, bool error_out) {
+ImportStatement* Parser::parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out) {
     auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", parent_node, loc_single(token));
     auto str = parseStringValue(allocator);
     if (str) {
         stmt->filePath = str->get_the_string();
-        if(consumeWSOfType(TokenType::AsKw)) {
+        if(consumeToken(TokenType::AsKw)) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
                 stmt->as_identifier = allocate_view(allocator, id->value);
@@ -67,10 +64,10 @@ ImportStatement* Parser::parseImportStmtAfterKw(ASTAllocator& allocator, bool re
                 return nullptr;
             }
         }
-        if(!parseImportFromPart(*this, allocator, stmt, require_path)) {
+        if(!parseImportFromPart(*this, allocator, stmt)) {
             return stmt;
         }
-        if(consumeWSOfType(TokenType::AsKw)) {
+        if(consumeToken(TokenType::AsKw)) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
                 stmt->as_identifier = allocate_view(allocator, id->value);
@@ -80,10 +77,18 @@ ImportStatement* Parser::parseImportStmtAfterKw(ASTAllocator& allocator, bool re
             }
         }
     }
+    if(consumeToken(TokenType::IfKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            stmt->if_condition = allocate_view(allocator, id->value);
+        } else {
+            error("expected if condition identifier in import statement");
+        }
+    }
     return stmt;
 }
 
-ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator, bool require_path) {
+ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
     auto& kw_tok = *token;
     if (kw_tok.type != TokenType::ImportKw) {
         return nullptr;
@@ -92,7 +97,7 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator, bool requ
     return parseImportStmtAfterKw(allocator, false);
 }
 
-bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool require_path) {
+bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     auto& kw_tok = *token;
     if (kw_tok.type != TokenType::ImportKw) {
         return false;
@@ -106,7 +111,7 @@ bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std:
         // parse imports optionally
         while(true) {
             consumeNewLines();
-            const auto single = parseImportStmtAfterKw(allocator, false, false);
+            const auto single = parseImportStmtAfterKw(allocator, false);
             if(single) {
                 nodes.emplace_back(single);
             } else {
@@ -131,7 +136,7 @@ bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std:
                 return true;
             }
 
-            if(!parseImportFromPart(*this, allocator, first, true)) {
+            if(!parseImportFromPart(*this, allocator, first)) {
                 return true;
             }
 
@@ -162,7 +167,7 @@ bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std:
         return true;
 
     } else {
-        const auto single = parseImportStmtAfterKw(allocator, require_path, false);
+        const auto single = parseImportStmtAfterKw(allocator, false);
         if(single) {
             nodes.emplace_back(single);
             return true;

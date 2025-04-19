@@ -18,7 +18,7 @@
 #include "cst/LocationManager.h"
 #include "compiler/symres/SymbolRange.h"
 #include "compiler/processor/ASTFileResult.h"
-#include "compiler/processor/BuildLabModuleDependency.h"
+#include "compiler/processor/ModuleDependencyRecord.h"
 #include "compiler/processor/ModuleFileData.h"
 #include <span>
 #include <mutex>
@@ -195,7 +195,7 @@ public:
      */
     void figure_out_module_dependency_based_on_import(
             ASTFileResult& imported,
-            std::vector<BuildLabModuleDependency>& dependencies
+            std::vector<ModuleDependencyRecord>& dependencies
     );
 
     /**

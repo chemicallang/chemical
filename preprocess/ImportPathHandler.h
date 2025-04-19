@@ -6,7 +6,9 @@
 #include <unordered_map>
 #include <vector>
 #include "std/chem_string_view.h"
-#include "compiler/processor/BuildLabModuleDependency.h"
+#include "compiler/processor/ModuleDependencyRecord.h"
+
+struct GlobalContainer;
 
 std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
@@ -120,8 +122,9 @@ public:
      * this function figures out those dependencies
      */
     void figure_out_mod_dep_using_imports(
-            std::vector<BuildLabModuleDependency>& buildLabModuleDependencies,
-            std::vector<ASTNode*>& nodes
+            std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
+            std::vector<ASTNode*>& nodes,
+            GlobalContainer* container
     );
 
 

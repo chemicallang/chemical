@@ -5,6 +5,7 @@
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
 #include "ast/statements/Import.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::string& filePath, unsigned int slash) {
     auto headerPath = filePath.substr(slash + 1);
@@ -190,8 +191,9 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string& base_p
 }
 
 void ImportPathHandler::figure_out_mod_dep_using_imports(
-        std::vector<BuildLabModuleDependency>& buildLabModuleDependencies,
-        std::vector<ASTNode*>& nodes
+        std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
+        std::vector<ASTNode*>& nodes,
+        GlobalContainer* container
 ) {
     // some variables for processing
     std::string imp_module_dir_path;
@@ -203,6 +205,17 @@ void ImportPathHandler::figure_out_mod_dep_using_imports(
             const auto impStmt = stmt->as_import_stmt_unsafe();
             if(!impStmt->filePath.empty() && impStmt->filePath.ends_with(".lab")) {
                 continue;
+            }
+            if(!impStmt->if_condition.empty()) {
+                auto enabled = is_condition_enabled(container, impStmt->if_condition);
+                if(enabled.has_value()) {
+                    if(!enabled.value()) {
+                        continue;
+                    }
+                } else {
+                    // TODO error occurred, no such condition
+                    continue;
+                }
             }
             imp_module_dir_path.clear();
             imp_scope_name.clear();

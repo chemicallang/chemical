@@ -202,19 +202,37 @@ public:
     /**
      * consume the current token if it's given type
      */
-    bool consumeToken(enum TokenType type);
+    bool consumeToken(enum TokenType type) {
+        if(token->type == type) {
+            token++;
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     /**
      * parses the token of type
      * will skip new line, comment token, multi line comment tokens to check for this
      */
-    Token* consumeOfType(enum TokenType type);
+    Token* consumeOfType(enum TokenType type) {
+        auto& t = *token;
+        if(t.type == type) {
+            token++;
+            return &t;
+        } else {
+            return nullptr;
+        }
+    }
 
     /**
      * parses the token of type
      * will skip new line, comment token, multi line comment tokens to check for this
      */
-    Token* consumeWSOfType(enum TokenType type);
+    [[deprecated]]
+    inline Token* consumeWSOfType(enum TokenType type) {
+        return consumeOfType(type);
+    }
 
     /**
      * consume a identifier or keyword at the current location
@@ -462,17 +480,17 @@ public:
     /**
      * parses import statement after the import keyword
      */
-    ImportStatement* parseImportStmtAfterKw(ASTAllocator& allocator, bool require_path = true, bool error_out = true);
+    ImportStatement* parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out = true);
 
     /**
      * lexes import statement
      */
-    ImportStatement* parseImportStatement(ASTAllocator& allocator, bool require_path = true);
+    ImportStatement* parseImportStatement(ASTAllocator& allocator);
 
     /**
      * parses a single or multiple import statements
      */
-    bool parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool require_path = true);
+    bool parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes);
 
     /**
      * parse destruct statement

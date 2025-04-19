@@ -117,7 +117,7 @@ void Parser::parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data)
         consumeNewLines();
         switch(token->type) {
             case TokenType::ImportKw: {
-                if(!parseSingleOrMultipleImportStatements(allocator, nodes, false)) {
+                if(!parseSingleOrMultipleImportStatements(allocator, nodes)) {
                     goto loop_break;
                 }
                 break;

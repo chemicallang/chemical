@@ -21,35 +21,6 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 
-bool Parser::consumeToken(enum TokenType type) {
-    if(token->type == type) {
-        token++;
-        return true;
-    } else {
-        return false;
-    }
-}
-
-Token* Parser::consumeOfType(TokenType type) {
-    auto& t = *token;
-    if(t.type == type) {
-        token++;
-        return &t;
-    } else {
-        return nullptr;
-    }
-}
-
-Token* Parser::consumeWSOfType(enum TokenType type) {
-    auto& t = *token;
-    if(t.type == type) {
-        token++;
-        return &t;
-    } else {
-        return nullptr;
-    }
-}
-
 Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStruct) {
     switch(token->type) {
         case TokenType::NullKw: {

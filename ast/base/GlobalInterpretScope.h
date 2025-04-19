@@ -23,6 +23,8 @@ class SymbolResolver;
 
 struct GlobalContainer;
 
+std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name);
+
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
 public:
 

@@ -1789,6 +1789,21 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     return container_ptr;
 }
 
+std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name) {
+    auto& values = container->defThing.defValue.values;
+    auto found = values.find(name);
+    if(found != values.end()) {
+        const auto val = found->second.value;
+        if(val->kind() == ValueKind::Bool) {
+            return val->as_bool_unsafe()->value;
+        } else {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt;
+    }
+}
+
 void GlobalInterpretScope::dispose_container(GlobalContainer* container) {
     delete container;
 }

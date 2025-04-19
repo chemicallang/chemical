@@ -532,7 +532,7 @@ set(COMMON_SOURCES
         compiler/lab/ModuleStorage.h
         compiler/Interpreter/Core.cpp
         compiler/processor/ASTFileMetaData.h
-        compiler/processor/BuildLabModuleDependency.h
+        compiler/processor/ModuleDependencyRecord.h
         compiler/symres/SymResScopeKind.h
         compiler/processor/ASTFileResult.h
         parser/utils/ParseModDecl.cpp

@@ -98,4 +98,121 @@ public namespace fs {
         return WriteResult.Success;
     }
 
+/**
+
+    enum CopyOptions {
+        None        = 0,
+        Recursive   = 1 << 0,
+        Overwrite   = 1 << 1,
+        SkipExisting = 1 << 2
+    };
+
+    func path_exists(path : *char) : int {
+        struct stat st;
+        return stat(path, &st) == 0;
+    }
+
+    func is_directory(path : *char) : int {
+        struct stat st;
+        return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+    }
+
+    func copy_file(src : *char, dest : *char, options : CopyOptions) : int {
+        if (!(options & CopyOptions.Overwrite) && path_exists(dest)) {
+            if (options & CopyOptions.SkipExisting)
+                return 0;
+            fprintf(stderr, "File already exists: %s\n", dest);
+            return -1;
+        }
+
+        int in_fd = open(src, O_RDONLY);
+        if (in_fd < 0) {
+            perror("open src");
+            return -1;
+        }
+
+        int out_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (out_fd < 0) {
+            perror("open dest");
+            close(in_fd);
+            return -1;
+        }
+
+        char buffer[8192];
+        ssize_t bytes;
+        while ((bytes = read(in_fd, buffer, sizeof(buffer))) > 0) {
+            if (write(out_fd, buffer, bytes) != bytes) {
+                perror("write");
+                close(in_fd);
+                close(out_fd);
+                return -1;
+            }
+        }
+
+        close(in_fd);
+        close(out_fd);
+        return 0;
+    }
+
+    public func copy_directory(src_dir : *char, dest_dir : *char, options : CopyOptions) : int {
+
+        if (!is_directory(src_dir)) {
+            fprintf(stderr, "Source is not a directory: %s\n", src_dir);
+            return -1;
+        }
+
+        if (!path_exists(dest_dir)) {
+            if (mkdir(dest_dir, 0755) != 0) {
+                perror("mkdir");
+                return -1;
+            }
+        }
+
+        const dir = opendir(src_dir);
+        if (!dir) {
+            perror("opendir");
+            return -1;
+        }
+
+        struct dirent *entry;
+        char src_path[1024], dest_path[1024];
+
+        while ((entry = readdir(dir))) {
+            const name = entry->d_name;
+
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+                continue;
+            }
+
+            snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, name);
+            snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, name);
+
+            struct stat st;
+            if (stat(src_path, &st) != 0) {
+                perror("stat");
+                closedir(dir);
+                return -1;
+            }
+
+            if (S_ISDIR(st.st_mode)) {
+                if (options & CopyOptions.Recursive) {
+                    if (copy_directory(src_path, dest_path, options) != 0) {
+                        closedir(dir);
+                        return -1;
+                    }
+                }
+            } else if (S_ISREG(st.st_mode)) {
+                if (copy_file(src_path, dest_path, options) != 0) {
+                    closedir(dir);
+                    return -1;
+                }
+            } // Could handle symlinks, etc., here
+        }
+
+        closedir(dir);
+        return 0;
+    }
+
+**/
+
 }

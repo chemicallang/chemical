@@ -89,7 +89,7 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator, bool requ
         return nullptr;
     }
     token++;
-    return parseImportStmtAfterKw(allocator, require_path);
+    return parseImportStmtAfterKw(allocator, false);
 }
 
 bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool require_path) {

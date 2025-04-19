@@ -34,20 +34,14 @@ struct BuildLabModuleDependency {
     chem::string mod_name;
 
     /**
-     * the file imports that caused this dependency
-     */
-    std::vector<ASTFileResult*> imports;
-
-    /**
      * constructor
      */
     BuildLabModuleDependency(
             std::string module_dir_path,
-            ASTFileResult* fileResult,
             chem::string scope_name,
             chem::string mod_name
     ) : module_dir_path(std::move(module_dir_path)), scope_name(std::move(scope_name)), mod_name(std::move(mod_name)) {
-        imports.emplace_back(fileResult);
+
     }
 
 };

@@ -7,6 +7,8 @@
 
 class LabModule;
 
+class ModuleScope;
+
 class ASTFileResult;
 
 struct ASTFileMetaData {

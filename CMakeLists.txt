@@ -550,6 +550,8 @@ set(COMMON_SOURCES
         compiler/processor/ModuleFileData.h
         compiler/lab/CBIType.h
         compiler/symres/NodeSymbolDeclarer.h
+        compiler/lab/timestamp/Timestamp.h
+        compiler/lab/timestamp/Timestamp.cpp
 )
 
 # Chemical LSP Executable Target

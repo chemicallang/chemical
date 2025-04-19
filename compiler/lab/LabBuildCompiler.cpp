@@ -19,6 +19,7 @@
 #include <fstream>
 #include <span>
 #include "parser/utils/ParseModDecl.h"
+#include "compiler/lab/timestamp/Timestamp.h"
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -96,110 +97,6 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
         recursive_dedupe(mod, imported, new_modules);
     }
     return new_modules;
-}
-
-namespace fs = std::filesystem;
-
-/**
- * save mod timestamp data (modified date and file size) in a file that can be read later and compared
- * to check if files have changed
- */
-void save_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& output_file) {
-    std::ofstream ofs(output_file.data(), std::ios::binary);
-    size_t num_files = files.size();
-    ofs.write(reinterpret_cast<const char*>(&num_files), sizeof(num_files));
-    for (const auto& file_abs_path : files) {
-        fs::path file_path(file_abs_path);
-        if (fs::exists(file_path)) {
-            uintmax_t file_size = fs::file_size(file_path);
-            auto mod_time = fs::last_write_time(file_path);
-            size_t file_str_size = file_abs_path.size();
-            ofs.write(reinterpret_cast<const char*>(&file_str_size), sizeof(file_str_size));
-            ofs.write(file_abs_path.data(), (std::streamsize) file_str_size);
-            ofs.write(reinterpret_cast<const char*>(&file_size), sizeof(file_size));
-            ofs.write(reinterpret_cast<const char*>(&mod_time), sizeof(mod_time));
-        }
-    }
-}
-
-void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& output_file) {
-    std::vector<std::string_view> paths;
-    paths.reserve(files.size());
-    for(const auto& f : files) {
-        paths.emplace_back(f.abs_path);
-    }
-    save_mod_timestamp(paths, output_file);
-}
-
-void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& output_file) {
-    std::vector<std::string_view> paths;
-    paths.reserve(files.size());
-    for(const auto f : files) {
-        // TODO: we should not be putting files that are external to module (imported using '@' usually)
-        paths.emplace_back(f->abs_path);
-    }
-    save_mod_timestamp(paths, output_file);
-}
-
-bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file) {
-    std::ifstream ifs(prev_timestamp_file.data(), std::ios::binary);
-
-    if (!ifs.is_open()) {
-        return false;
-    }
-
-    size_t prev_num_files;
-    ifs.read(reinterpret_cast<char*>(&prev_num_files), sizeof(prev_num_files));
-
-    if (prev_num_files != files.size()) {
-        return false;
-    }
-
-    for (const auto& file : files) {
-        fs::path file_path(file);
-        if (fs::exists(file_path)) {
-            uintmax_t current_file_size = fs::file_size(file_path);
-            auto current_mod_time = fs::last_write_time(file_path);
-
-            size_t file_str_size;
-            ifs.read(reinterpret_cast<char*>(&file_str_size), sizeof(file_str_size));
-
-            std::string prev_file_str(file_str_size, '\0');
-            ifs.read(&prev_file_str[0], (std::streamsize) file_str_size);
-
-            uintmax_t prev_file_size;
-            ifs.read(reinterpret_cast<char*>(&prev_file_size), sizeof(prev_file_size));
-
-            fs::file_time_type prev_mod_time;
-            ifs.read(reinterpret_cast<char*>(&prev_mod_time), sizeof(prev_mod_time));
-
-            if (prev_file_str != file_path.string() || prev_file_size != current_file_size || prev_mod_time != current_mod_time) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& prev_timestamp_file) {
-    std::vector<std::string_view> paths;
-    paths.reserve(files.size());
-    for(const auto& f : files) {
-        paths.emplace_back(f.abs_path);
-    }
-    return compare_mod_timestamp(paths, prev_timestamp_file);
-}
-
-bool compare_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& prev_timestamp_file) {
-    std::vector<std::string_view> paths;
-    paths.reserve(files.size());
-    for(const auto f : files) {
-        paths.emplace_back(f->abs_path);
-    }
-    return compare_mod_timestamp(paths, prev_timestamp_file);
 }
 
 LabBuildCompiler::LabBuildCompiler(
@@ -1767,55 +1664,8 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
 
-    // some variables for processing
-    std::string imp_module_dir_path;
-    chem::string imp_scope_name;
-    chem::string imp_mod_name;
-
-    auto& nodes = modResult.unit.scope.body.nodes;
-    for(const auto stmt : nodes) {
-        if(stmt->kind() == ASTNodeKind::ImportStmt) {
-            const auto impStmt = stmt->as_import_stmt_unsafe();
-            imp_module_dir_path.clear();
-            imp_scope_name.clear();
-            imp_mod_name.clear();
-            if(impStmt->identifier.empty() && !impStmt->filePath.empty()) {
-                // here we will consider this file path given a scope name and module name identifier
-                auto v = impStmt->filePath.view();
-                auto colInd = v.find(':');
-                if(colInd != std::string_view::npos) {
-                    imp_scope_name.append(chem::string_view(v.data(), colInd));
-                    imp_mod_name.append(chem::string_view(v.data() + colInd + 1, v.size() - colInd));
-                } else {
-                    // consider the identifier a module name with scope name empty
-                    imp_mod_name.append(impStmt->filePath);
-                }
-            } else if(!impStmt->identifier.empty()) {
-                const auto idSize = impStmt->identifier.size();
-                if (idSize == 1) {
-                    imp_mod_name.append(impStmt->identifier[0]);
-                } else if (idSize == 2) {
-                    imp_scope_name.append(impStmt->identifier[0]);
-                    imp_mod_name.append(impStmt->identifier[1]);
-                } else {
-                    // TODO handle the error
-                }
-            }
-            if(!imp_mod_name.empty()) {
-                auto result = path_handler.resolve_lib_dir_path(imp_scope_name.to_chem_view(), imp_mod_name.to_chem_view());
-                if(result.error.empty()) {
-                    imp_module_dir_path.append(result.replaced);
-                } else {
-                    // TODO handle the error
-                }
-            }
-            if(!impStmt->filePath.empty() && !impStmt->identifier.empty()) {
-                // TODO: explicit import for a directory with scope name and module name
-                imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
-            }
-            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), nullptr, std::move(imp_scope_name), std::move(imp_mod_name));
-        }
-    }
+    // this function figures out dependencies based on import statements
+    path_handler.figure_out_mod_dep_using_imports(buildLabModuleDependencies, modResult.unit.scope.body.nodes);
 
     // these are modules imported by the build.lab
     // however we must build their build.lab or chemical.mod into a LabModule*
@@ -1944,11 +1794,11 @@ TCCState* LabBuildCompiler::built_lab_file(
     // module dependencies we determined from directly imported files
     std::vector<BuildLabModuleDependency> buildLabModuleDependencies;
 
-    // imports tell us which modules the build.lab and its imports depend upon
-    // we would compile these modules ahead and then process the build.lab
-    for(const auto file : module_files) {
-        lab_processor.figure_out_module_dependency_based_on_import(*file, buildLabModuleDependencies);
-    }
+    // based on imports figures out which modules have been imported
+    path_handler.figure_out_mod_dep_using_imports(
+        buildLabModuleDependencies,
+        labFileResult.unit.scope.body.nodes
+    );
 
     // direct module dependencies (in no valid order)
     auto& mod_dependencies = chemical_lab_module.dependencies;
@@ -1961,14 +1811,6 @@ TCCState* LabBuildCompiler::built_lab_file(
         const auto mod = create_module_for_dependency(context, mod_ptr);
         if(mod == nullptr) {
             return nullptr;
-        }
-
-        for(const auto fileResult : mod_ptr.imports) {
-            // we imported this file from this module and it thinks that
-            // it belongs to the build.lab module we created above (because we hadn't created this module before)
-            // lets change this
-            fileResult->module = &mod->module_scope;
-            fileResult->unit.scope.set_parent(&mod->module_scope);
         }
 
         mod_dependencies.emplace_back(mod);
@@ -2369,7 +2211,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     create_dir(options->build_dir);
 
     // this is the root build.lab dependency
-    BuildLabModuleDependency buildLabDependency("", nullptr, chem::string("chemical"), chem::string("lab"));
+    BuildLabModuleDependency buildLabDependency("", chem::string("chemical"), chem::string("lab"));
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(context, buildLabDependency, path);

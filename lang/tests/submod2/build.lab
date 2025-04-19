@@ -1,6 +1,5 @@
-import "@lab/lab.ch"
-import "@std/string.ch"
-import "@std/string_view.ch"
+import lab
+import std
 
 public func build(ctx : *mut BuildContext) : *Module {
 

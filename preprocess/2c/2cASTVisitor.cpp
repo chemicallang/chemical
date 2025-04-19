@@ -160,6 +160,13 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
 
 void ToCAstVisitor::fwd_declare(ASTNode* node) {
     switch(node->kind()) {
+        case ASTNodeKind::TypealiasStmt:{
+            const auto alias = node->as_typealias_unsafe();
+            if(alias->is_top_level()) {
+                tld.VisitTypealiasStmt(alias);
+            }
+            break;
+        }
         case ASTNodeKind::NamespaceDecl:
             for(const auto child : node->as_namespace_unsafe()->nodes) {
                 fwd_declare(child);
@@ -201,6 +208,43 @@ void ToCAstVisitor::fwd_declare(ASTNode* node) {
         }
         default:
             break;
+    }
+}
+
+void ToCAstVisitor::fwd_declare(BaseType* type) {
+    auto& visitor = *this;
+    switch(type->kind()) {
+        case BaseTypeKind::Reference:
+            fwd_declare(type->as_reference_type_unsafe()->type);
+            return;
+        case BaseTypeKind::Pointer:
+            fwd_declare(type->as_pointer_type_unsafe()->type);
+            return;
+        case BaseTypeKind::Linked:
+            fwd_declare(type->as_linked_type_unsafe()->linked);
+            return;
+        case BaseTypeKind::Dynamic:
+            fwd_declare(type->as_dynamic_type_unsafe()->referenced);
+            return;
+        case BaseTypeKind::Array:
+            fwd_declare(type->as_array_type_unsafe()->elem_type);
+            return;
+        case BaseTypeKind::Function: {
+            const auto func_ty = type->as_function_type_unsafe();
+            for(const auto param : func_ty->params) {
+                fwd_declare(param->type);
+            }
+            fwd_declare(func_ty->returnType);
+            return;
+        }
+        case BaseTypeKind::Generic:
+            fwd_declare(type->as_generic_type_unsafe()->referenced->linked);
+            for(const auto ty : type->as_generic_type_unsafe()->types) {
+                fwd_declare(ty);
+            }
+            return;
+        default:
+            return;
     }
 }
 
@@ -2321,9 +2365,9 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl)
     }
 }
 
-void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node);
+void early_declare_node(ToCAstVisitor& visitor, ASTNode* node);
 
-void early_declare_struct(CTopLevelDeclarationVisitor& visitor, StructDefinition* def) {
+void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
     // declare inherited types
     for(auto& inherit : def->inherited) {
         auto in_node = inherit.type->get_direct_linked_node();
@@ -2341,29 +2385,43 @@ void early_declare_struct(CTopLevelDeclarationVisitor& visitor, StructDefinition
             }
         }
     }
-    visitor.early_declare_struct_def(def);
 }
 
-void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
+void early_declare_struct(ToCAstVisitor& visitor, StructDefinition* def) {
+    early_declare_container(visitor, def);
+    visitor.tld.early_declare_struct_def(def);
+}
+
+void early_declare_variant(ToCAstVisitor& visitor, VariantDefinition* def) {
+    early_declare_container(visitor, def);
+    visitor.tld.early_declare_variant_def(def);
+}
+
+void early_declare_union(ToCAstVisitor& visitor, UnionDef* def) {
+    early_declare_container(visitor, def);
+    visitor.tld.early_declare_union_def(def);
+}
+
+void early_declare_node(ToCAstVisitor& c_visitor, ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::TypealiasStmt:
-            visitor.VisitTypealiasStmt(node->as_typealias_unsafe());
-            break;
+            c_visitor.tld.VisitTypealiasStmt(node->as_typealias_unsafe());
+            return;
         case ASTNodeKind::StructDecl:
-            early_declare_struct(visitor, node->as_struct_def_unsafe());
-            break;
+            early_declare_struct(c_visitor, node->as_struct_def_unsafe());
+            return;
         case ASTNodeKind::VariantDecl:
-            visitor.early_declare_variant_def(node->as_variant_def_unsafe());
-            break;
+            early_declare_variant(c_visitor, node->as_variant_def_unsafe());
+            return;
         case ASTNodeKind::UnionDecl:
-            // TODO this
-            break;
+            early_declare_union(c_visitor, node->as_union_def_unsafe());
+            return;
         default:
-            break;
+            return;
     }
 }
 
-void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, VariablesContainer& container) {
+void early_declare_composed_variables(ToCAstVisitor& visitor, VariablesContainer& container) {
     for(const auto variable : container.variables()) {
         auto t = variable->known_type();
         const auto node = t->get_direct_linked_node();
@@ -2379,7 +2437,7 @@ void early_declare_composed_variables(CTopLevelDeclarationVisitor& visitor, Vari
     }
 }
 
-void early_declare_type(CTopLevelDeclarationVisitor& visitor, BaseType* type) {
+void early_declare_type(ToCAstVisitor& visitor, BaseType* type) {
     switch(type->kind()) {
         case BaseTypeKind::Reference:
             early_declare_type(visitor, type->as_reference_type_unsafe()->type);
@@ -2390,8 +2448,25 @@ void early_declare_type(CTopLevelDeclarationVisitor& visitor, BaseType* type) {
         case BaseTypeKind::Linked:
             early_declare_node(visitor, type->as_linked_type_unsafe()->linked);
             return;
+        case BaseTypeKind::Dynamic:
+            early_declare_type(visitor, type->as_dynamic_type_unsafe()->referenced);
+            return;
+        case BaseTypeKind::Array:
+            early_declare_type(visitor, type->as_array_type_unsafe()->elem_type);
+            return;
+        case BaseTypeKind::Function: {
+            const auto func_ty = type->as_function_type_unsafe();
+            for(const auto param : func_ty->params) {
+                visitor.fwd_declare(param->type);
+            }
+            visitor.fwd_declare(func_ty->returnType);
+            return;
+        }
         case BaseTypeKind::Generic:
             early_declare_node(visitor, type->as_generic_type_unsafe()->referenced->linked);
+            for(const auto ty : type->as_generic_type_unsafe()->types) {
+                early_declare_type(visitor, ty);
+            }
             return;
         default:
             return;
@@ -2406,6 +2481,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
     }
+    tld->visitor.fwd_declare((FunctionType*) decl);
     tld->visitor.new_line_and_indent();
     declare_func_with_return(tld->visitor, decl);
     tld->visitor.write(';');
@@ -2420,6 +2496,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
     }
+    tld->visitor.fwd_declare((FunctionType*) decl);
     tld->visitor.new_line_and_indent();
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;
@@ -2467,7 +2544,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     const auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
-    early_declare_type(*this, init_type);
+    early_declare_type(visitor, init_type);
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
     var_init(visitor, init, init_type, !is_exported, !external_module, is_exported && external_module);
@@ -2511,7 +2588,7 @@ void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
 }
 
 void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
-    early_declare_type(visitor.tld, stmt->actual_type);
+    early_declare_type(visitor, stmt->actual_type);
     visitor.new_line_and_indent();
     visitor.write("typedef ");
     const auto kind = stmt->actual_type->kind();
@@ -2536,21 +2613,7 @@ void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
 }
 
 void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
-    visitor.new_line_and_indent();
-    write("union ");
-    visitor.mangle(def);
-    write(" {");
-    visitor.indentation_level+=1;
-    for(const auto var : def->variables()) {
-        visitor.new_line_and_indent();
-        visitor.visit(var);
-    }
-    visitor.indentation_level-=1;
-    visitor.new_line_and_indent();
-    write("};");
-    for(auto& func : def->instantiated_functions()) {
-        declare_contained_func(this, func, false);
-    }
+    declare_union_iterations(def);
 }
 
 void CTopLevelDeclarationVisitor::VisitNamespaceDecl(Namespace *ns) {
@@ -2567,7 +2630,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     // before we declare this struct, we must early declare any direct struct type variables
     // inside this struct, because some structs get used inside which are present in other modules
     // will be declared later, so C responds with incomplete type
-    early_declare_composed_variables(*this, *def);
+    early_declare_composed_variables(visitor, *def);
     visitor.new_line_and_indent();
     write("struct ");
     visitor.mangle(def);
@@ -2610,14 +2673,6 @@ void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_struct_iterations(StructDefinition* def) {
-    if(!has_declared(def)) {
-        set_declared(def);
-        declare_struct_def_only(def);
-    }
-    declare_struct_functions(def);
-}
-
 void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
     for(const auto mem : def->variables()) {
         value_visitor->visit(mem);
@@ -2625,7 +2680,7 @@ void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
     // before we declare this struct, we must early declare any direct struct type variables
     // inside this struct, because some structs get used inside which are present in other modules
     // will be declared later, so C responds with incomplete type
-    early_declare_composed_variables(*this, *def);
+    early_declare_composed_variables(visitor, *def);
     visitor.new_line_and_indent();
     write("union ");
     visitor.mangle(def);
@@ -2653,18 +2708,15 @@ void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
 
 void CTopLevelDeclarationVisitor::declare_union_functions(UnionDef* def) {
     for(auto& func : def->instantiated_functions()) {
-        if(def->get_overriding_interface(func) == nullptr) {
-            declare_contained_func(this, func, false);
-        }
+        declare_contained_func(this, func, false);
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_union_iterations(UnionDef* def) {
+void CTopLevelDeclarationVisitor::early_declare_union_def(UnionDef* def) {
     if(!has_declared(def)) {
         set_declared(def);
         declare_union_def_only(def);
     }
-    declare_union_functions(def);
 }
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
@@ -2764,14 +2816,6 @@ void CTopLevelDeclarationVisitor::early_declare_variant_def(VariantDefinition* d
         set_declared(def);
         declare_variant_def_only(def);
     }
-}
-
-void CTopLevelDeclarationVisitor::declare_variant_iterations(VariantDefinition* def) {
-    if(!has_declared(def)) {
-        set_declared(def);
-        declare_variant_def_only(def);
-    }
-    declare_variant_functions(def);
 }
 
 void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {

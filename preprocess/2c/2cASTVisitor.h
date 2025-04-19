@@ -343,6 +343,11 @@ public:
     void fwd_declare(ASTNode* node);
 
     /**
+     * forward declare a type
+     */
+    void fwd_declare(BaseType* type);
+
+    /**
      * forward declare these nodes
      */
     void fwd_declare(std::vector<ASTNode*>& nodes) {

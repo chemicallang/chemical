@@ -24,7 +24,7 @@ if (def.windows) {
     /** @brief 16-bit unsigned integer. */
     public type WORD = ushort
     /** @brief 32-bit unsigned integer. */
-    public type DWORD = uint
+    public type DWORD = uint32_t
     /** @brief 64-bit signed integer. */
     public type LONGLONG = bigint
     /** @brief 64-bit unsigned integer. */

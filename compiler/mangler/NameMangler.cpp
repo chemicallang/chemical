@@ -12,6 +12,7 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/ModuleScope.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/statements/VarInit.h"
 #include "ast/structures/Namespace.h"
 #include <sstream>
 
@@ -80,6 +81,8 @@ bool is_node_no_mangle(ASTNode* node) {
             return node->as_variant_def_unsafe()->is_no_mangle();
         case ASTNodeKind::TypealiasStmt:
             return node->as_typealias_unsafe()->is_no_mangle();
+        case ASTNodeKind::VarInitStmt:
+            return node->as_var_init_unsafe()->is_no_mangle();
         default:
             return false;
     }

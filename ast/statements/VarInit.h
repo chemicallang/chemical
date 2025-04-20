@@ -59,6 +59,11 @@ struct VarInitAttributes {
      */
     bool deprecated = false;
 
+    /**
+     * do not mangle the variable
+     */
+    bool is_no_mangle = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -91,7 +96,8 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ASTNode(ASTNodeKind::VarInitStmt, parent_node, location), attrs(specifier, false, false, false, false, is_const, is_reference, false),
+    ) : ASTNode(ASTNodeKind::VarInitStmt, parent_node, location),
+        attrs(specifier, false, false, false, false, is_const, is_reference, false, false),
         located_id(identifier), type(type), value(value) {
 
     }
@@ -217,6 +223,14 @@ public:
      */
     inline void set_has_assignment() {
         attrs.has_assignment = true;
+    }
+
+    inline bool is_no_mangle() {
+        return attrs.is_no_mangle;
+    }
+
+    inline void set_no_mangle(bool no_mangle) {
+        attrs.is_no_mangle = no_mangle;
     }
 
     Value* holding_value() final {

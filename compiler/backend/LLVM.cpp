@@ -437,13 +437,38 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
         auto current_block = gen.builder->GetInsertBlock();
         llvm::BasicBlock* second_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
         llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+
+        const auto firstValType = first->getType();
+        if(firstValType->isIntegerTy()) {
+            const auto bitWidth = firstValType->getIntegerBitWidth();
+            if (bitWidth != 1) {
+                first = gen.builder->CreateICmpNE(first, gen.builder->getIntN(bitWidth, 0));
+            }
+        } else {
+            gen.error("value doesn't result in an integer", firstValue);
+            return first;
+        }
+
         if(operation == Operation::LogicalAND) {
             gen.CreateCondBr(first, second_block, end_block, encoded_location());
         } else {
             gen.CreateCondBr(first, end_block, second_block, encoded_location());
         }
+
         gen.SetInsertPoint(second_block);
         auto second = secondValue->llvm_value(gen);
+
+        const auto secondValType = second->getType();
+        if(secondValType->isIntegerTy()) {
+            const auto bitWidth = secondValType->getIntegerBitWidth();
+            if (bitWidth != 1) {
+                second = gen.builder->CreateICmpNE(second, gen.builder->getIntN(bitWidth, 0));
+            }
+        } else {
+            gen.error("value doesn't result in an integer", secondValue);
+            return first;
+        }
+
         gen.CreateBr(end_block, encoded_location());
         gen.SetInsertPoint(end_block);
         auto phi = gen.builder->CreatePHI(gen.builder->getInt1Ty(), 2);
@@ -467,9 +492,9 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     // shrink_literal_values(gen.allocator, first_pure, second_pure);
     // promote_literal_values(gen.allocator, first_pure, second_pure);
     firstType = firstValue->create_type(gen.allocator);
-    first_pure = firstType->pure_type(gen.allocator);
+    first_pure = firstType->canonical();
     secondType = secondValue->create_type(gen.allocator);
-    second_pure = secondType->pure_type(gen.allocator);
+    second_pure = secondType->canonical();
     auto logical = llvm_logical_expr(gen, first_pure, second_pure);
     if(logical) return logical;
     auto value = gen.operate(operation, firstValue, secondValue, first_pure, second_pure);

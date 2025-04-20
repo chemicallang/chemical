@@ -48,6 +48,17 @@ void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm:
     }
 }
 
+llvm::Value* cast_int_to_ptr(Codegen& gen, llvm::Value* value, llvm::Type* targetPtrTy) {
+    auto& builder = gen.builder;
+    const auto module = gen.module.get();
+    auto expectedIntTy = builder->getIntPtrTy(module->getDataLayout(), targetPtrTy->getPointerAddressSpace());
+    if (value->getType() != expectedIntTy) {
+        value = builder->CreateIntCast(value, expectedIntTy, false); // unsigned cast is fine here
+    }
+    value = builder->CreateIntToPtr(value, targetPtrTy);
+    return value;
+}
+
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
 
     // automatically dereference reference types
@@ -153,6 +164,15 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         }
     }
 
+    const auto lhsType = lhs->getType();
+    const auto rhsType = rhs->getType();
+
+    // comparison of pointers with integers
+    if (lhsType->isIntegerTy() && rhsType->isPointerTy()) {
+        lhs = cast_int_to_ptr(*this, lhs, rhsType);
+    } else if (lhsType->isPointerTy() && rhsType->isIntegerTy()) {
+        rhs = cast_int_to_ptr(*this, rhs, lhsType);
+    }
 
     switch (op) {
 //        case Operation::Grouping:

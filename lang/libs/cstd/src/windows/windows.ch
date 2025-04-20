@@ -33,7 +33,7 @@ if (def.windows) {
     /** @brief 32-bit unsigned integer. */
     public type DWORD = uint32_t
     /** @brief Signed 32-bit integer. */
-    public type LONG = int32_t // Added missing LONG type
+    public type LONG = int32_t
     /** @brief 64-bit signed integer. */
     public type LONGLONG = bigint
     /** @brief 64-bit unsigned integer. */
@@ -53,138 +53,138 @@ if (def.windows) {
     /** @brief Pointer to constant WCHAR string. */
     public type LPCWSTR = *ushort
     /** @brief Pointer to DWORD. */
-    public type LPDWORD = *mut DWORD // Added missing LPDWORD
+    public type LPDWORD = *mut DWORD
 
     /** @brief Invalid handle constant. */
-    @comptime public const INVALID_HANDLE_VALUE : HANDLE = -1
+    @comptime public const INVALID_HANDLE_VALUE : HANDLE = -1 as HANDLE
     /** @brief Invalid file attributes constant. */
-    @comptime public const INVALID_FILE_ATTRIBUTES : DWORD = 0xFFFFFFFF // Added
+    @comptime public const INVALID_FILE_ATTRIBUTES : DWORD = 0xFFFFFFFF as DWORD
 
     /** @brief File attribute: directory. */
-    @comptime public const FILE_ATTRIBUTE_DIRECTORY : DWORD = 0x10
+    @comptime public const FILE_ATTRIBUTE_DIRECTORY : DWORD = 0x10 as DWORD
     /** @brief File attribute: normal. */
-    @comptime public const FILE_ATTRIBUTE_NORMAL : DWORD = 0x80
+    @comptime public const FILE_ATTRIBUTE_NORMAL : DWORD = 0x80 as DWORD
     /** @brief File attribute: read-only. */
-    @comptime public const FILE_ATTRIBUTE_READONLY : DWORD = 0x01 // Added
+    @comptime public const FILE_ATTRIBUTE_READONLY : DWORD = 0x01 as DWORD
     /** @brief File attribute: hidden. */
-    @comptime public const FILE_ATTRIBUTE_HIDDEN : DWORD = 0x02 // Added
+    @comptime public const FILE_ATTRIBUTE_HIDDEN : DWORD = 0x02 as DWORD
     /** @brief File attribute: system. */
-    @comptime public const FILE_ATTRIBUTE_SYSTEM : DWORD = 0x04 // Added
+    @comptime public const FILE_ATTRIBUTE_SYSTEM : DWORD = 0x04 as DWORD
     /** @brief File attribute: archive. */
-    @comptime public const FILE_ATTRIBUTE_ARCHIVE : DWORD = 0x20 // Added
+    @comptime public const FILE_ATTRIBUTE_ARCHIVE : DWORD = 0x20 as DWORD
 
     /** @brief Desired access: read. */
-    @comptime public const GENERIC_READ : DWORD = 0x80000000
+    @comptime public const GENERIC_READ : DWORD = 0x80000000 as DWORD
     /** @brief Desired access: write. */
-    @comptime public const GENERIC_WRITE : DWORD = 0x40000000
+    @comptime public const GENERIC_WRITE : DWORD = 0x40000000 as DWORD
     /** @brief Desired access: execute. */
-    @comptime public const GENERIC_EXECUTE : DWORD = 0x20000000 // Added
+    @comptime public const GENERIC_EXECUTE : DWORD = 0x20000000 as DWORD
     /** @brief Desired access: all. */
-    @comptime public const GENERIC_ALL : DWORD = 0x10000000 // Added
+    @comptime public const GENERIC_ALL : DWORD = 0x10000000 as DWORD
 
     /** @brief Share mode: read. */
-    @comptime public const FILE_SHARE_READ : DWORD = 0x00000001
+    @comptime public const FILE_SHARE_READ : DWORD = 0x00000001 as DWORD
     /** @brief Share mode: write. */
-    @comptime public const FILE_SHARE_WRITE : DWORD = 0x00000002
+    @comptime public const FILE_SHARE_WRITE : DWORD = 0x00000002 as DWORD
     /** @brief Share mode: delete. */
-    @comptime public const FILE_SHARE_DELETE : DWORD = 0x00000004 // Added
+    @comptime public const FILE_SHARE_DELETE : DWORD = 0x00000004 as DWORD
 
     /** @brief Creation disposition: create new file, fail if exists. */
-    @comptime public const CREATE_NEW : DWORD = 1
+    @comptime public const CREATE_NEW : DWORD = 1 as DWORD
     /** @brief Creation disposition: create new file, overwrite if exists. */
-    @comptime public const CREATE_ALWAYS : DWORD = 2
+    @comptime public const CREATE_ALWAYS : DWORD = 2 as DWORD
     /** @brief Creation disposition: open existing file. */
-    @comptime public const OPEN_EXISTING : DWORD = 3
+    @comptime public const OPEN_EXISTING : DWORD = 3 as DWORD
     /** @brief Creation disposition: open file, create if it doesn't exist. */
-    @comptime public const OPEN_ALWAYS : DWORD = 4
+    @comptime public const OPEN_ALWAYS : DWORD = 4 as DWORD
     /** @brief Creation disposition: truncate existing file to zero length. */
-    @comptime public const TRUNCATE_EXISTING : DWORD = 5 // Added
+    @comptime public const TRUNCATE_EXISTING : DWORD = 5 as DWORD
 
     /** @brief File move method: beginning of file. */
-    @comptime public const FILE_BEGIN : DWORD = 0 // Added
+    @comptime public const FILE_BEGIN : DWORD = 0 as DWORD
     /** @brief File move method: current position. */
-    @comptime public const FILE_CURRENT : DWORD = 1 // Added
+    @comptime public const FILE_CURRENT : DWORD = 1 as DWORD
     /** @brief File move method: end of file. */
-    @comptime public const FILE_END : DWORD = 2 // Added
+    @comptime public const FILE_END : DWORD = 2 as DWORD
 
     /** @brief Memory allocation: commit pages. */
-    @comptime public const MEM_COMMIT : DWORD = 0x1000
+    @comptime public const MEM_COMMIT : DWORD = 0x1000 as DWORD
     /** @brief Memory allocation: reserve address range. */
-    @comptime public const MEM_RESERVE : DWORD = 0x2000
+    @comptime public const MEM_RESERVE : DWORD = 0x2000 as DWORD
     /** @brief Memory free: release pages. */
-    @comptime public const MEM_RELEASE : DWORD = 0x8000
+    @comptime public const MEM_RELEASE : DWORD = 0x8000 as DWORD
     /** @brief Memory free: decommit pages. */
-    @comptime public const MEM_DECOMMIT : DWORD = 0x4000 // Added
+    @comptime public const MEM_DECOMMIT : DWORD = 0x4000 as DWORD
 
     /** @brief Page protection: read/write. */
-    @comptime public const PAGE_READWRITE : DWORD = 0x04
+    @comptime public const PAGE_READWRITE : DWORD = 0x04 as DWORD
     /** @brief Page protection: execute. */
-    @comptime public const PAGE_EXECUTE : DWORD = 0x10 // Added
+    @comptime public const PAGE_EXECUTE : DWORD = 0x10 as DWORD
     /** @brief Page protection: execute/read. */
-    @comptime public const PAGE_EXECUTE_READ : DWORD = 0x20 // Added
+    @comptime public const PAGE_EXECUTE_READ : DWORD = 0x20 as DWORD
     /** @brief Page protection: execute/read/write. */
-    @comptime public const PAGE_EXECUTE_READWRITE : DWORD = 0x40 // Added
+    @comptime public const PAGE_EXECUTE_READWRITE : DWORD = 0x40 as DWORD
     /** @brief Page protection: no access. */
-    @comptime public const PAGE_NOACCESS : DWORD = 0x01 // Added
+    @comptime public const PAGE_NOACCESS : DWORD = 0x01 as DWORD
     /** @brief Page protection: read only. */
-    @comptime public const PAGE_READONLY : DWORD = 0x02 // Added
+    @comptime public const PAGE_READONLY : DWORD = 0x02 as DWORD
 
     /** @brief Standard Handle: Input */
-    @comptime public const STD_INPUT_HANDLE : DWORD = -10 // Added
+    @comptime public const STD_INPUT_HANDLE : DWORD = -10 as DWORD
     /** @brief Standard Handle: Output */
-    @comptime public const STD_OUTPUT_HANDLE : DWORD = -11 // Added
+    @comptime public const STD_OUTPUT_HANDLE : DWORD = -11 as DWORD
     /** @brief Standard Handle: Error */
-    @comptime public const STD_ERROR_HANDLE : DWORD = -12 // Added
+    @comptime public const STD_ERROR_HANDLE : DWORD = -12 as DWORD
 
     // --- Added registry constants ---
     /** @brief Registry Key: HKEY_CLASSES_ROOT */
-    @comptime public const HKEY_CLASSES_ROOT : HKEY = 0x80000000
+    @comptime public const HKEY_CLASSES_ROOT : HKEY = 0x80000000 as HKEY
     /** @brief Registry Key: HKEY_CURRENT_USER */
-    @comptime public const HKEY_CURRENT_USER : HKEY = 0x80000001
+    @comptime public const HKEY_CURRENT_USER : HKEY = 0x80000001 as HKEY
     /** @brief Registry Key: HKEY_LOCAL_MACHINE */
-    @comptime public const HKEY_LOCAL_MACHINE : HKEY = 0x80000002
+    @comptime public const HKEY_LOCAL_MACHINE : HKEY = 0x80000002 as HKEY
     /** @brief Registry Key: HKEY_USERS */
-    @comptime public const HKEY_USERS : HKEY = 0x80000003
+    @comptime public const HKEY_USERS : HKEY = 0x80000003 as HKEY
     /** @brief Registry Key: HKEY_CURRENT_CONFIG */
-    @comptime public const HKEY_CURRENT_CONFIG : HKEY = 0x80000005
+    @comptime public const HKEY_CURRENT_CONFIG : HKEY = 0x80000005 as HKEY
 
     /** @brief Registry Access: Query Value */
-    @comptime public const KEY_QUERY_VALUE : DWORD = 0x0001
+    @comptime public const KEY_QUERY_VALUE : DWORD = 0x0001 as DWORD
     /** @brief Registry Access: Set Value */
-    @comptime public const KEY_SET_VALUE : DWORD = 0x0002
+    @comptime public const KEY_SET_VALUE : DWORD = 0x0002 as DWORD
     /** @brief Registry Access: Create Sub Key */
-    @comptime public const KEY_CREATE_SUB_KEY : DWORD = 0x0004
+    @comptime public const KEY_CREATE_SUB_KEY : DWORD = 0x0004 as DWORD
     /** @brief Registry Access: Enumerate Sub Keys */
-    @comptime public const KEY_ENUMERATE_SUB_KEYS : DWORD = 0x0008
+    @comptime public const KEY_ENUMERATE_SUB_KEYS : DWORD = 0x0008 as DWORD
     /** @brief Registry Access: Notify */
-    @comptime public const KEY_NOTIFY : DWORD = 0x0010
+    @comptime public const KEY_NOTIFY : DWORD = 0x0010 as DWORD
     /** @brief Registry Access: Create Link */
-    @comptime public const KEY_CREATE_LINK : DWORD = 0x0020
+    @comptime public const KEY_CREATE_LINK : DWORD = 0x0020 as DWORD
     /** @brief Registry Access: Write */
-    @comptime public const KEY_WRITE : DWORD = 0x20006 // (STANDARD_RIGHTS_WRITE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY) & (~SYNCHRONIZE)
+    @comptime public const KEY_WRITE : DWORD = 0x20006 as DWORD // (STANDARD_RIGHTS_WRITE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY) & (~SYNCHRONIZE)
     /** @brief Registry Access: Read */
-    @comptime public const KEY_READ : DWORD = 0x20019 // (STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY) & (~SYNCHRONIZE)
+    @comptime public const KEY_READ : DWORD = 0x20019 as DWORD // (STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY) & (~SYNCHRONIZE)
     /** @brief Registry Access: All Access */
-    @comptime public const KEY_ALL_ACCESS : DWORD = 0xF003F // (STANDARD_RIGHTS_ALL | KEY_QUERY_VALUE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY | KEY_CREATE_LINK) & (~SYNCHRONIZE)
+    @comptime public const KEY_ALL_ACCESS : DWORD = 0xF003F as DWORD // (STANDARD_RIGHTS_ALL | KEY_QUERY_VALUE | KEY_SET_VALUE | KEY_CREATE_SUB_KEY | KEY_ENUMERATE_SUB_KEYS | KEY_NOTIFY | KEY_CREATE_LINK) & (~SYNCHRONIZE)
 
     /** @brief Registry Value Type: String */
-    @comptime public const REG_SZ : DWORD = 1
+    @comptime public const REG_SZ : DWORD = 1 as DWORD
     /** @brief Registry Value Type: Expandable String */
-    @comptime public const REG_EXPAND_SZ : DWORD = 2
+    @comptime public const REG_EXPAND_SZ : DWORD = 2 as DWORD
     /** @brief Registry Value Type: Binary */
-    @comptime public const REG_BINARY : DWORD = 3
+    @comptime public const REG_BINARY : DWORD = 3 as DWORD
     /** @brief Registry Value Type: DWORD */
-    @comptime public const REG_DWORD : DWORD = 4
+    @comptime public const REG_DWORD : DWORD = 4 as DWORD
     /** @brief Registry Value Type: DWORD Big Endian */
-    @comptime public const REG_DWORD_BIG_ENDIAN : DWORD = 5
+    @comptime public const REG_DWORD_BIG_ENDIAN : DWORD = 5 as DWORD
     /** @brief Registry Value Type: Link */
-    @comptime public const REG_LINK : DWORD = 6
+    @comptime public const REG_LINK : DWORD = 6 as DWORD
     /** @brief Registry Value Type: Multi-String */
-    @comptime public const REG_MULTI_SZ : DWORD = 7
+    @comptime public const REG_MULTI_SZ : DWORD = 7 as DWORD
     /** @brief Registry Value Type: Resource List */
-    @comptime public const REG_RESOURCE_LIST : DWORD = 8
+    @comptime public const REG_RESOURCE_LIST : DWORD = 8 as DWORD
     /** @brief Registry Value Type: QWORD */
-    @comptime public const REG_QWORD : DWORD = 11
+    @comptime public const REG_QWORD : DWORD = 11 as DWORD
 
     /**
      * @struct LARGE_INTEGER
@@ -202,7 +202,7 @@ if (def.windows) {
      * @struct ULARGE_INTEGER
      * @brief 64-bit unsigned integer value. Can be accessed as a whole or parts.
      */
-    public union ULARGE_INTEGER { // Added
+    public union ULARGE_INTEGER {
         struct {
             var LowPart : DWORD
             var HighPart : DWORD
@@ -274,8 +274,8 @@ if (def.windows) {
         var ftLastWriteTime : FILETIME; /**< Last write time. */
         var nFileSizeHigh : DWORD;    /**< High-order DWORD of file size. */
         var nFileSizeLow : DWORD;     /**< Low-order DWORD of file size. */
-        var dwReserved0 : DWORD;      /**< Reserved; do not use. */ // Added missing reserved fields
-        var dwReserved1 : DWORD;      /**< Reserved; do not use. */ // Added missing reserved fields
+        var dwReserved0 : DWORD;      /**< Reserved; do not use. */
+        var dwReserved1 : DWORD;      /**< Reserved; do not use. */
         var cFileName : char[260];    /**< File name (MAX_PATH). */
         var cAlternateFileName : char[14]; /**< Short file name (8.3). */
         // Some definitions might include these, depending on _WIN32_WINNT version

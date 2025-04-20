@@ -1224,7 +1224,7 @@ void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identif
     }
 }
 
-void var_init(ToCAstVisitor& visitor, VarInitStatement* init, BaseType* init_type, bool is_static, bool initialize = true, bool is_extern = false) {
+void var_init_top_level(ToCAstVisitor& visitor, VarInitStatement* init, BaseType* init_type, bool is_static, bool initialize = true, bool is_extern = false) {
     if(init->is_comptime()) {
         return;
     }
@@ -1233,7 +1233,15 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, BaseType* init_typ
     } else if(is_extern) {
         visitor.write("extern ");
     }
-    value_alloca_store(visitor, init->name_view(), init_type, initialize ? init->value : nullptr);
+    const auto mangled = visitor.mangler.mangle(init);
+    value_alloca_store(visitor, chem::string_view(mangled), init_type, initialize ? init->value : nullptr);
+}
+
+void var_init(ToCAstVisitor& visitor, VarInitStatement* init, BaseType* init_type) {
+    if(init->is_comptime()) {
+        return;
+    }
+    value_alloca_store(visitor, init->name_view(), init_type, init->value);
 }
 
 void allocate_struct_by_name(ToCAstVisitor& visitor, ASTNode* def, const chem::string_view& name, Value* initializer = nullptr) {
@@ -2547,7 +2555,7 @@ void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     early_declare_type(visitor, init_type);
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
-    var_init(visitor, init, init_type, !is_exported, !external_module, is_exported && external_module);
+    var_init_top_level(visitor, init, init_type, !is_exported, !external_module, is_exported && external_module);
 }
 
 void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
@@ -3077,7 +3085,7 @@ std::string ToCAstVisitor::string_accept(Value* any) {
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->is_top_level()) return;
     auto init_type = init->type ? init->type : init->value->create_type(allocator);
-    var_init(*this, init, init_type, false);
+    var_init(*this, init, init_type);
     destructor->VisitVarInitStmt(init);
 }
 
@@ -5003,6 +5011,9 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 const auto init = linked->as_var_init_unsafe();
                 if (init->is_comptime()) {
                     visit(init->value);
+                    return;
+                } else if(init->is_top_level()) {
+                    mangle(init);
                     return;
                 }
                 break;

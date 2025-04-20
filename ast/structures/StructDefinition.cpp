@@ -64,18 +64,18 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
         // we always assume base container as interface, it could be something else (abstract struct maybe)
         if(interface->is_static()) {
             const auto inh_type = info.type->type;
-            const auto func = info.base_func->llvm_func();
+            const auto func = info.base_func->llvm_func(gen);
             const auto interfaceModule = func->getParent();
             if(interfaceModule != gen.module.get()) {
                 // interface is present in another module
                 // we create a new function with strong linkage in this module
                 const auto new_func = gen.create_function(func->getName(), func->getFunctionType(), function, AccessSpecifier::Public);
-                function->set_llvm_data(new_func);
+                function->set_llvm_data(gen, new_func);
                 function->code_gen_override(gen, new_func);
             } else {
                 // internal interface, present in current module
                 // we will implement the interface in place, since its present in current module
-                function->set_llvm_data(func);
+                function->set_llvm_data(gen, func);
                 if(func->size() == 1) {
                     // remove the stub block present in functions internal to module
                     auto& stubEntry = func->getEntryBlock();
@@ -93,7 +93,7 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
             if (llvm_data == user.end()) {
                 return false;
             }
-            function->set_llvm_data(llvm_data->second);
+            function->set_llvm_data(gen, llvm_data->second);
             function->code_gen_override(gen, llvm_data->second);
         }
         return true;
@@ -199,7 +199,7 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sour
         if(func->has_self_param()) {
             args.emplace_back(allocaInst);
         }
-        llvm::Function* func_data = func->llvm_func();
+        llvm::Function* func_data = func->llvm_func(gen);
         const auto instr = gen.builder->CreateCall(func_data, args);
         gen.di.instr(instr, location);
     }

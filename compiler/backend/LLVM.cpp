@@ -1219,6 +1219,12 @@ void Scope::code_gen(Codegen &gen) {
     code_gen(gen, gen.destruct_nodes.size());
 }
 
+void Scope::external_declare_top_level(Codegen &gen) {
+    for(const auto node : nodes) {
+        node->code_gen_external_declare(gen);
+    }
+}
+
 void ProvideStmt::code_gen(Codegen &gen) {
     const auto val = value->llvm_value(gen, nullptr);
     put_in(gen.implicit_args, val, &gen, [](ProvideStmt* stmt, void* data) {
@@ -1363,7 +1369,7 @@ void AssignStatement::code_gen(Codegen &gen) {
                 // previous is not an id, however we must still drop what we are assigning to
                 const auto destr = container->destructor_func();
                 if(destr) {
-                    const auto callInst = gen.builder->CreateCall(destr->llvm_func(), { pointer });
+                    const auto callInst = gen.builder->CreateCall(destr->llvm_func(gen), { pointer });
                     gen.di.instr(callInst, this);
                 }
             }

@@ -282,6 +282,11 @@ int ASTProcessor::compile_module(
 
     }
 
+    // here we store struct types, function callee values to reuse them inside module
+    // clearing this after module has compiled prevents reusing function callee's created
+    // for this module, forces us to redeclare functions and structs in external module
+    gen.mod_ptr_cache.clear();
+
     return 0;
 
 }

@@ -167,13 +167,6 @@ public:
     int generic_instantiation = -1;
 
     /**
-     * the llvm data
-     */
-#ifdef COMPILER_BUILD
-    llvm::Function* llvm_data = nullptr;
-#endif
-
-    /**
      * external data is stored in
      */
     FuncDeclAttributes attrs;
@@ -464,20 +457,20 @@ public:
 
     void llvm_attributes(llvm::Function* func);
 
-    llvm::Function*& get_llvm_data();
+    llvm::Function* get_llvm_data(Codegen &gen);
 
-    inline llvm::Function* llvm_func() {
-        return get_llvm_data();
+    inline llvm::Function* llvm_func(Codegen& gen) {
+        return get_llvm_data(gen);
     }
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
     inline llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final {
-        return (llvm::Value*) get_llvm_data();
+        return (llvm::Value*) get_llvm_data(gen);
     }
 
     inline llvm::Value* llvm_pointer(Codegen &gen) final {
-        return (llvm::Value*) get_llvm_data();
+        return (llvm::Value*) get_llvm_data(gen);
     }
 
     std::vector<llvm::Type *> param_types(Codegen &gen);
@@ -487,14 +480,14 @@ public:
     /**
      * get the known func or nullptr
      */
-    llvm::Function* known_func();
+    llvm::Function* known_func(Codegen& gen);
 
     /**
      * this function returns known llvm function type, this means
      * that function has been created before, so func type is known for current generic
      * iteration
      */
-    llvm::FunctionType *known_func_type();
+    llvm::FunctionType *known_func_type(Codegen& gen);
 
     /**
      * this will get the func type, no matter what, if it doesn't exist
@@ -505,7 +498,7 @@ public:
     /**
      * given llvm data will be set for active iteration
      */
-    void set_llvm_data(llvm::Function* func);
+    void set_llvm_data(Codegen& gen, llvm::Function* func);
 
     /**
      * declare a function that is present inside struct definition

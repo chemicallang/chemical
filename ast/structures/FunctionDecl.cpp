@@ -106,22 +106,24 @@ llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
     }
 }
 
-llvm::Function* FunctionDeclaration::known_func() {
-    return llvm_data;
+llvm::Function* FunctionDeclaration::known_func(Codegen& gen) {
+    auto ptr_found = gen.mod_ptr_cache.find(this);
+    return ptr_found != gen.mod_ptr_cache.end() ? (llvm::Function*) ptr_found->second : nullptr;
 }
 
-llvm::FunctionType *FunctionDeclaration::known_func_type() {
-    const auto func = known_func();
+llvm::FunctionType *FunctionDeclaration::known_func_type(Codegen& gen) {
+    const auto func = known_func(gen);
     return func ? func->getFunctionType() : nullptr;
 }
 
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
-    const auto known = known_func_type();
+    const auto known = known_func_type(gen);
     if(known) return known;
     return create_llvm_func_type(gen);
 }
 
-llvm::Function*& FunctionDeclaration::get_llvm_data() {
+llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
+    auto llvm_data = known_func(gen);
     if(llvm_data == nullptr && is_override()) {
         const auto struct_def = parent()->as_struct_def();
         if(struct_def) {
@@ -214,14 +216,14 @@ void func_body_gen_no_scope(FunctionDeclaration* decl, Codegen& gen) {
     if(!decl->exists_at_runtime()) {
         return;
     }
-    body_gen_no_scope(gen, decl, decl->llvm_func());
+    body_gen_no_scope(gen, decl, decl->llvm_func(gen));
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen) {
     if(!exists_at_runtime()) {
         return;
     }
-    body_gen(gen, this, llvm_func());
+    body_gen(gen, this, llvm_func(gen));
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
@@ -287,8 +289,8 @@ void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
     }
 }
 
-void FunctionDeclaration::set_llvm_data(llvm::Function* func) {
-    llvm_data = func;
+void FunctionDeclaration::set_llvm_data(Codegen& gen, llvm::Function* func) {
+    gen.mod_ptr_cache[this] = func;
 }
 
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
@@ -301,7 +303,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     auto func_type = decl->create_llvm_func_type(gen);
     auto func = gen.create_function(name, func_type, decl, decl->specifier());
     decl->llvm_attributes(func);
-    decl->set_llvm_data(func);
+    decl->set_llvm_data(gen, func);
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic functions always have generic iteration equal to zero
@@ -310,12 +312,12 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic fun
 
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, decl->specifier());
-    decl->set_llvm_data(callee);
+    decl->set_llvm_data(gen, callee);
 }
 
 void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name, bool is_exported) {
     auto callee = gen.declare_weak_function(name, decl->create_llvm_func_type(gen), decl, is_exported, decl->ASTNode::encoded_location());
-    decl->set_llvm_data(callee);
+    decl->set_llvm_data(gen, callee);
 }
 
 void declare_fn_weak(Codegen& gen, FunctionDeclaration *decl, bool is_exported) {
@@ -389,7 +391,6 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 }
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
-    llvm_data = nullptr;
     if(!is_exported()) {
         // TODO this should not happen, we should not even include nodes
         // we should remove the nodes if they are not public, so we never have to call code_gen_external_declare
@@ -414,7 +415,7 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def)
 }
 
 void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
-    set_llvm_data(decl->llvm_func());
+    set_llvm_data(gen, decl->llvm_func(gen));
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* def) {
@@ -546,7 +547,7 @@ void code_gen_process_members(
 }
 
 void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) {
-    auto func = llvm_func();
+    auto func = llvm_func(gen);
     gen.SetInsertPoint(&func->getEntryBlock());
 
     // start the function scope
@@ -637,7 +638,7 @@ void process_members_calling_fns(
 
 void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def) {
 
-    auto func = llvm_func();
+    auto func = llvm_func(gen);
     gen.SetInsertPoint(&func->getEntryBlock());
 
     // start the function scope
@@ -729,7 +730,7 @@ void initialize_def_struct_values(
 
 void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
 
-    auto func = llvm_func();
+    const auto func = llvm_func(gen);
     gen.SetInsertPoint(&func->getEntryBlock());
 
     // start the function scope
@@ -762,7 +763,7 @@ void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* d
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
 
-    auto func = llvm_func();
+    const auto func = llvm_func(gen);
 
     // we start a function scope
     gen.di.start_function_scope(this, func);
@@ -788,7 +789,8 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {
-    auto func = llvm_func();
+
+    const auto func = llvm_func(gen);
 
     // start the function scope
     gen.di.start_function_scope(this, func);

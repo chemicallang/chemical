@@ -62,20 +62,25 @@ public namespace fs {
 
 /**
 
-    enum CopyOptions {
+    public enum CopyOptions {
         None        = 0,
         Recursive   = 1 << 0,
         Overwrite   = 1 << 1,
         SkipExisting = 1 << 2
     };
 
-    func path_exists(path : *char) : int {
-        struct stat st;
+    @comptime public const COPY_NONE = CopyOptions.None;
+    @comptime public const COPY_RECURSIVE = CopyOptions.Recursive;
+    @comptime public const COPY_OVERWRITE = CopyOptions.Overwrite;
+    @comptime public const COPY_SKIP_EXISTING = CopyOptions.SkipExisting;
+
+    public func path_exists(path : *char) : int {
+        var st : Stat;
         return stat(path, &st) == 0;
     }
 
-    func is_directory(path : *char) : int {
-        struct stat st;
+    public func is_directory(path : *char) : int {
+        var st : Stat;
         if (stat(path, &st) != 0) return 0;
         if(def.windows) {
             return (st.st_mode & S_IFDIR) != 0;
@@ -84,14 +89,14 @@ public namespace fs {
         }
     }
 
-    func copy_file(src : *char, dest : *char, options : CopyOptions) : int {
-        if (!(options & CopyOptions.Overwrite) && path_exists(dest)) {
-            if (options & CopyOptions.SkipExisting) return 0;
+    public func copy_file(src : *char, dest : *char, options : CopyOptions) : int {
+        if (!(options & COPY_OVERWRITE) && path_exists(dest)) {
+            if (options & COPY_SKIP_EXISTING) return 0;
             fprintf(stderr, "File exists: %s\n", dest);
             return -1;
         }
         if(def.windows) {
-            if (!CopyFileA(src, dest, !(options & CopyOptions.Overwrite))) {
+            if (!CopyFileA(src, dest, !(options & COPY_OVERWRITE))) {
                 fprintf(stderr, "CopyFileA failed: %s -> %s\n", src, dest);
                 return -1;
             }
@@ -105,7 +110,11 @@ public namespace fs {
 
             var buf : char[8192];
             var n : ssize_t;
-            while ((n = read(in_fd, buf, sizeof(buf))) > 0) {
+            while (true) {
+                n = read(in_fd, buf, sizeof(buf))
+                if(n <= 0) {
+                    break;
+                }
                 if (write(out_fd, buf, n) != n) {
                     perror("write");
                     close(in_fd);
@@ -156,7 +165,7 @@ public namespace fs {
                 break;
             }
 
-            var name = entry->d_name;
+            var name = entry.d_name;
 
             if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
                 continue;
@@ -164,9 +173,9 @@ public namespace fs {
             snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, name);
             snprintf(dst_path, sizeof(dst_path), "%s/%s", dest_dir, name);
 
-            var st : stat;
+            var st : Stat;
             if (stat(src_path, &st) != 0) {
-                perror("stat");
+                perror("Stat");
                 closedir(dir);
                 return -1;
             }

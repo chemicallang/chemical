@@ -5,6 +5,8 @@ if (def.windows) {
     public type ULONG_PTR = *mut ulong
     public type UINT = uint
 
+    public type off_t = long
+
     /** @def NULL Pointer to nothing. */
     @comptime public const NULL : *void = null
 

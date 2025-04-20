@@ -1,11 +1,8 @@
-if(!def.windows) {
-
 /**
- * @struct stat
+ * @struct Stat
  * @brief File status information.
  */
-@extern
-public struct stat {
+public struct Stat {
     var st_dev : ulong;     /**< Device ID */
     var st_ino : ulong;     /**< Inode number */
     var st_mode : uint;    /**< File mode (permissions + type) */
@@ -19,71 +16,131 @@ public struct stat {
     var st_ctime : long;   /**< Time of last status change */
 };
 
+/**
+ * @brief Get file status.
+ * @param pathname Path to the file.
+ * @param buf Pointer to a Stat struct to fill.
+ * @return 0 on success, –1 on error.
+ */
+@extern
+public func stat(pathname : *char, buf : *mut Stat) : int
+
+@extern
+public func fstat(fd : int, buf : *mut Stat) : int
+
+// File type mask
+@comptime public const _S_IFMT = 0xF000
+// Directory
+@comptime public const _S_IFDIR = 0x4000
+// Character special
+@comptime public const _S_IFCHR = 0x2000
+// Pipe
+@comptime public const _S_IFIFO = 0x1000
+// Regular
+@comptime public const _S_IFREG = 0x8000
+
+@comptime public const S_IFMT = _S_IFMT
+@comptime public const S_IFDIR = _S_IFDIR
+@comptime public const S_IFCHR = _S_IFCHR
+@comptime public const S_IFREG = _S_IFREG
+
+if(def.windows) {
+
+    public enum FileTypeBits : uint {
+
+        /**
+         * Bitmask for the file type bitfields.
+         */
+        Mask = _S_IFMT,
+        /**
+         *  Directory.
+         */
+        Directory = _S_IFDIR,
+        /**
+         *  Regular file.
+         */
+        Regular = _S_IFREG,
+        /**
+         *  Character device.
+         */
+        CharDev = _S_IFCHR,
+        /**
+         *  FIFO (named pipe).
+         */
+        FIFO = _S_IFIFO,
+
+    };
+
+} else {
+
+public type off_t = long
+
+// TODO we're not sure about these three comptime constants
+
+// Socket.
+@comptime public const _S_IFSOCK = 0xC000
+
+// Symbolic link.
+@comptime public const _S_IFLNK = 0xA000
+
+// Block device.
+@comptime public const _S_IFBLK = 0x6000
+
+/**
+ * @enum FileTypeBits
+ * @brief Bit flags for Unix file types, as used in st_mode from struct Stat.
+ *        Values are based on POSIX definitions (from <sys/stat.h>).
+ */
 public enum FileTypeBits : uint {
 
-    /** @def S_IFMT
-     *  Bitmask for the file type bitfields.
+    /**
+     * @def Mask
+     * Bitmask for the file type bitfields (alias for _S_IFMT).
      */
-    Mask = 0xF000,
+    Mask = _S_IFMT,
 
-    /** @def S_IFDIR
-     *  Directory.
+    /**
+     * @def Socket
+     * Socket file type (alias for _S_IFSOCK).
      */
-    Directory = 0x4000,
+    Socket = _S_IFSOCK,
 
-    /** @def S_IFREG
-     *  Regular file.
+    /**
+     * @def Symlink
+     * Symbolic link file type (alias for _S_IFLNK).
      */
-    Regular = 0x8000,
+    Symlink = _S_IFLNK,
 
-    /** @def S_IFSOCK
-     *  Socket.
+    /**
+     * @def Regular
+     * Regular file type (alias for _S_IFREG).
      */
-    Socket = 0xC000,
+    Regular = _S_IFREG,
 
-    /** @def S_IFLNK
-     *  Symbolic link.
+    /**
+     * @def BlockDev
+     * Block device file type (alias for _S_IFBLK).
      */
-    Symlink = 0xA000,
+    BlockDev = _S_IFBLK,
 
-    /** @def S_IFBLK
-     *  Block device.
+    /**
+     * @def Directory
+     * Directory file type (alias for _S_IFDIR).
      */
-    BlockDev = 0x6000,
+    Directory = _S_IFDIR,
 
-    /** @def S_IFCHR
-     *  Character device.
+    /**
+     * @def CharDev
+     * Character device file type (alias for _S_IFCHR).
      */
-    CharDev = 0x2000,
+    CharDev = _S_IFCHR,
 
-    /** @def S_IFIFO
-     *  FIFO (named pipe).
+    /**
+     * @def FIFO
+     * FIFO (named pipe) file type (alias for _S_IFIFO).
      */
-    FIFO = 0x1000,
-
+    FIFO = _S_IFIFO,
 }
-
-/** TODO failing
-public enum FilePerm : uint {
-    // Owner
-    OwnerRead  = 0o400,
-    OwnerWrite = 0o200,
-    OwnerExec  = 0o100,
-    // Group
-    GroupRead  = 0o040,
-    GroupWrite = 0o020,
-    GroupExec  = 0o010,
-    // Others
-    OtherRead  = 0o004,
-    OtherWrite = 0o002,
-    OtherExec  = 0o001,
-
-    // Special bits
-    SetUID = 0o4000,
-    SetGID = 0o2000,
-    Sticky = 0o1000,
-}
-**/
 
 /**
  * @brief Test for directory.
@@ -117,19 +174,7 @@ public func S_ISREG(mode : uint) : bool {
     return (mode & FileTypeBits.Mask) == FileTypeBits.Regular
 }
 
-/**
- * @brief Get file status.
- * @param pathname Path to the file.
- * @param buf Pointer to a stat struct to fill.
- * @return 0 on success, –1 on error.
- */
 @extern
-public func stat(pathname : *char, buf : *mut stat) : int
-
-@extern
-public func fstat(fd : int, buf : *mut stat) : int
-
-@extern
-public func lstat(pathname : *char, buf : *mut stat) : int
+public func lstat(pathname : *char, buf : *mut Stat) : int
 
 }

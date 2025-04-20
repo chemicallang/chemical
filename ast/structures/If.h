@@ -128,6 +128,8 @@ public:
 
     void code_gen(Codegen &gen, Scope* scope, unsigned int index) final;
 
+    void code_gen_external_declare(Codegen &gen) override;
+
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
 #endif

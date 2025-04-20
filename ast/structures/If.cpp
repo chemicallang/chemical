@@ -42,6 +42,26 @@ void IfStatement::code_gen(Codegen &gen) {
     code_gen(gen, true);
 }
 
+void IfStatement::code_gen_external_declare(Codegen &gen) {
+    if(computed_scope.has_value()) {
+        auto scope = computed_scope.value();
+        if(scope) {
+            scope->code_gen_external_declare(gen);
+        }
+        return;
+    } else if(is_computable) {
+        auto scope = resolve_evaluated_scope((InterpretScope&) gen.comptime_scope, gen);
+        if(scope.has_value()) {
+            if(scope.value()) {
+                scope.value()->code_gen_external_declare(gen);
+            }
+            return;
+        }
+    } else {
+        gen.error("top level if statement couldn't be evaluated at comptime", (ASTNode*) this);
+    }
+}
+
 void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
 
     if(computed_scope.has_value()) {

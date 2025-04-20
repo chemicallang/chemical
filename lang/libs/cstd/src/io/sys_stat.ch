@@ -85,17 +85,35 @@ public enum FilePerm : uint {
 }
 **/
 
-/** @brief Test for directory. */
-// TODO public alias for  #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-
+/**
+ * @brief Test for directory.
+ * #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+ */
 public func is_directory(mode : uint) : bool {
     return (mode & FileTypeBits.Mask) == FileTypeBits.Directory
 }
 
-/** @brief Test for regular file. */
-// TODO public alias for #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+/**
+ * @brief Test for directory.
+ * #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+ */
+public func S_ISDIR(mode : uint) : bool {
+    return (mode & FileTypeBits.Mask) == FileTypeBits.Directory
+}
 
+/**
+ * @brief Test for regular file.
+ * #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+ */
 public func is_regular(mode : uint) : bool {
+    return (mode & FileTypeBits.Mask) == FileTypeBits.Regular
+}
+
+/**
+ * @brief Test for regular file.
+ * #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+ */
+public func S_ISREG(mode : uint) : bool {
     return (mode & FileTypeBits.Mask) == FileTypeBits.Regular
 }
 

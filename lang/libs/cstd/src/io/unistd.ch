@@ -19,6 +19,21 @@ public enum OpenFlags : int {
 
 }
 
+public enum PermissionMode : uint {
+    S_IRWXU = 0700,  /* Read, write, and execute/search by owner */
+    S_IRUSR = 0400,  /* Read permission, owner */
+    S_IWUSR = 0200,  /* Write permission, owner */
+    S_IXUSR = 0100,  /* Execute/search permission, owner */
+    S_IRWXG = 0070,  /* Read, write, and execute/search by group */
+    S_IRGRP = 0040,  /* Read permission, group */
+    S_IWGRP = 0020,  /* Write permission, group */
+    S_IXGRP = 0010,  /* Execute/search permission, group */
+    S_IRWXO = 0007,  /* Read, write, and execute/search by others */
+    S_IROTH = 0004,  /* Read permission, others */
+    S_IWOTH = 0002,  /* Write permission, others */
+    S_IXOTH = 0001   /* Execute/search permission, others */
+}
+
 /**
  * @brief Open a file.
  * @param pathname Path to the file.

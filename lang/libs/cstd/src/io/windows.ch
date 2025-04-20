@@ -131,12 +131,14 @@ if (def.windows) {
      * @brief Retrieves the calling thread's last-error code value.
      * @return The calling thread's last-error code.
      */
+    @extern
     public func GetLastError() : DWORD
 
     /**
      * @brief Sets the calling thread's last-error code value.
      * @param dwErrCode The new error code.
      */
+    @extern
     public func SetLastError(dwErrCode : DWORD) : void
 
     /**
@@ -150,6 +152,7 @@ if (def.windows) {
      * @param hTemplateFile Handle to template file.
      * @return Handle to the file or device, or INVALID_HANDLE_VALUE on error.
      */
+    @extern
     public func CreateFileA(
         lpFileName : LPCSTR,
         dwDesiredAccess : DWORD,
@@ -169,6 +172,7 @@ if (def.windows) {
      * @param lpOverlapped Optional overlapped structure.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func ReadFile(
         hFile : HANDLE,
         lpBuffer : LPVOID,
@@ -186,6 +190,7 @@ if (def.windows) {
      * @param lpOverlapped Optional overlapped structure.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func WriteFile(
         hFile : HANDLE,
         lpBuffer : LPCVOID,
@@ -199,6 +204,7 @@ if (def.windows) {
      * @param hObject Handle to be closed.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func CloseHandle(hObject : HANDLE) : BOOL
 
     /**
@@ -206,6 +212,7 @@ if (def.windows) {
      * @param lpLibFileName Path to the module.
      * @return Handle to the module, or NULL on failure.
      */
+    @extern
     public func LoadLibraryA(lpLibFileName : LPCSTR) : HMODULE
 
     /**
@@ -214,6 +221,7 @@ if (def.windows) {
      * @param lpProcName Name of the function or variable.
      * @return FARPROC pointer to the function or variable, or NULL on failure.
      */
+    @extern
     public func GetProcAddress(hModule : HMODULE, lpProcName : LPCSTR) : FARPROC
 
     /**
@@ -224,6 +232,7 @@ if (def.windows) {
      * @param flProtect Memory protection flags.
      * @return Pointer to the allocated memory, or NULL on failure.
      */
+    @extern
     public func VirtualAlloc(
         lpAddress : LPVOID,
         dwSize : SIZE_T,
@@ -238,6 +247,7 @@ if (def.windows) {
      * @param dwFreeType Memory free type flags.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func VirtualFree(
         lpAddress : LPVOID,
         dwSize : SIZE_T,
@@ -248,12 +258,14 @@ if (def.windows) {
      * @brief Causes the calling thread to sleep for a specified interval.
      * @param dwMilliseconds Time-out interval, in milliseconds.
      */
+    @extern
     public func Sleep(dwMilliseconds : DWORD) : void
 
     /**
      * @brief Terminates the calling process and returns an exit code.
      * @param uExitCode The exit code for the process.
      */
+    @extern
     public func ExitProcess(uExitCode : UINT) : void
 
     /**
@@ -264,6 +276,7 @@ if (def.windows) {
      * @param uType Dialog box style and button flags.
      * @return Button identifier the user clicked.
      */
+    @extern
     public func MessageBoxA(
         hWnd : HANDLE,
         lpText : LPCSTR,
@@ -292,6 +305,7 @@ if (def.windows) {
      * @param lpFindFileData Out param for find data.
      * @return Search handle or INVALID_HANDLE_VALUE on error.
      */
+    @extern
     public func FindFirstFileA(lpFileName : LPCSTR, lpFindFileData : *mut WIN32_FIND_DATAA) : HANDLE
 
     /**
@@ -300,6 +314,7 @@ if (def.windows) {
      * @param lpFindFileData Out param for next data.
      * @return Nonzero on success, zero on failure/end.
      */
+    @extern
     public func FindNextFileA(hFindFile : HANDLE, lpFindFileData : *mut WIN32_FIND_DATAA) : BOOL
 
     /**
@@ -307,6 +322,7 @@ if (def.windows) {
      * @param hFindFile Handle to close.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func FindClose(hFindFile : HANDLE) : BOOL
 
     /**
@@ -315,6 +331,7 @@ if (def.windows) {
      * @param lpSecurityAttributes Unused; should be NULL.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func CreateDirectoryA(lpPathName : LPCSTR, lpSecurityAttributes : *mut SECURITY_ATTRIBUTES) : BOOL
 
     /**
@@ -322,6 +339,7 @@ if (def.windows) {
      * @param lpPathName Path to the directory.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func RemoveDirectoryA(lpPathName : LPCSTR) : BOOL
 
     /**
@@ -329,6 +347,37 @@ if (def.windows) {
      * @param lpFileName Path to the file.
      * @return Nonzero on success, zero on failure.
      */
+    @extern
     public func DeleteFileA(lpFileName : LPCSTR) : BOOL
+
+    /**
+     * @brief Creates a directory (C runtime).
+     * @param path Path to the directory (ANSI string).
+     * @return 0 on success, -1 on failure (sets errno).
+     */
+    @extern
+    public func _mkdir(path : LPCSTR) : int
+
+    /** @brief Removes a directory (CRT).
+     *  @param path Path to the directory (ANSI string).
+     *  @return 0 on success, -1 on failure (sets errno).
+     */
+    @extern
+    public func _rmdir(path : LPCSTR) : int
+
+    /** @brief Changes the current working directory (CRT).
+     *  @param path New working directory (ANSI string).
+     *  @return 0 on success, -1 on failure (sets errno).
+     */
+    @extern
+    public func _chdir(path : LPCSTR) : int
+
+    /** @brief Gets the current working directory (CRT).
+     *  @param buffer Buffer to receive path (ANSI string).
+     *  @param maxlen Maximum length of the buffer.
+     *  @return Pointer to buffer on success, NULL on failure.
+     */
+    @extern
+    public func _getcwd(buffer : LPSTR, maxlen : int) : LPSTR
 
 }

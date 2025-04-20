@@ -244,6 +244,8 @@ void read_zero_starting_number(SerialStrAllocator& str, SourceProvider& provider
     switch(provider.peek()) {
         case 'X':
         case 'x':
+        case 'o':
+        case 'O':
             str.append(provider.readCharacter());
             read_alpha_or_digits(str, provider);
             // TODO is this needed here ?

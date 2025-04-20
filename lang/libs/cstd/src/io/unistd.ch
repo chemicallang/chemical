@@ -20,18 +20,18 @@ public enum OpenFlags : int {
 }
 
 public enum PermissionMode : uint {
-    S_IRWXU = 0700,  /* Read, write, and execute/search by owner */
-    S_IRUSR = 0400,  /* Read permission, owner */
-    S_IWUSR = 0200,  /* Write permission, owner */
-    S_IXUSR = 0100,  /* Execute/search permission, owner */
-    S_IRWXG = 0070,  /* Read, write, and execute/search by group */
-    S_IRGRP = 0040,  /* Read permission, group */
-    S_IWGRP = 0020,  /* Write permission, group */
-    S_IXGRP = 0010,  /* Execute/search permission, group */
-    S_IRWXO = 0007,  /* Read, write, and execute/search by others */
-    S_IROTH = 0004,  /* Read permission, others */
-    S_IWOTH = 0002,  /* Write permission, others */
-    S_IXOTH = 0001   /* Execute/search permission, others */
+    S_IRWXU = 0o700,  /* Read, write, and execute/search by owner */
+    S_IRUSR = 0o400,  /* Read permission, owner */
+    S_IWUSR = 0o200,  /* Write permission, owner */
+    S_IXUSR = 0o100,  /* Execute/search permission, owner */
+    S_IRWXG = 0o070,  /* Read, write, and execute/search by group */
+    S_IRGRP = 0o040,  /* Read permission, group */
+    S_IWGRP = 0o020,  /* Write permission, group */
+    S_IXGRP = 0o010,  /* Execute/search permission, group */
+    S_IRWXO = 0o007,  /* Read, write, and execute/search by others */
+    S_IROTH = 0o004,  /* Read permission, others */
+    S_IWOTH = 0o002,  /* Write permission, others */
+    S_IXOTH = 0o001   /* Execute/search permission, others */
 }
 
 /**

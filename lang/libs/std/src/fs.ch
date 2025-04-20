@@ -76,99 +76,120 @@ public namespace fs {
 
     func is_directory(path : *char) : int {
         struct stat st;
-        return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+        if (stat(path, &st) != 0) return 0;
+        if(def.windows) {
+            return (st.st_mode & S_IFDIR) != 0;
+        } else {
+            return S_ISDIR(st.st_mode);
+        }
     }
 
     func copy_file(src : *char, dest : *char, options : CopyOptions) : int {
         if (!(options & CopyOptions.Overwrite) && path_exists(dest)) {
-            if (options & CopyOptions.SkipExisting)
-                return 0;
-            fprintf(stderr, "File already exists: %s\n", dest);
+            if (options & CopyOptions.SkipExisting) return 0;
+            fprintf(stderr, "File exists: %s\n", dest);
             return -1;
         }
-
-        int in_fd = open(src, O_RDONLY);
-        if (in_fd < 0) {
-            perror("open src");
-            return -1;
-        }
-
-        int out_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (out_fd < 0) {
-            perror("open dest");
-            close(in_fd);
-            return -1;
-        }
-
-        char buffer[8192];
-        ssize_t bytes;
-        while ((bytes = read(in_fd, buffer, sizeof(buffer))) > 0) {
-            if (write(out_fd, buffer, bytes) != bytes) {
-                perror("write");
-                close(in_fd);
-                close(out_fd);
+        if(def.windows) {
+            if (!CopyFileA(src, dest, !(options & CopyOptions.Overwrite))) {
+                fprintf(stderr, "CopyFileA failed: %s -> %s\n", src, dest);
                 return -1;
             }
-        }
+            return 0;
+        } else {
+            const in_fd = open(src, O_RDONLY, 0);
+            if (in_fd < 0) { perror("open src"); return -1; }
 
-        close(in_fd);
-        close(out_fd);
-        return 0;
+            const out_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0o644);
+            if (out_fd < 0) { perror("open dest"); close(in_fd); return -1; }
+
+            var buf : char[8192];
+            var n : ssize_t;
+            while ((n = read(in_fd, buf, sizeof(buf))) > 0) {
+                if (write(out_fd, buf, n) != n) {
+                    perror("write");
+                    close(in_fd);
+                    close(out_fd);
+                    return -1;
+                }
+            }
+
+            close(in_fd);
+            close(out_fd);
+            return 0;
+        }
     }
 
     public func copy_directory(src_dir : *char, dest_dir : *char, options : CopyOptions) : int {
 
         if (!is_directory(src_dir)) {
-            fprintf(stderr, "Source is not a directory: %s\n", src_dir);
+            fprintf(stderr, "Not a directory: %s\n", src_dir);
             return -1;
         }
 
-        if (!path_exists(dest_dir)) {
-            if (mkdir(dest_dir, 0755) != 0) {
-                perror("mkdir");
+        if(def.windows) {
+            if (!path_exists(dest_dir)) {
+                if (!CreateDirectoryA(dest_dir, NULL)) {
+                    fprintf(stderr, "CreateDirectoryA failed: %s\n", dest_dir);
+                    return -1;
+                }
+            }
+            var dir = opendir(src_dir);
+        } else {
+            if (!path_exists(dest_dir) && mkdir(dest_dir, 0755) != 0) {
+                perror("mkdir dest");
                 return -1;
             }
+            var dir = opendir(src_dir);
         }
 
-        const dir = opendir(src_dir);
-        if (!dir) {
-            perror("opendir");
-            return -1;
-        }
+        if (!dir) { perror("opendir"); return -1; }
 
-        struct dirent *entry;
-        char src_path[1024], dest_path[1024];
+        var entry : *mut dirent;
+        var src_path : char[1024]
+        var dst_path : char[1024]
 
-        while ((entry = readdir(dir))) {
-            const name = entry->d_name;
+        while(true) {
 
-            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
-                continue;
+            entry = readdir(dir)
+            if(entry == null) {
+                break;
             }
 
-            snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, name);
-            snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_dir, name);
+            var name = entry->d_name;
 
-            struct stat st;
+            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+                continue;
+
+            snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, name);
+            snprintf(dst_path, sizeof(dst_path), "%s/%s", dest_dir, name);
+
+            var st : stat;
             if (stat(src_path, &st) != 0) {
                 perror("stat");
                 closedir(dir);
                 return -1;
             }
 
-            if (S_ISDIR(st.st_mode)) {
-                if (options & CopyOptions.Recursive) {
-                    if (copy_directory(src_path, dest_path, options) != 0) {
+            if(def.windows) {
+                var is_dir = (st.st_mode & S_IFDIR) != 0;
+            } else {
+                var is_dir = S_ISDIR(st.st_mode);
+            }
+
+            if (is_dir) {
+                if (options & COPY_RECURSIVE) {
+                    if (copy_directory(src_path, dst_path, options) != 0) {
                         closedir(dir);
                         return -1;
                     }
                 }
-            } else if (S_ISREG(st.st_mode)) {
-                if (copy_file(src_path, dest_path, options) != 0) {
+            } else {
+                if (copy_file(src_path, dst_path, options) != 0) {
                     closedir(dir);
                     return -1;
                 }
-            } // Could handle symlinks, etc., here
+            }
         }
 
         closedir(dir);

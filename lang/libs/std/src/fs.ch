@@ -75,16 +75,21 @@ public namespace fs {
     @comptime public const COPY_SKIP_EXISTING = CopyOptions.SkipExisting;
 
     public func path_exists(path : *char) : int {
-        var st : Stat;
-        return stat(path, &st) == 0;
+        if(def.windows) {
+            return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
+        } else {
+            var st : Stat;
+            return stat(path, &st) == 0;
+        }
     }
 
     public func is_directory(path : *char) : int {
-        var st : Stat;
-        if (stat(path, &st) != 0) return 0;
         if(def.windows) {
-            return (st.st_mode & S_IFDIR) != 0;
+            const attributes = GetFileAttributesA(path);
+            return (attributes != INVALID_FILE_ATTRIBUTES) && (attributes & FILE_ATTRIBUTE_DIRECTORY);
         } else {
+            var st : Stat;
+            if (stat(path, &st) != 0) return 0;
             return S_ISDIR(st.st_mode);
         }
     }
@@ -96,8 +101,15 @@ public namespace fs {
             return -1;
         }
         if(def.windows) {
+            // Note: CopyFileA's bFailIfExists parameter handles the overwrite logic.
+            // The check above is redundant if relying solely on CopyFileA's parameter,
+            // but useful for the SkipExisting logic.
+            // CopyFileA fails if the destination exists and bFailIfExists is TRUE.
+            // So, if !COPY_OVERWRITE, we want bFailIfExists to be TRUE.
             if (!CopyFileA(src, dest, !(options & COPY_OVERWRITE))) {
-                fprintf(stderr, "CopyFileA failed: %s -> %s\n", src, dest);
+                // Check GetLastError() for more specific error information if needed
+                // DWORD err = GetLastError();
+                fprintf(stderr, "CopyFileA failed: %s -> %s\n", src, dest); // Consider adding error code
                 return -1;
             }
             return 0;
@@ -105,15 +117,20 @@ public namespace fs {
             const in_fd = open(src, O_RDONLY, 0);
             if (in_fd < 0) { perror("open src"); return -1; }
 
+            // Use O_EXCL with O_CREAT if COPY_OVERWRITE is not set, for atomic check and create
+            // However, the path_exists check already handles SkipExisting and initial overwrite check.
+            // O_TRUNC ensures if it exists and OVERWRITE is set, it's truncated.
             const out_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0o644);
             if (out_fd < 0) { perror("open dest"); close(in_fd); return -1; }
 
             var buf : char[8192];
             var n : ssize_t;
+
             while (true) {
-                n = read(in_fd, buf, sizeof(buf))
-                if(n <= 0) {
-                    break;
+                n = read(in_fd, buf, sizeof(buf));
+                if(n <= 0) { // 0 for EOF, -1 for error
+                    if (n < 0) perror("read");
+                    break; // Exit loop on error or EOF
                 }
                 if (write(out_fd, buf, n) != n) {
                     perror("write");
@@ -125,6 +142,9 @@ public namespace fs {
 
             close(in_fd);
             close(out_fd);
+            // Check if the loop exited due to a read error
+            if (n < 0) return -1;
+
             return 0;
         }
     }
@@ -136,73 +156,159 @@ public namespace fs {
             return -1;
         }
 
+        // Create destination directory if it doesn't exist
         if(def.windows) {
             if (!path_exists(dest_dir)) {
-                if (!CreateDirectoryA(dest_dir, NULL)) {
+                if (!CreateDirectoryA(dest_dir, NULL)) { // Assumes CreateDirectoryA is available
                     fprintf(stderr, "CreateDirectoryA failed: %s\n", dest_dir);
+                    // Consider adding GetLastError() info
                     return -1;
                 }
-            }
-            var dir = opendir(src_dir);
-        } else {
-            if (!path_exists(dest_dir) && mkdir(dest_dir, 0755) != 0) {
-                perror("mkdir dest");
+            } else if (!is_directory(dest_dir)) {
+                fprintf(stderr, "Destination exists but is not a directory: %s\n", dest_dir);
                 return -1;
             }
-            var dir = opendir(src_dir);
+        } else {
+            if (!path_exists(dest_dir)) {
+                 // Assumes mkdir is available
+                if (mkdir(dest_dir, 0755) != 0) {
+                    perror("mkdir dest");
+                    return -1;
+                }
+            } else if (!is_directory(dest_dir)) {
+                 fprintf(stderr, "Destination exists but is not a directory: %s\n", dest_dir);
+                 return -1;
+            }
         }
 
-        if (!dir) { perror("opendir"); return -1; }
+        if(def.windows) {
 
-        var entry : *mut dirent;
-        var src_path : char[1024]
-        var dst_path : char[1024]
+            var find_data : WIN32_FIND_DATAA; // Assumes WIN32_FIND_DATAA is defined
 
-        while(true) {
+            // Append "\\*" to list directory contents on Windows
+            // Need to handle path concatenation carefully, maybe use a temporary buffer
+            // or a path joining helper function.
+            // For now, let's assume a helper `join_paths_windows` exists.
+            // Example: join_paths_windows(temp_path, sizeof(temp_path), src_dir, "*");
+            // And then use temp_path in FindFirstFileA.
+            // Or, more directly for FindFirstFile, append \* to the directory name.
+            // Let's create a path like "src_dir\*"
+            var search_path : char[1024]; // Assuming 1024 is sufficient
+            snprintf(search_path, sizeof(search_path), "%s\\*", src_dir);
 
-            entry = readdir(dir)
-            if(entry == null) {
-                break;
+            var hFind : HANDLE = FindFirstFileA(search_path, &find_data);
+
+            if (hFind == INVALID_HANDLE_VALUE) { // Assumes INVALID_HANDLE_VALUE is defined
+                // GetLastError() could provide more info
+                fprintf(stderr, "FindFirstFileA failed: %s\n", src_dir);
+                return -1; // Indicates error during directory opening
             }
 
-            var name = entry.d_name;
+            // Loop through directory contents
+            do {
+                var name = &find_data.cFileName[0]; // Assumes cFileName is the correct field
 
-            if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-                continue;
+                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+                    continue;
 
-            snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, name);
-            snprintf(dst_path, sizeof(dst_path), "%s/%s", dest_dir, name);
+                // Construct full paths for source and destination
+                var src_path : char[1024];
+                var dst_path : char[1024];
+                // Assuming a cross-platform path joining helper or using snprintf with platform separator
+                // For simplicity, let's assume snprintf with appropriate separator
+                // Use backslash on Windows
+                snprintf(src_path, sizeof(src_path), "%s\\%s", src_dir, name);
+                snprintf(dst_path, sizeof(dst_path), "%s\\%s", dest_dir, name);
 
-            var st : Stat;
-            if (stat(src_path, &st) != 0) {
-                perror("Stat");
-                closedir(dir);
-                return -1;
-            }
 
-            if(def.windows) {
-                var is_dir = (st.st_mode & S_IFDIR) != 0;
-            } else {
-                var is_dir = S_ISDIR(st.st_mode);
-            }
+                // Check if the entry is a directory using Windows attributes
+                var is_dir = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY); // Assumes FILE_ATTRIBUTE_DIRECTORY is defined
 
-            if (is_dir) {
-                if (options & COPY_RECURSIVE) {
-                    if (copy_directory(src_path, dst_path, options) != 0) {
-                        closedir(dir);
+                if (is_dir) {
+                    if (options & COPY_RECURSIVE) {
+                        if (copy_directory(src_path, dst_path, options) != 0) {
+                            FindClose(hFind); // Close the handle before returning
+                            return -1;
+                        }
+                    }
+                } else {
+                    if (copy_file(src_path, dst_path, options) != 0) {
+                         FindClose(hFind); // Close the handle before returning
                         return -1;
                     }
                 }
-            } else {
-                if (copy_file(src_path, dst_path, options) != 0) {
-                    closedir(dir);
+            } while (FindNextFileA(hFind, &find_data) != 0); // Assumes FindNextFileA is available
+
+            var last_error : DWORD = GetLastError();
+            if (last_error != ERROR_NO_MORE_FILES) { // Check if the loop terminated due to an error other than end of files
+                 // GetLastError() could provide more info
+                fprintf(stderr, "FindNextFileA failed\n"); // Consider adding error code
+                FindClose(hFind); // Close the handle
+                return -1; // Indicate error during iteration
+            }
+
+            FindClose(hFind); // Assumes FindClose is available
+            return 0; // Success
+        } else {
+            // POSIX Implementation
+            var dir = opendir(src_dir); // Assumes opendir is available
+            if (!dir) { perror("opendir"); return -1; }
+
+            var entry : *mut dirent; // Assumes dirent is defined
+            var src_path : char[1024];
+            var dst_path : char[1024];
+
+            while(true) {
+                entry = readdir(dir); // Assumes readdir is available
+                if(entry == null) {
+                     // Check errno to differentiate between end of directory and error
+                     // For simplicity, assuming end of directory if errno is not set or is 0 after loop.
+                     // A robust check would involve clearing errno before the call and checking it after.
+                    break; // Exit loop on error or end of directory
+                }
+
+                var name = entry.d_name; // Assumes d_name is the correct field
+
+                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
+                    continue;
+
+                 // Construct full paths for source and destination
+                // Use forward slash on POSIX
+                snprintf(src_path, sizeof(src_path), "%s/%s", src_dir, name);
+                snprintf(dst_path, sizeof(dst_path), "%s/%s", dest_dir, name);
+
+
+                // Check if the entry is a directory using stat and S_ISDIR
+                var st : Stat; // Assumes Stat is defined/aliased appropriately
+                if (stat(src_path, &st) != 0) { // Assumes stat is available/wrapped
+                    perror("Stat");
+                    closedir(dir); // Close the handle before returning
                     return -1;
                 }
-            }
-        }
 
-        closedir(dir);
-        return 0;
+                var is_dir = S_ISDIR(st.st_mode); // Assumes S_ISDIR is defined/available
+
+                if (is_dir) {
+                    if (options & COPY_RECURSIVE) {
+                        if (copy_directory(src_path, dst_path, options) != 0) {
+                            closedir(dir); // Close the handle before returning
+                            return -1;
+                        }
+                    }
+                } else {
+                    if (copy_file(src_path, dst_path, options) != 0) {
+                        closedir(dir); // Close the handle before returning
+                        return -1;
+                    }
+                }
+            }
+
+            closedir(dir); // Assumes closedir is available
+             // Check errno after loop to see if readdir failed
+             // if (errno != 0) { perror("readdir"); return -1; } // More robust error checking
+
+            return 0; // Success
+        }
     }
 
 **/

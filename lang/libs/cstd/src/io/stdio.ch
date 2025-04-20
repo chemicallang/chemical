@@ -9,12 +9,22 @@ public struct fpos_t {
 }
 
 /**
- * TODO streams are implementation defined
- * #define stdin   // implementation-defined
- * #define stdout  // implementation-defined
- * #define stderr  // implementation-defined
+ * Associated with the standard input stream, used for reading conventional input. At program startup, the stream is fully buffered if and only if the stream can be determined to not refer to an interactive device.
  * @see https://en.cppreference.com/w/c/io/std_streams
  */
+@extern public const stdin : *mut FILE;
+
+/**
+ * Associated with the standard output stream, used for writing conventional output. At program startup, the stream is fully buffered if and only if the stream can be determined to not refer to an interactive device.
+ * @see https://en.cppreference.com/w/c/io/std_streams
+ */
+@extern public const stdout : *mut FILE;
+
+/**
+ * Associated with the standard error stream, used for writing diagnostic output. At program startup, the stream is not fully buffered.
+ * @see https://en.cppreference.com/w/c/io/std_streams
+ */
+@extern public const stderr : *mut FILE;
 
 /**
  * Opens a file indicated by filename and returns a pointer to the file stream associated with that file. mode is used to determine the file access mode.

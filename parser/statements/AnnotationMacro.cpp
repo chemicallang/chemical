@@ -10,6 +10,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnionDef.h"
+#include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/UsingStmt.h"
 
@@ -32,6 +33,9 @@ bool make_node_no_mangle(ASTNode* node) {
             return true;
         case ASTNodeKind::TypealiasStmt:
             node->as_typealias_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::VarInitStmt:
+            node->as_var_init_unsafe()->set_no_mangle(true);
             return true;
         default:
             return false;

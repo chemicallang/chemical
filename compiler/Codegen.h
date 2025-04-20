@@ -104,6 +104,15 @@ public:
     std::unordered_map<chem::string_view, llvm::Value*> implicit_args;
 
     /**
+     * this is the storage place for structs / function llvm values
+     * structs store their global type, functions store their callee values
+     * this cache is cleared when the module has compiled, prompting
+     * declarations to recreate llvm values by external declaring to avoid
+     * reusing pointers that have become invalid
+     */
+    std::unordered_map<ASTNode*, llvm::Value*> mod_ptr_cache;
+
+    /**
      * TargetTriple , which we are generating code for !
      */
     std::string target_triple;

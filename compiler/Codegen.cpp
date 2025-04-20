@@ -411,6 +411,7 @@ LLVMArrayDestructor Codegen::destruct(
 }
 
 FunctionDeclaration* determine_func_data(
+        Codegen& gen,
         BaseType* elem_type,
         llvm::Function*& func_data,
         FunctionDeclaration*(*choose_func)(MembersContainer* container)
@@ -427,7 +428,7 @@ FunctionDeclaration* determine_func_data(
     }
 
     // determine the function type and callee
-    func_data = structDef->llvm_func_data(chosenFunc);
+    func_data = chosenFunc->llvm_func(gen);
 
     return chosenFunc;
 
@@ -437,7 +438,7 @@ FunctionDeclaration* Codegen::determine_destructor_for(
         BaseType* elem_type,
         llvm::Function*& func_data
 ) {
-    return determine_func_data(elem_type, func_data, [](MembersContainer* def) -> FunctionDeclaration* {
+    return determine_func_data(*this, elem_type, func_data, [](MembersContainer* def) -> FunctionDeclaration* {
         return def->destructor_func();
     });
 }
@@ -557,12 +558,6 @@ bool Codegen::assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_poin
         return true;
     }
     return false;
-}
-
-void call_clear_fn(Codegen &gen, FunctionDeclaration* decl, llvm::Value* llvm_value, SourceLocation location) {
-    const auto func = decl->llvm_func();
-    const auto callInst = gen.builder->CreateCall(func, { llvm_value });
-    gen.di.instr(callInst, location);
 }
 
 void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {

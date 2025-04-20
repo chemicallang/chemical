@@ -114,7 +114,7 @@ void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sou
     const auto destr = destructor_func();
     if(destr) {
         // making a call to destructor function
-        const auto data = llvm_func_data(destr);
+        const auto data = destr->llvm_func(gen);
         const auto instr = gen.builder->CreateCall(data, { allocaInst });
         gen.di.instr(instr, location);
     }

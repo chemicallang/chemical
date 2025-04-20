@@ -25,11 +25,11 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
                 gen.error("failed to override function in impl because declaration not found", (AnnotableNode*) decl);
                 return;
             }
-            decl->set_llvm_data(found->second);
+            decl->set_llvm_data(gen, found->second);
             decl->code_gen_override(gen, found->second);
         } else {
             decl->code_gen_override_declare(gen, overridden.second);
-            decl->code_gen_override(gen, overridden.second->llvm_func());
+            decl->code_gen_override(gen, overridden.second->llvm_func(gen));
         }
     } else {
         gen.error("failed to override function in impl because not found", (AnnotableNode*) decl);

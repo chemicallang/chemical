@@ -648,24 +648,18 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     if(decl && decl->is_copy_fn()) {
-        auto node = decl->params.front()->type->linked_node();
-        auto def = node ? node->as_members_container() : nullptr;
-        if(!def) {
-            gen.error("couldn't figure out struct for which copy function is for", this);
-            return nullptr;
-        }
         if(!grandparent) {
             gen.error("couldn't figure out struct on which copy function is being called", this);
             return nullptr;
         }
-        auto data = def->llvm_func_data(decl);
+        auto data = decl->llvm_func(gen);
         args.emplace_back(grandparent);
         const auto callInstr = gen.builder->CreateCall(data, args);
         gen.di.instr(callInstr, this);
         return returnedValue;
     }
 
-    auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
+    auto fn = decl != nullptr ? decl->llvm_func(gen) : nullptr;
     to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 
     const auto llvm_func_type = llvm_linked_func_type(gen);
@@ -706,7 +700,7 @@ bool FunctionCall::store_in_parent(
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
     auto decl = linked_func();
-    auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
+    auto fn = decl != nullptr ? (decl->llvm_func(gen)) : nullptr;
     if(fn != nullptr) {
         auto type = decl->known_type();
         std::vector<llvm::Value *> args;

@@ -393,15 +393,6 @@ public:
     void external_declare(Codegen& gen);
 
     /**
-     * get the itr for function
-     * @deprecated
-     */
-    [[deprecated]]
-    inline llvm::Function* llvm_func_data(FunctionDeclaration* decl) {
-        return decl->llvm_func();
-    }
-
-    /**
      * add child index
      */
     bool add_child_index(

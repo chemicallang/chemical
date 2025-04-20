@@ -46,14 +46,14 @@ void IfStatement::code_gen_external_declare(Codegen &gen) {
     if(computed_scope.has_value()) {
         auto scope = computed_scope.value();
         if(scope) {
-            scope->code_gen_external_declare(gen);
+            scope->external_declare_top_level(gen);
         }
         return;
     } else if(is_computable) {
         auto scope = resolve_evaluated_scope((InterpretScope&) gen.comptime_scope, gen);
         if(scope.has_value()) {
             if(scope.value()) {
-                scope.value()->code_gen_external_declare(gen);
+                scope.value()->external_declare_top_level(gen);
             }
             return;
         }

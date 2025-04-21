@@ -1994,7 +1994,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
                 // now we create a new module scope on the job allocator, we will set this scope as parent of this file
                 // this way the mangler will think this file belongs to this module (fictionally external) and use its scope and module
-                const auto new_scope = new (job_allocator->allocate_released<ModuleScope>()) ModuleScope("lab", chem::string_view(name_str, name_size));
+                const auto new_scope = new (job_allocator->allocate_released<ModuleScope>()) ModuleScope("lab", chem::string_view(name_str, name_size), &chemical_lab_module);
                 file.module = new_scope;
                 file.unit.scope.set_parent(new_scope);
 

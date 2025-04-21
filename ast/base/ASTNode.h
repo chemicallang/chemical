@@ -188,6 +188,13 @@ public:
     ASTNode* root_parent();
 
     /**
+     * get module scope of this node
+     * although this function is fast, but multiple calls to it
+     * should be avoided for performance
+     */
+    ModuleScope* get_mod_scope();
+
+    /**
      * get access specifier for this node
      */
     AccessSpecifier specifier();

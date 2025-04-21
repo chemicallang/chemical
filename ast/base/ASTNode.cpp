@@ -146,6 +146,15 @@ ASTNode* ASTNode::root_parent() {
     };
 }
 
+ModuleScope* ASTNode::get_mod_scope() {
+    if(kind() == ASTNodeKind::ModuleScope) {
+        return as_module_scope_unsafe();
+    } else {
+        const auto p = parent();
+        return p ? p->get_mod_scope() : nullptr;
+    }
+}
+
 AccessSpecifier ASTNode::specifier() {
     const auto k = kind();
     switch(k) {

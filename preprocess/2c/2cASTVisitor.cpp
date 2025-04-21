@@ -759,7 +759,10 @@ Value* evaluate_comptime_func(
         FunctionDeclaration* func_decl,
         FunctionCall* call
 ) {
+    const auto prev = visitor.comptime_scope.current_func_type;
+    visitor.comptime_scope.current_func_type = visitor.current_func_type;
     auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, nullptr, false);
+    visitor.comptime_scope.current_func_type = prev;
     if(!value) {
         visitor.error("comptime function call didn't return anything", call);
         return nullptr;

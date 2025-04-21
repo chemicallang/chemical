@@ -766,7 +766,7 @@ void VariablesContainer::take_variables_from_parsed_nodes(SymbolResolver& linker
             case ASTNodeKind::VariantMember:{
                 const auto member = node->as_base_def_member_unsafe();
                 if(!insert_variable(member)) {
-                    linker.error("couldn't insert the variable because a member with same name already exists", member);
+                    linker.error(member) << "couldn't insert because a member with name '" << member->name << "' already exists";
                 }
                 break;
             }

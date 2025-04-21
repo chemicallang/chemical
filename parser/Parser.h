@@ -822,7 +822,7 @@ public:
     /**
      * parse the alias statement
      */
-    AliasStmt* parseAliasStatement(ASTAllocator& allocator);
+    AliasStmt* parseAliasStatement(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lex provide statement

@@ -17,7 +17,11 @@ void AliasStmt::declare_top_level(SymbolResolver &linker) {
             linker.error(this) << "cannot alias incompatible value";
             return;
         }
+        if(specifier >= node->specifier()) {
+            linker.error(this) << "cannot alias a node to a higher specifier";
+            return;
+        }
         // declares the node without runtime
-        linker.declare_node(alias_name, node, node->specifier(), false);
+        linker.declare_node(alias_name, node, specifier, false);
     }
 }

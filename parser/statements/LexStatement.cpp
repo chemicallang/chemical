@@ -42,6 +42,8 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
             return (ASTNode*) parseTypealiasStatement(allocator, spec);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, spec);
+        case TokenType::AliasKw:
+            return (ASTNode*) parseAliasStatement(allocator, spec);
         default:
             error("unknown token, expected a top level declaration");
             return nullptr;
@@ -75,7 +77,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
         case TokenType::ComptimeKw:
             return (ASTNode*) parseComptimeBlock(allocator);
         case TokenType::AliasKw:
-            return (ASTNode*) parseAliasStatement(allocator);
+            return (ASTNode*) parseAliasStatement(allocator, AccessSpecifier::Internal);
         case TokenType::EnumKw:
             return (ASTNode*) parseEnumStructureTokens(allocator, AccessSpecifier::Internal);
         case TokenType::StructKw:
@@ -130,7 +132,7 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::UnreachableKw:
             return (ASTNode*) parseUnreachableStatement(allocator);
         case TokenType::AliasKw:
-            return (ASTNode*) parseAliasStatement(allocator);
+            return (ASTNode*) parseAliasStatement(allocator, AccessSpecifier::Internal);
         case TokenType::HashMacro:
             return parseMacroNode(allocator);
         case TokenType::ReturnKw:
@@ -208,7 +210,7 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
     }
 }
 
-AliasStmt* Parser::parseAliasStatement(ASTAllocator& allocator) {
+AliasStmt* Parser::parseAliasStatement(ASTAllocator& allocator, AccessSpecifier specifier) {
     if(consumeToken(TokenType::AliasKw)) {
         const auto id = consumeIdentifierOrKeyword();
         if(!id) {
@@ -216,7 +218,7 @@ AliasStmt* Parser::parseAliasStatement(ASTAllocator& allocator) {
             return nullptr;
         }
 
-        const auto alias = new (allocator.allocate<AliasStmt>()) AliasStmt(allocate_view(allocator, id->value), nullptr, parent_node, loc_single(id));
+        const auto alias = new (allocator.allocate<AliasStmt>()) AliasStmt(specifier, allocate_view(allocator, id->value), nullptr, parent_node, loc_single(id));
 
         if(!consumeToken(TokenType::EqualSym)) {
             error() << "expected an equal symbol after the alias keyword";

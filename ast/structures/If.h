@@ -76,6 +76,19 @@ public:
     std::optional<Scope*> resolve_evaluated_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser);
 
     /**
+     * get evaluated scope or resolve it if it can be resolved
+     */
+    std::optional<Scope*> get_or_resolve_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser) {
+        if(computed_scope.has_value()) {
+            return computed_scope;
+        } else if(is_computable) {
+            return resolve_evaluated_scope(comptime_scope, diagnoser);
+        } else {
+            return std::nullopt;
+        }
+    }
+
+    /**
      * this method can be called by parent containers, when the if statement is
      * present inside the variables container, the evaluated scope is given after linking
      * conditions, the nodes contained inside ARE NOT LINKED, so you can manually link
@@ -88,6 +101,8 @@ public:
     }
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+
+    void link_signature(SymbolResolver &linker) override;
 
     void declare_and_link(SymbolResolver &linker, Value** value_ptr);
 
@@ -113,6 +128,8 @@ public:
     ASTNode *linked_node() final;
 
 #ifdef COMPILER_BUILD
+
+    void code_gen_declare(Codegen &gen) override;
 
     void code_gen(Codegen &gen, bool gen_last_block);
 

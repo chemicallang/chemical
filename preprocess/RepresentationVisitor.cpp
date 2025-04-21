@@ -886,10 +886,7 @@ void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
             write("TODO");
         }
     } else {
-        // unsafely converting to a named linked type
-        // this is being assumed that every linked type is already linked
-        // only named linked types have the potential to not be linked
-        write(((NamedLinkedType*) type)->debug_link_name());
+        write("TODO");
     }
 }
 

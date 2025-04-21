@@ -707,6 +707,17 @@ void Codegen::DefaultRet(SourceLocation location) {
 
 void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode, SourceLocation location) {
     if (!has_current_block_ended) {
+        const auto condType = Cond->getType();
+#ifdef DEBUG
+        if(!condType->isIntegerTy()) {
+            throw std::runtime_error("only integer / boolean values can be used as condition");
+        }
+#endif
+        const auto bitWidth = condType->getIntegerBitWidth();
+        if(bitWidth != 1) {
+            // since its a different integer bitwidth, let's compare with zero as condition
+            Cond = builder->CreateICmpNE(Cond, builder->getIntN(bitWidth, 0));
+        }
         const auto brInst = builder->CreateCondBr(Cond, True, FalseMDNode);
         di.instr(brInst, location);
         has_current_block_ended = true;

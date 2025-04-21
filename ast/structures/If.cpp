@@ -43,41 +43,42 @@ void IfStatement::code_gen(Codegen &gen) {
 }
 
 void IfStatement::code_gen_external_declare(Codegen &gen) {
-    if(computed_scope.has_value()) {
-        auto scope = computed_scope.value();
-        if(scope) {
-            scope->external_declare_top_level(gen);
+
+    auto scope = get_or_resolve_scope((InterpretScope&) gen.comptime_scope, gen);
+    if(scope.has_value()) {
+        if(scope.value()) {
+            scope.value()->external_declare_top_level(gen);
         }
         return;
-    } else if(is_computable) {
-        auto scope = resolve_evaluated_scope((InterpretScope&) gen.comptime_scope, gen);
-        if(scope.has_value()) {
-            if(scope.value()) {
-                scope.value()->external_declare_top_level(gen);
-            }
-            return;
-        }
     } else {
         gen.error("top level if statement couldn't be evaluated at comptime", (ASTNode*) this);
     }
+
+}
+
+void IfStatement::code_gen_declare(Codegen &gen) {
+
+    auto scope = get_or_resolve_scope((InterpretScope&) gen.comptime_scope, gen);
+    if(scope.has_value()) {
+        if(scope.value()) {
+            scope.value()->gen_declare_top_level(gen);
+        }
+        return;
+    }
+
 }
 
 void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
 
-    if(computed_scope.has_value()) {
-        auto scope = computed_scope.value();
-        if(scope) {
-            scope->code_gen(gen);
+    auto scope = get_or_resolve_scope((InterpretScope&) gen.comptime_scope, gen);
+    if(scope.has_value()) {
+        if(scope.value()) {
+            scope.value()->code_gen(gen);
         }
         return;
-    } else if(is_computable) {
-        auto scope = resolve_evaluated_scope((InterpretScope&) gen.comptime_scope, gen);
-        if(scope.has_value()) {
-            if(scope.value()) {
-                scope.value()->code_gen(gen);
-            }
-            return;
-        }
+    } else if(is_top_level()) {
+        gen.error("top level if statement couldn't be resolved at comptime", (ASTNode*) this);
+        return;
     }
 
     // compare
@@ -282,6 +283,15 @@ void IfStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) 
         auto scope = link_evaluated_scope(linker);
         if(scope) {
             scope->declare_top_level(linker, (ASTNode*&) computed_scope.value());
+        }
+    }
+}
+
+void IfStatement::link_signature(SymbolResolver &linker) {
+    if(is_top_level()) {
+        auto scope = get_evaluated_scope_by_linking(linker);
+        if(scope) {
+            scope->link_signature(linker);
         }
     }
 }

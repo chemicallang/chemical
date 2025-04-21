@@ -27,7 +27,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, 0, constId != nullptr, AccessSpecifier::Public);
+    auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, loc_single(identifier), constId != nullptr, AccessSpecifier::Public);
     annotate(member);
 
     if(!consumeWSOfType(TokenType::ColonSym)) {
@@ -57,8 +57,7 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
 
     if(consumeWSOfType(TokenType::StructKw)) {
 
-        auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, 0, specifier);
-
+        auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, loc_single(token), specifier);
         annotate(decl);
 
         if(!consumeToken(TokenType::LBrace)) {
@@ -82,9 +81,6 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
         auto id = consumeIdentifierOrKeyword();
         if(id) {
             decl->name = allocate_view(allocator, id->value);
-        } else {
-            error("expected an identifier after the '}' for anonymous struct definition");
-            return decl;
         }
         return decl;
     } else {
@@ -128,7 +124,7 @@ ASTNode* parseNestedLevelMemberStatementTokens(Parser& parser, ASTAllocator& fn_
         case TokenType::UnsafeKw:
             return (ASTNode*) parseMemberUnsafeBlock(parser, allocator, specifier);
         case TokenType::AliasKw:
-            return (ASTNode*) parser.parseAliasStatement(allocator);
+            return (ASTNode*) parser.parseAliasStatement(allocator, specifier);
         case TokenType::HashMacro:
             return parser.parseMacroNode(allocator);
         case TokenType::ComptimeKw:

@@ -570,13 +570,15 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type;
         auto to_num_type = (IntNType*) pure_type;
-        if(from_num_type->num_bits(gen.is64Bit) < to_num_type->num_bits(gen.is64Bit)) {
+        const auto from_num_bits = from_num_type->num_bits(gen.is64Bit);
+        const auto to_num_bits = to_num_type->num_bits(gen.is64Bit);
+        if(from_num_bits < to_num_bits) {
             if (from_num_type->is_unsigned()) {
                 return gen.builder->CreateZExt(llvm_val, to_num_type->llvm_type(gen));
             } else {
                 return gen.builder->CreateSExt(llvm_val, to_num_type->llvm_type(gen));
             }
-        } else if(from_num_type->num_bits(gen.is64Bit) > to_num_type->num_bits(gen.is64Bit)) {
+        } else if(from_num_bits > to_num_bits) {
             return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
         }
     } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {
@@ -595,6 +597,9 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
         return gen.builder->CreateFPTrunc(llvm_val, type->llvm_type(gen));
     } else if(value_type->kind() == BaseTypeKind::Float && type->kind() == BaseTypeKind::Double) {
         return gen.builder->CreateFPExt(llvm_val, type->llvm_type(gen));
+    } else if(value_type->kind() == BaseTypeKind::Pointer && pure_type->kind() == BaseTypeKind::IntN) {
+        // pointer to integer conversion
+        return gen.builder->CreatePtrToInt(llvm_val, pure_type->llvm_type(gen));
     }
 //    auto found= gen.casters.find(Codegen::caster_index(value->value_type(), type->kind()));
 //    if(found != gen.casters.end()) {
@@ -1211,12 +1216,22 @@ void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
             throw std::runtime_error("cannot destruct nodes while current function does not exist");
         }
 #endif
-        code_gen_no_scope(gen, destruct_begin);
+        int i = 0;
+        while(i < nodes.size()) {
+            nodes[i]->code_gen(gen, this, i);
+            i++;
+        }
     }
 }
 
 void Scope::code_gen(Codegen &gen) {
     code_gen(gen, gen.destruct_nodes.size());
+}
+
+void Scope::gen_declare_top_level(Codegen &gen) {
+    for(const auto node : nodes) {
+        node->code_gen_declare(gen);
+    }
 }
 
 void Scope::external_declare_top_level(Codegen &gen) {

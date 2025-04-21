@@ -119,7 +119,7 @@ struct LabModule {
             chem::string scope_name,
             chem::string module_name
     ) : type(mod_type), scope_name(std::move(scope_name)), name(std::move(module_name)),
-        module_scope(this->scope_name.to_chem_view(), this->name.to_chem_view())
+        module_scope(this->scope_name.to_chem_view(), this->name.to_chem_view(), this)
     {
 
     }

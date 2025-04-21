@@ -1202,6 +1202,121 @@ public:
     }
 };
 
+class InterpretGetModuleScope : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+    AnyType anyType;
+    FunctionParam param;
+
+    explicit InterpretGetModuleScope(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_module_scope"),
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), stringType(ZERO_LOC), anyType(ZERO_LOC), param("decl", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params.emplace_back(&param);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single declaration argument", call);
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto linked = call->values.front()->linked_node();
+        if(!linked) {
+            call_scope->error("call requires a single declaration argument", call);
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto scope = linked->get_mod_scope();
+        if(!scope) {
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        return new (allocator.allocate<StringValue>()) StringValue(scope->scope_name, call->encoded_location());
+    }
+};
+
+class InterpretGetModuleName : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+    AnyType anyType;
+    FunctionParam param;
+
+    explicit InterpretGetModuleName(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_module_name"),
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), stringType(ZERO_LOC), anyType(ZERO_LOC), param("decl", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params.emplace_back(&param);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single declaration argument", call);
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto linked = call->values.front()->linked_node();
+        if(!linked) {
+            call_scope->error("call requires a single declaration argument", call);
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto scope = linked->get_mod_scope();
+        if(!scope) {
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        return new (allocator.allocate<StringValue>()) StringValue(scope->module_name, call->encoded_location());
+    }
+};
+
+class InterpretGetModuleDir : public FunctionDeclaration {
+public:
+
+    StringType stringType;
+    AnyType anyType;
+    FunctionParam param;
+
+    explicit InterpretGetModuleDir(ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_module_dir"),
+            &stringType,
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), stringType(ZERO_LOC), anyType(ZERO_LOC), param("decl", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params.emplace_back(&param);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single declaration argument", call);
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto linked = call->values.front()->linked_node();
+        if(!linked) {
+            call_scope->error("call requires a single declaration argument", call);
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto scope = linked->get_mod_scope();
+        if(!scope) {
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        const auto container = scope->container;
+        if(container->type != LabModuleType::Directory || container->paths.empty()) {
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
+        return new (allocator.allocate<StringValue>()) StringValue(container->paths[0].to_chem_view(), call->encoded_location());
+    }
+};
+
 // only direct child functions are supported at the moment
 class InterpretGetChildFunction : public FunctionDeclaration {
 public:
@@ -1357,21 +1472,30 @@ public:
     InterpretGetBuildDir get_build_dir;
     InterpretGetCurrentFilePath get_current_file_path;
     InterpretGetLocFilePath get_loc_file_path;
+    InterpretGetModuleScope get_module_scope;
+    InterpretGetModuleName get_module_name;
+    InterpretGetModuleDir get_module_dir;
+    // TODO get_child_fn should be removed
+    // we should use get destructor explicitly
     InterpretGetChildFunction get_child_fn;
     InterpretError error_fn;
 
     CompilerNamespace(
 
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        interpretSupports(this), printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
-        isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this), satisfiesFn(this),
-        get_target_fn(this), get_build_dir(this), get_current_file_path(this), get_loc_file_path(this), get_child_fn(this), error_fn(this)
+        interpretSupports(this), printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this),
+        wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this), isTccFn(this), isClangFn(this),
+        sizeFn(this), vectorNode(this), satisfiesFn(this), get_target_fn(this), get_build_dir(this), get_current_file_path(this),
+        get_loc_file_path(this), get_module_scope(this), get_module_name(this), get_module_dir(this),
+        get_child_fn(this), error_fn(this)
     {
         set_compiler_decl(true);
         nodes = {
-            &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode,
-            &satisfiesFn, &get_raw_location, &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_child_fn, &error_fn
+            &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
+            &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &get_raw_location,
+            &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
+            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path,
+            &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &error_fn
         };
     }
 

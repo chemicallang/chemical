@@ -4,6 +4,8 @@
 
 #include "ast/base/ASTNode.h"
 
+struct LabModule;
+
 class ModuleScope : public ASTNode {
 public:
 
@@ -18,13 +20,20 @@ public:
     chem::string_view module_name;
 
     /**
+     * the pointer to module, inside which this scope exists
+     * note: scope can be different than the module
+     */
+    LabModule* container;
+
+    /**
      * constructor
      */
     ModuleScope(
         chem::string_view scope_name,
-        chem::string_view module_name
+        chem::string_view module_name,
+        LabModule* container
     ) : ASTNode(ASTNodeKind::ModuleScope, nullptr, 0),
-        scope_name(scope_name), module_name(module_name)
+        scope_name(scope_name), module_name(module_name), container(container)
     {
 
     }

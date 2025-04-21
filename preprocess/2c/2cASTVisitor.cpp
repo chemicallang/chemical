@@ -707,7 +707,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
     }
     // automatic dereference
     if(type) {
-        if (type->get_direct_linked_node() != nullptr && is_value_param_pointer_like(value)) {
+        if (type->get_direct_linked_node() != nullptr && is_value_param_hidden_pointer(value)) {
             write('*');
         } else {
             const auto value_type = value->create_type(allocator);

@@ -617,6 +617,10 @@ int LabBuildCompiler::process_module_tcc(
         } else {
             writeToFile(out_c_file, program);
         }
+    } else {
+        // TODO place a check here
+        const auto out_path = resolve_sibling(mod->object_path.to_std_string(), mod->name.to_std_string() + ".2c.c");
+        writeToFile(out_path, program);
     }
 
     // compiling the c program, if required

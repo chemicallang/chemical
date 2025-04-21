@@ -16,6 +16,16 @@ func take_addr_of_pointer(ptr : *mut int) : *mut int {
     return *x
 }
 
+type my_char_ptr = *char
+
+func take_char_ptr(path : my_char_ptr) : *char {
+    return path
+}
+
+func send_my_char_ptr(pathname : *char) : bool {
+    return take_char_ptr(pathname) == pathname
+}
+
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
@@ -117,5 +127,8 @@ func test_pointer_math() {
         // TODO taking address directly probably takes address of the expression
         const thing = *take_addr_of_pointer(&ptr);
         return thing == 33
+    })
+    test("passing a pointer to typealias succeeds", () => {
+        return send_my_char_ptr("")
     })
 }

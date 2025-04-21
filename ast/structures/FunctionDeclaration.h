@@ -352,6 +352,10 @@ public:
         return !is_comptime() && (has_usage() || is_exported_fast() || is_auto_called_func());
     }
 
+    ASTNode* get_parent() override {
+        return parent();
+    }
+
     /**
      * this creates a shallow copy of the function, excluding the nodes in the body
      */

@@ -292,6 +292,11 @@ public:
     std::vector<AccessChain*> moved_chains;
 
     /**
+     * get the parent node
+     */
+    virtual ASTNode* get_parent() = 0;
+
+    /**
        * copy function type body into the other
        */
     inline void shallow_copy_into(FunctionTypeBody& other, ASTAllocator& allocator, ASTNode* new_parent) {

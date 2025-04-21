@@ -128,7 +128,7 @@ public:
     /**
      * the function type for which code is being generated
      */
-    FunctionType* current_func_type = nullptr;
+    FunctionTypeBody* current_func_type = nullptr;
 
     /**
      * current members container to which functions belong

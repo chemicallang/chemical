@@ -297,7 +297,10 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
     if(found != evaluated_func_calls.end()) {
         return found->second;
     } else {
+        auto prev = comptime_scope.current_func_type;
+        comptime_scope.current_func_type = current_func_type;
         auto ret = decl->call(&comptime_scope, allocator, call, nullptr, false);
+        comptime_scope.current_func_type = prev;
         if(!ret) {
 //            warn("compile time function didn't return a value", decl);
             evaluated_func_calls[call] = nullptr;

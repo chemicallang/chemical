@@ -1206,8 +1206,6 @@ class InterpretGetModuleScope : public FunctionDeclaration {
 public:
 
     StringType stringType;
-    AnyType anyType;
-    FunctionParam param;
 
     explicit InterpretGetModuleScope(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_scope"),
@@ -1217,21 +1215,15 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC), anyType(ZERO_LOC), param("decl", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+    ), stringType(ZERO_LOC) {
         set_compiler_decl(true);
-        params.emplace_back(&param);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) {
-            call_scope->error("call requires a single declaration argument", call);
+        auto caller_func = call_scope->global->current_func_type->as_function();
+        if(!caller_func) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
-        const auto linked = call->values.front()->linked_node();
-        if(!linked) {
-            call_scope->error("call requires a single declaration argument", call);
-            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
-        }
-        const auto scope = linked->get_mod_scope();
+        const auto scope = caller_func->get_mod_scope();
         if(!scope) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
@@ -1243,8 +1235,6 @@ class InterpretGetModuleName : public FunctionDeclaration {
 public:
 
     StringType stringType;
-    AnyType anyType;
-    FunctionParam param;
 
     explicit InterpretGetModuleName(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_name"),
@@ -1254,21 +1244,15 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC), anyType(ZERO_LOC), param("decl", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+    ), stringType(ZERO_LOC) {
         set_compiler_decl(true);
-        params.emplace_back(&param);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) {
-            call_scope->error("call requires a single declaration argument", call);
+        auto caller_func = call_scope->global->current_func_type->as_function();
+        if(!caller_func) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
-        const auto linked = call->values.front()->linked_node();
-        if(!linked) {
-            call_scope->error("call requires a single declaration argument", call);
-            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
-        }
-        const auto scope = linked->get_mod_scope();
+        const auto scope = caller_func->get_mod_scope();
         if(!scope) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
@@ -1280,8 +1264,6 @@ class InterpretGetModuleDir : public FunctionDeclaration {
 public:
 
     StringType stringType;
-    AnyType anyType;
-    FunctionParam param;
 
     explicit InterpretGetModuleDir(ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_dir"),
@@ -1291,21 +1273,15 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC), anyType(ZERO_LOC), param("decl", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+    ), stringType(ZERO_LOC) {
         set_compiler_decl(true);
-        params.emplace_back(&param);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.empty()) {
-            call_scope->error("call requires a single declaration argument", call);
+        auto caller_func = call_scope->global->current_func_type->as_function();
+        if(!caller_func) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
-        const auto linked = call->values.front()->linked_node();
-        if(!linked) {
-            call_scope->error("call requires a single declaration argument", call);
-            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
-        }
-        const auto scope = linked->get_mod_scope();
+        const auto scope = caller_func->get_mod_scope();
         if(!scope) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }

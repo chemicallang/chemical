@@ -8,21 +8,23 @@
 class AliasStmt : public ASTNode {
 public:
 
+    AccessSpecifier specifier;
     chem::string_view alias_name;
     Value* value;
 
     AliasStmt(
+        AccessSpecifier specifier,
         chem::string_view alias_name,
         Value* value,
         ASTNode* parent,
         SourceLocation loc
-    ) : ASTNode(ASTNodeKind::AliasStmt, parent, loc), alias_name(alias_name), value(value) {
+    ) : ASTNode(ASTNodeKind::AliasStmt, parent, loc), specifier(specifier), alias_name(alias_name), value(value) {
 
     }
 
     ASTNode* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<AliasStmt>()) AliasStmt(
-            alias_name, value->copy(allocator), parent(), encoded_location()
+            specifier, alias_name, value->copy(allocator), parent(), encoded_location()
         );
     }
 

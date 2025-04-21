@@ -60,8 +60,6 @@ public namespace fs {
         return WriteResult.Success;
     }
 
-/**
-
     public enum CopyOptions {
         None        = 0,
         Recursive   = 1 << 0,
@@ -97,7 +95,7 @@ public namespace fs {
     public func copy_file(src : *char, dest : *char, options : CopyOptions) : int {
         if (!(options & COPY_OVERWRITE) && path_exists(dest)) {
             if (options & COPY_SKIP_EXISTING) return 0;
-            fprintf(stderr, "File exists: %s\n", dest);
+            fprintf(get_stderr(), "File exists: %s\n", dest);
             return -1;
         }
         if(def.windows) {
@@ -109,7 +107,7 @@ public namespace fs {
             if (!CopyFileA(src, dest, !(options & COPY_OVERWRITE))) {
                 // Check GetLastError() for more specific error information if needed
                 // DWORD err = GetLastError();
-                fprintf(stderr, "CopyFileA failed: %s -> %s\n", src, dest); // Consider adding error code
+                fprintf(get_stderr(), "CopyFileA failed: %s -> %s\n", src, dest); // Consider adding error code
                 return -1;
             }
             return 0;
@@ -152,7 +150,7 @@ public namespace fs {
     public func copy_directory(src_dir : *char, dest_dir : *char, options : CopyOptions) : int {
 
         if (!is_directory(src_dir)) {
-            fprintf(stderr, "Not a directory: %s\n", src_dir);
+            fprintf(get_stderr(), "Not a directory: %s\n", src_dir);
             return -1;
         }
 
@@ -160,12 +158,12 @@ public namespace fs {
         if(def.windows) {
             if (!path_exists(dest_dir)) {
                 if (!CreateDirectoryA(dest_dir, NULL)) { // Assumes CreateDirectoryA is available
-                    fprintf(stderr, "CreateDirectoryA failed: %s\n", dest_dir);
+                    fprintf(get_stderr(), "CreateDirectoryA failed: %s\n", dest_dir);
                     // Consider adding GetLastError() info
                     return -1;
                 }
             } else if (!is_directory(dest_dir)) {
-                fprintf(stderr, "Destination exists but is not a directory: %s\n", dest_dir);
+                fprintf(get_stderr(), "Destination exists but is not a directory: %s\n", dest_dir);
                 return -1;
             }
         } else {
@@ -176,7 +174,7 @@ public namespace fs {
                     return -1;
                 }
             } else if (!is_directory(dest_dir)) {
-                 fprintf(stderr, "Destination exists but is not a directory: %s\n", dest_dir);
+                 fprintf(get_stderr(), "Destination exists but is not a directory: %s\n", dest_dir);
                  return -1;
             }
         }
@@ -200,7 +198,7 @@ public namespace fs {
 
             if (hFind == INVALID_HANDLE_VALUE) { // Assumes INVALID_HANDLE_VALUE is defined
                 // GetLastError() could provide more info
-                fprintf(stderr, "FindFirstFileA failed: %s\n", src_dir);
+                fprintf(get_stderr(), "FindFirstFileA failed: %s\n", src_dir);
                 return -1; // Indicates error during directory opening
             }
 
@@ -242,7 +240,7 @@ public namespace fs {
             var last_error : DWORD = GetLastError();
             if (last_error != ERROR_NO_MORE_FILES) { // Check if the loop terminated due to an error other than end of files
                  // GetLastError() could provide more info
-                fprintf(stderr, "FindNextFileA failed\n"); // Consider adding error code
+                fprintf(get_stderr(), "FindNextFileA failed\n"); // Consider adding error code
                 FindClose(hFind); // Close the handle
                 return -1; // Indicate error during iteration
             }
@@ -310,7 +308,5 @@ public namespace fs {
             return 0; // Success
         }
     }
-
-**/
 
 }

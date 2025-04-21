@@ -8,23 +8,90 @@ public struct fpos_t {
 
 }
 
-/**
- * Associated with the standard input stream, used for reading conventional input. At program startup, the stream is fully buffered if and only if the stream can be determined to not refer to an interactive device.
- * @see https://en.cppreference.com/w/c/io/std_streams
- */
-@extern public const stdin : *mut FILE;
+if(def.windows) {
 
-/**
- * Associated with the standard output stream, used for writing conventional output. At program startup, the stream is fully buffered if and only if the stream can be determined to not refer to an interactive device.
- * @see https://en.cppreference.com/w/c/io/std_streams
- */
-@extern public const stdout : *mut FILE;
+    //
+    // 2) CRT functions to wrap a HANDLE → FILE*
+    //    These are all in old msvcrt.dll, so TCC will find them.
+    //
+    @extern public func   _open_osfhandle(h: intptr_t, flags: int) : int;
+    @extern public func   _fdopen(fd: int, mode: *char)   : *mut FILE;
+    @extern public func GetStdHandle(nStdHandle : uint32_t) : *mut void
 
-/**
- * Associated with the standard error stream, used for writing diagnostic output. At program startup, the stream is not fully buffered.
- * @see https://en.cppreference.com/w/c/io/std_streams
- */
-@extern public const stderr : *mut FILE;
+    // cache slots so we only do the syscall+CRT conversion once
+    public var _in  : *mut FILE = null;
+    public var _out : *mut FILE = null;
+    public var _err : *mut FILE = null;
+
+    public func get_stdin() : *mut FILE {
+        if (_in == null) {
+            const h  = GetStdHandle(-10 as uint);
+            const fd = _open_osfhandle(h as intptr_t, /*_O_RDONLY=*/0);
+            _in    = _fdopen(fd, "r\0");
+        }
+        return _in;
+    }
+
+    public func get_stdout() : *mut FILE {
+        if (_out == null) {
+            const h  = GetStdHandle(-11 as uint);
+            const fd = _open_osfhandle(h as intptr_t, /*_O_WRONLY=*/1);
+            _out   = _fdopen(fd, "w\0");
+        }
+        return _out;
+    }
+
+    public func get_stderr() : *mut FILE {
+        if (_err == null) {
+            const h  = GetStdHandle(-12 as uint);
+            const fd = _open_osfhandle(h as intptr_t, /*_O_WRONLY=*/1);
+            _err   = _fdopen(fd, "w\0");
+        }
+        return _err;
+    }
+
+} else {
+
+    /**
+     * Associated with the standard input stream, used for reading conventional input. At program startup, the stream is fully buffered if and only if the stream can be determined to not refer to an interactive device.
+     * @see https://en.cppreference.com/w/c/io/std_streams
+     */
+    @extern const stdin : *mut FILE;
+
+    /**
+     * Associated with the standard output stream, used for writing conventional output. At program startup, the stream is fully buffered if and only if the stream can be determined to not refer to an interactive device.
+     * @see https://en.cppreference.com/w/c/io/std_streams
+     */
+    @extern const stdout : *mut FILE;
+
+    /**
+     * Associated with the standard error stream, used for writing diagnostic output. At program startup, the stream is not fully buffered.
+     * @see https://en.cppreference.com/w/c/io/std_streams
+     */
+    @extern const stderr : *mut FILE;
+
+    /**
+     * cross platform helper function
+     */
+    public func get_stdin() : *mut FILE {
+        return stdin;
+    }
+
+    /**
+     * cross platform helper function
+     */
+    public func get_stdout() : *mut FILE {
+        return stdout;
+    }
+
+    /**
+     * cross platform helper function
+     */
+    public func get_stderr() : *mut FILE {
+        return stderr;
+    }
+
+}
 
 /**
  * Opens a file indicated by filename and returns a pointer to the file stream associated with that file. mode is used to determine the file access mode.

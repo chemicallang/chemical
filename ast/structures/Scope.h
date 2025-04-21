@@ -136,6 +136,8 @@ public:
 
     void code_gen(Codegen &gen, unsigned destruct_begin);
 
+    void gen_declare_top_level(Codegen &gen);
+
     void external_declare_top_level(Codegen &gen);
 
 #endif

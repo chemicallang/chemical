@@ -409,7 +409,7 @@ if (def.windows) {
      * @param bFailIfExists If TRUE and the new file exists, the function fails. If FALSE and the new file exists, the function overwrites it.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED CopyFileA ---
+    @extern
     public func CopyFileA(
         lpExistingFileName : LPCSTR,
         lpNewFileName : LPCSTR,
@@ -422,7 +422,7 @@ if (def.windows) {
      * @param lpNewFileName The new name for the file or directory.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED MoveFileA ---
+    @extern
     public func MoveFileA(
         lpExistingFileName : LPCSTR,
         lpNewFileName : LPCSTR
@@ -434,7 +434,7 @@ if (def.windows) {
      * @param lpFileSize Out param for the file size (64-bit).
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED GetFileSizeEx ---
+    @extern
     public func GetFileSizeEx(
         hFile : HANDLE,
         lpFileSize : *mut LARGE_INTEGER // Using LARGE_INTEGER for 64-bit size
@@ -448,7 +448,7 @@ if (def.windows) {
      * @param dwMoveMethod The starting point for the file pointer move (FILE_BEGIN, FILE_CURRENT, FILE_END).
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED SetFilePointerEx ---
+    @extern
     public func SetFilePointerEx(
         hFile : HANDLE,
         liDistanceToMove : LARGE_INTEGER,
@@ -461,7 +461,7 @@ if (def.windows) {
      * @param lpFileName The name of the file or directory.
      * @return The attributes of the file or directory, or INVALID_FILE_ATTRIBUTES on failure.
      */
-    @extern // --- ADDED GetFileAttributesA ---
+    @extern
     public func GetFileAttributesA(lpFileName : LPCSTR) : DWORD
 
     /**
@@ -470,7 +470,7 @@ if (def.windows) {
      * @param dwFileAttributes The file attributes to set.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED SetFileAttributesA ---
+    @extern
     public func SetFileAttributesA(
         lpFileName : LPCSTR,
         dwFileAttributes : DWORD
@@ -485,7 +485,7 @@ if (def.windows) {
      * @param lpFilePart Optional out param pointer that receives the address of the file name component in the path.
      * @return Length of the string copied to lpBuffer (excluding null terminator), or 0 on failure.
      */
-    @extern // --- ADDED GetFullPathNameA ---
+    @extern
     public func GetFullPathNameA(
         lpFileName : LPCSTR,
         nBufferLength : DWORD,
@@ -499,7 +499,7 @@ if (def.windows) {
      * @param lpBuffer Pointer to the buffer that receives the null-terminated current directory string.
      * @return If successful, the return value specifies the length of the string written to the buffer, not including the terminating null character. If fails, returns 0.
      */
-    @extern // --- ADDED GetCurrentDirectoryA ---
+    @extern
     public func GetCurrentDirectoryA(
         nBufferLength : DWORD,
         lpBuffer : LPSTR
@@ -510,7 +510,7 @@ if (def.windows) {
      * @param lpPathName The path to the new current directory.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED SetCurrentDirectoryA ---
+    @extern
     public func SetCurrentDirectoryA(lpPathName : LPCSTR) : BOOL
 
 
@@ -527,7 +527,7 @@ if (def.windows) {
      * @param hLibModule A handle to the loaded library module.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED FreeLibrary ---
+    @extern
     public func FreeLibrary(hLibModule : HMODULE) : BOOL
 
     /**
@@ -655,21 +655,21 @@ if (def.windows) {
      * @param nStdHandle The standard device (STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, or STD_ERROR_HANDLE).
      * @return Handle to the specified device, or INVALID_HANDLE_VALUE on error.
      */
-    @extern // --- ADDED GetStdHandle ---
+    @extern
     public func GetStdHandle(nStdHandle : DWORD) : HANDLE
 
     /**
      * @brief Retrieves the current system date and time in Coordinated Universal Time (UTC).
      * @param lpSystemTime Pointer to a SYSTEMTIME structure to receive the current system date and time.
      */
-    @extern // --- ADDED GetSystemTime ---
+    @extern
     public func GetSystemTime(lpSystemTime : *mut SYSTEMTIME) : void
 
     /**
      * @brief Retrieves the current local date and time.
      * @param lpLocalTime Pointer to a SYSTEMTIME structure to receive the current local date and time.
      */
-    @extern // --- ADDED GetLocalTime ---
+    @extern
     public func GetLocalTime(lpLocalTime : *mut SYSTEMTIME) : void
 
     /**
@@ -678,7 +678,7 @@ if (def.windows) {
      * @param lpSystemTime Pointer to a SYSTEMTIME structure to receive the converted system time.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED FileTimeToSystemTime ---
+    @extern
     public func FileTimeToSystemTime(lpFileTime : *FILETIME, lpSystemTime : *mut SYSTEMTIME) : BOOL
 
     /**
@@ -687,7 +687,7 @@ if (def.windows) {
      * @param lpFileTime Pointer to a FILETIME structure to receive the converted file time.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED SystemTimeToFileTime ---
+    @extern
     public func SystemTimeToFileTime(lpSystemTime : *SYSTEMTIME, lpFileTime : *mut FILETIME) : BOOL
 
 
@@ -695,14 +695,14 @@ if (def.windows) {
      * @brief Retrieves the process identifier of the calling process.
      * @return The process identifier of the calling process.
      */
-    @extern // --- ADDED GetCurrentProcessId ---
+    @extern
     public func GetCurrentProcessId() : DWORD
 
     /**
      * @brief Retrieves the thread identifier of the calling thread.
      * @return The thread identifier of the calling thread.
      */
-    @extern // --- ADDED GetCurrentThreadId ---
+    @extern
     public func GetCurrentThreadId() : DWORD
 
     /**
@@ -719,7 +719,7 @@ if (def.windows) {
      * @param lpProcessInformation Pointer to a PROCESS_INFORMATION structure receiving identification information about the new process.
      * @return Nonzero on success, zero on failure.
      */
-    @extern // --- ADDED CreateProcessA ---
+    @extern
     public func CreateProcessA(
         lpApplicationName : LPCSTR,
         lpCommandLine : LPSTR, // Note: Can be modified by the function, thus LPSTR not LPCSTR

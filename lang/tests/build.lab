@@ -115,6 +115,12 @@ func build(ctx : *mut AppBuildContext) {
         return null
     }
 
+    // the std module
+    var cstd_module = ctx.native_lib_module(std::string_view("cstd"));
+    if(std_module == null) {
+        return null
+    }
+
     const submod_path = lab::rel_path_to("submod")
     const submod = ctx.chemical_dir_module(std::string_view(""), std::string_view("submod"), std::string_view(submod_path), { })
 
@@ -150,6 +156,7 @@ func build(ctx : *mut AppBuildContext) {
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, submod)
         gen_ir(ctx, &exe_name, submod2)
+        gen_ir(ctx, &exe_name, cstd_module);
         gen_ir(ctx, &exe_name, std_module);
         gen_ir(ctx, &exe_name, module);
     }

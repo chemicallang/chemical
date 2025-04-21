@@ -261,4 +261,14 @@ func test_comptime() {
     test("comptime functions can return child of a struct", () => {
         return give_me_some_sum()(9, 3) == 72;
     })
+    test("module scope is as expected", () => {
+        var scope_name = std::string_view(compiler::get_module_scope())
+        var exp_scope_name = std::string_view("")
+        return scope_name.equals(exp_scope_name)
+    })
+    test("module name is as expected", () => {
+        var module_name = std::string_view(compiler::get_module_name())
+        var exp_module_name = std::string_view("main")
+        return module_name.equals(exp_module_name)
+    })
 }

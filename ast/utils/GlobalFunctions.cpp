@@ -1219,7 +1219,7 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        auto caller_func = call_scope->global->current_func_type->as_function();
+        auto caller_func = call_scope->global->current_func_type->get_parent();
         if(!caller_func) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
@@ -1248,7 +1248,7 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        auto caller_func = call_scope->global->current_func_type->as_function();
+        auto caller_func = call_scope->global->current_func_type->get_parent();
         if(!caller_func) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }
@@ -1277,7 +1277,7 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        auto caller_func = call_scope->global->current_func_type->as_function();
+        auto caller_func = call_scope->global->current_func_type->get_parent();
         if(!caller_func) {
             return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
         }

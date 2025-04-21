@@ -41,6 +41,10 @@ public:
 
     }
 
+    ASTNode* get_parent() final {
+        return scope.parent();
+    }
+
     LambdaFunction* as_lambda() final {
         return this;
     }

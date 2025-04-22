@@ -152,8 +152,8 @@ public struct unordered_map<Key, Value> {
                     table[index] = currentNode.next; // Remove from the front of the chain
                 }
                 // Call destructors on the key and value before freeing the node
-                destruct currentNode.key;
-                destruct currentNode.value;
+                destruct &currentNode.key;
+                destruct &currentNode.value;
                 free(currentNode);
                 _size--;
                 return true;

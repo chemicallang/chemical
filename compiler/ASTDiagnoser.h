@@ -70,6 +70,14 @@ public:
      * create empty diagnostic, to which you can append to
      */
     [[nodiscard]]
+    inline Diag& warn(SourceLocation location) {
+        return empty_diagnostic(location, DiagSeverity::Warning);
+    }
+
+    /**
+     * create empty diagnostic, to which you can append to
+     */
+    [[nodiscard]]
     inline Diag& error(SourceLocation location) {
         return empty_diagnostic(location, DiagSeverity::Error);
     }

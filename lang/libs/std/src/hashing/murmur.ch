@@ -8,14 +8,14 @@ if(def.is_big_endian) {
 }
 
 public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t {
-    const c1 : uint32_t = 0xcc9e2d51;
-    const c2 : uint32_t = 0x1b873593;
-    const r1 : uint32_t = 15;
-    const r2 : uint32_t = 13;
-    const m : uint32_t = 5;
-    const n : uint32_t = 0xe6546b64;
-    var h : uint32_t = 0;
-    var k : uint32_t = 0;
+    const c1 : uint32_t = 0xcc9e2d51 as uint32_t;
+    const c2 : uint32_t = 0x1b873593 as uint32_t;
+    const r1 : uint32_t = 15 as uint32_t;
+    const r2 : uint32_t = 13 as uint32_t;
+    const m : uint32_t = 5 as uint32_t;
+    const n : uint32_t = 0xe6546b64 as uint32_t;
+    var h : uint32_t = 0 as uint32_t;
+    var k : uint32_t = 0 as uint32_t;
     const d : *uint8_t = key as *uint8_t; // 32 bit extract from `key'
     var chunks : *uint32_t = null;
     var tail : *uint8_t = null; // tail - last 8 bytes

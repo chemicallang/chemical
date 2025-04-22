@@ -146,6 +146,8 @@ public:
 
     void link_signature(SymbolResolver &linker) override;
 
+    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

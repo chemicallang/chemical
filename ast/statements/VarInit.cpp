@@ -293,36 +293,61 @@ ASTNode *VarInitStatement::child(const chem::string_view &name) {
 }
 
 void VarInitStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(is_top_level()) {
-        linker.declare_node(id_view(), this, specifier(), true);
+    linker.declare_node(id_view(), this, specifier(), true);
+}
+
+void VarInitStatement::link_signature(SymbolResolver &linker) {
+    const auto type_resolved = !type || type->link(linker);
+    const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());
+    if(!type_resolved || !value_resolved) {
+        attrs.signature_resolved = false;
+    } else {
+        if(type && value) {
+            if(!type->satisfies(linker.allocator, value, false)) {
+                linker.unsatisfied_type_err(value, type);
+            }
+            const auto as_array = value->as_array_value();
+            if(type->kind() == BaseTypeKind::Array && as_array) {
+                const auto arr_type = ((ArrayType*) type);
+                if(arr_type->has_no_array_size()) {
+                    arr_type->set_array_size(as_array->array_size());
+                }
+            }
+        }
+        if(!type && value) {
+            type = value->create_type(*linker.ast_allocator);
+        }
     }
 }
 
 void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if (type) {
-        type->link(linker);
-    }
-    const auto has_value_linked = value && value->link(linker, value, type_ptr_fast());
-    if (has_value_linked) {
-        linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);
-    }
     if(!is_top_level()) {
-        linker.declare(id_view(), this);
-    }
-    if(type && value) {
-        if(!type->satisfies(linker.allocator, value, false)) {
-            linker.unsatisfied_type_err(value, type);
+        const auto type_resolved = !type || type->link(linker);
+        const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());
+        if (!type_resolved || !value_resolved) {
+            attrs.signature_resolved = false;
         }
-        const auto as_array = value->as_array_value();
-        if(type->kind() == BaseTypeKind::Array && as_array) {
-            const auto arr_type = ((ArrayType*) type);
-            if(arr_type->has_no_array_size()) {
-                arr_type->set_array_size(as_array->array_size());
+        linker.declare(id_view(), this);
+        if (attrs.signature_resolved) {
+            if(value) {
+                linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);
+            }
+            if(type && value) {
+                if(!type->satisfies(linker.allocator, value, false)) {
+                    linker.unsatisfied_type_err(value, type);
+                }
+                const auto as_array = value->as_array_value();
+                if(type->kind() == BaseTypeKind::Array && as_array) {
+                    const auto arr_type = ((ArrayType*) type);
+                    if(arr_type->has_no_array_size()) {
+                        arr_type->set_array_size(as_array->array_size());
+                    }
+                }
+            }
+            if(!type && value && !linker.generic_context) {
+                type = value->create_type(*linker.ast_allocator);
             }
         }
-    }
-    if(has_value_linked && !type && !linker.generic_context) {
-        type = value->create_type(*linker.ast_allocator);
     }
 }
 

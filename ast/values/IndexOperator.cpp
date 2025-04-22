@@ -68,8 +68,6 @@ llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 #endif
 
 BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
-//    std::vector<int16_t> active;
-//    set_generic_iteration(active, allocator);
     int i = (int) values.size();
     auto current_type = parent_val->create_type(allocator);
     while(i > 0) {
@@ -82,7 +80,6 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
         current_type = childType;
         i--;
     }
-//    restore_generic_iteration(active, allocator);
     return current_type;
 }
 

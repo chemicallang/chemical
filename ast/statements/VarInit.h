@@ -64,6 +64,11 @@ struct VarInitAttributes {
      */
     bool is_no_mangle = false;
 
+    /**
+     * we could resolve the type and value properly
+     */
+    bool signature_resolved = true;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -285,6 +290,8 @@ public:
     ASTNode *child(const chem::string_view &name) final;
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+
+    void link_signature(SymbolResolver &linker) override;
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 

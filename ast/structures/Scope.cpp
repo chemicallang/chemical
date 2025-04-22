@@ -111,8 +111,6 @@ void Scope::declare_and_link(SymbolResolver &linker) {
 
 inline void link_seq(SymbolResolver& linker, Scope* scope) {
     for(auto& node : scope->nodes) {
-        node->declare_top_level(linker, node);
-        node->link_signature(linker);
         node->declare_and_link(linker, node);
     }
 }

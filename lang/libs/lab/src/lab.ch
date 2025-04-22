@@ -230,7 +230,7 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
 
 public namespace lab {
 
-    private func curr_dir_of(path : *char, len : size_t) : std::string {
+    public func curr_dir_of(path : *char, len : size_t) : std::string {
         return fs::parent_path(std::string_view(path, len))
     }
 
@@ -242,7 +242,7 @@ public namespace lab {
         return compiler::wrap(curr_dir_of(loc_path, loc_path_size))
     }
 
-    private func appended_str(str : std::string, path : *char) : std::string {
+    public func appended_str(str : std::string, path : *char) : std::string {
         str.append_char_ptr(path)
         return str;
     }

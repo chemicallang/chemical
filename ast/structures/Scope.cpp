@@ -65,7 +65,9 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
                         }
                     }
                 } else {
+#ifdef DEBUG
                     throw std::runtime_error("unevaluated top level if statement");
+#endif
                 }
                 break;
             }
@@ -73,9 +75,7 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
                 const auto ns = node->as_namespace_unsafe();
                 if(ns->specifier() == AccessSpecifier::Public) {
                     make_exportable(ns->nodes);
-                    if (!ns->nodes.empty()) {
-                        public_nodes.emplace_back(node);
-                    }
+                    public_nodes.emplace_back(node);
                 }
                 break;
             }

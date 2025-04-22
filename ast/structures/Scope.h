@@ -8,6 +8,19 @@
 
 #include "ast/base/ASTNode.h"
 
+/**
+ * nodes will be deduplicated, nodes having same identifier
+ * that appear later, will override the nodes that appear before
+ */
+void top_level_dedupe(std::vector<ASTNode*>& nodes);
+
+/**
+ * this function is used to make nodes exportable
+ * this is called after module has translated, so non public (internal)
+ * nodes are removed from this vector, inside namespaces as well
+ */
+void make_exportable(std::vector<ASTNode*>& nodes);
+
 class Scope : public ASTNode {
 public:
 
@@ -128,6 +141,15 @@ public:
         declare_and_link(linker);
     }
 
+    /**
+     * module has translated, this scope is a top level scope
+     * and you intend to remove nodes that are internal, this function
+     * is what you must call
+     */
+    inline void make_exportable() {
+        ::make_exportable(nodes);
+    }
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) final;
@@ -149,9 +171,3 @@ public:
     void stopInterpretOnce();
 
 };
-
-/**
- * nodes will be deduplicated, nodes having same identifier
- * that appear later, will override the nodes that appear before
- */
-void top_level_dedupe(std::vector<ASTNode*>& nodes);

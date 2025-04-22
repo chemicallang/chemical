@@ -253,18 +253,6 @@ bool copyFile(const fs::path& sourcePath, const fs::path& destinationPath) {
     }
 }
 
-inline bool is_node_exported(ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::IfStmt: {
-            // top level if statements are retained at the moment
-            return true;
-        }
-        default: {
-            return node->specifier() == AccessSpecifier::Public;
-        }
-    }
-}
-
 bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
 
     auto& direct_files = mod->direct_files;
@@ -488,23 +476,12 @@ void process_cached_module(ASTProcessor& processor, std::vector<ASTFileMetaData>
     }
 }
 
-// TODO: we have to do this on every file, this takes time (not the ideal solution)
 void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileMetaData>& module_files) {
     // going over each file in the module, to remove non-public nodes
     // so when we declare the nodes in other module, we don't consider non-public nodes
     // because non-public nodes are only present in the module allocator which will be cleared
     for(const auto& file : module_files) {
-        auto& file_unit = *file.result;
-        auto& nodes = file_unit.unit.scope.body.nodes;
-        auto itr = nodes.begin();
-        while(itr != nodes.end()) {
-            auto& node = *itr;
-            if(is_node_exported(node)) {
-                itr++;
-            } else {
-                itr = nodes.erase(itr);
-            }
-        }
+        file.result->unit.scope.body.make_exportable();
     }
 }
 

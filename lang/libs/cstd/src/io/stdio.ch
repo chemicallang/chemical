@@ -19,9 +19,9 @@ if(def.windows) {
     @extern public func GetStdHandle(nStdHandle : uint32_t) : *mut void
 
     // cache slots so we only do the syscall+CRT conversion once
-    public var _in  : *mut FILE = null;
-    public var _out : *mut FILE = null;
-    public var _err : *mut FILE = null;
+    var _in  : *mut FILE = null;
+    var _out : *mut FILE = null;
+    var _err : *mut FILE = null;
 
     public func get_stdin() : *mut FILE {
         if (_in == null) {

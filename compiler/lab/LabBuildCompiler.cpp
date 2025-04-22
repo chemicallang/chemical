@@ -1064,7 +1064,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     global.backend_context = (BackendContext*) &c_context;
 
     // the processor we use
-    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
 
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
@@ -1251,7 +1251,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, options->is64Bit);
-    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
@@ -2149,6 +2149,7 @@ TCCState* LabBuildCompiler::built_lab_file(
             loc_man,
             &lab_resolver,
             binder,
+            type_builder,
             *job_allocator,
             *mod_allocator,
             *file_allocator

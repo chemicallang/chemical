@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/types/LinkedType.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/AccessChain.h"
 #include "ast/types/LinkedValueType.h"
 #include "ast/types/ExpressionType.h"
@@ -471,61 +472,61 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
     BaseType* type;
     switch(idType) {
         case TokenType::AnyKw:
-            type = new (allocator.allocate<AnyType>()) AnyType();
+            type = typeBuilder.getAnyType();
             break;
         case TokenType::BoolKw:
-            type = new (allocator.allocate<BoolType>()) BoolType();
+            type = typeBuilder.getBoolType();
             break;
         case TokenType::CharKw:
-            type = new (allocator.allocate<CharType>()) CharType();
+            type = typeBuilder.getCharType();
             break;
         case TokenType::UCharKw:
-            type = new (allocator.allocate<UCharType>()) UCharType();
+            type = typeBuilder.getUCharType();
             break;
         case TokenType::DoubleKw:
-            type = new (allocator.allocate<DoubleType>()) DoubleType();
+            type = typeBuilder.getDoubleType();
             break;
         case TokenType::FloatKw:
-            type = new (allocator.allocate<FloatType>()) FloatType();
+            type = typeBuilder.getFloatType();
             break;
         case TokenType::LongdoubleKw:
-            type = new (allocator.allocate<LongDoubleType>()) LongDoubleType();
+            type = typeBuilder.getLongDoubleType();
             break;
         case TokenType::IntKw:
-            type = new (allocator.allocate<IntType>()) IntType();
+            type = typeBuilder.getIntType();
             break;
         case TokenType::UIntKw:
-            type = new (allocator.allocate<UIntType>()) UIntType();
+            type = typeBuilder.getUIntType();
             break;
         case TokenType::ShortKw:
-            type = new (allocator.allocate<ShortType>()) ShortType();
+            type = typeBuilder.getShortType();
             break;
         case TokenType::UShortKw:
-            type = new (allocator.allocate<UShortType>()) UShortType();
+            type = typeBuilder.getUShortType();
             break;
         case TokenType::LongKw:
-            type = new (allocator.allocate<LongType>()) LongType();
+            type = typeBuilder.getLongType();
             break;
         case TokenType::ULongKw:
-            type = new (allocator.allocate<ULongType>()) ULongType();
+            type = typeBuilder.getULongType();
             break;
         case TokenType::BigintKw:
-            type = new (allocator.allocate<BigIntType>()) BigIntType();
+            type = typeBuilder.getBigIntType();
             break;
         case TokenType::UBigintKw:
-            type = new (allocator.allocate<UBigIntType>()) UBigIntType();
+            type = typeBuilder.getUBigIntType();
             break;
         case TokenType::Int128Kw:
-            type = new (allocator.allocate<Int128Type>()) Int128Type();
+            type = typeBuilder.getInt128Type();
             break;
         case TokenType::Uint128Kw:
-            type = new (allocator.allocate<UInt128Type>()) UInt128Type();
+            type = typeBuilder.getUInt128Type();
             break;
         case TokenType::Float128Kw:
-            type = new (allocator.allocate<Float128Type>()) Float128Type();
+            type = typeBuilder.getFloat128Type();
             break;
         case TokenType::VoidKw:
-            type = new (allocator.allocate<VoidType>()) VoidType();
+            type = typeBuilder.getVoidType();
             break;
         default:
             if(token->type == TokenType::DoubleColonSym) {

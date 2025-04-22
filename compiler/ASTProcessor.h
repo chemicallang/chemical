@@ -31,6 +31,8 @@ class ToCAstVisitor;
 
 class ImportPathHandler;
 
+class TypeBuilder;
+
 #ifdef COMPILER_BUILD
 
 class CTranslator;
@@ -85,6 +87,11 @@ public:
     CompilerBinder& binder;
 
     /**
+     * the type builder allows to cache types
+     */
+    TypeBuilder& type_builder;
+
+    /**
      * the symbol resolver that will resolve all the symbols
      */
     SymbolResolver* resolver;
@@ -124,10 +131,11 @@ public:
             LocationManager& loc_man,
             SymbolResolver* resolver,
             CompilerBinder& binder,
+            TypeBuilder& typeBuilder,
             ASTAllocator& job_allocator,
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
-    ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder),
+    ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder), type_builder(typeBuilder),
         job_allocator(job_allocator), mod_allocator(mod_allocator), mod_storage(mod_storage), file_allocator(file_allocator)
     {
 

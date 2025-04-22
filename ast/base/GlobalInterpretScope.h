@@ -24,6 +24,8 @@ class SymbolResolver;
 
 struct GlobalContainer;
 
+class TypeBuilder;
+
 std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name);
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
@@ -77,6 +79,11 @@ public:
     ASTAllocator& allocator;
 
     /**
+     * the type cache is used to get types
+     */
+    TypeBuilder& typeBuilder;
+
+    /**
      * The constructor
      */
     explicit GlobalInterpretScope(
@@ -84,6 +91,7 @@ public:
         BackendContext* backendContext,
         LabBuildCompiler* buildCompiler,
         ASTAllocator& allocator,
+        TypeBuilder& typeBuilder,
         LocationManager& loc_man
     );
 

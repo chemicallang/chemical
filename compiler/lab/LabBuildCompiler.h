@@ -12,6 +12,7 @@
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/ModuleStorage.h"
 #include "compiler/processor/ModuleDependencyRecord.h"
+#include "ast/base/TypeBuilder.h"
 
 class ASTAllocator;
 
@@ -24,6 +25,8 @@ struct GlobalContainer;
 class CmdOptions;
 
 class ToCAstVisitor;
+
+class TypeBuilder;
 
 #ifdef COMPILER_BUILD
 class Codegen;
@@ -98,6 +101,17 @@ public:
     LabJob* current_job;
 
     /**
+     * the global allocator is used for things allocated for multiple jobs
+     * like inside type builder to allocate types once
+     */
+    ASTAllocator global_allocator;
+
+    /**
+     * the type cache is initialized once for executing multiple jobs
+     */
+    TypeBuilder type_builder;
+
+    /**
      * job level allocator
      */
     ASTAllocator* job_allocator;
@@ -113,7 +127,10 @@ public:
     /**
      * constructor
      */
-    explicit LabBuildCompiler(CompilerBinder& binder, LabBuildCompilerOptions* options);
+    explicit LabBuildCompiler(
+        CompilerBinder& binder,
+        LabBuildCompilerOptions* options
+    );
 
     /**
      * set the cmd options to allow checking for any command line options given to configure the code generation process

@@ -39,6 +39,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/types/ReferenceType.h"
 #include "cst/LocationManager.h"
+#include "ast/base/TypeBuilder.h"
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
 #endif
@@ -70,9 +71,8 @@ namespace InterpretVector {
     public:
 
         FunctionParam selfParam;
-        IntType retType;
 
-        explicit InterpretVectorSize(InterpretVectorNode* node);
+        explicit InterpretVectorSize(TypeBuilder& cache, InterpretVectorNode* node);
 
         Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
@@ -82,11 +82,10 @@ namespace InterpretVector {
     public:
 
         FunctionParam selfParam;
-        UIntType indexType;
         FunctionParam indexParam;
         LinkedType returnLinkedType;
 
-        explicit InterpretVectorGet(InterpretVectorNode* node);
+        explicit InterpretVectorGet(TypeBuilder& cache, InterpretVectorNode* node);
 
         Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
@@ -98,9 +97,8 @@ namespace InterpretVector {
         FunctionParam selfParam;
         LinkedType valueType;
         FunctionParam valueParam;
-        VoidType returnVoidType;
 
-        explicit InterpretVectorPush(InterpretVectorNode* node);
+        explicit InterpretVectorPush(TypeBuilder& cache, InterpretVectorNode* node);
 
         Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
@@ -110,11 +108,9 @@ namespace InterpretVector {
     public:
 
         FunctionParam selfParam;
-        VoidType returnVoidType;
-        UIntType indexType;
         FunctionParam indexParam;
 
-        explicit InterpretVectorRemove(InterpretVectorNode* node);
+        explicit InterpretVectorRemove(TypeBuilder& cache, InterpretVectorNode* node);
 
         Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
 
@@ -134,7 +130,7 @@ namespace InterpretVector {
         InterpretVectorPush pushFn;
         InterpretVectorRemove removeFn;
 
-        explicit InterpretVectorNode(ASTNode* parent_node);
+        explicit InterpretVectorNode(TypeBuilder& cache, ASTNode* parent_node);
 
     };
 
@@ -172,15 +168,15 @@ namespace InterpretVector {
         return new (allocator.allocate<InterpretVectorVal>()) InterpretVectorVal(node);
     }
 
-    InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
+    InterpretVectorSize::InterpretVectorSize(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-            &retType,
+            cache.getIntType(),
             false,
             node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), retType(), selfParam("self", TypeLoc(&node->selfReference, ZERO_LOC), 0, nullptr, true, this, ZERO_LOC) {
+    ), selfParam("self", TypeLoc(&node->selfReference, ZERO_LOC), 0, nullptr, true, this, ZERO_LOC) {
         params.emplace_back(&selfParam);
     }
 
@@ -190,7 +186,7 @@ namespace InterpretVector {
 
 
     // TODO interpret vector get should return a reference to T
-    InterpretVectorGet::InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
+    InterpretVectorGet::InterpretVectorGet(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("get"),
             &returnLinkedType,
             false,
@@ -199,7 +195,7 @@ namespace InterpretVector {
             AccessSpecifier::Public,
             true
     ), returnLinkedType(&node->typeParam),
-        selfParam("self", {&node->selfReference, ZERO_LOC}, 0, nullptr, true, this, ZERO_LOC), indexType(), indexParam("index", { &indexType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
+                                                                                            selfParam("self", {&node->selfReference, ZERO_LOC}, 0, nullptr, true, this, ZERO_LOC), indexParam("index", { cache.getUIntType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -217,16 +213,16 @@ namespace InterpretVector {
 
     }
 
-    InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
+    InterpretVectorPush::InterpretVectorPush(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("push"),
-            &returnVoidType,
+            cache.getVoidType(),
             false,
             node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC), returnVoidType(),
-        valueType(&node->typeParam), valueParam("value", { &valueType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
+    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC),
+                                                                                              valueType(&node->typeParam), valueParam("value", { &valueType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&valueParam);
@@ -237,16 +233,16 @@ namespace InterpretVector {
         return nullptr;
     }
 
-    InterpretVectorRemove::InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
+    InterpretVectorRemove::InterpretVectorRemove(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("remove"),
-            &returnVoidType,
+            cache.getVoidType(),
             false,
             node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC), returnVoidType(),
-        indexType(), indexParam("index", { &indexType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
+    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC),
+                                                                                                  indexParam("index", { cache.getUIntType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -263,9 +259,10 @@ namespace InterpretVector {
     }
 
     InterpretVectorNode::InterpretVectorNode(
-        ASTNode* parent_node
+            TypeBuilder& cache,
+            ASTNode* parent_node
     ): StructDefinition(ZERO_LOC_ID("vector"), parent_node, ZERO_LOC, AccessSpecifier::Public),
-        constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
+        constructorFn(this), sizeFn(cache, this), getFn(cache, this), pushFn(cache, this), removeFn(cache, this),
         typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
         selfType(this), selfReference(&selfType, ZERO_LOC)
     {
@@ -280,22 +277,20 @@ public:
 
     std::ostringstream ostring;
     RepresentationVisitor visitor;
-    VoidType returnType;
 
-
-    explicit InterpretPrint(ASTNode* parent_node, LocatedIdentifier identifier) : FunctionDeclaration(
+    explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node, LocatedIdentifier identifier) : FunctionDeclaration(
             identifier,
-            &returnType,
+            cache.getVoidType(),
             true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring),  returnType() {
+    ), visitor(ostring) {
         visitor.interpret_representation = true;
     }
 
-    inline explicit InterpretPrint(ASTNode* parent_node) : InterpretPrint(parent_node, ZERO_LOC_ID("print")) {
+    inline explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, ZERO_LOC_ID("print")) {
 
     }
 
@@ -317,7 +312,7 @@ public:
 
 class InterpretPrintLn : public InterpretPrint {
 public:
-    inline explicit InterpretPrintLn(ASTNode* parent_node) : InterpretPrint(parent_node, ZERO_LOC_ID("println")) {
+    inline explicit InterpretPrintLn(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, ZERO_LOC_ID("println")) {
 
     }
     Value* call(InterpretScope *call_scope, ASTAllocator &allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -332,17 +327,16 @@ public:
 
     std::ostringstream ostring;
     RepresentationVisitor visitor;
-    StringType returnType;
 
-    explicit InterpretToString(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretToString(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("to_string"),
-            &returnType,
+            cache.getStringType(),
             true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring),  returnType() {
+    ), visitor(ostring) {
         visitor.interpret_representation = true;
     }
 
@@ -388,19 +382,17 @@ Value* resolve_ref(Value* val, InterpretScope *call_scope) {
 class InterpretSize : public FunctionDeclaration {
 public:
 
-    UBigIntType returnType;
-    AnyType anyType;
     FunctionParam valueParam;
 
-    explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretSize(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-            &returnType,
+            cache.getUBigIntType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnType(), anyType(), valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+    ), valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -513,19 +505,17 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
 class InterpretWrap : public FunctionDeclaration {
 public:
 
-    AnyType anyType;
     FunctionParam valueParam;
 
-    explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretWrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("wrap"),
-            &anyType,
+            cache.getAnyType(),
             true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), anyType(),
-        valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
+    ), valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -544,18 +534,17 @@ public:
 class InterpretUnwrap : public FunctionDeclaration {
 public:
 
-    AnyType anyType;
     FunctionParam valueParam;
 
-    explicit InterpretUnwrap(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretUnwrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("unwrap"),
-            &anyType,
+            cache.getAnyType(),
             true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), anyType(), valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+    ), valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -572,10 +561,9 @@ class InterpretRetStructPtr : public FunctionDeclaration {
 public:
 
     // TODO we shouldn't return pointer to void type
-    VoidType voidType;
     PointerType ptrType;
 
-    explicit InterpretRetStructPtr(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretRetStructPtr(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("return_struct"),
             &ptrType,
             true,
@@ -583,7 +571,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), voidType(), ptrType(&voidType, ZERO_LOC) {
+    ), ptrType(cache.getVoidType(), ZERO_LOC) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -594,17 +582,15 @@ public:
 class InterpretCompilerVersion : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretCompilerVersion(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretCompilerVersion(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("version"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -615,19 +601,17 @@ public:
 class InterpretSupports : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-    AnyType anyType;
     FunctionParam valueParam;
 
-    explicit InterpretSupports(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretSupports(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("supports"),
-            &boolType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(), anyType(), valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+    ), valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -660,17 +644,15 @@ public:
 class InterpretIsTcc : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-
-    explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretIsTcc(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("is_tcc_based"),
-            &boolType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -685,17 +667,15 @@ public:
 class InterpretIsClang : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-
-    explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretIsClang(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("is_clang"),
-            &boolType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -710,17 +690,15 @@ public:
 class InterpretGetRawLocation : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
-
-    explicit InterpretGetRawLocation() : FunctionDeclaration(
+    explicit InterpretGetRawLocation(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_raw_location"),
-            &uIntType,
+            cache.getUIntType(),
             false,
-            nullptr,
+            parent,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -732,17 +710,15 @@ public:
 class InterpretGetRawLocOf : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
-
-    explicit InterpretGetRawLocOf() : FunctionDeclaration(
+    explicit InterpretGetRawLocOf(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_raw_loc_of"),
-            &uIntType,
+            cache.getUIntType(),
             false,
-            nullptr,
+            parent,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -783,17 +759,15 @@ public:
 class InterpretGetCharacterNo : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
-
-    explicit InterpretGetCharacterNo() : FunctionDeclaration(
+    explicit InterpretGetCharacterNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_char_no"),
-            &uIntType,
+            cache.getUIntType(),
             false,
-            nullptr,
+            parent,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -815,17 +789,15 @@ FunctionCall* get_runtime_call(GlobalInterpretScope* global) {
 class InterpretGetCallerLineNo : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
-
-    explicit InterpretGetCallerLineNo() : FunctionDeclaration(
+    explicit InterpretGetCallerLineNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_caller_line_no"),
-            &uIntType,
+            cache.getUIntType(),
             false,
-            nullptr,
+            parent,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -844,17 +816,15 @@ public:
 class InterpretGetCallerCharacterNo : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
-
-    explicit InterpretGetCallerCharacterNo() : FunctionDeclaration(
+    explicit InterpretGetCallerCharacterNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_caller_char_no"),
-            &uIntType,
+            cache.getUIntType(),
             false,
-            nullptr,
+            parent,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) final {
@@ -873,17 +843,15 @@ public:
 class InterpretGetCallLoc : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
-
-    explicit InterpretGetCallLoc() : FunctionDeclaration(
+    explicit InterpretGetCallLoc(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_call_loc"),
-            &uIntType,
+            cache.getUIntType(),
             false,
-            nullptr,
+            parent,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -913,19 +881,17 @@ public:
 class InterpretDefined : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-    StringType stringType;
     FunctionParam valueParam;
 
-    explicit InterpretDefined() : FunctionDeclaration(
+    explicit InterpretDefined(TypeBuilder& cache) : FunctionDeclaration(
             ZERO_LOC_ID("defined"),
-            &boolType,
+            cache.getBoolType(),
             false,
             nullptr,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(), stringType(), valueParam("value", { &stringType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+    ), valueParam("value", { cache.getStringType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -943,19 +909,17 @@ public:
 class InterpretError : public FunctionDeclaration {
 public:
 
-    VoidType voidType;
-    StringType stringType;
     FunctionParam valueParam;
 
-    explicit InterpretError(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretError(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("error"),
-            &voidType,
+            cache.getVoidType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), voidType(), stringType(), valueParam("value", { &stringType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+    ), valueParam("value", { cache.getStringType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -970,22 +934,20 @@ public:
 class InterpretSatisfies : public FunctionDeclaration {
 public:
 
-    BoolType returnType;
-    AnyType anyType;
     FunctionParam valueParam;
     FunctionParam valueParam2;
 
-    explicit InterpretSatisfies(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretSatisfies(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("satisfies"),
-            &returnType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnType(), anyType(),
-    valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
-    valueParam2("value2", { &anyType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC) {
+    ),
+                                                                            valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+                                                                            valueParam2("value2", { cache.getAnyType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
         params.emplace_back(&valueParam2);
@@ -1013,23 +975,21 @@ public:
 class InterpretIsPtrNull : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-    AnyType anyType;
     PointerType ptrType;
     FunctionParam valueParam;
 
     NullValue nullVal;
 
-    explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretIsPtrNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("isNull"),
-            &boolType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(), nullVal(ZERO_LOC), anyType(), ptrType(&anyType, ZERO_LOC),
-        valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
+    ), nullVal(ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
+                                                                            valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -1042,23 +1002,21 @@ public:
 class InterpretIsPtrNotNull : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-    AnyType anyType;
     PointerType ptrType;
     FunctionParam valueParam;
 
     NullValue nullVal;
 
-    explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretIsPtrNotNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("isNotNull"),
-            &boolType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(), nullVal(ZERO_LOC), anyType(), ptrType(&anyType, ZERO_LOC),
-        valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
+    ), nullVal(ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
+                                                                               valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -1071,21 +1029,19 @@ public:
 class InterpretMemCopy : public FunctionDeclaration {
 public:
 
-    BoolType boolType;
-    StringType stringType;
     FunctionParam destValueParam;
     FunctionParam sourceValueParam;
 
-    explicit InterpretMemCopy(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretMemCopy(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("copy"),
-            &boolType,
+            cache.getBoolType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(), stringType(), destValueParam("dest_value", { &stringType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
-      sourceValueParam("source_value", { &stringType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC){
+    ), destValueParam("dest_value", { cache.getStringType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+                                                                          sourceValueParam("source_value", { cache.getStringType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC){
         set_compiler_decl(true);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
@@ -1103,17 +1059,15 @@ public:
 class InterpretGetTarget : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetTarget(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetTarget(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_target"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1126,17 +1080,15 @@ public:
 class InterpretGetLocFilePath : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetLocFilePath(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetLocFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_loc_file_path"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1159,17 +1111,15 @@ public:
 class InterpretGetBuildDir : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetBuildDir(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetBuildDir(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_build_dir"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1181,17 +1131,15 @@ public:
 class InterpretGetCurrentFilePath : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetCurrentFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_current_file_path"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1205,17 +1153,15 @@ public:
 class InterpretGetModuleScope : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetModuleScope(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetModuleScope(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_scope"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1234,17 +1180,15 @@ public:
 class InterpretGetModuleName : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetModuleName(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetModuleName(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_name"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1263,17 +1207,15 @@ public:
 class InterpretGetModuleDir : public FunctionDeclaration {
 public:
 
-    StringType stringType;
-
-    explicit InterpretGetModuleDir(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetModuleDir(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_dir"),
-            &stringType,
+            cache.getStringType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType() {
+    ) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1297,21 +1239,19 @@ public:
 class InterpretGetChildFunction : public FunctionDeclaration {
 public:
 
-    AnyType anyType;
     FunctionParam param;
-    StringType strType;
     FunctionParam methodParam;
 
-    explicit InterpretGetChildFunction(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretGetChildFunction(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_child_fn"),
-            &anyType,
+            cache.getAnyType(),
             false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), param("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, 0),
-        methodParam("method", { &strType, ZERO_LOC }, 1, nullptr, false, this, 0), anyType(), strType() {
+    ), param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, 0),
+                                                                                   methodParam("method", { cache.getStringType(), ZERO_LOC }, 1, nullptr, false, this, 0) {
         set_compiler_decl(true);
         params = { &param, &methodParam };
     };
@@ -1319,12 +1259,12 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {
             call_scope->error("error, get_child_fn expects two arguments", call);
-            return new (allocator.allocate<NullValue>()) NullValue(&anyType, 0);
+            return new (allocator.allocate<NullValue>()) NullValue(returnType, 0);
         }
         const auto nameVal = call->values[1]->evaluated_value(*call_scope);
         if(nameVal->val_kind() != ValueKind::String) {
             call_scope->error("expected second argument to get_child_fn to be a string", call);
-            return new(allocator.allocate<NullValue>()) NullValue(&anyType, 0);
+            return new(allocator.allocate<NullValue>()) NullValue(returnType, 0);
         }
         const auto type = call->values.front()->create_type(allocator);
         const auto linked = type->linked_node();
@@ -1337,7 +1277,7 @@ public:
                 return new(allocator.allocate<AccessChain>()) AccessChain({id}, false, 0);
             }
         }
-        return new (allocator.allocate<NullValue>()) NullValue(&anyType, 0);
+        return new (allocator.allocate<NullValue>()) NullValue(returnType, 0);
     }
 
 };
@@ -1347,17 +1287,16 @@ public:
 
     std::ostringstream ostring;
     RepresentationVisitor visitor;
-    StringType returnType;
 
-    explicit InterpretTypeToString(ASTNode* parent_node) : FunctionDeclaration(
+    explicit InterpretTypeToString(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("type_to_string"),
-            &returnType,
+            cache.getStringType(),
             true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring),  returnType() {
+    ), visitor(ostring) {
         visitor.interpret_representation = true;
     }
 
@@ -1457,13 +1396,15 @@ public:
     InterpretError error_fn;
 
     CompilerNamespace(
-
+            TypeBuilder& cache
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        interpretSupports(this), printFn(this), printlnFn(this), to_stringFn(this), type_to_stringFn(this),
-        wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this), isTccFn(this), isClangFn(this),
-        sizeFn(this), vectorNode(this), satisfiesFn(this), get_target_fn(this), get_build_dir(this), get_current_file_path(this),
-        get_loc_file_path(this), get_module_scope(this), get_module_name(this), get_module_dir(this),
-        get_child_fn(this), error_fn(this)
+        interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
+        wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
+        sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), get_target_fn(cache, this), get_build_dir(cache, this),
+        get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this), get_call_loc(cache, this), get_char_no(cache, this),
+        get_caller_line_no(cache, this), get_caller_char_no(cache, this), get_loc_file_path(cache, this),
+        get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this), get_child_fn(cache, this),
+        error_fn(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -1483,8 +1424,9 @@ public:
     InterpretMemCopy memCopyFn;
 
     explicit MemNamespace(
-        ASTNode* parent_node
-    ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(this) {
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(cache, this) {
         set_compiler_decl(true);
         nodes = { &memCopyFn };
     }
@@ -1498,9 +1440,10 @@ public:
     InterpretIsPtrNotNull isNotNullFn;
 
     explicit PtrNamespace(
+            TypeBuilder& cache,
             ASTNode* parent_node
     ) : Namespace(ZERO_LOC_ID("ptr"), parent_node, ZERO_LOC, AccessSpecifier::Public),
-        isNullFn(this), isNotNullFn(this)
+        isNullFn(cache, this), isNotNullFn(cache, this)
     {
         set_compiler_decl(true);
         nodes = { &isNullFn, &isNotNullFn };
@@ -1516,9 +1459,9 @@ public:
     PtrNamespace ptrNamespace;
 
     StdNamespace(
-
+            TypeBuilder& cache
     ) : Namespace(ZERO_LOC_ID("std"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        memNamespace(this), ptrNamespace(this)
+        memNamespace(cache, this), ptrNamespace(cache, this)
     {
         set_compiler_decl(true);
         nodes = { &memNamespace, &ptrNamespace };
@@ -1575,10 +1518,18 @@ struct DefThing {
 };
 
 struct GlobalContainer {
+
     CompilerNamespace compiler_namespace;
     StdNamespace std_namespace;
     InterpretDefined defined;
     DefThing defThing;
+
+    GlobalContainer(
+            TypeBuilder& cache
+    ) : compiler_namespace(cache), std_namespace(cache), defined(cache) {
+
+    }
+
 };
 
 #ifdef COMPILER_BUILD
@@ -1873,7 +1824,8 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
 
 GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver) {
 
-    const auto container_ptr = new GlobalContainer;
+    auto& typeCache = resolver.comptime_scope.typeBuilder;
+    const auto container_ptr = new GlobalContainer(typeCache);
     auto& container = *container_ptr;
 
     container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);

@@ -45,6 +45,7 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/CmdUtils.h"
+#include "ast/base/TypeBuilder.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -102,7 +103,9 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 LabBuildCompiler::LabBuildCompiler(
     CompilerBinder& binder,
     LabBuildCompilerOptions *options
-) : path_handler(options->exe_path), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()) {
+) : path_handler(options->exe_path), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
+    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator)
+{
 
 }
 
@@ -1049,7 +1052,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
@@ -1240,7 +1243,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
@@ -2108,7 +2111,9 @@ int LabBuildCompiler::do_allocating(void* data, int(*do_jobs)(LabBuildCompiler*,
     );
 
     // do the jobs
-    return do_jobs(this, data);
+    const auto result = do_jobs(this, data);
+
+    return result;
 
 }
 
@@ -2131,7 +2136,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 ) {
 
     // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, loc_man);
+    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // creating symbol resolver for build.lab files only
     SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);

@@ -50,7 +50,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharType>()) CharType(encoded_location());
+        return new (allocator.allocate<CharType>()) CharType();
     }
 
     CharValue *copy(ASTAllocator& allocator) final {

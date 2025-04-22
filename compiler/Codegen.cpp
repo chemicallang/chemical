@@ -260,7 +260,7 @@ llvm::Function* Codegen::declare_function(const std::string_view &name, llvm::Fu
     }
 }
 
-llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionType* func_type, bool is_exported, SourceLocation location) {
+llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionTypeBody* func_type, bool is_exported, SourceLocation location) {
     auto fn = create_func(*this, name, type, llvm::Function::WeakAnyLinkage);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
 //    if(!is_exported) {
@@ -521,12 +521,12 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
     return nullptr;
 }
 
-llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type) {
+llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type, SourceLocation loc) {
     if(!type) return nullptr;
     const auto interface = type->linked_dyn_interface();
     if(!interface) return nullptr;
     const auto allocaInst = builder->CreateAlloca(fat_pointer_type());
-    di.instr(allocaInst, type);
+    di.instr(allocaInst, loc);
     return allocaInst;
 }
 

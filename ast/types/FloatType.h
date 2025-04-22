@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr FloatType(SourceLocation location) : BaseType(BaseTypeKind::Float, location) {
+    constexpr FloatType() : BaseType(BaseTypeKind::Float) {
 
     }
 
@@ -30,7 +30,7 @@ public:
 
     [[nodiscard]]
     FloatType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<FloatType>()) FloatType(encoded_location());
+        return new (allocator.allocate<FloatType>()) FloatType();
     }
 
 #ifdef COMPILER_BUILD

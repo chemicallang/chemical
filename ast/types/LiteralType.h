@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr LiteralType(BaseType* underlying, SourceLocation location) : underlying(underlying), BaseType(BaseTypeKind::Literal, location) {
+    constexpr LiteralType(BaseType* underlying) : underlying(underlying), BaseType(BaseTypeKind::Literal) {
         // do nothing
     }
 
@@ -28,7 +28,7 @@ public:
 
     [[nodiscard]]
     LiteralType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), encoded_location());
+        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator));
     }
 
 #ifdef COMPILER_BUILD

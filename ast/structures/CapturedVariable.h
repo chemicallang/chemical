@@ -24,7 +24,7 @@ public:
         ASTNode* parent_node,
         SourceLocation location
     ) : ASTNode(ASTNodeKind::CapturedVariable, parent_node, location), name(name), index(index),
-        capture_by_ref(capture_by_ref), ptrType(nullptr, location) {
+        capture_by_ref(capture_by_ref), ptrType(nullptr, false) {
 
     }
 

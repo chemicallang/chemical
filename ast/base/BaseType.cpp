@@ -176,7 +176,7 @@ BaseType* BaseType::pure_type() {
             const auto pure_child = ptr_type->type->pure_type();
             if(pure_child && pure_child != ptr_type->type) {
                 // TODO pointer type allocated without an allocator
-                auto ptr = new PointerType(pure_child, ptr_type->encoded_location(), ptr_type->is_mutable);
+                auto ptr = new PointerType(pure_child, ptr_type->is_mutable);
                 ptr_type->pures.emplace_back(ptr);
                 return ptr;
             } else {
@@ -227,7 +227,7 @@ BaseType* BaseType::deep_canonical(ASTAllocator& allocator) {
             const auto ptr_type = as_pointer_type_unsafe();
             const auto pure_child = ptr_type->type->pure_type(allocator);
             if(pure_child && pure_child != ptr_type->type) {
-                return new (allocator.allocate<PointerType>()) PointerType(pure_child, ptr_type->encoded_location(), ptr_type->is_mutable);
+                return new (allocator.allocate<PointerType>()) PointerType(pure_child, ptr_type->is_mutable);
             } else {
                 return this;
             }
@@ -236,7 +236,7 @@ BaseType* BaseType::deep_canonical(ASTAllocator& allocator) {
             const auto ref_type = as_reference_type_unsafe();
             const auto pure_child = ref_type->type->pure_type(allocator);
             if(pure_child && pure_child != ref_type->type) {
-                return new (allocator.allocate<ReferenceType>()) ReferenceType(pure_child, ref_type->encoded_location(), ref_type->is_mutable);
+                return new (allocator.allocate<ReferenceType>()) ReferenceType(pure_child, ref_type->is_mutable);
             } else {
                 return this;
             }

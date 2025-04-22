@@ -320,12 +320,12 @@ void DebugInfoBuilder::instr(llvm::Instruction* inst, SourceLocation source_loc)
     }
 }
 
-llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func) {
+llvm::DIScope* DebugInfoBuilder::create(FunctionTypeBody* decl, llvm::Function* func) {
     const auto alreadyProgram = func->getSubprogram();
     if(alreadyProgram) {
         return alreadyProgram;
     }
-    const auto location = loc_node(this, decl->encoded_location());
+    const auto location = loc_node(this, decl->get_location());
     const auto as_func = decl->as_function();
     const auto name_view = as_func ? to_ref(as_func->name_view()) : func->getName();
 #ifdef DEBUG
@@ -359,14 +359,14 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionType *decl, llvm::Function* func
     return SP;
 }
 
-void DebugInfoBuilder::start_nested_function_scope(FunctionType *decl, llvm::Function* func) {
+void DebugInfoBuilder::start_nested_function_scope(FunctionTypeBody *decl, llvm::Function* func) {
     if(!isEnabled) {
         return;
     }
     diScopes.push_back(create(decl, func));
 }
 
-void DebugInfoBuilder::start_function_scope(FunctionType *decl, llvm::Function* func) {
+void DebugInfoBuilder::start_function_scope(FunctionTypeBody *decl, llvm::Function* func) {
     if(!isEnabled) {
         return;
     }

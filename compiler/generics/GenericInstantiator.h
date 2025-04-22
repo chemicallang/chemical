@@ -72,6 +72,13 @@ public:
         GenericInstantiator::make_gen_type_concrete(type_ref);
         VisitTypeNoNullCheck(type_ref);
     }
+    inline void visit(TypeLoc& type) {
+        auto changed = const_cast<BaseType*>(type.getType());
+        visit(changed);
+        if(changed != type.getType()) {
+            type = { changed, type.getLocation() };
+        }
+    }
     inline void visit(LinkedType*& type_ref) {
         visit((BaseType*&) type_ref);
     }

@@ -17,7 +17,7 @@ bool NullValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expect
 
 BaseType* NullValue::create_type(ASTAllocator &allocator) {
     return expected ? expected : (
-        new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(encoded_location()), encoded_location())
+        new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(), false)
     );
 }
 

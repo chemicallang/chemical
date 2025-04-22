@@ -552,6 +552,7 @@ set(COMMON_SOURCES
         compiler/symres/NodeSymbolDeclarer.h
         compiler/lab/timestamp/Timestamp.h
         compiler/lab/timestamp/Timestamp.cpp
+        ast/base/TypeLoc.h
 )
 
 # Chemical LSP Executable Target

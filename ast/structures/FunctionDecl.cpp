@@ -159,11 +159,11 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
 
                 // create a boolean flag
                 const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
-                gen.di.instr(instr, this);
+                gen.di.instr(instr, param->type.getLocation());
 
                 // store true in it, that this value should be destructed
                 const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
-                gen.di.instr(storeIns, this);
+                gen.di.instr(storeIns, param->type.getLocation());
 
                 should_destruct = instr;
             }
@@ -874,7 +874,7 @@ unsigned FunctionParam::calculate_c_or_llvm_index(FunctionType* func_type) {
 FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(
             name,
-            type->copy(allocator),
+            type.copy(allocator),
             index,
             defValue ? defValue->copy(allocator) : nullptr,
             is_implicit(),
@@ -888,7 +888,7 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
 bool FunctionParam::link_param_type(SymbolResolver &linker) {
     if(is_implicit()) {
         if(name == "self" || name == "other") { // name and other means pointers to parent node
-            const auto ptr_type = ((ReferenceType*) type);
+            const auto ptr_type = ((ReferenceType*) type.getType());
             auto& linked_type_ref = ptr_type->type;
             const auto linked_type = ((LinkedType*) linked_type_ref);
             auto parent_node = parent();
@@ -928,12 +928,12 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
         } else {
             auto found = linker.find(name);
             if(found) {
-                const auto ptr_type = ((ReferenceType*) type);
+                const auto ptr_type = ((ReferenceType*) type.getType());
                 const auto linked_type = ((LinkedType*) ptr_type->type);
                 const auto found_kind = found->kind();
                 if(found_kind == ASTNodeKind::TypealiasStmt) {
                     const auto retrieved = ((TypealiasStatement*) found)->actual_type;
-                    type = retrieved;
+                    type = { retrieved, type.encoded_location() };
                     const auto direct = retrieved->get_direct_linked_node();
                     if(direct && ASTNode::isStoredStructType(direct->kind())) {
                         linker.error("struct like types must be passed as references using implicit parameters with typealias, please add '&' to make it a reference", this);
@@ -991,9 +991,9 @@ void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* typ
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC), ZERO_LOC), 0, nullptr, true, this, ZERO_LOC));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", TypeLoc( new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def)), def->encoded_location() ), 0, nullptr, true, this, ZERO_LOC));
     }
-    returnType = new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
+    returnType = new (allocator.allocate<VoidType>()) VoidType();
 }
 
 void check_returns_void(ASTDiagnoser& diagnoser, FunctionDeclaration* decl) {
@@ -1027,7 +1027,7 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
 }
 
 void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def);
 }
 
 void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
@@ -1041,12 +1041,12 @@ void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser&
 }
 
 void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def);
     check_self_other_params(diagnoser, this, def);
 }
 
 void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def, ZERO_LOC);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def);
     check_self_other_params(diagnoser, this, def);
 }
 
@@ -1064,7 +1064,7 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
     const auto pure_receiver = type->pure_type(allocator);
     const auto receiver_kind = pure_receiver->kind();
     if (receiver_kind != BaseTypeKind::Reference) {
-        diagnoser.error("receiver in extension function must always be a reference", type);
+        diagnoser.error("receiver in extension function must always be a reference", receiver.type.encoded_location());
     }
     auto linked = type->linked_node();
     if (!linked) {
@@ -1076,7 +1076,7 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
     if (linked_kind == ASTNodeKind::InterfaceDecl) {
         const auto interface = linked->as_interface_def_unsafe();
         if (!interface->is_static() && generic_parent == nullptr) {
-            diagnoser.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type);
+            diagnoser.error("extension functions are only supported on static interfaces, either make the interface static or move the function inside the interface", receiver.type.encoded_location());
             return false;
         }
     } else if(linked_kind == ASTNodeKind::GenericTypeParam) {
@@ -1097,16 +1097,16 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         container = linked->as_gen_variant_decl_unsafe()->master_impl;
     }
     if (!container) {
-        diagnoser.error(receiver.type) << "type doesn't support extension functions " << type->representation();
+        diagnoser.error(receiver.type.encoded_location()) << "type doesn't support extension functions " << type->representation();
         return false;
     }
     if(container->extension_functions.contains(name_view())) {
-        diagnoser.error(receiver.type) << "container already contains an extension function by the name '" << name_view() << '\'';
+        diagnoser.error(receiver.type.encoded_location()) << "container already contains an extension function by the name '" << name_view() << '\'';
         return false;
     }
     const auto field_func = linked->child(name_view());
     if (field_func != nullptr && field_func != generic_parent) {
-        diagnoser.error(receiver.type) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
+        diagnoser.error(receiver.type.encoded_location()) << "couldn't declare extension function with name '" << name_view() << "' because type '" << receiver.type->representation() << "' already has a field / function with same name \n";
         return false;
     }
     if(generic_parent) {
@@ -1225,15 +1225,15 @@ Value *FunctionDeclaration::call(
     Value* parent,
     InterpretScope *fn_scope,
     bool evaluate_refs,
-    ASTAny* debug_value
+    Value* debug_value
 ) {
     callScope = call_scope;
     auto& allocator = fn_scope->allocator;
     auto self_param = get_self_param();
     auto expected_args = expectedArgsSize();
     if (call_args.size() != expected_args) {
-        fn_scope->error("function " + name_str() + " requires " + std::to_string(expected_args) + ", but given args are " +
-                        std::to_string(call_args.size()), debug_value);
+        // TODO make this method stream
+        fn_scope->error("function " + name_str() + " requires " + std::to_string(expected_args) + ", but given args are " + std::to_string(call_args.size()), debug_value);
         return nullptr;
     }
     if(self_param) {

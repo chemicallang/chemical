@@ -120,6 +120,10 @@ public:
         static_cast<Derived*>(this)->VisitScope(&scope);
     }
 
+    inline void visit_it(TypeLoc& type) {
+        static_cast<Derived*>(this)->visit(type);
+    }
+
     inline void visit_it(FunctionDeclaration* decl) {
         static_cast<Derived*>(this)->VisitFunctionDecl(decl);
     }

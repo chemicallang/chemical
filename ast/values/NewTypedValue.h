@@ -22,7 +22,7 @@ public:
     inline constexpr NewTypedValue(
         BaseType* type,
         SourceLocation location
-    ) : Value(ValueKind::NewTypedValue, location), type(type), ptr_type(nullptr, 0 , false) {
+    ) : Value(ValueKind::NewTypedValue, location), type(type), ptr_type(nullptr, false) {
 
     }
 

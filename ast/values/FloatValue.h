@@ -44,7 +44,7 @@ public:
 #endif
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<FloatType>()) FloatType(encoded_location());
+        return new (allocator.allocate<FloatType>()) FloatType();
     }
 
     FloatValue *copy(ASTAllocator& allocator) final {

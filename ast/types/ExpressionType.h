@@ -18,9 +18,8 @@ public:
     constexpr ExpressionType(
         BaseType* firstType,
         BaseType* secondType,
-        bool isLogicalAnd,
-        SourceLocation location
-    ) : BaseType(BaseTypeKind::ExpressionType, location), firstType(firstType), secondType(secondType), isLogicalAnd(isLogicalAnd) {
+        bool isLogicalAnd
+    ) : BaseType(BaseTypeKind::ExpressionType), firstType(firstType), secondType(secondType), isLogicalAnd(isLogicalAnd) {
         // do nothing
     }
 
@@ -41,8 +40,7 @@ public:
         return new (allocator.allocate<ExpressionType>()) ExpressionType(
                 firstType->copy(allocator),
                 secondType->copy(allocator),
-                isLogicalAnd,
-                encoded_location()
+                isLogicalAnd
         );
     }
 

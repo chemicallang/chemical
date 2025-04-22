@@ -48,8 +48,8 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
             default_starting_index = inherited->get_default_starting_index() + inherited->members.size();
             underlying_integer_type = inherited->underlying_integer_type;
         } else {
-            linker.error("given type is not an enum or integer type", underlying_type);
-            underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType(encoded_location());
+            linker.error("given type is not an enum or integer type", encoded_location());
+            underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType();
         }
     }
     linker.scope_start();

@@ -136,7 +136,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
                 }
             }
         }
-        arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(type, arrayValue->array_size(), ZERO_LOC);
+        arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(type, arrayValue->array_size());
         return arrayValue;
     } else {
         return nullptr;

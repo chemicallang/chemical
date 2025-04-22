@@ -207,14 +207,14 @@ bool FunctionType::equal(FunctionType *other) const {
 }
 
 FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
-    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isExtensionFn(), isVariadic(), isCapturing(), ZERO_LOC, data.signature_resolved);
+    const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType->copy(allocator), isExtensionFn(), isVariadic(), isCapturing(), data.signature_resolved);
     for (auto &param: params) {
         func_type->params.emplace_back(param->copy(allocator));
     }
     return func_type;
 }
 
-bool FunctionType::link(SymbolResolver &linker) {
+bool FunctionType::link(SymbolResolver &linker, SourceLocation loc) {
     bool resolved = true;
     for (auto &param: params) {
         if(!param->link_param_type(linker)) {

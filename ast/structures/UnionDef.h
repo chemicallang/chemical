@@ -40,7 +40,7 @@ public:
         SourceLocation location,
         AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::UnionDecl, parent_node, location),
-        attrs(specifier, false, false, false, false), linked_type(this, location) {
+        attrs(specifier, false, false, false, false), linked_type(this) {
 
     }
 

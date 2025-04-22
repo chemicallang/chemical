@@ -48,7 +48,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
+        return new (allocator.allocate<BoolType>()) BoolType();
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;

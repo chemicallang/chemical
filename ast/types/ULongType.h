@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr ULongType(SourceLocation location) : IntNType(location) {
+    constexpr ULongType() : IntNType() {
 
     }
 
@@ -33,11 +33,11 @@ public:
         return is64Bit ? 8 : 4;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     ULongType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ULongType>()) ULongType(encoded_location());
+        return new (allocator.allocate<ULongType>()) ULongType();
     }
 
 };

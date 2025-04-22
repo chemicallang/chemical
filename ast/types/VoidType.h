@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr VoidType(SourceLocation location) : BaseType(BaseTypeKind::Void, location) {
+    constexpr VoidType() : BaseType(BaseTypeKind::Void) {
 
     }
 
@@ -26,7 +26,7 @@ public:
 
     [[nodiscard]]
     virtual VoidType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<VoidType>()) VoidType(encoded_location());
+        return new (allocator.allocate<VoidType>()) VoidType();
     }
 
 #ifdef COMPILER_BUILD

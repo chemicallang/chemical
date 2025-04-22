@@ -37,7 +37,7 @@ BaseType* AddrOfValue::create_type(ASTAllocator& allocator) {
     if(elem_type_kind == BaseTypeKind::Reference) {
         elem_type = ((ReferenceType*) elem_type)->type;
     }
-    return new (allocator.allocate<PointerType>()) PointerType(elem_type, encoded_location(), is_value_mutable);
+    return new (allocator.allocate<PointerType>()) PointerType(elem_type, is_value_mutable);
 }
 
 AddrOfValue *AddrOfValue::copy(ASTAllocator& allocator) {

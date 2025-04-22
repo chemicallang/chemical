@@ -41,11 +41,11 @@
 #include "ast/types/StringType.h"
 #include "ast/types/VoidType.h"
 
-BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
+TypeLoc Parser::parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
     if(t1) {
-
-        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(nullptr, false, isCapturing, loc_single(t1));
+        const auto loc = loc_single(t1);
+        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(nullptr, false, isCapturing, false);
         const auto isVariadic = parseParameterList(allocator, func_type->params);
         func_type->setIsVariadic(isVariadic);
         consumeNewLines();
@@ -62,10 +62,14 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
         } else {
             error("expected '=>' for lambda function type");
         }
-        return func_type;
+        return { func_type, loc };
     } else {
-        return nullptr;
+        return { nullptr, ZERO_LOC };
     }
+}
+
+BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
+    return const_cast<BaseType*>(parseLambdaTypeLoc(allocator, isCapturing).getType());
 }
 
 BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idType) {
@@ -87,9 +91,9 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         if(types.size() == 1 && ((NamedLinkedType*) idType)->debug_link_name() == "literal") {
             auto underlying = types.back();
             if(underlying->kind() == BaseTypeKind::Linked && ((NamedLinkedType*) underlying)->debug_link_name() == "string") {
-                underlying = new (allocator.allocate<StringType>()) StringType(underlying->encoded_location());
+                underlying = new (allocator.allocate<StringType>()) StringType();
             }
-            return new (allocator.allocate<LiteralType>()) LiteralType(underlying, idType->encoded_location());
+            return new (allocator.allocate<LiteralType>()) LiteralType(underlying);
         }
 
         return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types));
@@ -104,7 +108,7 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
         error("missing struct / interface name in inheritance list of the struct");
         return nullptr;
     }
-    auto idType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), loc_single(id));
+    auto idType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value));
     return parseGenericTypeAfterId(allocator, idType);
 }
 
@@ -118,7 +122,7 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
             error("expected ']' for array type");
             return typeId;
         }
-        typeId = new (allocator.allocate<ArrayType>()) ArrayType(typeId, expr, loc(t1, t2));
+        typeId = new (allocator.allocate<ArrayType>()) ArrayType(typeId, expr);
     }
     while(true) {
         auto t = consumeOfType(TokenType::MultiplySym);
@@ -152,7 +156,7 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
                 return nullptr;
             }
         } else {
-            return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->encoded_location());
+            return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain);
         }
     }
 }
@@ -162,34 +166,34 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
  * since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
  * since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
  */
-BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, SourceLocation loc) {
+BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type) {
     auto t = elem_type;
     const auto kind = elem_type->kind();
     switch(kind) {
         case BaseTypeKind::Array:{
             // since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
             const auto arr_elem_type = ((ArrayType*) t)->elem_type;
-            ((ArrayType*) t)->elem_type = new (allocator.allocate<DynamicType>()) DynamicType(arr_elem_type, loc);
+            ((ArrayType*) t)->elem_type = new (allocator.allocate<DynamicType>()) DynamicType(arr_elem_type);
             return t;
         }
         case BaseTypeKind::Pointer: {
             // since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
             const auto ptr_elem_type = ((PointerType*) t)->type;
-            ((PointerType*) t)->type = new(allocator.allocate<DynamicType>()) DynamicType(ptr_elem_type, loc);
+            ((PointerType*) t)->type = new(allocator.allocate<DynamicType>()) DynamicType(ptr_elem_type);
             return t;
         }
         case BaseTypeKind::Reference: {
             // since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
             const auto ref_elem_type = ((ReferenceType*) t)->type;
-            ((ReferenceType*) t)->type = new(allocator.allocate<DynamicType>()) DynamicType(ref_elem_type, loc);
+            ((ReferenceType*) t)->type = new(allocator.allocate<DynamicType>()) DynamicType(ref_elem_type);
             return t;
         }
         case BaseTypeKind::Linked:
         case BaseTypeKind::Generic:
-            return new (allocator.allocate<DynamicType>()) DynamicType(t, loc);
+            return new (allocator.allocate<DynamicType>()) DynamicType(t);
         default:
             // TODO error out unknown child type with dynamic type
-            return new (allocator.allocate<DynamicType>()) DynamicType(t, loc);
+            return new (allocator.allocate<DynamicType>()) DynamicType(t);
     }
 }
 
@@ -234,6 +238,11 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
     }
 }
 
+TypeLoc Parser::parseStructTypeLoc(ASTAllocator& allocator) {
+    const auto type = parseStructType(allocator);
+    return { type, type ? type->encoded_location() : ZERO_LOC };
+}
+
 UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::UnionKw) {
@@ -274,6 +283,11 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
     }
 }
 
+TypeLoc Parser::parseUnionTypeLoc(ASTAllocator& allocator) {
+    const auto type = parseStructType(allocator);
+    return { type, type ? type->encoded_location() : ZERO_LOC };
+}
+
 // (First & Second) & Third = First & (Second & Third)
 // (First & Second) | Third = (First & Second) | Third
 // (First | Second) & Third = First | (Second & Third)
@@ -294,7 +308,7 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
             error("expected second type in expression type");
             return firstType;
         }
-        auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd, loc_first);
+        auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd);
         auto currentExpr = rootExpr;
         while(true) {
             const auto type = token->type;
@@ -309,12 +323,12 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
                 }
                 if(!isNextLogicalAnd && currentExpr->isLogicalAnd) {
                     const auto isCurrentRoot = currentExpr == rootExpr;
-                    currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextType, false, loc);
+                    currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextType, false);
                     if(isCurrentRoot) {
                         rootExpr = currentExpr;
                     }
                 } else {
-                    const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextType, isNextLogicalAnd, loc);
+                    const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextType, isNextLogicalAnd);
                     currentExpr->secondType = newExpr;
                     currentExpr = newExpr;
                 }
@@ -347,7 +361,7 @@ MembersContainer* find_container_parent(ASTNode* parent) {
  * dyn mut Phone* <--- mut finds pointer type, makes it's child linked type mutable \n
  * mut Phone** <-- mut finds pointer type, makes it's child pointer type mutable and grand child linked type mutable \n
  */
-BaseType* Parser::parseType(ASTAllocator& allocator) {
+TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
 
     switch(token->type) {
         case TokenType::SelfKw: {
@@ -355,16 +369,16 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             token++;
             const auto parent = find_container_parent(parent_node);
             if(parent) {
-               return new (allocator.allocate<LinkedType>()) LinkedType((ASTNode*) parent, loc_single(self_tok));
+               return {new (allocator.allocate<LinkedType>()) LinkedType((ASTNode*) parent), loc_single(self_tok)};
             } else {
                 error("couldn't find the parent container");
-                return nullptr;
+                return {nullptr, ZERO_LOC};
             }
         }
         case TokenType::StructKw:
-            return parseStructType(allocator);
+            return parseStructTypeLoc(allocator);
         case TokenType::UnionKw:
-            return parseUnionType(allocator);
+            return parseUnionTypeLoc(allocator);
         case TokenType::LBracket:{
             token++;
             const auto has_number = token->type == TokenType::Number;
@@ -374,20 +388,20 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
                 token++;
             }
             if(consumeToken(TokenType::RBracket)) {
-                auto lambdaType = parseLambdaType(allocator, true);
+                auto lambdaType = parseLambdaTypeLoc(allocator, true);
                 if(lambdaType) {
                     return lambdaType;
                 } else {
                     error("expected a lambda type after '[]'");
-                    return nullptr;
+                    return { nullptr, ZERO_LOC };
                 }
             } else {
                 error("expected ']' after '[' for lambda type");
-                return nullptr;
+                return { nullptr, ZERO_LOC };
             }
         }
         case TokenType::LParen:
-            return parseLambdaType(allocator, false);
+            return parseLambdaTypeLoc(allocator, false);
         case TokenType::MultiplySym: {
             const auto ptrToken = token;
             token++;
@@ -397,10 +411,10 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             }
             auto type = parseType(allocator);
             if (type) {
-                return new(allocator.allocate<PointerType>()) PointerType(type, loc_single(ptrToken), is_mutable);
+                return { new(allocator.allocate<PointerType>()) PointerType(type, is_mutable), loc_single(ptrToken) };
             } else {
                 error("expected a type after the *");
-                return nullptr;
+                return {nullptr, ZERO_LOC};
             }
         }
         case TokenType::AmpersandSym: {
@@ -412,10 +426,10 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             }
             auto type = parseType(allocator);
             if(type) {
-                return new (allocator.allocate<ReferenceType>()) ReferenceType(type, loc_single(refToken), is_mutable);
+                return { new(allocator.allocate<ReferenceType>()) ReferenceType(type, is_mutable), loc_single(refToken) };
             } else {
                 error("expected a type after the &");
-                return nullptr;
+                return {nullptr, ZERO_LOC};;
             }
         }
         case TokenType::DynKw: {
@@ -423,21 +437,23 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
             token++;
             auto type = parseType(allocator);
             if (type) {
-                return make_dynamic_type(allocator, type, loc_single(dynToken));
+                const auto loc = loc_single(dynToken);
+                return { make_dynamic_type(allocator, type), loc };
             } else {
                 error("expected a type after the qualifier");
-                return nullptr;
+                return {nullptr, ZERO_LOC};;
             }
         }
         case TokenType::MutKw: {
+            const auto loc = loc_single(token);
             token++;
             auto type = parseType(allocator);
             if(type) {
                 type->make_mutable();
-                return type;
+                return { type, loc };
             } else {
                 error("expected a type after the qualifier");
-                return nullptr;
+                return {nullptr, ZERO_LOC};;
             }
         }
         default:
@@ -449,77 +465,77 @@ BaseType* Parser::parseType(ASTAllocator& allocator) {
     if(Token::isKeywordOrId(idType)) {
         token++;
     } else {
-        return nullptr;
+        return {nullptr, ZERO_LOC};;
     }
     const auto location = loc_single(typeToken);
     BaseType* type;
     switch(idType) {
         case TokenType::AnyKw:
-            type = new (allocator.allocate<AnyType>()) AnyType(location);
+            type = new (allocator.allocate<AnyType>()) AnyType();
             break;
         case TokenType::BoolKw:
-            type = new (allocator.allocate<BoolType>()) BoolType(location);
+            type = new (allocator.allocate<BoolType>()) BoolType();
             break;
         case TokenType::CharKw:
-            type = new (allocator.allocate<CharType>()) CharType(location);
+            type = new (allocator.allocate<CharType>()) CharType();
             break;
         case TokenType::UCharKw:
-            type = new (allocator.allocate<UCharType>()) UCharType(location);
+            type = new (allocator.allocate<UCharType>()) UCharType();
             break;
         case TokenType::DoubleKw:
-            type = new (allocator.allocate<DoubleType>()) DoubleType(location);
+            type = new (allocator.allocate<DoubleType>()) DoubleType();
             break;
         case TokenType::FloatKw:
-            type = new (allocator.allocate<FloatType>()) FloatType(location);
+            type = new (allocator.allocate<FloatType>()) FloatType();
             break;
         case TokenType::LongdoubleKw:
-            type = new (allocator.allocate<LongDoubleType>()) LongDoubleType(location);
+            type = new (allocator.allocate<LongDoubleType>()) LongDoubleType();
             break;
         case TokenType::IntKw:
-            type = new (allocator.allocate<IntType>()) IntType(location);
+            type = new (allocator.allocate<IntType>()) IntType();
             break;
         case TokenType::UIntKw:
-            type = new (allocator.allocate<UIntType>()) UIntType(location);
+            type = new (allocator.allocate<UIntType>()) UIntType();
             break;
         case TokenType::ShortKw:
-            type = new (allocator.allocate<ShortType>()) ShortType(location);
+            type = new (allocator.allocate<ShortType>()) ShortType();
             break;
         case TokenType::UShortKw:
-            type = new (allocator.allocate<UShortType>()) UShortType(location);
+            type = new (allocator.allocate<UShortType>()) UShortType();
             break;
         case TokenType::LongKw:
-            type = new (allocator.allocate<LongType>()) LongType(location);
+            type = new (allocator.allocate<LongType>()) LongType();
             break;
         case TokenType::ULongKw:
-            type = new (allocator.allocate<ULongType>()) ULongType(location);
+            type = new (allocator.allocate<ULongType>()) ULongType();
             break;
         case TokenType::BigintKw:
-            type = new (allocator.allocate<BigIntType>()) BigIntType(location);
+            type = new (allocator.allocate<BigIntType>()) BigIntType();
             break;
         case TokenType::UBigintKw:
-            type = new (allocator.allocate<UBigIntType>()) UBigIntType(location);
+            type = new (allocator.allocate<UBigIntType>()) UBigIntType();
             break;
         case TokenType::Int128Kw:
-            type = new (allocator.allocate<Int128Type>()) Int128Type(location);
+            type = new (allocator.allocate<Int128Type>()) Int128Type();
             break;
         case TokenType::Uint128Kw:
-            type = new (allocator.allocate<UInt128Type>()) UInt128Type(location);
+            type = new (allocator.allocate<UInt128Type>()) UInt128Type();
             break;
         case TokenType::Float128Kw:
-            type = new (allocator.allocate<Float128Type>()) Float128Type(location);
+            type = new (allocator.allocate<Float128Type>()) Float128Type();
             break;
         case TokenType::VoidKw:
-            type = new (allocator.allocate<VoidType>()) VoidType(location);
+            type = new (allocator.allocate<VoidType>()) VoidType();
             break;
         default:
             if(token->type == TokenType::DoubleColonSym) {
                 type = parseLinkedValueType(allocator, typeToken, location);
             } else {
-                type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value), location);
+                type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
             }
             type = parseGenericTypeAfterId(allocator, type);
             break;
     }
     type = parseArrayAndPointerTypesAfterTypeId(allocator, type);
-    return type;
+    return {type, location};
 }

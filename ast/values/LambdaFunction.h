@@ -37,12 +37,16 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, false, location), scope(parent_node, location) {
+    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
 
     }
 
     ASTNode* get_parent() final {
         return scope.parent();
+    }
+
+    SourceLocation get_location() final {
+        return encoded_location();
     }
 
     LambdaFunction* as_lambda() final {

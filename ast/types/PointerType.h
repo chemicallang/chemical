@@ -8,7 +8,7 @@
 class PointerType : public BaseType {
 protected:
 
-    PointerType(const PointerType& other) : BaseType(BaseTypeKind::Pointer, other.encoded_location()), type(other.type), is_mutable(other.is_mutable) {
+    PointerType(const PointerType& other) : BaseType(BaseTypeKind::Pointer), type(other.type), is_mutable(other.is_mutable) {
 
     }
 
@@ -25,7 +25,7 @@ public:
     /**
      * constructor
      */
-    constexpr PointerType(BaseType* type, SourceLocation location, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Pointer, location), is_mutable(is_mutable) {
+    constexpr PointerType(BaseType* type, bool is_mutable) : type(type), BaseType(BaseTypeKind::Pointer), is_mutable(is_mutable) {
 
     }
 
@@ -50,10 +50,10 @@ public:
 
     [[nodiscard]]
     PointerType *copy(ASTAllocator& allocator) const final {
-        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), encoded_location(), is_mutable);
+        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), is_mutable);
     }
 
-    bool link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
     ASTNode *linked_node() final;
 

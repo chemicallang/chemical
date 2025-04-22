@@ -34,7 +34,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UCharType>()) UCharType(encoded_location());
+        return new (allocator.allocate<UCharType>()) UCharType();
     }
 
     bool is_unsigned() final {

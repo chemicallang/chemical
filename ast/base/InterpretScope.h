@@ -156,14 +156,24 @@ public:
     }
 
     /**
-     * The errors are stored in global scope only
+     * emit an error for given node
      */
-    void error(std::string& err, ASTAny* any);
+    void error(std::string& err, ASTNode* any);
 
     /**
-     * an interpret scope error
+     * emit an error for given value
      */
-    void error(std::string_view err, ASTAny* any);
+    void error(std::string& err, Value* any);
+
+    /**
+     *  emit an error for given node
+     */
+    void error(std::string_view err, ASTNode* any);
+
+    /**
+     * emit an error for given value
+     */
+    void error(std::string_view err, Value* any);
 
     /**
      * Values that want to be deleted when the scope ends

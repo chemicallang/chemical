@@ -23,7 +23,7 @@ public:
     constexpr AddrOfValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, location), value(value), _ptr_type(nullptr, location) {
+    ) : Value(ValueKind::AddrOfValue, location), value(value), _ptr_type(nullptr, false) {
 
     }
 

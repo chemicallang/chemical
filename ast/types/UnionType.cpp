@@ -4,7 +4,7 @@
 #include "ast/structures/VariablesContainer.h"
 #include "compiler/SymbolResolver.h"
 
-bool UnionType::link(SymbolResolver &linker) {
+bool UnionType::link(SymbolResolver &linker, SourceLocation loc) {
     take_variables_from_parsed_nodes(linker);
     VariablesContainer::link_variables_signature(linker);
     if(!name.empty()) {

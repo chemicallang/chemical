@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr BoolType(SourceLocation location) : BaseType(BaseTypeKind::Bool, location) {
+    constexpr BoolType() : BaseType(BaseTypeKind::Bool) {
 
     }
 
@@ -29,7 +29,7 @@ public:
     }
 
     virtual BoolType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
+        return new (allocator.allocate<BoolType>()) BoolType();
     }
 
 #ifdef COMPILER_BUILD

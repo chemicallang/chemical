@@ -23,7 +23,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(encoded_location());
+        return new (allocator.allocate<UBigIntType>()) UBigIntType();
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;

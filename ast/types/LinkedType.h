@@ -17,7 +17,7 @@ public:
     // chem::string_view cannot_delete_variable;
     ASTNode *linked;
 
-    constexpr LinkedType(ASTNode* linked, SourceLocation location) : BaseType(BaseTypeKind::Linked, location), linked(linked) {
+    constexpr LinkedType(ASTNode* linked) : BaseType(BaseTypeKind::Linked), linked(linked) {
 
     }
 
@@ -35,7 +35,7 @@ public:
 
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<LinkedType>()) LinkedType(linked, encoded_location());
+        return new (allocator.allocate<LinkedType>()) LinkedType(linked);
     }
 
     inline chem::string_view linked_name() {
@@ -67,33 +67,22 @@ private:
 public:
 
     constexpr NamedLinkedType(
-        chem::string_view type,
-        SourceLocation location
-    ) : LinkedType((ASTNode*) nullptr, location), link_name(type) {
+        chem::string_view type
+    ) : LinkedType((ASTNode*) nullptr), link_name(type) {
 
     }
 
-    [[deprecated]]
     constexpr NamedLinkedType(
         chem::string_view type,
-        SourceLocation location,
         ASTNode* linked
-    ) : LinkedType(linked, location), link_name(type) {
-
-    }
-
-    constexpr NamedLinkedType(
-        chem::string_view type,
-        ASTNode* linked,
-        SourceLocation location
-    ) : LinkedType(linked, location), link_name(type) {
+    ) : LinkedType(linked), link_name(type) {
 
     }
 
     /**
      * the link method
      */
-    bool link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
     /**
      * avoid using it, however this could provide debugging capabilities if you know linked type is a named linked type

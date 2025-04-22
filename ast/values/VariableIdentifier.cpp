@@ -43,8 +43,8 @@ bool VariableIdentifier::link(SymbolResolver &linker, bool check_access, Value**
         if(linked->kind() == ASTNodeKind::GenericTypeParam) {
             if(ptr_ref) {
                 auto& allocator = *linker.ast_allocator;
-                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked, encoded_location());
-                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type);
+                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked);
+                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, encoded_location());
                 return true;
             } else {
                 linker.error(this) << "cannot replace identifier '" << value << "' that references a generic type parameter";

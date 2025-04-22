@@ -17,17 +17,15 @@ public:
 
     inline constexpr ArrayType(
         BaseType* elem_type,
-        Value* array_size_val,
-        SourceLocation location
-    ) : BaseType(BaseTypeKind::Array, location), elem_type(elem_type), array_size_value(array_size_val) {
+        Value* array_size_val
+    ) : BaseType(BaseTypeKind::Array), elem_type(elem_type), array_size_value(array_size_val) {
 
     }
 
     inline constexpr ArrayType(
             BaseType* elem_type,
-            uint64_t array_size,
-            SourceLocation location
-    ) : BaseType(BaseTypeKind::Array, location), elem_type(elem_type), array_size_value(nullptr), array_size(array_size) {
+            uint64_t array_size
+    ) : BaseType(BaseTypeKind::Array), elem_type(elem_type), array_size_value(nullptr), array_size(array_size) {
 
     }
 
@@ -57,7 +55,7 @@ public:
 
     bool satisfies(BaseType *type) final;
 
-    bool link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const final {
@@ -78,7 +76,7 @@ public:
 
     [[nodiscard]]
     ArrayType* copy(ASTAllocator& allocator) const final {
-        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value, encoded_location());
+        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value);
         t->array_size = array_size;
         return t;
     }

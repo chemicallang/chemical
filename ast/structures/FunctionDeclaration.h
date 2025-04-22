@@ -183,7 +183,7 @@ public:
             AccessSpecifier specifier = AccessSpecifier::Internal,
             bool signature_resolved = false,
             ASTNodeKind k = ASTNodeKind::FunctionDecl
-    )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, location, signature_resolved),
+    )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, signature_resolved),
          identifier(identifier),
          attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false, false) {
     }
@@ -352,8 +352,12 @@ public:
         return !is_comptime() && (has_usage() || is_exported_fast() || is_auto_called_func());
     }
 
-    ASTNode* get_parent() override {
+    ASTNode* get_parent() final {
         return parent();
+    }
+
+    SourceLocation get_location() final {
+        return encoded_location();
     }
 
     /**
@@ -671,7 +675,7 @@ public:
         Value* parent_val,
         InterpretScope *fn_scope,
         bool evaluate_refs = true,
-        ASTAny* debug_value = nullptr
+        Value* debug_value = nullptr
     );
 
     // called by the return statement

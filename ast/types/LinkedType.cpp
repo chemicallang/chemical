@@ -78,12 +78,12 @@ bool LinkedType::satisfies(BaseType *other) {
     return false;
 }
 
-bool NamedLinkedType::link(SymbolResolver &linker) {
+bool NamedLinkedType::link(SymbolResolver &linker, SourceLocation loc) {
     const auto found = linker.find(link_name);
     if(found) {
         linked = found;
     } else if(linked == nullptr) {
-        linker.error(this) << "unresolved symbol, couldn't find referenced type " << link_name;
+        linker.error(loc) << "unresolved symbol, couldn't find referenced type " << link_name;
         return false;
     }
     return true;

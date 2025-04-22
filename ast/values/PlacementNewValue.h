@@ -20,7 +20,7 @@ public:
         Value* pointer,
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::PlacementNewValue, location), pointer(pointer), value(value), ptr_type(nullptr, 0, false) {
+    ) : Value(ValueKind::PlacementNewValue, location), pointer(pointer), value(value), ptr_type(nullptr, false) {
 
     }
 

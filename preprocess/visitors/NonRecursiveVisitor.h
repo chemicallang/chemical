@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/ast_fwd.h"
@@ -1246,6 +1246,9 @@ public:
     }
     inline void visit(BaseType* type) {
         VisitTypeNoNullCheck(type);
+    }
+    inline void visit(TypeLoc& type) {
+        VisitTypeNoNullCheck(const_cast<BaseType*>(type.getType()));
     }
     inline void visit(Scope& scope) {
         static_cast<Derived*>(this)->VisitScope(&scope);

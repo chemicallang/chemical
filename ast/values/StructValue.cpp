@@ -96,7 +96,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
 }
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
-    auto dyn_obj = (llvm::AllocaInst*) gen.allocate_dyn_obj_based_on_type(expected_type);
+    auto dyn_obj = (llvm::AllocaInst*) gen.allocate_dyn_obj_based_on_type(expected_type, encoded_location());
     const auto alloca1 = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
     gen.di.instr(alloca1, encoded_location());
     allocaInst = alloca1;

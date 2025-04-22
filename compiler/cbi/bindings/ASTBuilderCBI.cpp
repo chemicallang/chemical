@@ -120,35 +120,35 @@ SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn
 }
 
 AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<AnyType>()) AnyType(location);
+    return new (allocator->allocate<AnyType>()) AnyType();
 }
 
 ArrayType* ASTBuildermake_array_type(ASTAllocator* allocator, BaseType* elem_type, int array_size, uint64_t location) {
-    return new (allocator->allocate<ArrayType>()) ArrayType(elem_type, array_size, location);
+    return new (allocator->allocate<ArrayType>()) ArrayType(elem_type, array_size);
 }
 
 BigIntType* ASTBuildermake_bigint_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<BigIntType>()) BigIntType(location);
+    return new (allocator->allocate<BigIntType>()) BigIntType();
 }
 
 BoolType* ASTBuildermake_bool_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<BoolType>()) BoolType(location);
+    return new (allocator->allocate<BoolType>()) BoolType();
 }
 
 BoolType* ASTBuildermake_char_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<BoolType>()) BoolType(location);
+    return new (allocator->allocate<BoolType>()) BoolType();
 }
 
 DoubleType* ASTBuildermake_double_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<DoubleType>()) DoubleType(location);
+    return new (allocator->allocate<DoubleType>()) DoubleType();
 }
 
 DynamicType* ASTBuildermake_dynamic_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<DynamicType>()) DynamicType(child_type, location);
+    return new (allocator->allocate<DynamicType>()) DynamicType(child_type);
 }
 
 FloatType* ASTBuildermake_float_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<FloatType>()) FloatType(location);
+    return new (allocator->allocate<FloatType>()) FloatType();
 }
 
 FunctionType* ASTBuildermake_func_type(ASTAllocator* allocator, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, uint64_t location) {
@@ -161,71 +161,71 @@ GenericType* ASTBuildermake_generic_type(ASTAllocator* allocator, LinkedType* li
 }
 
 Int128Type* ASTBuildermake_int128_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<Int128Type>()) Int128Type(location);
+    return new (allocator->allocate<Int128Type>()) Int128Type();
 }
 
 IntType* ASTBuildermake_int_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<IntType>()) IntType(location);
+    return new (allocator->allocate<IntType>()) IntType();
 }
 
 LinkedType* ASTBuildermake_linked_type(ASTAllocator* allocator, chem::string_view* type, ASTNode* linked, uint64_t location) {
-    return new (allocator->allocate<LinkedType>()) LinkedType(linked, location);
+    return new (allocator->allocate<LinkedType>()) LinkedType(linked);
 }
 
 LinkedValueType* ASTBuildermake_linked_value_type(ASTAllocator* allocator, Value* value, uint64_t location) {
-    return new (allocator->allocate<LinkedValueType>()) LinkedValueType(value, location);
+    return new (allocator->allocate<LinkedValueType>()) LinkedValueType(value);
 }
 
 LiteralType* ASTBuildermake_literal_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<LiteralType>()) LiteralType(child_type, location);
+    return new (allocator->allocate<LiteralType>()) LiteralType(child_type);
 }
 
 LongType* ASTBuildermake_long_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<LongType>()) LongType(location);
+    return new (allocator->allocate<LongType>()) LongType();
 }
 
 PointerType* ASTBuildermake_ptr_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<PointerType>()) PointerType(child_type, location);
+    return new (allocator->allocate<PointerType>()) PointerType(child_type, false);
 }
 
 ReferenceType* ASTBuildermake_reference_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<ReferenceType>()) ReferenceType(child_type, location);
+    return new (allocator->allocate<ReferenceType>()) ReferenceType(child_type, false);
 }
 
 ShortType* ASTBuildermake_short_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<ShortType>()) ShortType(location);
+    return new (allocator->allocate<ShortType>()) ShortType();
 }
 
 StringType* ASTBuildermake_string_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<StringType>()) StringType(location);
+    return new (allocator->allocate<StringType>()) StringType();
 }
 
 UBigIntType* ASTBuildermake_ubigint_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UBigIntType>()) UBigIntType(location);
+    return new (allocator->allocate<UBigIntType>()) UBigIntType();
 }
 
 UCharType* ASTBuildermake_uchar_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UCharType>()) UCharType(location);
+    return new (allocator->allocate<UCharType>()) UCharType();
 }
 
 UInt128Type* ASTBuildermake_uint128_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UInt128Type>()) UInt128Type(location);
+    return new (allocator->allocate<UInt128Type>()) UInt128Type();
 }
 
 UIntType* ASTBuildermake_uint_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UIntType>()) UIntType(location);
+    return new (allocator->allocate<UIntType>()) UIntType();
 }
 
 ULongType* ASTBuildermake_ulong_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<ULongType>()) ULongType(location);
+    return new (allocator->allocate<ULongType>()) ULongType();
 }
 
 UShortType* ASTBuildermake_ushort_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UShortType>()) UShortType(location);
+    return new (allocator->allocate<UShortType>()) UShortType();
 }
 
 VoidType* ASTBuildermake_void_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<VoidType>()) VoidType(location);
+    return new (allocator->allocate<VoidType>()) VoidType();
 }
 
 AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, bool is_node, uint64_t location) {
@@ -456,7 +456,7 @@ FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::stri
 
 FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
     // TODO casting function type as parent node, this is wrong
-    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, type, index, value, implicit, (ASTNode*) decl, location);
+    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, (ASTNode*) decl, location);
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTAllocator* allocator, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {

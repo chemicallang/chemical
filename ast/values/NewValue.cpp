@@ -20,17 +20,17 @@ bool PlacementNewValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType
 }
 
 BaseType* NewTypedValue::create_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<PointerType>()) PointerType(type, encoded_location(), true);
+    return new (allocator.allocate<PointerType>()) PointerType(type, true);
 }
 
 BaseType* NewValue::create_type(ASTAllocator &allocator) {
     auto type = value->create_type(allocator);
-    return new (allocator.allocate<PointerType>()) PointerType(type, encoded_location(), true);
+    return new (allocator.allocate<PointerType>()) PointerType(type, true);
 }
 
 BaseType* PlacementNewValue::create_type(ASTAllocator &allocator) {
     auto type = value->create_type(allocator);
-    return new (allocator.allocate<PointerType>()) PointerType(type, encoded_location(), true);
+    return new (allocator.allocate<PointerType>()) PointerType(type, true);
 }
 
 BaseType* NewTypedValue::known_type() {

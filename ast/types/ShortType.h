@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr ShortType(SourceLocation location) : IntNType(location) {
+    constexpr ShortType() : IntNType() {
 
     }
 
@@ -33,11 +33,11 @@ public:
         return 2;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     ShortType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ShortType>()) ShortType(encoded_location());
+        return new (allocator.allocate<ShortType>()) ShortType();
     }
 
 };

@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr LongDoubleType(SourceLocation location) : BaseType(BaseTypeKind::LongDouble, location) {
+    constexpr LongDoubleType() : BaseType(BaseTypeKind::LongDouble) {
 
     }
 
@@ -30,7 +30,7 @@ public:
 
     [[nodiscard]]
     LongDoubleType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<LongDoubleType>()) LongDoubleType(encoded_location());
+        return new (allocator.allocate<LongDoubleType>()) LongDoubleType();
     }
 
 #ifdef COMPILER_BUILD

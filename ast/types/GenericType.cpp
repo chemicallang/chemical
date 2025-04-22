@@ -12,7 +12,7 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/utils/GenericUtils.h"
 
-bool GenericType::link(SymbolResolver &linker) {
+bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
     referenced->link(linker);
     const auto linked = referenced->linked;
     if(!linked) {

@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr Int128Type(SourceLocation location) : IntNType(location) {
+    constexpr Int128Type() : IntNType() {
 
     }
 
@@ -33,11 +33,11 @@ public:
         return 16;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     Int128Type *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<Int128Type>()) Int128Type(encoded_location());
+        return new (allocator.allocate<Int128Type>()) Int128Type();
     }
 
 };

@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 #include "compiler/lab/TargetData.h"
+#include "TypeLoc.h"
 
 class BackendContext;
 
@@ -158,11 +159,11 @@ public:
     /**
      * apart from adding a diagnostic, this notifies in debug mode
      */
-    void interpret_error(std::string& error, BaseType* any);
+    void interpret_error(std::string& error, const TypeLoc& any);
 
     /**
      * apart from adding a diagnostic, this notifies in debug mode
      */
-    void interpret_error(std::string_view& error, BaseType* any);
+    void interpret_error(std::string_view& error, const TypeLoc& any);
 
 };

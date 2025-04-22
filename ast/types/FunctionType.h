@@ -73,10 +73,9 @@ public:
             BaseType* returnType,
             bool isVariadic,
             bool isCapturing,
-            SourceLocation location,
-            bool signature_resolved = false
+            bool signature_resolved
     ) : data(false, isVariadic, signature_resolved, isCapturing), returnType(returnType),
-        BaseType(BaseTypeKind::Function, location) {
+        BaseType(BaseTypeKind::Function) {
 
     }
 
@@ -88,10 +87,9 @@ public:
             bool isExtension,
             bool isVariadic,
             bool isCapturing,
-            SourceLocation location,
-            bool signature_resolved = false
+            bool signature_resolved
     ) : data(isExtension, isVariadic, signature_resolved, isCapturing), returnType(returnType),
-        BaseType(BaseTypeKind::Function, location) {
+        BaseType(BaseTypeKind::Function) {
 
     }
 
@@ -219,7 +217,7 @@ public:
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const final;
 
-    bool link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
 #ifdef COMPILER_BUILD
 
@@ -295,6 +293,11 @@ public:
      * get the parent node
      */
     virtual ASTNode* get_parent() = 0;
+
+    /**
+     * get the encoded location
+     */
+    virtual SourceLocation get_location() = 0;
 
     /**
        * copy function type body into the other

@@ -227,7 +227,7 @@ llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &
 llvm::Type *UnionType::llvm_type(Codegen &gen) {
     auto largest = largest_member();
     if(!largest) {
-        gen.error("Couldn't determine the largest member of the unnamed union", (BaseType*) this);
+        gen.error("Couldn't determine the largest member of the unnamed union", ASTNode::encoded_location());
         return nullptr;
     }
     std::vector<llvm::Type*> members {largest->llvm_type(gen)};
@@ -1555,7 +1555,7 @@ llvm::Value *EnumMember::llvm_load(Codegen& gen, SourceLocation location) {
     if(init_value) {
         return init_value->llvm_value(gen, nullptr);
     } else {
-        return parent()->get_underlying_integer_type()->create(gen.allocator, get_default_index())->llvm_value(gen);
+        return parent()->get_underlying_integer_type()->create(gen.allocator, get_default_index(), location)->llvm_value(gen);
     }
 }
 

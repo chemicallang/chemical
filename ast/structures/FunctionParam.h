@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/TypeLoc.h"
 
 class FunctionType;
 
@@ -38,7 +39,7 @@ class FunctionParam : public ASTNode {
 public:
 
     chem::string_view name;
-    BaseType* type;
+    TypeLoc type;
     unsigned int index;
     Value* defValue;
     FunctionParamAttributes attrs;
@@ -53,7 +54,7 @@ public:
      */
     constexpr FunctionParam(
             chem::string_view name,
-            BaseType* type,
+            TypeLoc type,
             unsigned int index,
             Value* defValue,
             bool is_implicit,

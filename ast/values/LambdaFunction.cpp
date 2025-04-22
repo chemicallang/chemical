@@ -93,7 +93,7 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
             if(returnStmt->value) {
                 return returnStmt->value->create_type(allocator);
             } else {
-                return new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
+                return new (allocator.allocate<VoidType>()) VoidType();
             }
         } else {
             const auto loop_ast = node->as_loop_ast();
@@ -105,7 +105,7 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
             }
         }
     }
-    return new (allocator.allocate<VoidType>()) VoidType(ZERO_LOC);
+    return new (allocator.allocate<VoidType>()) VoidType();
 }
 
 bool link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {

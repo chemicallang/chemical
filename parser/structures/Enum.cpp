@@ -44,7 +44,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
                 return decl;
             }
         } else {
-            decl->underlying_type = new (allocator.allocate<IntType>()) IntType(loc);
+            decl->underlying_type = new (allocator.allocate<IntType>()) IntType();
         }
 
         if(!consumeToken(TokenType::LBrace)) {

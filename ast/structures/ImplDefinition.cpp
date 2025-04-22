@@ -73,11 +73,11 @@ void ImplDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_pt
         const auto interface_def = linked->as_interface_def();
         if(interface_def) {
             if(interface_def->is_static() && interface_def->has_implementation()) {
-                linker.error("static interface must have only a single implementation", interface_type);
+                linker.error("static interface must have only a single implementation", encoded_location());
             }
             interface_def->register_impl(this);
         } else {
-            linker.error("expected type to be an interface", interface_type);
+            linker.error("expected type to be an interface", encoded_location());
         }
     }
 }
@@ -90,7 +90,7 @@ void ImplDefinition::link_signature_no_scope(SymbolResolver &linker) {
     }
     const auto linked = linked_node->as_interface_def();
     if(!linked) {
-        linker.error(interface_type) << "couldn't find interface by name " << interface_name << " for implementation";
+        linker.error(encoded_location()) << "couldn't find interface by name " << interface_name << " for implementation";
         return;
     }
     for(auto& func : master_functions()) {

@@ -1,6 +1,6 @@
 public namespace std {
 
-    struct string_view : Hashable, Eq {
+    public struct string_view : Hashable, Eq {
 
         var _data : *char
         var _size : size_t

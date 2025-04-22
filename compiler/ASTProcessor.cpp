@@ -527,6 +527,7 @@ bool ASTProcessor::import_chemical_file(
             resolver->comptime_scope.loc_man,
             job_allocator,
             use_job_allocator ? job_allocator : mod_allocator,
+            type_builder,
             resolver->is64Bit,
             &binder
     );
@@ -613,6 +614,7 @@ bool ASTProcessor::import_chemical_mod_file(
             compiler.loc_man,
             *compiler.job_allocator,
             *compiler.mod_allocator,
+            compiler.type_builder,
             is64Bit,
             &compiler.binder
     );

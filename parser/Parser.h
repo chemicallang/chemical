@@ -32,6 +32,8 @@ class GlobalInterpretScope;
 
 class ValueAndOperatorStack;
 
+class TypeBuilder;
+
 /**
  * A function that is called upon encountering an annotation
  */
@@ -87,6 +89,11 @@ public:
     ASTAllocator& mod_allocator;
 
     /**
+     * the type builder allows to cache types
+     */
+    TypeBuilder& typeBuilder;
+
+    /**
      * the ast we're generating, is it for a 64 bit target
      */
     bool is64Bit;
@@ -111,6 +118,7 @@ public:
         LocationManager& loc_man,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
+        TypeBuilder& typeBuilder,
         bool is64Bit,
         CompilerBinder* binder = nullptr
     );

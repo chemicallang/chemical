@@ -16,7 +16,7 @@ public func fnv1a_hash_32(str : *char) : uint {
 
 public func fnv1_hash(s : *char) : size_t {
     var ptr = s;
-    var hash : size_t = 0xcbf29ce484222325;
+    var hash : size_t = 0xcbf29ce484222325 as size_t;
     while(true) {
         const c = *ptr;
         if(c == '\0') {

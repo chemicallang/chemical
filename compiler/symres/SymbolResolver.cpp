@@ -25,7 +25,7 @@ SymbolResolver::SymbolResolver(
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
-    error(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
+    warn(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
 }
 
 void SymbolResolver::dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {

@@ -55,3 +55,8 @@ public type rsize_t = size_t;
  */
 @extern
 public type errno_t = int;
+
+/**
+ * @def NULL Pointer to nothing.
+ */
+@comptime public const NULL : *void = null

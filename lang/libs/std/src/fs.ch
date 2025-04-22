@@ -31,7 +31,7 @@ public namespace fs {
             pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
         }
         if(pos > 0) {
-            final.append_with_len(str.data(), pos + 1)
+            final.append_with_len(str.data(), (pos + 1) as size_t)
         }
         return final;
     }
@@ -72,7 +72,7 @@ public namespace fs {
     @comptime public const COPY_OVERWRITE = CopyOptions.Overwrite;
     @comptime public const COPY_SKIP_EXISTING = CopyOptions.SkipExisting;
 
-    public func path_exists(path : *char) : int {
+    public func path_exists(path : *char) : bool {
         if(def.windows) {
             return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
         } else {
@@ -81,13 +81,13 @@ public namespace fs {
         }
     }
 
-    public func is_directory(path : *char) : int {
+    public func is_directory(path : *char) : bool {
         if(def.windows) {
             const attributes = GetFileAttributesA(path);
             return (attributes != INVALID_FILE_ATTRIBUTES) && (attributes & FILE_ATTRIBUTE_DIRECTORY);
         } else {
             var st : Stat;
-            if (stat(path, &st) != 0) return 0;
+            if (stat(path, &st) != 0) return false;
             return S_ISDIR(st.st_mode);
         }
     }

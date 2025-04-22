@@ -10,9 +10,6 @@ if (def.windows) {
 
     public type off_t = long
 
-    /** @def NULL Pointer to nothing. */
-    @comptime public const NULL : *void = null
-
     /** @brief Windows handle type. */
     public type HANDLE = *mut void
     /** @brief Module handle. */

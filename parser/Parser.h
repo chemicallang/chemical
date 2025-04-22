@@ -22,6 +22,7 @@
 #include "ast/base/Annotation.h"
 #include "ast/base/LocatedIdentifier.h"
 #include "compiler/processor/ModuleFileData.h"
+#include "ast/base/TypeLoc.h"
 
 class CompilerBinder;
 
@@ -376,6 +377,11 @@ public:
     BaseType* parseLambdaType(ASTAllocator& allocator, bool isCapturing);
 
     /**
+     * parse a lambda type with location
+     */
+    TypeLoc parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing);
+
+    /**
      * parses a generic type after id
      */
     BaseType* parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* type);
@@ -401,9 +407,19 @@ public:
     StructType* parseStructType(ASTAllocator& allocator);
 
     /**
+     * parses a single struct type with location
+     */
+    TypeLoc parseStructTypeLoc(ASTAllocator& allocator);
+
+    /**
      * parses a single union type
      */
     UnionType* parseUnionType(ASTAllocator& allocator);
+
+    /**
+     * parses a single union type with location
+     */
+    TypeLoc parseUnionTypeLoc(ASTAllocator& allocator);
 
     /**
      * expression type only works with logical && and || operators
@@ -411,9 +427,16 @@ public:
     BaseType* parseExpressionType(ASTAllocator& allocator, BaseType* firstType);
 
     /**
+     * parse a single type with location
+     */
+    TypeLoc parseTypeLoc(ASTAllocator& allocator);
+
+    /**
      * parse a single type
      */
-    BaseType* parseType(ASTAllocator& allocator);
+    BaseType* parseType(ASTAllocator& allocator) {
+        return const_cast<BaseType*>(parseTypeLoc(allocator).getType());
+    }
 
     /**
      * top level access specified declarations

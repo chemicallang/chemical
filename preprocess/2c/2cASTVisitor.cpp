@@ -365,7 +365,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_vie
 
 void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_view& id) {
     if(type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType()) {
-        PointerType ptr_type(type, ZERO_LOC, true);
+        PointerType ptr_type(type, true);
         type_with_id(visitor, &ptr_type, id);
     } else {
         type_with_id(visitor, type, id);

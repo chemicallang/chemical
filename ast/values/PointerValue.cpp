@@ -86,7 +86,7 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
         }
         case BaseTypeKind::IntN:{
             const auto intNType = type->as_intn_type_unsafe();
-            return intNType->create(scope.allocator, deref_pointer(data, castedTypeSize));
+            return intNType->create(scope.allocator, deref_pointer(data, castedTypeSize), value_loc);
         }
         default:
             scope.error("dereferencing to unknown type", debugValue ? debugValue : this);

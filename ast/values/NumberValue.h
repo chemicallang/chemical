@@ -70,9 +70,9 @@ public:
     [[nodiscard]]
     BaseType* create_type(ASTAllocator &allocator) final {
         if(value > INT_MAX) {
-            return new (allocator.allocate<LongType>()) LongType(encoded_location());
+            return new (allocator.allocate<LongType>()) LongType();
         } else {
-            return new (allocator.allocate<IntType>()) IntType(encoded_location());
+            return new (allocator.allocate<IntType>()) IntType();
         }
     }
 

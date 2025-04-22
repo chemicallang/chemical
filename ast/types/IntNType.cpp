@@ -20,66 +20,66 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 
-const IntType IntType::instance(ZERO_LOC);
-const BigIntType BigIntType::instance(ZERO_LOC);
-const Int128Type Int128Type::instance(ZERO_LOC);
-const ShortType ShortType::instance(ZERO_LOC);
-const UBigIntType UBigIntType::instance(ZERO_LOC);
-const UInt128Type UInt128Type::instance(ZERO_LOC);
-const UIntType UIntType::instance(ZERO_LOC);
-const UShortType UShortType::instance(ZERO_LOC);
-const LongType LongType::instance(ZERO_LOC);
-const ULongType ULongType::instance(ZERO_LOC);
+const IntType IntType::instance;
+const BigIntType BigIntType::instance;
+const Int128Type Int128Type::instance;
+const ShortType ShortType::instance;
+const UBigIntType UBigIntType::instance;
+const UInt128Type UInt128Type::instance;
+const UIntType UIntType::instance;
+const UShortType UShortType::instance;
+const LongType LongType::instance;
+const ULongType ULongType::instance;
 
-Value *IntType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<IntValue>()) IntValue(value, ZERO_LOC);
+Value *IntType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<IntValue>()) IntValue(value, loc);
 }
 
-Value *CharType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<CharValue>()) CharValue(value, encoded_location());
+Value *CharType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<CharValue>()) CharValue(value, loc);
 }
 
-Value *UCharType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<UCharValue>()) UCharValue(value, encoded_location());
+Value *UCharType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<UCharValue>()) UCharValue(value, loc);
 }
 
-Value *UIntType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<UIntValue>()) UIntValue(value, encoded_location());
+Value *UIntType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<UIntValue>()) UIntValue(value, loc);
 }
 
-Value *ShortType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<ShortValue>()) ShortValue(value, encoded_location());
+Value *ShortType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<ShortValue>()) ShortValue(value, loc);
 }
 
-Value *UShortType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<UShortValue>()) UShortValue(value, encoded_location());
+Value *UShortType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<UShortValue>()) UShortValue(value, loc);
 }
 
-Value *LongType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<LongValue>()) LongValue(value, encoded_location());
+Value *LongType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<LongValue>()) LongValue(value, loc);
 }
 
-Value *ULongType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<ULongValue>()) ULongValue(value, encoded_location());
+Value *ULongType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<ULongValue>()) ULongValue(value, loc);
 }
 
-Value *BigIntType::create(ASTAllocator& allocator, uint64_t value) {
-    return new BigIntValue(value, encoded_location());
+Value *BigIntType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new BigIntValue(value, loc);
 }
 
-Value *UBigIntType::create(ASTAllocator& allocator, uint64_t value) {
-    return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, encoded_location());
+Value *UBigIntType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
+    return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, loc);
 }
 
-Value *Int128Type::create(ASTAllocator& allocator, uint64_t value) {
+Value *Int128Type::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
     // TODO is_neg
     bool is_neg = value < 0;
-    return new (allocator.allocate<Int128Value>()) Int128Value(is_neg ? -value : value, is_neg, encoded_location());
+    return new (allocator.allocate<Int128Value>()) Int128Value(is_neg ? -value : value, is_neg, loc);
 }
 
-Value *UInt128Type::create(ASTAllocator& allocator, uint64_t value) {
+Value *UInt128Type::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
     // TODO is_neg
-    return new (allocator.allocate<UInt128Value>()) UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, encoded_location());
+    return new (allocator.allocate<UInt128Value>()) UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, loc);
 }
 
 double get_double_value(Value* value, ValueKind k) {

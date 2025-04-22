@@ -54,12 +54,12 @@ void GlobalInterpretScope::interpret_error(std::string_view& error, Value* any) 
     interpret_error(error, any->encoded_location());
 }
 
-void GlobalInterpretScope::interpret_error(std::string& error, BaseType* any) {
-    interpret_error(error, any->encoded_location());
+void GlobalInterpretScope::interpret_error(std::string& error, const TypeLoc& any) {
+    interpret_error(error, any.encoded_location());
 }
 
-void GlobalInterpretScope::interpret_error(std::string_view& error, BaseType* any) {
-    interpret_error(error, any->encoded_location());
+void GlobalInterpretScope::interpret_error(std::string_view& error, const TypeLoc& any) {
+    interpret_error(error, any.encoded_location());
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

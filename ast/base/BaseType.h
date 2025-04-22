@@ -35,17 +35,19 @@ private:
      */
     BaseTypeKind const _kind;
 
-    /**
-     * the location of this node
-     */
-    SourceLocation const _location;
-
 public:
 
     /**
      * default constructor
      */
-    inline explicit constexpr BaseType(BaseTypeKind k, SourceLocation loc) noexcept : _kind(k), _location(loc) {
+    inline explicit constexpr BaseType(BaseTypeKind k) noexcept : _kind(k) {
+
+    }
+
+    /**
+     * default constructor
+     */
+    inline explicit constexpr BaseType(BaseTypeKind k, SourceLocation loc) noexcept : _kind(k) {
 
     }
 
@@ -64,13 +66,6 @@ public:
      */
     inline BaseTypeKind kind() const noexcept {
         return _kind;
-    }
-
-    /**
-     * get the encoded location
-     */
-    inline SourceLocation encoded_location() const noexcept {
-        return _location;
     }
 
     /**
@@ -149,8 +144,17 @@ public:
     /**
      * a type, or a referenced type, can link itself with its definition
      */
-    virtual bool link(SymbolResolver &linker) {
+    virtual bool link(SymbolResolver &linker, SourceLocation loc) {
         return true;
+    }
+
+    /**
+     * deprecated link method
+     * @deprecated
+     */
+    [[deprecated]]
+    inline bool link(SymbolResolver& linker) {
+        return link(linker, ZERO_LOC);
     }
 
     /**

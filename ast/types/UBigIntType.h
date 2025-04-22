@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr UBigIntType(SourceLocation location) : IntNType(location) {
+    constexpr UBigIntType() : IntNType() {
 
     }
 
@@ -33,11 +33,11 @@ public:
         return 8;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     UBigIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(encoded_location());
+        return new (allocator.allocate<UBigIntType>()) UBigIntType();
     }
 
 };

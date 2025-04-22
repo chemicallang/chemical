@@ -9,7 +9,7 @@ public:
 
     static const AnyType instance;
 
-    inline constexpr AnyType(SourceLocation location) : BaseType(BaseTypeKind::Any, location) {
+    inline constexpr AnyType() : BaseType(BaseTypeKind::Any) {
 
     }
 
@@ -27,7 +27,7 @@ public:
 
     [[nodiscard]]
     AnyType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<AnyType>()) AnyType(encoded_location());
+        return new (allocator.allocate<AnyType>()) AnyType();
     }
 
 #ifdef COMPILER_BUILD

@@ -18,21 +18,21 @@ public:
     /**
      * constructor
      */
-    GenericType(LinkedType* referenced) : BaseType(BaseTypeKind::Generic, referenced->encoded_location()), referenced(referenced) {
+    GenericType(LinkedType* referenced) : BaseType(BaseTypeKind::Generic), referenced(referenced) {
 
     }
 
     /**
      * constructor
      */
-    GenericType(LinkedType* referenced, std::vector<BaseType*> types) : BaseType(BaseTypeKind::Generic, referenced->encoded_location()), referenced(referenced), types(std::move(types)) {
+    GenericType(LinkedType* referenced, std::vector<BaseType*> types) : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)) {
 
     }
 
     /**
      * link func
      */
-    bool link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
     ASTNode *linked_node() final;
 

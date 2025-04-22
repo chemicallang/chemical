@@ -38,7 +38,7 @@ public:
     }
 
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
+        return new (allocator.allocate<BoolType>()) BoolType();
     }
 
 #ifdef COMPILER_BUILD

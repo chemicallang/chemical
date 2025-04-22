@@ -29,24 +29,24 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         if(Value::isNumberValue(firstValue->val_kind())) {
             auto value = ((IntNumValue*)firstValue)->get_num_value();
-            firstValue = ((IntNType*) secondType)->create(allocator, value);
+            firstValue = ((IntNType*) secondType)->create(allocator, value, firstValue->encoded_location());
         } else if(Value::isNumberValue(secondValue->val_kind())){
             auto value = ((IntNumValue*)secondValue)->get_num_value();
-            secondValue = ((IntNType*) firstType)->create(allocator, value);
+            secondValue = ((IntNType*) firstType)->create(allocator, value, secondValue->encoded_location());
         }
     }
     const auto first = getEnumDecl(firstType);
     if(first) {
         const auto second = secondValue->as_number_value();
         if(second) {
-            secondValue = first->get_underlying_integer_type()->create(allocator, second->value);
+            secondValue = first->get_underlying_integer_type()->create(allocator, second->value, secondValue->encoded_location());
         }
     } else {
         const auto second = getEnumDecl(secondType);
         if(second) {
             const auto firstVal = firstValue->as_number_value();
             if(firstVal) {
-                firstValue = second->get_underlying_integer_type()->create(allocator, firstVal->value);
+                firstValue = second->get_underlying_integer_type()->create(allocator, firstVal->value, firstValue->encoded_location());
             }
         }
     }
@@ -54,7 +54,7 @@ void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstT
 
 BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(operation >= Operation::IndexBooleanReturningStart && operation <= Operation::IndexBooleanReturningEnd) {
-        return new (allocator.allocate<BoolType>()) BoolType(encoded_location());
+        return new (allocator.allocate<BoolType>()) BoolType();
     }
     auto firstType = firstValue->create_type(allocator);
     auto secondType = secondValue->create_type(allocator);
@@ -83,7 +83,7 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     }
     // subtracting a pointer results in a long type
     if(operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return new (allocator.allocate<LongType>()) LongType(encoded_location());
+        return new (allocator.allocate<LongType>()) LongType();
     }
     return first;
 }

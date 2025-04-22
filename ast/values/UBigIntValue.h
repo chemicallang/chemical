@@ -34,7 +34,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType(encoded_location());
+        return new (allocator.allocate<UBigIntType>()) UBigIntType();
     }
 
     unsigned int get_num_bits(bool is64Bit) final {

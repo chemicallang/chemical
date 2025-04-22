@@ -50,7 +50,7 @@ public:
 
     [[nodiscard]]
     BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntType>()) IntType(encoded_location());
+        return new (allocator.allocate<IntType>()) IntType();
     }
 
     BaseType* known_type() final {

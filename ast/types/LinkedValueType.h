@@ -13,26 +13,25 @@ public:
     /**
      * constructor
      */
-    constexpr LinkedValueType(Value* value, SourceLocation location) : value(value), LinkedType((ASTNode*) nullptr, location) {
+    constexpr LinkedValueType(Value* value) : value(value), LinkedType((ASTNode*) nullptr) {
 
     }
 
     /**
      * constructor
      */
-    constexpr LinkedValueType(Value* value, ASTNode* linked, SourceLocation location) : value(value), LinkedType(linked, location) {
+    constexpr LinkedValueType(Value* value, ASTNode* linked) : value(value), LinkedType(linked) {
 
     }
 
     LinkedType* copy(ASTAllocator &allocator) const final {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(
             value->copy(allocator),
-            linked,
-            encoded_location()
+            linked
         );
     }
 
-    bool link(SymbolResolver &linker) final {
+    bool link(SymbolResolver &linker, SourceLocation loc) final {
         if(!value->link(linker, value)) {
             return false;
         }

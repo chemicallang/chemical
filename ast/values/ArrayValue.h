@@ -32,7 +32,7 @@ public:
             SourceLocation location,
             ASTAllocator& allocator
     ) : Value(ValueKind::ArrayValue, location) {
-        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size(), ZERO_LOC);
+        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size());
     }
 
     /**
@@ -45,7 +45,7 @@ public:
             SourceLocation location,
             ASTAllocator& allocator
     ) : Value(ValueKind::ArrayValue, location), values(std::move(values)), sizes(std::move(sizes)) {
-        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size(), ZERO_LOC);
+        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size());
     }
 
     BaseType*& known_elem_type() const;

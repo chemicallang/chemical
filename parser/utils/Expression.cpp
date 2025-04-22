@@ -162,13 +162,14 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         parseLambdaAfterParamsList(allocator, lamb);
         return lamb;
     } else if (consumeToken(TokenType::ColonSym)) {
-        auto type = parseType(allocator);
+        const auto typeLoc = parseTypeLoc(allocator);
+        auto type = typeLoc.getType();
         if (type) {
         } else {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), type, 0, nullptr, false, parent_node, loc_single(identifier));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), typeLoc, 0, nullptr, false, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         if (consumeToken(TokenType::CommaSym)) {
             lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));

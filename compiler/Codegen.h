@@ -285,7 +285,7 @@ public:
     /**
      * get or insert a function prototype for weak symbol, is exported is required
      */
-    llvm::Function* declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionType* func_type, bool is_exported, SourceLocation location);
+    llvm::Function* declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionTypeBody* func_type, bool is_exported, SourceLocation location);
 
     /**
      * create a function's basic block, with the given name
@@ -312,7 +312,7 @@ public:
      * if this type corresponds to a dynamic object, a fat pointer type will be allocated and returned
      * otherwise nullptr is returned
      */
-    llvm::Value* allocate_dyn_obj_based_on_type(BaseType* type);
+    llvm::Value* allocate_dyn_obj_based_on_type(BaseType* type, SourceLocation loc);
 
     /**
      * to change the implementation of dynamic object, this function can be used

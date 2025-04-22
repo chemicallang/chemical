@@ -243,32 +243,20 @@ void InterpretScope::erase_value(const std::string &name) {
     }
 }
 
-void InterpretScope::error(std::string& err, ASTAny* any) {
-    switch(any->any_kind()) {
-        case ASTAnyKind::Value:
-            global->interpret_error(err, (Value*) any);
-            break;
-        case ASTAnyKind::Node:
-            global->interpret_error(err, (ASTNode*) any);
-            break;
-        case ASTAnyKind::Type:
-            global->interpret_error(err, (BaseType*) any);
-            break;
-    }
+void InterpretScope::error(std::string& err, ASTNode* any) {
+    global->interpret_error(err, any);
 }
 
-void InterpretScope::error(std::string_view err, ASTAny* any) {
-    switch(any->any_kind()) {
-        case ASTAnyKind::Value:
-            global->interpret_error(err, (Value*) any);
-            break;
-        case ASTAnyKind::Node:
-            global->interpret_error(err, (ASTNode*) any);
-            break;
-        case ASTAnyKind::Type:
-            global->interpret_error(err, (BaseType*) any);
-            break;
-    }
+void InterpretScope::error(std::string& err, Value* any) {
+    global->interpret_error(err, any);
+}
+
+void InterpretScope::error(std::string_view err, ASTNode* any) {
+    global->interpret_error(err, any);
+}
+
+void InterpretScope::error(std::string_view err, Value* any) {
+    global->interpret_error(err, any);
 }
 
 bool InterpretScope::isTarget64Bit() {

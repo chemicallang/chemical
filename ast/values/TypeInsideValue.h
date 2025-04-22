@@ -18,18 +18,18 @@ public:
 
     BaseType* type;
 
-    explicit TypeInsideValue(BaseType* type) : Value(ValueKind::TypeInsideValue, type->encoded_location()), type(type) {
+    explicit TypeInsideValue(BaseType* type, SourceLocation loc) : Value(ValueKind::TypeInsideValue, loc), type(type) {
 
     }
 
     TypeInsideValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(
-            type->copy(allocator)
+            type->copy(allocator), encoded_location()
         );
     }
 
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) final {
-        return type->link(linker);
+        return type->link(linker, encoded_location());
     }
 
     BaseType* known_type() override {

@@ -89,7 +89,7 @@ chem::string_view to_view(const llvm::StringRef& id) {
 BaseType* decl_type(CTranslator& translator, clang::Decl* decl, const llvm::StringRef& name) {
     auto found = translator.declarations.find(decl);
     if(found != translator.declarations.end()) {
-        return new (translator.allocator.allocate<LinkedType>()) LinkedType(found->second, ZERO_LOC);
+        return new (translator.allocator.allocate<LinkedType>()) LinkedType(found->second);
     } else {
         return nullptr;
 //        const auto maker = translator.node_makers[decl->getKind()];
@@ -127,7 +127,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto elemType = arrayType->getElementType();
             const auto element_type = make_type(&elemType);
             if(!element_type) return nullptr;
-            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, (int) arrayType->getSize().getLimitedValue(), ZERO_LOC);
+            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, (int) arrayType->getSize().getLimitedValue());
         }
         case clang::Type::DependentSizedArray:
             error("TODO: type with class DependentSizedArray");
@@ -137,7 +137,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto elemType = incomplete_arr->getElementType();
             const auto element_type = make_type(&elemType);
             if(!element_type) return nullptr;
-            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, -1, ZERO_LOC);
+            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, -1);
         }
         case clang::Type::VariableArray:
             error("TODO: type with class VariableArray");
@@ -174,7 +174,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             const auto complexType = ptr->getAs<clang::ComplexType>();
             auto elemType = complexType->getElementType();
             auto element_type = make_type(&elemType);
-            return new (allocator.allocate<ComplexType>()) ComplexType(element_type, ZERO_LOC);
+            return new (allocator.allocate<ComplexType>()) ComplexType(element_type);
         }
         case clang::Type::Decltype:
             error("TODO: type with class Decltype");
@@ -229,7 +229,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
                     return nullptr;
                 }
                 // TODO using nullptr as parent node
-                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", param_type, i, nullptr, false, nullptr, ZERO_LOC);
+                const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam("", {param_type, ZERO_LOC}, i, nullptr, false, nullptr, ZERO_LOC);
                 functionType->params.emplace_back(param);
                 i++;
             }
@@ -280,7 +280,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             if(!pointee) {
                 return nullptr;
             }
-            return new (allocator.allocate<PointerType>()) PointerType(pointee, ZERO_LOC, !type->isConstQualified());
+            return new (allocator.allocate<PointerType>()) PointerType(pointee, !type->isConstQualified());
         }
         case clang::Type::LValueReference:
             error("TODO: type with class LValueReference");
@@ -348,13 +348,13 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
     auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(ZERO_LOC_ID(allocator, decl->getName()), nullptr, parent_node, ZERO_LOC);
     auto integer_type = decl->getIntegerType();
     if(integer_type.isNull()) {
-        enum_decl->underlying_type = new (allocator.allocate<IntType>()) IntType(ZERO_LOC);
+        enum_decl->underlying_type = new (allocator.allocate<IntType>()) IntType();
     } else {
         auto type = make_type(&integer_type);
         if(type && type->kind() == BaseTypeKind::IntN) {
             enum_decl->underlying_type = (IntNType*) type;
         } else {
-            enum_decl->underlying_type = new (allocator.allocate<IntType>()) IntType(ZERO_LOC);
+            enum_decl->underlying_type = new (allocator.allocate<IntType>()) IntType();
         }
     }
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
@@ -605,7 +605,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         }
         params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(
                 allocate_view(allocator, param_name),
-                chem_type,
+                { chem_type, ZERO_LOC },
                 index,
                 nullptr,
                 false,

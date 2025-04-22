@@ -3,8 +3,8 @@
 #include "DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-bool DynamicType::link(SymbolResolver &linker) {
-    return referenced->link(linker);
+bool DynamicType::link(SymbolResolver &linker, SourceLocation loc) {
+    return referenced->link(linker, loc);
 }
 
 bool DynamicType::satisfies(BaseType *type) {

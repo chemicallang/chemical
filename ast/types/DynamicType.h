@@ -12,10 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr DynamicType(
-        BaseType* referenced,
-        SourceLocation location
-    ) : referenced(referenced), BaseType(BaseTypeKind::Dynamic, location) {
+    constexpr DynamicType(BaseType* referenced) : referenced(referenced), BaseType(BaseTypeKind::Dynamic) {
 
     }
 
@@ -27,14 +24,14 @@ public:
 
     [[nodiscard]]
     DynamicType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), encoded_location());
+        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator));
     }
 
     ASTNode* linked_node() final {
         return referenced->linked_node();
     }
 
-    bool link(SymbolResolver &linker) final;
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
 #ifdef COMPILER_BUILD
 

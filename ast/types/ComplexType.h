@@ -13,9 +13,8 @@ public:
      * constructor
      */
     constexpr ComplexType(
-        BaseType* elem_type,
-        SourceLocation location
-    ) : BaseType(BaseTypeKind::Complex, location), elem_type(elem_type) {
+        BaseType* elem_type
+    ) : BaseType(BaseTypeKind::Complex), elem_type(elem_type) {
 
     }
 
@@ -33,7 +32,7 @@ public:
 
     [[nodiscard]]
     ComplexType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<ComplexType>()) ComplexType(elem_type, encoded_location());
+        return new (allocator.allocate<ComplexType>()) ComplexType(elem_type);
     }
 
 #ifdef COMPILER_BUILD

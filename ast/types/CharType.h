@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr CharType(SourceLocation location) : IntNType(location) {
+    constexpr CharType() : IntNType() {
 
     }
 
@@ -33,11 +33,11 @@ public:
         return false;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     CharType* copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<CharType>()) CharType(encoded_location());
+        return new (allocator.allocate<CharType>()) CharType();
     }
 
 #ifdef COMPILER_BUILD

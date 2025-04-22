@@ -9,7 +9,7 @@ public:
 
     static const BigIntType instance;
 
-    constexpr BigIntType(SourceLocation location) : IntNType(location) {
+    constexpr BigIntType() : IntNType() {
 
     }
 
@@ -30,10 +30,10 @@ public:
         return false;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value) final;
+    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
 
     BigIntType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<BigIntType>()) BigIntType(encoded_location());
+        return new (allocator.allocate<BigIntType>()) BigIntType();
     }
 
 };

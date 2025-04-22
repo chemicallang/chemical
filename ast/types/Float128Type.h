@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr Float128Type(SourceLocation location) : BaseType(BaseTypeKind::Float128, location) {
+    constexpr Float128Type() : BaseType(BaseTypeKind::Float128) {
 
     }
 
@@ -30,7 +30,7 @@ public:
 
     [[nodiscard]]
     Float128Type *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<Float128Type>()) Float128Type(encoded_location());
+        return new (allocator.allocate<Float128Type>()) Float128Type();
     }
 
 #ifdef COMPILER_BUILD

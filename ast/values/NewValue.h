@@ -18,7 +18,7 @@ public:
     constexpr NewValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(nullptr, 0, false) {
+    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(nullptr, false) {
 
     }
 
@@ -29,7 +29,7 @@ public:
             Value* value,
             SourceLocation location,
             const PointerType& ptrType
-    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(ptrType.type, ptrType.encoded_location(), ptrType.is_mutable) {
+    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(ptrType.type, ptrType.is_mutable) {
 
     }
 

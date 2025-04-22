@@ -152,21 +152,21 @@ public:
     inline void info(chem::string_view err, NodeT* node)
     requires requires(NodeT n) { n.encoded_location(); }
     {
-        diagnostic(err, node, DiagSeverity::Information);
+        diagnostic(err, node->encoded_location(), DiagSeverity::Information);
     }
 
     template <typename NodeT>
     inline void warn(chem::string_view err, NodeT* node)
     requires requires(NodeT n) { n.encoded_location(); }
     {
-        diagnostic(err, node, DiagSeverity::Warning);
+        diagnostic(err, node->encoded_location(), DiagSeverity::Warning);
     }
 
     template <typename NodeT>
     inline void error(chem::string_view err, NodeT* node)
     requires requires(NodeT n) { n.encoded_location(); }
     {
-        diagnostic(err, node, DiagSeverity::Error);
+        diagnostic(err, node->encoded_location(), DiagSeverity::Error);
     }
 
     template <typename NodeT1, typename NodeT2>
@@ -174,8 +174,8 @@ public:
     requires requires(NodeT1 n) { n.encoded_location(); } &&
              requires(NodeT2 n) { n.encoded_location(); }
     {
-        diagnostic(err, node, DiagSeverity::Information);
-        diagnostic(err, other, DiagSeverity::Information);
+        diagnostic(err, node->encoded_location(), DiagSeverity::Information);
+        diagnostic(err, other->encoded_location(), DiagSeverity::Information);
     }
 
     template <typename NodeT1, typename NodeT2>
@@ -183,8 +183,8 @@ public:
     requires requires(NodeT1 n) { n.encoded_location(); } &&
              requires(NodeT2 n) { n.encoded_location(); }
     {
-        diagnostic(err, node, DiagSeverity::Warning);
-        diagnostic(err, other, DiagSeverity::Warning);
+        diagnostic(err, node->encoded_location(), DiagSeverity::Warning);
+        diagnostic(err, other->encoded_location(), DiagSeverity::Warning);
     }
 
     template <typename NodeT1, typename NodeT2>
@@ -192,8 +192,8 @@ public:
     requires requires(NodeT1 n) { n.encoded_location(); } &&
              requires(NodeT2 n) { n.encoded_location(); }
     {
-        diagnostic(err, node, DiagSeverity::Error);
-        diagnostic(err, other, DiagSeverity::Error);
+        diagnostic(err, node->encoded_location(), DiagSeverity::Error);
+        diagnostic(err, other->encoded_location(), DiagSeverity::Error);
     }
 
     /**

@@ -20,7 +20,7 @@ public:
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnionType, parent, location), BaseType(BaseTypeKind::Union, location), name(name) {
+    ) : ASTNode(ASTNodeKind::UnionType, parent, location), BaseType(BaseTypeKind::Union), name(name) {
 
     }
 
@@ -37,10 +37,10 @@ public:
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<UnionType>()) UnionType(name, parent(), BaseType::encoded_location());
+        return new (allocator.allocate<UnionType>()) UnionType(name, parent(), ASTNode::encoded_location());
     }
 
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker, SourceLocation loc) override;
 
     ASTNode* child(const chem::string_view &name) override {
         return VariablesContainer::direct_child(name);

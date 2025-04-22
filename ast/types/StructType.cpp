@@ -21,7 +21,7 @@ bool StructType::equals(StructType *type) {
     return true;
 }
 
-bool StructType::link(SymbolResolver &linker) {
+bool StructType::link(SymbolResolver &linker, SourceLocation loc) {
     take_variables_from_parsed_nodes(linker);
     VariablesContainer::link_variables_signature(linker);
     if(!name.empty()) {

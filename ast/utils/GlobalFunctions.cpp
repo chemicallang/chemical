@@ -180,7 +180,7 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), retType(ZERO_LOC), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC) {
+    ), retType(), selfParam("self", TypeLoc(&node->selfReference, ZERO_LOC), 0, nullptr, true, this, ZERO_LOC) {
         params.emplace_back(&selfParam);
     }
 
@@ -198,8 +198,8 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnLinkedType(&node->typeParam, ZERO_LOC),
-        selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
+    ), returnLinkedType(&node->typeParam),
+        selfParam("self", {&node->selfReference, ZERO_LOC}, 0, nullptr, true, this, ZERO_LOC), indexType(), indexParam("index", { &indexType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -225,8 +225,8 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
-        valueType(&node->typeParam, ZERO_LOC), valueParam("value", &valueType, 1, nullptr, false, this, ZERO_LOC)
+    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC), returnVoidType(),
+        valueType(&node->typeParam), valueParam("value", { &valueType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&valueParam);
@@ -245,8 +245,8 @@ namespace InterpretVector {
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), selfParam("self", &node->selfReference, 0, nullptr, true, this, ZERO_LOC), returnVoidType(ZERO_LOC),
-        indexType(ZERO_LOC), indexParam("index", &indexType, 1, nullptr, false, this, ZERO_LOC)
+    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC), returnVoidType(),
+        indexType(), indexParam("index", { &indexType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         params.emplace_back(&selfParam);
         params.emplace_back(&indexParam);
@@ -267,7 +267,7 @@ namespace InterpretVector {
     ): StructDefinition(ZERO_LOC_ID("vector"), parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
         typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
-        selfType(this, ZERO_LOC), selfReference(&selfType, ZERO_LOC)
+        selfType(this), selfReference(&selfType, ZERO_LOC)
     {
         set_compiler_decl(true);
         insert_functions({ &constructorFn, &sizeFn, &getFn, &pushFn, &removeFn });
@@ -291,7 +291,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring),  returnType(ZERO_LOC) {
+    ), visitor(ostring),  returnType() {
         visitor.interpret_representation = true;
     }
 
@@ -342,7 +342,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring),  returnType(ZERO_LOC) {
+    ), visitor(ostring),  returnType() {
         visitor.interpret_representation = true;
     }
 
@@ -400,7 +400,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+    ), returnType(), anyType(), valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -524,8 +524,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), anyType(ZERO_LOC),
-        valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC)
+    ), anyType(),
+        valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -555,7 +555,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+    ), anyType(), valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
@@ -583,7 +583,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), voidType(ZERO_LOC), ptrType(&voidType, ZERO_LOC) {
+    ), voidType(), ptrType(&voidType, ZERO_LOC) {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -604,7 +604,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -627,7 +627,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), anyType(ZERO_LOC), valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC) {
+    ), boolType(), anyType(), valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -670,7 +670,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC) {
+    ), boolType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -695,7 +695,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC) {
+    ), boolType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -720,7 +720,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -742,7 +742,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -770,7 +770,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -793,7 +793,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -825,7 +825,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -854,7 +854,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *self_call, Value *parent_val, bool evaluate_refs) final {
@@ -883,7 +883,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), uIntType(ZERO_LOC) {
+    ), uIntType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -925,7 +925,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
+    ), boolType(), stringType(), valueParam("value", { &stringType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -955,7 +955,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), voidType(ZERO_LOC), stringType(ZERO_LOC), valueParam("value", &stringType, 0, nullptr, false, this, ZERO_LOC) {
+    ), voidType(), stringType(), valueParam("value", { &stringType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
     }
@@ -983,9 +983,9 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), returnType(ZERO_LOC), anyType(ZERO_LOC),
-    valueParam("value", &anyType, 0, nullptr, false, this, ZERO_LOC),
-    valueParam2("value2", &anyType, 1, nullptr, false, this, ZERO_LOC) {
+    ), returnType(), anyType(),
+    valueParam("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+    valueParam2("value2", { &anyType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
         params.emplace_back(&valueParam2);
@@ -1028,8 +1028,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
-        valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
+    ), boolType(), nullVal(ZERO_LOC), anyType(), ptrType(&anyType, ZERO_LOC),
+        valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -1057,8 +1057,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), nullVal(ZERO_LOC), anyType(ZERO_LOC), ptrType(&anyType, ZERO_LOC),
-        valueParam("value", &ptrType, 0, nullptr, false, this, ZERO_LOC)
+    ), boolType(), nullVal(ZERO_LOC), anyType(), ptrType(&anyType, ZERO_LOC),
+        valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -1084,8 +1084,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), boolType(ZERO_LOC), stringType(ZERO_LOC), destValueParam("dest_value", &stringType, 0, nullptr, false, this, ZERO_LOC),
-      sourceValueParam("source_value", &stringType, 1, nullptr, false, this, ZERO_LOC){
+    ), boolType(), stringType(), destValueParam("dest_value", { &stringType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+      sourceValueParam("source_value", { &stringType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC){
         set_compiler_decl(true);
         params.emplace_back(&destValueParam);
         params.emplace_back(&sourceValueParam);
@@ -1113,7 +1113,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1136,7 +1136,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1169,7 +1169,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1191,7 +1191,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1215,7 +1215,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1244,7 +1244,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1273,7 +1273,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), stringType(ZERO_LOC) {
+    ), stringType() {
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
@@ -1310,8 +1310,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), param("value", &anyType, 0, nullptr, false, this, 0),
-        methodParam("method", &strType, 1, nullptr, false, this, 0), anyType(0), strType(0) {
+    ), param("value", { &anyType, ZERO_LOC }, 0, nullptr, false, this, 0),
+        methodParam("method", { &strType, ZERO_LOC }, 1, nullptr, false, this, 0), anyType(), strType() {
         set_compiler_decl(true);
         params = { &param, &methodParam };
     };
@@ -1357,7 +1357,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring),  returnType(ZERO_LOC) {
+    ), visitor(ostring),  returnType() {
         visitor.interpret_representation = true;
     }
 
@@ -1547,7 +1547,7 @@ public:
             defDecl,
             defDecl,
             ZERO_LOC
-    ), id(defDecl, ZERO_LOC) {}
+    ), id(defDecl) {}
 
 };
 
@@ -1821,7 +1821,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     auto& allocator = scope.allocator;
     // we change the global interpret scope for each job, so we must redeclare def value
     scope.values["def"] = &defThing.defValue;
-    const auto boolType = new (allocator.allocate<BoolType>()) BoolType(ZERO_LOC);
+    const auto boolType = new (allocator.allocate<BoolType>()) BoolType();
     const auto mode = scope.build_compiler->options->outMode;
     defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, is_debug(mode)));
     defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, mode == OutputMode::DebugQuick));

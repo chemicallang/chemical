@@ -8,7 +8,7 @@
 #include <iostream>
 
 BaseType* StringValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<StringType>()) StringType(encoded_location());
+    return new (allocator.allocate<StringType>()) StringType();
 }
 
 bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {

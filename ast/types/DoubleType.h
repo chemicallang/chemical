@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr DoubleType(SourceLocation location) : BaseType(BaseTypeKind::Double, location) {
+    constexpr DoubleType() : BaseType(BaseTypeKind::Double) {
 
     }
 
@@ -30,7 +30,7 @@ public:
 
     [[nodiscard]]
     DoubleType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<DoubleType>()) DoubleType(encoded_location());
+        return new (allocator.allocate<DoubleType>()) DoubleType();
     }
 
 #ifdef COMPILER_BUILD

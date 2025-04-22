@@ -38,7 +38,7 @@ public:
 #endif
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<DoubleType>()) DoubleType(encoded_location());
+        return new (allocator.allocate<DoubleType>()) DoubleType();
     }
 
     BaseType* known_type() final {

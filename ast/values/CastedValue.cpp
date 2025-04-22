@@ -39,7 +39,7 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
         case BaseTypeKind::IntN: {
             const auto intNType = pure->as_intn_type_unsafe();
             if(eval->is_value_int_n()) {
-                return intNType->create(scope.allocator, ((IntNumValue*) eval)->get_num_value());
+                return intNType->create(scope.allocator, ((IntNumValue*) eval)->get_num_value(), encoded_location());
             } else {
                 scope.error("non integer value cannot be casted to integer type", this);
                 return eval;

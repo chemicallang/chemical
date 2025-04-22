@@ -12,17 +12,19 @@ public:
 
     chem::string_view name;
 
-
+    /**
+     * constructor
+     */
     StructType(
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::StructType, parent, location), BaseType(BaseTypeKind::Struct, location), name(name) {
+    ) : ASTNode(ASTNodeKind::StructType, parent, location), BaseType(BaseTypeKind::Struct), name(name) {
 
     }
 
     BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<StructType>()) StructType(name, parent(), BaseType::encoded_location());
+        return new (allocator.allocate<StructType>()) StructType(name, parent(), ASTNode::encoded_location());
     }
 
     bool equals(StructType *type);
@@ -31,10 +33,10 @@ public:
         return BaseType::kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
-    bool link(SymbolResolver &linker) override;
+    bool link(SymbolResolver &linker, SourceLocation loc) override;
 
-    ASTNode* child(const chem::string_view &name) override {
-        return VariablesContainer::direct_child(name);
+    ASTNode* child(const chem::string_view &childName) override {
+        return VariablesContainer::direct_child(childName);
     }
 
     ASTNode* linked_node() override {

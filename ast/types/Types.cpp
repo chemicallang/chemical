@@ -17,14 +17,14 @@
 #include "ExpressionType.h"
 #include "ast/statements/Typealias.h"
 
-const AnyType AnyType::instance(ZERO_LOC);
-const BoolType BoolType::instance(ZERO_LOC);
-const CharType CharType::instance(ZERO_LOC);
-const DoubleType DoubleType::instance(ZERO_LOC);
-const FloatType FloatType::instance(ZERO_LOC);
-const StringType StringType::instance(ZERO_LOC);
-const UCharType UCharType::instance(ZERO_LOC);
-const VoidType VoidType::instance(ZERO_LOC);
+const AnyType AnyType::instance;
+const BoolType BoolType::instance;
+const CharType CharType::instance;
+const DoubleType DoubleType::instance;
+const FloatType FloatType::instance;
+const StringType StringType::instance;
+const UCharType UCharType::instance;
+const VoidType VoidType::instance;
 
 bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();

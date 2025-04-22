@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    constexpr StringType(SourceLocation location) : BaseType(BaseTypeKind::String, location) {
+    constexpr StringType() : BaseType(BaseTypeKind::String) {
 
     }
 
@@ -29,7 +29,7 @@ public:
 
     [[nodiscard]]
     StringType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<StringType>()) StringType(encoded_location());
+        return new (allocator.allocate<StringType>()) StringType();
     }
 
 #ifdef COMPILER_BUILD

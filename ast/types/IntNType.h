@@ -11,7 +11,7 @@ public:
     /**
      * constructor
      */
-    inline constexpr IntNType(SourceLocation location) : BaseType(BaseTypeKind::IntN, location) {
+    inline constexpr IntNType() : BaseType(BaseTypeKind::IntN) {
 
     }
 
@@ -42,7 +42,7 @@ public:
     /**
      * creates a Value of this type, but with the given value
      */
-    virtual Value* create(ASTAllocator& allocator, uint64_t value) = 0;
+    virtual Value* create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) = 0;
 
     /**
      * types that are larger in bits or smaller can satisfy each other as long as they are same signed

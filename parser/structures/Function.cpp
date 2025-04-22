@@ -151,8 +151,8 @@ bool Parser::parseParameterList(
                 auto is_mutable = consumeWSOfType(TokenType::MutKw) != nullptr; // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
-                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr, loc_single(id)), loc_single(id), is_mutable);
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), ref_to_linked, index, nullptr, true, parent_node, loc(ampersand, id));
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr), is_mutable);
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), TypeLoc(ref_to_linked, loc_single(id)), index, nullptr, true, parent_node, loc(ampersand, id));
                     parameters.emplace_back(param);
                     index++;
                     continue;
@@ -165,10 +165,11 @@ bool Parser::parseParameterList(
         auto id = consumeIdentifierOrKeyword();
         if(id) {
             if(consumeToken(TokenType::ColonSym)) {
-                auto type = parseType(allocator);
+                const auto typeLoc = parseTypeLoc(allocator);
+                auto type = typeLoc.getType();
                 if(type) {
                     if(variadicParam && consumeToken(TokenType::TripleDotSym)) {
-                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), type, index, nullptr, false, parent_node, loc_single(id));
+                        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), typeLoc, index, nullptr, false, parent_node, loc_single(id));
                         parameters.emplace_back(param);
                         return true;
                     }
@@ -184,7 +185,7 @@ bool Parser::parseParameterList(
                             }
                         }
                     }
-                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), type, index, defValue, false, parent_node, loc_single(id));
+                    auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), typeLoc, index, defValue, false, parent_node, loc_single(id));
                     parameters.emplace_back(param);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
@@ -321,9 +322,10 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
             error("expected ':' in extension function after identifier for receiver");
             return decl;
         }
-        auto type = parseType(allocator);
+        const auto typeLoc = parseTypeLoc(allocator);
+        auto type = typeLoc.getType();
         if(type) {
-            receiverParam->type = type;
+            receiverParam->type = typeLoc;
         } else {
             error("expected type after ':' in extension function for receiver");
             return decl;
@@ -378,7 +380,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
             return final_node;
         }
     } else {
-        decl->returnType = new (allocator.allocate<VoidType>()) VoidType(loc_single(tok));
+        decl->returnType = new (allocator.allocate<VoidType>()) VoidType();
     }
 
     auto block = parseBraceBlock("function", decl, body_allocator);

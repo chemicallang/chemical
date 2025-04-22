@@ -4,12 +4,10 @@
 #include <iostream>
 #include "ast/structures/LoopBlock.h"
 #include "ast/structures/InitBlock.h"
-#include "ast/structures/MembersContainer.h"
-#include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/Namespace.h"
 #include "ast/values/AccessChain.h"
-#include "ast/structures/BaseDefMember.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/structures/If.h"
 #include "ast/statements/SwitchStatement.h"
@@ -49,6 +47,48 @@ void top_level_dedupe(std::vector<ASTNode*>& nodes) {
         i--;
     }
 
+}
+
+void make_exportable(std::vector<ASTNode*>& nodes) {
+    std::vector<ASTNode*> public_nodes;
+    public_nodes.reserve(nodes.size());
+    for(const auto node : nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::IfStmt:{
+                const auto stmt = node->as_if_stmt_unsafe();
+                if(stmt->computed_scope.has_value()) {
+                    const auto scope = stmt->computed_scope.value();
+                    if(scope) {
+                        make_exportable(scope->nodes);
+                        if(!scope->nodes.empty()) {
+                            public_nodes.emplace_back(node);
+                        }
+                    }
+                } else {
+                    throw std::runtime_error("unevaluated top level if statement");
+                }
+                break;
+            }
+            case ASTNodeKind::NamespaceDecl:{
+                const auto ns = node->as_namespace_unsafe();
+                if(ns->specifier() == AccessSpecifier::Public) {
+                    make_exportable(ns->nodes);
+                    if (!ns->nodes.empty()) {
+                        public_nodes.emplace_back(node);
+                    }
+                }
+                break;
+            }
+            default: {
+                const auto is_public = node->specifier() == AccessSpecifier::Public;
+                if(is_public) {
+                    public_nodes.emplace_back(node);
+                }
+                break;
+            }
+        }
+    }
+    nodes = std::move(public_nodes);
 }
 
 void Scope::tld_declare(SymbolResolver &linker) {

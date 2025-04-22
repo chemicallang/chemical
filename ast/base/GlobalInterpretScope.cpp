@@ -18,9 +18,10 @@ GlobalInterpretScope::GlobalInterpretScope(
     BackendContext* context,
     LabBuildCompiler* buildCompiler,
     ASTAllocator& allocator,
+    TypeBuilder& typeBuilder,
     LocationManager& loc_man
 ) : ASTDiagnoser(loc_man), InterpretScope(nullptr, allocator, this), target_triple(std::move(target_triple)),
-    backend_context(context), build_compiler(buildCompiler), allocator(allocator) {
+    backend_context(context), build_compiler(buildCompiler), allocator(allocator), typeBuilder(typeBuilder) {
 
 }
 

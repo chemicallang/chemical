@@ -444,7 +444,7 @@ set(COMMON_SOURCES
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
         ast/types/Float128Type.h
-        ast/base/ASTBuilder.h
+        ast/base/TypeBuilder.h
         compiler/lab/TargetData.h
         ast/types/LongDoubleType.h
         ast/types/ComplexType.h
@@ -553,6 +553,7 @@ set(COMMON_SOURCES
         compiler/lab/timestamp/Timestamp.h
         compiler/lab/timestamp/Timestamp.cpp
         ast/base/TypeLoc.h
+        ast/base/TypeBuilder.cpp
 )
 
 # Chemical LSP Executable Target

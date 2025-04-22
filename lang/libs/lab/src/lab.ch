@@ -235,7 +235,7 @@ public namespace lab {
     }
 
     @comptime
-    func curr_dir() : std::string {
+    public func curr_dir() : std::string {
         const call_loc = compiler::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = compiler::get_loc_file_path(call_loc)
         const loc_path_size = compiler::size(loc_path)
@@ -248,7 +248,7 @@ public namespace lab {
     }
 
     @comptime
-    func rel_path_to(path : *char) : std::string {
+    public func rel_path_to(path : *char) : std::string {
         return compiler::wrap(appended_str(curr_dir(), path))
     }
 

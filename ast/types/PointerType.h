@@ -20,7 +20,6 @@ public:
 
     BaseType* type;
     bool is_mutable;
-    std::vector<std::unique_ptr<BaseType>> pures{};
 
     /**
      * constructor

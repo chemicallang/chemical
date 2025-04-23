@@ -176,44 +176,6 @@ BaseType* BaseType::canonical() {
     }
 }
 
-BaseType* BaseType::deep_canonical(ASTAllocator& allocator) {
-    switch(kind()) {
-        case BaseTypeKind::Literal: {
-            const auto type = as_literal_type_unsafe();
-            return type->underlying;
-        }
-        case BaseTypeKind::Linked: {
-            const auto linked = as_linked_type_unsafe()->linked;
-            if (linked) {
-                const auto known = linked->known_type();
-                return known ? known : this;
-            } else {
-                return this;
-            }
-        }
-        case BaseTypeKind::Pointer: {
-            const auto ptr_type = as_pointer_type_unsafe();
-            const auto pure_child = ptr_type->type->pure_type(allocator);
-            if(pure_child && pure_child != ptr_type->type) {
-                return new (allocator.allocate<PointerType>()) PointerType(pure_child, ptr_type->is_mutable);
-            } else {
-                return this;
-            }
-        }
-        case BaseTypeKind::Reference: {
-            const auto ref_type = as_reference_type_unsafe();
-            const auto pure_child = ref_type->type->pure_type(allocator);
-            if(pure_child && pure_child != ref_type->type) {
-                return new (allocator.allocate<ReferenceType>()) ReferenceType(pure_child, ref_type->is_mutable);
-            } else {
-                return this;
-            }
-        }
-        default:
-            return this;
-    }
-}
-
 ASTNode* BaseType::get_direct_linked_node() {
     switch(kind()) {
         case BaseTypeKind::Linked:

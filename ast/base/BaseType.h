@@ -100,13 +100,6 @@ public:
     }
 
     /**
-     * get pure type from this type, if referenced, it will resolve it
-     * @deprecated
-     */
-    [[deprecated]]
-    BaseType* pure_type();
-
-    /**
      * important to note that this type doesn't canonicalize deeply
      * a pointer to a MyInt remains a pointer to MyInt however MyInt
      * becomes an int, it's only direct canonicalization
@@ -121,7 +114,7 @@ public:
     /**
      * pure type is an alias for deep canonical type
      */
-    BaseType* pure_type(ASTAllocator& allocator) {
+    inline BaseType* pure_type(ASTAllocator& allocator) {
         return deep_canonical(allocator);
     }
 

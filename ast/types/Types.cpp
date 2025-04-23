@@ -29,7 +29,7 @@ const VoidType VoidType::instance;
 bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::String) {
-        const auto pure = elem_type->pure_type();
+        const auto pure = elem_type->canonical();
         return pure->kind() == BaseTypeKind::IntN && pure->as_intn_type_unsafe()->is_char_or_uchar_type();
     }
     if(pure_type_kind != BaseTypeKind::Array) return false;

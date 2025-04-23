@@ -31,7 +31,7 @@ std::optional<bool> get_from_node(BaseType* type, ASTNode* linked, bool is_negat
                 if (param) {
                     const auto kt = linked->known_type();
                     if(kt) {
-                        const auto result = type->is_same(kt->pure_type());
+                        const auto result = type->is_same(kt->canonical());
                         return is_negating ? !result : result;
                     } else {
                         return std::nullopt;
@@ -71,7 +71,7 @@ std::optional<bool> IsValue::get_comp_time_result() {
         if(typeInside->type->kind() == BaseTypeKind::Linked) {
             return get_from_node(type, typeInside->type->linked_node(), is_negating);
         } else {
-            const auto result = type->is_same(typeInside->type->pure_type());
+            const auto result = type->is_same(typeInside->type->canonical());
             return is_negating ? !result : result;
         }
     }

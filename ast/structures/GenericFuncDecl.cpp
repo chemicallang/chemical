@@ -134,7 +134,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     while(i < generic_args.size()) {
         auto& type = generic_args[i];
         if(type) {
-            type = type->pure_type();
+            type = type->canonical();
         }
         i++;
     }

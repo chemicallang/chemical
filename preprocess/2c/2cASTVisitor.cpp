@@ -551,7 +551,7 @@ inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, 
 
 std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* type, Value* value) {
     if(!type) return {nullptr, nullptr};
-    auto pure_type = type->pure_type();
+    auto pure_type = type->canonical();
     if(pure_type->kind() == BaseTypeKind::Dynamic) {
         const auto dyn_type = ((DynamicType*) pure_type);
         const auto interface = dyn_type->linked_node()->as_interface_def();

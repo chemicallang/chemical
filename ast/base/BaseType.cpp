@@ -39,7 +39,7 @@ InterfaceDefinition* BaseType::linked_interface_def() {
 }
 
 InterfaceDefinition* BaseType::linked_dyn_interface() {
-    auto pure = pure_type();
+    auto pure = canonical();
     if(pure->kind() == BaseTypeKind::Dynamic) {
         return pure->linked_node()->as_interface_def();
     }

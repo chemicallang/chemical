@@ -997,7 +997,7 @@ BaseType* Value::get_pure_type(ASTAllocator& allocator) {
 }
 
 BaseType* Value::pure_type_ptr() {
-    return known_type()->pure_type();
+    return known_type()->canonical();
 }
 
 bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) {

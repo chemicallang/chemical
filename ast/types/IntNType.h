@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/BaseType.h"
+#include "ast/base/Value.h"
 #include "ast/base/IntNTypeKind.h"
 
 class IntNType : public BaseType {
@@ -59,6 +60,20 @@ public:
      */
     bool satisfies(BaseType *type) {
         return type->kind() == BaseTypeKind::IntN && satisfies(type->as_intn_type_unsafe());
+    }
+
+    /**
+     * check if value satisfies
+     */
+    bool satisfies(ASTAllocator &allocator, Value *value, bool assignment) override {
+        const auto literal = value->isValueIntegerLiteral();
+        const auto otherType = value->create_type(allocator);
+        if(!otherType) return false;
+        if(literal && otherType->kind() == BaseTypeKind::IntN) {
+            return true;
+        } else {
+            return satisfies(otherType);
+        }
     }
 
     /**

@@ -33,6 +33,8 @@ public:
 
     bool satisfies(BaseType *type) final;
 
+    bool satisfies(ASTAllocator &allocator, Value *value, bool assignment) override;
+
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) const {
         return new (allocator.allocate<LinkedType>()) LinkedType(linked);

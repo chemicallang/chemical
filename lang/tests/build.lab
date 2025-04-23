@@ -51,7 +51,7 @@ func gen_c(ctx : *BuildContext, exe_name : *std::string_view, module : *mut Modu
     path.append_str(&module.name);
     path.append_char_ptr("/mod_c.c")
     if(compiler::is_clang()) {
-        ctx.translate_mod_to_c(module, path);
+        ctx.translate_mod_to_c(module, path.to_view());
         printf("module : %s, output c : %s\n", module.name.data(), path.data());
     } else {
         module.out_c_path = path;
@@ -178,7 +178,7 @@ func build(ctx : *mut AppBuildContext) {
     if(do_to_ch) {
         const output_file = exe_dir_file(ctx, &exe_name, &std::string_view(ext_module.name), ".ch")
         const input_file = lab::rel_path_to("ext/file.c")
-        ctx.translate_file_to_chemical(input_file, output_file);
+        ctx.translate_file_to_chemical(input_file.to_view(), output_file.to_view());
     }
 
     if(do_c) {
@@ -207,7 +207,7 @@ func build(ctx : *mut AppBuildContext) {
     ctx.on_finished((data : *void) => {
         const jx = data as *mut JobAndContext
         if(jx.job.status == LabJobStatus.Success) {
-            jx.ctx.launch_executable(jx.job.abs_path.copy(), true);
+            jx.ctx.launch_executable(jx.job.abs_path.to_view(), true);
         }
     }, &jc);
 

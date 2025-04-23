@@ -330,6 +330,10 @@ public struct string : Hashable, Eq {
         return fnv1a_hash_32(data());
     }
 
+    func to_view(&self) : std::string_view {
+        return std::string_view(data(), size())
+    }
+
     @delete
     func delete(&mut self) {
         if(state == '2') {

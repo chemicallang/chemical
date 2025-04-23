@@ -98,7 +98,7 @@ public struct string : Hashable, Eq {
             }
         }
         storage.sso.buffer[length] = '\0'
-        storage.sso.length = length;
+        storage.sso.length = length as uchar;
         state = '1'
     }
 
@@ -224,7 +224,7 @@ public struct string : Hashable, Eq {
         const actual_len : size_t = end - start;
         if(actual_len < STR_BUFF_SIZE) {
             s.state = '1'
-            s.storage.sso.length = actual_len
+            s.storage.sso.length = actual_len as uchar
             const d = data()
             for(var i = 0; i < actual_len; i++) {
                 s.storage.sso.buffer[i] = d[start + i]

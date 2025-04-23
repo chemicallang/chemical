@@ -3,6 +3,7 @@
 #include "IntNType.h"
 #include "IntType.h"
 #include "ast/base/InterpretScope.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ShortValue.h"
@@ -49,6 +50,20 @@ IntNType* IntNType::to_signed(ASTAllocator& allocator) {
             return new (allocator.allocate<Int128Type>()) Int128Type();
         default:
             return this;
+    }
+}
+
+bool IntNType::satisfies(ASTAllocator &allocator, Value *value, bool assignment) {
+    const auto literal = value->isValueIntegerLiteral();
+    auto otherType = value->create_type(allocator);
+    if(!otherType) return false;
+    if(otherType->kind() == BaseTypeKind::Reference) {
+        otherType = otherType->as_reference_type_unsafe()->type->canonical();
+    }
+    if(literal && otherType->kind() == BaseTypeKind::IntN) {
+        return true;
+    } else {
+        return satisfies(otherType);
     }
 }
 

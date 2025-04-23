@@ -619,7 +619,7 @@ bool is_node_assignable(ASTNode* node) {
             return !node->as_var_init_unsafe()->is_const();
         }
         case ASTNodeKind::FunctionParam: {
-            return false;
+            return true;
         }
         case ASTNodeKind::VariantCaseVariable: {
             const auto member_param = node->as_variant_case_var_unsafe()->member_param;

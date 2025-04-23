@@ -70,16 +70,7 @@ public:
     /**
      * check if value satisfies
      */
-    bool satisfies(ASTAllocator &allocator, Value *value, bool assignment) override {
-        const auto literal = value->isValueIntegerLiteral();
-        const auto otherType = value->create_type(allocator);
-        if(!otherType) return false;
-        if(literal && otherType->kind() == BaseTypeKind::IntN) {
-            return true;
-        } else {
-            return satisfies(otherType);
-        }
-    }
+    bool satisfies(ASTAllocator &allocator, Value *value, bool assignment) override;
 
     /**
      * this checks whether this int n type is equal to this other int n type

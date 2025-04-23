@@ -5459,6 +5459,10 @@ void ToCAstVisitor::VisitVoidType(VoidType *func) {
     write("void");
 }
 
+void ToCAstVisitor::VisitNullPtrType(NullPtrType* type) {
+    write("void*");
+}
+
 void ToCBackendContext::mem_copy(Value *lhs, Value *rhs) {
     visitor->new_line_and_indent();
     visitor->visit(lhs);

@@ -554,6 +554,7 @@ set(COMMON_SOURCES
         compiler/lab/timestamp/Timestamp.cpp
         ast/base/TypeLoc.h
         ast/base/TypeBuilder.cpp
+        ast/types/NullPtrType.h
 )
 
 # Chemical LSP Executable Target

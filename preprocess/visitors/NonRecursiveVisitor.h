@@ -464,6 +464,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
+    inline void VisitNullPtrType(NullPtrType* type) {
+        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
+    }
+
     void VisitNodeNoNullCheck(ASTNode* node) {
         switch(node->kind()) {
             case ASTNodeKind::AssignmentStmt:
@@ -866,6 +870,9 @@ public:
                 return;
             case BaseTypeKind::ExpressionType:
                 static_cast<Derived*>(this)->VisitExpressionType((ExpressionType*) type);
+                return;
+            case BaseTypeKind::NullPtr:
+                static_cast<Derived*>(this)->VisitNullPtrType((NullPtrType*) type);
                 return;
 #ifdef DEBUG
             default:

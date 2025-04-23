@@ -28,6 +28,7 @@ public enum BaseTypeKind {
     Void,
 
     ExpressionType,
+    NullPtr,
 
     Unknown
 

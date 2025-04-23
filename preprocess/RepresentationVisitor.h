@@ -395,6 +395,8 @@ public:
     // TODO handle this
     void VisitExpressionType(ExpressionType* type) {}
 
+    void VisitNullPtrType(NullPtrType* type);
+
     ~RepresentationVisitor();
 
 };

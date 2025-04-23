@@ -3,6 +3,7 @@
 #include "NullValue.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/NullPtrType.h"
 #include "compiler/SymbolResolver.h"
 
 bool NullValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
@@ -16,11 +17,9 @@ bool NullValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expect
 }
 
 BaseType* NullValue::create_type(ASTAllocator &allocator) {
-    return expected ? expected : (
-        new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(), false)
-    );
+    return new (allocator.allocate<NullPtrType>()) NullPtrType();
 }
 
 BaseType* NullValue::known_type() {
-    return expected ? expected : (PointerType*) &PointerType::void_ptr_instance;
+    return (NullPtrType*) &NullPtrType::instance;
 }

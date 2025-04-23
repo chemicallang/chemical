@@ -19,6 +19,7 @@
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
+#include "NullPtrType.h"
 
 const IntType IntType::instance;
 const BigIntType BigIntType::instance;
@@ -30,6 +31,7 @@ const UIntType UIntType::instance;
 const UShortType UShortType::instance;
 const LongType LongType::instance;
 const ULongType ULongType::instance;
+const NullPtrType NullPtrType::instance;
 
 Value *IntType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
     return new (allocator.allocate<IntValue>()) IntValue(value, loc);

@@ -114,6 +114,16 @@ public:
     static Value* get_first_value_from_value_node(ASTNode* node);
 
     /**
+     * check if value is an integer literal
+     */
+    bool isValueIntegerLiteral();
+
+    /**
+     * check if its a literal value
+     */
+    bool isValueLiteral();
+
+    /**
      * check if given kind is a r value
      */
     bool isValueRValue(ASTAllocator& allocator);

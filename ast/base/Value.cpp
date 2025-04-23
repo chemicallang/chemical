@@ -486,6 +486,48 @@ bool isTypeRValue(BaseType* type) {
     }
 }
 
+bool Value::isValueIntegerLiteral() {
+    switch(kind()) {
+        case ValueKind::Bool:
+        case ValueKind::NumberValue:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Value::isValueLiteral() {
+    switch(kind()) {
+        case ValueKind::Bool:
+        case ValueKind::NumberValue:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::Double:
+        case ValueKind::Float:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool Value::isValueRValue(ASTAllocator& allocator) {
     switch(kind()) {
         case ValueKind::Bool:

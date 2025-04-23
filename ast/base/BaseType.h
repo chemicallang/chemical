@@ -101,21 +101,16 @@ public:
 
     /**
      * important to note that this type doesn't canonicalize deeply
-     * a pointer to a MyInt remains a pointer to MyInt however MyInt
-     * becomes an int, it's only direct canonicalization
+     * a pointer to a MyInt remains a pointer to MyInt however
+     * if you called this method on MyInt, it becomes an int
      */
     BaseType* canonical();
-
-    /**
-     * get pure type, this is the method to use
-     */
-    BaseType* deep_canonical(ASTAllocator& allocator);
 
     /**
      * pure type is an alias for deep canonical type
      */
     inline BaseType* pure_type(ASTAllocator& allocator) {
-        return deep_canonical(allocator);
+        return canonical();
     }
 
     /**

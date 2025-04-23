@@ -13,7 +13,7 @@ void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
     if(!identifier->link(linker, identifier)) {
         return;
     }
-    auto type = identifier->get_pure_type(linker.allocator);
+    auto type = identifier->get_canonical_type(linker.allocator);
     if(!type->is_pointer()) {
         linker.error("destruct cannot be called on a value that isn't a pointer", this);
         return;
@@ -31,8 +31,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
     DestructData data {nullptr, nullptr,  0 };
 
     auto created_type = identifier->create_type(allocator);
-    auto pure_type = created_type->pure_type(allocator);
-//    auto pure_type = identifier->get_pure_type(allocator);
+    auto pure_type = created_type->canonical();
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {
         determined_array = true;
@@ -42,7 +41,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
         if(pure_type->kind() != BaseTypeKind::Pointer) {
             return data;
         }
-        auto def = ((PointerType*) pure_type)->type->pure_type(allocator)->get_direct_linked_struct();
+        auto def = ((PointerType*) pure_type)->type->canonical()->get_direct_linked_struct();
         if(!def) {
             return data;
         }
@@ -55,7 +54,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
     }
     if(pure_type->kind() == BaseTypeKind::Array) {
         auto arr_type = (ArrayType*) pure_type;
-        const auto elem_type = arr_type->elem_type->pure_type(allocator);
+        const auto elem_type = arr_type->elem_type->canonical();
         auto def = elem_type->get_direct_linked_struct();
         if(!def) {
             return data;
@@ -68,7 +67,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
             return data;
         }
         auto ptr_type = (PointerType*) pure_type;
-        auto def = ptr_type->type->pure_type(allocator)->get_direct_linked_struct();
+        auto def = ptr_type->type->canonical()->get_direct_linked_struct();
         if(!def) {
             return data;
         }

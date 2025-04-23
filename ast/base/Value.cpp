@@ -986,6 +986,10 @@ Value* Value::scope_value(InterpretScope& scope) {
     }
 }
 
+BaseType* Value::get_canonical_type(ASTAllocator& allocator) {
+    return create_type(allocator)->canonical();
+}
+
 BaseType* Value::get_pure_type(ASTAllocator& allocator) {
     auto base_type = create_type(allocator);
     auto pure_type = base_type->pure_type(allocator);

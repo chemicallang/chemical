@@ -93,7 +93,7 @@ chem::string_view BaseType::linked_name() {
 #ifdef DEBUG
         throw std::runtime_error("BaseType::linked_name called on unexpected type '" + representation() + "'");
 #else
-        std::cerr << "BaseType::ref_name called on unexpected type '" + representation() << "'" << std::endl;
+        std::cerr << "BaseType::linked_name called on unexpected type '" + representation() << "'" << std::endl;
         chem::string_view view("");
         return view;
 #endif
@@ -432,9 +432,9 @@ BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
 }
 
 BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
-    const auto pure_t = pure_type(allocator);
+    const auto pure_t = canonical();
     if(pure_t->kind() == BaseTypeKind::Reference) {
-        return pure_t->as_reference_type_unsafe()->type;
+        return pure_t->as_reference_type_unsafe()->type->canonical();
     } else {
         return this;
     }
@@ -442,7 +442,7 @@ BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
 
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
-    return val_type != nullptr && satisfies(val_type->pure_type(allocator));
+    return val_type != nullptr && satisfies(val_type->canonical());
 }
 
 unsigned BaseType::type_alignment(bool is64Bit) {
@@ -492,6 +492,9 @@ unsigned BaseType::type_alignment(bool is64Bit) {
                 return pure->type_alignment(is64Bit);
             }
         }
+        case BaseTypeKind::ExpressionType:
+            // TODO
+            return 8;
     }
 }
 

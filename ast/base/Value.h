@@ -229,6 +229,11 @@ public:
     /**
      * get pure type from the base type
      */
+    BaseType* get_canonical_type(ASTAllocator& allocator);
+
+    /**
+     * get pure type from the base type
+     */
     BaseType* get_pure_type(ASTAllocator& allocator);
 
     /**

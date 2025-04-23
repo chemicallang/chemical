@@ -3,6 +3,7 @@
 #include "Negative.h"
 #include "ast/base/BaseType.h"
 #include "IntNumValue.h"
+#include "ast/types/IntNType.h"
 
 uint64_t NegativeValue::byte_size(bool is64Bit) {
 // TODO check this out
@@ -14,7 +15,13 @@ bool NegativeValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *ex
 }
 
 BaseType* NegativeValue::create_type(ASTAllocator& allocator) {
-    return value->create_type(allocator);
+    const auto result = value->create_type(allocator);
+    const auto can = result->canonical();
+    if(can->kind() == BaseTypeKind::IntN) {
+        const auto intN = can->as_intn_type_unsafe();
+        return intN->to_signed(allocator);
+    }
+    return result;
 }
 
 Value* NegativeValue::evaluated_value(InterpretScope &scope) {

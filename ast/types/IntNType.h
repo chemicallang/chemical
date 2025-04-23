@@ -33,6 +33,11 @@ public:
     virtual unsigned int num_bits(bool is64Bit) const = 0;
 
     /**
+     * to signed intN type, if this is unsigned, otherwise this is returned
+     */
+    IntNType* to_signed(ASTAllocator& allocator);
+
+    /**
      * check if this is a character type
      */
     bool is_char_or_uchar_type() {

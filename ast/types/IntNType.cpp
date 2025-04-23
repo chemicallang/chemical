@@ -33,6 +33,25 @@ const LongType LongType::instance;
 const ULongType ULongType::instance;
 const NullPtrType NullPtrType::instance;
 
+IntNType* IntNType::to_signed(ASTAllocator& allocator) {
+    switch(IntNKind()) {
+        case IntNTypeKind::UChar:
+            return new (allocator.allocate<CharType>()) CharType();
+        case IntNTypeKind::UShort:
+            return new (allocator.allocate<ShortType>()) ShortType();
+        case IntNTypeKind::UInt:
+            return new (allocator.allocate<IntType>()) IntType();
+        case IntNTypeKind::ULong:
+            return new (allocator.allocate<LongType>()) LongType();
+        case IntNTypeKind::UBigInt:
+            return new (allocator.allocate<BigIntType>()) BigIntType();
+        case IntNTypeKind::UInt128:
+            return new (allocator.allocate<Int128Type>()) Int128Type();
+        default:
+            return this;
+    }
+}
+
 Value *IntType::create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) {
     return new (allocator.allocate<IntValue>()) IntValue(value, loc);
 }

@@ -255,7 +255,7 @@ NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
         if(parenExpression) {
             return new (allocator.allocate<NegativeValue>()) NegativeValue(parenExpression, loc_single(tok));
         } else {
-            auto acValue = parseAccessChainOrValue(allocator, false);
+            auto acValue = parseAccessChainOrValueNoAfter(allocator, false);
             if(acValue) {
                 return new (allocator.allocate<NegativeValue>()) NegativeValue(acValue, loc_single(tok));
             } else {

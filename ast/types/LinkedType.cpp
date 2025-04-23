@@ -14,10 +14,10 @@ uint64_t LinkedType::byte_size(bool is64Bit) {
 }
 
 bool LinkedType::satisfies(BaseType *other) {
-    const auto other_kind = other->kind();
     if(!linked) {
         return false;
     }
+    const auto other_kind = other->kind();
     if(other_kind == BaseTypeKind::Linked && linked == ((LinkedType*) other)->linked) {
         return true;
     }

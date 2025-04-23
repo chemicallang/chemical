@@ -21,12 +21,12 @@ ASTNode *PointerType::linked_node() {
 }
 
 bool PointerType::satisfies(BaseType *given) {
-    const auto other_pure = given->pure_type();
+    const auto other_pure = given->canonical();
     const auto other_kind = other_pure->kind();
     if(other_kind == BaseTypeKind::NullPtr) {
         return true;
     }
-    const auto current = type->pure_type();
+    const auto current = type->canonical();
     const auto type_kind = current->kind();
     if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->is_char_or_uchar_type())) {
         // this is a char* or uchar* which is a string
@@ -36,7 +36,7 @@ bool PointerType::satisfies(BaseType *given) {
     }
     if(other_kind == BaseTypeKind::Array) {
         const auto pure_type = ((ArrayType*) other_pure);
-        return current->satisfies(pure_type->elem_type);
+        return current->satisfies(pure_type->elem_type->canonical());
     }
     if(BaseType::is_pointer(other_kind) && other_pure->as_pointer_type_unsafe()->type) {
         const auto pointer = other_pure->as_pointer_type_unsafe();
@@ -48,7 +48,7 @@ bool PointerType::satisfies(BaseType *given) {
         }
         // pointer to integer types must be checked explicitly, *char must not be satisfied by *int
         // because int satisfies char
-        const auto other_pointee = pointer->type->pure_type();
+        const auto other_pointee = pointer->type->canonical();
         if(type_kind == BaseTypeKind::IntN) {
             const auto other_pointee_kind = other_pointee->kind();
             if(other_pointee_kind == BaseTypeKind::IntN && !current->as_intn_type_unsafe()->equals(other_pointee->as_intn_type_unsafe())) {

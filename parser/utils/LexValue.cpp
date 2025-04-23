@@ -268,6 +268,40 @@ Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {
     return new (allocator.allocate<IncDecValue>()) IncDecValue(expr, increment, false, loc_single(t));
 }
 
+Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool parseStruct) {
+    const auto start_token = token;
+    switch(start_token->type) {
+        case TokenType::IfKw:
+            return parseIfStatement(allocator, true, true, false);
+        case TokenType::SwitchKw:
+            return parseSwitchStatementBlock(allocator, true, true);
+        case TokenType::LoopKw:
+            return parseLoopBlockTokens(allocator, true);
+        case TokenType::DoublePlusSym:
+            return (Value*) parsePreIncDecValue(allocator, true);
+        case TokenType::DoubleMinusSym:
+            return (Value*) parsePreIncDecValue(allocator, false);
+        case TokenType::NewKw:
+            return parseNewValue(allocator);
+        case TokenType::Char:
+            return (Value*) parseCharValue(allocator);
+        case TokenType::String:
+            return (Value*) parseStringValue(allocator);
+        case TokenType::LBracket:
+            return parseLambdaValue(allocator);
+        case TokenType::Number:
+            return (Value*) parseNumberValue(allocator);
+        case TokenType::NotSym:
+            return (Value*) parseNotValue(allocator);
+        case TokenType::MinusSym:
+            return (Value*) parseNegativeValue(allocator);
+        case TokenType::HashMacro:
+            return parseMacroValue(allocator);
+        default:
+            return parseAccessChainOrAddrOf(allocator, parseStruct);
+    }
+}
+
 Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct) {
     const auto start_token = token;
     switch(start_token->type) {

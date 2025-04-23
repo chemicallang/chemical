@@ -78,6 +78,21 @@ bool LinkedType::satisfies(BaseType *other) {
     return false;
 }
 
+bool LinkedType::satisfies(ASTAllocator &allocator, Value *value, bool assignment) {
+    const auto valueType = value->create_type(allocator);
+    if(!valueType) return false;
+    if(value->isValueIntegerLiteral()) {
+        const auto known = linked->known_type();
+        if (known) {
+            const auto canonical = known->canonical();
+            if(canonical->kind() == BaseTypeKind::IntN) {
+                return true;
+            }
+        }
+    }
+    return satisfies(valueType);
+}
+
 bool NamedLinkedType::link(SymbolResolver &linker, SourceLocation loc) {
     const auto found = linker.find(link_name);
     if(found) {

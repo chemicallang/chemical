@@ -435,7 +435,7 @@ bool BaseType::is_reference_to(ASTNode* node) {
 
 BaseType* BaseType::getLoadableReferredType() {
     if(kind() == BaseTypeKind::Reference) {
-        const auto ref = as_reference_type_unsafe()->type->pure_type();
+        const auto ref = as_reference_type_unsafe()->type->canonical();
         const auto ref_kind = ref->kind();
         if(BaseType::isLoadableReferencee(ref_kind)) {
             return ref;
@@ -445,14 +445,14 @@ BaseType* BaseType::getLoadableReferredType() {
 }
 
 BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
-    const auto value_type_pure = pure_type();
+    const auto value_type_pure = canonical();
     const auto value_type_k = value_type_pure->kind();
-    const auto exp_type_pure = expected_type->pure_type();
+    const auto exp_type_pure = expected_type->canonical();
     const auto exp_type_k = exp_type_pure->kind();
     switch(value_type_k) {
         case BaseTypeKind::Reference: {
             const auto ref_type = value_type_pure->as_reference_type_unsafe();
-            const auto pure_referencee = ref_type->type->pure_type();
+            const auto pure_referencee = ref_type->type->canonical();
             if((pure_referencee->is_same(exp_type_pure) || exp_type_pure->kind() == BaseTypeKind::Any) && BaseType::isIntNType(pure_referencee->kind())) {
                 return pure_referencee;
             }
@@ -516,7 +516,7 @@ unsigned BaseType::type_alignment(bool is64Bit) {
         case BaseTypeKind::Literal:
             return as_literal_type_unsafe()->underlying->type_alignment(is64Bit);
         case BaseTypeKind::Linked: {
-            const auto pure = as_linked_type_unsafe()->pure_type();
+            const auto pure = as_linked_type_unsafe()->canonical();
             if(pure == this) {
                 return 8;
             } else {

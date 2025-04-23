@@ -209,7 +209,7 @@ int16_t get_iteration_for(std::vector<GenericTypeParameter*>& generic_params, st
             bool all_params_found = true;
             for(auto& param : generic_params) {
                 const auto generic_arg = j < generic_list.size() ? generic_list[j] : nullptr;
-                const auto generic_arg_pure = generic_arg ? generic_arg->pure_type() : param->def_type;
+                const auto generic_arg_pure = generic_arg ? generic_arg->canonical() : param->def_type;
                 if(!generic_arg_pure || !param->usage[i]->is_same(generic_arg_pure)) {
                     all_params_found = false;
                     break;

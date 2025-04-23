@@ -1277,7 +1277,7 @@ BaseType* FunctionCall::known_type() {
     if(parent_type) {
         switch(parent_type->kind()) {
             case BaseTypeKind::Function: {
-                const auto type = ((FunctionType*) parent_type)->returnType->pure_type();
+                const auto type = ((FunctionType*) parent_type)->returnType->canonical();
                 return type;
             }
             case BaseTypeKind::Linked:{
@@ -1287,7 +1287,7 @@ BaseType* FunctionCall::known_type() {
                 if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
                     return parent_type;
                 } else if(k == ASTNodeKind::TypealiasStmt) {
-                    return linked->pure_type();
+                    return linked->canonical();
                 }
                 break;
             }

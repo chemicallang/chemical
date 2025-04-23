@@ -55,7 +55,7 @@ bool LinkedType::satisfies(BaseType *other) {
             }
         }
         case ASTNodeKind::TypealiasStmt: {
-            return linked->as_typealias_unsafe()->actual_type->satisfies(other->pure_type());
+            return linked->as_typealias_unsafe()->actual_type->satisfies(other->canonical());
         }
         case ASTNodeKind::EnumDecl: {
             return linked == other->get_direct_linked_node();

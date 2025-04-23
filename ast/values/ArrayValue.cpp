@@ -15,7 +15,7 @@
 
 BaseType* array_child(BaseType* expected_type) {
     if(expected_type) {
-        auto pure_type = expected_type->pure_type();
+        auto pure_type = expected_type->canonical();
         if(pure_type->kind() == BaseTypeKind::Array) {
             return pure_type->known_child_type();
         }

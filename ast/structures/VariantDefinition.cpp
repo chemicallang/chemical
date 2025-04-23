@@ -318,7 +318,7 @@ void VariantMemberParam::link_signature(SymbolResolver &linker) {
 }
 
 ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
-    const auto pure_type = type->pure_type();
+    const auto pure_type = type->canonical();
     const auto linked_node = pure_type->linked_node();
     return linked_node->child(varName);
 }

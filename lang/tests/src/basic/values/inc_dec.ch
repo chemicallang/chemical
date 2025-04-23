@@ -87,4 +87,9 @@ func test_inc_dec() {
         }
         return j == 5
     })
+    test("post inc dec after minus works", () => {
+        var i = 33;
+        var j = -i++
+        return i == 34 && j == -33
+    })
 }

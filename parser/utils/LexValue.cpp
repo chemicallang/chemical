@@ -217,6 +217,21 @@ ASTNode* Parser::parseNewValueAsNode(ASTAllocator& allocator) {
     }
 }
 
+Value* Parser::parsePostIncDec(ASTAllocator& allocator, Value* value, Token* start_token) {
+    switch(token->type) {
+        case TokenType::DoublePlusSym: {
+            token++;
+            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, true, true, loc_single(start_token));
+        }
+        case TokenType::DoubleMinusSym: {
+            token++;
+            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, false, true, loc_single(start_token));
+        }
+        default:
+            return value;
+    }
+}
+
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
     switch(token->type) {
         case TokenType::DoublePlusSym: {

@@ -234,7 +234,7 @@ NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
         if(parenExpression) {
             return new (allocator.allocate<NotValue>()) NotValue(parenExpression, loc_single(tok));
         } else {
-            auto acValue = parseAccessChainOrValue(allocator, false);
+            auto acValue = parsePostIncDec(allocator, parseAccessChainOrValueNoAfter(allocator, false), &tok);
             if(acValue) {
                 return new (allocator.allocate<NotValue>()) NotValue(acValue, loc_single(tok));
             } else {
@@ -255,7 +255,7 @@ NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
         if(parenExpression) {
             return new (allocator.allocate<NegativeValue>()) NegativeValue(parenExpression, loc_single(tok));
         } else {
-            auto acValue = parseAccessChainOrValueNoAfter(allocator, false);
+            auto acValue = parsePostIncDec(allocator, parseAccessChainOrValueNoAfter(allocator, false), &tok);
             if(acValue) {
                 return new (allocator.allocate<NegativeValue>()) NegativeValue(acValue, loc_single(tok));
             } else {

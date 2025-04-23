@@ -763,6 +763,11 @@ public:
     Value* parseProvideValue(ASTAllocator& allocator);
 
     /**
+     * parses post increment and decrement after given value
+     */
+    Value* parsePostIncDec(ASTAllocator& allocator, Value* value, Token* start_token);
+
+    /**
      * user can write things after the value, like a cast
      * 123 as int, or 123 is int, this function takes care of parsing
      * all values afterward a parsed value inside the expression

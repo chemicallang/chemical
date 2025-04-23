@@ -156,38 +156,6 @@ bool BaseType::requires_copy_fn() {
     }
 }
 
-BaseType* BaseType::pure_type() {
-    switch(kind()) {
-        case BaseTypeKind::Literal: {
-            const auto type = as_literal_type_unsafe();
-            return type->underlying;
-        }
-        case BaseTypeKind::Linked: {
-            const auto linked = as_linked_type_unsafe()->linked;
-            if (linked) {
-                const auto known = linked->known_type();
-                return known ? known : this;
-            } else {
-                return this;
-            }
-        }
-        case BaseTypeKind::Pointer: {
-            const auto ptr_type = as_pointer_type_unsafe();
-            const auto pure_child = ptr_type->type->pure_type();
-            if(pure_child && pure_child != ptr_type->type) {
-                // TODO pointer type allocated without an allocator
-                auto ptr = new PointerType(pure_child, ptr_type->is_mutable);
-                ptr_type->pures.emplace_back(ptr);
-                return ptr;
-            } else {
-                return this;
-            }
-        }
-        default:
-            return this;
-    }
-}
-
 BaseType* BaseType::canonical() {
     switch(kind()) {
         case BaseTypeKind::Literal: {
@@ -489,6 +457,7 @@ unsigned BaseType::type_alignment(bool is64Bit) {
         case BaseTypeKind::Function:
         case BaseTypeKind::Generic:
         case BaseTypeKind::Pointer:
+        case BaseTypeKind::NullPtr:
         case BaseTypeKind::Reference:
         case BaseTypeKind::String:
         case BaseTypeKind::Void:

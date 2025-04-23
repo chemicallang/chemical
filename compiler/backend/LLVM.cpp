@@ -80,11 +80,16 @@
 #include "ast/utils/ASTUtils.h"
 #include "compiler/lab/TargetData.h"
 #include "ast/values/NewValue.h"
+#include "ast/types/NullPtrType.h"
 
 // -------------------- Types
 
 llvm::Type *AnyType::llvm_type(Codegen &gen) {
     throw std::runtime_error("llvm_type called on any type");
+}
+
+llvm::Type* NullPtrType::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
 }
 
 llvm::Type *ArrayType::llvm_type(Codegen &gen) {

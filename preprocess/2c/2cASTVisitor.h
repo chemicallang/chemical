@@ -644,6 +644,8 @@ public:
     // TODO expression type
     void VisitExpressionType(ExpressionType* type) {}
 
+    void VisitNullPtrType(NullPtrType* type);
+
     ~ToCAstVisitor();
 
 };

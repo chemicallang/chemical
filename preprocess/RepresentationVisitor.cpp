@@ -902,6 +902,11 @@ void RepresentationVisitor::VisitVoidType(VoidType *func) {
     write("void");
 }
 
+void RepresentationVisitor::VisitNullPtrType(NullPtrType* type) {
+    // TODO use the nullptr type
+    write("*mut void");
+}
+
 void RepresentationVisitor::VisitLoopBlock(LoopBlock *block) {
     write("loop");
     scope(*this, block->body);

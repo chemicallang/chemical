@@ -220,6 +220,8 @@ class FloatType;
 
 class ExpressionType;
 
+class NullPtrType;
+
 class ComplexType;
 
 class Float128Type;

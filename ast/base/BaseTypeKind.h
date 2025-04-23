@@ -41,6 +41,7 @@ enum class BaseTypeKind : uint8_t {
     Void,
 
     ExpressionType,
+    NullPtr,
 
     Unknown
 

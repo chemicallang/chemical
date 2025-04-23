@@ -21,10 +21,13 @@ ASTNode *PointerType::linked_node() {
 }
 
 bool PointerType::satisfies(BaseType *given) {
-    const auto current = type->pure_type();
-    const auto type_kind = current->kind();
     const auto other_pure = given->pure_type();
     const auto other_kind = other_pure->kind();
+    if(other_kind == BaseTypeKind::NullPtr) {
+        return true;
+    }
+    const auto current = type->pure_type();
+    const auto type_kind = current->kind();
     if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->is_char_or_uchar_type())) {
         // this is a char* or uchar* which is a string
         if(other_kind == BaseTypeKind::String) {

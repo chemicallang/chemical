@@ -1,7 +1,7 @@
 import lab
 import std
 
-public func build(ctx : *mut BuildContext) : *Module {
+public func build(ctx : *mut BuildContext) : *mut Module {
 
     // the std module
     var std_module = ctx.native_lib_module(std::string_view("std"));

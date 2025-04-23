@@ -126,7 +126,7 @@ func test_bodmas() {
         return result == expected;
     })
     test("parenthesized expressions can be casted", () => {
-        var v : int = (10 + 20) as ushort
+        var v = (10 + 20) as ushort
         return v == 30
     })
     test("second value in expression can be on next line, if it contains operator on previous line", () => {

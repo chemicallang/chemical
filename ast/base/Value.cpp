@@ -681,8 +681,7 @@ bool Value::is_ref_l_value() {
 }
 
 bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
-    const auto kind = val_kind();
-    switch(kind) {
+    switch(val_kind()) {
         case ValueKind::Identifier: {
             const auto id = as_identifier_unsafe();
             if(assigning) {
@@ -692,25 +691,29 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
                 return type->is_mutable();
             }
         }
+        case ValueKind::FunctionCall:{
+            const auto call = as_func_call_unsafe();
+            const auto type = call->create_type(allocator);
+            return type->is_mutable();
+        }
+        case ValueKind::IndexOperator: {
+            const auto index = as_index_op_unsafe();
+            return index->parent_val->check_is_mutable(allocator, false);
+        }
         case ValueKind::AccessChain: {
             const auto chain = as_access_chain_unsafe();
             auto& chain_values = chain->values;
-            unsigned i = 0;
             const auto chain_size = chain_values.size();
             const auto last_ind = chain_size - 1;
             const auto last = chain_values[last_ind];
             const auto last_kind = last->val_kind();
-            if(last_kind == ValueKind::FunctionCall) {
-                const auto type = last->create_type(allocator);
-                return type->is_mutable();
+            if(last_kind == ValueKind::FunctionCall || last_kind == ValueKind::IndexOperator) {
+                return last->check_is_mutable(allocator, assigning);
             }
+            unsigned i = 0;
             while(i < chain_size) {
                 const auto value = chain_values[i];
                 if(i == last_ind) {
-                    if(last_kind == ValueKind::IndexOperator) {
-                        // array types are mutable, no need to check last type's value type
-                        return true;
-                    }
                     const auto is_last_id = last_kind == ValueKind::Identifier;
                     if(!value->check_is_mutable(allocator, assigning && is_last_id)) {
                         return false;

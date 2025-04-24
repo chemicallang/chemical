@@ -65,7 +65,7 @@ struct CTStructGetChild {
 
 @comptime
 func give_me_some_sum() : (a : int, b : int) => int {
-    return compiler::get_child_fn(CTStructGetChild, "fake_sum");
+    return compiler::get_child_fn(CTStructGetChild, "fake_sum") as (a : int, b : int) => int;
 }
 
 @comptime

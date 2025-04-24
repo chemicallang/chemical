@@ -63,9 +63,7 @@ public:
     /**
      * check if satisfies
      */
-    bool satisfies(BaseType *type) {
-        return type->kind() == BaseTypeKind::IntN && satisfies(type->as_intn_type_unsafe());
-    }
+    bool satisfies(BaseType *type);
 
     /**
      * check if value satisfies

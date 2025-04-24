@@ -104,7 +104,7 @@ func test_bodmas() {
     test("logical right shift", () => {
         var value : uint = 0b10010010; // 146 in decimal
         var expected : uint = 0b00100100; // 36 in decimal
-        var result : uint = value >> 2; // Logical right shift (unsigned)
+        var result : uint = value >> 2u; // Logical right shift (unsigned)
         return result == expected;
     })
     test("arithmetic right shift", () => {
@@ -116,7 +116,7 @@ func test_bodmas() {
     test("logical left shift", () => {
         var value : uint = 0b00010010; // 18 in decimal
         var expected : uint = 0b01001000; // 72 in decimal
-        var result : uint = value << 2; // Logical left shift (unsigned)
+        var result : uint = value << 2u; // Logical left shift (unsigned)
         return result == expected;
     })
     test("arithmetic left shift", () => {

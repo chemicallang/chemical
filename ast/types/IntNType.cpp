@@ -53,6 +53,11 @@ IntNType* IntNType::to_signed(ASTAllocator& allocator) {
     }
 }
 
+bool IntNType::satisfies(BaseType *given) {
+    const auto type = given->canonical();
+    return type->kind() == BaseTypeKind::IntN && satisfies(type->as_intn_type_unsafe());
+}
+
 bool IntNType::satisfies(ASTAllocator &allocator, Value *value, bool assignment) {
     const auto literal = value->isValueIntegerLiteral();
     auto otherType = value->create_type(allocator);

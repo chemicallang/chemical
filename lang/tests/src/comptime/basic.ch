@@ -114,7 +114,7 @@ func return_runtime_sum() : (a : int, b : int) => int {
 
 @comptime
 func sum_multiple(x : int) : int {
-    return compiler::wrap(runtime_sum(x * 2, x * 2));
+    return compiler::wrap(runtime_sum(x * 2, x * 2)) as int;
 }
 
 // TODO should this be allowed

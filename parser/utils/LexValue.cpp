@@ -120,24 +120,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
             error("expected a '}' when lexing an array");
             return arrayValue;
         }
-        auto type = parseType(allocator);
-        if(type) {
-            warning("deprecated syntax for array value");
-            if (consumeToken(TokenType::LParen)) {
-                do {
-                    auto number = parseNumberValue(allocator);
-                    if(number) {
-                        arrayValue->sizes.emplace_back((unsigned int) number->get_the_int());
-                    } else {
-                        break;
-                    }
-                } while (consumeToken(TokenType::CommaSym));
-                if (!consumeToken(TokenType::RParen)) {
-                    error("expected a ')' when ending array size");
-                }
-            }
-        }
-        arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(type, arrayValue->array_size());
+        arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(nullptr, arrayValue->array_size());
         return arrayValue;
     } else {
         return nullptr;

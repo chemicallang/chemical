@@ -114,16 +114,18 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
 }
 
 BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId) {
-    auto t1 = consumeOfType(TokenType::LBracket);
-    if(t1) {
-        // optional array size
-        auto expr = parseExpression(allocator);
-        auto t2 = consumeOfType(TokenType::RBracket);
-        if(!t2) {
-            error("expected ']' for array type");
-            return typeId;
+    while(true) {
+        if(consumeToken(TokenType::LBracket)) {
+            // optional array size
+            auto expr = parseExpression(allocator);
+            if(!consumeToken(TokenType::RBracket)) {
+                error("expected ']' for array type");
+                return typeId;
+            }
+            typeId = new (allocator.allocate<ArrayType>()) ArrayType(typeId, expr);
+        } else {
+            break;
         }
-        typeId = new (allocator.allocate<ArrayType>()) ArrayType(typeId, expr);
     }
     while(true) {
         auto t = consumeOfType(TokenType::MultiplySym);

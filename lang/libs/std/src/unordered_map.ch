@@ -72,8 +72,8 @@ public struct unordered_map<Key, Value> {
             while (currentNode != null) {
                 var nextNode = currentNode.next;
                 // Call destructors on the key and value before freeing the node
-                destruct currentNode.key;
-                destruct currentNode.value;
+                destruct &currentNode.key;
+                destruct &currentNode.value;
                 free(currentNode);
                 currentNode = nextNode;
             }

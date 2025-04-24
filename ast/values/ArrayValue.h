@@ -35,19 +35,6 @@ public:
         created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size());
     }
 
-    /**
-     * constructor
-     */
-    constexpr ArrayValue(
-            std::vector<Value*> values,
-            BaseType* elem_type,
-            std::vector<unsigned int> sizes,
-            SourceLocation location,
-            ASTAllocator& allocator
-    ) : Value(ValueKind::ArrayValue, location), values(std::move(values)), sizes(std::move(sizes)) {
-        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size());
-    }
-
     BaseType*& known_elem_type() const;
 
     bool primitive() final {
@@ -61,6 +48,19 @@ public:
         } else {
             return sizes[0];
         }
+    }
+
+    inline bool has_explicit_size() {
+        return !sizes.empty();
+    }
+
+    inline void set_array_size(unsigned int siz) {
+        if(sizes.empty()) {
+            sizes.emplace_back(siz);
+        } else {
+            sizes[0] = siz;
+        }
+        created_type->set_array_size(siz);
     }
 
 #ifdef COMPILER_BUILD
@@ -115,18 +115,19 @@ public:
     BaseType* known_type() final;
 
     ArrayValue *copy(ASTAllocator& allocator) final {
-        std::vector<Value*> copied_values;
-        copied_values.reserve(values.size());
-        for (const auto &value: values) {
-            copied_values.emplace_back(value->copy(allocator));
-        }
-        std::vector<unsigned int> copied_sizes(sizes.size());
         BaseType* copied_elem_type = nullptr;
         const auto elemType = known_elem_type();
         if (elemType) {
             copied_elem_type = elemType->copy(allocator);
         }
-        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, encoded_location(), allocator);
+        const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(copied_elem_type, encoded_location(), allocator);;
+        auto& copied_values = arrVal->values;
+        copied_values.reserve(values.size());
+        for (const auto &value: values) {
+            copied_values.emplace_back(value->copy(allocator));
+        }
+        arrVal->sizes = sizes;
+        return arrVal;
     }
 
 };

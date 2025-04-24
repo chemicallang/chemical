@@ -241,7 +241,7 @@ AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value,
 }
 
 ArrayValue* ASTBuildermake_array_value(ASTAllocator* allocator, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<ArrayValue>()) ArrayValue({}, type, {}, location, *allocator);
+    return new (allocator->allocate<ArrayValue>()) ArrayValue(type, location, *allocator);
 }
 
 BigIntValue* ASTBuildermake_bigint_value(ASTAllocator* allocator, long long value, uint64_t location) {

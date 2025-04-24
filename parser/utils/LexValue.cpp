@@ -100,7 +100,7 @@ VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
 Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::LBrace);
     if (token1) {
-        auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue({}, nullptr, { }, loc(token1, token), allocator);
+        auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue(nullptr, loc(token1, token), allocator);
         do {
             consumeNewLines();
             auto expr = parseExpression(allocator, true);

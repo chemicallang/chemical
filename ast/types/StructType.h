@@ -33,6 +33,8 @@ public:
         return BaseType::kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
+    bool satisfies(BaseType *type) final;
+
     bool link(SymbolResolver &linker, SourceLocation loc) override;
 
     ASTNode* child(const chem::string_view &childName) override {

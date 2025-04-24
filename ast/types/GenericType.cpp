@@ -69,11 +69,13 @@ GenericType* GenericType::copy(ASTAllocator& allocator) const {
 }
 
 bool GenericType::satisfies(BaseType *pure_type) {
-    if(pure_type->kind() == BaseTypeKind::Generic) {
-        const auto gen_type = (GenericType*) pure_type;
-        return referenced->is_same(gen_type->referenced);
-    } else {
-        return false;
+    switch(pure_type->kind()) {
+        case BaseTypeKind::Generic:
+            return referenced->satisfies(pure_type->as_generic_type_unsafe()->referenced);
+        case BaseTypeKind::Linked:
+            return referenced->satisfies(pure_type);
+        default:
+            return false;
     }
 }
 

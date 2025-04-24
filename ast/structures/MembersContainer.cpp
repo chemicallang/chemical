@@ -284,7 +284,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
             case ASTNodeKind::UnnamedUnion:
             case ASTNodeKind::VariantMember:
                 if(!insert_variable(node->as_base_def_member_unsafe())) {
-                    linker.error("couldn't insert the member into container because a member with same name exists", node);
+                    linker.error(node) << "couldn't insert member because '" << node->as_base_def_member_unsafe()->name << "' already exists";
                 }
                 break;
             case ASTNodeKind::IfStmt: {

@@ -204,7 +204,7 @@ func test_nodes() {
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
     test("uninitialized array", () => {
-        var arr = {}int(5);
+        var arr : int[5] = {};
         arr[0] = 2;
         arr[1] = 4;
         arr[2] = 6;

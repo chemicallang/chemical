@@ -429,7 +429,7 @@ func test_destructors() {
     test("array values are destructed", () => {
         var count = 0;
         if(count == 0) {
-            var arr = {}Destructible(10);
+            var arr : Destructible[10] = {};
             var i = 0;
             var ptr : *mut Destructible;
             while(i < 10) {

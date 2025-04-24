@@ -567,6 +567,10 @@ llvm::Type *CastedValue::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
+llvm::Value* CastedValue::llvm_pointer(Codegen &gen) {
+    return value->llvm_pointer(gen);
+}
+
 llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
     const auto value_type_real = value->create_type(gen.allocator);

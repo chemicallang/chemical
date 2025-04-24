@@ -36,7 +36,7 @@ func <T> compare(value : T, value2 : T) : bool {
         return compiler::wrap(value == value2) as bool
     } else if(T is Eq) {
        const comp = value as Eq
-       return compiler::wrap(comp.equals(value2)) as bool
+       return compiler::wrap(comp.equals(value2 as Eq)) as bool
     }
     compiler::error("couldn't determine the hash function for the given type");
     return false;
@@ -56,7 +56,7 @@ func <T> hash(value : T) : uint {
     } else if(T is short || T is ushort) {
         return compiler::wrap(value * KnuthsMultiplicativeConstant) as uint
     } else if(compiler::satisfies(ptr_any, T)) {
-        return compiler::wrap(murmurhash(value, sizeof(T), 0)) as uint
+        return compiler::wrap(murmurhash(value as *char, sizeof(T), 0)) as uint
     } else if(is_type_number<T>()) {
         return compiler::wrap(__wrap_murmur_hash<T>(value)) as uint
     } else if(is_type_ref_number<T>()) {

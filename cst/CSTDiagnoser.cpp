@@ -33,7 +33,10 @@ void CSTDiagnoser::diagnostic(const chem::string_view &message, DiagSeverity sev
 }
 
 void CSTDiagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& path, const chem::string_view& tag) {
-    for (const auto &err: diagnostics) {
-        err.ansi(std::cerr, path, tag) << std::endl;
+    if(!diagnostics.empty()) {
+        for (const auto &err: diagnostics) {
+            err.ansi(std::cerr, path, tag) << '\n';
+        }
+        std::cerr << std::flush;
     }
 }

@@ -16,19 +16,13 @@
 #include "ast/base/InterpretScope.h"
 #include "compiler/SymbolResolver.h"
 
-EnumDeclaration* getEnumDecl(BaseType* type) {
-    const auto linked = type->get_direct_linked_node();
-    if(linked && linked->kind() == ASTNodeKind::EnumDecl) {
-        return linked->as_enum_decl_unsafe();
-    } else {
-        return nullptr;
-    }
+inline EnumDeclaration* getEnumDecl(BaseType* type) {
+    return type->get_direct_linked_enum();
 }
 
 // will use underlying integer type for enums
-BaseType* canonicalize_enum(BaseType* type) {
-    const auto decl = getEnumDecl(type);
-    return decl ? decl->get_underlying_integer_type() : type;
+inline BaseType* canonicalize_enum(BaseType* type) {
+    return type->canonicalize_enum();
 }
 
 void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {

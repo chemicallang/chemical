@@ -5072,7 +5072,7 @@ void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
 void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("_Alignof");
     write('(');
-    visit(align_of->for_type->removeReferenceFromType(allocator));
+    visit(align_of->for_type->removeReferenceFromType());
     write(')');
 }
 

@@ -107,6 +107,12 @@ public:
     BaseType* canonical();
 
     /**
+     * will return underlying integer type for enum, if not
+     * enum then returns this
+     */
+    BaseType* canonicalize_enum();
+
+    /**
      * pure type is an alias for deep canonical type
      */
     inline BaseType* pure_type(ASTAllocator& allocator) {
@@ -191,7 +197,7 @@ public:
     /**
      * get de-referenced type, &int -> int
      */
-    BaseType* removeReferenceFromType(ASTAllocator& allocator);
+    BaseType* removeReferenceFromType();
 
     /**
      * representation is representation of the type as a string
@@ -324,6 +330,11 @@ public:
      * if this is a directly referenced / generic variant, get it
      */
     VariantDefinition* get_direct_linked_variant();
+
+    /**
+     * get direct linked enum decl
+     */
+    EnumDeclaration* get_direct_linked_enum();
 
     /**
      * if this type is linked with a struct definition, it can be retrieved using this function

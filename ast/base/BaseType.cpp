@@ -5,6 +5,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/statements/Typealias.h"
@@ -176,6 +177,11 @@ BaseType* BaseType::canonical() {
     }
 }
 
+BaseType* BaseType::canonicalize_enum() {
+    const auto decl = get_direct_linked_enum();
+    return decl ? decl->get_underlying_integer_type() : this;
+}
+
 ASTNode* BaseType::get_direct_linked_node() {
     switch(kind()) {
         case BaseTypeKind::Linked:
@@ -238,6 +244,11 @@ StructDefinition* BaseType::get_ref_or_linked_struct() {
 VariantDefinition* BaseType::get_direct_linked_variant() {
     const auto ref_node = get_direct_linked_node();
     return ref_node ? ref_node->as_variant_def() : nullptr;
+}
+
+EnumDeclaration* BaseType::get_direct_linked_enum() {
+    const auto ref_node = get_direct_linked_node();
+    return ref_node ? ref_node->as_enum_decl() : nullptr;
 }
 
 StructDefinition* BaseType::get_direct_linked_movable_struct() {
@@ -393,10 +404,10 @@ BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
     }
 }
 
-BaseType* BaseType::removeReferenceFromType(ASTAllocator& allocator) {
+BaseType* BaseType::removeReferenceFromType() {
     const auto pure_t = canonical();
     if(pure_t->kind() == BaseTypeKind::Reference) {
-        return pure_t->as_reference_type_unsafe()->type->canonical();
+        return pure_t->as_reference_type_unsafe()->type;
     } else {
         return this;
     }

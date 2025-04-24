@@ -303,15 +303,17 @@ void VarInitStatement::link_signature(SymbolResolver &linker) {
         attrs.signature_resolved = false;
     } else {
         if(type && value) {
-            if(!type->satisfies(linker.allocator, value, false)) {
-                linker.unsatisfied_type_err(value, type);
-            }
             const auto as_array = value->as_array_value();
             if(type->kind() == BaseTypeKind::Array && as_array) {
                 const auto arr_type = ((ArrayType*) type);
                 if(arr_type->has_no_array_size()) {
                     arr_type->set_array_size(as_array->array_size());
+                } else if(!as_array->has_explicit_size()) {
+                    as_array->set_array_size(arr_type->get_array_size());
                 }
+            }
+            if(!type->satisfies(linker.allocator, value, false)) {
+                linker.unsatisfied_type_err(value, type);
             }
         }
         if(!type && value) {

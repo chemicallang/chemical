@@ -7,6 +7,9 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "compiler/ASTDiagnoser.h"
 
 #ifdef COMPILER_BUILD
@@ -514,6 +517,42 @@ bool FunctionTypeBody::is_value_movable(Value* value_ptr, BaseType* type) {
     return false;
 }
 
+bool is_generic_instantiation(ASTNode* gen_node, ASTNode* inst_node) {
+    // checking if inst node is one of its instantiations
+    switch(gen_node->kind()) {
+        case ASTNodeKind::GenericStructDecl: {
+            const auto gen_decl = gen_node->as_gen_struct_def_unsafe();
+            for (const auto inst: gen_decl->instantiations) {
+                if (inst == inst_node) {
+                    return true;
+                }
+            }
+            break;
+        }
+        case ASTNodeKind::GenericUnionDecl: {
+            const auto gen_decl = gen_node->as_gen_union_decl_unsafe();
+            for (const auto inst: gen_decl->instantiations) {
+                if (inst == inst_node) {
+                    return true;
+                }
+            }
+            break;
+        }
+        case ASTNodeKind::GenericVariantDecl: {
+            const auto gen_decl = gen_node->as_gen_variant_decl_unsafe();
+            for (const auto inst: gen_decl->instantiations) {
+                if (inst == inst_node) {
+                    return true;
+                }
+            }
+            break;
+        }
+        default:
+            return false;
+    }
+    return false;
+}
+
 bool FunctionTypeBody::mark_moved_value(
         ASTAllocator& allocator,
         Value* value_ptr,
@@ -563,15 +602,19 @@ bool FunctionTypeBody::mark_moved_value(
         if (expected_node == (ASTNode*) linked_def) {
             final = mark_moved_value(&value, diagnoser);
         } else {
-            const auto implicit = pure_expected->implicit_constructor_for(allocator, &value);
-            if(implicit && check_implicit_constructors) {
-                auto& param_type = *implicit->params[0]->type;
-                if(!param_type.is_reference()) { // not a reference type (requires moving)
-                    final = mark_moved_value(&value, diagnoser);
-                }
+            if(is_generic_instantiation(expected_node, linked_def)) {
+                final = mark_moved_value(&value, diagnoser);
             } else {
-                diagnoser.error("unknown value being moved, where the struct types don't match", &value);
-                return false;
+                const auto implicit = pure_expected->implicit_constructor_for(allocator, &value);
+                if (implicit && check_implicit_constructors) {
+                    auto& param_type = *implicit->params[0]->type;
+                    if (!param_type.is_reference()) { // not a reference type (requires moving)
+                        final = mark_moved_value(&value, diagnoser);
+                    }
+                } else {
+                    diagnoser.error("unknown value being moved, where the struct types don't match", &value);
+                    return false;
+                }
             }
         }
     } else {

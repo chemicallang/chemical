@@ -8,22 +8,23 @@
 
 void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(lhs->link_assign(linker, lhs, nullptr)) {
-        BaseType* value_type = lhs->create_type(linker.allocator);
-        if(value->link(linker, value, value_type)) {
+        BaseType* lhsType = lhs->create_type(linker.allocator);
+        if(value->link(linker, value, lhsType)) {
             switch(assOp){
                 case Operation::Assignment:
-                    if (!value_type->satisfies(linker.allocator, value, true)) {
-                        linker.unsatisfied_type_err(value, value_type);
+                    if (!lhsType->satisfies(linker.allocator, value, true)) {
+                        linker.unsatisfied_type_err(value, lhsType);
                     }
                     break;
                 case Operation::Addition:
                 case Operation::Subtraction:
-                    if(value_type->kind() == BaseTypeKind::Pointer) {
-                        if(value->val_kind() != ValueKind::NumberValue) {
-                            linker.unsatisfied_type_err(value, value_type);
+                    if(lhsType->kind() == BaseTypeKind::Pointer) {
+                        const auto rhsType = value->create_type(linker.allocator)->canonical();
+                        if(rhsType->kind() != BaseTypeKind::IntN) {
+                            linker.unsatisfied_type_err(value, lhsType);
                         }
-                    } else if (!value_type->satisfies(linker.allocator, value, true)) {
-                        linker.unsatisfied_type_err(value, value_type);
+                    } else if (!lhsType->satisfies(linker.allocator, value, true)) {
+                        linker.unsatisfied_type_err(value, lhsType);
                     }
                     break;
                 default:

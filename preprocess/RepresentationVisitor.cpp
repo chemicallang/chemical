@@ -346,13 +346,17 @@ void RepresentationVisitor::VisitIfStmt(IfStatement *decl) {
     }
 }
 
-void write_members(RepresentationVisitor& visitor, MembersContainer* container) {
+void write_variables(RepresentationVisitor& visitor, VariablesContainer* container) {
     int i = 0;
     for (const auto field: container->variables()) {
         visitor.new_line_and_indent();
         visitor.visit(field);
         i++;
     }
+}
+
+void write_members(RepresentationVisitor& visitor, MembersContainer* container) {
+    write_variables(visitor, container);
     for (const auto field : container->functions()) {
         visitor.new_line_and_indent();
         visitor.visit(field);
@@ -894,8 +898,29 @@ void RepresentationVisitor::VisitStringType(StringType *func) {
     write("string");
 }
 
-void RepresentationVisitor::VisitStructType(StructType *val) {
-    write("[StructType_UNIMPLEMENTED]");
+void RepresentationVisitor::VisitStructType(StructType *def) {
+    write("struct ");
+    write(def->name);
+    if(!def->inherited.empty()) {
+        write(" : ");
+        unsigned i = 0;
+        const auto size = def->inherited.size();
+        while(i < size) {
+            const auto& thing = def->inherited[i];
+            write(thing.specifier);
+            space();
+            write(def->inherited[i].specifier);
+            if(i < size - 1) write(", ");
+            i++;
+        }
+    }
+    space();
+    write("{");
+    indentation_level+=1;
+    write_variables(*this, def);
+    indentation_level-=1;
+    new_line_and_indent();
+    write("}");
 }
 
 void RepresentationVisitor::VisitVoidType(VoidType *func) {

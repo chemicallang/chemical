@@ -60,7 +60,8 @@ bool PointerType::satisfies(BaseType *given) {
     return false;
 }
 
-bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
+bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignment) {
+    const auto given = giveNonCan->canonical();
     const auto givenKind = given->kind();
     if(givenKind == BaseTypeKind::Reference) {
         const auto ref = ((ReferenceType*) given);
@@ -69,7 +70,8 @@ bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
     // when assigning to a ref, we don't require l value
     if(!assignment && givenKind == BaseTypeKind::IntN) {
         if(value) {
-            return value->is_ref_l_value();
+            const auto typeSatisfies = type->satisfies(given);
+            return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;
         } else {
             return false;
         }
@@ -82,5 +84,5 @@ bool ReferenceType::satisfies(BaseType* given, Value* value, bool assignment) {
 
 bool ReferenceType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
     const auto val_type = value->create_type(allocator);
-    return val_type != nullptr && satisfies(val_type->canonical(), value, assignment);
+    return val_type != nullptr && satisfies(val_type, value, assignment);
 }

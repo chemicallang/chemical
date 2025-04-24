@@ -85,7 +85,7 @@ public:
     static IntNTypeKind to_unsigned_kind(IntNTypeKind k) {
         auto otherK = static_cast<int>(k);
         if(otherK < static_cast<int>(IntNTypeKind::UnsignedStart)) {
-            return static_cast<IntNTypeKind>(otherK + static_cast<int>(IntNTypeKind::SignedEnd));
+            return static_cast<IntNTypeKind>(otherK + static_cast<int>(IntNTypeKind::UnsignedStart));
         } else {
             return k;
         }

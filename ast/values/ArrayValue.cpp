@@ -178,6 +178,12 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     auto& elemType = known_elem_type();
     if(elemType) {
         elemType->link(linker);
+    }
+    if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
+        const auto arr_type = (ArrayType*) expected_type;
+        elemType = arr_type->elem_type->copy(*linker.ast_allocator);
+    }
+    if(elemType) {
         const auto def = elemType->linked_struct_def();
         if(def) {
             unsigned i = 0;
@@ -195,9 +201,6 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
             }
             return true;
         }
-    } else if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
-        const auto arr_type = (ArrayType*) expected_type;
-        elemType = arr_type->elem_type->copy(*linker.ast_allocator);
     }
     auto& current_func_type = *linker.current_func_type;
     auto& known_elem_type = elemType;

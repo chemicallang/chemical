@@ -62,10 +62,16 @@ bool LinkedType::satisfies(BaseType *other) {
         }
         case ASTNodeKind::GenericTypeParam :{
             const auto param = linked->as_generic_type_param_unsafe();
-            if(param->usage.empty() && !param->at_least_type) {
-                return true;
+            if(param->at_least_type) {
+                return param->at_least_type->satisfies(other);
             } else {
-                break;
+                const auto known = param->known_type();
+                if(known) {
+                    return known->satisfies(other);
+                } else {
+                    // it's like a c++ template generic, which can take any type
+                    return true;
+                }
             }
         }
         default:

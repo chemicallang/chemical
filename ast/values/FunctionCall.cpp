@@ -431,7 +431,11 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
 llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
     const auto linked = parent_val->linked_node();
     if(linked != nullptr) {
-        return linked->llvm_load(gen, parent_val->encoded_location());
+        if(linked->kind() == ASTNodeKind::TypealiasStmt) {
+            return parent_val->llvm_value(gen);
+        } else {
+            return linked->llvm_load(gen, parent_val->encoded_location());
+        }
     } else {
         return nullptr;
     }

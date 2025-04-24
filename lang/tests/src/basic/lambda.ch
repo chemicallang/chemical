@@ -204,7 +204,8 @@ func test_lambda() {
         return n.provider.provide() == 252;
     })
     test("can call lambda stored in an array", () => {
-        var arr = {}()=>int(2);
+        type MyLamb = () => int
+        var arr : MyLamb[2] = {};
         arr[0] = () => 5;
         arr[1] = () => 10;
         return arr[0]() == 5 && arr[1]() == 10;

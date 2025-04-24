@@ -122,6 +122,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
         }
         auto type = parseType(allocator);
         if(type) {
+            warning("deprecated syntax for array value");
             if (consumeToken(TokenType::LParen)) {
                 do {
                     auto number = parseNumberValue(allocator);

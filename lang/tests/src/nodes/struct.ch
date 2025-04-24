@@ -234,11 +234,11 @@ func test_structs() {
         return p.imp.data == 55;
     })
     test("implicit constructors inside array values work - 1", () => {
-        var arr = { 55 }ImpPair(1)
+        var arr : ImpPair[1] = { 55 }
         return arr[0].data == 55;
     })
     test("implicit constructors inside array values work - 2", () => {
-        var arr = { ImpPair(55) }ImpPair(1)
+        var arr : ImpPair[1] = { ImpPair(55) }
         return arr[0].data == 55;
     })
     test("implicit constructors in return work - 1", () => {

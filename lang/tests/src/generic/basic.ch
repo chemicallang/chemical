@@ -10,7 +10,7 @@ struct PairGen <T, U, V> {
     var a : T
     var b : U
     func add(&self) : V {
-        return a + b
+        return (a + b) as V
     }
 }
 

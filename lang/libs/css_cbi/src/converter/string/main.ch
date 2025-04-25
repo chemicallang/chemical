@@ -389,7 +389,7 @@ func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
     }
 
     var fmSize = ptr.family.families.size()
-    var i = 0
+    var i : uint = 0
     while(i < fmSize) {
         const fm = ptr.family.families.get_ptr(i)
         str.append(',')
@@ -787,7 +787,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
         CSSValueKind.Multiple => {
             const ptr = value.data as *mut CSSMultipleValues
-            var i = 0;
+            var i : uint = 0;
             const size = ptr.values.size();
             const last = size - 1;
             while(i < size) {
@@ -1024,7 +1024,7 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
             // const dataPtr = total.data() + 1
             // om.className = std::string_view(dataPtr, 7)
         }
-        var i = 0
+        var i : uint = 0
         while(i < size) {
             var decl = om.declarations.get(i)
             convertDeclaration(resolver, builder, decl, vec, om.parent, str)

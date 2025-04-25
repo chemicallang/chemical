@@ -134,7 +134,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         '\'' => {
                             str.append('\'');
                             return Token {
-                                type : TokenType.SingleQuotedValue,
+                                type : TokenType.SingleQuotedValue as int,
                                 value : provider.read_single_quoted_value(lexer.str),
                                 position : position
                             }
@@ -142,7 +142,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         '"' => {
                             str.append('"')
                             return Token {
-                                type : TokenType.DoubleQuotedValue,
+                                type : TokenType.DoubleQuotedValue as int,
                                 value : provider.read_double_quoted_value(lexer.str),
                                 position : position
                             }

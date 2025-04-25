@@ -227,7 +227,7 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
             str.append('>')
 
             // doing children
-            var i = 0;
+            var i : uint = 0;
             var s = element.children.size();
             while(i < s) {
                 var nested_child = element.children.get(i)

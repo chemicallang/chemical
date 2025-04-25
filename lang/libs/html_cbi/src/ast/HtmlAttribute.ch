@@ -26,7 +26,7 @@ struct ChemicalAttributeValue : AttributeValue {
 
 struct ChemicalAttributeValues : AttributeValue {
 
-    var values : std::vector<*Value>
+    var values : std::vector<*mut Value>
 
 }
 

@@ -2,6 +2,7 @@
 
 #include "IntNType.h"
 #include "IntType.h"
+#include "ast/types/BoolType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/values/IntValue.h"
@@ -33,6 +34,17 @@ const UShortType UShortType::instance;
 const LongType LongType::instance;
 const ULongType ULongType::instance;
 const NullPtrType NullPtrType::instance;
+
+bool BoolType::satisfies(BaseType *type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Bool:
+            return true;
+        case BaseTypeKind::Reference:
+            return type->as_reference_type_unsafe()->type->kind() == BaseTypeKind::Bool;
+        default:
+            return false;
+    }
+}
 
 IntNType* IntNType::to_signed(ASTAllocator& allocator) {
     switch(IntNKind()) {

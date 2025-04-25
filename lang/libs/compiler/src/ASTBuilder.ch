@@ -207,7 +207,7 @@ public struct VarInitStatement : ASTNode {}
 
 public struct Scope : ASTNode {
 
-    func getNodes(&self) : *VecRef<ASTNode>;
+    func getNodes(&self) : *mut VecRef<ASTNode>;
 
     func link_sequentially(&self, resolver : *mut SymbolResolver)
 
@@ -460,7 +460,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_null_value(&self, location : ubigint) : *mut NullValue
 
-    func make_number_value(&self, value : bigint, location : ubigint) : *mut NumberValue
+    func make_number_value(&self, value : ubigint, location : ubigint) : *mut NumberValue
 
     func make_short_value(&self, value : short, location : ubigint) : *mut ShortValue
 
@@ -559,10 +559,10 @@ public struct ASTBuilder : BatchAllocator {
 @comptime
 public func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
     // TODO get destructor function
-    var delete_fn = compiler::get_child_fn(T, "delete");
+    var delete_fn = compiler::get_child_fn(T, "delete") as (obj : *void) => void;
     if(delete_fn != null) {
-        return compiler::wrap(builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn))
+        return compiler::wrap(builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn)) as *mut T
     } else {
-        return compiler::wrap(builder.allocate_size(sizeof(T), alignof(T)))
+        return compiler::wrap(builder.allocate_size(sizeof(T), alignof(T))) as *mut T
     }
 }

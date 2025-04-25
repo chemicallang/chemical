@@ -21,7 +21,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     html.is_comment = true;
 
                     return Token {
-                        type : TokenType.CommentStart,
+                        type : TokenType.CommentStart as int,
                         value : view("<!--"),
                         position : position
                     }
@@ -33,7 +33,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 
                 } else {
                     return Token {
-                        type : TokenType.Unexpected,
+                        type : TokenType.Unexpected as int,
                         value : view("expected directive or comment"),
                         position : position
                     }
@@ -41,7 +41,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             } else {
                 html.has_lt = true;
                 return Token {
-                    type : TokenType.LessThan,
+                    type : TokenType.LessThan as int,
                     value : view("<"),
                     position : position
                 }
@@ -57,7 +57,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 printf("lb_count decreased to %d\n", html.lb_count);
             }
             return Token {
-                type : TokenType.RBrace,
+                type : TokenType.RBrace as int,
                 value : view("}"),
                 position : position
             }
@@ -72,7 +72,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             html.lb_count++;
             printf("lb_count increased to %d\n", html.lb_count);
             return Token {
-                type : TokenType.LBrace,
+                type : TokenType.LBrace as int,
                 value : view("{"),
                 position : position
             }
@@ -84,13 +84,13 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         '/' => {
             if(html.has_lt) {
                 return Token {
-                    type : TokenType.FwdSlash,
+                    type : TokenType.FwdSlash as int,
                     value : view("/"),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.Unexpected,
+                    type : TokenType.Unexpected as int,
                     value : view("lt is not open"),
                     position : position
                 }
@@ -100,13 +100,13 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             if(html.has_lt) {
                 html.has_lt = false;
                 return Token {
-                    type : TokenType.GreaterThan,
+                    type : TokenType.GreaterThan as int,
                     value : view(">"),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.Unexpected,
+                    type : TokenType.Unexpected as int,
                     value : view("lt is not open"),
                     position : position
                 }
@@ -118,7 +118,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     str.append(c);
                     const tag_name = provider.read_tag_name(lexer.str);
                     return Token {
-                        type : TokenType.Identifier,
+                        type : TokenType.Identifier as int,
                         value : tag_name,
                         position : position
                     }
@@ -126,7 +126,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     switch(c) {
                         '=' => {
                            return Token {
-                                type : TokenType.Equal,
+                                type : TokenType.Equal as int,
                                 value : view("="),
                                 position : position
                            }
@@ -152,13 +152,13 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                                 str.append(c);
                                 provider.read_floating_digits(lexer.str);
                                 return Token {
-                                    type : TokenType.Number,
+                                    type : TokenType.Number as int,
                                     value : str.finalize_view(),
                                     position : position
                                 }
                             } else {
                                 return Token {
-                                    type : TokenType.Unexpected,
+                                    type : TokenType.Unexpected as int,
                                     value : view("tag names must start with letters"),
                                     position : position
                                 }
@@ -172,7 +172,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 var text = provider.read_text(lexer.str)
                 if(text.size() != 0) {
                     return Token {
-                        type : TokenType.Text,
+                        type : TokenType.Text as int,
                         value : text,
                         position : position
                     }

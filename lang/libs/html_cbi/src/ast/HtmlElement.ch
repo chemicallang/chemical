@@ -5,9 +5,9 @@ struct HtmlElement : HtmlChild {
 
     var isSelfClosing : bool
 
-    var attributes : std::vector<*HtmlAttribute>
+    var attributes : std::vector<*mut HtmlAttribute>
 
-    var children : std::vector<*HtmlChild>
+    var children : std::vector<*mut HtmlChild>
 
     @delete
     func delete(&self) {

@@ -16,7 +16,7 @@ public func (allocator : &mut BatchAllocator) allocate_str_size(size : size_t) :
     return allocator.allocate_size(sizeof(char) * size + 1, alignof(char))
 }
 
-public func (allocator : &mut BatchAllocator) allocate_str(data : *mut char, size : size_t) : *mut char {
+public func (allocator : &mut BatchAllocator) allocate_str(data : *char, size : size_t) : *mut char {
     const ptr = allocator.allocate_size(sizeof(char) * (size + 1), alignof(char))
     memcpy(ptr, data, size)
     *(ptr + size) = '\0'

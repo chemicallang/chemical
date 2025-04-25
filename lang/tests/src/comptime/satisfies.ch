@@ -357,7 +357,7 @@ func test_satisfies() {
     })
     test("direct bool type satisfy reference bool type with backing storage", () => {
         type T = &bool
-        var U : bool = 0
+        var U : bool = false
         return compiler::satisfies(T, U)
     })
     test("direct int n types satisfy reference int n types with backing storage - 1", () => {
@@ -382,7 +382,7 @@ func test_satisfies() {
     })
     test("direct bool type satisfy mutable reference bool type with backing storage", () => {
         type T = &mut bool
-        var U : bool = 0
+        var U : bool = false
         return compiler::satisfies(T, U)
     })
     test("direct int n types satisfy mutable reference int n types with backing storage - 1", () => {
@@ -407,7 +407,7 @@ func test_satisfies() {
     })
     test("constant bool declaration does not qualify as backing storage for mutable reference types", () => {
         type T = &mut bool
-        const U : bool = 0
+        const U : bool = false
         return !compiler::satisfies(T, U)
     })
     test("constant int n declarations do not qualify as backing storage for mutable reference types - 1", () => {
@@ -432,7 +432,7 @@ func test_satisfies() {
     })
     test("constant bool declaration satisfies const reference types", () => {
         type T = &bool
-        const U : bool = 0
+        const U : bool = false
         return compiler::satisfies(T, U)
     })
     test("constant int n declarations satisfy const reference types - 1", () => {

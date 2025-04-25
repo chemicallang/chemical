@@ -35,7 +35,7 @@ func (cssParser : &mut CSSParser) parseTransform(
                     parser.error("expected a '(' after the transform function");
                 }
 
-                const node = builder.allocate<CSSTransformLengthNode>();
+                var node = builder.allocate<CSSTransformLengthNode>();
                 new (node) CSSTransformLengthNode()
                 transform.node = node;
 

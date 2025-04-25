@@ -316,7 +316,7 @@ bool read_escapable_char(SerialStrAllocator &str, SourceProvider& provider) {
     if(current != 'x') {
         const auto next = escaped_char(current);
         str.append(next);
-        return next != current || next == '\\' || next == '\'';
+        return next != current || next == '\\' || next == '\'' || next == '"';
     } else {
         if(provider.increment('1') && provider.increment('b')) {
             str.append('\x1b');

@@ -134,7 +134,7 @@ func (parser : &mut Parser) parseNumberOrAngleOrNone(builder : *mut ASTBuilder) 
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            const lenKind = parseLengthKindSafe(parser, builder)
+            const lenKind = parseLengthKindSafe(&parser, builder)
             if(lenKind == CSSLengthKind.Unknown) {
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
             } else {

@@ -321,7 +321,7 @@ NullValue* ASTBuildermake_null_value(ASTAllocator* allocator, uint64_t location)
     return new (allocator->allocate<NullValue>()) NullValue(location);
 }
 
-NumberValue* ASTBuildermake_number_value(ASTAllocator* allocator, int64_t value, uint64_t location) {
+NumberValue* ASTBuildermake_number_value(ASTAllocator* allocator, uint64_t value, uint64_t location) {
     return new (allocator->allocate<NumberValue>()) NumberValue(value, location);
 }
 

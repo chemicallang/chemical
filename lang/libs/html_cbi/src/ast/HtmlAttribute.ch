@@ -20,7 +20,7 @@ struct TextAttributeValue : AttributeValue {
 
 struct ChemicalAttributeValue : AttributeValue {
 
-    var value : *Value
+    var value : *mut Value
 
 }
 

@@ -233,7 +233,7 @@ extern "C" {
 
     NullValue* ASTBuildermake_null_value(ASTAllocator* allocator, uint64_t location);
 
-    NumberValue* ASTBuildermake_number_value(ASTAllocator* allocator, int64_t value, uint64_t location);
+    NumberValue* ASTBuildermake_number_value(ASTAllocator* allocator, uint64_t value, uint64_t location);
 
     ShortValue* ASTBuildermake_short_value(ASTAllocator* allocator, short value, uint64_t location);
 

@@ -186,7 +186,7 @@ func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuil
                 const value = attr.value as *mut ChemicalAttributeValues
                 const size = value.values.size();
                 const last = size - 1;
-                var i = 0;
+                var i : uint = 0;
                 while(i < size) {
                     put_chemical_value_in(resolver, builder, vec, parent, value.values.get(i))
                     if(i != last) {
@@ -212,7 +212,7 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
             str.append_with_len(element.name.data(), element.name.size())
 
             // putting attributes
-            var a = 0;
+            var a : uint = 0;
             var attrs = element.attributes.size()
             while(a < attrs) {
                 var attr = element.attributes.get(a)

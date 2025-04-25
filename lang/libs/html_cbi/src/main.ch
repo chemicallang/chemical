@@ -78,7 +78,7 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             html.is_comment = false;
         }
         return Token {
-            type : TokenType.CommentText,
+            type : TokenType.CommentText as int,
             value : lexer.str.finalize_view(),
             position : position
         }

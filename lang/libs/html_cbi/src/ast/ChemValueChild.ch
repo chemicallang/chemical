@@ -1,6 +1,6 @@
 
 struct HtmlChemValueChild : HtmlChild {
 
-    var value : *Value
+    var value : *mut Value
 
 }

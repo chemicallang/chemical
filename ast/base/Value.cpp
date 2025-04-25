@@ -16,6 +16,7 @@
 #include "ast/values/ShortValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/UShortValue.h"
+#include "ast/values/Expression.h"
 #include "ast/values/UCharValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/FloatValue.h"
@@ -729,6 +730,10 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
         }
         case ValueKind::DereferenceValue: {
             return as_dereference_value_unsafe()->value->check_is_mutable(allocator, false);
+        }
+        case ValueKind::Expression: {
+            const auto expr = as_expression_unsafe();
+            return expr->created_type->is_mutable();
         }
         default:
             return false;

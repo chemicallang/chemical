@@ -507,6 +507,7 @@ bool ASTProcessor::import_chemical_file(
     Lexer lexer(std::string(abs_path), &inp_source, &binder, file_allocator);
     std::vector<Token> tokens;
 
+    // actual lexing
     if(options->benchmark) {
         result.lex_benchmark = std::make_unique<BenchmarkResults>();
         result.lex_benchmark->benchmark_begin();
@@ -516,8 +517,13 @@ bool ASTProcessor::import_chemical_file(
         lexer.getTokens(tokens);
     }
 
-    // lexer doesn't have diagnostics
-    // result.lex_diagnostics = {};
+    // move lexer diagnostics
+    result.lex_diagnostics = std::move(lexer.diagnoser.diagnostics);
+
+    // do not continue, if error occurs during lexing
+    if(lexer.diagnoser.has_errors) {
+        result.continue_processing = false;
+    }
 
     // parse the file
     Parser parser(
@@ -532,18 +538,10 @@ bool ASTProcessor::import_chemical_file(
             &binder
     );
 
-    // put the lexing diagnostic into the parser diagnostic for now
-    if(!tokens.empty()) {
-        auto& last_token = tokens.back();
-        if (last_token.type == TokenType::Unexpected) {
-            parser.diagnostics.emplace_back(
-                    CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
-        }
-    }
-
     // setting file scope as parent of all nodes parsed
     parser.parent_node = &result.unit.scope;
 
+    // actual parsing
     if(options->benchmark) {
         result.parse_benchmark = std::make_unique<BenchmarkResults>();
         result.parse_benchmark->benchmark_begin();
@@ -553,6 +551,7 @@ bool ASTProcessor::import_chemical_file(
         parser.parse(unit.scope.body.nodes);
     }
 
+    // move parser diagnostics
     result.parse_diagnostics = std::move(parser.diagnostics);
 
     if(parser.has_errors) {
@@ -938,7 +937,6 @@ int ASTProcessor::translate_module(
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(file)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            print_results(file, chem::string_view(file.abs_path), options->benchmark);
         }
 
 #ifdef DEBUG

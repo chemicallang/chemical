@@ -183,7 +183,6 @@ int ASTProcessor::compile_module(
         // print the benchmark or verbose output received from processing
         if((options->benchmark || options->verbose) && !empty_diags(result)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-            print_results(result, chem::string_view(file.abs_path), options->benchmark);
         }
 
         auto& abs_path = file.abs_path;

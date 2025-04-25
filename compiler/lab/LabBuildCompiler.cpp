@@ -143,6 +143,7 @@ bool empty_diags(ASTFileResult& result) {
 }
 
 void print_results(ASTFileResult& result, const std::string& abs_path, bool benchmark) {
+    std::cout << rang::style::bold << rang::fg::magenta << "[Parsed] " << abs_path << rang::fg::reset << rang::style::reset << '\n';
     CSTDiagnoser::print_diagnostics(result.lex_diagnostics, chem::string_view(abs_path), "Lexer");
     CSTDiagnoser::print_diagnostics(result.parse_diagnostics, chem::string_view(abs_path), "Parser");
     if(benchmark) {
@@ -510,7 +511,15 @@ int LabBuildCompiler::process_module_tcc(
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    if(!processor.import_module_files(pool, direct_files, mod)) {
+    const auto parse_success = processor.import_module_files(pool, direct_files, mod);
+
+    // lets print diagnostics for all files in module
+    for(auto& file : direct_files) {
+        print_results(*file.result, file.abs_path, options->benchmark);
+    }
+
+    // return failure if parse failed
+    if(!parse_success) {
         return 1;
     }
 
@@ -649,7 +658,17 @@ int LabBuildCompiler::process_module_gen(
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    processor.import_module_files(pool, direct_files, mod);
+    const auto parse_success = processor.import_module_files(pool, direct_files, mod);
+
+    // lets print diagnostics for all files in module
+    for(auto& file : direct_files) {
+        print_results(*file.result, file.abs_path, options->benchmark);
+    }
+
+    // return failure if parse failed
+    if(!parse_success) {
+        return 1;
+    }
 
     const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
     if(mod_data_path) {

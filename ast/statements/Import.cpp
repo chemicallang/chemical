@@ -38,19 +38,7 @@ FileNodesIterator get_iterator(SymbolResolver& linker, ImportStatement* stmt) {
 }
 
 void ImportStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(as_identifier.empty()) {
-        const auto is_external_module = filePath[0] == '@';
-        auto itr = get_iterator(linker, this);
-        if(itr.start) {
-            const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;
-            SymbolResolverFileLvlDeclarer d(linker);
-            while (itr.start != itr.end) {
-                const auto node = *itr.start;
-                declare_node(d, node, at_least_spec);
-                itr.start++;
-            }
-        }
-    } else {
+    if(!as_identifier.empty()) {
         linker.declare(as_identifier, this);
         symbols = new std::unordered_map<chem::string_view, ASTNode*>();
         const auto is_external_module = filePath[0] == '@';
@@ -65,6 +53,19 @@ void ImportStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_p
             }
         }
     }
+// else {
+//          const auto is_external_module = filePath[0] == '@';
+//          auto itr = get_iterator(linker, this);
+//          if(itr.start) {
+//              const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;
+//              SymbolResolverFileLvlDeclarer d(linker);
+//              while (itr.start != itr.end) {
+//                  const auto node = *itr.start;
+//                  declare_node(d, node, at_least_spec);
+//                  itr.start++;
+//              }
+//          }
+//    }
 }
 
 ASTNode* ImportStatement::child(const chem::string_view &name) {

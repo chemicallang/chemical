@@ -143,18 +143,25 @@ bool empty_diags(ASTFileResult& result) {
 }
 
 void print_results(ASTFileResult& result, const std::string& abs_path, bool benchmark) {
-    std::cout << rang::style::bold << rang::fg::magenta << "[Parsed] " << abs_path << rang::fg::reset << rang::style::reset << '\n';
-    CSTDiagnoser::print_diagnostics(result.lex_diagnostics, chem::string_view(abs_path), "Lexer");
-    CSTDiagnoser::print_diagnostics(result.parse_diagnostics, chem::string_view(abs_path), "Parser");
-    if(benchmark) {
-        if(result.lex_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
+    if(!empty_diags(result)) {
+        std::cout << rang::style::bold << rang::fg::magenta << "[Parsed] " << abs_path << rang::fg::reset << rang::style::reset << '\n';
+        CSTDiagnoser::print_diagnostics(result.lex_diagnostics, chem::string_view(abs_path), "Lexer");
+        CSTDiagnoser::print_diagnostics(result.parse_diagnostics, chem::string_view(abs_path), "Parser");
+        if (benchmark) {
+            if (result.lex_benchmark) {
+                ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
+            }
+            if (result.parse_benchmark) {
+                ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
+            }
         }
-        if(result.parse_benchmark) {
-            ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
-        }
+        std::cout << std::flush;
+        // we clear these diagnostics after printing, so next call to print_results doens't print them
+        result.lex_diagnostics.clear();
+        result.parse_diagnostics.clear();
+        result.lex_benchmark = nullptr;
+        result.parse_benchmark = nullptr;
     }
-    std::cout << std::flush;
 }
 
 typedef void(*ImportCycleHandler)(void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent, bool direct);

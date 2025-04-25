@@ -25,7 +25,8 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             return
         }
         TokenType.Identifier => {
-            return cssParser.parseIdentifierCSSColor(parser, builder, value, token)
+            cssParser.parseIdentifierCSSColor(parser, builder, value, token)
+            return;
         }
         TokenType.HexColor => {
             cssParser.parseHexColor(parser, builder, token.value, value);

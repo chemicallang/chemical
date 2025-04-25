@@ -10,28 +10,28 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     switch(c) {
         ':' => {
             return Token {
-                type : TokenType.Colon,
+                type : TokenType.Colon as int,
                 value : view(":"),
                 position : position
             }
         }
         ';' => {
             return Token {
-                type : TokenType.Semicolon,
+                type : TokenType.Semicolon as int,
                 value : view(";"),
                 position : position
             }
         }
         ',' => {
             return Token {
-                type : TokenType.Comma,
+                type : TokenType.Comma as int,
                 value : view(","),
                 position : position
             }
         }
         '+' => {
             return Token {
-                type : TokenType.Plus,
+                type : TokenType.Plus as int,
                 value : view("+"),
                 position : position
             }
@@ -41,13 +41,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 str.append('-');
                 provider.read_floating_digits(lexer.str);
                 return Token {
-                    type : TokenType.Number,
+                    type : TokenType.Number as int,
                     value : str.finalize_view(),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.Minus,
+                    type : TokenType.Minus as int,
                     value : view("-"),
                     position : position
                 }
@@ -57,28 +57,28 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             str.append('.')
             provider.read_digits(lexer.str)
             return Token {
-                type : TokenType.Number,
+                type : TokenType.Number as int,
                 value : str.finalize_view(),
                 position : position
             }
         }
         '(' => {
             return Token {
-                type : TokenType.LParen,
+                type : TokenType.LParen as int,
                 value : view("("),
                 position : position
             }
         }
         ')' => {
             return Token {
-                type : TokenType.RParen,
+                type : TokenType.RParen as int,
                 value : view(")"),
                 position : position
             }
         }
         '@' => {
             return Token {
-                type : TokenType.At,
+                type : TokenType.At as int,
                 value : view("@"),
                 position : position
             }
@@ -87,13 +87,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             var alpha = provider.read_alpha(*str);
             if(strncmp(alpha.data(), "important", alpha.size()) == 0) {
                 return Token {
-                    type : TokenType.Important,
+                    type : TokenType.Important as int,
                     value : view("!important"),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.Unexpected,
+                    type : TokenType.Unexpected as int,
                     value : view(""),
                     position : position
                 }
@@ -102,14 +102,14 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         '#' => {
             str.append('#');
             return Token {
-                type : TokenType.HexColor,
+                type : TokenType.HexColor as int,
                 value : provider.read_alpha_num(*str),
                 position : position
             }
         }
         '%' => {
             return Token {
-                type : TokenType.Percentage,
+                type : TokenType.Percentage as int,
                 value : view("%"),
                 position : position
             }
@@ -118,13 +118,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.ContainsSubstr,
+                    type : TokenType.ContainsSubstr as int,
                     value : view("*="),
                     position : position
                 }
             }  else {
                 return Token {
-                    type : TokenType.Multiply,
+                    type : TokenType.Multiply as int,
                     value : view("*"),
                     position : position
                 }
@@ -134,13 +134,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.StartsWith,
+                    type : TokenType.StartsWith as int,
                     value : view("^="),
                     position : position
                 }
             }  else {
                 return Token {
-                    type : TokenType.Unexpected,
+                    type : TokenType.Unexpected as int,
                     value : view(""),
                     position : position
                 }
@@ -150,13 +150,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.EndsWith,
+                    type : TokenType.EndsWith as int,
                     value : view("$="),
                     position : position
                 }
             }  else {
                 return Token {
-                    type : TokenType.Unexpected,
+                    type : TokenType.Unexpected as int,
                     value : view(""),
                     position : position
                 }
@@ -166,13 +166,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.DashSeparatedMatch,
+                    type : TokenType.DashSeparatedMatch as int,
                     value : view("|="),
                     position : position
                 }
             }  else {
                 return Token {
-                    type : TokenType.Unexpected,
+                    type : TokenType.Unexpected as int,
                     value : view(""),
                     position : position
                 }
@@ -181,7 +181,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         '"' => {
             str.append('"')
             return Token {
-                type : TokenType.DoubleQuotedValue,
+                type : TokenType.DoubleQuotedValue as int,
                 value : provider.read_double_quoted_value(lexer.str),
                 position : position
             }
@@ -189,7 +189,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         '\'' => {
             str.append('\'');
             return Token {
-                type : TokenType.SingleQuotedValue,
+                type : TokenType.SingleQuotedValue as int,
                 value : provider.read_single_quoted_value(lexer.str),
                 position : position
             }
@@ -198,13 +198,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.ContainsWord,
+                    type : TokenType.ContainsWord as int,
                     value : view("~="),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.GeneralSibling,
+                    type : TokenType.GeneralSibling as int,
                     value : view("~"),
                     position : position
                 }
@@ -214,13 +214,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.GreaterThanOrEqual,
+                    type : TokenType.GreaterThanOrEqual as int,
                     value : view(">="),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.GreaterThan,
+                    type : TokenType.GreaterThan as int,
                     value : view(">"),
                     position : position
                 }
@@ -230,13 +230,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token {
-                    type : TokenType.LessThanOrEqual,
+                    type : TokenType.LessThanOrEqual as int,
                     value : view("<="),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.LessThan,
+                    type : TokenType.LessThan as int,
                     value : view("<"),
                     position : position
                 }
@@ -247,13 +247,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter()
                 provider.read_line(lexer.str)
                 return Token {
-                    type : TokenType.Comment,
+                    type : TokenType.Comment as int,
                     value : str.finalize_view(),
                     position : position
                 }
             } else {
                 return Token {
-                    type : TokenType.Divide,
+                    type : TokenType.Divide as int,
                     value : view("/"),
                     position : position
                 }
@@ -261,7 +261,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         }
         '=' => {
             return Token {
-                type : TokenType.Equal,
+                type : TokenType.Equal as int,
                 value : view("="),
                 position : position
             }
@@ -276,7 +276,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 printf("lb_count decreased to %d\n", css.lb_count);
             }
             return Token {
-                type : TokenType.RBrace,
+                type : TokenType.RBrace as int,
                 value : view("}"),
                 position : position
             }
@@ -291,7 +291,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             css.lb_count++;
             printf("lb_count increased to %d\n", css.lb_count);
             return Token {
-                type : TokenType.LBrace,
+                type : TokenType.LBrace as int,
                 value : view("{"),
                 position : position
             }
@@ -305,7 +305,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 str.append(c);
                 provider.read_floating_digits(lexer.str);
                 return Token {
-                    type : TokenType.Number,
+                    type : TokenType.Number as int,
                     value : str.finalize_view(),
                     position : position
                 }
@@ -314,7 +314,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 str.append(c);
                 var text = provider.read_css_id(lexer.str)
                 return Token {
-                    type : TokenType.Identifier,
+                    type : TokenType.Identifier as int,
                     value : text,
                     position : position
                 }

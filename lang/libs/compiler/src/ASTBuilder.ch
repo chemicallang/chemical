@@ -155,7 +155,7 @@ public struct StructValue : Value {
 
 public struct BlockValue : Value {
 
-    func get_body(&self) : *VecRef<ASTNode>;
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 

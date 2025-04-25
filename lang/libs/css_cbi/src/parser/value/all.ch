@@ -1,6 +1,6 @@
 
-func (map : &mut std::unordered_map<std::string_view, void*>) put(view : &std::string_view, val : void*) {
-    var f : void*
+func (map : &mut std::unordered_map<std::string_view, *void>) put(view : &std::string_view, val : *void) {
+    var f : *void
     if(map.find(view, f)) {
         printf("INSERTED %s ALREADY CONTAINS PARSER\n", view.data());
         fflush(null)
@@ -9,7 +9,7 @@ func (map : &mut std::unordered_map<std::string_view, void*>) put(view : &std::s
 }
 
 func putAllCSSValueParsers(
-    map : &mut std::unordered_map<std::string_view, void*>
+    map : &mut std::unordered_map<std::string_view, *void>
 ) {
 
     map.put(std::string_view("margin"), CSSParser::parseMargin)

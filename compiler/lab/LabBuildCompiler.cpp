@@ -156,7 +156,7 @@ void print_results(ASTFileResult& result, const std::string& abs_path, bool benc
             }
         }
         std::cout << std::flush;
-        // we clear these diagnostics after printing, so next call to print_results doens't print them
+        // we clear these diagnostics after printing, so next call to print_results doesn't print them
         result.lex_diagnostics.clear();
         result.parse_diagnostics.clear();
         result.lex_benchmark = nullptr;

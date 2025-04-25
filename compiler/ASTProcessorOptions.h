@@ -37,11 +37,6 @@ public:
     bool verbose = false;
 
     /**
-     * is cbi enabled
-     */
-    bool isCBIEnabled = true;
-
-    /**
      * allows to ignore errors during compilation
      */
     bool ignore_errors = false;

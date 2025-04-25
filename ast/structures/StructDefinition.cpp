@@ -205,11 +205,11 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, Sour
     }
 }
 
-llvm::StructType* StructDefinition::llvm_stored_type() {
+llvm::StructType* StructDefinition::llvm_stored_type(Codegen& gen) {
     return llvm_struct_type;
 }
 
-void StructDefinition::llvm_store_type(llvm::StructType* type) {
+void StructDefinition::llvm_store_type(Codegen& gen, llvm::StructType* type) {
     // auto creation
     llvm_struct_type = type;
 }
@@ -222,10 +222,10 @@ llvm::Type* StructDefinition::with_elements_type(
     if(runtime_name.empty()) {
         return llvm::StructType::get(*gen.ctx, elements);
     }
-    auto stored = llvm_stored_type();
+    auto stored = llvm_stored_type(gen);
     if(!stored) {
         auto new_stored = llvm::StructType::create(*gen.ctx, elements, runtime_name);
-        llvm_store_type(new_stored);
+        llvm_store_type(gen, new_stored);
         return new_stored;
     }
     return stored;
@@ -300,9 +300,7 @@ void StructDefinition::link_signature(SymbolResolver &linker) {
 void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_def_constructor = false;
     bool has_destructor = false;
-    bool has_clear_fn = false;
     bool has_copy_fn = false;
-    bool has_move_fn = false;
     for(auto& func : non_gen_range()) {
         if(func->is_constructor_fn()) {
             if(!func->has_explicit_params()) {
@@ -320,13 +318,20 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
         }
     }
     if(!has_def_constructor && any_member_has_def_constructor()) {
+        has_def_constructor = true;
         create_def_constructor_checking(allocator, diagnoser, name_view());
     }
     if(!has_copy_fn && any_member_has_copy_func()) {
+        has_copy_fn = true;
         create_def_copy_fn(allocator, diagnoser);
     }
     if(!has_destructor && any_member_has_destructor()) {
+        has_destructor = true;
         create_def_destructor(allocator, diagnoser);
+    }
+    if(!has_destructor) {
+        // we make the struct copyable by default, if it doesn't have any destructor
+        attrs.is_copy = true;
     }
 }
 

@@ -269,9 +269,9 @@ public:
         const std::string& runtime_name
     );
 
-    llvm::StructType* llvm_stored_type();
+    llvm::StructType* llvm_stored_type(Codegen& gen);
 
-    void llvm_store_type(llvm::StructType* type);
+    void llvm_store_type(Codegen& gen, llvm::StructType* type);
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

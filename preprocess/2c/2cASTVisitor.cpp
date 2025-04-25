@@ -978,8 +978,6 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
 
 void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node);
 
-void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* linked_node);
-
 #define variant_type_variant_name "__chx__vt_621827"
 
 void value_alloca(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value) {
@@ -4178,39 +4176,6 @@ void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node)
     func_name(visitor, func_node);
 }
 
-// the parent_node is the parent of the function node
-// linked_node is the actual function node
-void func_container_name(ToCAstVisitor& visitor, ASTNode* parent_node, ASTNode* linked_node) {
-    node_parent_name(visitor, parent_node);
-    if(!parent_node) return;
-    const auto func_parent = linked_node->parent();
-    const auto impl_def = func_parent->as_impl_def();
-    if(impl_def) {
-        if(impl_def->struct_type) {
-            visitor.write(impl_def->struct_type->linked_node()->as_struct_def()->name_view());
-        } else {
-            visitor.write(impl_def->interface_type->linked_node()->as_interface_def()->name_view());
-        }
-    } else if(parent_node->as_interface_def()) {
-//        const auto func_node = linked_node->as_function();
-        visitor.write(parent_node->as_interface_def()->name_view());
-    } else if(parent_node->as_variant_def()) {
-        struct_name(visitor, parent_node->as_variant_def());
-    } else if(parent_node->as_struct_def()) {
-        const auto info = parent_node->as_struct_def()->get_overriding_info(linked_node->as_function());
-        if (info.first) {
-            const auto func_node = linked_node->as_function();
-            if(info.first->as_interface_def() && func_node && func_node->has_self_param()) {
-                struct_name(visitor, parent_node->as_struct_def());
-            } else {
-                node_name(visitor, info.first);
-            }
-        } else {
-            struct_name(visitor, parent_node->as_struct_def());
-        }
-    }
-}
-
 void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, ExtendableMembersContainerNode* def) {
     int i = 0;
     int last = (((int) path.size()) - 1);
@@ -4308,6 +4273,14 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
 // we check if it's a function call to a struct which has a destructor
 // if it does have a destructor, we store the accessed value and destruct the struct afterwards
 bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int start, unsigned int end) {
+    // a function is called on an object that's returned from a function (the object is destructible)
+    // for example give_destructible().call_on_it()
+    // we find this by checking if last value is a function decl
+    const auto last = values[end-1];
+    const auto is_call_to_func = last->kind() == ValueKind::Identifier && last->as_identifier_unsafe()->linked->kind() == ASTNodeKind::FunctionDecl;
+    if(is_call_to_func) {
+        return false;
+    }
     // user is making a function call
     // and there's a next value meaning call().next <-- next identifier is accessed from returned struct of the function call
     // we need to check if the function returns a struct that has a destructor so we can generate code to destruct it properly
@@ -4405,19 +4378,21 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
         return;
     }
     const auto last = values[end - 1];
-    const auto linked = last->linked_node();
-    if(linked) {
-        const auto lastKind = linked->kind();
-        if(lastKind == ASTNodeKind::FunctionDecl) {
-            if(!linked->as_function_unsafe()->has_self_param()) {
-                // TODO calling functions above without destructing the structs
-                call_any_function_above(visitor, values, (int) start, (int) end - 1);
+    if(last->kind() == ValueKind::Identifier) {
+        const auto linked = last->linked_node();
+        if (linked) {
+            const auto lastKind = linked->kind();
+            if (lastKind == ASTNodeKind::FunctionDecl) {
+                if (!linked->as_function_unsafe()->has_self_param()) {
+                    // TODO calling functions above without destructing the structs
+                    call_any_function_above(visitor, values, (int) start, (int) end - 1);
+                }
+                visitor.mangle(linked);
+                return;
+            } else if (lastKind == ASTNodeKind::EnumMember) {
+                write_enum(visitor, linked->as_enum_member_unsafe());
+                return;
             }
-            visitor.mangle(linked);
-            return;
-        } else if(lastKind == ASTNodeKind::EnumMember) {
-            write_enum(visitor, linked->as_enum_member_unsafe());
-            return;
         }
     }
     chain_after_func(visitor, values, start, end);
@@ -4557,9 +4532,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                     write("); &");
                     write_str(temp_name);
                     write("; }))");
-                    if(!nested_value) {
-                        write(';');
-                    }
                     return;
                 }
             }

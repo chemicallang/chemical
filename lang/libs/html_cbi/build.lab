@@ -24,7 +24,7 @@ func build(ctx : *mut BuildContext) : *Module {
     }
 
     var dependencies = { cstd_module, std_module, compiler_module }
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("html_cbi"), lab::rel_path_to("src"), dependencies);
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("html_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
     var cbiDeps = { module }
     var cbi = ctx.build_cbi(std::string_view("html"), cbiDeps)

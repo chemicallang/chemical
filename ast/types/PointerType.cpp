@@ -38,7 +38,10 @@ bool PointerType::satisfies(BaseType *given) {
         const auto pure_type = ((ArrayType*) other_pure);
         return current->satisfies(pure_type->elem_type->canonical());
     }
-    if(BaseType::is_pointer(other_kind) && other_pure->as_pointer_type_unsafe()->type) {
+    if(other_kind == BaseTypeKind::Function && type->kind() == BaseTypeKind::Void) {
+        return true;
+    }
+    if(other_kind == BaseTypeKind::Pointer && other_pure->as_pointer_type_unsafe()->type) {
         const auto pointer = other_pure->as_pointer_type_unsafe();
         if(!pointer->is_mutable && is_mutable) {
             return false;
@@ -68,7 +71,7 @@ bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignmen
         return type->satisfies(ref->type) && (!is_mutable || ref->is_mutable);
     }
     // when assigning to a ref, we don't require l value
-    if(!assignment && givenKind == BaseTypeKind::IntN) {
+    if(!assignment && (givenKind == BaseTypeKind::IntN || givenKind == BaseTypeKind::Bool)) {
         if(value) {
             const auto typeSatisfies = type->satisfies(given);
             return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;

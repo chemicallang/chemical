@@ -13,6 +13,10 @@ struct DerivedSatisfies11 : BaseSatisfies11 {
 }
 
 func test_satisfies() {
+    test("bool type satisfy", () => {
+        type T = bool;
+        return compiler::satisfies(T, T);
+    })
     test("uchar types satisfy", () => {
         type T = uchar;
         return compiler::satisfies(T, T);
@@ -301,6 +305,11 @@ func test_satisfies() {
         type U = &long
         return !compiler::satisfies(T, U)
     })
+    test("direct bool type does not satisfy mutable reference bool type without backing storage", () => {
+        type T = &mut bool
+        type U = bool
+        return !compiler::satisfies(T, U)
+    })
     test("direct int n types do not satisfy mutable reference int n types without backing storage - 1", () => {
         type T = &mut int
         type U = int
@@ -321,24 +330,34 @@ func test_satisfies() {
         type U = ulong
         return !compiler::satisfies(T, U)
     })
-    test("direct int n types do not satisfies reference int n types without backing storage - 1", () => {
+    test("direct bool types satisfies reference bool type without backing storage", () => {
+        type T = &bool
+        type U = bool
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfies reference int n types without backing storage - 1", () => {
         type T = &int
         type U = int
         return compiler::satisfies(T, U)
     })
-    test("direct int n types do not satisfies reference int n types without backing storage - 2", () => {
+    test("direct int n types satisfies reference int n types without backing storage - 2", () => {
         type T = &int
         type U = long
         return compiler::satisfies(T, U)
     })
-    test("direct int n types do not satisfies reference int n types without backing storage - 3", () => {
+    test("direct int n types satisfies reference int n types without backing storage - 3", () => {
         type T = &uint
         type U = uint
         return compiler::satisfies(T, U)
     })
-    test("direct int n types do not satisfies reference int n types without backing storage - 4", () => {
+    test("direct int n types satisfies reference int n types without backing storage - 4", () => {
         type T = &uint
         type U = ulong
+        return compiler::satisfies(T, U)
+    })
+    test("direct bool type satisfy reference bool type with backing storage", () => {
+        type T = &bool
+        var U : bool = 0
         return compiler::satisfies(T, U)
     })
     test("direct int n types satisfy reference int n types with backing storage - 1", () => {
@@ -361,6 +380,36 @@ func test_satisfies() {
         var U : ulong = 0
         return compiler::satisfies(T, U)
     })
+    test("direct bool type satisfy mutable reference bool type with backing storage", () => {
+        type T = &mut bool
+        var U : bool = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy mutable reference int n types with backing storage - 1", () => {
+        type T = &mut int
+        var U : int = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy mutable reference int n types with backing storage - 2", () => {
+        type T = &mut int
+        var U : long = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy mutable reference int n types with backing storage - 3", () => {
+        type T = &mut uint
+        var U : uint = 0
+        return compiler::satisfies(T, U)
+    })
+    test("direct int n types satisfy mutable reference int n types with backing storage - 4", () => {
+        type T = &mut uint
+        var U : ulong = 0
+        return compiler::satisfies(T, U)
+    })
+    test("constant bool declaration does not qualify as backing storage for mutable reference types", () => {
+        type T = &mut bool
+        const U : bool = 0
+        return !compiler::satisfies(T, U)
+    })
     test("constant int n declarations do not qualify as backing storage for mutable reference types - 1", () => {
         type T = &mut int
         const U : int = 0
@@ -381,6 +430,11 @@ func test_satisfies() {
         const U : ulong = 0
         return !compiler::satisfies(T, U)
     })
+    test("constant bool declaration satisfies const reference types", () => {
+        type T = &bool
+        const U : bool = 0
+        return compiler::satisfies(T, U)
+    })
     test("constant int n declarations satisfy const reference types - 1", () => {
         type T = &int
         const U : int = 0
@@ -399,6 +453,46 @@ func test_satisfies() {
     test("constant int n declarations satisfy const reference types - 4", () => {
         type T = &uint
         const U : ulong = 0
+        return compiler::satisfies(T, U)
+    })
+    test("bool reference type satisfies bool type for auto dereference", () => {
+        type T = bool
+        type U = &bool
+        type V = bool
+        type X = &mut bool
+        return compiler::satisfies(T, U) && compiler::satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 1", () => {
+        type T = int
+        type U = &int
+        type V = int
+        type X = &mut int
+        return compiler::satisfies(T, U) && compiler::satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 2", () => {
+        type T = int
+        type U = &long
+        type V = int
+        type X = &mut long
+        return compiler::satisfies(T, U) && compiler::satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 3", () => {
+        type T = uint
+        type U = &uint
+        type V = uint
+        type X = &mut uint
+        return compiler::satisfies(T, U) && compiler::satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 4", () => {
+        type T = uint
+        type U = &ulong
+        type V = uint
+        type X = &mut ulong
+        return compiler::satisfies(T, U) && compiler::satisfies(V, X)
+    })
+    test("function type satisfies *void type", () => {
+        type T = *void
+        type U = () => void
         return compiler::satisfies(T, U)
     })
     test("direct structs always satisfy reference immutable types", () => {

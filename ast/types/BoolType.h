@@ -20,9 +20,7 @@ public:
         return 1;
     }
 
-    bool satisfies(BaseType *type) final {
-        return type->kind() == BaseTypeKind::Bool;
-    }
+    bool satisfies(BaseType *type) final;
 
     bool is_same(BaseType *type) final {
         return type->kind() == BaseTypeKind::Bool;

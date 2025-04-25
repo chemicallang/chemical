@@ -119,7 +119,7 @@ func (parser : &mut Parser) parseLengthInto(
         TokenType.Number => {
             parser.increment();
             length.value = builder.allocate_view(token.value)
-            const lenKind = parseLengthKindSafe(parser, builder)
+            const lenKind = parseLengthKindSafe(&parser, builder)
             if(lenKind != CSSLengthKind.Unknown) {
                 length.kind = lenKind
             } else {
@@ -167,7 +167,7 @@ func (parser : &mut Parser) parseNumberOrLengthInto(
         TokenType.Number => {
             parser.increment();
             length.value = builder.allocate_view(token.value)
-            const lengthKind = parseLengthKindSafe(parser, builder);
+            const lengthKind = parseLengthKindSafe(&parser, builder);
             if(lengthKind == CSSLengthKind.Unknown) {
                 length.kind = CSSLengthKind.None
             } else {

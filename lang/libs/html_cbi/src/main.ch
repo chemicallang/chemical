@@ -3,9 +3,9 @@
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro value\n");
     const loc = compiler::get_raw_location();
-    if(parser.increment_if(TokenType.LBrace)) {
+    if(parser.increment_if(TokenType.LBrace as int)) {
         const value = builder.make_int_value(10, loc);
-        if(!parser.increment_if(TokenType.RBrace)) {
+        if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace");
         }
         return value;
@@ -36,12 +36,12 @@ public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder)
     printf("running html_parseMacroNode\n");
     fflush(null)
     const loc = compiler::get_raw_location();
-    if(parser.increment_if(TokenType.LBrace)) {
+    if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")
         fflush(null)
         const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
-        if(!parser.increment_if(TokenType.RBrace)) {
+        if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }
         return node;

@@ -93,10 +93,10 @@ func parse_css_hex_color(str : *char, len : size_t, outColor : *mut uint32_t) : 
  *   - Otherwise, prints the full 8-digit form (#RRGGBBAA).
  */
 func print_color_hex(color : uint32_t) {
-    var r : uint8_t = (color >> 24) & 0xFF;
-    var g : uint8_t = (color >> 16) & 0xFF;
-    var b : uint8_t = (color >> 8)  & 0xFF;
-    var a : uint8_t = color & 0xFF;
+    var r : uint8_t = (color >> 24u) & 0xFF;
+    var g : uint8_t = (color >> 16u) & 0xFF;
+    var b : uint8_t = (color >> 8u)  & 0xFF;
+    var a : uint8_t = color & 0xFF as uint;
 
     // Helper lambda (using C99 inline function style) could be used here, but we'll just
     // inline the condition: a channel qualifies for shorthand if its high nibble equals

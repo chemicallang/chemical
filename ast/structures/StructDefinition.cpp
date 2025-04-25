@@ -298,11 +298,13 @@ void StructDefinition::link_signature(SymbolResolver &linker) {
 }
 
 void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+    bool has_constructor = false;
     bool has_def_constructor = false;
     bool has_destructor = false;
     bool has_copy_fn = false;
     for(auto& func : non_gen_range()) {
         if(func->is_constructor_fn()) {
+            has_constructor = true;
             if(!func->has_explicit_params()) {
                 has_def_constructor = true;
             }
@@ -320,6 +322,9 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     if(!has_def_constructor && any_member_has_def_constructor()) {
         has_def_constructor = true;
         create_def_constructor_checking(allocator, diagnoser, name_view());
+        if(!has_constructor) {
+            attrs.is_direct_init = true;
+        }
     }
     if(!has_copy_fn && any_member_has_copy_func()) {
         has_copy_fn = true;

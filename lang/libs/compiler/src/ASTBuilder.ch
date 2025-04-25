@@ -416,7 +416,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_access_chain(&self, is_node : bool, location : ubigint) : *mut AccessChain
 
-    func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *ValueWrapperNode
+    func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *mut ValueWrapperNode
 
     func make_addr_of_value(&self, value : *Value, location : ubigint) : *mut AddrOfValue
 
@@ -494,7 +494,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *mut AssignStatement
 
-    func make_break_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *BreakStatement
+    func make_break_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *mut BreakStatement
 
     func make_continue_stmt(&self, loop_node : *LoopASTNode, parent_node : *ASTNode, location : ubigint) : *mut ContinueStatement
 

@@ -1674,7 +1674,8 @@ public:
             const chem::string_view& self_name,
             ASTNode* initializer,
             ExtendableMembersContainerNode* linked,
-            bool is_pointer = false
+            bool is_pointer = false,
+            bool has_drop_flag = true
     );
 
     std::string* get_drop_flag_name(ASTNode* initializer) {
@@ -1913,12 +1914,15 @@ void init_drop_flag(ToCAstVisitor& visitor, const chem::string_view& drop_flag) 
     visitor.write("true;");
 }
 
-void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, ExtendableMembersContainerNode* linked, bool is_pointer) {
+void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, ExtendableMembersContainerNode* linked, bool is_pointer, bool has_drop_flag) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
-        auto drop_flag = visitor.get_local_temp_var_name();
-        init_drop_flag(visitor, chem::string_view(drop_flag));
+        std::string drop_flag;
+        if(has_drop_flag) {
+            drop_flag = visitor.get_local_temp_var_name();
+            init_drop_flag(visitor, chem::string_view(drop_flag));
+        }
         destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Default,
                 .self_name = self_name,
@@ -5174,7 +5178,7 @@ void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
             write(" = ");
             visit(node->value);
             write(';');
-            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_members_container_node(), false);
+            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_members_container_node(), false, false);
             return;
         }
     }

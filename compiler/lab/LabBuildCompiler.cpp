@@ -138,30 +138,8 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
-bool empty_diags(ASTFileResult& result) {
-    return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
-}
-
-void print_results(ASTFileResult& result, const std::string& abs_path, bool benchmark) {
-    if(!empty_diags(result)) {
-        std::cout << rang::style::bold << rang::fg::magenta << "[Parsed] " << abs_path << rang::fg::reset << rang::style::reset << '\n';
-        CSTDiagnoser::print_diagnostics(result.lex_diagnostics, chem::string_view(abs_path), "Lexer");
-        CSTDiagnoser::print_diagnostics(result.parse_diagnostics, chem::string_view(abs_path), "Parser");
-        if (benchmark) {
-            if (result.lex_benchmark) {
-                ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
-            }
-            if (result.parse_benchmark) {
-                ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
-            }
-        }
-        std::cout << std::flush;
-        // we clear these diagnostics after printing, so next call to print_results doesn't print them
-        result.lex_diagnostics.clear();
-        result.parse_diagnostics.clear();
-        result.lex_benchmark = nullptr;
-        result.parse_benchmark = nullptr;
-    }
+inline void print_results(ASTFileResult& result, const std::string& abs_path, bool benchmark) {
+    ASTProcessor::print_results(result, chem::string_view(abs_path), benchmark);
 }
 
 typedef void(*ImportCycleHandler)(void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent, bool direct);

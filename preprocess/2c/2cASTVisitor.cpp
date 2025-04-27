@@ -738,6 +738,7 @@ void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclarat
 
 void call_implicit_constructor_with_name(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, bool take_addr, const chem::string_view& var_name) {
     visitor.write("({");
+    // TODO check if we need to destroy this so we should allocate it in before stmt visitor
     allocate_struct_by_name_no_init(visitor, imp_constructor->parent(), var_name);
     visitor.write("; ");
     call_implicit_constructor_no_alloc(visitor, imp_constructor, value, var_name, false);
@@ -787,9 +788,8 @@ Value* evaluated_func_val(
     return eval;
 }
 
-Value* evaluated_func_val_proper(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
-    auto eval = evaluated_func_val(visitor, func_decl, call);
-    return eval;
+inline Value* evaluated_func_val_proper(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
+    return evaluated_func_val(visitor, func_decl, call);
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
@@ -1301,96 +1301,57 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
     return struct_name;
 }
 
-// will call clear functions as required on the access chain
-//void move_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
-//    for(auto& value : chain->values) {
-//        const auto func_call = value->as_func_call();
-//        if(func_call) {
-//            move_func_call(visitor, func_call);
-//        } else {
-//            const auto nested = value->as_access_chain();
-//            if(nested) {
-//                move_access_chain(visitor, nested);
-//            }
-//        }
-//    }
-//}
-
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before);
-
-//void func_call_that_returns_struct(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call) {
-//    auto last = call;
-//    auto func_decl = last->safe_linked_func();
-//    auto parent = call->parent_val;
-//    auto grandpa = get_grandpa_from(call->parent_val);
-//    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
-//    if (visitor.pass_structs_to_initialize && func_type->returnType->isStructLikeType()) {
-//        // functions that return struct
-//        auto allocated = visitor.local_allocated.find(last);
-//        if (allocated == visitor.local_allocated.end()) {
-//            visitor.write("[NotFoundAllocated in func_call_that_returns_struct]");
-//            return;
-//        }
-//        if(func_decl) {
-//            if(func_decl->parent_node) {
-//                const auto container = func_decl->parent_node->as_members_container();
-//                if(!container->generic_params.empty()) {
-//                    container->set_active_iteration(last->generic_iteration);
-//                }
-//            }
-//            func_container_name(visitor, func_decl);
-//        } else {
-//            auto prev_nested = visitor.nested_value;
-//            visitor.nested_value = true;
-////            const auto name_val = build_parent_chain(call->parent_val, visitor.allocator);
-//            call->parent_val->accept(&visitor);
-//            visitor.nested_value = prev_nested;
-//        }
-//        if (grandpa && !is_lambda) {
-//            auto grandpaType = grandpa->create_type(visitor.allocator);
-////            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
-////            func_name(visitor, parent, func_decl);
-//            visitor.write('(');
-//        } else {
-////            if (func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
-////                // struct name for the constructor, getting through return type
-////                auto linked = func_decl->returnType->linked_node();
-////                if (linked && linked->as_struct_def()) {
-////                    visitor->write(linked->as_struct_def()->name);
-////                }
-////            }
-////            access_chain(visitor, values, start, end - 1);
-//            visitor.write('(');
-//        }
-//        visitor.write('&');
-//        visitor.write(allocated->second);
-////        if (!last->values.empty() || func_type->has_self_param()) {
-////            visitor.write(", ");
-////        }
-//        write_implicit_args(visitor, func_type, call, false);
-//        func_call_args(visitor, last, func_type);
-//        visitor.write(')');
-//        if(!visitor.nested_value) {
-//            visitor.write(';');
-//        }
-//        visitor.new_line_and_indent();
-//    }
-//}
 
 void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 
     const auto linked = call->parent_val->linked_node();
     // enum member can't be called, we're using it as a no value
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    const auto decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+
+    // handle variant calls
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        return;
+    }
+
+    // handling comptime functions
+    if(func_decl && func_decl->is_comptime()) {
+        // TODO
+//        const auto value = evaluated_func_val(visitor, func_decl, call);
+//        visit(value);
+        return;
+    }
 
     // visit the values
     RecursiveValueVisitor::VisitFunctionCall(call);
 
+    // get function type
+    const auto func_type = call->function_type(visitor.allocator);
+
+    // functions that return struct are handled in this block of code
+    if(!func_decl || !func_decl->is_comptime()) {
+        const auto returnType = func_type->returnType->canonical();
+        const auto returnTypeKind = returnType->kind();
+        if (returnTypeKind != BaseTypeKind::Dynamic) {
+            const auto return_linked = returnType->get_direct_linked_node();
+            if (return_linked) {
+                const auto returnKind = return_linked->kind();
+                if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
+                    const auto temp_name = visitor.get_local_temp_var_name();
+                    const auto temp_name_view = chem::string_view(temp_name);
+                    allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
+                    write(';');
+                    visitor.new_line_and_indent();
+                    visitor.local_allocated[call] = temp_name;
+                }
+            }
+        }
+    }
+
     // when transferring structs / function calls that return structs directly to reference params
     // we must take the responsibility of destructing them, however we need to maintain a reference to be able to do this
     auto i = 0;
-    auto func_type = call->function_type(visitor.allocator);
     if(func_type) {
         const auto total_args = call->values.size();
         while (i < total_args) {
@@ -1416,8 +1377,6 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
 }
-
-void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
     visitor.mangler.mangle_no_parent(*visitor.output, func_decl);
@@ -1815,17 +1774,73 @@ void CAfterStmtVisitor::VisitAccessChain(AccessChain *chain) {
 }
 
 void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
-//    auto decl = call->safe_linked_func();
-//    if(decl && decl->is_comptime()) {
-//        auto eval = visitor->evaluated_func_calls.find(call);
-//        if(eval != visitor->evaluated_func_calls.end()) {
-//            eval->second->accept(this);
-//            return;
-//        } else {
-//            std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor" << std::endl;
-//        }
-//    }
-    const auto func_type = call->function_type(visitor.allocator);;
+
+    const auto linked = call->parent_val->linked_node();
+    // enum member can't be called, we're using it as a no value
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
+    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+
+    // handle variant calls
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        return;
+    }
+
+    // handling comptime functions
+    if(func_decl && func_decl->is_comptime()) {
+        // TODO
+//        const auto value = evaluated_func_val(visitor, func_decl, call);
+//        visit(value);
+        return;
+    }
+
+    // get function type
+    const auto func_type = call->function_type(visitor.allocator);
+
+    // functions that return struct are handled in this block of code
+    if(destruct_call) {
+        if ((!func_decl || !func_decl->is_comptime())) {
+            const auto returnType = func_type->returnType->canonical();
+            const auto returnTypeKind = returnType->kind();
+            if (returnTypeKind != BaseTypeKind::Dynamic) {
+                const auto return_linked = returnType->get_direct_linked_node();
+                if (return_linked) {
+                    const auto returnKind = return_linked->kind();
+                    if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl ||
+                        returnKind == ASTNodeKind::UnionDecl) {
+                        auto container = return_linked->as_members_container_unsafe();
+                        const auto destr = container->destructor_func();
+                        if (destr) {
+                            auto found = visitor.local_allocated.find(call);
+                            auto temp_name = found != visitor.local_allocated.end() ? chem::string_view(found->second) : chem::string_view("NOT_ALLOCATED");
+                            visitor.new_line_and_indent();
+                            visitor.mangle(destr);
+                            visitor.write("(&");
+                            visitor.write(temp_name);
+                            visitor.write(");");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // visit the values
+    if(destruct_call) {
+        visit(call->parent_val);
+        destruct_call = false;
+        for(auto val : call->values) {
+            visit(val);
+        }
+        destruct_call = true;
+    } else {
+        destruct_call = true;
+        visit(call->parent_val);
+        destruct_call = false;
+        for(auto val : call->values) {
+            visit(val);
+        }
+    }
+
     unsigned int i = 0;
     for(auto& val : call->values) {
 
@@ -4484,8 +4499,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                 } else {
                     if (!interface) {
                         write("[Dynamic Dispatch used with type other than interface]");
-                        error("Dynamic Dispatch used with a type other than interface",
-                              pure_grandpa->linked_node());
+                        error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());
                     } else {
                         write("[Dynamic Dispatch Interface has no known users]");
                     }
@@ -4495,10 +4509,10 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         }
     }
 
-    // functions that return struct are handled in this block of code
     if(!func_decl || !func_decl->is_comptime()) {
         const auto returnType = func_type->returnType->pure_type(allocator);
         const auto returnTypeKind = returnType->kind();
+        // handling functions that return dynamic objects
         if (returnTypeKind == BaseTypeKind::Dynamic) {
             write("(*({ __chemical_fat_pointer__ ");
             const auto temp_name = get_local_temp_var_name();
@@ -4518,24 +4532,40 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
             }
             return;
         } else {
+            // functions that return struct like (struct, variants, unions) are handled in this block of code
             const auto return_linked = returnType->get_direct_linked_node();
             if (return_linked) {
                 const auto returnKind = return_linked->kind();
                 if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
                     write("(*({ ");
-                    const auto temp_name = get_local_temp_var_name();
-                    const auto temp_name_view = chem::string_view(temp_name.data(), temp_name.size());
-                    allocate_struct_by_name_no_init(*this, return_linked, temp_name_view);
-                    write("; ");
-                    // write function name
-                    visit(call->parent_val);
-                    write("(&");
-                    write_str(temp_name);
-                    write_implicit_args(*this, func_type, call, false);
-                    func_call_args(*this, call, func_type);
-                    write("); &");
-                    write_str(temp_name);
-                    write("; }))");
+                    auto found = local_allocated.find(call);
+                    if(found != local_allocated.end()) {
+                        auto temp_name = chem::string_view(found->second);
+                        // write function name
+                        visit(call->parent_val);
+                        write("(&");
+                        write(temp_name);
+                        write_implicit_args(*this, func_type, call, false);
+                        func_call_args(*this, call, func_type);
+                        write("); &");
+                        write(temp_name);
+                        write("; }))");
+                    } else {
+                        // TODO we'll remove this block, and generate an error
+                        const auto temp_name_str = get_local_temp_var_name();
+                        const auto temp_name = chem::string_view(temp_name_str);
+                        allocate_struct_by_name_no_init(*this, return_linked, temp_name);
+                        write("; ");
+                        // write function name
+                        visit(call->parent_val);
+                        write("(&");
+                        write(temp_name);
+                        write_implicit_args(*this, func_type, call, false);
+                        func_call_args(*this, call, func_type);
+                        write("); &");
+                        write(temp_name);
+                        write("; }))");
+                    }
                     return;
                 }
             }
@@ -4548,17 +4578,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     write_implicit_args(*this, func_type, call);
     func_call_args(*this, call, func_type);
     write(')');
-
-//load_from_allocated:
-//    auto found = local_allocated.find(call);
-//    if(found != local_allocated.end()) {
-//        write(found->second);
-//        if(!nested_value) {
-//            write(';');
-//        }
-//    } else {
-//        write("[FunctionAllocationFailure: function that returns struct, hasn't been allocated in the before stmt visitor]");
-//    }
 
 }
 

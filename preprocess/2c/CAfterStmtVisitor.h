@@ -12,6 +12,8 @@ public:
     using RecursiveValueVisitor<CAfterStmtVisitor>::visit;
     using SubVisitor::SubVisitor;
 
+    bool destruct_call = false;
+
     void destruct_chain(AccessChain *chain, bool destruct_last);
 
     void VisitFunctionCall(FunctionCall *call);

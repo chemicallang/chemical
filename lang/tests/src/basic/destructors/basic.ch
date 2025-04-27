@@ -6,6 +6,14 @@ struct Destructible {
 
     var lamb : (count : *mut int) => void;
 
+    func copy(&self) : Destructible {
+        return Destructible {
+            data : data + 1,
+            count : count,
+            lamb : lamb
+        }
+    }
+
     @delete
     func delete(&self) {
         self.lamb(self.count);
@@ -715,5 +723,15 @@ func test_destructors() {
             take_gen_destruct_ref(create_short_gen_dest(343, &count, destruct_inc_count))
         }
         return count == 1
+    })
+    test("destructible structs created in parent chain are destructed", () => {
+        var count = 0
+        if(count == 0) {
+            var d = Destructible {
+                data : 777, count : &count, lamb : destruct_inc_count
+            }
+            d.copy().copy().copy()
+        }
+        return count == 4
     })
 }

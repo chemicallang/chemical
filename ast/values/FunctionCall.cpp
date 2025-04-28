@@ -265,7 +265,7 @@ void to_llvm_args(
 
         args.emplace_back(argVal);
 
-        // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
+        // expanding passed lambda values, to multiple (passing function pointer)
 //        if(values[i]->value_type() == ValueType::Lambda) {
 //            auto expectedParam = func_type->params[i]->create_value_type();
 //            auto expectedFuncType = (FunctionType*) expectedParam.get();
@@ -638,12 +638,12 @@ llvm::Value* FunctionCall::llvm_chain_value(
             } else {
                 const auto g = get_parent_from(parent_val);
                 if(g) {
-                    if(g->val_kind() == ValueKind::FunctionCall || !is_node_decl(g->linked_node())) {
+                    const auto is_func_call = g->val_kind() == ValueKind::FunctionCall;
+                    if(is_func_call || !is_node_decl(g->linked_node())) {
                         const auto grandpa = build_parent_chain(parent_val, gen.allocator);
-                        if(grandpa->val_kind() == ValueKind::AccessChain) {
-                            grandparent = grandpa->as_access_chain_unsafe()->llvm_value_no_itr(gen, nullptr);
-                        } else {
-                            grandparent = grandpa->llvm_value(gen, nullptr);
+                        grandparent = grandpa->llvm_value(gen, nullptr);
+                        if(is_func_call) {
+                            destructibles.emplace_back(grandpa, grandparent);
                         }
                     }
                 }
@@ -663,7 +663,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         return returnedValue;
     }
 
-    auto fn = decl != nullptr ? decl->llvm_func(gen) : nullptr;
+    // auto fn = decl != nullptr ? decl->llvm_func(gen) : nullptr;
     to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 
     const auto llvm_func_type = llvm_linked_func_type(gen);

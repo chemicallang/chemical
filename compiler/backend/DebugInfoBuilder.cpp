@@ -437,7 +437,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
                 location.start.line + 1,
                 to_di_type(*this, init->known_type(), false)
         );
-        if (llvm::Instruction *inst = llvm::dyn_cast<llvm::Instruction>(val)) {
+        if (auto *inst = llvm::dyn_cast<llvm::Instruction>(val)) {
             builder->insertDeclare(
                     init->llvm_ptr,                                         // Variable allocation
                     Var,

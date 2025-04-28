@@ -293,6 +293,26 @@ void FunctionDeclaration::set_llvm_data(Codegen& gen, llvm::Function* func) {
     gen.mod_ptr_cache[this] = func;
 }
 
+AccessSpecifier runtime_specifier(FunctionDeclaration* decl) {
+    const auto p = decl->parent();
+    if(p) {
+        switch(p->kind()) {
+            case ASTNodeKind::StructDecl:
+                return p->as_struct_def_unsafe()->specifier();
+            case ASTNodeKind::VariantDecl:
+                return p->as_variant_def_unsafe()->specifier();
+            case ASTNodeKind::UnionDecl:
+                return p->as_union_def_unsafe()->specifier();
+            case ASTNodeKind::InterfaceDecl:
+                return p->as_interface_def_unsafe()->specifier();
+            default:
+                return decl->specifier();
+        }
+    } else {
+        return decl->specifier();
+    }
+}
+
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
 #ifdef DEBUG
     auto existing_func = gen.module->getFunction(name);
@@ -301,7 +321,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     }
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
-    auto func = gen.create_function(name, func_type, decl, decl->specifier());
+    auto func = gen.create_function(name, func_type, decl, runtime_specifier(decl));
     decl->llvm_attributes(func);
     decl->set_llvm_data(gen, func);
 }
@@ -310,9 +330,21 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic fun
     create_non_generic_fn(gen, decl, gen.mangler.mangle(decl));
 }
 
-void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
-    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, decl->specifier());
+llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, runtime_specifier(decl));
     decl->set_llvm_data(gen, callee);
+    return callee;
+}
+
+inline llvm::Function* external_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
+    if(runtime_specifier(decl) != AccessSpecifier::Public) {
+        // TODO this should not happen, we should not even include nodes
+        // whats happening is, this module adds some extension function to interface imported from another module
+        // when we declare this interface, we wrongly declare the imported interface and also the extension function
+        // TODO: FIX THIS
+        return nullptr;
+    }
+    return declare_non_gen_fn(gen, decl, gen.mangler.mangle(decl));
 }
 
 void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name, bool is_exported) {
@@ -391,13 +423,7 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 }
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
-    if(!is_exported()) {
-        // TODO this should not happen, we should not even include nodes
-        // we should remove the nodes if they are not public, so we never have to call code_gen_external_declare
-        // function wasn't exported
-        return;
-    }
-    declare_non_gen_fn(gen, this, gen.mangler.mangle(this));
+    external_declare_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {

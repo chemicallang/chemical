@@ -341,7 +341,20 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     declare_parsed_nodes(linker);
     // declare all the variables manually
     for (const auto var : variables()) {
-        linker.declare(var->name, var);
+        if(var->name.empty()) {
+#ifdef DEBUG
+            switch(var->kind()) {
+                case ASTNodeKind::UnnamedStruct:
+                case ASTNodeKind::UnnamedUnion:
+                    break;
+                default:
+                    throw std::runtime_error("why does this variable has empty name");
+            }
+#endif
+            continue;
+        } else {
+            linker.declare(var->name, var);
+        }
     }
     // declare all the functions
     for(auto& func : functions()) {

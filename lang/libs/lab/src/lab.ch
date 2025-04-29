@@ -228,6 +228,59 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
     }
 }
 
+// -----------------------------------------------------
+// --------------- BUILD PATH FUNCTIONS ----------------
+// -----------------------------------------------------
+
+public func (ctx : &BuildContext) build_job_dir_path(job_name : &std::string_view) : std::string {
+    const new_path = ctx.build_path();
+    new_path.append('/');
+    new_path.append_with_len(job_name.data(), job_name.size());
+    new_path.append_char_ptr(".dir");
+    new_path.append('/')
+    return new_path;
+}
+
+public func (ctx : &BuildContext) job_dir_path(job : *mut LabJob) : std::string {
+    return ctx.build_job_dir_path(job.name.to_view())
+}
+
+public func (ctx : &BuildContext) build_mod_file_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view, file : &std::string_view) : std::string {
+    var str = ctx.build_job_dir_path(job_name)
+    if(!mod_scope.empty()) {
+        str.append_with_len(mod_scope.data(), mod_scope.size())
+        str.append('.');
+    }
+    str.append_with_len(mod_name.data(), mod_name.size());
+    str.append('/');
+    str.append_with_len(file.data(), file.size())
+    return str;
+}
+
+public func (ctx : &BuildContext) build_llvm_ir_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view) : std::string {
+    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("llvm_ir.ll"))
+}
+
+public func (ctx : &BuildContext) build_asm_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view) : std::string {
+    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("mod_asm.s"))
+}
+
+public func (ctx : &BuildContext) build_bitcode_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view) : std::string {
+    return ctx.build_mod_file_path(job_name, mod_scope, mod_name, std::string_view("mod_bitcode.bc"))
+}
+
+public func (ctx : &BuildContext) llvm_ir_path(job : *mut LabJob, mod : *mut Module) : std::string {
+    return ctx.build_llvm_ir_path(job.name.to_view(), mod.scope_name.to_view(), mod.name.to_view())
+}
+
+public func (ctx : &BuildContext) asm_path(job : *mut LabJob, mod : *mut Module) : std::string {
+    return ctx.build_asm_path(job.name.to_view(), mod.scope_name.to_view(), mod.name.to_view())
+}
+
+public func (ctx : &BuildContext) bitcode_path(job : *mut LabJob, mod : *mut Module) : std::string {
+    return ctx.build_bitcode_path(job.name.to_view(), mod.scope_name.to_view(), mod.name.to_view())
+}
+
 public namespace lab {
 
     public func curr_dir_of(path : *char, len : size_t) : std::string {

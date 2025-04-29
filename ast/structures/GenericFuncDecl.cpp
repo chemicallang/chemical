@@ -226,20 +226,31 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
 #ifdef COMPILER_BUILD
 
 void GenericFuncDecl::code_gen_declare(Codegen &gen) {
-    for(const auto inst : instantiations) {
+    unsigned int i = total_bodied_instantiations;
+    const auto total = instantiations.size();
+    while(i < total) {
+        const auto inst = instantiations[i];
         inst->code_gen_declare(gen);
+        i++;
     }
 }
 
 void GenericFuncDecl::code_gen(Codegen &gen) {
-    for(const auto inst : instantiations) {
+    auto& i = total_bodied_instantiations;
+    const auto total = instantiations.size();
+    while(i < total) {
+        const auto inst = instantiations[i];
         inst->code_gen(gen);
+        i++;
     }
 }
 
 void GenericFuncDecl::code_gen_external_declare(Codegen &gen) {
-    for(const auto inst : instantiations) {
+    unsigned int i = 0;
+    while(i < total_bodied_instantiations) {
+        const auto inst = instantiations[i];
         inst->code_gen_external_declare(gen);
+        i++;
     }
 }
 

@@ -16,7 +16,6 @@ if(def.windows) {
     //
     @extern public func   _open_osfhandle(h: intptr_t, flags: int) : int;
     @extern public func   _fdopen(fd: int, mode: *char)   : *mut FILE;
-    @extern public func GetStdHandle(nStdHandle : uint32_t) : *mut void
 
     // cache slots so we only do the syscall+CRT conversion once
     var _in  : *mut FILE = null;

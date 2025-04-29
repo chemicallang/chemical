@@ -9,47 +9,23 @@ func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string
     return new_path;
 }
 
-func exe_dir_path(ctx : *BuildContext, exe_name : *std::string_view) : std::string {
-    const new_path = ctx.build_path();
-    new_path.append('/');
-    new_path.append_with_len(exe_name.data(), exe_name.size());
-    new_path.append_char_ptr(".dir");
-    new_path.append('/')
-    return new_path;
-}
-
-func exe_dir_file(ctx : *BuildContext, exe_name : *std::string_view, file_name : *std::string_view, extension : *char) : std::string {
-    const exe_dir = exe_dir_path(ctx, exe_name);
-    exe_dir.append_with_len(file_name.data(), file_name.size());
-    exe_dir.append_char_ptr(extension);
-    return exe_dir;
-}
-
-func gen_ir(ctx : *BuildContext, exe_name : *std::string_view, module : *mut Module) {
-    module.llvm_ir_path = exe_dir_path(ctx, exe_name)
-    module.llvm_ir_path.append_str(&module.name);
-    module.llvm_ir_path.append_char_ptr("/llvm_ir.ll")
+func gen_ir(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
+    module.llvm_ir_path = ctx.build_llvm_ir_path(exe_name, module.scope_name.to_view(), module.name.to_view())
     printf("module : %s, llvm ir : %s\n", module.name.data(), module.llvm_ir_path.data());
 }
 
-func gen_asm(ctx : *BuildContext, exe_name : *std::string_view, module : *mut Module) {
-    module.asm_path = exe_dir_path(ctx, exe_name)
-    module.asm_path.append_str(&module.name);
-    module.asm_path.append_char_ptr("/mod_asm.s")
+func gen_asm(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
+    module.asm_path = ctx.build_asm_path(exe_name, module.scope_name.to_view(), module.name.to_view())
     printf("module : %s, asm : %s\n", module.name.data(), module.asm_path.data());
 }
 
-func gen_bc(ctx : *BuildContext, exe_name : *std::string_view, module : *mut Module) {
-    module.bitcode_path = exe_dir_path(ctx, exe_name)
-    module.bitcode_path.append_str(&module.name);
-    module.bitcode_path.append_char_ptr("/mod_bitcode.bc")
+func gen_bc(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
+    module.bitcode_path = ctx.build_bitcode_path(exe_name, module.scope_name.to_view(), module.name.to_view())
     printf("module : %s, bitcode : %s\n", module.name.data(), module.bitcode_path.data());
 }
 
-func gen_c(ctx : *BuildContext, exe_name : *std::string_view, module : *mut Module) {
-    const path = exe_dir_path(ctx, exe_name)
-    path.append_str(&module.name);
-    path.append_char_ptr("/mod_c.c")
+func gen_c(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
+    const path = ctx.build_mod_file_path(exe_name, module.scope_name.to_view(), module.name.to_view(), std::string_view("mod_c.c"))
     if(compiler::is_clang()) {
         ctx.translate_mod_to_c(module, path.to_view());
         printf("module : %s, output c : %s\n", module.name.data(), path.data());
@@ -147,44 +123,38 @@ func build(ctx : *mut AppBuildContext) {
     const do_llvm_ir = true;
     const do_asm = false;
     const do_bc = true;
-    const do_to_ch = !is_minimal && compiler::is_clang();
+    const do_to_ch = compiler::is_clang();
 
     const do_c = !compiler::is_clang();
     var do_dyn_lib = !is_minimal;
     const do_one_job = false;
 
     if(do_llvm_ir) {
-        gen_ir(ctx, &exe_name, submod)
-        gen_ir(ctx, &exe_name, submod2)
-        gen_ir(ctx, &exe_name, cstd_module);
-        gen_ir(ctx, &exe_name, std_module);
-        gen_ir(ctx, &exe_name, module);
+        gen_ir(ctx, exe_name, submod)
+        gen_ir(ctx, exe_name, submod2)
+        gen_ir(ctx, exe_name, cstd_module);
+        gen_ir(ctx, exe_name, std_module);
+        gen_ir(ctx, exe_name, module);
     }
 
     if(do_asm) {
         // TODO asm generation is failing because of error in the submod
         //     error: <unknown>:0: symbol 'extern_imported_sum' is already defined
-        gen_asm(ctx, &exe_name, submod)
-        gen_asm(ctx, &exe_name, std_module);
-        gen_asm(ctx, &exe_name, module);
+        gen_asm(ctx, exe_name, submod)
+        gen_asm(ctx, exe_name, std_module);
+        gen_asm(ctx, exe_name, module);
     }
 
     if(do_bc) {
-        gen_bc(ctx, &exe_name, submod)
-        gen_bc(ctx, &exe_name, std_module);
-        gen_bc(ctx, &exe_name, module);
-    }
-
-    if(do_to_ch) {
-        const output_file = exe_dir_file(ctx, &exe_name, &std::string_view(ext_module.name), ".ch")
-        const input_file = lab::rel_path_to("ext/file.c")
-        ctx.translate_file_to_chemical(input_file.to_view(), output_file.to_view());
+        gen_bc(ctx, exe_name, submod)
+        gen_bc(ctx, exe_name, std_module);
+        gen_bc(ctx, exe_name, module);
     }
 
     if(do_c) {
-        gen_c(ctx, &exe_name, submod);
-        gen_c(ctx, &exe_name, std_module);
-        gen_c(ctx, &exe_name, module);
+        gen_c(ctx, exe_name, submod);
+        gen_c(ctx, exe_name, std_module);
+        gen_c(ctx, exe_name, module);
         if(do_one_job) {
             return;
         }
@@ -210,5 +180,12 @@ func build(ctx : *mut AppBuildContext) {
             jx.ctx.launch_executable(jx.job.abs_path.to_view(), true);
         }
     }, &jc);
+
+    // should be done at end, when directory for ext_module exists
+    if(do_to_ch) {
+        const output_file = ctx.build_mod_file_path(exe_name, ext_module.scope_name.to_view(), ext_module.name.to_view(), std::string_view("output.ch"));
+        const input_file = lab::rel_path_to("ext/file.c")
+        ctx.translate_file_to_chemical(input_file.to_view(), output_file.to_view());
+    }
 
 }

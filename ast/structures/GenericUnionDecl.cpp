@@ -165,19 +165,19 @@ void GenericUnionDecl::code_gen_declare(Codegen &gen) {
 }
 
 void GenericUnionDecl::code_gen(Codegen &gen) {
-    auto i = total_bodied_instantiations;
+    auto& i = total_bodied_instantiations;
     const auto total = instantiations.size();
     while(i < total) {
         instantiations[i]->code_gen(gen);
         i++;
     }
-    total_bodied_instantiations = instantiations.size();
 }
 
 void GenericUnionDecl::code_gen_external_declare(Codegen &gen) {
     // only declare the instantiations that have been bodied
-    auto i = 0;
-    while(i < total_bodied_instantiations) {
+    unsigned i = 0;
+    const auto total = total_bodied_instantiations;
+    while(i < total) {
         instantiations[i]->code_gen_external_declare(gen);
         i++;
     }

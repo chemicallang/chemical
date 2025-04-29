@@ -314,8 +314,19 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 
 llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     const auto val = value->llvm_value(gen);
-    if(val->getType()->isPointerTy()) {
+    const auto type = val->getType();
+    if(type->isPointerTy()) {
         return gen.builder->CreateICmpEQ(val, NullValue::null_llvm_value(gen));
+    }
+#ifdef DEBUG
+    if(!type->isIntegerTy()) {
+        throw std::runtime_error("only integer / boolean values can be used with not");
+    }
+#endif
+    const auto bitWidth = type->getIntegerBitWidth();
+    if(bitWidth != 1) {
+        // since its a different integer bitwidth, let's compare with zero as condition
+        return gen.builder->CreateICmpEQ(val, gen.builder->getIntN(bitWidth, 0));
     }
     return gen.builder->CreateNot(val);
 }

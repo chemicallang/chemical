@@ -5,12 +5,15 @@
  * slow down compilation
  */
 
+if(def.windows) {
 
-/**
- * MessageId: ERROR_NO_MORE_FILES
- *
- * MessageText:
- *
- * There are no more files.
- */
-@comptime public const ERROR_NO_MORE_FILES = 18L
+    /**
+     * MessageId: ERROR_NO_MORE_FILES
+     *
+     * MessageText:
+     *
+     * There are no more files.
+     */
+    @comptime public const ERROR_NO_MORE_FILES = 18L
+
+}

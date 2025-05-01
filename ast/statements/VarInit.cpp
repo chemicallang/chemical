@@ -286,8 +286,14 @@ ASTNode *VarInitStatement::child(const chem::string_view &name) {
         const auto linked = type->linked_node();
         return linked ? linked->child(name) : nullptr;
     } else if (value) {
-        const auto linked = value->linked_node();
-        return linked ? linked->child(name) : nullptr;
+        if(value->kind() == ValueKind::CastedValue) {
+            const auto t = value->known_type();
+            const auto l = t->linked_node();
+            return l ? l->child(name) : nullptr;
+        } else {
+            const auto linked = value->linked_node();
+            return linked ? linked->child(name) : nullptr;
+        }
     }
     return nullptr;
 }

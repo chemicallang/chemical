@@ -25,7 +25,7 @@ bool CastedValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expe
 }
 
 ASTNode *CastedValue::linked_node() {
-    return type->linked_node();
+    return value->linked_node();
 }
 
 Value* CastedValue::evaluated_value(InterpretScope &scope) {

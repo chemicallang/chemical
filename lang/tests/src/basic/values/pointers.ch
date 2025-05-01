@@ -26,6 +26,16 @@ func send_my_char_ptr(pathname : *char) : bool {
     return take_char_ptr(pathname) == pathname
 }
 
+type a_struct_ptr = *PMC22
+
+func take_a_struct_ptr(path : a_struct_ptr) : *PMC22 {
+    return path
+}
+
+func send_a_struct_ptr(pathname : a_struct_ptr) : bool {
+    return take_a_struct_ptr(pathname) == pathname
+}
+
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
@@ -128,7 +138,11 @@ func test_pointer_math() {
         const thing = *take_addr_of_pointer(&ptr);
         return thing == 33
     })
-    test("passing a pointer to typealias succeeds", () => {
+    test("passing a char pointer as typealias succeeds", () => {
         return send_my_char_ptr("")
+    })
+    test("passing a struct pointer as typealias succeeds", () => {
+        var p = PMC22 { a : 43, b : 87 }
+        return send_a_struct_ptr(&p)
     })
 }

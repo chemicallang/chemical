@@ -89,6 +89,10 @@ public struct vector<T> {
         data_size = last;
     }
 
+    func empty(&self) : bool {
+        return data_size == 0;
+    }
+
     func clear(&mut self) {
         destruct[data_size] data_ptr;
         data_size = 0;

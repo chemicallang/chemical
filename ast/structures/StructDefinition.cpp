@@ -319,11 +319,12 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             has_copy_fn = true;
         }
     }
-    if(!has_def_constructor && any_member_has_def_constructor()) {
-        has_def_constructor = true;
-        create_def_constructor_checking(allocator, diagnoser, name_view());
-        if(!has_constructor) {
-            attrs.is_direct_init = true;
+    if(!has_def_constructor && all_members_has_def_constructor()) {
+        if(create_def_constructor_checking(allocator, diagnoser, name_view())) {
+            has_def_constructor = true;
+            if (!has_constructor) {
+                attrs.is_direct_init = true;
+            }
         }
     }
     if(!has_copy_fn && any_member_has_copy_func()) {

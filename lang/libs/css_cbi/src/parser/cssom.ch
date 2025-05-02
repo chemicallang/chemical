@@ -5,7 +5,8 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
         parent : parser.getParentNode(),
         has_dynamic_values : false,
         declarations : std::vector<*mut CSSDeclaration>(),
-        className : std::string_view()
+        className : std::string_view(),
+        global : GlobalBlock()
     }
     var cssParser = CSSParser();
     while(true) {
@@ -17,5 +18,6 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
         }
     }
     root.has_dynamic_values = cssParser.has_dynamic_values;
+    cssParser.parseAtRule(*root, parser, builder)
     return root;
 }

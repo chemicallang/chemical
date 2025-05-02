@@ -1,3 +1,8 @@
+struct GlobalBlock {
+
+    var rules : std::vector<CSSRuleSet>
+
+}
 
 struct CSSOM {
 
@@ -10,5 +15,7 @@ struct CSSOM {
     var declarations : std::vector<*mut CSSDeclaration>
 
     var className : std::string_view
+
+    var global : GlobalBlock
 
 }

@@ -17,6 +17,10 @@ enum TokenType {
     Colon,
     // ;
     Semicolon,
+    // .
+    Dot,
+    // #
+    Hash,
     // @
     At,
     // !important

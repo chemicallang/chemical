@@ -301,7 +301,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     bool has_constructor = false;
     bool has_def_constructor = false;
     bool has_destructor = false;
-    bool has_copy_fn = false;
     for(auto& func : non_gen_range()) {
         if(func->is_constructor_fn()) {
             has_constructor = true;
@@ -316,7 +315,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
         }
         if(func->is_copy_fn()) {
             func->ensure_copy_fn(allocator, diagnoser, this);
-            has_copy_fn = true;
         }
     }
     if(!has_def_constructor && all_members_has_def_constructor()) {
@@ -326,10 +324,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
                 attrs.is_direct_init = true;
             }
         }
-    }
-    if(!has_copy_fn && any_member_has_copy_func()) {
-        has_copy_fn = true;
-        create_def_copy_fn(allocator, diagnoser);
     }
     if(!has_destructor && any_member_has_destructor()) {
         has_destructor = true;

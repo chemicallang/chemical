@@ -227,8 +227,6 @@ void VariantDefinition::link_signature(SymbolResolver &linker) {
 
 void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_destructor = false;
-    bool has_clear_fn = false;
-    bool has_move_fn = false;
     for(auto& func : non_gen_range()) {
         if(func->is_delete_fn()) {
             func->ensure_destructor(allocator, diagnoser, this);

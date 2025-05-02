@@ -15,6 +15,8 @@ public:
 
     }
 
+    bool forget(ASTNode* node) final;
+
     void mem_copy(Value *lhs, Value *rhs) final;
 
     bool supports(CompilerFeatureKind kind) final {

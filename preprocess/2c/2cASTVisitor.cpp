@@ -5458,6 +5458,19 @@ void ToCAstVisitor::VisitNullPtrType(NullPtrType* type) {
     write("void*");
 }
 
+bool ToCBackendContext::forget(ASTNode* targetNode) {
+    auto& jobs = visitor->destructor->destruct_jobs;
+    auto it = std::find_if(
+            jobs.begin(),
+            jobs.end(),
+            [targetNode](DestructionJob const& p){
+                return p.initializer == targetNode;
+            });
+    if (it == jobs.end()) return false;
+    jobs.erase(it);
+    return true;
+}
+
 void ToCBackendContext::mem_copy(Value *lhs, Value *rhs) {
     visitor->new_line_and_indent();
     visitor->visit(lhs);

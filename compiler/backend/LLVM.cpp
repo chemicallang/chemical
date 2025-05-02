@@ -1625,6 +1625,19 @@ void Namespace::code_gen_external_declare(Codegen &gen) {
     }
 }
 
+bool LLVMBackendContext::forget(ASTNode* targetNode) {
+    auto& gen = *gen_ptr;
+    auto it = std::find_if(
+            gen.destruct_nodes.begin(),
+            gen.destruct_nodes.end(),
+            [targetNode](auto const& p){
+                return p.first == targetNode;
+            });
+    if (it == gen.destruct_nodes.end()) return false;
+    gen.destruct_nodes.erase(it);
+    return true;
+}
+
 void LLVMBackendContext::mem_copy(Value* lhs, Value* rhs) {
     auto& gen = *gen_ptr;
     auto pointer = lhs->llvm_pointer(gen);

@@ -1315,48 +1315,35 @@ public:
     }
 };
 
-//class InterpretGetDeleteFnPtr : public FunctionDeclaration {
-//public:
-//
-//    StringType stringType;
-//
-//    explicit InterpretGetCurrentFilePath(ASTNode* parent_node) : FunctionDeclaration(
-//            ZERO_LOC_ID("get_current_file_path"),
-//            &stringType,
-//            false,
-//            parent_node,
-//            ZERO_LOC,
-//            AccessSpecifier::Public,
-//            true
-//    ), stringType(ZERO_LOC) {
-//        set_compiler_decl(true);
-//    }
-//    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-//        auto& loc_man = call_scope->global->loc_man;
-//        auto location = loc_man.getLocation(call->location);
-//        auto fileId = loc_man.getPathForFileId(location.fileId);
-//        return new (allocator.allocate<StringValue>()) StringValue(std::string(fileId), call->location);
-//    }
-//};
+class InterpretForget : public FunctionDeclaration {
+public:
 
+    FunctionParam param;
 
-//class InterpretConstruct : public FunctionDeclaration {
-//public:
-//    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
-//            "construct",
-//            std::make_unique<VoidType>(),
-//            false,
-//            parent_node,
-//            AccessSpecifier::Public
-//    ) {
-//        set_compiler_decl(true);
-//        params.emplace_back(std::make_unique<FunctionParam>("ptr", std::make_unique<PointerType>(std::make_unique<VoidType>()), 0, std::nullopt, this));
-//        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 1, std::nullopt, this));
-//    }
-//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-//
-//    }
-//};
+    explicit InterpretForget(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("forget"),
+            cache.getVoidType(),
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single argument", call);
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        }
+        const auto arg = call->values.front();
+        const auto node = arg->linked_node();
+        const auto result = node != nullptr && call_scope->global->backend_context->forget(node);
+        return new (allocator.allocate<BoolValue>()) BoolValue(result, ZERO_LOC);
+    }
+};
 
 class CompilerNamespace : public Namespace {
 public:
@@ -1393,6 +1380,7 @@ public:
     // TODO get_child_fn should be removed
     // we should use get destructor explicitly
     InterpretGetChildFunction get_child_fn;
+    InterpretForget forget_fn;
     InterpretError error_fn;
 
     CompilerNamespace(
@@ -1404,7 +1392,7 @@ public:
         get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this), get_call_loc(cache, this), get_char_no(cache, this),
         get_caller_line_no(cache, this), get_caller_char_no(cache, this), get_loc_file_path(cache, this),
         get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this), get_child_fn(cache, this),
-        error_fn(cache, this)
+        forget_fn(cache, this), error_fn(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -1412,7 +1400,7 @@ public:
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path,
-            &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &error_fn
+            &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn
         };
     }
 

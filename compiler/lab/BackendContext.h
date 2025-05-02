@@ -21,6 +21,12 @@ class BackendContext {
 public:
 
     /**
+     * forgets, meaning no drop will be called on the given node
+     * @return true if forgotten successfully, false otherwise
+     */
+    virtual bool forget(ASTNode* node) = 0;
+
+    /**
      * performs a mem cpy on lhs and rhs using the backend
      */
     virtual void mem_copy(Value* lhs, Value* rhs) = 0;

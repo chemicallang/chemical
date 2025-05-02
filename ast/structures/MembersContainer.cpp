@@ -512,6 +512,48 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& a
     return nullptr;
 }
 
+bool all_variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*), bool variant_container) {
+    for(const auto& inh : container.inherited) {
+        if(!requirement(inh.type)) {
+            return false;
+        }
+    }
+    if(variant_container) {
+        for(const auto var : container.variables()) {
+            const auto mem = var->as_variant_member_unsafe();
+            for(auto& val : mem->values) {
+                if(!requirement(val.second->type)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    } else {
+        for(const auto var : container.variables()) {
+            switch(var->kind()) {
+                case ASTNodeKind::UnnamedStruct:
+                    if(!all_variables_type_require(*var->as_unnamed_struct_unsafe(), requirement, false)){
+                        return false;
+                    }
+                    break;
+                case ASTNodeKind::UnnamedUnion:
+                    if(!all_variables_type_require(*var->as_unnamed_union_unsafe(), requirement, false)){
+                        return false;
+                    }
+                    break;
+                case ASTNodeKind::StructMember:
+                    if(!requirement(var->as_struct_member_unsafe()->type)) {
+                        return false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return true;
+    }
+}
+
 bool variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*), bool variant_container) {
     for(const auto& inh : container.inherited) {
         if(requirement(inh.type)) {
@@ -558,20 +600,29 @@ inline bool members_type_require(MembersContainer& container, bool(*requirement)
     return variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
 }
 
-bool MembersContainer::any_member_has_def_constructor() {
-    return members_type_require(*this, [](BaseType* type)-> bool {
-        return type->get_def_constructor() != nullptr;
+inline bool one_member_type_requires(MembersContainer& container, bool(*requirement)(BaseType*)) {
+    return variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
+}
+
+inline bool all_members_type_require(MembersContainer& container, bool(*requirement)(BaseType*)) {
+    return all_variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
+}
+
+bool MembersContainer::all_members_has_def_constructor() {
+    return all_members_type_require(*this, [](BaseType* type)-> bool {
+        const auto container = type->get_members_container();
+        return container == nullptr || container->default_constructor_func() != nullptr;
     });
 }
 
 bool MembersContainer::any_member_has_destructor() {
-    return members_type_require(*this, [](BaseType* type)-> bool {
+    return one_member_type_requires(*this, [](BaseType* type)-> bool {
         return type->get_destructor() != nullptr;
     });
 }
 
 bool MembersContainer::any_member_has_copy_func() {
-    return members_type_require(*this, [](BaseType* type)-> bool {
+    return one_member_type_requires(*this, [](BaseType* type)-> bool {
         return type->get_copy_fn() != nullptr;
     });
 }
@@ -628,7 +679,7 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
 FunctionDeclaration* MembersContainer::create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name) {
     auto delFunc = direct_child_function("make");
     if(delFunc) {
-        diagnoser.error("default constructor is created by name 'make' , a function by name 'make' already exists, please create a manual constructor to avoid this", (AnnotableNode*) delFunc);
+        diagnoser.warn("default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
     return create_def_constructor(allocator, container_name);
@@ -637,7 +688,7 @@ FunctionDeclaration* MembersContainer::create_def_constructor_checking(ASTAlloca
 FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
-        diagnoser.error("default destructor is created by name 'delete', a function by name 'delete' already exists, please create a manual destructor to avoid this", (AnnotableNode*) delFunc);
+        diagnoser.warn("default destructor is created by name 'delete', a function by name 'delete' already exists, please create a manual destructor to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
     return create_destructor(allocator);
@@ -646,7 +697,7 @@ FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& alloc
 FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("copy");
     if(copyFn) {
-        diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual copy function to avoid this", (AnnotableNode*) copyFn);
+        diagnoser.warn("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual copy function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
     return create_copy_fn(allocator);

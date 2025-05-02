@@ -8,7 +8,7 @@ public struct span<T> {
     @implicit
     @comptime
     @constructor
-    func make(array : T[]) {
+    func make2(array : T[]) {
         return compiler::wrap(constructor<T>(array, compiler::size(array)))
     }
 

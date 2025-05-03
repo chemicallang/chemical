@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ast/base/AnnotableNode.h"
-#include "ordered_map.h"
+#include <unordered_map>
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/LocatedIdentifier.h"
 
@@ -47,7 +47,7 @@ public:
 
     LocatedIdentifier identifier;
     std::vector<ASTNode*> nodes;
-    tsl::ordered_map<chem::string_view, ASTNode*> extended;
+    std::unordered_map<chem::string_view, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     NamespaceDeclAttributes attrs;
 

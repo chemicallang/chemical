@@ -5,7 +5,6 @@
 #include "CBIUtils.h"
 #include "std/chem_string.h"
 #include "std/chem_string_view.h"
-#include "compiler/lab/CBIType.h"
 #include <cstddef>
 
 struct LabBuildContext;

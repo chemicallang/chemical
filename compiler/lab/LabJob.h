@@ -7,7 +7,6 @@
 #include "std/chem_string.h"
 #include "LabJobType.h"
 #include "compiler/cbi/model/CBIData.h"
-#include "CBIType.h"
 #include "compiler/cbi/model/CBIFunctionIndex.h"
 
 struct LabModule;

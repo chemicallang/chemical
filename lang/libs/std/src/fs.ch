@@ -1,8 +1,8 @@
-if(!def.windows) {
-    alias posix_mkdir = mkdir;
-}
-
 public namespace fs {
+
+    if(!def.windows) {
+        alias posix_mkdir = mkdir;
+    }
 
     public func mkdir(pathname : *char) : int {
         if(def.windows) {

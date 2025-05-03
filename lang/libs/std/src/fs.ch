@@ -1,10 +1,14 @@
 public namespace fs {
 
+    if(!def.windows) {
+        alias posix_mkdir = mkdir;
+    }
+
     public func mkdir(pathname : *char) : int {
         if(def.windows) {
             return _mkdir(pathname)
         } else {
-            return mkdir(pathname, PermissionMode.S_IRWXU)
+            return posix_mkdir(pathname, PermissionMode.S_IRWXU)
         }
     }
 

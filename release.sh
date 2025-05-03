@@ -2,8 +2,6 @@
 
 set -e
 
-version=v1.0.4
-
 # Determine the operating system using uname -s
 os_type="$(uname -s)"
 case "$os_type" in
@@ -76,10 +74,10 @@ for param in "$@"; do
 done
 
 # Create directory names
-win64dirname="windows-x64-$version"
-lin64dirname="linux-x86-64-$version"
-Win64TccDirName="windows-x64-tcc-$version"
-Lin64TccDirName="linux-x86-64-tcc-$version"
+win64dirname="windows-x64"
+lin64dirname="linux-x86-64"
+Win64TccDirName="windows-x64-tcc"
+Lin64TccDirName="linux-x86-64-tcc"
 
 # Create directory paths
 windows64dir="out/release/$win64dirname"

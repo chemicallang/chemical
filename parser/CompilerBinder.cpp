@@ -63,16 +63,23 @@ const char* CompilerBinder::prepare_with_type(const chem::string_view& cbiName, 
     }
 }
 
-bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState* state) {
-    auto map = interface_maps.find(chem::string_view(name));
-    if(map != interface_maps.end()) {
-        for(auto& sym : map->second) {
-            tcc_add_symbol(state, sym.first.data(), sym.second);
-        }
-        return true;
-    } else {
-        return false;
+const char* CompilerBinder::index_function(CBIFunctionIndex& index, TCCState* state) {
+    const auto sym = tcc_get_symbol(state, index.fn_name.data());
+    if(!sym) {
+        return "function with this name doesn't exist";
     }
+    switch(index.fn_type) {
+        case CBIFunctionType::InitializeLexer:
+            initializeLexerFunctions[index.key.to_chem_view()] = (UserLexerInitializeFn) sym;
+            break;
+        case CBIFunctionType::ParseMacroValue:
+            parseMacroValueFunctions[index.key.to_chem_view()] = (UserParserParseMacroValueFn) sym;
+            break;
+        case CBIFunctionType::ParseMacroNode:
+            parseMacroNodeFunctions[index.key.to_chem_view()] = (UserParserParseMacroNodeFn) sym;
+            break;
+    }
+    return nullptr;
 }
 
 CompilerBinder::~CompilerBinder() {

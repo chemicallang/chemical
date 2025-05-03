@@ -8,6 +8,7 @@
 #include "LabJobType.h"
 #include "compiler/cbi/model/CBIData.h"
 #include "CBIType.h"
+#include "compiler/cbi/model/CBIFunctionIndex.h"
 
 struct LabModule;
 
@@ -95,11 +96,13 @@ struct LabJob {
 
 struct LabJobCBI : public LabJob {
 public:
+
     /**
-     * which cbi types is this job targeting
-     * this determines which functions would be called in the cbi
+     * indexes are the functions that user asked us to index
+     * these functions would be found when this job is done, these would
+     * be called when required
      */
-    std::vector<CBIType> cbiTypes;
+    std::vector<CBIFunctionIndex> indexes;
 
     /**
      * constructor

@@ -21,6 +21,7 @@ public struct DIR {
  * @param name Path to the directory.
  * @return DIR* on success, NULL on error.
  */
+@extern
 public func opendir(name : *char) : *mut DIR
 
 /**
@@ -28,6 +29,7 @@ public func opendir(name : *char) : *mut DIR
  * @param dirp Directory stream.
  * @return Pointer to dirent on success, or NULL at end/error.
  */
+@extern
 public func readdir(dirp : *mut DIR) : *mut dirent
 
 /**
@@ -35,6 +37,7 @@ public func readdir(dirp : *mut DIR) : *mut dirent
  * @param dirp Directory stream to close.
  * @return 0 on success, –1 on error.
  */
+@extern
 public func closedir(dirp : *mut DIR) : int
 
 }

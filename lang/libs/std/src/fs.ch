@@ -1,8 +1,8 @@
-public namespace fs {
+if(!def.windows) {
+    alias posix_mkdir = mkdir;
+}
 
-    if(!def.windows) {
-        alias posix_mkdir = mkdir;
-    }
+public namespace fs {
 
     public func mkdir(pathname : *char) : int {
         if(def.windows) {
@@ -173,7 +173,7 @@ public namespace fs {
         } else {
             if (!path_exists(dest_dir)) {
                  // Assumes mkdir is available
-                if (mkdir(dest_dir, 0755) != 0) {
+                if (posix_mkdir(dest_dir, 0755) != 0) {
                     perror("mkdir dest");
                     return -1;
                 }
@@ -269,7 +269,7 @@ public namespace fs {
                     break; // Exit loop on error or end of directory
                 }
 
-                var name = entry.d_name; // Assumes d_name is the correct field
+                var name = &entry.d_name[0]; // Assumes d_name is the correct field
 
                 if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
                     continue;

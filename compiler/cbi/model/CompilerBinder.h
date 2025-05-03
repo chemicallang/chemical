@@ -8,6 +8,7 @@
 #include "std/chem_string_view.h"
 #include "compiler/cbi/bindings/CBI.h"
 #include "compiler/lab/CBIType.h"
+#include "CBIFunctionIndex.h"
 
 class ASTProcessor;
 
@@ -80,9 +81,9 @@ public:
     const char* prepare_with_type(const chem::string_view& cbiName, TCCState* state, CBIType type);
 
     /**
-     * import compiler interface with the given name
+     * indexes the given function
      */
-    bool import_compiler_interface(const std::string& name, TCCState* state);
+    const char* index_function(CBIFunctionIndex& index, TCCState* state);
 
     /**
      * a destructor is used to destruct the TCC state

@@ -49,13 +49,19 @@ public struct LabJob {
 }
 
 @no_init
-public struct LabJobCBI {
+public struct LabJobCBI : LabJob {
 
 }
 
 public enum CBIType {
     MacroLexer,
     MacroParser
+}
+
+public enum CBIFunctionType {
+    InitializeLexer,
+    ParseMacroValue,
+    ParseMacroNode
 }
 
 public struct PathResolutionResult {
@@ -120,8 +126,8 @@ public struct BuildContext {
     // build a cbi by given name, that can be used to integrate with compiler
     func build_cbi (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJobCBI
 
-    // add the given cbi to a cbi job
-    func add_cbi_type(&self, job : *mut LabJobCBI, type : CBIType) : bool
+    // indexes a function from cbi, so it can be called when required
+    func index_cbi_fn(&self, job : *mut LabJobCBI, key : &std::string_view, fn_name : &std::string_view, fn_type : CBIFunctionType) : bool
 
     // add a linkable object (.o file)
     func add_object (&self, job : *LabJob, path : &std::string_view) : void;
@@ -226,6 +232,29 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
         ctx.include_header(module, *ele);
         i++;
     }
+}
+
+// add the given cbi to a cbi job
+public func (ctx : &BuildContext) add_cbi_type(job : *mut LabJobCBI, type : CBIType) : bool {
+    switch(type) {
+        CBIType.MacroLexer => {
+            var fn_name = job.name.copy()
+            var view = std::string_view("_initializeLexer")
+            fn_name.append_with_len(view.data(), view.size())
+            ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), CBIFunctionType.InitializeLexer)
+        }
+        CBIType.MacroParser => {
+            var fn_name = job.name.copy()
+            var view = std::string_view("_parseMacroValue")
+            fn_name.append_with_len(view.data(), view.size())
+            ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), CBIFunctionType.ParseMacroValue)
+            var fn_name2 = job.name.copy()
+            var view2 = std::string_view("_parseMacroNode")
+            fn_name2.append_with_len(view2.data(), view2.size())
+            ctx.index_cbi_fn(job, job.name.to_view(), fn_name2.to_view(), CBIFunctionType.ParseMacroNode)
+        }
+    }
+    return true;
 }
 
 // -----------------------------------------------------

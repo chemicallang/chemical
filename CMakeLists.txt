@@ -555,6 +555,8 @@ set(COMMON_SOURCES
         ast/base/TypeLoc.h
         ast/base/TypeBuilder.cpp
         ast/types/NullPtrType.h
+        compiler/cbi/model/CBIFunctionType.h
+        compiler/cbi/model/CBIFunctionIndex.h
 )
 
 # Chemical LSP Executable Target

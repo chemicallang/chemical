@@ -103,9 +103,9 @@ LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, Mo
     return self->build_cbi(name, dependencies->ptr, dependencies->size);
 }
 
-bool BuildContextadd_cbi_type(LabBuildContext* self, LabJob* job, int type) {
-    if(job->type == LabJobType::CBI && type >= 0 && type <= static_cast<int>(CBIType::IndexLast)) {
-        ((LabJobCBI*) job)->cbiTypes.emplace_back(static_cast<CBIType>(type));
+bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type) {
+    if(job->type == LabJobType::CBI && func_type >= 0) {
+        ((LabJobCBI*) job)->indexes.emplace_back(chem::string(*key), chem::string(*fn_name), static_cast<CBIFunctionType>(func_type));
         return true;
     } else {
         return false;

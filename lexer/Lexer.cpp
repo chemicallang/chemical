@@ -401,11 +401,21 @@ void read_id(SerialStrAllocator& str, SourceProvider& provider) {
 
 void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
-        auto p = provider.peek();
-        if(p != -1 && (p == '_' || p == '.' || p == ':' || std::isalnum(p))) {
-            str.append(provider.readCharacter());
-        } else {
-            return;
+        const auto p = provider.peek();
+        switch(p) {
+            case -1:
+            case '_':
+            case '.':
+            case ':':
+                str.append(provider.readCharacter());
+                break;
+            default:
+                if(std::isalnum(p)) {
+                    str.append(provider.readCharacter());
+                } else {
+                    return;
+                }
+                break;
         }
     }
 }
@@ -435,7 +445,7 @@ Token Lexer::getNextToken() {
 #endif
         }
     }
-    auto current = provider.readCharacter();
+    const auto current = provider.readCharacter();
     switch(current) {
         case '{':
             return Token(TokenType::LBrace, view_str(LBraceCStr), pos);
@@ -497,7 +507,7 @@ Token Lexer::getNextToken() {
         }
         case '#': {
             str.append('#');
-            read_id(str, provider);
+            read_annotation_id(str, provider);
             auto& functions_map = binder->initializeLexerFunctions;
             auto view = chem::string_view((str.data + 1), str.length - 1);
             auto found = functions_map.find(view);

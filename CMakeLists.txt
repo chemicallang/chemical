@@ -55,30 +55,10 @@ configure_file(
 
 # Enable verbose output
 #set(CMAKE_VERBOSE_MAKEFILE ON)
-# Use static libraries
-set(Boost_USE_STATIC_LIBS ON)
-# Use debug version of Boost libraries
-set(Boost_USE_DEBUG_LIBS ON)
-# Don't warn about boost new version
-set(Boost_NO_WARN_NEW_VERSIONS 1)
-
-# set custom boost root (not required) (set BOOST_ROOT environment variable)
-# set(BOOST_ROOT "path\\to\\boost")
-
-# Enable this option if Boost Not Found to check for Boost
-# set(Boost_DEBUG 1)
 
 # include some compiler options for better support
 include(cmake/CompilerOptions.cmake)
 include(cmake/FeatureFlags.cmake)
-
-# Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
-if (POLICY CMP0074)
-    cmake_policy(SET CMP0074 NEW)
-endif ()
-
-# Find Boost
-find_package(Boost 1.74 COMPONENTS program_options filesystem QUIET)
 
 # find these packages
 find_package(llvm 17)
@@ -559,7 +539,6 @@ set(COMMON_SOURCES
 )
 
 # Chemical LSP Executable Target
-if(Boost_FOUND)
 add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.h
         server/WorkspaceManager.cpp
@@ -590,9 +569,6 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/CaretPositionAnalyzer.h
         server/analyzers/CaretPositionAnalyzer.cpp
 )
-else()
-    message(WARNING "Boost 1.74 with program_options and filesystem not found. Skipping Lsp target.")
-endif()
 
 # Add an executable target for the second executable
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
@@ -644,9 +620,7 @@ target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS $
 target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
 
 # Lsp uses boost library
-if(Boost_FOUND)
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
-endif()
 
 # Define common include directories
 set(COMMON_INCLUDE_DIRS
@@ -675,13 +649,11 @@ if(ENABLE_ASAN AND CMAKE_BUILD_TYPE MATCHES Debug)
 endif()
 
 # Add include directories for LspCpp
-if(Boost_FOUND)
 target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
         ${LIBTCC_DIR}/include
         ${COMMON_INCLUDE_DIRS}
 )
-endif()
 
 # Add include directories for LspCpp
 target_include_directories(Interpreter PRIVATE
@@ -720,9 +692,7 @@ if (MSVC)
     target_compile_options(Compiler PRIVATE /wd4267)
     target_compile_options(TCCCompiler PRIVATE /wd4267)
     target_compile_options(Interpreter PRIVATE /wd4267)
-    if(Boost_FOUND)
-        target_compile_options(ChemicalLsp PRIVATE /wd4267)
-    endif()
+    target_compile_options(ChemicalLsp PRIVATE /wd4267)
 endif()
 
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
@@ -733,11 +703,11 @@ if (WIN32)
     # we link everything else statically on windows anyway
     target_compile_options(Compiler PRIVATE "/MT")
     target_compile_options(TCCCompiler PRIVATE "/MT")
+    target_compile_options(ChemicalLsp PRIVATE "/MT")
     target_compile_options(Interpreter PRIVATE "/MT")
 endif ()
 
-# Linking interpreter with Boost library
-# This should be removed eventually we don't want boost to boost our exe size
+# Linking interpreter
 target_link_libraries(Interpreter)
 
 # Link compiler against CLANG, LLVM, LLD, LibTCC
@@ -760,6 +730,4 @@ if(UNIX)
 endif()
 
 # Link Lsp with Boost Library
-if(Boost_FOUND)
-target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp ${LIBTCC_LIB})
-endif()
+target_link_libraries(ChemicalLsp lspcpp ${LIBTCC_LIB})

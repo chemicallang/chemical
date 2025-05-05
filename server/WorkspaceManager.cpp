@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <sstream>
 #include "LibLsp/lsp/textDocument/foldingRange.h"
-#include "server/analyzers/FoldingRangeAnalyzer.h"
+#include "server/analyzers/FoldingRangeAnalyzerApi.h"
 #include "LibLsp/lsp/textDocument/completion.h"
 #include "LibLsp/lsp/textDocument/document_link.h"
 #include "LibLsp/lsp/textDocument/inlayHint.h"
@@ -31,8 +31,9 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "compiler/lab/LabBuildCompilerOptions.h"
-#include "server/analyzers/InlayHintAnalyzer.h"
+#include "server/analyzers/InlayHintAnalyzerApi.h"
 #include "server/analyzers/SignatureHelpAnalyzer.h"
+#include <fstream>
 
 #define DEBUG_REPLACE false
 
@@ -49,7 +50,10 @@ struct LSPLabImpl {
 
 };
 
-WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()) {
+WorkspaceManager::WorkspaceManager(
+        std::string lsp_exe_path
+) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()),
+    global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()) {
 
 }
 
@@ -113,10 +117,13 @@ bool WorkspaceManager::compile_build_lab() {
     auto lab_path = get_build_lab_path();
     if(std::filesystem::exists(lab_path)) {
 
-        LabBuildCompilerOptions options(compiler_exe_path(), "ide", is64Bit);
+        auto build_dir = resolve_sibling(lab_path, "build");
+        LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
         LabBuildCompiler compiler(binder, &options);
-        const auto impl = new LSPLabImpl { LabBuildContext(&options, lab_path, resolve_sibling(lab_path, "build")), nullptr };
-        const auto state = compiler.built_lab_file(impl->context, lab_path);
+        ModuleStorage storage;
+        const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, lab_path), nullptr };
+        ModuleDependencyRecord record("", chem::string(""), chem::string(""));
+        const auto state = compiler.built_lab_file(impl->context, record, lab_path);
 
         // get the build method
         auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
@@ -182,9 +189,7 @@ td_foldingRange::response WorkspaceManager::get_folding_range(const lsDocumentUr
     td_foldingRange::response rsp;
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_ast_import_unit(abs_path, cancel_request);
-    FoldingRangeAnalyzer analyzer(loc_man);
-    analyzer.analyze(unit.files.back()->unit.scope.nodes);
-    rsp.result = std::move(analyzer.ranges);
+    rsp.result = folding_analyze(loc_man, unit.files.back()->unit.scope.body.nodes);
     return rsp;
 }
 
@@ -213,9 +218,8 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto result = get_ast_import_unit(abs_path, cancel_request);
-    InlayHintAnalyzer analyzer(loc_man);
     td_inlayHint::response rsp;
-    rsp.result = analyzer.analyze(result, compiler_exe_path(), lsp_exe_path);
+    rsp.result = inlay_hint_analyze(loc_man, result, compiler_exe_path(), lsp_exe_path);
     return std::move(rsp);
 }
 
@@ -252,7 +256,7 @@ td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
     auto unit = get_ast_import_unit(abs_path, cancel_request);
     DocumentSymbolsAnalyzer analyzer(loc_man);
     td_symbol::response rsp;
-    analyzer.analyze(unit.files.back()->unit.scope.nodes);
+    analyzer.analyze(unit.files.back()->unit.scope.body.nodes);
     rsp.result = std::move(analyzer.symbols);
     return rsp;
 }

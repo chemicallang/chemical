@@ -6,8 +6,6 @@
 
 class LexResult;
 
-class CSTToken;
-
 /**
  * responsible for putting the documentation of the given node into the given value
  * @param current the file user is editing currently

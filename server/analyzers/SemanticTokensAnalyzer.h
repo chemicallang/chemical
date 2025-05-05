@@ -7,10 +7,9 @@
 #pragma once
 
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
-#include "cst/base/CSTVisitor.h"
-#include "parser/model/LexTokenType.h"
+#include "lexer/Token.h"
 
-class SemanticTokensAnalyzer : public CSTVisitor {
+class SemanticTokensAnalyzer {
 private:
 
     /**
@@ -50,12 +49,12 @@ public:
      * this just puts the given lex token as a semantic token in the tokens vector
      * also sets prev token line number to this token
      */
-    inline void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
+    void put(Token* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
 
     /**
      * will automatically determine the token type based on token
      */
-    void put_auto(CSTToken* token);
+    void put_auto(Token* token);
 
     // Visitors
 
@@ -64,50 +63,16 @@ public:
      * @param start inclusive start
      * @param till exclusive end
      */
-    void visit(std::vector<CSTToken*> &tokens, unsigned start, unsigned till);
+    void visit(std::vector<Token> &tokens, unsigned start, unsigned till);
 
-    inline void visit(std::vector<CSTToken*> &tokens_vec, unsigned start = 0) {
+    inline void visit(std::vector<Token> &tokens_vec, unsigned start = 0) {
         visit(tokens_vec, start, tokens_vec.size());
     }
 
-    inline void analyze(std::vector<CSTToken*> &tokens_vec) {
+    inline void analyze(std::vector<Token> &tokens_vec) {
         visit(tokens_vec, 0, tokens_vec.size());
     }
 
-    void visitCommon(CSTToken *token) final;
-
-    void visitLexTokenCommon(CSTToken *token) final;
-
-    void visitCompoundCommon(CSTToken* compound) final;
-
-    // Compound Visitors
-
-    void visitVariableToken(CSTToken *token) final {
-        put_auto(token);
-    }
-
-    void visitTypeToken(CSTToken *token) final {
-        put_auto(token);
-    }
-
-    void visitIdentifierToken(CSTToken *token) final {
-        put_auto(token);
-    }
-
-    void visitFunction(CSTToken* function) final;
-
-    void visitInterface(CSTToken* interface) final;
-
-    void visitStructDef(CSTToken* structDef) final;
-
-    void visitImpl(CSTToken* impl) final;
-
-    void visitEnumDecl(CSTToken* enumDecl) final;
-
-    void visitBody(CSTToken* bodyCst) final;
-
-    // Token visitors
-
-    void visitMultilineComment(CSTToken *token) final;
+    void putMultilineComment(Token *token);
 
 };

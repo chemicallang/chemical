@@ -1,13 +1,14 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "WorkspaceManager.h"
-#include "preprocess/ImportGraphMaker.h"
-#include "utils/WorkspaceImportGraphImporter.h"
-#include "preprocess/ImportGraphVisitor.h"
 #include "preprocess/ImportPathHandler.h"
 #include "stream/StringInputSource.h"
-#include "cst/base/CSTConverter.h"
 #include "utils/PathUtils.h"
+#include "stream/SourceProvider.h"
+#include "parser/Parser.h"
+#include "stream/FileInputSource.h"
+#include "ast/structures/ModuleScope.h"
+#include "lexer/Lexer.h"
 #include <memory>
 #include <sstream>
 #include <iostream>
@@ -93,20 +94,18 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
         SourceProvider reader(&input_source);
-        Parser lexer(path, reader, &binder);
-        lexer.lex();
-        result->unit = std::move(lexer.unit);
-        result->diags = std::move(lexer.diagnostics);
+        Lexer lexer(path, &input_source, &binder, result->allocator);
+        lexer.getTokens(result->tokens);
+        result->diags = std::move(lexer.diagnoser.diagnostics);
     } else {
         FileInputSource input_source(path.data());
         if(input_source.has_error()) {
             return nullptr;
         }
         SourceProvider reader(&input_source);
-        Parser lexer(path, reader, &binder);
-        lexer.lex();
-        result->unit = std::move(lexer.unit);
-        result->diags = std::move(lexer.diagnostics);
+        Lexer lexer(path, &input_source, &binder, result->allocator);
+        lexer.getTokens(result->tokens);
+        result->diags = std::move(lexer.diagnoser.diagnostics);
     }
 
     cache.files[path] = result;
@@ -123,6 +122,44 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     auto& mutex = lex_lock_path_mutex(path);
     std::lock_guard guard(mutex, std::adopt_lock_t());
     auto result = get_lexed_no_lock(path);
+    return result;
+}
+
+std::shared_ptr<ASTResult> WorkspaceManager::get_ast_no_lock(
+        Token* start_token,
+        const std::string& path,
+        GlobalInterpretScope& comptime_scope
+) {
+    // TODO memory leak, make this module scope free
+    const auto modScope = new ModuleScope("", "", nullptr);
+
+    const auto fileId = loc_man.encodeFile(path);
+    const auto result_ptr = new ASTResult(
+            path,
+            ASTUnit(fileId, chem::string_view(path), modScope),
+            ASTAllocator(0),
+            {}
+    );
+    auto result = std::shared_ptr<ASTResult>(result_ptr);
+    auto& allocator = result_ptr->allocator;
+
+    // creating a parser and parsing the file
+    Parser parser(
+            fileId,
+            std::string_view(path),
+            start_token,
+            loc_man,
+            allocator,
+            allocator,
+            typeBuilder,
+            is64Bit,
+            &binder
+    );
+    parser.parse(result->unit.scope.body.nodes);
+
+    result->diags = std::move(parser.diagnostics);
+
+//    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
     return result;
 }
 
@@ -145,19 +182,8 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
     } else {
         std::cout << "[LSP] AST Cache miss for " << path << std::endl;
     }
-    const auto result_ptr = new ASTResult(
-            path,
-            ASTUnit(),
-            ASTAllocator(nullptr, 0, 0),
-            {}
-    );
-    auto result = std::shared_ptr<ASTResult>(result_ptr);
-    auto& allocator = result_ptr->allocator;
-    const auto fileId = loc_man.encodeFile(path);
-    CSTConverter converter(fileId, is64Bit, comptime_scope, binder, allocator, allocator, allocator);
-    converter.convert(lex_result->unit.tokens);
-    result->unit = converter.take_unit();
-    result->diags = converter.diagnostics;
+
+    auto result = get_ast_no_lock(const_cast<Token*>(lex_result->tokens.data()), path, comptime_scope);
 
     cache.files_ast[path] = result;
 //    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
@@ -184,23 +210,13 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         std::cout << "[LSP] AST Cache miss for " << path << std::endl;
     }
 
-    const auto result_ptr = new ASTResult(
-            path,
-            ASTUnit(),
-            ASTAllocator(nullptr, 0, 0),
-            {}
-    );
-    auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto cst = get_lexed_no_lock(path);
-    auto& allocator = result_ptr->allocator;
-    const auto fileId = loc_man.encodeFile(path);
-    CSTConverter converter(fileId, is64Bit, comptime_scope, binder, allocator, allocator, allocator);
-    converter.convert(cst->unit.tokens);
-    result->unit = converter.take_unit();
-    result->diags = converter.diagnostics;
+
+    auto result = get_ast_no_lock(const_cast<Token*>(cst->tokens.data()), path, comptime_scope);
 
     cache.files_ast[path] = result;
 //    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
+
     return result;
 }
 
@@ -265,44 +281,8 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
     if(cancel_flag.load()) {
         return unit;
     }
-    // create a function that takes cst tokens in the import graph maker and creates a import graph
-    SourceProvider reader(nullptr);
-    Parser lexer(abs_path, reader, &binder);
-    ImportGraphVisitor visitor;
-    ImportPathHandler handler(compiler_exe_path());
-    WorkspaceImportGraphImporter importer(
-            &handler,
-            &lexer,
-            &visitor,
-            this
-    );
-    FlatIGFile flat_file { abs_path };
-    unit.ig_root = determine_import_graph_file(&importer, result->unit.tokens, flat_file);
-    if(cancel_flag.load()) {
-        return unit;
-    }
-    // flatten the import graph and get lex result for each file
-    auto flattened = unit.ig_root.flatten_by_dedupe();
-    for(const auto& flat : flattened) {
-        if(cancel_flag.load()) {
-            return unit;
-        }
-        auto imported = get_lexed(flat);
-        if(imported) {
-            unit.files.emplace_back(imported);
-        } else {
-            unit.ig_root.errors.emplace_back(
-                    flat.range,
-                    DiagSeverity::Error,
-                    std::nullopt,
-                    "couldn't open the file '" + flat.abs_path + "'"
-            );
-        }
-    }
 
-    if(cancel_flag.load()) {
-        return unit;
-    }
+    unit.files.emplace_back(result);
 
     return unit;
 }
@@ -316,30 +296,5 @@ void WorkspaceManager::get_ast_import_unit(
     for(auto& file : unit.files) {
         if(cancel_flag.load()) break;
         files.emplace_back(get_ast(file.get(), comptime_scope));
-    }
-}
-
-WorkspaceImportGraphImporter::WorkspaceImportGraphImporter(
-        ImportPathHandler* handler,
-        Parser* lexer,
-        ImportGraphVisitor* converter,
-        WorkspaceManager* manager
-) : ImportGraphImporter(handler, lexer, converter), manager(manager) {
-
-}
-
-std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &path, const Range& range, IGFile *parent) {
-//    auto found = manager->get_cached(path);
-//    if(found) {
-//        return from_tokens(path, parent, found->tokens);
-//    }
-    auto overridden_source = manager->get_overridden_source(path);
-    if(overridden_source.has_value()){
-        StringInputSource input_source(overridden_source.value());
-        parser->provider.switch_source(&input_source);
-        lex_source(path, parent->errors);
-        return from_tokens(path, parent, parser->unit.tokens);
-    } else {
-        return ImportGraphImporter::process(path, range, parent);
     }
 }

@@ -93,7 +93,7 @@
 
 constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
 #ifdef LSP_BUILD
-    return { identifier, location };
+    return { identifier };
 #else
     return { identifier };
 #endif

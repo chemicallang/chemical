@@ -79,6 +79,13 @@ public:
         return identifier.identifier;
     }
 
+    /**
+     * get the name of the node
+     */
+    inline chem::string_view name_view() {
+        return identifier.identifier;
+    }
+
     inline AccessSpecifier specifier() {
         return attrs.specifier;
     }

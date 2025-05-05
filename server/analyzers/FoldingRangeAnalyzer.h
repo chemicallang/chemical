@@ -7,14 +7,14 @@
 #pragma once
 
 #include "LibLsp/lsp/textDocument/foldingRange.h"
-#include "cst/base/CSTVisitor.h"
-#include "cst/base/CSTToken.h"
-#include "ast/utils/CommonVisitor.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 #include "ast/base/ASTNode.h"
+#include "integration/common/Position.h"
+#include "FoldingRangeAnalyzerApi.h"
 
 class LocationManager;
 
-class FoldingRangeAnalyzer : public CommonVisitor {
+class FoldingRangeAnalyzer : public RecursiveVisitor<FoldingRangeAnalyzer> {
 public:
 
     /**
@@ -41,7 +41,7 @@ public:
      */
     void analyze(std::vector<ASTNode*>& nodes) {
         for(auto node : nodes) {
-            node->accept(this);
+            visit(node);
         }
     }
 
@@ -57,9 +57,7 @@ public:
 
     // Visitor functions
 
-    void visit(Scope *scope) override;
-
-    void visit(Comment *comment) override;
+    void VisitScope(Scope* node);
 
 
 };

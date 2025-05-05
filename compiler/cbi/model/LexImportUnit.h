@@ -5,7 +5,6 @@
 #include <vector>
 #include <memory>
 #include "integration/common/Diagnostic.h"
-#include "preprocess/ImportGraphMaker.h"
 
 struct LexResult;
 
@@ -17,11 +16,6 @@ struct LexResult;
  * us to represent them in a flat data structure like vector
  */
 struct LexImportUnit {
-
-    /**
-     * the ig file representing this unit
-     */
-    IGFile ig_root;
 
     /**
      * the flat files in this import unit

@@ -57,9 +57,10 @@ public:
      */
     ASTImportUnit(
         std::string target_triple,
-        LocationManager& loc_man
-    ) : allocator(nullptr, 0, 0),
-        comptime_scope(std::move(target_triple), nullptr, nullptr, allocator, loc_man),
+        LocationManager& loc_man,
+        TypeBuilder& typeBuilder
+    ) : allocator(0),
+        comptime_scope(std::move(target_triple), nullptr, nullptr, allocator, typeBuilder, loc_man),
         reported_diagnostics(false)
     {
 

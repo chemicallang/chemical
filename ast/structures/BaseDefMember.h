@@ -19,6 +19,10 @@ public:
 
     }
 
+    inline const chem::string_view& name_view() const noexcept {
+        return name;
+    }
+
     virtual bool get_is_const() = 0;
 
     virtual BaseDefMember* copy_member(ASTAllocator& allocator) = 0;

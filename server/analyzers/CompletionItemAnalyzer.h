@@ -7,9 +7,9 @@
 #pragma once
 
 #include "LibLsp/lsp/lsp_completion.h"
-#include "ast/base/Visitor.h"
 #include "integration/common/Position.h"
 #include "CaretPositionAnalyzer.h"
+#include "preprocess/visitors/NonRecursiveVisitor.h"
 
 class Position;
 
@@ -21,7 +21,7 @@ class LexResult;
 
 class ASTImportUnitRef;
 
-class CompletionItemAnalyzer : public Visitor, public CaretPositionAnalyzer {
+class CompletionItemAnalyzer : public NonRecursiveVisitor<CompletionItemAnalyzer>, public CaretPositionAnalyzer {
 public:
 
     /**
@@ -44,18 +44,12 @@ public:
     /**
      * a helper method to put simple completion items of a kind
      */
-    void put(const std::string& label, lsCompletionItemKind kind);
+    void put(const chem::string_view& label, lsCompletionItemKind kind);
 
     /**
      * put a completion item with detail and doc
      */
-    void put_with_md_doc(const std::string& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
-
-    /**
-     * would handle given access chain
-     * @return true if handled
-     */
-    bool handle_chain_before_caret(CSTToken* token);
+    void put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
 
     /**
      * The function that analyzes tokens
@@ -69,36 +63,36 @@ public:
 
     // Visitors
 
-    void visit(VarInitStatement *init) final;
+    void VisitVarInitStmt(VarInitStatement* node);
 
-    void visit(AssignStatement *assign) final;
+    void VisitAssignmentStmt(AssignStatement* node);
 
-    void visit(FunctionDeclaration *functionDeclaration) final;
+    void VisitFunctionDecl(FunctionDeclaration* node);
 
-    void visit(EnumDeclaration *enumDeclaration) final;
+    void VisitEnumDecl(EnumDeclaration* node);
 
-    void visit(StructDefinition *structDefinition) final;
+    void VisitStructDecl(StructDefinition* node);
 
-    void visit(InterfaceDefinition *interfaceDefinition) final;
+    void VisitInterfaceDecl(InterfaceDefinition* node);
 
-    void visit(ImplDefinition *implDefinition) final;
+    void VisitImplDecl(ImplDefinition* node);
 
-    void visit(IfStatement *ifStatement) final;
+    void VisitIfStmt(IfStatement* node);
 
-    void visit(WhileLoop *whileLoop) final;
+    void VisitWhileLoopStmt(WhileLoop* node);
 
-    void visit(DoWhileLoop *doWhileLoop) final;
+    void VisitDoWhileLoopStmt(DoWhileLoop* node);
 
-    void visit(ForLoop *forLoop) final;
+    void VisitForLoopStmt(ForLoop* node);
 
-    void visit(SwitchStatement *statement) final;
+    void VisitSwitchStmt(SwitchStatement* node);
 
-    void visit(LambdaFunction *func) final;
+    void VisitLambdaFunction(LambdaFunction* value);
 
-    void visit(StructValue *structValue) final;
+    void VisitStructValue(StructValue* value);
 
-    void visit(ArrayValue *arrayVal) final;
+    void VisitArrayValue(ArrayValue* value);
 
-    void visit(Scope *scope) final;
+    void VisitScope(Scope* node);
 
 };

@@ -5,7 +5,6 @@
 //
 
 #include "utils/FileUtils.h"
-#include "utils/Utils.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
@@ -105,13 +104,14 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
 ) {
 
     const unsigned int resolver_mem_size = 10000; // pre allocated 10kb on the stack
-    char resolver_memory[resolver_mem_size];
     // all heap allocations will not be batched
-    ASTAllocator resolver_allocator(resolver_memory, resolver_mem_size, 0);
+    ASTAllocator resolver_allocator(resolver_mem_size);
 
     // let's do symbol resolution
+    // TODO nullptr being passed as allocator
     SymbolResolver resolver(
             comptime_scope,
+            pathHandler,
             is64Bit,
             resolver_allocator,
             nullptr,
@@ -139,7 +139,8 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
         auto& file = ast_files[i];
         resolver.mod_allocator = &file->allocator;
         resolver.ast_allocator = &file->allocator;
-        resolver.resolve_file(file->unit.scope, file->abs_path);
+        // TODO resolve here
+//        resolver.resolve_file(file->unit.scope, file->abs_path);
         resolver.diagnostics.clear();
         i++;
     }
@@ -151,7 +152,8 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
 
     // doing last file
     auto& last_file = ast_files[last];
-    resolver.resolve_file(last_file->unit.scope, last_file->abs_path);
+    // TODO resolve here
+//    resolver.resolve_file(last_file->unit.scope, last_file->abs_path);
 
     return std::move(resolver.diagnostics);
 
@@ -202,7 +204,7 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     }
 
     // cached ast import unit
-    auto cached_unit = std::make_shared<ASTImportUnit>(get_target_triple(), loc_man);
+    auto cached_unit = std::make_shared<ASTImportUnit>(get_target_triple(), loc_man, typeBuilder);
     auto& comptime_scope = cached_unit->comptime_scope;
 
     // get the lex import unit
@@ -254,19 +256,6 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 }
 
 void build_diags_from_unit_ref(std::vector<std::vector<Diag>*>& diag_ptrs, ASTImportUnitRef& ref) {
-
-    // import graph diagnostics (report which files weren't found)
-    auto& ig_root = ref.lex_unit.ig_root;
-    if(!ig_root.errors.empty()) {
-        diag_ptrs.emplace_back(&ig_root.errors);
-    }
-    auto& ig_files = ig_root.files;
-    if(!ig_files.empty()) {
-        auto& last_errors = ig_files[ig_files.size() - 1].errors;
-        if(!last_errors.empty()) {
-            diag_ptrs.emplace_back(&last_errors);
-        }
-    }
 
     // lex diagnostics for the last file
     auto& lex_files = ref.lex_unit.files;
@@ -380,7 +369,7 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(LexResult& file
 #endif
 
     SemanticTokensAnalyzer analyzer;
-    analyzer.analyze(file.unit.tokens);
+    analyzer.analyze(file.tokens);
     return std::move(analyzer.tokens);
 
 }

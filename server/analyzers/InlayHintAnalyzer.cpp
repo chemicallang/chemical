@@ -1,23 +1,28 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "InlayHintAnalyzer.h"
-#include "integration/cbi/model/ASTResult.h"
+#include "compiler/cbi/model/ASTResult.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/VarInit.h"
-#include "cst/utils/CSTUtils.h"
 
-InlayHintAnalyzer::InlayHintAnalyzer(LocationManager& loc_man) : allocator(nullptr, 0, 0), loc_man(loc_man) {
+std::vector<lsInlayHint> inlay_hint_analyze(LocationManager& manager, ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
+    InlayHintAnalyzer analyzer(manager);
+    analyzer.analyze(result, compiler_exe_path, lsp_exe_path);
+    return std::move(analyzer.hints);
+}
+
+InlayHintAnalyzer::InlayHintAnalyzer(LocationManager& loc_man) : allocator(0), loc_man(loc_man) {
 
 }
 
-void InlayHintAnalyzer::visit(FunctionCall *call) {
+void InlayHintAnalyzer::VisitFunctionCall(FunctionCall *call) {
     if(call->values.empty()) {
         return;
     }
-    CommonVisitor::visit(call);
+    RecursiveVisitor<InlayHintAnalyzer>::VisitFunctionCall(call);
     const auto func_type = call->function_type(allocator);
     if(func_type) {
         unsigned i = 0;
@@ -29,7 +34,7 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
                 if(param) {
                     hints.emplace_back(lsInlayHint {
                             { (int) location.start.line, (int) location.start.character },
-                            param->name + ": ",
+                            param->name.str() + ": ",
                             lsInlayHintKind::Parameter
                     });
                 }
@@ -39,10 +44,10 @@ void InlayHintAnalyzer::visit(FunctionCall *call) {
     }
 }
 
-void InlayHintAnalyzer::visit(VarInitStatement *init) {
-    CommonVisitor::visit(init);
+void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
+    RecursiveVisitor<InlayHintAnalyzer>::VisitVarInitStmt(init);
     if(init->value && !init->type) {
-        const auto encoded_loc = init->located_id.location;
+        const auto encoded_loc = init->encoded_location();
         if(encoded_loc.isValid()) {
             const auto location = loc_man.getLocationPos(encoded_loc);
             const auto known = init->value->create_type(allocator);
@@ -70,7 +75,7 @@ std::vector<lsInlayHint> InlayHintAnalyzer::analyze(
     auto last = result.files.back();
 
     // visit all the nodes
-    last->unit.scope.accept(this);
+    visit(last->unit.scope.body);
 
     // return collected hints
     return std::move(hints);

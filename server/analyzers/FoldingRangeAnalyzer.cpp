@@ -5,10 +5,8 @@
 //
 
 #include "FoldingRangeAnalyzer.h"
-#include "cst/base/CSTToken.h"
 #include "ast/structures/Scope.h"
 #include "cst/LocationManager.h"
-#include "ast/statements/Comment.h"
 
 void FoldingRangeAnalyzer::folding_range(const Position& start, const Position& end, bool comment) {
     ranges.push_back(FoldingRange{
@@ -27,12 +25,14 @@ void FoldingRangeAnalyzer::folding_range(SourceLocation loc, bool comment) {
     }
 }
 
-void FoldingRangeAnalyzer::visit(Scope *scope) {
-    folding_range(scope->location);
+void FoldingRangeAnalyzer::VisitScope(Scope* scope) {
+    folding_range(scope->encoded_location());
 }
 
-void FoldingRangeAnalyzer::visit(Comment *comment) {
-    if(comment->multiline) {
-        folding_range(comment->location);
+std::vector<FoldingRange> folding_analyze(LocationManager& locMan, std::vector<ASTNode*>& nodes) {
+    FoldingRangeAnalyzer analyzer(locMan);
+    for(const auto node : nodes) {
+        analyzer.visit(node);
     }
+    return std::move(analyzer.ranges);
 }

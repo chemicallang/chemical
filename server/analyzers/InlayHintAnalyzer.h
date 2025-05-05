@@ -5,12 +5,13 @@
 #include <vector>
 #include "integration/common/Location.h"
 #include "LibLsp/lsp/textDocument/inlayHint.h"
-#include "integration/cbi/model/ASTImportUnitRef.h"
-#include "ast/utils/CommonVisitor.h"
+#include "compiler/cbi/model/ASTImportUnitRef.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
+#include "InlayHintAnalyzerApi.h"
 
 class ASTResult;
 
-class InlayHintAnalyzer : public CommonVisitor {
+class InlayHintAnalyzer : public RecursiveVisitor<InlayHintAnalyzer> {
 public:
 
     /**
@@ -40,8 +41,8 @@ public:
      */
     std::vector<lsInlayHint> analyze(ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path);
 
-    void visit(FunctionCall *call) final;
+    void VisitFunctionCall(FunctionCall *call);
 
-    void visit(VarInitStatement *init) final;
+    void VisitVarInitStmt(VarInitStatement *init);
 
 };

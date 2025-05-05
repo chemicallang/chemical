@@ -17,7 +17,6 @@
 #include "LibLsp/lsp/textDocument/references.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "LibLsp/lsp/textDocument/signature_help.h"
-#include <boost/program_options.hpp>
 #include <iostream>
 
 #include "LibLsp/lsp/ClientPreferences.h"
@@ -45,9 +44,9 @@
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
 #include "utils/CmdUtils.h"
-#include <boost/asio.hpp>
+#include <asio.hpp>
 
-using namespace boost::asio::ip;
+using namespace asio::ip;
 using namespace std;
 using namespace lsp;
 
@@ -55,7 +54,6 @@ using namespace lsp;
 #include <thread>
 #include <atomic>
 #include <functional>
-#include <boost/asio.hpp>
 #include "utils/JsonUtils.h"
 
 class DummyLog : public lsp::Log {
@@ -81,13 +79,13 @@ public:
 std::string _address = "127.0.0.1";
 
 bool isPortOccupied(unsigned short port) {
-    using boost::asio::ip::tcp;
+    using asio::ip::tcp;
 
-    boost::asio::io_service io_service;
+    asio::io_service io_service;
     tcp::acceptor acceptor(io_service);
 
-    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
-    boost::system::error_code error;
+    asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
+    asio::error_code error;
 
     // Attempt to bind the acceptor to the port
     acceptor.open(endpoint.protocol(), error);
@@ -116,7 +114,7 @@ public:
 
     RemoteEndPoint &_sp;
     WorkspaceManager manager;
-    boost::optional<Rsp_Error> need_initialize_error;
+    std::optional<Rsp_Error> need_initialize_error;
     std::unique_ptr<ParentProcessWatcher> parent_process_watcher;
     std::shared_ptr<ClientPreferences> clientPreferences;
 
@@ -677,7 +675,7 @@ int main(int argc, char *argv[]) {
     if (options.has_value("watch-parent-process")) {
         enable_watch_parent_process = true;
     }
-    std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
+    std::string user_agent = "websocket-server-async";
     std::string port = "5007";
     {
         auto port_opt = options.option_new("port");

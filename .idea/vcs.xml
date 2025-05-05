@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/LspCpp/third_party/filesystem" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/LspCpp/third_party/optional" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/LspCpp/third_party/websocketpp" vcs="Git" />
   </component>
 </project>

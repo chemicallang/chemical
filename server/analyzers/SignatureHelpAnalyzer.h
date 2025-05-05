@@ -5,15 +5,14 @@
 #include <vector>
 #include "integration/common/Location.h"
 #include "LibLsp/lsp/textDocument/signature_help.h"
-#include "integration/cbi/model/ASTImportUnitRef.h"
-#include "ast/utils/CommonVisitor.h"
+#include "compiler/cbi/model/ASTImportUnitRef.h"
 #include "LspCpp/include/LibLsp/lsp/textDocument/signature_help.h"
 #include "LspCpp/include/LibLsp/lsp/lsPosition.h"
 #include "CaretPositionAnalyzer.h"
 
 class ASTResult;
 
-class SignatureHelpAnalyzer : public CommonVisitor, public CaretPositionAnalyzer {
+class SignatureHelpAnalyzer : public CaretPositionAnalyzer {
 public:
 
     /**
@@ -37,9 +36,5 @@ public:
      * It will provide locations, where that symbol has definition
      */
     void analyze(ASTImportUnitRef& result);
-
-    void visit(Scope *scope) final;
-
-    void visit(FunctionCall *call) final;
 
 };

@@ -10,14 +10,16 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-#include "parser/Lexi.h"
 #include "utils/lspfwd.h"
 #include <future>
-#include "integration/cbi/model/LexResult.h"
-#include "integration/cbi/model/ASTResult.h"
-#include "integration/cbi/model/LexImportUnit.h"
-#include "integration/cbi/model/ASTImportUnitRef.h"
-#include "integration/cbi/model/ImportUnitCache.h"
+#include "compiler/cbi/model/LexResult.h"
+#include "compiler/cbi/model/ASTResult.h"
+#include "compiler/cbi/model/LexImportUnit.h"
+#include "compiler/cbi/model/ASTImportUnitRef.h"
+#include "compiler/cbi/model/ImportUnitCache.h"
+#include "compiler/cbi/model/CompilerBinder.h"
+#include "ast/base/TypeBuilder.h"
+#include "preprocess/ImportPathHandler.h"
 
 class LabBuildContext;
 
@@ -50,6 +52,11 @@ class WorkspaceManager {
 private:
 
     /**
+     * the argv is the path to the lsp executable
+     */
+    std::string lsp_exe_path;
+
+    /**
      * overridden sources contain user edited files
      * when user edits, they aren't saved directly to disk, so we store edited state here
      */
@@ -79,6 +86,21 @@ private:
     LocationManager loc_man;
 
     /**
+     * the global allocator allocates memory for entire session
+     */
+    ASTAllocator global_allocator;
+
+    /**
+     * a type builder holds cache of types to allow reusing them
+     */
+    TypeBuilder typeBuilder;
+
+    /**
+     * the path handler
+     */
+    ImportPathHandler pathHandler;
+
+    /**
      * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
      * otherwise parallel calls might render lex_file_mutexes useless
      */
@@ -94,11 +116,6 @@ private:
      * import unit cache, contains different import units
      */
     ImportUnitCache cache;
-
-    /**
-     * the argv is the path to the lsp executable
-     */
-    std::string lsp_exe_path;
 
     /**
      * when initialize request is sent from client, project path is saved
@@ -364,7 +381,9 @@ public:
 
     /**
      * get the import unit for the given absolute path
+     * this function just returns ast unit for the given path and nothing else
      */
+    [[deprecated]]
     LexImportUnit get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
 
     /**
@@ -427,6 +446,15 @@ public:
     std::shared_ptr<LexResult> get_lexed_no_lock(const std::string& path);
 
     /**
+     * gets the ast no locking or cache hit
+     */
+    std::shared_ptr<ASTResult> get_ast_no_lock(
+            Token* start_token,
+            const std::string& path,
+            GlobalInterpretScope& comptime_scope
+    );
+
+    /**
      * gets the lex result, then converts to ASTResult
      *
      * this will also cache the ASTResult and provide it back
@@ -453,13 +481,6 @@ public:
      * relative to the lsp executable path
      */
     std::shared_ptr<LexResult> get_lexed(const FlatIGFile& flat_file);
-
-    /**
-     * get the tokens only for the given file path
-     */
-    std::vector<CSTToken*>& get_lexed_tokens(const std::string& path) {
-        return get_lexed(path)->unit.tokens;
-    }
 
     /**
      * Returns the overridden source code for file at path

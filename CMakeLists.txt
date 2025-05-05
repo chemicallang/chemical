@@ -71,11 +71,6 @@ if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
     string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
 endif ()
 
-# Add the LspCpp library directory
-if(TARGET ChemicalLsp)
-    add_subdirectory(LspCpp EXCLUDE_FROM_ALL)
-endif()
-
 # Include directories for libtcc
 set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/libtcc)
 if(WIN32)
@@ -561,14 +556,18 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/HoverAnalyzer.cpp
         server/analyzers/DocumentLinksAnalyzer.h
         server/analyzers/DocumentLinksAnalyzer.cpp
-        server/utils/WorkspaceImportGraphImporter.h
         server/analyzers/InlayHintAnalyzer.h
         server/analyzers/InlayHintAnalyzer.cpp
         server/analyzers/SignatureHelpAnalyzer.h
         server/analyzers/SignatureHelpAnalyzer.cpp
         server/analyzers/CaretPositionAnalyzer.h
         server/analyzers/CaretPositionAnalyzer.cpp
+        server/analyzers/FoldingRangeAnalyzerApi.h
+        server/analyzers/InlayHintAnalyzerApi.h
 )
+
+# Add the LspCpp library directory
+add_subdirectory(LspCpp EXCLUDE_FROM_ALL)
 
 # Add an executable target for the second executable
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
@@ -703,7 +702,6 @@ if (WIN32)
     # we link everything else statically on windows anyway
     target_compile_options(Compiler PRIVATE "/MT")
     target_compile_options(TCCCompiler PRIVATE "/MT")
-    target_compile_options(ChemicalLsp PRIVATE "/MT")
     target_compile_options(Interpreter PRIVATE "/MT")
 endif ()
 

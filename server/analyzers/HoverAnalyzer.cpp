@@ -1,9 +1,8 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "HoverAnalyzer.h"
-#include "cst/utils/CSTUtils.h"
-#include "integration/cbi/model/LexImportUnit.h"
-#include "integration/cbi/model/LexResult.h"
+#include "compiler/cbi/model/LexImportUnit.h"
+#include "compiler/cbi/model/LexResult.h"
 #include "ast/base/ASTNode.h"
 #include <filesystem>
 #include "ast/structures/EnumDeclaration.h"
@@ -18,41 +17,6 @@ HoverAnalyzer::HoverAnalyzer(LocationManager& locMan, Position position) : loc_m
 
 }
 
-struct FuncParam {
-    std::string name;
-    CSTToken *type;
-};
-
-struct FuncSignature {
-    // function params, name's and type tokens
-    std::vector<FuncParam> params;
-    // if function signature has a given return type (user wrote it)
-    CSTToken *returnType;
-};
-
-FuncSignature get_signature(CSTToken* func) {
-    std::vector<FuncParam> params;
-    unsigned i = 2;
-    CSTToken *token;
-    while (i < func->tokens.size()) {
-        token = func->tokens[i];
-        if (token->type() == LexTokenType::CompFunctionParam) {
-            params.emplace_back(
-                    param_name(token->as_compound()),
-                    2 < token->as_compound()->tokens.size() ? token->as_compound()->tokens[2] : nullptr
-            );
-        } else if (is_char_op(token, ')')) {
-            break;
-        }
-        i++;
-    }
-    CSTToken *ret = nullptr;
-    if (is_char_op(func->tokens[i + 1], ':')) {
-        ret = func->tokens[i + 2];
-    }
-    return {std::move(params), ret};
-}
-
 
 void struct_def_inheritance_doc(std::string& value, StructDefinition* def) {
     if(!def->inherited.empty()) {
@@ -62,7 +26,7 @@ void struct_def_inheritance_doc(std::string& value, StructDefinition* def) {
             if(!has_comma) {
                 value += ", ";
             }
-            switch(inherit->specifier) {
+            switch(inherit.specifier) {
                 case AccessSpecifier::Private:
                     value += "private";
                     break;
@@ -72,7 +36,7 @@ void struct_def_inheritance_doc(std::string& value, StructDefinition* def) {
                 default:
                     break;
             }
-            value += inherit->type->representation();
+            value += inherit.type->representation();
             has_comma = false;
         }
     }
@@ -80,15 +44,14 @@ void struct_def_inheritance_doc(std::string& value, StructDefinition* def) {
 
 void small_detail_of(std::string& value, ASTNode* linked) {
     switch (linked->kind()) {
-        case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl: {
+        case ASTNodeKind::FunctionDecl: {
             auto& signature = *linked->as_function_unsafe();
             value += "(";
             unsigned i = 0;
             while (i < signature.params.size()) {
                 auto& param = *signature.params[i];
                 if (param.type) {
-                    value += param.name;
+                    value.append(param.name.view());
                     value += " : ";
                     value += param.type->representation();
                 } else if (param.name == "self") {
@@ -113,7 +76,7 @@ void small_detail_of(std::string& value, ASTNode* linked) {
             value += "struct";
             value += ' ';
             const auto struct_def = linked->as_struct_def_unsafe();
-            value += struct_def->name();
+            value.append(struct_def->name_view().view());
             struct_def_inheritance_doc(value, struct_def);
             break;
         }
@@ -154,59 +117,6 @@ void small_detail_of(std::string& value, ASTNode* linked) {
     }
 }
 
-void small_detail_of_old(std::string& value, CSTToken* linked) {
-    switch (linked->type()) {
-        case LexTokenType::CompFunction: {
-            auto signature = get_signature(linked->as_compound());
-            value += "(";
-            unsigned i = 0;
-            FuncParam *param;
-            while (i < signature.params.size()) {
-                param = &signature.params[i];
-                if (param->type) {
-                    value += param->name;
-                    value += " : ";
-                    param->type->append_representation(value);
-                } else if (param->name == "self") {
-                    value += "&self";
-                }
-                if (i != signature.params.size() - 1) {
-                    value += ", ";
-                }
-                i++;
-            }
-            value += ')';
-            if (signature.returnType) {
-                value += " : ";
-                signature.returnType->append_representation(value);
-            }
-            break;
-        }
-        case LexTokenType::CompEnumDecl:
-            value += "enum ";
-            break;
-        case LexTokenType::CompStructDef:
-            value += "struct ";
-            break;
-        case LexTokenType::CompInterface:
-            value += "interface ";
-            break;
-        case LexTokenType::CompVarInit:
-            if (is_char_op(linked->as_compound()->tokens[2], ':')) {
-                linked->as_compound()->tokens[3]->append_representation(value);
-            } else {
-                // TODO get type by value
-            }
-            break;
-        case LexTokenType::CompTypealias:
-            value += "type = ";
-            linked->as_compound()->tokens[3]->append_representation(value);
-            break;
-        default:
-            break;
-    }
-}
-
 void markdown_documentation(LocationManager& loc_man, std::string& value, LexResult* current, ASTNode* linked_node) {
     const auto linked_kind = linked_node->kind();
     const auto parent = linked_node->parent();
@@ -227,29 +137,30 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         if(parent_kind != ASTNodeKind::EnumDecl) {
             const auto enumDecl = parent->as_enum_decl_unsafe();
             value += "```typescript\n";
-            value += "enum " + enumDecl->name();
+            value += "enum ";
+            value.append(enumDecl->name_view().view());
             value += "\n```\n";
             value += "```typescript\n";
-            value += enumDecl->name();
+            value.append(enumDecl->name_view().view());
             value += ".";
-            value += member->name;
+            value.append(member->name.view());
             value += "\n```";
             parent_handled = true;
         }
     }
     switch (linked_kind) {
-        case ASTNodeKind::FunctionDecl:
-        case ASTNodeKind::ExtensionFunctionDecl: {
+        case ASTNodeKind::FunctionDecl: {
             const auto& func_decl = *linked_node->as_function_unsafe();
             value += "```typescript\n";
-            value += "func " + func_decl.name();
+            value += "func ";
+            value.append(func_decl.name_view().view());
             const auto& signature = func_decl;
             value += '(';
             unsigned i = 0;
             while (i < signature.params.size()) {
                 const auto param = signature.params[i];
                 if (param->type) {
-                    value += param->name;
+                    value.append(param->name.view());
                     value += " : ";
                     value += param->type->representation();
                 } else if (param->name == "self") {
@@ -271,14 +182,16 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::EnumDecl: {
             const auto enumDecl = linked_node->as_enum_decl_unsafe();
             value += "```typescript\n";
-            value += "enum " + enumDecl->name();
+            value += "enum ";
+            value.append(enumDecl->name_view().view());
             value += "\n```";
             break;
         }
         case ASTNodeKind::StructDecl: {
             const auto structDecl = linked_node->as_struct_def_unsafe();
             value += "```c\n";
-            value += "struct " + structDecl->name();
+            value += "struct ";
+            value.append(structDecl->name_view().view());
             struct_def_inheritance_doc(value, structDecl);
             value += "\n```";
             break;
@@ -286,7 +199,8 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::InterfaceDecl: {
             const auto& interface = *linked_node->as_interface_def_unsafe();
             value += "```typescript\n";
-            value += "interface " + interface.name();
+            value += "interface ";
+            value.append(interface.name_view().view());
             value += "\n```";
             break;
         }
@@ -299,7 +213,7 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
                 value += "var";
             }
             value += ' ';
-            value += init.identifier();
+            value.append(init.name_view().view());
             const auto type = init.known_type();
             if (type) {
                 value += " : ";
@@ -315,7 +229,7 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
             value += "```typescript\n";
             value += "const";
             value += ' ';
-            value += linked.name;
+            value.append(linked.name_view().view());
             value += " : ";
             value += linked.type->representation();
             value += "\n```";
@@ -325,7 +239,8 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         case ASTNodeKind::TypealiasStmt: {
             auto& linked = *linked_node->as_typealias_unsafe();
             value += "```typescript\n";
-            value += "typealias " + linked.name();
+            value += "typealias ";
+            value.append(linked.name_view().view());
             value += " = ";
             value += linked.actual_type->representation();
             value += "\n```";
@@ -341,10 +256,14 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
 
 std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
     auto file = unit->files[unit->files.size() - 1];
-    auto token = get_token_at_position(file->unit.tokens, position);
+//    auto token = get_token_at_position(file->tokens, position);
+// TODO we must get the token at position
+    Token* token = nullptr;
     if (token) {
-        if (token->is_ref() && token->any) {
-            auto ref_linked = token->any->get_ref_linked_node();
+        // TODO we must get the any ptr for token
+        ASTAny* anyPtr = nullptr;
+        if (anyPtr) {
+            auto ref_linked = anyPtr->get_ref_linked_node();
             if (ref_linked) {
                 const auto location = ref_linked->encoded_location();
                 if(location.isValid()) {

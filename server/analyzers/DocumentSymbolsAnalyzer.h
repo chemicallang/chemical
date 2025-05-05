@@ -3,7 +3,7 @@
 #pragma once
 
 #include "LibLsp/lsp/symbol.h"
-#include "ast/base/Visitor.h"
+#include "preprocess/visitors/NonRecursiveVisitor.h"
 
 #include "ast/base/ASTNode.h"
 
@@ -11,7 +11,7 @@ class LexResult;
 
 class LocationManager;
 
-class DocumentSymbolsAnalyzer : public Visitor {
+class DocumentSymbolsAnalyzer : public NonRecursiveVisitor<DocumentSymbolsAnalyzer> {
 public:
 
     /**
@@ -37,17 +37,22 @@ public:
     lsRange range(SourceLocation location);
 
     /**
+     * put a symbol with given name and range
+     */
+    void put(const chem::string_view& name, lsSymbolKind kind, lsRange range);;
+
+    /**
      * put a symbol with name, kind and range
      */
-    void put(const std::string& name, lsSymbolKind kind, lsRange range, lsRange selRange);
+    void put(const chem::string_view& name, lsSymbolKind kind, lsRange range, lsRange selRange);
 
     /**
      * will analyzer the given top level nodes, to put symbols for the
      * current document
      */
     inline void analyze(std::vector<ASTNode*>& nodes) {
-        for(auto node : nodes) {
-            node->accept(this);
+        for(const auto node : nodes) {
+            visit(node);
         }
     }
 
@@ -55,20 +60,20 @@ public:
     //------- Visitors-----------
     //---------------------------
 
-    void visit(FunctionDeclaration *decl) override;
+    void VisitFunctionDecl(FunctionDeclaration* node);
 
-    void visit(StructDefinition *def) override;
+    void VisitStructDecl(StructDefinition* node);
 
-    void visit(UnionDef *def) override;
+    void VisitUnionDecl(UnionDef* node);
 
-    void visit(VariantDefinition *variant_def) override;
+    void VisitVariantDecl(VariantDefinition* node);
 
-    void visit(InterfaceDefinition *def) override;
+    void VisitInterfaceDecl(InterfaceDefinition* node);
 
-    void visit(TypealiasStatement *def) override;
+    void VisitTypealiasStmt(TypealiasStatement* node);
 
-    void visit(EnumDeclaration *def) override;
+    void VisitEnumDecl(EnumDeclaration* node);
 
-    void visit(VarInitStatement *init) override;
+    void VisitVarInitStmt(VarInitStatement* node);
 
 };

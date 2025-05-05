@@ -39,7 +39,7 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
     const auto size = identifier.size();
     const auto ptr = allocator.allocate_str(identifier.data(), size);
 #ifdef LSP_BUILD
-    return { chem::string_view(ptr, size), ZERO_LOC };
+    return { chem::string_view(ptr, size) };
 #else
     return { chem::string_view(ptr, size) };
 #endif

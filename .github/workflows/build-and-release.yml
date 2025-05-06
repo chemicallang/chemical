@@ -60,17 +60,30 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # Build the chemical project executables via CMake using RelWithDebInfo
-      - name: Build chemical project (Windows)
+      # Configure the chemical project executables via CMake using RelWithDebInfo
+      - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir out\release
           cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      # Build the compiler target
+      - name: Build Chemical LLVM Based Compiler (Windows)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out\build\x64-release --config RelWithDebInfo --target Compiler
+
+      # Build the tcc compiler target
+      - name: Build Chemical TCC Based Compiler (Windows)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out\build\x64-release --config RelWithDebInfo --target TCCCompiler
+
+      # Build the lsp target
+      - name: Build Chemical LSP (Windows)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out\build\x64-release --config RelWithDebInfo --target ChemicalLsp
-        env:
-          BOOST_ROOT: ${{ env.BOOST_ROOT }}
 
       # Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
@@ -229,7 +242,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git
-      # (Do not install libboost-all-dev since we want Boost 1.74.0)
 
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
@@ -254,17 +266,30 @@ jobs:
           ./build native-linux-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # Build the chemical project executables via CMake using RelWithDebInfo
-      - name: Build chemical project (Linux)
+      # Configure the chemical project executables via CMake using RelWithDebInfo
+      - name: Configure Chemical Project (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/release
           cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      # Build the compiler target
+      - name: Build Chemical LLVM Based Compiler (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target Compiler
+
+      # Build the tcc compiler target
+      - name: Build Chemical TCC Based Compiler (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target TCCCompiler
+
+      # Build the lsp target
+      - name: Build Chemical LSP (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target ChemicalLsp
-        env:
-          BOOST_ROOT: ${{ env.BOOST_ROOT }}
 
       # New: Extract and package debug symbols (Linux)
       - name: Extract and package debug symbols (Linux)

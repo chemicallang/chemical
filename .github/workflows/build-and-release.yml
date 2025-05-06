@@ -260,7 +260,7 @@ jobs:
           cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target Compiler
           cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target TCCCompiler
-          cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target ChemicalLsp || true
+          cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target ChemicalLsp
         env:
           BOOST_ROOT: ${{ env.BOOST_ROOT }}
 

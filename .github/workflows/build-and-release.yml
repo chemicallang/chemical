@@ -214,6 +214,36 @@ jobs:
           name: windows-x64-tcc.zip
           path: chemical-bootstrap/chemical/out/release/windows-x64-tcc.zip
 
+      - name: Check if windows-x64-lsp.zip exists in latest release
+        id: check_windows_x64_lsp
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'windows-x64-lsp.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload windows-x64-lsp.zip to release if not exists
+        if: steps.check_windows_x64_lsp.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: chemical-bootstrap/chemical/out/release/windows-x64-lsp.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save windows-x64-lsp.zip as artifact if already exists
+        if: steps.check_windows_x64_lsp.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-lsp.zip
+          path: chemical-bootstrap/chemical/out/release/windows-x64-lsp.zip
+
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-latest
@@ -400,6 +430,36 @@ jobs:
         with:
           name: linux-x86-64-tcc.zip
           path: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc.zip
+
+      - name: Check if linux-x86-64-lsp.zip exists in latest release
+        id: check_linux_x64_lsp
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'linux-x86-64-lsp.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload linux-x86-64-lsp.zip to release if not exists
+        if: steps.check_linux_x64_lsp.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: chemical-bootstrap/chemical/out/release/linux-x86-64-lsp.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save linux-x86-64-lsp.zip as artifact if already exists
+        if: steps.check_linux_x64_lsp.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86-64-lsp.zip
+          path: chemical-bootstrap/chemical/out/release/linux-x86-64-lsp.zip
 
       # New: Check and upload debug symbol packages for Linux (Compiler/ChemicalLsp)
       - name: Check if linux-x86-64-debug.zip exists in latest release

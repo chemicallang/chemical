@@ -45,20 +45,26 @@ unzip_folder() {
 if [ "$IS_WINDOWS" = true ]; then
     windows_x64=true
     windows_x64_tcc=true
+    windows_x64_lsp=true
     linux_x86_64=false
     linux_x86_64_tcc=false
+    linux_x86_64_lsp=false
 else
     windows_x64=false
     windows_x64_tcc=false
+    windows_x64_lsp=false
     linux_x86_64=true
     linux_x86_64_tcc=true
+    linux_x86_64_lsp=true
 fi
 
 # Debug output for the packaging target variables
 echo "linux_x86_64: $linux_x86_64"
 echo "linux_x86_64_tcc: $linux_x86_64_tcc"
+echo "linux_x86_64_lsp: $linux_x86_64_tcc"
 echo "windows_x64: $windows_x64"
 echo "windows_x64_tcc: $windows_x64_tcc"
+echo "windows_x64_lsp: $windows_x64_tcc"
 
 # Command line parameter variables
 zip_all_at_end=true
@@ -76,14 +82,18 @@ done
 # Create directory names
 win64dirname="windows-x64"
 lin64dirname="linux-x86-64"
-Win64TccDirName="windows-x64-tcc"
-Lin64TccDirName="linux-x86-64-tcc"
+Win64TccDirName="$win64dirname-tcc"
+Lin64TccDirName="$lin64dirname-tcc"
+Win64LspDirName="$win64dirname-lsp"
+Lin64LspDirName="$lin64dirname-lsp"
 
 # Create directory paths
 windows64dir="out/release/$win64dirname"
 linux64dir="out/release/$lin64dirname"
 Win64TccDir="out/release/$Win64TccDirName"
 Lin64TccDir="out/release/$Lin64TccDirName"
+Win64LspDir="out/release/$Win64LspDirName"
+Lin64LspDir="out/release/$Lin64LspDirName"
 
 # Make directories required for each target
 if [ "$windows_x64" = true ]; then
@@ -98,14 +108,18 @@ fi
 if [ "$linux_x86_64_tcc" = true ]; then
     mkdir -p "$Lin64TccDir/packages/tcc"
 fi
+if [ "$windows_x64_lsp" = true ]; then
+    mkdir -p "$Win64LspDir/packages/tcc"
+fi
+if [ "$linux_x86_64_tcc" = true ]; then
+    mkdir -p "$Lin64LspDir/packages/tcc"
+fi
 
 # -------------------------- windows x64
 
 if [ "$windows_x64" = true ]; then
   # copy compiler
   cp out/build/x64-release/Compiler.exe "$windows64dir/chemical.exe"
-  # copy lsp
-  cp out/build/x64-release/ChemicalLsp.exe "$windows64dir/lsp.exe"
   # copy resources
   cp -r ./lib/include "$windows64dir/resources"
   # copy tiny cc dll
@@ -121,8 +135,6 @@ fi
 if [ "$linux_x86_64" = true ]; then
   # copy compiler
   cp out/build/x64-release-wsl/Compiler "$linux64dir/chemical"
-  # copy lsp
-  cp out/build/x64-release-wsl/ChemicalLsp "$linux64dir/lsp"
   # copy resources
   cp -r ./lib/include "$linux64dir/resources"
   # copy tiny cc dll
@@ -138,8 +150,6 @@ fi
 if [ "$windows_x64_tcc" = true ]; then
   # copy tcc compiler
   cp out/build/x64-release/TCCCompiler.exe "$Win64TccDir/chemical.exe"
-  # copy lsp
-  cp out/build/x64-release/ChemicalLsp.exe "$Win64TccDir/lsp.exe"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Win64TccDir/resources"
   # copy tiny cc dll
@@ -155,8 +165,6 @@ fi
 if [ "$linux_x86_64_tcc" = true ]; then
   # copy tcc compiler
   cp out/build/x64-release-wsl/TCCCompiler "$Lin64TccDir/chemical"
-  # copy lsp
-  cp out/build/x64-release-wsl/ChemicalLsp "$Lin64TccDir/lsp"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Lin64TccDir/resources"
   # copy tiny cc dll
@@ -165,6 +173,36 @@ if [ "$linux_x86_64_tcc" = true ]; then
   cp -r lang/libs "$Lin64TccDir/"
   # unzip the tinycc package
   unzip_folder "lib/libtcc/lin-x64/package.zip" "$Lin64TccDir/packages/tcc"
+fi
+
+# -------------------------- windows x64 lsp
+
+if [ "$windows_x64_lsp" = true ]; then
+  # copy lsp
+  cp out/build/x64-release/ChemicalLsp.exe "$Win64LspDir/lsp.exe"
+  # copy resources (tcc build doesn't need resources)
+  # cp -r ./lib/include "$Win64LspDir/resources"
+  # copy tiny cc dll
+  cp lib/libtcc/win-x64/libtcc.dll "$Win64LspDir/libtcc.dll"
+  # copy the libs directory
+  cp -r lang/libs "$Win64LspDir/"
+  # unzip the tinycc package
+  unzip_folder "lib/libtcc/win-x64/package.zip" "$Win64LspDir/packages/tcc"
+fi
+
+# -------------------------- linux x86-64 lsp
+
+if [ "$linux_x86_64_lsp" = true ]; then
+  # copy lsp
+  cp out/build/x64-release-wsl/ChemicalLsp "$Lin64LspDir/lsp"
+  # copy resources (tcc build doesn't need resources)
+  # cp -r ./lib/include "$Lin64LspDir/resources"
+  # copy tiny cc dll
+  cp lib/libtcc/lin-x64/libtcc.so "$Lin64LspDir/libtcc.so"
+  # copy the libs directory
+  cp -r lang/libs "$Lin64LspDir/"
+  # unzip the tinycc package
+  unzip_folder "lib/libtcc/lin-x64/package.zip" "$Lin64LspDir/packages/tcc"
 fi
 
 # ------------------------- done
@@ -184,6 +222,12 @@ if [ "$zip_all_at_end" = true ]; then
     if [ "$linux_x86_64_tcc" = true ]; then
       zip_folder "$Lin64TccDirName" "linux-x86-64-tcc.zip"
     fi
+    if [ "$windows_x64_lsp" = true ]; then
+      zip_folder "$Win64LspDirName" "windows-x64-lsp.zip"
+    fi
+    if [ "$linux_x86_64_lsp" = true ]; then
+      zip_folder "$Lin64LspDirName" "linux-x86-64-lsp.zip"
+    fi
     cd ../../
 fi
 
@@ -200,5 +244,11 @@ if [ "$delete_dirs_at_end" = true ]; then
     fi
     if [ "$linux_x86_64_tcc" = true ]; then
       rm -rf "$Lin64TccDir"
+    fi
+    if [ "$windows_x64_lsp" = true ]; then
+      rm -rf "$Win64LspDir"
+    fi
+    if [ "$linux_x86_64_lsp" = true ]; then
+      rm -rf "$Lin64LspDir"
     fi
 fi

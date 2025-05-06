@@ -105,7 +105,7 @@ if [ "$windows_x64" = true ]; then
   # copy compiler
   cp out/build/x64-release/Compiler.exe "$windows64dir/chemical.exe"
   # copy lsp
-  cp out/build/x64-release/ChemicalLsp.exe "$windows64dir/ChemicalLsp.exe" || true
+  cp out/build/x64-release/ChemicalLsp.exe "$windows64dir/lsp.exe"
   # copy resources
   cp -r ./lib/include "$windows64dir/resources"
   # copy tiny cc dll
@@ -122,7 +122,7 @@ if [ "$linux_x86_64" = true ]; then
   # copy compiler
   cp out/build/x64-release-wsl/Compiler "$linux64dir/chemical"
   # copy lsp
-  cp out/build/x64-release-wsl/ChemicalLsp "$linux64dir/ChemicalLsp" || true
+  cp out/build/x64-release-wsl/ChemicalLsp "$linux64dir/lsp"
   # copy resources
   cp -r ./lib/include "$linux64dir/resources"
   # copy tiny cc dll
@@ -139,7 +139,7 @@ if [ "$windows_x64_tcc" = true ]; then
   # copy tcc compiler
   cp out/build/x64-release/TCCCompiler.exe "$Win64TccDir/chemical.exe"
   # copy lsp
-  cp out/build/x64-release/ChemicalLsp.exe "$Win64TccDir/ChemicalLsp.exe" || true
+  cp out/build/x64-release/ChemicalLsp.exe "$Win64TccDir/lsp.exe"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Win64TccDir/resources"
   # copy tiny cc dll
@@ -156,7 +156,7 @@ if [ "$linux_x86_64_tcc" = true ]; then
   # copy tcc compiler
   cp out/build/x64-release-wsl/TCCCompiler "$Lin64TccDir/chemical"
   # copy lsp
-  cp out/build/x64-release-wsl/ChemicalLsp "$Lin64TccDir/ChemicalLsp" || true
+  cp out/build/x64-release-wsl/ChemicalLsp "$Lin64TccDir/lsp"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Lin64TccDir/resources"
   # copy tiny cc dll

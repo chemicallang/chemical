@@ -22,7 +22,6 @@ jobs:
           repository: chemicallang/chemical-bootstrap
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap
-          submodules: recursive
 
       # Checkout chemical repository inside chemical-bootstrap
       - name: Checkout chemical repository inside chemical-bootstrap
@@ -31,6 +30,7 @@ jobs:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap/chemical
+          submodules: recursive
 
       # ––– Setup build environment –––
       - name: Set up Visual Studio Developer Command Prompt

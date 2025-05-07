@@ -8,6 +8,8 @@ class LexImportUnit;
 
 class LocationManager;
 
+class LexResult;
+
 class HoverAnalyzer {
 public:
 
@@ -36,6 +38,6 @@ public:
      * it will analyze the position at hover occurred and return a markdown representation for the hover
      * panel in the IDE
      */
-    std::string markdown_hover(LexImportUnit* unit);
+    std::string markdown_hover(LexResult* current_file);
 
 };

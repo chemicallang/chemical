@@ -33,6 +33,11 @@ namespace chem {
         } storage;
         char state;
 
+        using pointer = const char*;
+        using reference = const char&;
+        using iterator = pointer;
+        using const_iterator = const char*;
+
         static inline chem::string make_view(const char* data, size_t len) {
             chem::string str;
             str.storage.constant.data = data;
@@ -139,9 +144,19 @@ namespace chem {
         }
 
         [[nodiscard]]
-        bool equals(const string& other) const {
+        bool equals(const char* other, size_t other_size) const noexcept {
             const size_t self_size = size();
-            return ((self_size == other.size()) && (memcmp(data(), other.data(), self_size) == 0));
+            return ((self_size == other_size) && (memcmp(data(), other, self_size) == 0));
+        }
+
+        [[nodiscard]]
+        inline bool equals(const string& other) const noexcept {
+            return equals(other.data(), other.size());
+        }
+
+        [[nodiscard]]
+        inline bool equals(const chem::string_view& other) const noexcept {
+            return equals(other.data(), other.size());
         }
 
         void move_const_to_buffer(){
@@ -327,7 +342,7 @@ namespace chem {
         }
 
         [[nodiscard]]
-        size_t size() const {
+        constexpr size_t size() const {
             switch(state) {
                 case '0':
                     return storage.constant.length;
@@ -405,7 +420,7 @@ namespace chem {
         }
 
         [[nodiscard]]
-        const char* data() const {
+        constexpr const char* data() const {
             switch(state) {
                 case '0':
                     return storage.constant.data;
@@ -419,7 +434,7 @@ namespace chem {
         }
 
         [[nodiscard]]
-        char* mutable_data() {
+        constexpr char* mutable_data() {
             switch(state) {
                 case '0':
                     move_const_to_buffer();
@@ -487,9 +502,25 @@ namespace chem {
             return equals(other);
         }
 
+        bool operator ==(const chem::string_view& other) const{
+            return equals(other);
+        }
+
         char operator[](const size_t index){
             return get(index);
         }
+
+        [[nodiscard]]
+        constexpr iterator begin() const noexcept { return data(); }
+
+        [[nodiscard]]
+        constexpr iterator end() const noexcept { return data() + size(); }
+
+        [[nodiscard]]
+        constexpr const_iterator cbegin() const noexcept { return data(); }
+
+        [[nodiscard]]
+        constexpr const_iterator cend() const noexcept { return data() + size(); }
 
         chem::string operator+(const chem::string& str) const {
             auto s = copy();
@@ -509,6 +540,41 @@ namespace chem {
     };
 
 
+}
+
+// Hash specialization for my_string_view
+namespace std {
+    template <>
+    struct hash<chem::string> {
+        using is_transparent = void;
+        std::size_t operator()(const chem::string& s) const noexcept {
+            std::size_t hash = 0xcbf29ce484222325; // FNV offset basis
+            for (char c : s) {
+                hash ^= static_cast<std::size_t>(c);
+                hash *= 0x100000001b3;
+            }
+            return hash;
+        }
+        std::size_t operator()(const chem::string_view& s) const noexcept {
+            std::size_t hash = 0xcbf29ce484222325;
+            for (char c : s)
+                hash ^= static_cast<std::size_t>(c), hash *= 0x100000001b3;
+            return hash;
+        }
+    };
+    template <>
+    struct equal_to<chem::string> {
+        using is_transparent = void;
+        bool operator()(const chem::string& lhs, const chem::string& rhs) const noexcept {
+            return lhs == rhs;
+        }
+        bool operator()(const chem::string& lhs, const chem::string_view& rhs) const noexcept {
+            return lhs == rhs;
+        }
+        bool operator()(const chem::string_view& lhs, const chem::string& rhs) const noexcept {
+            return lhs == rhs;
+        }
+    };
 }
 
 std::ostream& chem::operator<<(std::ostream& os, const chem::string& str);

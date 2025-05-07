@@ -6,6 +6,8 @@
 
 #include "CompletionItemAnalyzer.h"
 #include <unordered_set>
+#include "compiler/lab/LabModule.h"
+#include "compiler/processor/ASTFileResult.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
@@ -402,21 +404,11 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_
 
 void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
 
-    auto lex_files = unit.lex_unit.files;
-    const auto lex_files_size = lex_files.size();
-
-    if(lex_files_size == 0) {
-        return;
-    }
-
-    const auto last_lex_file = lex_files[lex_files.size() - 1];
-
-    const auto unit_files_size = (int) unit.files.size();
-    auto& last_file = unit.files[unit_files_size - 1];
+    current_file = unit.path;
+    const auto _current_file = unit.ast_result;
 
     // check is caret position before a chain
-    current_file = last_lex_file.get();
-    auto chain = chain_before_caret(last_lex_file->tokens);
+    auto chain = chain_before_caret(unit.lex_result->tokens);
     if(chain) {
         // TODO handle access chain before caret, we must provide completions
 //        if(handle_chain_before_caret(chain)) {
@@ -428,11 +420,10 @@ void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
 
     // add completions for the last file by analyzing it in reverse fashion
     // only nodes in which caret is inside are visited using this visitor
-    current_file = last_lex_file.get();
-    auto& last_file_nodes = last_file->unit.scope.body.nodes;
-    int i = ((int) last_file_nodes.size()) - 1;
+    auto& currentFileNodes = _current_file->unit.scope.body.nodes;
+    int i = ((int) currentFileNodes.size()) - 1;
     while(i >= 0) {
-        const auto node = last_file_nodes[i];
+        const auto node = currentFileNodes[i];
         const auto sourceLoc = node->encoded_location();
         const auto location = loc_man.getLocationPos(sourceLoc);
         if(is_caret_ahead(location.start)) {
@@ -443,20 +434,16 @@ void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
         i--;
     }
 
-    // add completions for other files in reverse fashion (no analyzing)
-    i = unit_files_size - 2;
-    while(i >= 0) {
-        auto& file = unit.files[i];
-        auto& file_nodes = file->unit.scope.body.nodes;
-        if(i < lex_files_size) {
-            current_file = lex_files[i].get();
-        } else {
-            current_file = nullptr;
+    // add completions for other files (no analyzing)
+    if(unit.module) {
+        for(auto& file : unit.module->direct_files) {
+            if(file.result) {
+                auto& fileNodes = file.result->unit.scope.body.nodes;
+                for(const auto node : fileNodes) {
+                    put_node(this, node);
+                }
+            }
         }
-        for(const auto node : file_nodes) {
-            put_node(this, node);
-        }
-        i--;
     }
 
 }

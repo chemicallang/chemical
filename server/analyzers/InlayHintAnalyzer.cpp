@@ -68,14 +68,9 @@ std::vector<lsInlayHint> InlayHintAnalyzer::analyze(
     const std::string& compiler_exe_path,
     const std::string& lsp_exe_path
 ) {
-    if(result.files.empty()) {
-        return {};
-    }
-
-    auto last = result.files.back();
 
     // visit all the nodes
-    visit(last->unit.scope.body);
+    visit(result.ast_result->unit.scope.body);
 
     // return collected hints
     return std::move(hints);

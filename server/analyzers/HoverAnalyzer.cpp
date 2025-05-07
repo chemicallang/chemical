@@ -117,7 +117,7 @@ void small_detail_of(std::string& value, ASTNode* linked) {
     }
 }
 
-void markdown_documentation(LocationManager& loc_man, std::string& value, LexResult* current, ASTNode* linked_node) {
+void markdown_documentation(LocationManager& loc_man, std::string& value, const std::string_view& curr_file, ASTNode* linked_node) {
     const auto linked_kind = linked_node->kind();
     const auto parent = linked_node->parent();
     bool parent_handled = false;
@@ -127,7 +127,7 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
         auto definedPath = loc_man.getPathForFileId(locData.fileId);
         auto relative_path = std::filesystem::relative(
                 std::filesystem::path(definedPath),
-                std::filesystem::path(current->abs_path).parent_path()
+                std::filesystem::path(curr_file).parent_path()
         );
         value += "**Defined in** : " + relative_path.string() + "\n";
     }
@@ -254,8 +254,7 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, LexRes
     }
 }
 
-std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
-    auto file = unit->files[unit->files.size() - 1];
+std::string HoverAnalyzer::markdown_hover(LexResult* file) {
 //    auto token = get_token_at_position(file->tokens, position);
 // TODO we must get the token at position
     Token* token = nullptr;
@@ -268,7 +267,7 @@ std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
                 const auto location = ref_linked->encoded_location();
                 if(location.isValid()) {
                     // parent.second.first is the parent token of the linked token
-                    markdown_documentation(loc_man, value, file.get(), ref_linked);
+                    markdown_documentation(loc_man, value, file->abs_path, ref_linked);
                 } else {
                     value += "couldn't get the linked token";
                 }

@@ -15,8 +15,7 @@ GotoDefAnalyzer::GotoDefAnalyzer(
     // do nothing
 }
 
-std::vector<Location> GotoDefAnalyzer::analyze(LexImportUnit* unit) {
-    auto file = unit->files[unit->files.size() - 1];
+std::vector<Location> GotoDefAnalyzer::analyze(LexResult* file) {
 //    auto token_parent = get_token_at_position(nullptr, file->tokens, position);
 //    if(token_parent.second == -1) {
 //        std::cout << "[GotoDefAnalyzer] Token at position : " << position.representation() << " not found " << std::endl;

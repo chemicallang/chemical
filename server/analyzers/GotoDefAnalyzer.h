@@ -9,6 +9,8 @@ class LexImportUnit;
 
 class LocationManager;
 
+class LexResult;
+
 class GotoDefAnalyzer {
 public:
 
@@ -35,6 +37,6 @@ public:
      * token where user asked to goto def
      * It will provide locations, where that symbol has definition
      */
-    std::vector<Location> analyze(LexImportUnit* unit);
+    std::vector<Location> analyze(LexResult* current_file);
 
 };

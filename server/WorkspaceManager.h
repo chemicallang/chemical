@@ -20,6 +20,8 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/base/TypeBuilder.h"
 #include "preprocess/ImportPathHandler.h"
+#include "std/chem_string_view.h"
+#include "compiler/lab/LabModule.h"
 
 class LabBuildContext;
 
@@ -29,7 +31,7 @@ class GlobalInterpretScope;
 
 class LSPLabImpl;
 
-class LabJob;
+struct LabJob;
 
 /**
  * Workspace manager is the operations manager for all IDE related operations
@@ -75,7 +77,13 @@ private:
      * when you require a file is lexed, a mutex is held for each path
      * so multiple different paths can be lexed at a single time but multiple same paths cannot.
      */
-    std::unordered_map<std::string, std::mutex> lex_file_mutexes;
+    std::unordered_map<std::string, std::mutex> parse_file_mutexes;
+
+    /**
+     * we build indexes of file to module pointers, this allows us to know the module
+     * given file in an instant
+     */
+    std::unordered_map<chem::string, LabModule*> filesIndex;
 
     /**
      * a single location manager is used throughout
@@ -187,6 +195,16 @@ public:
      * constructor
      */
     explicit WorkspaceManager(std::string lsp_exe_path);
+
+    /**
+     * get module for the given file
+     */
+    LabModule* get_mod_of(const chem::string_view& filePath);
+
+    /**
+     * gets the module and makes sure declarations for all its direct files exist
+     */
+    std::future<void> trigger_sym_res(LabModule* module);
 
     /**
      * this get the current target triple
@@ -366,20 +384,6 @@ public:
     static bool has_errors(const std::vector<std::shared_ptr<ASTResult>>& files);
 
     /**
-     * check if the given lex import unit has errors
-     */
-    inline static bool has_errors(const LexImportUnit& unit) {
-        return has_errors(unit.files);
-    }
-
-    /**
-     * check if this ast import unit has errors
-     */
-    inline static bool has_errors(const ASTImportUnitRef& unit) {
-        return has_errors(unit.files);
-    }
-
-    /**
      * get the import unit for the given absolute path
      * this function just returns ast unit for the given path and nothing else
      */
@@ -414,12 +418,7 @@ public:
     /**
      * get a locked mutex for this path only
      */
-    std::mutex& lex_lock_path_mutex(const std::string& path);
-
-    /**
-     * get the lexed file, only if it exists in cache
-     */
-    std::shared_ptr<LexResult> get_cached(const std::string& path);
+    std::mutex& parse_lock_path_mutex(const std::string& path);
 
     /**
      * get the ast result, only if it exists in cache
@@ -438,12 +437,6 @@ public:
      * because that path contains whether it's a system header
      */
     std::shared_ptr<LexResult> get_lexed(const std::string& path);
-
-    /**
-     * same as get_lexed, however this doesn't lock a mutex or protect against multiple calls
-     * from different threads
-     */
-    std::shared_ptr<LexResult> get_lexed_no_lock(const std::string& path);
 
     /**
      * gets the ast no locking or cache hit

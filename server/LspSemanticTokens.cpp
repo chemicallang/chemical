@@ -32,22 +32,12 @@ td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(cons
     // get the import unit, while publishing diagnostics asynchronously
     // publish diagnostics will return ast import unit ref
     publish_diagnostics(abs_path);
-    // preparing tokens for the last file
+    // tokens for the last file
+    auto last_file = get_lexed(abs_path);
+    auto toks = get_semantic_tokens(*last_file);
+    // preparing response
     SemanticTokens tokens;
-    try {
-        // .get causes no state exception sometimes
-        auto unit = publish_diagnostics_task.get();
-        auto& files = unit.lex_unit.files;
-        auto last_file = files.empty() ? get_lexed(abs_path) : files[files.size() - 1];
-        auto toks = get_semantic_tokens(*last_file);
-        tokens.data = SemanticTokens::encodeTokens(toks);
-    } catch(const std::exception& e) {
-        std::cerr << "error when getting semantic tokens: " << e.what() << std::endl;
-        auto last_file = get_lexed(abs_path);
-        auto toks = get_semantic_tokens(*last_file);
-        tokens.data = SemanticTokens::encodeTokens(toks);
-    }
-    // sending tokens
+    tokens.data = SemanticTokens::encodeTokens(toks);
     td_semanticTokens_full::response rsp;
     rsp.result = std::move(tokens);
     return std::move(rsp);
@@ -167,36 +157,19 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     // lock for single invocation
     std::lock_guard lock(ast_import_unit_mutex);
 
+    // get the module for the given file
+    const auto mod = get_mod_of(chem::string_view(path));
+
     // check the cache
     auto found = cache.cached_units.find(path);
     if(found != cache.cached_units.end()) {
         auto cachedUnitPtr = found->second;
         auto& cachedUnit = *cachedUnitPtr;
-        ASTImportUnitRef importUnit(true, path, cachedUnitPtr);
         // check that every file in cached import unit is valid
-        bool is_unit_valid = true;
-        for(auto& file : cachedUnit.lex_files) {
-            auto ptr = file.lock();
-            if(ptr) {
-                importUnit.lex_unit.files.emplace_back(ptr);
-            } else {
-                is_unit_valid = false;
-                break;
-            }
-        }
-        if(is_unit_valid) {
-            for (auto& file: cachedUnit.files) {
-                auto ptr = file.lock();
-                if (ptr) {
-                    importUnit.files.emplace_back(ptr);
-                } else {
-                    is_unit_valid = false;
-                    break;
-                }
-            }
-        }
-        if(is_unit_valid) {
-            return importUnit;
+        auto lex_result = cachedUnit.lex_result.lock();
+        auto ast_result = cachedUnit.ast_result.lock();
+        if(lex_result && ast_result) {
+            return ASTImportUnitRef(true, path, mod, cachedUnitPtr, lex_result, ast_result);
         } else {
             // since the unit is invalid, we should remove it from cache
             cache.cached_units.erase(found);
@@ -208,68 +181,23 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
     auto& comptime_scope = cached_unit->comptime_scope;
 
     // get the lex import unit
-    auto import_unit = get_import_unit(path, cancel_flag);
+    auto lex_result = get_lexed(path);
 
-    // put lex files in cached ast unit
-    auto& unit_lex_files = cached_unit->lex_files;
-    for(auto& file : import_unit.files) {
-        unit_lex_files.emplace_back(file);
-    }
+    // get the ast unit
+    auto ast_unit = get_ast(lex_result.get(), comptime_scope);
 
-    // check it hasn't been cancelled
-    if(cancel_flag.load()) {
-        return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit));
-    }
-
-    // whether to cache the ast unit
-    bool cache_it = true;
-
-    // get the ast import unit
-    std::vector<std::shared_ptr<ASTResult>> ast_files;
-    get_ast_import_unit(ast_files, import_unit, comptime_scope, cancel_flag);
-    // put ast files in cached ast unit
-    auto& unit_ast_files = cached_unit->files;
-    for(auto& file : ast_files) {
-        if(file) {
-            unit_ast_files.emplace_back(file);
-        } else {
-            cache_it = false;
-        }
-    }
-
-    // check it hasn't been cancelled
-    if(cancel_flag.load()) {
-        return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files);
-    }
-
-    // symbol resolve the import unit, get the last file's diagnostics
-    cached_unit->sym_res_diag = sym_res_import_unit(ast_files, comptime_scope, cancel_flag);
-
-    if(cache_it) { // since imported files are missing, we must not cache the import unit
-        // store cached ast import unit
-        cache.cached_units.emplace(path, cached_unit);
-    }
+    // store cached ast import unit
+    cache.cached_units.emplace(path, cached_unit);
 
     // return the complete unit ref
-    return ASTImportUnitRef(false, path, cached_unit, std::move(import_unit), ast_files);
+    return ASTImportUnitRef(false, path, mod, cached_unit, lex_result, ast_unit);
 
 }
 
 void build_diags_from_unit_ref(std::vector<std::vector<Diag>*>& diag_ptrs, ASTImportUnitRef& ref) {
 
-    // lex diagnostics for the last file
-    auto& lex_files = ref.lex_unit.files;
-    if(!lex_files.empty()) {
-        auto& last_file_diags = lex_files[lex_files.size() - 1]->diags;
-        diag_ptrs.emplace_back(&last_file_diags);
-    }
-
     // parsing diagnostics for the last file (if parsing was done)
-    auto& ast_files = ref.files;
-    if(!ast_files.empty()) {
-        auto& last_file_diags = ast_files[ast_files.size() - 1]->diags;
-        diag_ptrs.emplace_back(&last_file_diags);
-    }
+    diag_ptrs.emplace_back(&ref.ast_result->diags);
 
     // last file symbol res diagnostics
     if(!ref.unit->sym_res_diag.empty()) {

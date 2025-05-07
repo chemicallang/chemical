@@ -17,39 +17,17 @@
 
 std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path);
 
-std::mutex& WorkspaceManager::lex_lock_path_mutex(const std::string& path) {
+std::mutex& WorkspaceManager::parse_lock_path_mutex(const std::string& path) {
     // multiple calls with different paths to this function are allowed
     // multiple calls with same paths will be processed sequentially
     lex_file_mutexes_map_mutex.lock();
-    auto lexing = lex_file_mutexes.find(path);
+    auto lexing = parse_file_mutexes.find(path);
     // makes a mutex for current path and hold it
-    if(lexing == lex_file_mutexes.end()) lex_file_mutexes[path];
-    auto& mutex = lex_file_mutexes[path];
+    if(lexing == parse_file_mutexes.end()) parse_file_mutexes[path];
+    auto& mutex = parse_file_mutexes[path];
     mutex.lock();
     lex_file_mutexes_map_mutex.unlock();
     return mutex;
-}
-
-//std::mutex& WorkspaceManager::parse_lock_path_mutex(const std::string& path) {
-//    // multiple calls with different paths to this function are allowed
-//    // multiple calls with same paths will be processed sequentially
-//    parse_file_mutexes_map_mutex.lock();
-//    auto lexing = parse_file_mutexes.find(path);
-//    // makes a mutex for current path and hold it
-//    if(lexing == parse_file_mutexes.end()) parse_file_mutexes[path];
-//    auto& mutex = parse_file_mutexes[path];
-//    mutex.lock();
-//    parse_file_mutexes_map_mutex.unlock();
-//    return mutex;
-//}
-
-std::shared_ptr<LexResult> WorkspaceManager::get_cached(const std::string& path) {
-    auto found = cache.files.find(path);
-    if(found != cache.files.end()) {
-        return found->second;
-    } else {
-        return nullptr;
-    }
 }
 
 std::shared_ptr<ASTResult> WorkspaceManager::get_cached_ast(const std::string& path) {
@@ -79,15 +57,7 @@ bool WorkspaceManager::has_errors(const std::vector<std::shared_ptr<ASTResult>>&
     return false;
 }
 
-std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string& path) {
-//    std::cout << "[LSP] Proceeding for path " << path << std::endl;
-    auto found = get_cached(path);
-    if(found) {
-//        std::cout << "[LSP] Cache hit for " << path << std::endl;
-        return found;
-    } else {
-        std::cout << "[LSP] Cache miss for " << path << std::endl;
-    }
+std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
     auto overridden_source = get_overridden_source(path);
     auto result = std::make_shared<LexResult>();
     result->abs_path = path;
@@ -107,21 +77,6 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string
         lexer.getTokens(result->tokens);
         result->diags = std::move(lexer.diagnoser.diagnostics);
     }
-
-    cache.files[path] = result;
-//    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
-    return result;
-}
-
-std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
-    if(path.empty()) {
-        std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
-        return nullptr;
-    }
-//    std::cout << "[LSP] Locking path mutex " << path << std::endl;
-    auto& mutex = lex_lock_path_mutex(path);
-    std::lock_guard guard(mutex, std::adopt_lock_t());
-    auto result = get_lexed_no_lock(path);
     return result;
 }
 
@@ -173,7 +128,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         return nullptr;
     }
     // lock the mutex, so we can check cache
-    auto& mutex = lex_lock_path_mutex(path);
+    auto& mutex = parse_lock_path_mutex(path);
     std::lock_guard guard(mutex, std::adopt_lock_t());
     auto found = get_cached_ast(path);
     if(found) {
@@ -199,7 +154,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         return nullptr;
     }
 //    std::cout << "[LSP] Locking path mutex " << path << std::endl;
-    auto& mutex = lex_lock_path_mutex(path);
+    auto& mutex = parse_lock_path_mutex(path);
     std::lock_guard guard(mutex, std::adopt_lock_t());
 //    std::cout << "[LSP] AST Proceeding for path " << path << std::endl;
     auto found = get_cached_ast(path);
@@ -210,7 +165,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         std::cout << "[LSP] AST Cache miss for " << path << std::endl;
     }
 
-    auto cst = get_lexed_no_lock(path);
+    auto cst = get_lexed(path);
 
     auto result = get_ast_no_lock(const_cast<Token*>(cst->tokens.data()), path, comptime_scope);
 
@@ -242,7 +197,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
                 }
 //            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
                 // locking path mutex so multiple calls with same paths are considered once for translation
-                auto& mutex = lex_lock_path_mutex(flat_file.abs_path);
+                auto& mutex = parse_lock_path_mutex(flat_file.abs_path);
 //            std::cout << "[LSP] checking if exists " << flat_file.abs_path << std::endl;
                 if(std::filesystem::exists(expected_path)) {
 //                std::cerr << "[LSP] System header cache hit " << expected_path << std::endl;

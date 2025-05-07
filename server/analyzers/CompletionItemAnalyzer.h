@@ -32,7 +32,7 @@ public:
     /**
      * current file being analyzed
      */
-    LexResult* current_file;
+    std::string_view current_file;
 
     /**
      * constructor

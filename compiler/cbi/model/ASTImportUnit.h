@@ -31,9 +31,14 @@ public:
     GlobalInterpretScope comptime_scope;
 
     /**
-     * all the files' lex results
+     * the lex result of this unit
      */
-    std::vector<std::weak_ptr<LexResult>> lex_files;
+    std::weak_ptr<LexResult> lex_result;
+
+    /**
+     * the ast result of this unit
+     */
+    std::weak_ptr<ASTResult> ast_result;
 
     /**
      * all the files' ast results

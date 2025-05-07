@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include "std/chem_string_view.h"
 
 class LexResult;
 
@@ -12,7 +13,7 @@ class LexResult;
  * @param defined_in the file the given symbol is defined in
  * @param ref_any the token that is reference token, user is hovering at, or the ref token
  */
-void markdown_documentation(LocationManager& manager, std::string& value, LexResult* current, ASTNode* linked_node);
+void markdown_documentation(LocationManager& manager, std::string& value, const std::string_view& curr_file, ASTNode* linked_node);
 
 /**
  * get a small detail of the given token, for user's representation

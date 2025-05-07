@@ -57,6 +57,17 @@ WorkspaceManager::WorkspaceManager(
 
 }
 
+LabModule* WorkspaceManager::get_mod_of(const chem::string_view& filePath) {
+    auto found = filesIndex.find(filePath);
+    return found != filesIndex.end() ? found->second : nullptr;
+}
+
+std::future<void> WorkspaceManager::trigger_sym_res(LabModule* module) {
+    return std::async(std::launch::async, [this, module]() {
+
+    });
+}
+
 std::string WorkspaceManager::get_target_triple() {
     // TODO we should get the current target triple from the compiler executable
     // then we store that target triple as the default, for example on windows
@@ -189,7 +200,7 @@ td_foldingRange::response WorkspaceManager::get_folding_range(const lsDocumentUr
     td_foldingRange::response rsp;
     const auto abs_path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_ast_import_unit(abs_path, cancel_request);
-    rsp.result = folding_analyze(loc_man, unit.files.back()->unit.scope.body.nodes);
+    rsp.result = folding_analyze(loc_man, unit.ast_result->unit.scope.body.nodes);
     return rsp;
 }
 
@@ -238,7 +249,7 @@ td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &ur
     GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
     td_definition::response rsp;
     rsp.result.first.emplace();
-    auto analyzed = analyzer.analyze(&unit.lex_unit);
+    auto analyzed = analyzer.analyze(unit.lex_result.get());
     for (auto &loc: analyzed) {
         rsp.result.first.value().push_back(lsLocation{
                 lsDocumentUri(AbsolutePath(loc.path)),
@@ -256,7 +267,7 @@ td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
     auto unit = get_ast_import_unit(abs_path, cancel_request);
     DocumentSymbolsAnalyzer analyzer(loc_man);
     td_symbol::response rsp;
-    analyzer.analyze(unit.files.back()->unit.scope.body.nodes);
+    analyzer.analyze(unit.ast_result->unit.scope.body.nodes);
     rsp.result = std::move(analyzer.symbols);
     return rsp;
 }
@@ -265,7 +276,7 @@ td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const l
     auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
     td_hover::response rsp;
     HoverAnalyzer analyzer(loc_man, {position.line, position.character});
-    auto value = analyzer.markdown_hover(&unit.lex_unit);
+    auto value = analyzer.markdown_hover(unit.lex_result.get());
     if(!value.empty()) {
         rsp.result.contents.second.emplace("markdown", std::move(value));
     }
@@ -346,7 +357,6 @@ void WorkspaceManager::onChangedContents(
     overriddenSources[path] = std::move(source);
 
     // invalidate the cached file for this key
-    cache.files.erase(path);
     cache.files_ast.erase(path);
     cache.cached_units.erase(path);
 

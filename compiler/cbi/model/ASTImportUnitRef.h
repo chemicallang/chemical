@@ -16,6 +16,8 @@ class ASTImportUnit;
 
 class GlobalInterpretScope;
 
+class LabModule;
+
 struct ASTImportUnitRef {
 
     /**
@@ -32,6 +34,11 @@ struct ASTImportUnitRef {
     std::string path;
 
     /**
+     * the module this unit belongs to
+     */
+    LabModule* module;
+
+    /**
      * stores a pointer to cached ast import unit, so if it's erased from cached
      * we still have it, only the comptime scope and allocator matters which are
      * composed in the ast import unit
@@ -39,26 +46,14 @@ struct ASTImportUnitRef {
     std::shared_ptr<ASTImportUnit> unit;
 
     /**
-     * all the files lex results, this is supposed to be always present and valid
-     * because all files are lexed, if they can't be lexed, the diagnostics are collected and
-     * stored inside the lex result present in this unit
+     * lex result of this unit
      */
-    LexImportUnit lex_unit;
+    std::shared_ptr<LexResult> lex_result;
 
     /**
-     * all the files ast result, this can be empty if we didn't parse / symbol resolve
+     * ast result of this unit
      */
-    std::vector<std::shared_ptr<ASTResult>> files;
-
-    /**
-     * constructor
-     */
-    ASTImportUnitRef(
-        bool is_cached,
-        std::string abs_path,
-        const std::shared_ptr<ASTImportUnit>& unit
-    ) : path(std::move(abs_path)), unit(unit), lex_unit(), is_cached(is_cached) {
-    }
+    std::shared_ptr<ASTResult> ast_result;
 
     /**
      * constructor
@@ -66,23 +61,13 @@ struct ASTImportUnitRef {
     ASTImportUnitRef(
         bool is_cached,
         std::string abs_path,
+        LabModule* module,
         const std::shared_ptr<ASTImportUnit>& unit,
-        LexImportUnit lexUnit
-    ) : path(std::move(abs_path)), unit(unit), lex_unit(std::move(lexUnit)), is_cached(is_cached) {
-
-    }
-
-    /**
-     * constructor
-     */
-    ASTImportUnitRef(
-        bool is_cached,
-        std::string abs_path,
-        const std::shared_ptr<ASTImportUnit>& unit,
-        LexImportUnit lexUnit,
-        std::vector<std::shared_ptr<ASTResult>>& ast_files
-    ) : path(std::move(abs_path)), unit(unit), lex_unit(std::move(lexUnit)), is_cached(is_cached) {
-        files = ast_files;
+        const std::shared_ptr<LexResult>& lex_result,
+        const std::shared_ptr<ASTResult>& ast_result
+    ) : path(std::move(abs_path)), unit(unit), module(module), lex_result(lex_result),
+        ast_result(ast_result), is_cached(is_cached)
+    {
     }
 
 };

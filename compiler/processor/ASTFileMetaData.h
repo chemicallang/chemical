@@ -5,7 +5,7 @@
 #include <string>
 #include "compiler/symres/SymbolRange.h"
 
-class LabModule;
+struct LabModule;
 
 class ModuleScope;
 

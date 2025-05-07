@@ -42,12 +42,7 @@ SignatureHelpAnalyzer::SignatureHelpAnalyzer(LocationManager& loc_man, Position 
 //    }
 //}
 
-void SignatureHelpAnalyzer::analyze(
-    ASTImportUnitRef& result
-) {
-    // no signature information available
-    if(result.files.empty()) {
-        return;
-    }
+void SignatureHelpAnalyzer::analyze(ASTImportUnitRef& result) {
+
 
 }

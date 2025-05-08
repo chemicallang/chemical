@@ -81,7 +81,7 @@ std::string _address = "127.0.0.1";
 bool isPortOccupied(unsigned short port) {
     using asio::ip::tcp;
 
-    asio::io_service io_service;
+    asio::io_context io_service;
     tcp::acceptor acceptor(io_service);
 
     asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);

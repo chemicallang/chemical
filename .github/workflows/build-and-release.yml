@@ -60,22 +60,32 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # We have to install zlib
-      - name: Bootstrap vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git vcpkg
-          .\vcpkg\bootstrap-vcpkg.bat
+      # ––– Setup VCPKG and install zlib –––
+      - name: Checkout vcpkg
+        uses: actions/checkout@v3
+        with:
+          repository: 'microsoft/vcpkg'
+          path: 'vcpkg'
+          depth: 1 # Fetch only the latest commit
 
-      - name: vcpkg install zlib
-        run: .\vcpkg\vcpkg.exe install zlib:x64-windows
+      - name: Bootstrap vcpkg
+        working-directory: vcpkg
+        run: .\bootstrap-vcpkg.bat
+        shell: cmd
+
+      - name: Install zlib using vcpkg
+        working-directory: vcpkg
+        run: .\vcpkg.exe install zlib:x64-windows --triplet x64-windows
+        shell: cmd
 
       # Configure the chemical project executables via CMake using RelWithDebInfo
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
+        shell: cmd
         run: |
           mkdir out\release
           cmake -S . -B out\build\x64-release -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-                -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
                 -DVCPKG_TARGET_TRIPLET=x64-windows
 
       # Build the compiler target

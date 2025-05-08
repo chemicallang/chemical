@@ -66,7 +66,7 @@ jobs:
         with:
           repository: 'microsoft/vcpkg'
           path: 'vcpkg'
-          depth: 1
+          depth: 1 # Fetch only the latest commit
 
       - name: Bootstrap vcpkg
         working-directory: vcpkg
@@ -75,44 +75,20 @@ jobs:
 
       - name: Install zlib using vcpkg
         working-directory: vcpkg
+        run: .\vcpkg.exe install zlib:x64-windows --triplet x64-windows
         shell: cmd
-        run: |
-          echo "Attempting to install zlib..."
-          .\vcpkg.exe install zlib:x64-windows --triplet x64-windows
-          echo "Zlib installation command finished."
-          echo "Listing vcpkg installed directory for x64-windows to verify zlib:"
-          dir .\installed\x64-windows\include
-          dir .\installed\x64-windows\lib
 
+      # Configure the chemical project executables via CMake using RelWithDebInfo
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
-        shell: pwsh # Switched to PowerShell for correct line continuation
+        shell: pwsh
         run: |
-          $buildDir = "out/build/x64-release"
-          $sourceDir = "."
-          $releaseDir = "out/release"
-          <span class="math-inline">vcpkgToolchainFile \= Resolve\-Path "</span>{{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" # Ensures absolute path
-          $vcpkgTargetTriplet = "x64-windows"
+          mkdir out\release
+          cmake -S . -B out\build\x64-release -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake `
+                -DVCPKG_TARGET_TRIPLET=x64-windows
 
-          if (-not (Test-Path $releaseDir -PathType Container)) {
-            New-Item -ItemType Directory -Force -Path $releaseDir
-            Write-Host "Created directory: $releaseDir"
-          }
-
-          Write-Host "Source Directory: $sourceDir"
-          Write-Host "Build Directory: $buildDir"
-          Write-Host "Using CMAKE_TOOLCHAIN_FILE: $vcpkgToolchainFile"
-          Write-Host "Toolchain file exists: $(Test-Path $vcpkgToolchainFile)"
-          Write-Host "Using VCPKG_TARGET_TRIPLET: $vcpkgTargetTriplet"
-          
-          cmake -S $sourceDir -B $buildDir `
-                -G "Visual Studio 17 2022" `
-                -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-                -DCMAKE_TOOLCHAIN_FILE="$vcpkgToolchainFile" `
-                -DVCPKG_TARGET_TRIPLET=$vcpkgTargetTriplet `
-                -DCMAKE_VERBOSE_CONFIGURE=ON # Added for more CMake output
-          Write-Host "CMake configuration command finished."
-
+      # Build the compiler target
       - name: Build Chemical LLVM Based Compiler (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |

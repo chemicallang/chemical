@@ -38,13 +38,6 @@ jobs:
         with:
           arch: x86_64
 
-      # ZLIB is required by ixwebsocket in Lsp Project
-      - name: Install Zlib via MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true       # sync package database
-          install: zlib      # install the zlib-devel package under the hood
-
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
@@ -67,12 +60,23 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
+      # We have to install zlib
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          .\vcpkg\bootstrap-vcpkg.bat
+
+      - name: vcpkg install zlib
+        run: .\vcpkg\vcpkg.exe install zlib:x64-windows
+
       # Configure the chemical project executables via CMake using RelWithDebInfo
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir out\release
-          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+                -DCMAKE_TOOLCHAIN_FILE=%CD%\vcpkg\scripts\buildsystems\vcpkg.cmake `
+                -DVCPKG_TARGET_TRIPLET=x64-windows
 
       # Build the compiler target
       - name: Build Chemical LLVM Based Compiler (Windows)

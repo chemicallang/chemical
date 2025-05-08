@@ -54,6 +54,10 @@ jobs:
           path: ./chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
+      # ZLIB is required by ixwebsocket in Lsp Project
+      - name: Install Zlib via Chocolatey
+        run: choco install zlib -y
+
       # Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)
         working-directory: chemical-bootstrap

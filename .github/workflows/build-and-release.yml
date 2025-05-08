@@ -78,7 +78,7 @@ jobs:
         run: .\vcpkg.exe install zlib:x64-windows --triplet x64-windows
         shell: cmd
 
-      # Configure the chemical project executables via CMake using RelWithDebInfo
+      # Configure the chemical project executables via CMake
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
         shell: pwsh

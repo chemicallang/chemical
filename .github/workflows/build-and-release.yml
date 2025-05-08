@@ -75,7 +75,7 @@ jobs:
         run: |
           mkdir out\release
           cmake -S . -B out\build\x64-release -G "Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-                -DCMAKE_TOOLCHAIN_FILE=%CD%\vcpkg\scripts\buildsystems\vcpkg.cmake `
+                -DCMAKE_TOOLCHAIN_FILE="$($PWD.Path)/vcpkg/scripts/buildsystems/vcpkg.cmake" `
                 -DVCPKG_TARGET_TRIPLET=x64-windows
 
       # Build the compiler target

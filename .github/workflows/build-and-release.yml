@@ -38,6 +38,13 @@ jobs:
         with:
           arch: x86_64
 
+      # ZLIB is required by ixwebsocket in Lsp Project
+      - name: Install Zlib via MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true       # sync package database
+          install: zlib      # install the zlib-devel package under the hood
+
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
@@ -53,10 +60,6 @@ jobs:
         with:
           path: ./chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
-
-      # ZLIB is required by ixwebsocket in Lsp Project
-      - name: Install Zlib via Chocolatey
-        run: choco install zlib -y
 
       # Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap (Windows)

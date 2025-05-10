@@ -44,9 +44,9 @@
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
 #include "utils/CmdUtils.h"
-#include <asio.hpp>
+//#include <boost/asio.hpp>
 
-using namespace asio::ip;
+//using namespace asio::ip;
 using namespace std;
 using namespace lsp;
 
@@ -78,32 +78,32 @@ public:
 
 std::string _address = "127.0.0.1";
 
-bool isPortOccupied(unsigned short port) {
-    using asio::ip::tcp;
-
-    asio::io_context io_service;
-    tcp::acceptor acceptor(io_service);
-
-    asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
-    asio::error_code error;
-
-    // Attempt to bind the acceptor to the port
-    acceptor.open(endpoint.protocol(), error);
-    if (error) {
-        std::cerr << "Error opening socket: " << error.message() << std::endl;
-        return true; // Port might be occupied
-    }
-
-    acceptor.bind(endpoint, error);
-    if (error) {
-        std::cerr << "Error binding socket: " << error.message() << std::endl;
-        return true; // Port is likely occupied
-    }
-
-    // If we successfully bind, we can close the acceptor and return false
-    acceptor.close();
-    return false;
-}
+//bool isPortOccupied(unsigned short port) {
+//    using asio::ip::tcp;
+//
+//    asio::io_context io_service;
+//    tcp::acceptor acceptor(io_service);
+//
+//    asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
+//    asio::error_code error;
+//
+//    // Attempt to bind the acceptor to the port
+//    acceptor.open(endpoint.protocol(), error);
+//    if (error) {
+//        std::cerr << "Error opening socket: " << error.message() << std::endl;
+//        return true; // Port might be occupied
+//    }
+//
+//    acceptor.bind(endpoint, error);
+//    if (error) {
+//        std::cerr << "Error binding socket: " << error.message() << std::endl;
+//        return true; // Port is likely occupied
+//    }
+//
+//    // If we successfully bind, we can close the acceptor and return false
+//    acceptor.close();
+//    return false;
+//}
 
 bool ShouldIgnoreFileForIndexing(const std::string &path) {
     return StartsWith(path, "git:");

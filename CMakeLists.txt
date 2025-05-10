@@ -60,6 +60,32 @@ configure_file(
 include(cmake/CompilerOptions.cmake)
 include(cmake/FeatureFlags.cmake)
 
+# Use static libraries
+#set(Boost_USE_STATIC_LIBS ON)
+# Use debug version of Boost libraries
+#set(Boost_USE_DEBUG_LIBS ON)
+# Don't warn about boost new version
+#set(Boost_NO_WARN_NEW_VERSIONS 1)
+
+# set custom boost root (not required) (set BOOST_ROOT environment variable)
+# set(BOOST_ROOT "path\\to\\boost")
+
+# Enable this option if Boost Not Found to check for Boost
+# set(Boost_DEBUG 1)
+
+# Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
+#if (POLICY CMP0074)
+#    cmake_policy(SET CMP0074 NEW)
+#endif ()
+
+# Find Boost
+#find_package(Boost COMPONENTS program_options filesystem QUIET)
+
+# Check if boost not found
+#if(NOT Boost_FOUND)
+#    message(WARNING "Couldn't find Boost")
+#endif()
+
 # find these packages
 find_package(llvm 17)
 find_package(clang 17)
@@ -567,6 +593,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
 )
 
 # Add the LspCpp library directory
+set(LSPCPP_STANDALONE_ASIO ON CACHE BOOL "Use standalone Asio")
 add_subdirectory(LspCpp EXCLUDE_FROM_ALL)
 
 # Add an executable target for the second executable
@@ -618,8 +645,8 @@ target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS $
 # TCC Compiler does not use llvm and clang
 target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
 
-# Lsp uses boost library
-target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
+# LSP has some definitions
+target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD LSPCPP_USE_STANDALONE_ASIO)
 
 # Define common include directories
 set(COMMON_INCLUDE_DIRS
@@ -727,5 +754,5 @@ if(UNIX)
     )
 endif()
 
-# Link Lsp with Boost Library
+# Link Lsp
 target_link_libraries(ChemicalLsp lspcpp ${LIBTCC_LIB})

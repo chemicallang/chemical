@@ -89,10 +89,10 @@ func add(a: int, b: int): int {
 |----------------------------|----------------|
 | Lexer, Parser, Sym Res     | ✅              |
 | Codegen & C Translation    | ✅              |
-| Basic LSP                  | ✅              |
 | Native Codegen (LLVM)      | ✅              |
 | C Translation & TCC JIT    | ✅              |
 | Custom Build System        | ✅              |
+| Basic LSP                  | 🔄 In Progress |
 | Standard Library & Docs    | 🔄 In Progress |
 | Embed Langs (HTML & CSS)   | 🔄 In Progress |
 | Advanced LSP Support       | 🔄 Planned     |

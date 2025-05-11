@@ -148,7 +148,7 @@ bool Parser::parseParameterList(
         if(lexImplicitParams) {
             auto ampersand = consumeOfType(TokenType::AmpersandSym);
             if (ampersand) {
-                auto is_mutable = consumeWSOfType(TokenType::MutKw) != nullptr; // optional mut keyword
+                auto is_mutable = consumeToken(TokenType::MutKw); // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
                     const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr), is_mutable);
@@ -250,7 +250,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
 
 ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool member, bool allow_extensions) {
 
-    if(!consumeWSOfType(TokenType::FuncKw)) {
+    if(!consumeToken(TokenType::FuncKw)) {
         return nullptr;
     }
 

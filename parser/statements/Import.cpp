@@ -19,7 +19,7 @@ inline bool consumeDotOrDCol(Parser& parser) {
 }
 
 bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
-    if (parser.consumeWSOfType(TokenType::FromKw)) {
+    if (parser.consumeToken(TokenType::FromKw)) {
         auto str2 = parser.parseStringValue(allocator);
         if(str2) {
             stmt->filePath = str2->get_the_string();

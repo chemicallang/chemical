@@ -191,7 +191,7 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::UsingKw) {
         token++;
-        auto has_namespace = consumeWSOfType(TokenType::NamespaceKw);
+        auto has_namespace = consumeToken(TokenType::NamespaceKw);
         const auto location = loc_single(tok);
         auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, location);
         auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt(chain, parent_node, has_namespace, location);
@@ -306,8 +306,7 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
             error("expected a value after provide keyword");
             return nullptr;
         }
-        auto asKw = consumeWSOfType(TokenType::AsKw);
-        if(!asKw) {
+        if(!consumeToken(TokenType::AsKw)) {
             error("expected 'as' keyword after provide (expression)");
             return stmt;
         }

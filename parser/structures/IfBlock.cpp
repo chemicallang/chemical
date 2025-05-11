@@ -72,9 +72,9 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
     consumeNewLines();
 
     // keep lexing else if blocks until last else appears
-    while (consumeWSOfType(TokenType::ElseKw) != nullptr) {
+    while (consumeToken(TokenType::ElseKw)) {
         consumeNewLines();
-        if(consumeWSOfType(TokenType::IfKw)) {
+        if(consumeToken(TokenType::IfKw)) {
             auto exprBlock2 = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
             if(exprBlock2.has_value()) {
                 statement->elseIfs.emplace_back(std::move(exprBlock2.value()));

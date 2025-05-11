@@ -30,7 +30,7 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
         return loop;
     }
 
-    if(!consumeWSOfType(TokenType::WhileKw)) {
+    if(!consumeToken(TokenType::WhileKw)) {
         error("expected 'while' with condition in a do while loop");
         return loop;
     }

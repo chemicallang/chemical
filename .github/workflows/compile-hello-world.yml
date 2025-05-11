@@ -14,11 +14,11 @@ jobs:
           - os: ubuntu-latest
             asset: linux-x86-64-tcc.zip
             chemical_executable: chemical
-            binary_name: main
+            binary_name: helloworld
           - os: ubuntu-latest
             asset: linux-x86-64.zip
             chemical_executable: chemical
-            binary_name: main
+            binary_name: helloworld
           - os: windows-latest
             asset: windows-x64-tcc.zip
             chemical_executable: chemical.exe

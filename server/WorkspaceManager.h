@@ -22,6 +22,7 @@
 #include "preprocess/ImportPathHandler.h"
 #include "std/chem_string_view.h"
 #include "compiler/lab/LabModule.h"
+#include "compiler/lab/ModuleStorage.h"
 
 class LabBuildContext;
 
@@ -83,7 +84,7 @@ private:
      * we build indexes of file to module pointers, this allows us to know the module
      * given file in an instant
      */
-    std::unordered_map<chem::string, LabModule*> filesIndex;
+    std::unordered_map<chem::string_view, LabModule*> filesIndex;
 
     /**
      * a single location manager is used throughout
@@ -97,6 +98,11 @@ private:
      * the global allocator allocates memory for entire session
      */
     ASTAllocator global_allocator;
+
+    /**
+     * module storage is used to store and index modules
+     */
+    ModuleStorage modStorage;
 
     /**
      * a type builder holds cache of types to allow reusing them
@@ -225,6 +231,11 @@ public:
      * initialize
      */
     void initialize(const td_initialize::request &req);
+
+    /**
+     * determines build.lab path relative to project path
+     */
+    std::string get_mod_file_path();
 
     /**
      * determines build.lab path relative to project path

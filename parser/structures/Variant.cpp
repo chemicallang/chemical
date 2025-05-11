@@ -92,7 +92,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
 }
 
 ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
-    if(consumeWSOfType(TokenType::VariantKw)) {
+    if(consumeToken(TokenType::VariantKw)) {
 
         auto id = consumeIdentifierOrKeyword();
         if (!id) {

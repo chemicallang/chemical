@@ -14,12 +14,9 @@
 
 StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
 
-    auto constId = consumeWSOfType(TokenType::ConstKw);
-    if(!constId) {
-        auto varId = consumeWSOfType(TokenType::VarKw);
-        if(!varId) {
-            return nullptr;
-        }
+    const auto is_const = consumeToken(TokenType::ConstKw);
+    if(!is_const && !consumeToken(TokenType::VarKw)) {
+        return nullptr;
     }
 
     auto identifier = consumeIdentifierOrKeyword();
@@ -27,10 +24,10 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, loc_single(identifier), constId != nullptr, AccessSpecifier::Public);
+    auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, loc_single(identifier), is_const, AccessSpecifier::Public);
     annotate(member);
 
-    if(!consumeWSOfType(TokenType::ColonSym)) {
+    if(!consumeToken(TokenType::ColonSym)) {
         error("expected a colon symbol after the identifier");
     }
 
@@ -55,7 +52,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
 
 UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifier specifier) {
 
-    if(consumeWSOfType(TokenType::StructKw)) {
+    if(consumeToken(TokenType::StructKw)) {
 
         auto decl = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct("", parent_node, loc_single(token), specifier);
         annotate(decl);
@@ -254,9 +251,9 @@ IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, Acc
     parser.consumeNewLines();
 
     // keep lexing else if blocks until last else appears
-    while (parser.consumeWSOfType(TokenType::ElseKw) != nullptr) {
+    while (parser.consumeToken(TokenType::ElseKw)) {
         parser.consumeNewLines();
-        if(parser.consumeWSOfType(TokenType::IfKw)) {
+        if(parser.consumeToken(TokenType::IfKw)) {
             auto exprBlock2 = parseMemberIfExprAndBlock(parser, allocator, specifier);
             if(exprBlock2.has_value()) {
                 statement->elseIfs.emplace_back(std::move(exprBlock2.value()));
@@ -291,7 +288,7 @@ bool Parser::parseContainerMembersInto(VariablesContainer* decl, ASTAllocator& a
 }
 
 ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
-    if(consumeWSOfType(TokenType::StructKw)) {
+    if(consumeToken(TokenType::StructKw)) {
 
         // all the structs are allocated on global allocator
         // WHY? because when used with imported public generics, the generics tend to instantiate with types

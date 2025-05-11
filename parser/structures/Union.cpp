@@ -11,7 +11,7 @@
 
 UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier specifier) {
 
-    if(consumeWSOfType(TokenType::UnionKw)) {
+    if(consumeToken(TokenType::UnionKw)) {
 
         auto decl = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion("", parent_node, loc_single(token), specifier);
 
@@ -52,7 +52,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
 ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
 
-    if(consumeWSOfType(TokenType::UnionKw)) {
+    if(consumeToken(TokenType::UnionKw)) {
 
         auto identifier = consumeIdentifierOrKeyword();
         if (!identifier) {

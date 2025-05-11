@@ -39,7 +39,7 @@ SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool
                     if(has_single) {
                         consumeNewLines();
                     }
-                    if(consumeWSOfType(TokenType::DefaultKw)) {
+                    if(consumeToken(TokenType::DefaultKw)) {
                         has_single = true;
                         if(stmt->defScopeInd == -1) {
                             stmt->defScopeInd = body_index;

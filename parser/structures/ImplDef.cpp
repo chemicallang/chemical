@@ -51,7 +51,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
         } else {
             return final_decl;
         }
-        if(consumeWSOfType(TokenType::ForKw)) {
+        if(consumeToken(TokenType::ForKw)) {
             auto type = parseLinkedOrGenericType(allocator);
             if(type) {
                 impl->struct_type = type;

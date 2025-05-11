@@ -29,6 +29,7 @@
 #include "stream/StringInputSource.h"
 #include "LibLsp/lsp/general/initialize.h"
 #include "compiler/lab/LabBuildCompiler.h"
+#include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "compiler/lab/LabBuildCompilerOptions.h"
 #include "server/analyzers/InlayHintAnalyzerApi.h"
@@ -96,6 +97,10 @@ std::string WorkspaceManager::resources_path() {
     }
 }
 
+std::string WorkspaceManager::get_mod_file_path(){
+    return resolve_sibling(project_path, "chemical.mod");
+}
+
 std::string WorkspaceManager::get_build_lab_path(){
     return resolve_sibling(project_path, "build.lab");
 }
@@ -109,6 +114,7 @@ void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
     const auto& build = *lab;
     auto& context = build.context;
     if(!context.executables.empty()) {
+        // using the first job as the main job
         switch_main_job(context.executables.front().get());
     }
 
@@ -122,16 +128,54 @@ void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
         return 0;
     });
 
+    // lets index all the files to modules they belong to
+    for(auto& mod_ptr : modStorage.get_modules()) {
+        const auto mod = mod_ptr.get();
+        for(auto& file : mod->direct_files) {
+            filesIndex.emplace(chem::string_view(file.abs_path), mod);
+        }
+    }
+
 }
 
 bool WorkspaceManager::compile_build_lab() {
+    auto mod_file = get_mod_file_path();
+    if(std::filesystem::exists(mod_file)) {
+
+        auto build_dir = resolve_sibling(mod_file, "build");
+        LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
+        LabBuildCompiler compiler(binder, &options);
+        auto& storage = modStorage;
+        const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, mod_file), nullptr };
+        ModuleDependencyRecord record("", chem::string(""), chem::string(""));
+        auto module = compiler.built_mod_file(impl->context, mod_file);
+        if(module == nullptr) {
+            return false;
+        }
+
+        // let's create a single job that depends on this module
+        chem::string abs_path(resolve_rel_child_path_str(
+                build_dir,
+#ifdef _WIN32
+                "output.exe"
+#else
+                "output"
+#endif
+        ));
+        auto job = new LabJob(LabJobType::Executable, module->name.copy(), std::move(abs_path), chem::string(build_dir));
+        impl->context.executables.emplace_back(job);
+
+        post_build_lab(&compiler);
+        return true;
+
+    }
     auto lab_path = get_build_lab_path();
     if(std::filesystem::exists(lab_path)) {
 
         auto build_dir = resolve_sibling(lab_path, "build");
         LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
         LabBuildCompiler compiler(binder, &options);
-        ModuleStorage storage;
+        auto& storage = modStorage;
         const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, lab_path), nullptr };
         ModuleDependencyRecord record("", chem::string(""), chem::string(""));
         const auto state = compiler.built_lab_file(impl->context, record, lab_path);

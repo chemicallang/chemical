@@ -190,7 +190,7 @@ public struct AppBuildContext : BuildContext {
 }
 
 public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, name : &std::string_view, dir_path : &std::string_view, dependencies : std::span<*Module>, interfaces : std::span<std::string_view>) : *mut Module {
-    var mod = ctx.chemical_dir_module(scope_name, name, dir_path, dependencies);
+    var mod = ctx.chemical_dir_module(scope_name, name, dir_path, dependencies)
     if(!interfaces.empty()) {
         var i : uint = 0;
         const s = interfaces.size()

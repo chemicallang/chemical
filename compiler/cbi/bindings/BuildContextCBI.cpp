@@ -16,6 +16,10 @@
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);
 #endif
 
+LabModule* BuildContextget_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name) {
+    return self->storage.find_module(*scope_name, *name);
+}
+
 LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg) {
     return self->module_from_directory(*path, *scope_name, *mod_name, *error_msg);
 }

@@ -73,6 +73,11 @@ public struct PathResolutionResult {
 public struct BuildContext {
 
     /**
+     * find the given module (if its build.lab / chemical.mod has been built)
+     */
+    func get_module(&self, scope_name : &std::string_view, name : &std::string_view) : *mut Module;
+
+    /**
      * create a module from a directory that contains a chemical.mod or build.lab file, the scope name and mod name is given to check if module by that name already
      * has been parsed so we return it fast, the path is the absolute path to directory, the returned module may be null, in that case error is set to error_msg
      * it can be that an unknown error happened and we didn't set the error, however module is still null, important to check returned module for nullability
@@ -182,6 +187,29 @@ public struct AppBuildContext : BuildContext {
     // something you'd want to be invoked when lab build has finished
     func on_finished (&self, lambda : (data : *void) => void, data : *void) : void;
 
+}
+
+public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, name : &std::string_view, dir_path : &std::string_view, dependencies : std::span<*Module>, interfaces : std::span<std::string_view>) : *mut Module {
+    var mod = ctx.chemical_dir_module(scope_name, name, dir_path, dependencies);
+    if(!interfaces.empty()) {
+        var i : uint = 0;
+        const s = interfaces.size()
+        while(i < s) {
+            const ci = interfaces.get(i)
+            ctx.add_compiler_interface(mod, *ci)
+            i++;
+        }
+    }
+    return mod;
+}
+
+public func (ctx : &BuildContext) default_get(scope_name : &std::string_view, name : &std::string_view, build : (ctx : *BuildContext) => *mut Module) : *mut Module {
+    var found = ctx.get_module(scope_name, name)
+    if(found == null) {
+        return build(&ctx)
+    } else {
+        return found;
+    }
 }
 
 public func (ctx : &BuildContext) native_lib_module(mod : &std::string_view) : *mut Module {

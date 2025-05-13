@@ -118,7 +118,6 @@ set(COMMON_SOURCES
         parser/statements/VarInitialization.cpp
         parser/statements/VarInitialization.cpp
         parser/statements/LexStatement.cpp
-        parser/utils/LexWhitespace.cpp
         parser/statements/LexType.cpp
         stream/StreamPosition.h
         parser/utils/LexValue.cpp
@@ -557,6 +556,8 @@ set(COMMON_SOURCES
         ast/types/NullPtrType.h
         compiler/cbi/model/CBIFunctionType.h
         compiler/cbi/model/CBIFunctionIndex.h
+        compiler/lab/mod_conv/ModToLabConverter.h
+        compiler/lab/mod_conv/ModToLabConverter.cpp
 )
 
 # Chemical LSP Executable Target

@@ -12,8 +12,6 @@ class AssignStatement;
 
 class BreakStatement;
 
-class ModuleDefinition;
-
 class AliasStmt;
 
 class UnreachableStmt;

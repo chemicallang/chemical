@@ -274,6 +274,14 @@ public:
     );
 
     /**
+     * this translates a chemical.mod file into a build.lab file
+     */
+    static int translate_mod_file_to_lab(
+        const chem::string_view& modFilePath,
+        const chem::string_view& outputPath
+    );
+
+    /**
      * a chemical.mod file can be imported using this method into a LabModule*, the dependencies will include
      * all the modules this module depends on (the mod file states this, it recursively parses those modules)
      */

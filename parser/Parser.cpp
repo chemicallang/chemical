@@ -22,7 +22,7 @@ Parser::Parser(
         TypeBuilder& typeBuilder,
         bool is64Bit,
         CompilerBinder* binder
-) : ASTDiagnoser(loc_man), file_id(file_id), stored_file_path(file_path), token(start_token),
+) : BasicParser(loc_man, file_id, start_token), stored_file_path(file_path),
     global_allocator(global_allocator), typeBuilder(typeBuilder),
     mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder)
 {
@@ -33,7 +33,7 @@ std::string_view Parser::file_path() {
     return stored_file_path;
 }
 
-uint64_t Parser::loc(const Position& start, const Position& end) {
+uint64_t BasicParser::loc(const Position& start, const Position& end) {
     return loc_man.addLocation(file_id, start.line, start.character, end.line, end.character);
 }
 
@@ -47,7 +47,7 @@ LocatedIdentifier Parser::loc_id(BatchAllocator& allocator, const chem::string_v
     return { chem::string_view(allocated, value_size) };
 }
 
-uint64_t Parser::loc_single(Position& pos, unsigned int length) {
+uint64_t BasicParser::loc_single(Position& pos, unsigned int length) {
     return loc_man.addLocation(file_id, pos.line, pos.character, pos.line, pos.character + length);
 }
 
@@ -105,8 +105,24 @@ void Parser::parse(std::vector<ASTNode*>& nodes) {
     parseTopLevelMultipleStatements(mod_allocator, nodes);
 }
 
-void Parser::parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data) {
-    auto& allocator = mod_allocator;
+chem::string_view BasicParser::get_file_path() {
+    return chem::string_view(loc_man.getPathForFileId(file_id));
+}
+
+void BasicParser::consumeNewLines() {
+    while(true) {
+        switch(token->type) {
+            case TokenType::NewLine:
+                token++;
+                break;
+            default:
+                return;
+        }
+    }
+}
+
+void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data) {
+    auto& nodes = data.scope.body.nodes;
     consumeNewLines();
     const auto pkg_def = skipModuleDefinition(allocator);
     if(pkg_def) {
@@ -127,13 +143,8 @@ void Parser::parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data)
                 token++;
                 const auto id = consumeIdentifierOrKeyword();
                 if(id) {
-                    auto found = binder->interface_maps.find(id->value);
-                    if(found != binder->interface_maps.end()) {
-                        data.compiler_interfaces.emplace_back(found->second);
-                        consumeToken(TokenType::SemiColonSym);
-                    } else {
-                        error() << "unknown compiler binding interface '" << id->value << '\'';
-                    }
+                    data.compiler_interfaces.emplace_back(allocate_view(allocator, id->value));
+                    consumeToken(TokenType::SemiColonSym);
                 }
                 break;
             }

@@ -244,8 +244,9 @@ public:
      * @return true if success importing file, false otherwise
      */
     static bool import_chemical_mod_file(
-            LabBuildCompiler& compiler,
-            ASTFileResult& result,
+            ASTAllocator& fileAllocator,
+            ASTAllocator& modAllocator,
+            LocationManager& loc_man,
             ModuleFileData& data,
             unsigned int fileId,
             const std::string_view& absolute_path

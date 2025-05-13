@@ -50,17 +50,8 @@ struct AnnotationModifier {
 
 };
 
-/**
- * the parser that is used to parse
- */
-class Parser : public ASTDiagnoser {
+class BasicParser : public ASTDiagnoser {
 public:
-
-    /**
-     * stored for debugging
-     * TODO remove this
-     */
-    std::string_view stored_file_path;
 
     /**
      * The file id to use with location manager
@@ -71,6 +62,259 @@ public:
      * the current token
      */
     Token* token;
+
+    /**
+     * current parent node
+     */
+    ASTNode* parent_node = nullptr;
+
+    /**
+     * constructor
+     */
+    inline BasicParser(
+            LocationManager& loc_man,
+            unsigned int file_id,
+            Token* token
+    ) : file_id(file_id), token(token), ASTDiagnoser(loc_man) {
+
+    }
+
+    /**
+     * allocate given view on allocator
+     */
+    inline chem::string_view allocate_view(BatchAllocator& allocator, const chem::string_view& view) {
+        return { allocator.allocate_str(view.data(), view.size()), view.size() };
+    }
+
+    /**
+     * get a encoded location
+     */
+    uint64_t loc(const Position& start, const Position& end);
+
+    /**
+     * get a encoded location
+     */
+    inline uint64_t loc(Token* start, Token* end) {
+        return loc(start->position, end->position);
+    }
+
+    /**
+     * get a location single at the position
+     */
+    uint64_t loc_single(Position& position, unsigned int length);
+
+    /**
+     * get location for a single token that is on the same line
+     */
+    inline uint64_t loc_single(Token* t) {
+        return loc_single(t->position, t->value.size());
+    }
+
+    /**
+     * get location for a single token that is on the same line
+     */
+    inline uint64_t loc_single(Token& t) {
+        return loc_single(t.position, t.value.size());
+    }
+
+    /**
+     * consume the current token if it's given type
+     */
+    bool consumeToken(enum TokenType type) {
+        if(token->type == type) {
+            token++;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * parses the token of type
+     * will skip new line, comment token, multi line comment tokens to check for this
+     */
+    Token* consumeOfType(enum TokenType type) {
+        auto& t = *token;
+        if(t.type == type) {
+            token++;
+            return &t;
+        } else {
+            return nullptr;
+        }
+    }
+
+    /**
+     * consume a identifier or keyword at the current location
+     */
+    Token* consumeIdentifierOrKeyword() {
+        auto& t = *token;
+        const auto type = t.type;
+        if(type == TokenType::Identifier || Token::isKeyword(type)) {
+            token++;
+            return &t;
+        } else {
+            return nullptr;
+        }
+    }
+
+    /**
+     * consume strictly a single identifier
+     */
+    Token* consumeIdentifier() {
+        auto& t = *token;
+        if(t.type == TokenType::Identifier) {
+            token++;
+            return &t;
+        } else {
+            return nullptr;
+        }
+    }
+
+    /**
+     * a utility function to skip new lines
+     */
+    void consumeNewLines();
+
+    /**
+     * a package definition is parsed
+     */
+    bool skipModuleDefinition(ASTAllocator& allocator);
+
+    /**
+     * a module file is a .mod file that defines which modules are imported
+     * by a single module, and it's scope and module declaration
+     */
+    void parseModuleFile(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
+     * parses a single string value using the given allocator
+     */
+    Value* parseStringValue(ASTAllocator& allocator);
+
+    /**
+     * parses import statement after the import keyword
+     */
+    ImportStatement* parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out = true);
+
+    /**
+     * lexes import statement
+     */
+    ImportStatement* parseImportStatement(ASTAllocator& allocator);
+
+    /**
+     * parses a single or multiple import statements
+     */
+    bool parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes);
+
+    /**
+     * get file path for the current file id
+     */
+    chem::string_view get_file_path();
+
+    /**
+     * make a diagnostic with given parameters, for the current file
+     */
+    Diag make_diag(Position start, const chem::string_view &message, DiagSeverity severity) {
+        return CSTDiagnoser::make_diag(message, get_file_path(), start, token->position, severity);
+    }
+
+    /**
+     * get an empty diagnostic to append to
+     */
+    Diag& empty_diagnostic(const Position& start, const Position& end, DiagSeverity severity) {
+        return CSTDiagnoser::empty_diagnostic(get_file_path(), start, end, severity);
+    }
+
+    /**
+     * record a diagnostic at the given position
+     */
+    inline Diag& empty_diagnostic(const Position& start, DiagSeverity severity) {
+        return empty_diagnostic(start, start, severity);
+    }
+
+    /**
+     * record a diagnostic with the given severity at token position
+     */
+    inline Diag& diagnostic(DiagSeverity severity) {
+        return empty_diagnostic(token->position, severity) << " got \"" << token->value << "\"";
+    }
+
+    /**
+     * create hint diagnostic at current token position
+     */
+    inline Diag& hint() {
+        return diagnostic(DiagSeverity::Hint);
+    }
+
+    /**
+     * create info diagnostic at current token position
+     */
+    inline Diag& info() {
+        return diagnostic(DiagSeverity::Information);
+    }
+
+    /**
+     * create warning diagnostic at current token position
+     */
+    inline Diag& warning() {
+        return diagnostic(DiagSeverity::Warning);
+    }
+
+    /**
+     * create info diagnostic at current token position
+     */
+    inline Diag& error() {
+        return diagnostic(DiagSeverity::Error);
+    }
+
+    /**
+     * create hint diagnostic with the following message at current token position
+     */
+    inline void hint(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Hint) << message;
+    }
+
+    /**
+     * create info diagnostic with the following message at current token position
+     */
+    inline void info(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Information) << message;
+    }
+
+    /**
+     * create warning diagnostic with the following message at current token position
+     */
+    inline void warning(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Warning) << message;
+    }
+
+    /**
+     * create info diagnostic with the following message at current token position
+     */
+    inline void error(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Error) << message;
+    }
+
+    /**
+     * save error at given error token position
+     */
+    inline void error(const chem::string_view& message, const Position& position) {
+        empty_diagnostic(position, DiagSeverity::Error) << message;
+    }
+
+};
+
+/**
+ * the parser that is used to parse
+ */
+class Parser : public BasicParser {
+public:
+
+    /**
+     * stored for debugging
+     * TODO remove this
+     */
+    std::string_view stored_file_path;
 
     /**
      * the binder that will be used to compile binding code
@@ -104,11 +348,6 @@ public:
     std::vector<AnnotationModifier> annotations;
 
     /**
-     * current parent node
-     */
-    ASTNode* parent_node = nullptr;
-
-    /**
      * initialize the lexer with this provider and path
      */
     Parser(
@@ -129,11 +368,6 @@ public:
     std::string_view file_path();
 
     /**
-     * get a encoded location
-     */
-    uint64_t loc(const Position& start, const Position& end);
-
-    /**
      * get a located identifier
      */
     LocatedIdentifier loc_id(BatchAllocator& allocator, const chem::string_view& value, const Position& pos);
@@ -146,42 +380,9 @@ public:
     }
 
     /**
-     * allocate given view on allocator
-     */
-    inline chem::string_view allocate_view(BatchAllocator& allocator, const chem::string_view& view) {
-        return { allocator.allocate_str(view.data(), view.size()), view.size() };
-    }
-
-    /**
      * get the ending position of the token
      */
     Position end_pos(Token* token);
-
-    /**
-     * get a encoded location
-     */
-    inline uint64_t loc(Token* start, Token* end) {
-        return loc(start->position, end->position);
-    }
-
-    /**
-     * get a location single at the position
-     */
-    uint64_t loc_single(Position& position, unsigned int length);
-
-    /**
-     * get location for a single token that is on the same line
-     */
-    inline uint64_t loc_single(Token* t) {
-        return loc_single(t->position, t->value.size());
-    }
-
-    /**
-     * get location for a single token that is on the same line
-     */
-    inline uint64_t loc_single(Token& t) {
-        return loc_single(t.position, t.value.size());
-    }
 
     /**
      * suppose to be called on a node which can take annotations
@@ -198,41 +399,9 @@ public:
      */
     void parse(std::vector<ASTNode*>& nodes);
 
-    /**
-     * a module file is a .mod file that defines which modules are imported
-     * by a single module, and it's scope and module declaration
-     */
-    void parseModuleFile(std::vector<ASTNode*>& nodes, ModuleFileData& data);
-
     // ------------- Functions exposed to chemical begin here
 
 public:
-
-    /**
-     * consume the current token if it's given type
-     */
-    bool consumeToken(enum TokenType type) {
-        if(token->type == type) {
-            token++;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * parses the token of type
-     * will skip new line, comment token, multi line comment tokens to check for this
-     */
-    Token* consumeOfType(enum TokenType type) {
-        auto& t = *token;
-        if(t.type == type) {
-            token++;
-            return &t;
-        } else {
-            return nullptr;
-        }
-    }
 
     /**
      * parses the token of type
@@ -241,33 +410,6 @@ public:
     [[deprecated]]
     inline Token* consumeWSOfType(enum TokenType type) {
         return consumeOfType(type);
-    }
-
-    /**
-     * consume a identifier or keyword at the current location
-     */
-    Token* consumeIdentifierOrKeyword() {
-        auto& t = *token;
-        const auto type = t.type;
-        if(type == TokenType::Identifier || Token::isKeyword(type)) {
-            token++;
-            return &t;
-        } else {
-            return nullptr;
-        }
-    }
-
-    /**
-     * consume strictly a single identifier
-     */
-    Token* consumeIdentifier() {
-        auto& t = *token;
-        if(t.type == TokenType::Identifier) {
-            token++;
-            return &t;
-        } else {
-            return nullptr;
-        }
     }
 
     /**
@@ -509,21 +651,6 @@ public:
     std::optional<Scope> parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node);
 
     /**
-     * parses import statement after the import keyword
-     */
-    ImportStatement* parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out = true);
-
-    /**
-     * lexes import statement
-     */
-    ImportStatement* parseImportStatement(ASTAllocator& allocator);
-
-    /**
-     * parses a single or multiple import statements
-     */
-    bool parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes);
-
-    /**
      * parse destruct statement
      */
     DestructStmt* parseDestructStatement(ASTAllocator& allocator);
@@ -681,16 +808,6 @@ public:
      * lexes a enum block
      */
     EnumDeclaration* parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
-
-    /**
-     * a utility function to lex whitespace tokens and also skip new lines
-     */
-    void consumeNewLines();
-
-    /**
-     * parses a single string value using the given allocator
-     */
-    Value* parseStringValue(ASTAllocator& allocator);
 
     /**
      * a single character value is parsed
@@ -875,11 +992,6 @@ public:
      */
     ComptimeBlock* parseComptimeBlock(ASTAllocator& allocator);
 
-    /**
-     * a package definition is parsed
-     */
-    bool skipModuleDefinition(ASTAllocator& allocator);
-
     // -------------------------------- Exposed till here
 
     /**
@@ -893,97 +1005,6 @@ public:
         } else {
             return false;
         }
-    }
-
-    /**
-     * make a diagnostic with given parameters, for the current file
-     */
-    Diag make_diag(Position start, const chem::string_view &message, DiagSeverity severity) {
-        return CSTDiagnoser::make_diag(message, chem::string_view(file_path()), start, token->position, severity);
-    }
-
-    /**
-     * get an empty diagnostic to append to
-     */
-    Diag& empty_diagnostic(const Position& start, const Position& end, DiagSeverity severity) {
-        return CSTDiagnoser::empty_diagnostic(chem::string_view(file_path()), start, end, severity);
-    }
-
-    /**
-     * record a diagnostic at the given position
-     */
-    inline Diag& empty_diagnostic(const Position& start, DiagSeverity severity) {
-        return empty_diagnostic(start, start, severity);
-    }
-
-    /**
-     * record a diagnostic with the given severity at token position
-     */
-    inline Diag& diagnostic(DiagSeverity severity) {
-        return empty_diagnostic(token->position, severity) << " got \"" << token->value << "\"";
-    }
-
-    /**
-     * create hint diagnostic at current token position
-     */
-    inline Diag& hint() {
-        return diagnostic(DiagSeverity::Hint);
-    }
-
-    /**
-     * create info diagnostic at current token position
-     */
-    inline Diag& info() {
-        return diagnostic(DiagSeverity::Information);
-    }
-
-    /**
-     * create warning diagnostic at current token position
-     */
-    inline Diag& warning() {
-        return diagnostic(DiagSeverity::Warning);
-    }
-
-    /**
-     * create info diagnostic at current token position
-     */
-    inline Diag& error() {
-        return diagnostic(DiagSeverity::Error);
-    }
-
-    /**
-     * create hint diagnostic with the following message at current token position
-     */
-    inline void hint(const chem::string_view& message) {
-        diagnostic(DiagSeverity::Hint) << message;
-    }
-
-    /**
-     * create info diagnostic with the following message at current token position
-     */
-    inline void info(const chem::string_view& message) {
-        diagnostic(DiagSeverity::Information) << message;
-    }
-
-    /**
-     * create warning diagnostic with the following message at current token position
-     */
-    inline void warning(const chem::string_view& message) {
-        diagnostic(DiagSeverity::Warning) << message;
-    }
-
-    /**
-     * create info diagnostic with the following message at current token position
-     */
-    inline void error(const chem::string_view& message) {
-        diagnostic(DiagSeverity::Error) << message;
-    }
-
-    /**
-     * save error at given error token position
-     */
-    inline void error(const chem::string_view& message, const Position& position) {
-        empty_diagnostic(position, DiagSeverity::Error) << message;
     }
 
 };

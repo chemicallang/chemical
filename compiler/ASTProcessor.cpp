@@ -576,89 +576,52 @@ bool ASTProcessor::import_chemical_file(
 }
 
 bool ASTProcessor::import_chemical_mod_file(
-        LabBuildCompiler& compiler,
-        ASTFileResult& result,
+        ASTAllocator& fileAllocator,
+        ASTAllocator& modAllocator,
+        LocationManager& loc_man,
         ModuleFileData& data,
         unsigned int fileId,
         const std::string_view& abs_path
 ) {
 
-    auto& unit = result.unit;
-    const auto options = compiler.options;
-    const auto is64Bit = options->is64Bit;
-
-    std::unique_ptr<BenchmarkResults> lex_bm;
-    std::unique_ptr<BenchmarkResults> parse_bm;
-
     FileInputSource inp_source(abs_path.data());
     if(inp_source.has_error()) {
-        result.continue_processing = false;
-        result.read_error = inp_source.error_message();
+        data.read_error = inp_source.error_message();
         std::cerr << rang::fg::red << "error: when reading file " << abs_path;
-        if(!result.read_error.empty()) {
-            std::cerr << " because " << result.read_error;
+        if(!data.read_error.empty()) {
+            std::cerr << " because " << data.read_error;
         }
         std::cerr << rang::fg::reset << std::endl;
         return false;
     }
 
-    Lexer lexer(std::string(abs_path), &inp_source, &compiler.binder, *compiler.file_allocator);
+    Lexer lexer(std::string(abs_path), &inp_source, nullptr, fileAllocator);
     std::vector<Token> tokens;
-
-    if(options->benchmark) {
-        result.lex_benchmark = std::make_unique<BenchmarkResults>();
-        result.lex_benchmark->benchmark_begin();
-        lexer.getTokens(tokens);
-        result.lex_benchmark->benchmark_end();
-    } else {
-        lexer.getTokens(tokens);
-    }
-
-    // lexer doesn't have diagnostics
-    // result.lex_diagnostics = {};
+    lexer.getTokens(tokens);
 
     // parse the file
-    Parser parser(
-            fileId,
-            abs_path,
-            tokens.data(),
-            compiler.loc_man,
-            *compiler.job_allocator,
-            *compiler.mod_allocator,
-            compiler.type_builder,
-            is64Bit,
-            &compiler.binder
+    BasicParser parser(
+        loc_man,
+        fileId,
+        tokens.data()
     );
 
     // put the lexing diagnostic into the parser diagnostic for now
     if(!tokens.empty()) {
         auto& last_token = tokens.back();
         if (last_token.type == TokenType::Unexpected) {
-            parser.diagnostics.emplace_back(
-                    CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
+            parser.diagnostics.emplace_back(CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
         }
     }
 
     // setting file scope as parent of all nodes parsed
-    parser.parent_node = &result.unit.scope;
+    parser.parent_node = &data.scope;
 
-    if(options->benchmark) {
-        result.parse_benchmark = std::make_unique<BenchmarkResults>();
-        result.parse_benchmark->benchmark_begin();
-        parser.parseModuleFile(unit.scope.body.nodes, data);
-        result.parse_benchmark->benchmark_end();
-    } else {
-        parser.parseModuleFile(unit.scope.body.nodes, data);
-    }
+    parser.parseModuleFile(modAllocator, data);
 
-    result.parse_diagnostics = std::move(parser.diagnostics);
+    data.diagnostics = std::move(parser.diagnostics);
 
-    if(parser.has_errors) {
-        result.continue_processing = false;
-        return false;
-    } else {
-        return true;
-    }
+    return !parser.has_errors;
 
 }
 

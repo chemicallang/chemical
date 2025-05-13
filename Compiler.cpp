@@ -658,9 +658,13 @@ int main(int argc, char *argv[]) {
 
     auto build_dir_opt = options.option_new("build-dir", "b");
 
-    // build a .lab file
     const auto is_lab_file = args[0].ends_with(".lab");
     const auto is_mod_file = args[0].ends_with(".mod");
+    if(is_mod_file && output.has_value() && output.value().ends_with(".lab")) {
+        // conversion of a .mod file to .lab file
+        return LabBuildCompiler::translate_mod_file_to_lab(chem::string_view(args[0]), chem::string_view(output.value()));
+    }
+    // build a .lab file
     if(is_lab_file || is_mod_file) {
 
         std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(std::string(args[0]), "build");

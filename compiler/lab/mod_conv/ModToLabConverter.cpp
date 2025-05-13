@@ -19,8 +19,10 @@ void writeWithSep(std::vector<chem::string_view>& list, char sep, std::ostream& 
 
 void writeAsIdentifier(ImportStatement* stmt, std::ostream& output) {
     if(!stmt->as_identifier.empty()) {
+        output << "__mod_";
         output << stmt->as_identifier;
     } else {
+        output << "__mod_";
         writeWithSep(stmt->identifier, '_', output);
     }
 }
@@ -52,8 +54,8 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     // build method
-    output << "func build(ctx : *mut BuildContext) : *Module {\n";
-    output << "return ctx.create_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", lab::rel_path_to(\"src\"), { ";
+    output << "\nfunc build(ctx : *mut BuildContext) : *Module {\n";
+    output << "\treturn ctx.create_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", lab::rel_path_to(\"src\"), { ";
     // calling get functions on dependencies
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {
@@ -73,11 +75,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         output << '"' << interface << "\", ";
     }
     output << "});\n";
-    output << "}\n";
+    output << "}\n\n";
 
     // get method
     output << "public func get(ctx : *mut BuildContext) : *Module {\n";
-    output << "return ctx.default_get(\"" << data.scope_name << "\", \"" << data.module_name << "\", build);\n";
+    output << "\treturn ctx.default_get(\"" << data.scope_name << "\", \"" << data.module_name << "\", build);\n";
     output << "}\n";
 
 }

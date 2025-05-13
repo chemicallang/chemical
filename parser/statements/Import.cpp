@@ -7,7 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/statements/Import.h"
 
-inline bool consumeDotOrDCol(Parser& parser) {
+inline bool consumeDotOrDCol(BasicParser& parser) {
     switch(parser.token->type) {
         case TokenType::DoubleColonSym:
         case TokenType::DotSym:
@@ -18,7 +18,7 @@ inline bool consumeDotOrDCol(Parser& parser) {
     }
 }
 
-bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
+bool parseImportFromPart(BasicParser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
     if (parser.consumeToken(TokenType::FromKw)) {
         auto str2 = parser.parseStringValue(allocator);
         if(str2) {
@@ -33,7 +33,7 @@ bool parseImportFromPart(Parser& parser, ASTAllocator& allocator, ImportStatemen
     }
 }
 
-ImportStatement* Parser::parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out) {
+ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out) {
     auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", parent_node, loc_single(token));
     auto str = parseStringValue(allocator);
     if (str) {
@@ -88,7 +88,7 @@ ImportStatement* Parser::parseImportStmtAfterKw(ASTAllocator& allocator, bool er
     return stmt;
 }
 
-ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
+ImportStatement* BasicParser::parseImportStatement(ASTAllocator& allocator) {
     auto& kw_tok = *token;
     if (kw_tok.type != TokenType::ImportKw) {
         return nullptr;
@@ -97,7 +97,7 @@ ImportStatement* Parser::parseImportStatement(ASTAllocator& allocator) {
     return parseImportStmtAfterKw(allocator, false);
 }
 
-bool Parser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
+bool BasicParser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     auto& kw_tok = *token;
     if (kw_tok.type != TokenType::ImportKw) {
         return false;

@@ -57,7 +57,7 @@ Value* Parser::parseCharValue(ASTAllocator& allocator) {
     }
 }
 
-Value* Parser::parseStringValue(ASTAllocator& allocator) {
+Value* BasicParser::parseStringValue(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::String) {
         // consume it

@@ -347,7 +347,7 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
     }
 }
 
-bool Parser::skipModuleDefinition(ASTAllocator& allocator) {
+bool BasicParser::skipModuleDefinition(ASTAllocator& allocator) {
 
     if(token->value == "module") {
         token++;

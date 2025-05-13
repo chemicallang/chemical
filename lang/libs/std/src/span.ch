@@ -35,6 +35,10 @@ public struct span<T> {
         return _size;
     }
 
+    func empty(&self) : bool {
+        return _size == 0;
+    }
+
 }
 
 }

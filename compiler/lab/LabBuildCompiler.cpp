@@ -18,6 +18,7 @@
 #include "cst/LocationManager.h"
 #include <fstream>
 #include <span>
+#include "compiler/lab/mod_conv/ModToLabConverter.h"
 #include "parser/utils/ParseModDecl.h"
 #include "compiler/lab/timestamp/Timestamp.h"
 #ifdef COMPILER_BUILD
@@ -1573,6 +1574,57 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
 }
 
+int LabBuildCompiler::translate_mod_file_to_lab(
+        const chem::string_view& modFilePath,
+        const chem::string_view& outputPath
+) {
+
+    // lets construct variables that are being used
+    LocationManager loc_man;
+    ASTAllocator allocator(10000); // using 10kb batches
+
+    // determining the scope and module name from the .mod file
+    const auto each_buf_size = 80;
+    char temp_scope_name[each_buf_size];
+    char temp_module_name[each_buf_size];
+    size_t scope_name_size = 0;
+    size_t mod_name_size = 0;
+    const auto errorMsg = parseModDecl(temp_scope_name, temp_module_name, scope_name_size, mod_name_size, each_buf_size, modFilePath.view());
+
+    // determining the module scope name and module name
+    chem::string_view scope_name(temp_scope_name, scope_name_size);
+    chem::string_view module_name(temp_module_name, mod_name_size);
+
+    // module file data
+    auto modFileId = loc_man.encodeFile(modFilePath.str());
+    ModuleFileData modFileData(modFileId, modFilePath);
+
+    // set those module names
+    modFileData.scope_name = scope_name;
+    modFileData.module_name = module_name;
+
+    // import the file into result (lex and parse)
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
+
+    // TODO check if mod file is ok and report errors appropriately
+
+    // opening the file
+    std::ofstream stream;
+    stream.open(outputPath.data());
+    if(!stream.is_open()) {
+        // TODO report error
+    }
+
+    // actual conversion
+    convertToBuildLab(modFileData, stream);
+
+    // closing the writing stream
+    stream.close();
+    return 0;
+
+
+}
+
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
         const std::string_view& modFilePathView
@@ -1610,22 +1662,24 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     }
 
     std::string modFilePath(modFilePathView);
-    auto buildLabFileId = loc_man.encodeFile(modFilePath);
-    ASTFileResult modResult(buildLabFileId, modFilePath, (ModuleScope*) nullptr);
 
     // module file data
-    ModuleFileData modFileData;
+    auto modFilePathChemView = chem::string_view(modFilePathView);
+    auto modFileId = loc_man.encodeFile(modFilePath);
+    ModuleFileData modFileData(modFileId, modFilePathChemView);
+
+    // set those module names
+    modFileData.scope_name = scope_name;
+    modFileData.module_name = module_name;
 
     // import the file into result (lex and parse)
-    if (!ASTProcessor::import_chemical_mod_file(*this, modResult, modFileData, buildLabFileId, modFilePath)) {
-        return nullptr;
-    }
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePath);
 
-    // printing results for module file parsing
-    print_results(modResult, modFilePath, true);
+    // printing the diagnostics for the file
+    CSTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");
 
-    // probably an error during parsing
-    if (!modResult.continue_processing) {
+    // error out if not ok
+    if (!isModFileOk) {
         std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't parse the mod file at '" << modFilePathView << "' due to errors" << std::endl;
         return nullptr;
     }
@@ -1640,15 +1694,19 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
 
     // importing all compiler interfaces user requested inside the .mod file
-    module->compiler_interfaces = std::move(modFileData.compiler_interfaces);
+    for(auto& interface : modFileData.compiler_interfaces) {
+        auto found = binder.interface_maps.find(interface);
+        if(found != binder.interface_maps.end()) {
+            module->compiler_interfaces.emplace_back(found->second);
+        } else {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "unknown compiler interface '" << interface << "' in mod file a '" << modFilePathView << "'" << std::endl;
+            return nullptr;
+        }
+    }
 
     if (verbose) {
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
-
-    // lets update the module scope of the mod file ast result, which we set to nullptr initially
-    modResult.unit.scope.set_parent(&module->module_scope);
-    modResult.module = &module->module_scope;
 
     // module dependencies we determined from directly imported files
     std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
@@ -1656,7 +1714,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // this function figures out dependencies based on import statements
     path_handler.figure_out_mod_dep_using_imports(
             buildLabModuleDependencies,
-            modResult.unit.scope.body.nodes,
+            modFileData.scope.body.nodes,
             container
     );
 

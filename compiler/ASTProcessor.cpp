@@ -80,7 +80,11 @@ void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view&
     }
 }
 
-void ASTProcessor::determine_module_files(LabModule* module) {
+void ASTProcessor::determine_module_files(
+        ImportPathHandler& path_handler,
+        LocationManager& loc_man,
+        LabModule* module
+) {
     auto& files = module->direct_files;
     if(!files.empty()) {
         // it seems the files have already been determined

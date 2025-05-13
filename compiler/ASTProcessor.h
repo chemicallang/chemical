@@ -158,7 +158,18 @@ public:
      * this doesn't take into account import statements that import files that aren't present
      * inside the module
      */
-    void determine_module_files(LabModule* module);
+     static void determine_module_files(
+             ImportPathHandler& handler,
+             LocationManager& locMan,
+             LabModule* module
+     );
+
+    /**
+     * helper method to determine the direct files in the module
+     */
+    inline void determine_module_files(LabModule* module) {
+        determine_module_files(path_handler, loc_man, module);
+    }
 
     /**
      * imports files in a module, this just lexes and parses the file, no symbol resolution

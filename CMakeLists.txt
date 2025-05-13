@@ -755,4 +755,5 @@ if(UNIX)
 endif()
 
 # Link Lsp
+#target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp ${LIBTCC_LIB})
 target_link_libraries(ChemicalLsp lspcpp ${LIBTCC_LIB})

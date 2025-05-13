@@ -260,12 +260,6 @@ public:
     bool compile_build_lab();
 
     /**
-     * get a system header translated to the output path output_path
-     * pair contains output from command line and executable return status code
-     */
-    std::pair<std::string, int> get_c_translated(const std::string& header_abs_path, const std::string& output_path);
-
-    /**
      * get the folding range for the given absolute file path
      */
     td_foldingRange::response get_folding_range(const lsDocumentUri& uri);
@@ -479,14 +473,6 @@ public:
     );
 
     /**
-     * just like the get_lexed above, but this supports C headers and files because
-     * it checks the path in the import statement, if it's a system header or a normal C file
-     * it stores the C headers in the lib/system/stdio.h for example
-     * relative to the lsp executable path
-     */
-    std::shared_ptr<LexResult> get_lexed(const FlatIGFile& flat_file);
-
-    /**
      * Returns the overridden source code for file at path
      */
     std::optional<std::string> get_overridden_source(const std::string& path);
@@ -522,11 +508,6 @@ public:
     ~WorkspaceManager();
 
 };
-
-/**
- * get's header path in lib/system directory when given header path like stdio.h
- */
-std::string rel_to_lib_system(const std::string& header_path, const std::string& lsp_exe_path);
 
 extern void replace(
         std::string &source,

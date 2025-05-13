@@ -32,6 +32,7 @@
 #include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "compiler/lab/LabBuildCompilerOptions.h"
+#include "compiler/ASTProcessor.h"
 #include "server/analyzers/InlayHintAnalyzerApi.h"
 #include "server/analyzers/SignatureHelpAnalyzer.h"
 #include <fstream>
@@ -131,6 +132,11 @@ void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
     // lets index all the files to modules they belong to
     for(auto& mod_ptr : modStorage.get_modules()) {
         const auto mod = mod_ptr.get();
+
+        // determine each module files
+        ASTProcessor::determine_module_files(pathHandler, loc_man, mod);
+
+        // index each module files
         for(auto& file : mod->direct_files) {
             filesIndex.emplace(chem::string_view(file.abs_path), mod);
         }
@@ -218,18 +224,6 @@ void WorkspaceManager::initialize(const td_initialize::request &req) {
         // compile build.lab asynchronously
         compile_build_lab();
     });
-}
-
-std::pair<std::string, int> WorkspaceManager::get_c_translated(const std::string& header_abs_path, const std::string& output_path) {
-    std::string output;
-    std::vector<std::string> command = {compiler_exe_path(), '"' + header_abs_path + '"', "-o", '"' + output_path + '"', "-res", '"' + resources_path() + '"'};
-    std::cout << "[LSP] Command : ";
-    for(auto& cmd : command) {
-        std::cout << cmd << ' ';
-    }
-    std::cout << std::endl;
-    auto res = invoke_capturing_out(command, output);
-    return {output, res};
 }
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {

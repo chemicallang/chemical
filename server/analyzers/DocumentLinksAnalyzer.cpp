@@ -6,8 +6,6 @@
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "preprocess/ImportPathHandler.h"
 
-std::string rel_to_lib_system(const std::string& header_path, const std::string& lsp_exe_path);
-
 std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
     std::vector<lsDocumentLink> links;
     ImportPathHandler path_handler(compiler_exe_path);

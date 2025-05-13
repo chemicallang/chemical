@@ -63,7 +63,6 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     result->abs_path = path;
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
-        SourceProvider reader(&input_source);
         Lexer lexer(path, &input_source, &binder, result->allocator);
         lexer.getTokens(result->tokens);
         result->diags = std::move(lexer.diagnoser.diagnostics);
@@ -72,7 +71,6 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
         if(input_source.has_error()) {
             return nullptr;
         }
-        SourceProvider reader(&input_source);
         Lexer lexer(path, &input_source, &binder, result->allocator);
         lexer.getTokens(result->tokens);
         result->diags = std::move(lexer.diagnoser.diagnostics);
@@ -85,14 +83,14 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast_no_lock(
         const std::string& path,
         GlobalInterpretScope& comptime_scope
 ) {
-    // TODO memory leak, make this module scope free
-    const auto modScope = new ModuleScope("", "", nullptr);
 
+    ASTAllocator allocator_(0);
+    const auto modScope = new (allocator_.allocate<ModuleScope>()) ModuleScope("", "", nullptr);
     const auto fileId = loc_man.encodeFile(path);
     const auto result_ptr = new ASTResult(
             path,
             ASTUnit(fileId, chem::string_view(path), modScope),
-            ASTAllocator(0),
+            std::move(allocator_),
             {}
     );
     auto result = std::shared_ptr<ASTResult>(result_ptr);
@@ -173,56 +171,6 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
 //    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
 
     return result;
-}
-
-std::string rel_to_lib_system(const std::string &header_path, const std::string& lsp_exe_path) {
-    auto system_headers = resolve_sibling(lsp_exe_path, "libs/system");
-    if(!std::filesystem::exists(system_headers)) {
-        if(!std::filesystem::create_directories(system_headers)) {
-            return "";
-        }
-    }
-    return resolve_rel_child_path_str(system_headers, header_path + ".ch");
-}
-
-std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_file) {
-    if(!flat_file.import_path.empty() && flat_file.import_path[0] == '@') {
-        if(flat_file.import_path.ends_with(".h") || flat_file.import_path.ends_with(".c")) {
-            if(flat_file.import_path.starts_with("@system")) {
-                auto header_path = flat_file.import_path.substr(flat_file.import_path.find('/') + 1);
-                auto expected_path = rel_to_lib_system(header_path, lsp_exe_path);
-                if(expected_path.empty()) {
-                    std::cerr << "[LSP] Couldn't resolve header path for " << header_path << std::endl;
-                    return nullptr;
-                }
-//            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
-                // locking path mutex so multiple calls with same paths are considered once for translation
-                auto& mutex = parse_lock_path_mutex(flat_file.abs_path);
-//            std::cout << "[LSP] checking if exists " << flat_file.abs_path << std::endl;
-                if(std::filesystem::exists(expected_path)) {
-//                std::cerr << "[LSP] System header cache hit " << expected_path << std::endl;
-                } else {
-                    std::cout << "[LSP] System header cache miss for header " << header_path << " at " << expected_path << " trying " << flat_file.abs_path << std::endl;
-                    auto result = get_c_translated(flat_file.abs_path, expected_path);
-                    if(result.second == -1) {
-                        std::cerr << "[LSP] status code 1 when translating c header " << header_path << " at " << expected_path << std::endl;
-                    } else {
-                        std::cout << "[LSP] Translation C output " << std::endl << result.first << std::endl;
-                    }
-                }
-//            std::cout << "[LSP] Unlocking path mutex " << flat_file.abs_path << std::endl;
-                mutex.unlock();
-                return get_lexed(expected_path);
-            } else if(flat_file.import_path.starts_with("@std")) {
-                // don't do anything, since
-            } else {
-                // TODO check path aliases before returning empty
-                std::cerr << "[LSP] Doesn't yet support user provided headers / c files" << std::endl;
-                return nullptr;
-            }
-        }
-    }
-    return get_lexed(flat_file.abs_path);
 }
 
 LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag) {

@@ -734,4 +734,14 @@ func test_destructors() {
         }
         return count == 4
     })
+    test("destructible structs created in parent chain are destructed - 2", () => {
+        var count = 0
+        if(count == 0) {
+            var d = Destructible {
+                data : 739, count : &count, lamb : destruct_inc_count
+            }
+            var data = d.copy().data
+        }
+        return count == 2
+    })
 }

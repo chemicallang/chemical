@@ -54,7 +54,11 @@ public:
 
     bool primitive() final;
 
-    bool resolve_container(GenericInstantiatorAPI& instantiator);
+    bool resolve_container(GenericInstantiatorAPI& instantiator, BaseType* containerType);
+
+    inline bool resolve_container(GenericInstantiatorAPI& instantiator) {
+        return resolve_container(instantiator, refType);
+    }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 

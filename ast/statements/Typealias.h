@@ -148,11 +148,20 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
+    ASTNode* child(const chem::string_view &name) override;
+
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) final;
+    llvm::Type* llvm_type(Codegen &gen) final;
+
+    llvm::Type* llvm_param_type(Codegen &gen) override;
 
     void code_gen(Codegen &gen) final;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override {
+        const auto linked = actual_type->linked_node();
+        return linked != nullptr && linked->add_child_index(gen, indexes, name);
+    }
 
 #endif
 

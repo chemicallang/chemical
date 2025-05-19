@@ -1070,6 +1070,10 @@ llvm::Type *TypealiasStatement::llvm_type(Codegen &gen) {
     return actual_type->llvm_type(gen);
 }
 
+llvm::Type* TypealiasStatement::llvm_param_type(Codegen &gen) {
+    return actual_type->llvm_param_type(gen);
+}
+
 void BreakStatement::code_gen(Codegen &gen) {
     if(value) {
         auto& assignable = gen.current_assignable;

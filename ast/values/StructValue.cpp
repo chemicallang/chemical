@@ -14,6 +14,7 @@
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/types/GenericType.h"
+#include "ast/statements/Typealias.h"
 #include "ast/types/LinkedType.h"
 #include "ast/utils/GenericUtils.h"
 #include "StructMemberInitializer.h"
@@ -330,27 +331,26 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator) {
+bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseType* containerType) {
     auto& diagnoser = instantiator.getDiagnoser();
-    switch(refType->kind()) {
+    switch (containerType->kind()) {
         case BaseTypeKind::Struct:
-            container = refType->as_struct_type_unsafe();
+            container = containerType->as_struct_type_unsafe();
             break;
         case BaseTypeKind::Union:
-            container = refType->as_union_type_unsafe();
+            container = containerType->as_union_type_unsafe();
             break;
-        default:
-        {
-            const auto found = refType->linked_node();
-            if(!found) {
-                diagnoser.error(this) << "couldn't find struct definition for struct name " << refType->representation();
+        default: {
+            const auto found = containerType->linked_node();
+            if (!found) {
+                diagnoser.error(this) << "couldn't find struct definition for struct name " << containerType->representation();
                 return false;
             }
-            switch(found->kind()) {
-                case ASTNodeKind::GenericStructDecl:{
+            switch (found->kind()) {
+                case ASTNodeKind::GenericStructDecl: {
                     auto gen_args = create_generic_list();
                     const auto gen_decl = found->as_gen_struct_def_unsafe();
-                    if(are_all_specialized(gen_args)) {
+                    if (are_all_specialized(gen_args)) {
                         definition = gen_decl->register_generic_args(instantiator, gen_args);
                     } else {
                         definition = gen_decl->master_impl;
@@ -358,10 +358,10 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator) {
                     container = definition;
                     break;
                 }
-                case ASTNodeKind::GenericUnionDecl:{
+                case ASTNodeKind::GenericUnionDecl: {
                     auto gen_args = create_generic_list();
                     const auto gen_decl = found->as_gen_union_decl_unsafe();
-                    if(are_all_specialized(gen_args)) {
+                    if (are_all_specialized(gen_args)) {
                         definition = gen_decl->register_generic_args(instantiator, gen_args);
                     } else {
                         definition = gen_decl->master_impl;
@@ -370,14 +370,14 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator) {
                     break;
                 }
                 case ASTNodeKind::UnnamedUnion:
-                    if(values.size() > 1) {
+                    if (values.size() > 1) {
                         diagnoser.error("initializing multiple values inside a union is not allowed", this);
                         return false;
                     }
                     container = found->as_unnamed_union_unsafe();
                     break;
                 case ASTNodeKind::UnionDecl:
-                    if(values.size() > 1) {
+                    if (values.size() > 1) {
                         diagnoser.error("initializing multiple values inside a union is not allowed", this);
                         return false;
                     }
@@ -397,11 +397,13 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator) {
                 case ASTNodeKind::UnionType:
                     container = (UnionType*) found;
                     break;
+                case ASTNodeKind::TypealiasStmt:
+                    return resolve_container(instantiator, found->as_typealias_unsafe()->actual_type);
                 default:
                     diagnoser.error("unknown struct/union being initialized via struct value", this);
                     definition = found->as_extendable_members_container_node();
                     container = definition;
-                    break;
+                    return false;
             }
         }
     }

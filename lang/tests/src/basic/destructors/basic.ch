@@ -83,6 +83,10 @@ struct Holder1 {
     var thing : Destructible
 }
 
+struct Holder2 {
+    var thing : DestructibleAlias
+}
+
 func create_destructible(count : *mut int, data : int) : Destructible {
     return Destructible {
        data : data,
@@ -465,14 +469,19 @@ func test_destructors() {
         }
         return count == 1
     })
-    // -------------------------------- up---------------------
-    // -------------------------until this point---------------
-    // --------------------typealias has been tested-----------
     test("destructor is not called on values moved to other structs", () => {
         var count = 0
         if(count == 0) {
             var d = create_destructible(&count, 874)
             var h = Holder1 { thing : d }
+        }
+        return count == 1
+    })
+    test("destructor is not called on typealias values moved to other structs", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible_alias(&count, 874)
+            var h = Holder2 { thing : d }
         }
         return count == 1
     })
@@ -484,10 +493,26 @@ func test_destructors() {
         }
         return count == 1
     })
+    test("destructor is not called on typealias values moved to other arrays", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible_alias(&count, 874)
+            var h = { d }
+        }
+        return count == 1
+    })
     test("destructor is not called on values moved to other variants", () => {
         var count = 0
         if(count == 0) {
             var d = create_destructible(&count, 874)
+            var h = OptDestructible.Some(d)
+        }
+        return count == 1
+    })
+    test("destructor is not called on typealias values moved to other variants", () => {
+        var count = 0
+        if(count == 0) {
+            var d = create_destructible_alias(&count, 874)
             var h = OptDestructible.Some(d)
         }
         return count == 1
@@ -531,12 +556,42 @@ func test_destructors() {
         }
         return count == 3
     })
+    test("destructor is called on typealias values that are reinitialized using assignment", () => {
+        var count = 0
+        if(count == 0) {
+            var a = create_destructible_alias(&count, 874)
+            var d = create_destructible_alias(&count, 874)
+            // a is destructed, d is moved into it
+            a = d;
+            // since d is not initialized, it's not destructed, however now it's initialized
+            d = create_destructible_alias(&count, 323)
+            // a is destructed and d is destructed
+        }
+        return count == 3
+    })
     test("array values are destructed", () => {
         var count = 0;
         if(count == 0) {
             var arr : Destructible[10] = {};
             var i = 0;
             var ptr : *mut Destructible;
+            while(i < 10) {
+                ptr = &arr[i];
+                ptr.count = &count;
+                ptr.lamb = (count : *mut int) => {
+                    *count = *count + 1;
+                }
+                i++;
+            }
+        }
+        return count == 10;
+    })
+    test("array typealias values are destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            var arr : DestructibleAlias[10] = {};
+            var i = 0;
+            var ptr : *mut DestructibleAlias;
             while(i < 10) {
                 ptr = &arr[i];
                 ptr.count = &count;
@@ -565,11 +620,37 @@ func test_destructors() {
         }
         return count == 10;
     })
+    test("array typealias types are destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            var arr : DestructibleAlias[10];
+            var i = 0;
+            var ptr : *mut DestructibleAlias;
+            while(i < 10) {
+                ptr = &arr[i];
+                ptr.count = &count;
+                ptr.lamb = (count : *mut int) => {
+                    *count = *count + 1;
+                }
+                i++;
+            }
+        }
+        return count == 10;
+    })
     test("destructible struct present inside struct values is destructed", () => {
         var count = 0
         if(count == 0) {
             var holder = Holder1 {
                 thing : create_destructible(&count, 332)
+            }
+        }
+        return count == 1
+    })
+    test("destructible struct present inside struct values typealias is destructed", () => {
+        var count = 0
+        if(count == 0) {
+            var holder = Holder2 {
+                thing : create_destructible_alias(&count, 332)
             }
         }
         return count == 1
@@ -606,6 +687,13 @@ func test_destructors() {
         }
         return count == 1;
     })
+    test("structs passed to functions as typealias arguments are automatically destructed - 3", () => {
+        var count = 0;
+        if(count == 0) {
+            test_struct_param_destructor(create_destructible_alias(&count, 223))
+        }
+        return count == 1;
+    })
     test("referenced structs are moved into functions as arguments are not destructed twice", () => {
         var count = 0;
         if(count == 0) {
@@ -614,10 +702,25 @@ func test_destructors() {
         }
         return count == 1;
     })
+    test("referenced structs are moved into functions as typealias arguments are not destructed twice", () => {
+        var count = 0;
+        if(count == 0) {
+            var d = create_destructible_alias(&count, 223);
+            test_struct_param_destructor(d)
+        }
+        return count == 1;
+    })
     test("struct created in a access chain node, not assigned to a variable is destructed", () => {
         var count = 0;
         if(count == 0) {
             create_destructible(&count, 676)
+        }
+        return count == 1;
+    })
+    test("typealias struct created in a access chain node, not assigned to a variable is destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            create_destructible_alias(&count, 676)
         }
         return count == 1;
     })

@@ -143,9 +143,21 @@ public:
 
     /**
      * this imports the given files in parallel using the given thread pool
+     * this doesn't handle any import statements present inside the files
      * @return true if succeeding importing all files with continue_processing, false otherwise
      */
-    bool import_chemical_files(
+    bool import_chemical_files_direct(
+            ctpl::thread_pool& pool,
+            std::vector<ASTFileMetaData>& files
+    );
+
+    /**
+     * this imports the given files in parallel using the given thread pool
+     * this also imports any files for which import statements are present in the given
+     * files, it recursively handles import statements
+     * @return true if succeeding importing all files with continue_processing, false otherwise
+     */
+    bool import_chemical_files_recursive(
             ctpl::thread_pool& pool,
             std::vector<ASTFileResult*>& out_files,
             std::vector<ASTFileMetaData>& files,
@@ -174,28 +186,12 @@ public:
     /**
      * imports files in a module, this just lexes and parses the file, no symbol resolution
      * the given 'files' are lexed and parsed into units which are put into 'out_files'
-     * it also takes into account files imported using import statements inside the files
      */
-    bool import_module_files(
-            ctpl::thread_pool& pool,
-            std::vector<ASTFileResult*>& out_files,
-            std::vector<ASTFileMetaData>& files,
-            LabModule* module,
-            bool use_job_allocator
-    );
-
-    /**
-     * same as above, doesn't use job allocator for all the parsing
-     */
-    inline bool import_module_files(
+    bool import_module_files_direct(
             ctpl::thread_pool& pool,
             std::vector<ASTFileMetaData>& files,
             LabModule* module
-    ) {
-        // TODO out_files is not required
-        std::vector<ASTFileResult*> out_files;
-        return import_module_files(pool, out_files, files, module, false);
-    }
+    );
 
     /**
      * figures out direct imports of the given file (fileData), the fileNodes are the nodes
@@ -221,7 +217,7 @@ public:
      * import a single file and all it's imports (in parallel) using the given thread pool
      * @return true if success importing this file and it's imports, false otherwise
      */
-    bool import_chemical_file(
+    bool import_chemical_file_recursive(
             ASTFileResult& result,
             ctpl::thread_pool& pool,
             ASTFileMetaData& fileData,

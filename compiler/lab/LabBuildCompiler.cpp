@@ -497,7 +497,7 @@ int LabBuildCompiler::process_module_tcc(
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    const auto parse_success = processor.import_module_files(pool, direct_files, mod);
+    const auto parse_success = processor.import_module_files_direct(pool, direct_files, mod);
 
     // lets print diagnostics for all files in module
     for(auto& file : direct_files) {
@@ -644,7 +644,7 @@ int LabBuildCompiler::process_module_gen(
 
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
-    const auto parse_success = processor.import_module_files(pool, direct_files, mod);
+    const auto parse_success = processor.import_module_files_direct(pool, direct_files, mod);
 
     // lets print diagnostics for all files in module
     for(auto& file : direct_files) {
@@ -1798,7 +1798,8 @@ TCCState* LabBuildCompiler::built_lab_file(
         // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
-        const auto success = lab_processor.import_chemical_files(pool, labFileResult.imports, direct_files_in_lab, true);
+        const auto success = lab_processor.import_chemical_files_recursive(pool, labFileResult.imports,
+                                                                           direct_files_in_lab, true);
         if(!success) {
             return nullptr;
         }

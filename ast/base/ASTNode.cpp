@@ -12,6 +12,8 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/StringValue.h"
 #include "compiler/mangler/NameMangler.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -24,11 +26,14 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/StructMember.h"
+#include "ast/types/PointerType.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/If.h"
+#include "ast/statements/Return.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "preprocess/RepresentationVisitor.h"
+#include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
 
 #if !defined(DEBUG) && defined(COMPILER_BUILD)
@@ -43,6 +48,36 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 #else
     return { chem::string_view(ptr, size) };
 #endif
+}
+
+FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, const chem::string_view& scopeName, const chem::string_view& modName) {
+    // lets prepare function signature
+    const auto modNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Module"));
+    const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(chem::string_view("get")), ptrModNmdType, false, nullptr, ZERO_LOC, AccessSpecifier::Public, false);
+    const auto buildContextNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("BuildContext"));
+    const auto ptrBuildCtx = new (allocator.allocate<PointerType>()) PointerType(buildContextNmdType, true);
+    const auto ctxParam = new (allocator.allocate<FunctionParam>()) FunctionParam(chem::string_view("ctx"), TypeLoc(ptrBuildCtx, ZERO_LOC), 0, nullptr, false, decl, ZERO_LOC);
+    decl->params.emplace_back(ctxParam);
+    // lets do function body
+    decl->body.emplace(decl, ZERO_LOC);
+    const auto ctxId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("ctx"), ZERO_LOC, false);
+    const auto defGetId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("default_get"), ZERO_LOC, false);
+    const auto callParentChain = new (allocator.allocate<AccessChain>()) AccessChain(false, ZERO_LOC);
+    callParentChain->values = { ctxId, defGetId };
+    const auto funcCall = new (allocator.allocate<FunctionCall>()) FunctionCall(callParentChain, ZERO_LOC);
+    // lets do default get function call arguments
+    const auto scopeNameStrVal = new (allocator.allocate<StringValue>()) StringValue(scopeName, ZERO_LOC);
+    const auto modNameStrVal = new (allocator.allocate<StringValue>()) StringValue(modName, ZERO_LOC);
+    const auto buildId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), ZERO_LOC, false);
+    const auto buildIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildId }, false, ZERO_LOC);
+    funcCall->values = { scopeNameStrVal, modNameStrVal, buildIdWrap };
+    // just wrapping the function call in a chain before return
+    const auto funcCallWrap = new (allocator.allocate<AccessChain>()) AccessChain({ funcCall }, false, ZERO_LOC);
+    const auto retStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(funcCallWrap, decl, ZERO_LOC);
+    decl->body.value().nodes.emplace_back(retStmt);
+    // returning the created declaration
+    return decl;
 }
 
 //LocatedIdentifier LOC_ID(BatchAllocator& allocator, std::string identifier, SourceLocation location) {

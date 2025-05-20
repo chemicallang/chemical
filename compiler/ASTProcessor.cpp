@@ -23,6 +23,7 @@
 #include "ast/statements/Import.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
 #include "stream/StringInputSource.h"
+#include "compiler/lab/LabGetMethodInjection.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -550,7 +551,18 @@ bool import_file_in_lab(
     FileInputSource inp_source(abs_path.data());
     if(!inp_source.has_error()) {
         // import the file into result (lex and parse)
-        return proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
+        const auto import_res = proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
+        if(import_res && abs_path.ends_with(".lab")) {
+            // we inject a get method into every .lab file
+           auto& allocator = use_job_allocator ? proc.job_allocator : proc.mod_allocator;
+           // TODO we must figure out scope name and mod name from the build.lab file
+           chem::string_view scope_name;
+           chem::string_view mod_name;
+           const auto getMethod = default_build_lab_get_method(allocator, scope_name, mod_name);
+           // TODO: we'll uncomment this once get scope name and module name is ready
+//           result.unit.scope.body.nodes.emplace_back(getMethod);
+        }
+        return import_res;
     }
 
     // since an error occurred, if this is an import for build.lab file

@@ -434,12 +434,11 @@ bool ASTProcessor::import_chemical_files_recursive(
         *static_cast<ASTFileMetaData*>(out_file) = fileData;
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        futures.emplace_back(chemical_file_concurrent_importer(0, this, pool, out_file, fileData, use_job_allocator));
+        futures.emplace_back(chem_file_concur_importer_recursive(0, this, pool, out_file, fileData, use_job_allocator));
 #else
         futures.emplace_back(
                 nullptr,
-                pool.push(chem_file_concur_importer_recursive, this, std::ref(pool), out_file, fileData,
-                          use_job_allocator)
+                pool.push(chem_file_concur_importer_recursive, this, std::ref(pool), out_file, fileData, use_job_allocator)
         );
 #endif
 
@@ -478,6 +477,7 @@ void ASTProcessor::figure_out_direct_imports(
 
             if(stmt->filePath.empty()) {
                 // this must be 'import std' in build.lab
+                // file path is only in double quotes import "file.ch"
                 continue;
             }
 
@@ -571,24 +571,20 @@ bool ASTProcessor::import_chemical_file(
         ASTFileResult& result,
         unsigned int fileId,
         const std::string_view& abs_path,
+        InputSource* inp_source,
         bool use_job_allocator
 ) {
 
+    result.abs_path = abs_path;
+    result.file_id = fileId;
+    result.private_symbol_range = { 0, 0 };
+    result.continue_processing = true;
+    result.diCompileUnit = nullptr;
+    result.unit.scope.file_path = chem::string_view(result.abs_path);
+
     auto& unit = result.unit;
 
-    FileInputSource inp_source(abs_path.data());
-    if(inp_source.has_error()) {
-        result.continue_processing = false;
-        result.read_error = inp_source.error_message();
-        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
-        if(!result.read_error.empty()) {
-            std::cerr << " because " << result.read_error;
-        }
-        std::cerr << rang::fg::reset << std::endl;
-        return false;
-    }
-
-    Lexer lexer(std::string(abs_path), &inp_source, &binder, file_allocator);
+    Lexer lexer(std::string(abs_path), inp_source, &binder, file_allocator);
     std::vector<Token> tokens;
 
     // actual lexing
@@ -647,27 +643,37 @@ bool ASTProcessor::import_chemical_file(
 
 }
 
+bool ASTProcessor::import_chemical_file(
+        ASTFileResult& result,
+        unsigned int fileId,
+        const std::string_view& abs_path,
+        bool use_job_allocator
+) {
+    FileInputSource inp_source(abs_path.data());
+    if(inp_source.has_error()) {
+        result.continue_processing = false;
+        result.read_error = inp_source.error_message();
+        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
+        if(!result.read_error.empty()) {
+            std::cerr << " because " << result.read_error;
+        }
+        std::cerr << rang::fg::reset << std::endl;
+        return false;
+    }
+    return import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
+}
+
 bool ASTProcessor::import_chemical_mod_file(
         ASTAllocator& fileAllocator,
         ASTAllocator& modAllocator,
         LocationManager& loc_man,
         ModuleFileData& data,
         unsigned int fileId,
-        const std::string_view& abs_path
+        const std::string_view& abs_path,
+        InputSource* inp_source
 ) {
 
-    FileInputSource inp_source(abs_path.data());
-    if(inp_source.has_error()) {
-        data.read_error = inp_source.error_message();
-        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
-        if(!data.read_error.empty()) {
-            std::cerr << " because " << data.read_error;
-        }
-        std::cerr << rang::fg::reset << std::endl;
-        return false;
-    }
-
-    Lexer lexer(std::string(abs_path), &inp_source, nullptr, fileAllocator);
+    Lexer lexer(std::string(abs_path), inp_source, nullptr, fileAllocator);
     std::vector<Token> tokens;
     lexer.getTokens(tokens);
 
@@ -695,6 +701,27 @@ bool ASTProcessor::import_chemical_mod_file(
 
     return !parser.has_errors;
 
+}
+
+bool ASTProcessor::import_chemical_mod_file(
+        ASTAllocator& fileAllocator,
+        ASTAllocator& modAllocator,
+        LocationManager& loc_man,
+        ModuleFileData& data,
+        unsigned int fileId,
+        const std::string_view& abs_path
+) {
+    FileInputSource inp_source(abs_path.data());
+    if(inp_source.has_error()) {
+        data.read_error = inp_source.error_message();
+        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
+        if(!data.read_error.empty()) {
+            std::cerr << " because " << data.read_error;
+        }
+        std::cerr << rang::fg::reset << std::endl;
+        return false;
+    }
+    return import_chemical_mod_file(fileAllocator, modAllocator, loc_man, data, fileId, abs_path, &inp_source);
 }
 
 // this function cannot be used as a replacement for .mod or .lab files
@@ -763,19 +790,6 @@ void ASTProcessor::figure_out_module_dependency_based_on_import(
         }
 
     }
-
-}
-
-bool ASTProcessor::import_file(ASTFileResult& result, unsigned int fileId, const std::string_view& abs_path, bool use_job_allocator) {
-
-    result.abs_path = abs_path;
-    result.file_id = fileId;
-    result.private_symbol_range = { 0, 0 };
-    result.continue_processing = true;
-    result.diCompileUnit = nullptr;
-    result.unit.scope.file_path = chem::string_view(result.abs_path);
-
-    return import_chemical_file(result, fileId, abs_path, use_job_allocator);
 
 }
 

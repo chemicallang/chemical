@@ -20,6 +20,7 @@
 #include "compiler/processor/ASTFileResult.h"
 #include "compiler/processor/ModuleDependencyRecord.h"
 #include "compiler/processor/ModuleFileData.h"
+#include "stream/InputSource.h"
 #include <span>
 #include <mutex>
 
@@ -232,8 +233,33 @@ public:
             ASTFileResult& result,
             unsigned int fileId,
             const std::string_view& absolute_path,
+            InputSource* source,
             bool use_job_allocator
     );
+
+    /**
+     * import chemical file with absolute path to it
+     * @return true if success importing file, false otherwise
+     */
+    bool import_chemical_file(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& absolute_path,
+            bool use_job_allocator
+    );
+
+    /**
+     * lex, parse in file and return Scope containing nodes
+     * without performing any symbol resolution
+     */
+    bool import_file(
+            ASTFileResult& result,
+            unsigned int fileId,
+            const std::string_view& abs_path,
+            bool use_job_allocator
+    ) {
+        return import_chemical_file(result, fileId, abs_path, use_job_allocator);
+    }
 
     /**
      * import chemical file with absolute path to it
@@ -249,14 +275,17 @@ public:
     );
 
     /**
-     * lex, parse in file and return Scope containing nodes
-     * without performing any symbol resolution
+     * import chemical file with absolute path to it
+     * @return true if success importing file, false otherwise
      */
-    bool import_file(
-            ASTFileResult& result,
+    static bool import_chemical_mod_file(
+            ASTAllocator& fileAllocator,
+            ASTAllocator& modAllocator,
+            LocationManager& loc_man,
+            ModuleFileData& data,
             unsigned int fileId,
-            const std::string_view& absolute_path,
-            bool use_job_allocator
+            const std::string_view& abs_path,
+            InputSource* inp_source
     );
 
     /**

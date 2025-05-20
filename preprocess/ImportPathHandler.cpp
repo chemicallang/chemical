@@ -95,7 +95,7 @@ AtReplaceResult lib_path_replacer(
     const std::string& importPath,
     unsigned int slash
 ) {
-    auto result = lib_src_path_resolver(lib_name, handler);
+    auto result = lib_path_resolver(lib_name, handler);
     if(result.error.empty() && slash + 1 < importPath.size()) {
         auto filePath = importPath.substr(slash + 1);
         auto replaced = resolve_rel_child_path_str(result.replaced, filePath);

@@ -9,7 +9,7 @@
 #include "integration/common/Diagnostic.h"
 #include <string>
 
-struct ModuleFileData {
+class ModuleFileData {
 public:
 
     /**

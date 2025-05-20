@@ -15,17 +15,31 @@ FileInputSource::FileInputSource(const char* file_path) {
     error.kind = InputSourceErrorKind::None;
     error.message = "";
 #ifdef _WIN32
-//    const auto abs = absolute_path(file_path);
     fileHandle = CreateFile(file_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (fileHandle == INVALID_HANDLE_VALUE) {
         error.kind = InputSourceErrorKind::FileNotOpen;
     }
 #else
     fileDescriptor = open(file_path, O_RDONLY);
-        if (fileDescriptor == -1) {
-            error.kind = InputSourceErrorKind::FileNotOpen;
-        }
+    if (fileDescriptor == -1) {
+        error.kind = InputSourceErrorKind::FileNotOpen;
+    }
 #endif
+}
+
+InputSourceErrorKind FileInputSource::open(const char* file_path) {
+#ifdef _WIN32
+    fileHandle = CreateFile(file_path, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (fileHandle == INVALID_HANDLE_VALUE) {
+        return InputSourceErrorKind::FileNotOpen;
+    }
+#else
+    fileDescriptor = open(file_path, O_RDONLY);
+    if (fileDescriptor == -1) {
+        return InputSourceErrorKind::FileNotOpen;
+    }
+#endif
+    return InputSourceErrorKind::None;
 }
 
 size_t FileInputSource::read(char *buffer, size_t size) {

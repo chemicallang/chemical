@@ -20,6 +20,8 @@ public:
 
     explicit FileInputSource(const char* file_path);
 
+    InputSourceErrorKind open(const char* file_path);
+
     size_t read(char* buffer, size_t size) final;
 
     off_t seek(off_t offset, int whence) final;

@@ -1792,14 +1792,13 @@ TCCState* LabBuildCompiler::built_lab_file(
     auto& direct_files_in_lab = chemical_lab_module.direct_files;
     lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, direct_files_in_lab);
 
-    // if has imports, we import those files, this would just hit caches
-    // but it's required to build a proper import tree
+    // if has imports, we import those files as well
+    // it's required to build a proper import tree
     if(!direct_files_in_lab.empty()) {
         // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
-        const auto success = lab_processor.import_chemical_files_recursive(pool, labFileResult.imports,
-                                                                           direct_files_in_lab, true);
+        const auto success = lab_processor.import_chemical_files_recursive(pool, labFileResult.imports, direct_files_in_lab, true);
         if(!success) {
             return nullptr;
         }

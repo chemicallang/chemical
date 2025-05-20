@@ -19,8 +19,10 @@
 #include "stream/FileInputSource.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "preprocess/ImportPathHandler.h"
+#include "compiler/lab/mod_conv/ModToLabConverter.h"
 #include "ast/statements/Import.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
+#include "stream/StringInputSource.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -537,6 +539,59 @@ void ASTProcessor::figure_out_direct_imports(
 
 }
 
+bool import_file_in_lab(
+        ASTProcessor& proc,
+        ASTFileResult& result,
+        unsigned int fileId,
+        const std::string& abs_path,
+        bool use_job_allocator
+) {
+    // import the file if it has no error
+    FileInputSource inp_source(abs_path.data());
+    if(!inp_source.has_error()) {
+        // import the file into result (lex and parse)
+        return proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
+    }
+
+    // since an error occurred, if this is an import for build.lab file
+    // and instead of a build.lab file user has a chemical.mod file, we translate it
+    auto prev_msg = inp_source.error_message();
+    if(abs_path.ends_with(".lab")) {
+        auto modFile = resolve_sibling(abs_path, "chemical.mod");
+        const auto modFileErr = inp_source.open(modFile.data());
+        if(modFileErr == InputSourceErrorKind::None) {
+
+            // lets get a new file id for module file
+            auto modFileId = proc.loc_man.encodeFile(modFile);
+
+            // importing .mod file into data
+            ModuleFileData data(modFileId, chem::string_view(modFile));
+            auto importModFileRes = proc.import_chemical_mod_file(proc.file_allocator, proc.file_allocator, proc.loc_man, data, modFileId, modFile, &inp_source);
+            if(!importModFileRes) {
+                return false;
+            }
+
+            // lets use it to translate module file into a build.lab and import it
+            std::ostringstream stream;
+            convertToBuildLab(data, stream);
+            StringInputSource labInpSource(stream.str());
+            return proc.import_chemical_file(result, modFileId, modFile, &labInpSource, use_job_allocator);
+
+        }
+    }
+
+    // since couldn't import both .lab / .mod we return the original error
+    result.continue_processing = false;
+    result.read_error = prev_msg;
+    std::cerr << rang::fg::red << "error: when reading file '" << abs_path;
+    if(!result.read_error.empty()) {
+        std::cerr << "' because " << result.read_error;
+    }
+    std::cerr << rang::fg::reset << std::endl;
+    return false;
+
+}
+
 bool ASTProcessor::import_chemical_file_recursive(
         ASTFileResult& result,
         ctpl::thread_pool& pool,
@@ -545,7 +600,7 @@ bool ASTProcessor::import_chemical_file_recursive(
 ) {
 
     // import the file into result (lex and parse)
-    const auto success = import_file(result, fileData.file_id, fileData.abs_path, use_job_allocator);
+    const auto success = import_file_in_lab(*this, result, fileData.file_id, fileData.abs_path, use_job_allocator);
     if(!success) {
         return false;
     }
@@ -724,10 +779,6 @@ bool ASTProcessor::import_chemical_mod_file(
     return import_chemical_mod_file(fileAllocator, modAllocator, loc_man, data, fileId, abs_path, &inp_source);
 }
 
-// this function cannot be used as a replacement for .mod or .lab files
-// because a module won't import all the files from external module, only a few
-// and we can't determine which modules it depends on because one of the non-imported files may
-// have dependencies on other modules (in other words, an import tree in our language doesn't tell us the complete module graph)
 void ASTProcessor::figure_out_module_dependency_based_on_import(
         ASTFileResult& imported,
         std::vector<ModuleDependencyRecord>& dependencies

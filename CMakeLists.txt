@@ -558,6 +558,7 @@ set(COMMON_SOURCES
         compiler/cbi/model/CBIFunctionIndex.h
         compiler/lab/mod_conv/ModToLabConverter.h
         compiler/lab/mod_conv/ModToLabConverter.cpp
+        compiler/lab/LabGetMethodInjection.h
 )
 
 # Chemical LSP Executable Target

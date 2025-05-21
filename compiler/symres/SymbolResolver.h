@@ -479,6 +479,11 @@ public:
     void link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
 
     /**
+     * declare and link file in one shot, the symbols inside the file are erased
+     */
+    void declare_and_link_file(Scope& scope, const std::string& abs_path);
+
+    /**
      * do not symbol resolve the file, just import it, it will just declare the symbols inside
      */
     void import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public);

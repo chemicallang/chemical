@@ -1,6 +1,7 @@
 import lab
 import std
 import "./submod2/build.lab" as submod2
+// import "@std/build.lab" as stdMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = ctx.build_path();
@@ -85,6 +86,7 @@ func build(ctx : *mut AppBuildContext) {
     const ext_cpp_path = lab::rel_path_to("ext/file2.cpp")
     const ext_cpp_module = ctx.cpp_file_module(std::string_view(""), std::string_view("ext_cpp"), std::string_view(ext_cpp_path), { })
 
+    // const std_module = stdMod.get(ctx)
     // the std module
     var std_module = ctx.native_lib_module(std::string_view("std"));
     if(std_module == null) {

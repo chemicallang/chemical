@@ -14,6 +14,7 @@
 #include "rang.hpp"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/statements/VarInit.h"
 #include <filesystem>
 #include "lexer/Lexer.h"
 #include "stream/FileInputSource.h"
@@ -197,6 +198,24 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
     }
 }
 
+void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, const std::string& abs_path) {
+    // doing stuff
+    auto prev_has_errors = resolver->has_errors;
+    std::unique_ptr<BenchmarkResults> bm_results;
+    if(options->benchmark) {
+        bm_results = std::make_unique<BenchmarkResults>();
+        bm_results->benchmark_begin();
+    }
+    resolver->declare_and_link_file(scope, abs_path);
+    if(options->benchmark) {
+        bm_results->benchmark_end();
+        print_benchmarks(std::cout, "SymRes:link_seq", abs_path, bm_results.get());
+    }
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link_seq");
+    }
+}
+
 int ASTProcessor::sym_res_module(LabModule* module) {
 
     const auto mod_index = resolver->module_scope_start();
@@ -274,6 +293,45 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
     resolver->module_scope_end(mod_index);
     resolver->stored_file_symbols.clear();
+    return 0;
+}
+
+int ASTProcessor::sym_res_module_seq(LabModule* module) {
+    const auto mod_index = resolver->module_scope_start();
+
+    // declare symbols of directly imported modules
+
+    SymbolResolverDeclarer declarer(*resolver);
+    for(const auto dep : module->dependencies) {
+        for(auto& file_ptr : dep->direct_files) {
+            auto& file = *file_ptr.result;
+            for(const auto node : file.unit.scope.body.nodes) {
+                declare_node(declarer, node, AccessSpecifier::Public);
+            }
+        }
+    }
+
+    // declare symbols for all files once in the module
+
+    for(auto& file_ptr : module->direct_files) {
+
+        auto& file = *file_ptr.result;
+
+        sym_res_declare_and_link_file(file.unit.scope.body, file.abs_path);
+
+        // report and clear diagnostics
+        if (resolver->has_errors && !options->ignore_errors) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+            return 1;
+        }
+        resolver->reset_errors();
+
+        // clear everything allocated during symbol resolution of current file
+        file_allocator.clear();
+
+    }
+
+    resolver->module_scope_end(mod_index);
     return 0;
 }
 
@@ -542,25 +600,32 @@ void ASTProcessor::figure_out_direct_imports(
 
 bool import_file_in_lab(
         ASTProcessor& proc,
+        ASTFileMetaData& meta,
         ASTFileResult& result,
-        unsigned int fileId,
-        const std::string& abs_path,
         bool use_job_allocator
 ) {
+    auto& abs_path = meta.abs_path;
+    const auto fileId = meta.file_id;
     // import the file if it has no error
     FileInputSource inp_source(abs_path.data());
     if(!inp_source.has_error()) {
         // import the file into result (lex and parse)
         const auto import_res = proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
-        if(import_res && abs_path.ends_with(".lab")) {
-            // we inject a get method into every .lab file
-           auto& allocator = use_job_allocator ? proc.job_allocator : proc.mod_allocator;
-           // TODO we must figure out scope name and mod name from the build.lab file
-           chem::string_view scope_name;
-           chem::string_view mod_name;
-           const auto getMethod = default_build_lab_get_method(allocator, scope_name, mod_name);
-           // TODO: we'll uncomment this once get scope name and module name is ready
-//           result.unit.scope.body.nodes.emplace_back(getMethod);
+        if(import_res && abs_path.ends_with("build.lab")) {
+            // we inject a get method into every build.lab file
+            // it has to be specifically named build.lab so other lab files that are there for just
+            // imports don't get injected a get method which needs the build method to work
+            // it must also not be the last build.lab file
+            auto& typeBuilder = proc.type_builder;
+            auto& allocator = use_job_allocator ? proc.job_allocator : proc.mod_allocator;
+            const auto parentNode = &result.unit.scope;
+            const auto buildFlag = default_build_lab_build_flag(allocator, typeBuilder, parentNode);
+            const auto cachedPtr = default_build_lab_cached_ptr(allocator, typeBuilder, parentNode);
+            const auto getMethod = default_build_lab_get_method(allocator, typeBuilder, parentNode, buildFlag->name_view(), cachedPtr->name_view());
+            auto& nodes = result.unit.scope.body.nodes;
+            nodes.emplace_back(buildFlag);
+            nodes.emplace_back(cachedPtr);
+            nodes.emplace_back(getMethod);
         }
         return import_res;
     }
@@ -586,8 +651,18 @@ bool import_file_in_lab(
             // lets use it to translate module file into a build.lab and import it
             std::ostringstream stream;
             convertToBuildLab(data, stream);
-            StringInputSource labInpSource(stream.str());
-            return proc.import_chemical_file(result, modFileId, modFile, &labInpSource, use_job_allocator);
+            const auto& labOut = stream.str();
+            StringInputSource labInpSource(labOut);
+
+            // import the file into result
+            const auto res = proc.import_chemical_file(result, modFileId, modFile, &labInpSource, use_job_allocator);
+
+            // after the import
+            // we also change the absolute path of the file to the new chemical.mod file
+            meta.file_id = modFileId;
+            meta.abs_path = modFile;
+
+            return res;
 
         }
     }
@@ -612,7 +687,7 @@ bool ASTProcessor::import_chemical_file_recursive(
 ) {
 
     // import the file into result (lex and parse)
-    const auto success = import_file_in_lab(*this, result, fileData.file_id, fileData.abs_path, use_job_allocator);
+    const auto success = import_file_in_lab(*this, fileData, result, use_job_allocator);
     if(!success) {
         return false;
     }
@@ -662,6 +737,15 @@ bool ASTProcessor::import_chemical_file(
         result.lex_benchmark->benchmark_end();
     } else {
         lexer.getTokens(tokens);
+    }
+
+    const auto total_toks = tokens.size();
+    if(total_toks == 0) {
+        // empty file
+        return true;
+    } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
+        result.continue_processing = false;
+        return false;
     }
 
     // move lexer diagnostics

@@ -61,6 +61,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
         }
     }
     switch(token->type) {
+        case TokenType::ImportKw:
+            return (ASTNode*) parseImportStatement(allocator);
         case TokenType::PublicKw:
         case TokenType::PrivateKw:
         case TokenType::InternalKw:

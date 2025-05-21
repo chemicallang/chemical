@@ -207,12 +207,15 @@ public func (ctx : &BuildContext) create_module(scope_name : &std::string_view, 
     return mod;
 }
 
-public func (ctx : &BuildContext) default_get(scope_name : &std::string_view, name : &std::string_view, build : (ctx : *BuildContext) => *mut Module) : *mut Module {
-    var found = ctx.get_module(scope_name, name)
-    if(found == null) {
-        return build(&ctx)
+public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *mut *mut Module, build : (ctx : *BuildContext) => *mut Module) : *mut Module {
+    const c = *cached;
+    if(c == null && *buildFlag == true) {
+        const built = build(&ctx)
+        *cached = built
+        *buildFlag = false;
+        return built;
     } else {
-        return found;
+        return c;
     }
 }
 

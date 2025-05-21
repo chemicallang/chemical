@@ -101,7 +101,6 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
 }
 
 void Parser::parse(std::vector<ASTNode*>& nodes) {
-    parseTopLevelMultipleImportStatements(mod_allocator, nodes);
     parseTopLevelMultipleStatements(mod_allocator, nodes);
 }
 

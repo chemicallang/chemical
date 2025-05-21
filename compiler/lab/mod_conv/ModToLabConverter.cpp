@@ -62,7 +62,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
                 writeAsIdentifier(stmt, output);
-                output << ".get(), ";
+                output << ".get(ctx), ";
                 break;
             }
             default:
@@ -82,8 +82,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << "}\n\n";
 
     // get method
+    output << "var __chx_should_build : bool = true;\n";
+    output << "var __chx_cached_build : *mut Module = null;\n";
     output << "public func get(ctx : *mut BuildContext) : *Module {\n";
-    output << "\treturn ctx.default_get(\"" << data.scope_name << "\", \"" << data.module_name << "\", build);\n";
+    output << "\treturn ctx.default_get(&__chx_should_build, &__chx_cached_build, build);\n";
     output << "}\n";
 
 }

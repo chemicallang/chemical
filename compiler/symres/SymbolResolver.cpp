@@ -230,6 +230,21 @@ void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, 
     file_scope_end(scope_index);
 }
 
+void SymbolResolver::declare_and_link_file(Scope& scope, const std::string& abs_path) {
+    const auto scope_index = file_scope_start();
+    // TODO abs_path could be referencing a path that would freed
+    declared_files.emplace(chem::string_view(abs_path), scope);
+    auto& linker = *this;
+    const auto start = stored_file_symbols.size();
+    scope.tld_declare(linker);
+    const auto end = stored_file_symbols.size();
+    auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
+    enable_file_symbols(range);
+    scope.link_signature(*this);
+    scope.declare_and_link(*this);
+    file_scope_end(scope_index);
+}
+
 void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string_view& path, bool restrict_public) {
     file_scope_start();
     for(const auto node : nodes) {

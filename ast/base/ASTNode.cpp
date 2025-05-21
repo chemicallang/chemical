@@ -27,11 +27,16 @@
 #include "ast/statements/Typealias.h"
 #include "ast/structures/StructMember.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/BoolType.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/If.h"
+#include "ast/values/AddrOfValue.h"
 #include "ast/statements/Return.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/base/TypeBuilder.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/NullValue.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
@@ -50,32 +55,69 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 #endif
 }
 
-FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, const chem::string_view& scopeName, const chem::string_view& modName) {
-    // lets prepare function signature
+VarInitStatement* default_build_lab_build_flag(ASTAllocator& allocator, TypeBuilder& builder, ASTNode* parent) {
+    const auto buildFlagValue = new (allocator.allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_should_build")), builder.getBoolType(), buildFlagValue, parent, ZERO_LOC);
+    return stmt;
+}
+
+VarInitStatement* default_build_lab_cached_ptr(ASTAllocator& allocator, TypeBuilder& builder, ASTNode* parent) {
+
+    // the type for the *Module
     const auto modNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Module"));
     const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(chem::string_view("get")), ptrModNmdType, false, nullptr, ZERO_LOC, AccessSpecifier::Public, false);
+
+    const auto buildPtrValue = new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_cached_build")), ptrModNmdType, buildPtrValue, parent, ZERO_LOC);
+    return stmt;
+}
+
+FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeBuilder& builder, ASTNode* parent, const chem::string_view& buildFlagName, const chem::string_view& cachedPtrName) {
+
+    // the type for the *Module
+    const auto modNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Module"));
+    const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
+
+    // creating the function decl
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(chem::string_view("get")), ptrModNmdType, false, parent, ZERO_LOC, AccessSpecifier::Public, false);
+
+    // the type for the *BuildContext
     const auto buildContextNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("BuildContext"));
     const auto ptrBuildCtx = new (allocator.allocate<PointerType>()) PointerType(buildContextNmdType, true);
+
+    // the context parameter
     const auto ctxParam = new (allocator.allocate<FunctionParam>()) FunctionParam(chem::string_view("ctx"), TypeLoc(ptrBuildCtx, ZERO_LOC), 0, nullptr, false, decl, ZERO_LOC);
     decl->params.emplace_back(ctxParam);
+
     // lets do function body
     decl->body.emplace(decl, ZERO_LOC);
     const auto ctxId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("ctx"), ZERO_LOC, false);
     const auto defGetId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("default_get"), ZERO_LOC, false);
-    const auto callParentChain = new (allocator.allocate<AccessChain>()) AccessChain(false, ZERO_LOC);
-    callParentChain->values = { ctxId, defGetId };
+    const auto callParentChain = new (allocator.allocate<AccessChain>()) AccessChain({ ctxId, defGetId }, false, ZERO_LOC);
     const auto funcCall = new (allocator.allocate<FunctionCall>()) FunctionCall(callParentChain, ZERO_LOC);
+
+    // build flag id argument
+    const auto buildFlagId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(buildFlagName, ZERO_LOC, false);
+    const auto buildFlagIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFlagId }, false, ZERO_LOC);
+    const auto buildFlagPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(buildFlagIdWrap, ZERO_LOC);
+
+    // cached ptr id argument
+    const auto cachedPtrId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(cachedPtrName, ZERO_LOC, false);
+    const auto cachedPtrIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ cachedPtrId }, false, ZERO_LOC);
+    const auto cachedPtrPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(cachedPtrIdWrap, ZERO_LOC);
+
     // lets do default get function call arguments
-    const auto scopeNameStrVal = new (allocator.allocate<StringValue>()) StringValue(scopeName, ZERO_LOC);
-    const auto modNameStrVal = new (allocator.allocate<StringValue>()) StringValue(modName, ZERO_LOC);
-    const auto buildId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), ZERO_LOC, false);
-    const auto buildIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildId }, false, ZERO_LOC);
-    funcCall->values = { scopeNameStrVal, modNameStrVal, buildIdWrap };
+    const auto buildFuncId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), ZERO_LOC, false);
+    const auto buildFuncIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFuncId }, false, ZERO_LOC);
+
+    // putting arguments
+    funcCall->values = { buildFlagPtr, cachedPtrPtr, buildFuncIdWrap };
+
     // just wrapping the function call in a chain before return
     const auto funcCallWrap = new (allocator.allocate<AccessChain>()) AccessChain({ funcCall }, false, ZERO_LOC);
     const auto retStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(funcCallWrap, decl, ZERO_LOC);
     decl->body.value().nodes.emplace_back(retStmt);
+
     // returning the created declaration
     return decl;
 }

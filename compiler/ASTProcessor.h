@@ -305,9 +305,22 @@ public:
     void sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
 
     /**
+     * declare and link file in one shot, no symbols of the file will be retained
+     */
+    void sym_res_declare_and_link_file(Scope& scope, const std::string& abs_path);
+
+    /**
      * symbol resolves the module, creating the scope
      */
     int sym_res_module(LabModule* module);
+
+    /**
+     * this symbol resolves the module, however sequentially, which means
+     * symbols between files aren't shared, unless imported using as_identifier explicitly
+     * this prevents conflict between files when they are being compiled in a single
+     * module but don't belong to it
+     */
+    int sym_res_module_seq(LabModule* module);
 
     /**
      * print given benchmark results

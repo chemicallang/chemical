@@ -7,6 +7,7 @@
 #include "ast/structures/ModuleScope.h"
 #include "ast/base/LocatedIdentifier.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
+#include "utils/PathUtils.h"
 
 struct FileNodesIterator {
     ASTNode** start;
@@ -26,6 +27,14 @@ FileNodesIterator get_iterator(SymbolResolver& linker, ImportStatement* stmt) {
                 auto& nodes = found->second.nodes;
                 return { nodes.data(), nodes.data() + nodes.size() };
             } else {
+                if(result.replaced.ends_with("build.lab")) {
+                    auto mod_path = resolve_sibling(result.replaced, "chemical.mod");
+                    auto sec_found = linker.declared_files.find(chem::string_view(mod_path));
+                    if(sec_found != linker.declared_files.end()) {
+                        auto& nodes = sec_found->second.nodes;
+                        return { nodes.data(), nodes.data() + nodes.size() };
+                    }
+                }
                 linker.error(stmt) << "couldn't find the file '" << result.replaced << "' to import ";
             }
         } else {

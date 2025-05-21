@@ -1819,10 +1819,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     // we figure out all the files that belong to this build.lab module
     direct_files_in_lab.clear();
     for(const auto f : module_files) {
-        if(f->abs_path.ends_with(".lab")) {
+//        if(f->abs_path.ends_with(".lab")) {
             f->result = f;
             direct_files_in_lab.emplace_back(*f);
-        }
+//        }
     }
 
     // the build lab object file (cached)
@@ -1971,7 +1971,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // symbol resolve all the files in the module
-    const auto sym_res_status = lab_processor.sym_res_module(&chemical_lab_module);
+    const auto sym_res_status = lab_processor.sym_res_module_seq(&chemical_lab_module);
     if(sym_res_status == 1) {
         return nullptr;
     }
@@ -2007,7 +2007,7 @@ TCCState* LabBuildCompiler::built_lab_file(
             // expose the last file's build method, so it's callable
             found->set_specifier_fast(AccessSpecifier::Public);
 
-        } else if (file.abs_path.ends_with(".lab")) {
+        } else if (file.abs_path.ends_with(".lab") || file.abs_path.ends_with("chemical.mod")) {
 
             if (file.as_identifier.empty()) {
                 std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << " lab file cannot be imported without an 'as' identifier in import statement '" << file.abs_path << '\'' << std::endl;

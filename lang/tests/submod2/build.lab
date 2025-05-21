@@ -1,9 +1,11 @@
 import lab
 import std
+import "@std/build.lab" as stdMod
 
 public func build(ctx : *mut BuildContext) : *mut Module {
 
     // the std module
+    // const std_module = stdMod.get(ctx)
     var std_module = ctx.native_lib_module(std::string_view("std"));
     if(std_module == null) {
         return null

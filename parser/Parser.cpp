@@ -123,7 +123,7 @@ void BasicParser::consumeNewLines() {
 void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data) {
     auto& nodes = data.scope.body.nodes;
     consumeNewLines();
-    const auto pkg_def = skipModuleDefinition(allocator);
+    const auto pkg_def = parseModuleDefinition(allocator, data);
     if(pkg_def) {
         consumeToken(TokenType::SemiColonSym);
     } else {

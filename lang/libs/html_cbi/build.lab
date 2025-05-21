@@ -1,24 +1,28 @@
 import lab
 import std
 
+import "@cstd/build.lab" as cstdMod
+import "@std/build.lab" as stdMod
+import "@compiler/build.lab" as compilerMod
+
 using namespace std;
 
 func build(ctx : *mut BuildContext) : *Module {
 
     // the cstd module
-    var cstd_module = ctx.native_lib_module(std::string_view("cstd"));
+    var cstd_module = cstdMod.get(ctx);
     if(cstd_module == null) {
         return null
     }
 
     // the std module
-    var std_module = ctx.native_lib_module(std::string_view("std"));
+    var std_module = stdMod.get(ctx);
     if(std_module == null) {
         return null
     }
 
     // the std module
-    var compiler_module = ctx.native_lib_module(std::string_view("compiler"));
+    var compiler_module = compilerMod.get(ctx);
     if(compiler_module == null) {
         return null
     }

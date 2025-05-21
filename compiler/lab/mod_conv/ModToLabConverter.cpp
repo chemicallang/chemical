@@ -70,14 +70,22 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
     output << "});\n";
+
     if(!data.compiler_interfaces.empty()) {
-        output << "\tctx.add_compiler_interfaces(mod, { ";
         // writing each compiler interface
         for(const auto interface : data.compiler_interfaces) {
-            output << '"' << interface << "\", ";
+            output << "\tctx.add_compiler_interface(mod, \"" << interface << "\");\n";
         }
-        output << "});\n";
     }
+    // TODO: enable this when bug with automatic constructor call is fixed
+//    if(!data.compiler_interfaces.empty()) {
+//        output << "\tctx.add_compiler_interfaces(mod, { ";
+//        // writing each compiler interface
+//        for(const auto interface : data.compiler_interfaces) {
+//            output << '"' << interface << "\", ";
+//        }
+//        output << "});\n";
+//    }
     output << "\treturn mod;\n";
     output << "}\n\n";
 

@@ -178,7 +178,7 @@ public:
     /**
      * a package definition is parsed
      */
-    bool skipModuleDefinition(ASTAllocator& allocator);
+    bool parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
      * a module file is a .mod file that defines which modules are imported

@@ -349,7 +349,7 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
     }
 }
 
-bool BasicParser::skipModuleDefinition(ASTAllocator& allocator) {
+bool BasicParser::parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data) {
 
     if(token->value == "module") {
         token++;
@@ -368,6 +368,7 @@ bool BasicParser::skipModuleDefinition(ASTAllocator& allocator) {
     if(t == TokenType::DotSym || t == TokenType::DoubleColonSym) {
         token++;
     } else {
+        data.module_name = allocate_view(allocator, scope_name->value);
         return true;
     }
 
@@ -376,6 +377,9 @@ bool BasicParser::skipModuleDefinition(ASTAllocator& allocator) {
         error("expected an identifier for module definition");
         return false;
     }
+
+    data.scope_name = allocate_view(allocator, scope_name->value);
+    data.module_name = allocate_view(allocator, mod_name->value);
 
     return true;
 

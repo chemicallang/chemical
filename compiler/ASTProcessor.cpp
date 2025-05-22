@@ -1082,6 +1082,25 @@ void forward_declare_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModul
     }
 }
 
+void declare_type_aliases_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModule* mod, const char* name) {
+    for(auto& file_ptr : mod->direct_files) {
+        auto& result = *file_ptr.result;
+        auto& file = result;
+        ASTUnit& unit = file.unit;
+        // print the benchmark or verbose output received from processing
+        if((proc->options->benchmark || proc->options->verbose) && !ASTProcessor::empty_diags(result)) {
+            std::cout << rang::style::bold << rang::fg::magenta << '[' << name << "] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+        }
+
+#ifdef DEBUG
+        auto str = (name + std::string(" ") + file.abs_path);
+        c_visitor.debug_comment(chem::string_view(str));
+#endif
+
+        c_visitor.declare_type_aliases(unit.scope.body.nodes);
+    }
+}
+
 int ASTProcessor::translate_module(
     ToCAstVisitor& c_visitor,
     LabModule* module
@@ -1108,14 +1127,17 @@ int ASTProcessor::translate_module(
     std::vector<LabModule*> dependencies;
     shallow_dedupe_sorted(dependencies, module->dependencies);
 
-//    // forward declare dependencies & dependencies of dependencies & current module
-//    for(const auto dep1 : dependencies) {
-//        for(const auto dep : dep1->dependencies) {
-//            forward_declare_in_c(c_visitor, this, dep, "Ext2FwdDeclare");
-//        }
-//        forward_declare_in_c(c_visitor, this, dep1, "ExtFwdDeclare");
-//    }
-//    forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
+    // forward declare dependencies & dependencies of dependencies & current module
+    for(const auto dep1 : dependencies) {
+        forward_declare_in_c(c_visitor, this, dep1, "ExtFwdDeclare");
+    }
+    forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
+
+    // declare type aliases
+    for(const auto dep1 : dependencies) {
+        declare_type_aliases_in_c(c_visitor, this, dep1, "TypeAliasExtDeclare");
+    }
+    declare_type_aliases_in_c(c_visitor, this, module, "TypeAliasDeclare");
 
     // we will declare the direct dependencies of this module
     for(const auto dep : dependencies) {

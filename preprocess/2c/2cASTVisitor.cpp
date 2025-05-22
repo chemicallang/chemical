@@ -160,13 +160,6 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
 
 void ToCAstVisitor::fwd_declare(ASTNode* node) {
     switch(node->kind()) {
-        case ASTNodeKind::TypealiasStmt:{
-            const auto alias = node->as_typealias_unsafe();
-            if(alias->is_top_level()) {
-                tld.VisitTypealiasStmt(alias);
-            }
-            break;
-        }
         case ASTNodeKind::NamespaceDecl:
             for(const auto child : node->as_namespace_unsafe()->nodes) {
                 fwd_declare(child);
@@ -211,6 +204,40 @@ void ToCAstVisitor::fwd_declare(ASTNode* node) {
     }
 }
 
+void ToCAstVisitor::declare_type_alias(ASTNode* node) {
+    auto& visitor = *this;
+    switch(node->kind()) {
+        case ASTNodeKind::TypealiasStmt:{
+            const auto alias = node->as_typealias_unsafe();
+            if(alias->is_top_level()) {
+                tld.VisitTypealiasStmt(alias);
+            }
+            break;
+        }
+        case ASTNodeKind::NamespaceDecl:
+            for(const auto child : node->as_namespace_unsafe()->nodes) {
+                declare_type_alias(child);
+            }
+            break;
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = node->as_if_stmt_unsafe();
+            if (!stmt->is_top_level()) return;
+            if (stmt->computed_scope.has_value()) {
+                auto scope = stmt->computed_scope.value();
+                if (scope) {
+                    for (const auto child: scope->nodes) {
+                        declare_type_alias(child);
+                    }
+                }
+                return;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 void ToCAstVisitor::fwd_declare(BaseType* type) {
     auto& visitor = *this;
     switch(type->kind()) {
@@ -229,14 +256,6 @@ void ToCAstVisitor::fwd_declare(BaseType* type) {
         case BaseTypeKind::Array:
             fwd_declare(type->as_array_type_unsafe()->elem_type);
             return;
-        case BaseTypeKind::Function: {
-            const auto func_ty = type->as_function_type_unsafe();
-            for(const auto param : func_ty->params) {
-                fwd_declare(param->type);
-            }
-            fwd_declare(func_ty->returnType);
-            return;
-        }
         case BaseTypeKind::Generic:
             fwd_declare(type->as_generic_type_unsafe()->referenced->linked);
             for(const auto ty : type->as_generic_type_unsafe()->types) {
@@ -2467,12 +2486,12 @@ void early_declare_composed_variables(ToCAstVisitor& visitor, VariablesContainer
 
 void early_declare_type(ToCAstVisitor& visitor, BaseType* type) {
     switch(type->kind()) {
-        case BaseTypeKind::Reference:
-            early_declare_type(visitor, type->as_reference_type_unsafe()->type);
-            return;
-        case BaseTypeKind::Pointer:
-            early_declare_type(visitor, type->as_pointer_type_unsafe()->type);
-            return;
+//        case BaseTypeKind::Reference:
+//            early_declare_type(visitor, type->as_reference_type_unsafe()->type);
+//            return;
+//        case BaseTypeKind::Pointer:
+//            early_declare_type(visitor, type->as_pointer_type_unsafe()->type);
+//            return;
         case BaseTypeKind::Linked:
             early_declare_node(visitor, type->as_linked_type_unsafe()->linked);
             return;
@@ -2482,14 +2501,6 @@ void early_declare_type(ToCAstVisitor& visitor, BaseType* type) {
         case BaseTypeKind::Array:
             early_declare_type(visitor, type->as_array_type_unsafe()->elem_type);
             return;
-        case BaseTypeKind::Function: {
-            const auto func_ty = type->as_function_type_unsafe();
-            for(const auto param : func_ty->params) {
-                visitor.fwd_declare(param->type);
-            }
-            visitor.fwd_declare(func_ty->returnType);
-            return;
-        }
         case BaseTypeKind::Generic:
             early_declare_node(visitor, type->as_generic_type_unsafe()->referenced->linked);
             for(const auto ty : type->as_generic_type_unsafe()->types) {
@@ -2509,7 +2520,6 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
     }
-    tld->visitor.fwd_declare((FunctionType*) decl);
     tld->visitor.new_line_and_indent();
     declare_func_with_return(tld->visitor, decl);
     tld->visitor.write(';');
@@ -2524,7 +2534,6 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     if(decl->returnType->as_function_type() == nullptr) {
         tld->value_visitor->visit(decl->returnType);
     }
-    tld->visitor.fwd_declare((FunctionType*) decl);
     tld->visitor.new_line_and_indent();
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;

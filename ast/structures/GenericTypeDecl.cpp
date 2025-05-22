@@ -10,7 +10,7 @@ void GenericTypeDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_p
 }
 
 void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasStatement* inst) {
-    inst->actual_type = inst->actual_type->copy(allocator);
+    inst->actual_type = inst->actual_type.copy(allocator);
 }
 
 void GenericTypeDecl::link_signature(SymbolResolver &linker) {

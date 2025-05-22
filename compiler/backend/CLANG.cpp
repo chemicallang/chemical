@@ -422,7 +422,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
 
     }
 
-    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(ZERO_LOC_ID(allocator, decl->getName()), type, parent_node, ZERO_LOC);
+    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(ZERO_LOC_ID(allocator, decl->getName()), {type, ZERO_LOC}, parent_node, ZERO_LOC);
 }
 
 std::optional<Operation> convert_to_op(clang::BinaryOperatorKind kind) {

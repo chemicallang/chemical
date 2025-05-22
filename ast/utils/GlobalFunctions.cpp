@@ -149,7 +149,7 @@ namespace InterpretVector {
 
     InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("constructor"),
-            &node->selfType,
+            {&node->selfType, ZERO_LOC},
             false,
             node,
             ZERO_LOC,
@@ -170,7 +170,7 @@ namespace InterpretVector {
 
     InterpretVectorSize::InterpretVectorSize(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-            cache.getIntType(),
+            {cache.getIntType(), ZERO_LOC},
             false,
             node,
             ZERO_LOC,
@@ -188,7 +188,7 @@ namespace InterpretVector {
     // TODO interpret vector get should return a reference to T
     InterpretVectorGet::InterpretVectorGet(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("get"),
-            &returnLinkedType,
+            {&returnLinkedType, ZERO_LOC},
             false,
             node,
             ZERO_LOC,
@@ -215,7 +215,7 @@ namespace InterpretVector {
 
     InterpretVectorPush::InterpretVectorPush(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("push"),
-            cache.getVoidType(),
+            {cache.getVoidType(), ZERO_LOC},
             false,
             node,
             ZERO_LOC,
@@ -235,7 +235,7 @@ namespace InterpretVector {
 
     InterpretVectorRemove::InterpretVectorRemove(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
             ZERO_LOC_ID("remove"),
-            cache.getVoidType(),
+            {cache.getVoidType(), ZERO_LOC},
             false,
             node,
             ZERO_LOC,
@@ -280,7 +280,7 @@ public:
 
     explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node, LocatedIdentifier identifier) : FunctionDeclaration(
             identifier,
-            cache.getVoidType(),
+            {cache.getVoidType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -330,7 +330,7 @@ public:
 
     explicit InterpretToString(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("to_string"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -386,7 +386,7 @@ public:
 
     explicit InterpretSize(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-            cache.getUBigIntType(),
+            {cache.getUBigIntType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -509,7 +509,7 @@ public:
 
     explicit InterpretWrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("wrap"),
-            cache.getAnyType(),
+            {cache.getAnyType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -538,7 +538,7 @@ public:
 
     explicit InterpretUnwrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("unwrap"),
-            cache.getAnyType(),
+            {cache.getAnyType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -565,7 +565,7 @@ public:
 
     explicit InterpretRetStructPtr(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("return_struct"),
-            &ptrType,
+            {&ptrType, ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -584,7 +584,7 @@ public:
 
     explicit InterpretCompilerVersion(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("version"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -605,7 +605,7 @@ public:
 
     explicit InterpretSupports(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("supports"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -646,7 +646,7 @@ public:
 
     explicit InterpretIsTcc(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("is_tcc_based"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -669,7 +669,7 @@ public:
 
     explicit InterpretIsClang(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("is_clang"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -692,7 +692,7 @@ public:
 
     explicit InterpretGetRawLocation(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_raw_location"),
-            cache.getUIntType(),
+            {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,
@@ -712,7 +712,7 @@ public:
 
     explicit InterpretGetRawLocOf(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_raw_loc_of"),
-            cache.getUIntType(),
+            {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,
@@ -740,7 +740,7 @@ public:
 
     explicit InterpretGetLineNo() : FunctionDeclaration(
             ZERO_LOC_ID("get_line_no"),
-            &uIntType,
+            {&uIntType, ZERO_LOC},
             false,
             nullptr,
             ZERO_LOC,
@@ -761,7 +761,7 @@ public:
 
     explicit InterpretGetCharacterNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_char_no"),
-            cache.getUIntType(),
+            {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,
@@ -791,7 +791,7 @@ public:
 
     explicit InterpretGetCallerLineNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_caller_line_no"),
-            cache.getUIntType(),
+            {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,
@@ -818,7 +818,7 @@ public:
 
     explicit InterpretGetCallerCharacterNo(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_caller_char_no"),
-            cache.getUIntType(),
+            {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,
@@ -845,7 +845,7 @@ public:
 
     explicit InterpretGetCallLoc(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_call_loc"),
-            cache.getUIntType(),
+            {cache.getUIntType(), ZERO_LOC},
             false,
             parent,
             ZERO_LOC,
@@ -885,7 +885,7 @@ public:
 
     explicit InterpretDefined(TypeBuilder& cache) : FunctionDeclaration(
             ZERO_LOC_ID("defined"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             nullptr,
             ZERO_LOC,
@@ -913,7 +913,7 @@ public:
 
     explicit InterpretError(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("error"),
-            cache.getVoidType(),
+            {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -939,7 +939,7 @@ public:
 
     explicit InterpretSatisfies(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("satisfies"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -982,7 +982,7 @@ public:
 
     explicit InterpretIsPtrNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("isNull"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1009,7 +1009,7 @@ public:
 
     explicit InterpretIsPtrNotNull(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("isNotNull"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1034,7 +1034,7 @@ public:
 
     explicit InterpretMemCopy(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("copy"),
-            cache.getBoolType(),
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1061,7 +1061,7 @@ public:
 
     explicit InterpretGetTarget(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_target"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1082,7 +1082,7 @@ public:
 
     explicit InterpretGetLocFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_loc_file_path"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1113,7 +1113,7 @@ public:
 
     explicit InterpretGetBuildDir(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_build_dir"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1133,7 +1133,7 @@ public:
 
     explicit InterpretGetCurrentFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_current_file_path"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1155,7 +1155,7 @@ public:
 
     explicit InterpretGetModuleScope(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_scope"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1182,7 +1182,7 @@ public:
 
     explicit InterpretGetModuleName(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_name"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1209,7 +1209,7 @@ public:
 
     explicit InterpretGetModuleDir(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_module_dir"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1244,7 +1244,7 @@ public:
 
     explicit InterpretGetChildFunction(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_child_fn"),
-            cache.getAnyType(),
+            {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1290,7 +1290,7 @@ public:
 
     explicit InterpretTypeToString(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("type_to_string"),
-            cache.getStringType(),
+            {cache.getStringType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -1322,7 +1322,7 @@ public:
 
     explicit InterpretForget(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("forget"),
-            cache.getVoidType(),
+            {cache.getVoidType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,

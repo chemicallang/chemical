@@ -1019,7 +1019,7 @@ void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMem
         params.clear();
         params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", TypeLoc( new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def)), def->encoded_location() ), 0, nullptr, true, this, ZERO_LOC));
     }
-    returnType = new (allocator.allocate<VoidType>()) VoidType();
+    returnType = {new(allocator.allocate<VoidType>()) VoidType(), returnType.getLocation()};
 }
 
 void check_returns_void(ASTDiagnoser& diagnoser, FunctionDeclaration* decl) {
@@ -1053,7 +1053,7 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
 }
 
 void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def);
+    returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
 }
 
 void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
@@ -1067,12 +1067,12 @@ void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser&
 }
 
 void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def);
+    returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
     check_self_other_params(diagnoser, this, def);
 }
 
 void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
-    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def);
+    returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
     check_self_other_params(diagnoser, this, def);
 }
 

@@ -155,7 +155,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         if(found_return_type == nullptr) {
             result = false;
         }
-        returnType = found_return_type;
+        returnType = {found_return_type, get_location()};
 
         if(result) {
             data.signature_resolved = true;
@@ -218,7 +218,7 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
 bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     copy_func_params_types(func_type->params, params, linker, this);
     if(!returnType) {
-        returnType = func_type->returnType->copy(*linker.ast_allocator);
+        returnType = func_type->returnType.copy(*linker.ast_allocator);
     } else if(!returnType->is_same(func_type->returnType)) {
         linker.error((Value*) this) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
     }

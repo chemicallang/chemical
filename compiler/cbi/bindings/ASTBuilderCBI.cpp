@@ -153,7 +153,7 @@ FloatType* ASTBuildermake_float_type(ASTAllocator* allocator, uint64_t location)
 
 FunctionType* ASTBuildermake_func_type(ASTAllocator* allocator, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, uint64_t location) {
     // TODO function type doesn't take a parent_node
-    return new (allocator->allocate<FunctionType>()) FunctionType(returnType, isVariadic, isCapturing, location);
+    return new (allocator->allocate<FunctionType>()) FunctionType({returnType, location}, isVariadic, isCapturing, location);
 }
 
 GenericType* ASTBuildermake_generic_type(ASTAllocator* allocator, LinkedType* linkedType) {
@@ -451,7 +451,7 @@ ForLoop* ASTBuildermake_for_loop(ASTAllocator* allocator, VarInitStatement* init
 }
 
 FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), returnType, isVariadic, parent_node, location);
+    return new (allocator->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), {returnType, location}, isVariadic, parent_node, location);
 }
 
 FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {

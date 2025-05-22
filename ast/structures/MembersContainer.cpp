@@ -648,7 +648,7 @@ void MembersContainer::insert_functions(const std::initializer_list<FunctionDecl
 FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
     const auto loc = encoded_location();
     const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(this);
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), returnType, false, this, loc);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), {returnType, loc}, false, this, loc);
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_constructor_fn(true);
     insert_func(decl);
@@ -657,7 +657,8 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
 
 FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
     const auto loc = encoded_location();
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), new (allocator.allocate<VoidType>()) VoidType(), false, this, loc);
+    const auto returnType = TypeLoc(new (allocator.allocate<VoidType>()) VoidType(), loc);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), returnType, false, this, loc);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 0, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_delete_fn(true);
@@ -667,7 +668,8 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
 
 FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     const auto loc = encoded_location();
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), new (allocator.allocate<VoidType>()) VoidType(), false, this, loc);
+    const auto returnType = TypeLoc(new (allocator.allocate<VoidType>()) VoidType(), loc);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), returnType, false, this, loc);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 0, nullptr, true, decl, loc));
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 1, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});

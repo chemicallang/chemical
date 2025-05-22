@@ -64,9 +64,9 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
 
 void ImplDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     take_members_from_parsed_nodes(linker);
-    interface_type->link(linker);
+    interface_type.link(linker);
     if(struct_type) {
-        struct_type->link(linker);
+        struct_type.link(linker);
     }
     const auto linked = interface_type->linked_node();
     if(linked) {

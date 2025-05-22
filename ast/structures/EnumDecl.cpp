@@ -32,7 +32,7 @@ ASTNode *EnumDeclaration::child(const chem::string_view &name) {
 }
 
 void EnumDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    underlying_type->link(linker);
+    underlying_type.link(linker);
     linker.declare_node(name_view(), (ASTNode*) this, specifier(), false);
 }
 

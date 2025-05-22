@@ -9,20 +9,21 @@
 #include <utility>
 
 #include "ast/base/Value.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/structures/InterfaceDefinition.h"
 
 class ImplDefinition : public MembersContainer {
 public:
 
-    BaseType* interface_type;
-    BaseType* struct_type;
+    TypeLoc interface_type;
+    TypeLoc struct_type;
 
     /**
      * constructor
      */
     ImplDefinition(
-            BaseType* interface_type,
-            BaseType* struct_type,
+            TypeLoc interface_type,
+            TypeLoc struct_type,
             ASTNode* parent_node,
             SourceLocation location
     ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(interface_type),
@@ -37,7 +38,7 @@ public:
     ImplDefinition(
             ASTNode* parent_node,
             SourceLocation location
-    ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location) {
+    ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(nullptr), struct_type(nullptr) {
 
     }
 

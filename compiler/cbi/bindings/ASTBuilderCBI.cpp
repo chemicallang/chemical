@@ -124,7 +124,7 @@ AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location) {
 }
 
 ArrayType* ASTBuildermake_array_type(ASTAllocator* allocator, BaseType* elem_type, int array_size, uint64_t location) {
-    return new (allocator->allocate<ArrayType>()) ArrayType(elem_type, array_size);
+    return new (allocator->allocate<ArrayType>()) ArrayType({elem_type, location}, array_size);
 }
 
 BigIntType* ASTBuildermake_bigint_type(ASTAllocator* allocator, uint64_t location) {
@@ -241,7 +241,7 @@ AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value,
 }
 
 ArrayValue* ASTBuildermake_array_value(ASTAllocator* allocator, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<ArrayValue>()) ArrayValue(type, location, *allocator);
+    return new (allocator->allocate<ArrayValue>()) ArrayValue({type, location}, location, *allocator);
 }
 
 BigIntValue* ASTBuildermake_bigint_value(ASTAllocator* allocator, long long value, uint64_t location) {

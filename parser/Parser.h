@@ -544,7 +544,7 @@ public:
     /**
      * parse array and pointer type after id
      */
-    BaseType* parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId);
+    BaseType* parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId, SourceLocation location);
 
     /**
      * returns linked value type if found otherwise provided linked type

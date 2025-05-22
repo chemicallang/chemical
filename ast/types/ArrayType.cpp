@@ -6,7 +6,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 
 bool ArrayType::link(SymbolResolver &linker, SourceLocation loc) {
-    const auto type_linked = elem_type->link(linker);
+    const auto type_linked = elem_type.link(linker);
     if(!type_linked) return false;
     if(array_size_value) {
         if(array_size_value->link(linker, array_size_value)) {

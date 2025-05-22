@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/TypeLoc.h"
 
 class GenericTypeParameter : public ASTNode {
 private:
@@ -15,8 +16,8 @@ private:
 public:
 
     chem::string_view identifier;
-    BaseType* at_least_type;
-    BaseType* def_type;
+    TypeLoc at_least_type;
+    TypeLoc def_type;
     std::vector<BaseType*> usage;
     // TODO use int32 here
      // <-- index of active type in usage vector
@@ -27,8 +28,8 @@ public:
      */
     constexpr GenericTypeParameter(
         chem::string_view identifier,
-        BaseType* at_least_type,
-        BaseType* def_type,
+        TypeLoc at_least_type,
+        TypeLoc def_type,
         ASTNode* parent_node,
         unsigned param_index,
         SourceLocation location

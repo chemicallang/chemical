@@ -975,7 +975,7 @@ bool FunctionParam::link_param_type(SymbolResolver &linker) {
             return true;
         }
     } else {
-        return type->link(linker);
+        return type.link(linker);
     }
 }
 
@@ -994,11 +994,11 @@ void GenericTypeParameter::declare_only(SymbolResolver& linker) {
 
 void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(at_least_type) {
-        at_least_type->link(linker);
+        at_least_type.link(linker);
     }
     declare_only(linker);
     if(def_type) {
-        def_type->link(linker);
+        def_type.link(linker);
     }
 }
 

@@ -11,7 +11,7 @@ void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& nod
 }
 
 void TypealiasStatement::link_signature(SymbolResolver &linker) {
-    actual_type->link(linker);
+    actual_type.link(linker);
 }
 
 void TypealiasStatement::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {

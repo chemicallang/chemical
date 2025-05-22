@@ -460,7 +460,7 @@ FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::stri
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTAllocator* allocator, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
-    return new (allocator->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, at_least_type, def_type, parent_node, index, location);
+    return new (allocator->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, {at_least_type, location}, {def_type, location}, parent_node, index, location);
 }
 
 IfStatement* ASTBuildermake_if_stmt(ASTAllocator* allocator, Value* condition, bool is_value, ASTNode* parent_node, uint64_t location) {

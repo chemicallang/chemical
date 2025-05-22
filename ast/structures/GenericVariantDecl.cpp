@@ -17,7 +17,7 @@ void GenericVariantDecl::finalize_signature(ASTAllocator& allocator, VariantDefi
 
     // copying the inherited types
     for(auto& inh : inst->inherited) {
-        inh.type = inh.type->copy(allocator);
+        inh.type = inh.type.copy(allocator);
     }
 
     // copying the variables

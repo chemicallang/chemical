@@ -10,7 +10,7 @@ void GenericImplDecl::finalize_signature(ASTAllocator& allocator, ImplDefinition
 
     // copying the inherited types
     for(auto& inh : inst->inherited) {
-        inh.type = inh.type->copy(allocator);
+        inh.type = inh.type.copy(allocator);
     }
 
     // copying the variables

@@ -314,7 +314,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
 
 void MembersContainer::link_signature_no_scope(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
-        inherits.type->link(linker);
+        inherits.type.link(linker);
     }
     for (const auto var: variables()) {
         var->link_signature(linker);
@@ -885,9 +885,9 @@ void VariablesContainer::declare_and_link_variables(SymbolResolver &linker) {
 
 chem::string_view InheritedType::ref_type_name() {
     if(type->kind() == BaseTypeKind::Generic) {
-        return ((GenericType*) type)->referenced->linked_name();
+        return ((GenericType*) type.getType())->referenced->linked_name();
     } else if(type->kind() == BaseTypeKind::Linked) {
-        return ((LinkedType*) type)->linked_name();
+        return ((LinkedType*) type.getType())->linked_name();
     }
 #ifdef DEBUG
     throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());
@@ -898,5 +898,5 @@ chem::string_view InheritedType::ref_type_name() {
 }
 
 InheritedType InheritedType::copy(ASTAllocator& allocator) const {
-    return InheritedType(type->copy(allocator), specifier);
+    return InheritedType(type.copy(allocator), specifier);
 }

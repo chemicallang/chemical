@@ -217,7 +217,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
             auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(allocate_view(allocator, id->value), nullptr, nullptr, parent_node, param_index, loc_single(id));
             params.emplace_back(parameter);
             if(consumeToken(TokenType::ColonSym)) {
-                auto type = parseType(allocator);
+                auto type = parseTypeLoc(allocator);
                 if(type) {
                     parameter->at_least_type = type;
                 } else {
@@ -226,7 +226,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
                 }
             }
             if(consumeToken(TokenType::EqualSym)) {
-                auto type = parseType(allocator);
+                auto type = parseTypeLoc(allocator);
                 if(type) {
                     parameter->def_type = type;
                 } else {

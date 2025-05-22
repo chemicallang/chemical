@@ -336,11 +336,15 @@ public:
         declare_before_translation(nodes);
         translate_after_declaration(nodes);
     }
-
     /**
      * forward declare a node
      */
     void fwd_declare(ASTNode* node);
+
+    /**
+     * forward declare a node
+     */
+    void declare_type_alias(ASTNode* node);
 
     /**
      * forward declare a type
@@ -353,6 +357,15 @@ public:
     void fwd_declare(std::vector<ASTNode*>& nodes) {
         for(const auto node : nodes) {
             fwd_declare(node);
+        }
+    }
+
+    /**
+     * declare type aliases before declaring functions
+     */
+    void declare_type_aliases(std::vector<ASTNode*>& nodes) {
+        for(const auto node : nodes) {
+            declare_type_alias(node);
         }
     }
 

@@ -127,7 +127,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto elemType = arrayType->getElementType();
             const auto element_type = make_type(&elemType);
             if(!element_type) return nullptr;
-            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, (int) arrayType->getSize().getLimitedValue());
+            return new (allocator.allocate<ArrayType>()) ArrayType({element_type, ZERO_LOC}, (int) arrayType->getSize().getLimitedValue());
         }
         case clang::Type::DependentSizedArray:
             error("TODO: type with class DependentSizedArray");
@@ -137,7 +137,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto elemType = incomplete_arr->getElementType();
             const auto element_type = make_type(&elemType);
             if(!element_type) return nullptr;
-            return new (allocator.allocate<ArrayType>()) ArrayType(element_type, -1);
+            return new (allocator.allocate<ArrayType>()) ArrayType({element_type, ZERO_LOC}, -1);
         }
         case clang::Type::VariableArray:
             error("TODO: type with class VariableArray");

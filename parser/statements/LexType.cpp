@@ -113,7 +113,7 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
     return parseGenericTypeAfterId(allocator, idType);
 }
 
-BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId) {
+BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId, SourceLocation location) {
     while(true) {
         if(consumeToken(TokenType::LBracket)) {
             // optional array size
@@ -122,7 +122,7 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
                 error("expected ']' for array type");
                 return typeId;
             }
-            typeId = new (allocator.allocate<ArrayType>()) ArrayType(typeId, expr);
+            typeId = new (allocator.allocate<ArrayType>()) ArrayType({typeId, location}, expr);
         } else {
             break;
         }
@@ -169,14 +169,14 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
  * since dyn Phone* or dyn *Phone means (dyn Phone)* or *(dyn Phone) and not dyn (*Phone) or dyn (Phone*)
  * since dyn &Phone or dyn &Phone means (dyn Phone)& or &(dyn Phone) and not dyn (&Phone) or dyn (Phone&)
  */
-BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type) {
+BaseType* make_dynamic_type(ASTAllocator& allocator, BaseType* elem_type, SourceLocation location) {
     auto t = elem_type;
     const auto kind = elem_type->kind();
     switch(kind) {
         case BaseTypeKind::Array:{
             // since dyn Phone[] means (dyn Phone)[] and not dyn (Phone[])
             const auto arr_elem_type = ((ArrayType*) t)->elem_type;
-            ((ArrayType*) t)->elem_type = new (allocator.allocate<DynamicType>()) DynamicType(arr_elem_type);
+            ((ArrayType*) t)->elem_type = {new (allocator.allocate<DynamicType>()) DynamicType(arr_elem_type), location};
             return t;
         }
         case BaseTypeKind::Pointer: {
@@ -441,7 +441,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             auto type = parseType(allocator);
             if (type) {
                 const auto loc = loc_single(dynToken);
-                return { make_dynamic_type(allocator, type), loc };
+                return { make_dynamic_type(allocator, type, loc), loc };
             } else {
                 error("expected a type after the qualifier");
                 return {nullptr, ZERO_LOC};;
@@ -539,6 +539,6 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             type = parseGenericTypeAfterId(allocator, type);
             break;
     }
-    type = parseArrayAndPointerTypesAfterTypeId(allocator, type);
+    type = parseArrayAndPointerTypesAfterTypeId(allocator, type, location);
     return {type, location};
 }

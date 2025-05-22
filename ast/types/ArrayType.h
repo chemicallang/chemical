@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include <memory>
 
 class ArrayType : public BaseType {
@@ -12,18 +12,18 @@ private:
 
 public:
 
-    BaseType* elem_type;
+    TypeLoc elem_type;
     Value* array_size_value;
 
     inline constexpr ArrayType(
-        BaseType* elem_type,
+            TypeLoc elem_type,
         Value* array_size_val
     ) : BaseType(BaseTypeKind::Array), elem_type(elem_type), array_size_value(array_size_val) {
 
     }
 
     inline constexpr ArrayType(
-            BaseType* elem_type,
+            TypeLoc elem_type,
             uint64_t array_size
     ) : BaseType(BaseTypeKind::Array), elem_type(elem_type), array_size_value(nullptr), array_size(array_size) {
 
@@ -76,7 +76,7 @@ public:
 
     [[nodiscard]]
     ArrayType* copy(ASTAllocator& allocator) const final {
-        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size_value);
+        const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type.copy(allocator), array_size_value);
         t->array_size = array_size;
         return t;
     }

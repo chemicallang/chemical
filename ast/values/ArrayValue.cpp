@@ -162,7 +162,7 @@ bool ArrayValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 
 #endif
 
-BaseType*& ArrayValue::known_elem_type() const {
+TypeLoc& ArrayValue::known_elem_type() const {
     return ((ArrayType*) created_type)->elem_type;
 }
 
@@ -181,7 +181,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     }
     if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) expected_type;
-        elemType = arr_type->elem_type->copy(*linker.ast_allocator);
+        elemType = arr_type->elem_type.copy(*linker.ast_allocator);
     }
     if(elemType) {
         const auto def = elemType->linked_struct_def();
@@ -207,7 +207,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     unsigned i = 0;
     for(auto& value : values) {
         if(value->link(linker, value, nullptr) && i == 0 && !known_elem_type) {
-            known_elem_type = value->known_type();
+            known_elem_type = TypeLoc(value->known_type(), known_elem_type.getLocation());
         }
         if(known_elem_type) {
             current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
@@ -230,7 +230,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
 //}
 
 BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
-    BaseType *elementType;
+    TypeLoc elementType(nullptr);
     const auto known = known_elem_type();
     if (known) {
         if(sizes.size() <= 1) {
@@ -240,9 +240,9 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(known, sizes[i]);
+                    elementType = {new(allocator.allocate<ArrayType>()) ArrayType(known, sizes[i]), elementType.getLocation()};
                 } else {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i]);
+                    elementType = {new(allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i]), elementType.getLocation()};
                 }
                 i--;
             }
@@ -251,14 +251,14 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
         if(values.empty()) {
             elementType = nullptr;
         } else {
-            elementType = values[0]->create_type(allocator);
+            elementType = {values[0]->create_type(allocator), encoded_location()};
         }
     }
     return elementType;
 }
 
 BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size());
+    return new (allocator.allocate<ArrayType>()) ArrayType({element_type(allocator), encoded_location()}, array_size());
 }
 
 BaseType* ArrayValue::known_type() {

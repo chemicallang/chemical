@@ -28,14 +28,14 @@ public:
      * constructor
      */
     constexpr ArrayValue(
-            BaseType* elem_type,
+            TypeLoc elem_type,
             SourceLocation location,
             ASTAllocator& allocator
     ) : Value(ValueKind::ArrayValue, location) {
         created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size());
     }
 
-    BaseType*& known_elem_type() const;
+    TypeLoc& known_elem_type() const;
 
     bool primitive() final {
         return false;
@@ -115,10 +115,10 @@ public:
     BaseType* known_type() final;
 
     ArrayValue *copy(ASTAllocator& allocator) final {
-        BaseType* copied_elem_type = nullptr;
+        TypeLoc copied_elem_type(nullptr);
         const auto elemType = known_elem_type();
         if (elemType) {
-            copied_elem_type = elemType->copy(allocator);
+            copied_elem_type = elemType.copy(allocator);
         }
         const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(copied_elem_type, encoded_location(), allocator);;
         auto& copied_values = arrVal->values;

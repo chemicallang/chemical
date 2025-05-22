@@ -176,7 +176,7 @@ public:
      */
     FunctionDeclaration(
             LocatedIdentifier identifier,
-            BaseType* returnType,
+            TypeLoc returnType,
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location,

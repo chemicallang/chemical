@@ -372,7 +372,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     auto& tok = *token;
     if(tok.type == TokenType::ColonSym) {
         token++;
-        auto type = parseType(allocator);
+        auto type = parseTypeLoc(allocator);
         if(type) {
             decl->returnType = type;
         } else {
@@ -380,7 +380,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
             return final_node;
         }
     } else {
-        decl->returnType = new (allocator.allocate<VoidType>()) VoidType();
+        decl->returnType = {new(allocator.allocate<VoidType>()) VoidType(), location };
     }
 
     auto block = parseBraceBlock("function", decl, body_allocator);

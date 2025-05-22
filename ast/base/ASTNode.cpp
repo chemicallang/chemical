@@ -79,7 +79,7 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
     const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
 
     // creating the function decl
-    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(chem::string_view("get")), ptrModNmdType, false, parent, ZERO_LOC, AccessSpecifier::Public, false);
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(chem::string_view("get")), {ptrModNmdType, ZERO_LOC}, false, parent, ZERO_LOC, AccessSpecifier::Public, false);
 
     // the type for the *BuildContext
     const auto buildContextNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("BuildContext"));

@@ -54,7 +54,7 @@ TypeLoc Parser::parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing) {
             error("expected a ')' after the ')' in lambda function type");
         }
         if(consumeToken(TokenType::LambdaSym)) {
-            auto type = parseType(allocator);
+            auto type = parseTypeLoc(allocator);
             if(type) {
                 func_type->returnType = type;
             } else {

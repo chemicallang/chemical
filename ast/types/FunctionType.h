@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/ValueKind.h"
 #include "ast/structures/FunctionParam.h"
 
@@ -59,7 +59,7 @@ class FunctionType : public BaseType {
 public:
 
     std::vector<FunctionParam*> params;
-    BaseType* returnType = nullptr;
+    TypeLoc returnType = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     /**
      * function type data
@@ -70,7 +70,7 @@ public:
      * constructor
      */
     constexpr FunctionType(
-            BaseType* returnType,
+            TypeLoc returnType,
             bool isVariadic,
             bool isCapturing,
             bool signature_resolved
@@ -83,7 +83,7 @@ public:
      * constructor
      */
     constexpr FunctionType(
-            BaseType* returnType,
+            TypeLoc returnType,
             bool isExtension,
             bool isVariadic,
             bool isCapturing,
@@ -140,7 +140,7 @@ public:
             new_param->set_parent(new_parent);
             other.params.emplace_back(new_param);
         }
-        other.returnType = returnType->copy(allocator);
+        other.returnType = returnType.copy(allocator);
         other.data = data;
     }
 

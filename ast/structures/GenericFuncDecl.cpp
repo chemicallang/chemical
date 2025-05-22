@@ -29,7 +29,7 @@ void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclar
     }
 
     // copying return type
-    decl->returnType = decl->returnType->copy(allocator);
+    decl->returnType = decl->returnType.copy(allocator);
 
 }
 

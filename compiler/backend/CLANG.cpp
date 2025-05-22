@@ -213,7 +213,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto retType = protoType->getReturnType();
             const auto returnType = make_type(&retType);
             if(!returnType) return nullptr;
-            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType(returnType, false, false, ZERO_LOC);
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({returnType, ZERO_LOC}, false, false, ZERO_LOC);
             return functionType;
         }
         case clang::Type::FunctionProto:{
@@ -221,7 +221,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto retType = protoType->getReturnType();
             const auto returnType = make_type(&retType);
             if(!returnType) return nullptr;
-            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType(returnType, protoType->isVariadic(), false, ZERO_LOC);
+            auto functionType = new (allocator.allocate<FunctionType>()) FunctionType({returnType, ZERO_LOC}, protoType->isVariadic(), false, ZERO_LOC);
             unsigned i = 0;
             for(auto paramType : protoType->getParamTypes()) {
                 auto param_type = make_type(&paramType);
@@ -625,7 +625,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     }
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
             ZERO_LOC_ID(allocator, func_decl->getName()),
-            chem_type,
+            {chem_type, ZERO_LOC},
             func_decl->isVariadic(),
             parent_node,
             ZERO_LOC,

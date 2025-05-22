@@ -856,7 +856,7 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
         const auto struct_def = func_decl->parent()->as_struct_def();
         if(struct_def->generic_parent != nullptr) {
-            func_type->returnType = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def));
+            func_type->returnType = { new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def)), func_type->returnType.getLocation() };
         }
     }
     return func_type;

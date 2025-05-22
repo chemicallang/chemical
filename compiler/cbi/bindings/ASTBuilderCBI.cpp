@@ -552,7 +552,7 @@ int BaseTypegetKind(BaseType* type) {
 }
 
 bool BaseTypelink(BaseType* type, BaseType** ptr_ref, SymbolResolver* resolver) {
-    // TODO this should be fixed to get the location from the user
+    // TODO this should be fixed, get the location from the user
     return type->link(*resolver, ZERO_LOC);
 }
 

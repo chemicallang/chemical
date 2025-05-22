@@ -413,37 +413,26 @@ LLVMArrayDestructor Codegen::destruct(
     return finalize;
 }
 
-FunctionDeclaration* determine_func_data(
-        Codegen& gen,
+FunctionDeclaration* Codegen::determine_destructor_for(
         BaseType* elem_type,
-        llvm::Function*& func_data,
-        FunctionDeclaration*(*choose_func)(MembersContainer* container)
+        llvm::Function*& func_data
 ) {
 
-    if(!elem_type->linked_node() || !elem_type->linked_node()->as_members_container()) {
+    //checking if struct has a destructor function
+    auto container = elem_type->get_members_container();
+    if(!container) {
         return nullptr;
     }
-    //checking if struct has a destructor function
-    auto structDef = elem_type->linked_node()->as_members_container();
-    auto chosenFunc = choose_func(structDef);
+
+    auto chosenFunc = container->destructor_func();
     if(!chosenFunc) {
         return nullptr;
     }
 
     // determine the function type and callee
-    func_data = chosenFunc->llvm_func(gen);
+    func_data = chosenFunc->llvm_func(*this);
 
     return chosenFunc;
-
-}
-
-FunctionDeclaration* Codegen::determine_destructor_for(
-        BaseType* elem_type,
-        llvm::Function*& func_data
-) {
-    return determine_func_data(*this, elem_type, func_data, [](MembersContainer* def) -> FunctionDeclaration* {
-        return def->destructor_func();
-    });
 }
 
 void Codegen::destruct(

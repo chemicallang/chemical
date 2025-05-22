@@ -55,7 +55,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     // build method
     output << "\nfunc build(ctx : *mut BuildContext) : *Module {\n";
-    output << "\tconst mod = ctx.chemical_dir_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", lab::rel_path_to(\"src\"), { ";
+    output << "\tconst mod = ctx.chemical_dir_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", lab::rel_path_to(\"src\").to_view(), { ";
     // calling get functions on dependencies
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {

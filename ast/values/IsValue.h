@@ -7,13 +7,14 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/types/BoolType.h"
 
 class IsValue : public Value {
 public:
 
     Value* value;
-    BaseType* type;
+    TypeLoc type;
     bool is_negating;
 
     /**
@@ -21,7 +22,7 @@ public:
      */
     constexpr IsValue(
             Value* value,
-            BaseType* type,
+            TypeLoc type,
             bool is_negating,
             SourceLocation location
     ) : Value(ValueKind::IsValue, location), value(value), type(type), is_negating(is_negating) {
@@ -32,7 +33,7 @@ public:
     IsValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<IsValue>()) IsValue(
                 value->copy(allocator),
-                type->copy(allocator),
+                type.copy(allocator),
                 is_negating,
                 encoded_location()
         );

@@ -1474,7 +1474,7 @@ public:
     LinkedType id;
 
     DefValue(DefDecl *defDecl) : StructValue(
-            &id,
+            {&id, ZERO_LOC},
             defDecl,
             defDecl,
             ZERO_LOC

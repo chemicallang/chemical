@@ -293,7 +293,7 @@ IntValue* ASTBuildermake_int_value(ASTAllocator* allocator, int value, uint64_t 
 }
 
 IsValue* ASTBuildermake_is_value(ASTAllocator* allocator, Value* value, BaseType* type, bool is_negating, uint64_t location) {
-    return new (allocator->allocate<IsValue>()) IsValue(value, type, is_negating, location);
+    return new (allocator->allocate<IsValue>()) IsValue(value, {type, location}, is_negating, location);
 }
 
 LambdaFunction* ASTBuildermake_lambda_function(ASTAllocator* allocator, Value* value, BaseType* type, bool isVariadic, ASTNode* parent_node, uint64_t location) {
@@ -330,7 +330,7 @@ ShortValue* ASTBuildermake_short_value(ASTAllocator* allocator, short value, uin
 }
 
 SizeOfValue* ASTBuildermake_sizeof_value(ASTAllocator* allocator, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<SizeOfValue>()) SizeOfValue(type, location);
+    return new (allocator->allocate<SizeOfValue>()) SizeOfValue({type, location}, location);
 }
 
 StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_view* value, uint64_t location) {
@@ -339,7 +339,7 @@ StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_v
 
 StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location) {
     // TODO do not take parent_node as parameter
-    return new (allocator->allocate<StructValue>()) StructValue(ref, location);
+    return new (allocator->allocate<StructValue>()) StructValue({ref, location}, location);
 }
 
 UBigIntValue* ASTBuildermake_ubigint_value(ASTAllocator* allocator, unsigned long long value, uint64_t location) {
@@ -552,7 +552,8 @@ int BaseTypegetKind(BaseType* type) {
 }
 
 bool BaseTypelink(BaseType* type, BaseType** ptr_ref, SymbolResolver* resolver) {
-    return type->link(*resolver);
+    // TODO this should be fixed to get the location from the user
+    return type->link(*resolver, ZERO_LOC);
 }
 
 ASTNode* BaseTypegetLinkedNode(BaseType* type) {

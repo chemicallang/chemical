@@ -170,7 +170,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
     // *int, &int, dyn Thing, mut Thing
     if(t_type == TokenType::MultiplySym || t_type == TokenType::AmpersandSym || t_type == TokenType::DynKw || t_type == TokenType::MutKw || Token::isKeyword(t_type)) {
 
-        auto type = parseType(allocator);
+        auto type = parseTypeLoc(allocator);
         if(!type) {
             error("expected type after new");
             return nullptr;
@@ -237,7 +237,7 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
         }
         case TokenType::IsKw: {
             token++;
-            auto type = parseType(allocator);
+            auto type = parseTypeLoc(allocator);
             auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, loc_single(start_token));
             if (!type) {
                 error("expected a type after 'is' or '!is' in expression");
@@ -350,7 +350,7 @@ Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
         error("expected '{' or '(' when parsing sizeof");
         return nullptr;
     }
-    auto type = parseType(allocator);
+    auto type = parseTypeLoc(allocator);
     if(type) {
         auto last = token;
         auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, loc(tok, last));
@@ -376,7 +376,7 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
         error("expected '{' or '(' when parsing alignof");
         return nullptr;
     }
-    auto type = parseType(allocator);
+    auto type = parseTypeLoc(allocator);
     if(type) {
         auto last = token;
         auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, loc(tok, last));

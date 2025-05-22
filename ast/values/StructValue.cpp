@@ -281,13 +281,13 @@ bool StructValue::allows_direct_init() {
 }
 
 std::vector<TypeLoc>& StructValue::generic_list() {
-    return ((GenericType*) refType)->types;
+    return ((GenericType*) refType.getType())->types;
 }
 
 std::vector<TypeLoc> StructValue::create_generic_list() {
     const auto k = refType->kind();
     if(k == BaseTypeKind::Generic) {
-        return ((GenericType*) refType)->types;
+        return ((GenericType*) refType.getType())->types;
     } else {
         return {};
     }
@@ -412,7 +412,7 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseTy
 
 bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
     if(refType) {
-        if(!refType->link(linker)) {
+        if(!refType.link(linker)) {
             return false;
         }
     } else {
@@ -420,7 +420,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             linker.error("unnamed struct value cannot link without a type", this);
             return false;
         }
-        refType = expected_type;
+        refType = {expected_type, refType.getLocation()};
     }
     if(!resolve_container(linker.genericInstantiator)) {
         return false;
@@ -432,7 +432,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
     auto refTypeKind = refType->kind();
     if(refTypeKind == BaseTypeKind::Generic) {
         for (auto& arg: generic_list()) {
-            arg->link(linker);
+            arg.link(linker);
         }
     }
     auto& current_func_type = *linker.current_func_type;
@@ -543,7 +543,7 @@ Value *StructValue::evaluated_value(InterpretScope &scope) {
 
 StructValue* StructValue::initialized_value(InterpretScope& scope) {
     auto struct_value = new (scope.allocate<StructValue>()) StructValue(
-            refType->copy(scope.allocator),
+            refType.copy(scope.allocator),
             definition,
             container,
             encoded_location()
@@ -574,7 +574,7 @@ void StructValue::declare_default_values(
 
 StructValue *StructValue::copy(ASTAllocator& allocator) {
     auto struct_value = new (allocator.allocate<StructValue>()) StructValue(
-        refType->copy(allocator),
+        refType.copy(allocator),
         definition,
         container,
         encoded_location()

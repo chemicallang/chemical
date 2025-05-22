@@ -19,7 +19,7 @@ bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
         return false;
     }
     for(auto& type : types) {
-        if(!type->link(linker)) {
+        if(!type.link(linker)) {
             return false;
         }
     }

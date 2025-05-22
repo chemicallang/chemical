@@ -54,7 +54,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     // build method
-    output << "\nfunc build(ctx : *mut BuildContext) : *Module {\n";
+    output << "\nfunc build(ctx : *mut BuildContext) : *mut Module {\n";
     output << "\tconst mod = ctx.chemical_dir_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", lab::rel_path_to(\"src\").to_view(), { ";
     // calling get functions on dependencies
     for(const auto node : data.scope.body.nodes) {
@@ -92,7 +92,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     // get method
     output << "var __chx_should_build : bool = true;\n";
     output << "var __chx_cached_build : *mut Module = null;\n";
-    output << "public func get(ctx : *mut BuildContext) : *Module {\n";
+    output << "public func get(ctx : *mut BuildContext) : *mut Module {\n";
     output << "\treturn ctx.default_get(&__chx_should_build, &__chx_cached_build, build);\n";
     output << "}\n";
 

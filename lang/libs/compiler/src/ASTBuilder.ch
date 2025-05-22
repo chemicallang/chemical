@@ -29,8 +29,6 @@ public struct FunctionType : BaseType {
 
 public struct GenericType : BaseType {
 
-    func get_types(&self) : *VecRef<BaseType>;
-
 }
 
 public struct Int128Type : BaseType {}

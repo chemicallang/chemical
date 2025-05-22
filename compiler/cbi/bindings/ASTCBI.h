@@ -42,8 +42,6 @@ extern "C" {
 
     std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type);
 
-    std::vector<BaseType*>* GenericTypeget_types(GenericType* gen_type);
-
     Value* AccessChainas_value(AccessChain* chain);
 
     std::vector<ChainValue*>* AccessChainget_values(AccessChain* chain);

@@ -87,7 +87,7 @@ public:
     /**
      * register generic args
      */
-    VariantDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types);
+    VariantDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
 
     /**
      * a variant call notifies a definition, during symbol resolution that it exists

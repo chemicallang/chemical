@@ -7,16 +7,8 @@
 #include "ast/values/PointerValue.h"
 #include "ast/types/PointerType.h"
 
-CastedValue *CastedValue::copy(ASTAllocator& allocator) {
-    return new CastedValue(
-        value->copy(allocator),
-        type->copy(allocator),
-        encoded_location()
-    );
-}
-
 bool CastedValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
-    if(type->link(linker)) {
+    if(type.link(linker)) {
         if(value->link(linker, value, type)) {
             return true;
         }

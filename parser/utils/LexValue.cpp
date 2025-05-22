@@ -228,7 +228,7 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
         }
         case TokenType::AsKw: {
             token++;
-            auto type = parseType(allocator);
+            auto type = parseTypeLoc(allocator);
             auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, loc_single(start_token));
             if (!type) {
                 error("expected a type for casting after 'as' in expression");

@@ -213,10 +213,10 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
     }
 }
 
-void Parser::parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator& allocator) {
+void Parser::parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator) {
     if(consumeToken(TokenType::LessThanSym)) {
         do {
-            auto type = parseType(allocator);
+            auto type = parseTypeLoc(allocator);
             if (type) {
                 outArgs.emplace_back(type);
             } else {
@@ -248,7 +248,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
 
     // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        std::vector<BaseType*> genArgs;
+        std::vector<TypeLoc> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {
             auto call = parseFunctionCall(allocator, chain);
@@ -296,7 +296,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
                 auto call = parseFunctionCall(allocator, chain);
                 chain->values.emplace_back(call);
             } else if(token->type == TokenType::LessThanSym) {
-                std::vector<BaseType*> genArgs;
+                std::vector<TypeLoc> genArgs;
                 parseGenericArgsList(genArgs, allocator);
                 if(token->type == TokenType::LParen){
                     auto call = parseFunctionCall(allocator, chain);

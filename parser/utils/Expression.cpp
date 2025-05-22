@@ -300,7 +300,7 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
 
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(start_tok));
-        std::vector<BaseType*> genArgs;
+        std::vector<TypeLoc> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {
             auto call = parseFunctionCall(allocator, chain);

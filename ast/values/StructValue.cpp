@@ -280,11 +280,11 @@ bool StructValue::allows_direct_init() {
     };
 }
 
-std::vector<BaseType*>& StructValue::generic_list() {
+std::vector<TypeLoc>& StructValue::generic_list() {
     return ((GenericType*) refType)->types;
 }
 
-std::vector<BaseType*> StructValue::create_generic_list() {
+std::vector<TypeLoc> StructValue::create_generic_list() {
     const auto k = refType->kind();
     if(k == BaseTypeKind::Generic) {
         return ((GenericType*) refType)->types;

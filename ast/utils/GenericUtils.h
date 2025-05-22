@@ -10,13 +10,15 @@ class BaseType;
 
 bool are_all_specialized(const std::span<BaseType*>& types);
 
+bool are_all_specialized(const std::span<TypeLoc>& types);
+
 /**
  * get iteration for given generic args, if it exists, otherwise returns -1
  * non generic functions return 0
  */
 int16_t get_iteration_for(
     std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<BaseType*>& generic_list
+    std::vector<TypeLoc>& generic_list
 );
 
 /**
@@ -33,7 +35,7 @@ int16_t total_generic_iterations(std::vector<GenericTypeParameter*>& generic_par
 int16_t register_generic_usage_no_check(
     ASTAllocator& allocator,
     std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<BaseType*>& generic_list
+    std::vector<TypeLoc>& generic_list
 );
 
 /**
@@ -47,7 +49,7 @@ int16_t register_generic_usage_no_check(
 std::pair<int16_t, bool> register_generic_usage(
     ASTAllocator& astAllocator,
     std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<BaseType*>& generic_list
+    std::vector<TypeLoc>& generic_list
 );
 
 /**
@@ -65,7 +67,7 @@ void infer_types_by_args(
         ASTNode* params_node,
         unsigned int generic_list_size,
         BaseType* param_type,
-        BaseType* arg_type,
-        std::vector<BaseType*>& inferred,
+        TypeLoc arg_type,
+        std::vector<TypeLoc>& inferred,
         Value* debug_value
 );

@@ -4,7 +4,7 @@
 
 #include <map>
 #include "ast/base/Value.h"
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include "BaseDefMember.h"
 
 struct StructMemberAttributes {
@@ -20,7 +20,7 @@ struct StructMemberAttributes {
 class StructMember : public BaseDefMember {
 public:
 
-    BaseType* type;
+    TypeLoc type;
     Value* defValue;
     StructMemberAttributes attrs;
 
@@ -29,7 +29,7 @@ public:
      */
     constexpr StructMember(
             chem::string_view name,
-            BaseType* type,
+            TypeLoc type,
             Value* defValue,
             ASTNode* parent_node,
             SourceLocation location,
@@ -72,7 +72,7 @@ public:
 
     BaseDefMember *copy_member(ASTAllocator& allocator) final {
         Value* def_value = defValue ? defValue->copy(allocator) : nullptr;
-        const auto new_mem = new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent(), encoded_location());
+        const auto new_mem = new (allocator.allocate<StructMember>()) StructMember(name, type.copy(allocator), def_value, parent(), encoded_location());
         new_mem->attrs = attrs;
         return new_mem;
     }

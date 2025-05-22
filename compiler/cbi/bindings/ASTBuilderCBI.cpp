@@ -488,7 +488,7 @@ StructDefinition* ASTBuildermake_struct_def(ASTAllocator* allocator, chem::strin
 }
 
 StructMember* ASTBuildermake_struct_member(ASTAllocator* allocator, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructMember>()) StructMember(*name, type, defValue, parent_node, location, isConst, specifier);
+    return new (allocator->allocate<StructMember>()) StructMember(*name, {type, location}, defValue, parent_node, location, isConst, specifier);
 }
 
 UnionDef* ASTBuildermake_union_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {

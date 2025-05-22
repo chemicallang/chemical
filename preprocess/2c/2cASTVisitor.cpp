@@ -3511,8 +3511,7 @@ void call_struct_member_fn(
         const chem::string_view& member_name,
         FunctionDeclaration*(*choose_func)(MembersContainer* container)
 ) {
-    const auto linked = mem_type->linked_node();
-    auto mem_def = linked->as_members_container();
+    const auto mem_def = mem_type->get_members_container();
     if(!mem_def) {
         return;
     }

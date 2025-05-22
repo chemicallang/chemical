@@ -385,12 +385,16 @@ func test_destructors() {
     })
     test("destruct struct created via function call", () => {
         var count = 0;
-        var d = create_destructible(&count, 852);
+        if(count == 0) {
+            var d = create_destructible(&count, 852);
+        }
         return count == 1;
     })
     test("destruct struct typealias created via function call", () => {
         var count = 0;
-        var d = create_destructible_alias(&count, 654);
+        if(count == 0) {
+            var d = create_destructible_alias(&count, 654);
+        }
         return count == 1;
     })
     test("destruct struct accessed via function call", () => {

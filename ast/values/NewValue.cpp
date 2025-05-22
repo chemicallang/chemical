@@ -6,7 +6,7 @@
 #include "ast/types/PointerType.h"
 
 bool NewTypedValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
-    return type->link(linker);
+    return type.link(linker);
 }
 
 bool NewValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {

@@ -4,6 +4,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/types/PointerType.h"
 
 /**
@@ -12,7 +13,7 @@
 class NewTypedValue : public Value {
 public:
 
-    BaseType* type;
+    TypeLoc type;
     // TODO remove this
     PointerType ptr_type;
 
@@ -20,7 +21,7 @@ public:
      * constructor
      */
     inline constexpr NewTypedValue(
-        BaseType* type,
+        TypeLoc type,
         SourceLocation location
     ) : Value(ValueKind::NewTypedValue, location), type(type), ptr_type(nullptr, false) {
 

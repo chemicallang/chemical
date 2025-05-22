@@ -10,13 +10,13 @@
 class AlignOfValue : public Value {
 public:
 
-    BaseType* for_type;
+    TypeLoc for_type;
 
     /**
      * constructor
      */
     constexpr AlignOfValue(
-        BaseType *for_type,
+        TypeLoc for_type,
         SourceLocation location
     ) : Value(ValueKind::AlignOfValue, location), for_type(for_type) {
 
@@ -29,7 +29,7 @@ public:
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     AlignOfValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<AlignOfValue>()) AlignOfValue(for_type->copy(allocator), encoded_location());
+        return new (allocator.allocate<AlignOfValue>()) AlignOfValue(for_type.copy(allocator), encoded_location());
     }
 
     Value* evaluated_value(InterpretScope &scope) override;

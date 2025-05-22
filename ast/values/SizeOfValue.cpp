@@ -8,7 +8,7 @@
 #include "ULongValue.h"
 
 bool SizeOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    for_type->link(linker);
+    for_type.link(linker);
     return true;
 }
 
@@ -17,7 +17,7 @@ Value* SizeOfValue::evaluated_value(InterpretScope &scope) {
 }
 
 bool AlignOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    for_type->link(linker);
+    for_type.link(linker);
     return true;
 }
 

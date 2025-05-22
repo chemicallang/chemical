@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/values/UBigIntValue.h"
+#include "ast/base/TypeLoc.h"
 
 /**
  * will determine the size of a given type
@@ -10,13 +11,13 @@
 class SizeOfValue : public Value {
 public:
 
-    BaseType* for_type;
+    TypeLoc for_type;
 
     /**
      * constructor
      */
     constexpr SizeOfValue(
-        BaseType *for_type,
+        TypeLoc for_type,
         SourceLocation location
     ) : Value(ValueKind::SizeOfValue, location), for_type(for_type) {
 
@@ -31,7 +32,7 @@ public:
     Value* evaluated_value(InterpretScope &scope) override;
 
     SizeOfValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type->copy(allocator), encoded_location());
+        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type.copy(allocator), encoded_location());
     }
 
 #ifdef COMPILER_BUILD

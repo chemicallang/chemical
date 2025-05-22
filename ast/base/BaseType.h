@@ -143,15 +143,6 @@ public:
     }
 
     /**
-     * deprecated link method
-     * @deprecated
-     */
-    [[deprecated]]
-    inline bool link(SymbolResolver& linker) {
-        return link(linker, ZERO_LOC);
-    }
-
-    /**
      * just return the linked node
      */
     virtual ASTNode *linked_node() {

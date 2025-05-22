@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include "ast/base/Value.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/structures/StructDefinition.h"
 #include "StructMemberInitializer.h"
 #include "ast/statements/VarInit.h"
@@ -24,14 +25,14 @@ private:
 
 public:
 
-    BaseType* refType;
+    TypeLoc refType;
     std::unordered_map<chem::string_view, StructMemberInitializer> values;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
 
     StructValue(
-        BaseType* refType,
+        TypeLoc refType,
         SourceLocation location
     ) : Value(ValueKind::StructValue, location), refType(refType), definition(nullptr), container(nullptr)
     {
@@ -39,7 +40,7 @@ public:
     }
 
     StructValue(
-        BaseType* refType,
+        TypeLoc refType,
         ExtendableMembersContainerNode *definition,
         VariablesContainer* container,
         SourceLocation location

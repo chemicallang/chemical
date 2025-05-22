@@ -266,7 +266,7 @@ void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr)
 }
 
 void StructMember::link_signature(SymbolResolver &linker) {
-    type->link(linker);
+    type.link(linker);
     if(defValue) {
         defValue->link(linker, defValue);
     }

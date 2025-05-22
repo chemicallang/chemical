@@ -31,7 +31,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         error("expected a colon symbol after the identifier");
     }
 
-    auto type = parseType(allocator);
+    auto type = parseTypeLoc(allocator);
     if(type) {
         member->type = type;
     }

@@ -386,7 +386,7 @@ StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
             return nullptr;
         }
         const auto name = allocate_view(allocator, str->getName());
-        def->insert_variable_no_check(new (allocator.allocate<StructMember>()) StructMember(name, field_type_conv, nullptr, def, ZERO_LOC));
+        def->insert_variable_no_check(new (allocator.allocate<StructMember>()) StructMember(name, {field_type_conv, ZERO_LOC}, nullptr, def, ZERO_LOC));
     }
     return def;
 }

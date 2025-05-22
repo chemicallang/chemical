@@ -51,11 +51,11 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
         }
 
         // parsing the actual type
-        const auto type = parseType(allocator);
+        const auto type = parseTypeLoc(allocator);
         if (type) {
 
             const auto final_type = parseExpressionType(allocator, type);
-            alias->actual_type = final_type;
+            alias->actual_type = { final_type, type.getLocation() };
 
         } else {
             error("expected a type after '='");

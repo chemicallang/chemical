@@ -418,7 +418,7 @@ ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* valu
 //}
 
 TypealiasStatement* ASTBuildermake_typealias_stmt(ASTAllocator* allocator, chem::string_view* identifier, uint64_t id_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(*identifier, id_loc), actual_type, parent_node, location, specifier);
+    return new (allocator->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(*identifier, id_loc), { actual_type, id_loc }, parent_node, location, specifier);
 }
 
 UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location) {

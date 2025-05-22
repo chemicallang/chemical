@@ -4,7 +4,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/LocatedIdentifier.h"
 
@@ -39,7 +39,7 @@ public:
     // before equal
     LocatedIdentifier located_id;
     // after equal
-    BaseType* actual_type;
+    TypeLoc actual_type;
     /**
      * the generic type decl that is the generic parent of the typealias statement
      */
@@ -54,7 +54,7 @@ public:
      */
     TypealiasStatement(
             LocatedIdentifier identifier,
-            BaseType* actual_type,
+            TypeLoc actual_type,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
@@ -78,7 +78,7 @@ public:
     TypealiasStatement* copy(ASTAllocator &allocator) override {
         const auto stmt = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(
             located_id,
-            actual_type->copy(allocator),
+            actual_type.copy(allocator),
             parent(),
             encoded_location(),
             specifier()

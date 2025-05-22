@@ -10,7 +10,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/AnnotableNode.h"
 #include <optional>
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/LocatedIdentifier.h"
@@ -77,7 +77,7 @@ public:
     // TODO do not store the decl_scope here
     InterpretScope *decl_scope = nullptr;
     LocatedIdentifier located_id; ///< The identifier being initialized.
-    BaseType* type;
+    TypeLoc type;
     Value* value; ///< The value being assigned to the identifier.
 
 #ifdef COMPILER_BUILD
@@ -96,7 +96,7 @@ public:
             bool is_const,
             bool is_reference,
             LocatedIdentifier identifier,
-            BaseType* type,
+            TypeLoc type,
             Value* value,
             ASTNode* parent_node,
             SourceLocation location,
@@ -111,7 +111,7 @@ public:
         const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
             false, false,
             located_id,
-            type ? type->copy(allocator) : nullptr,
+            type ? type.copy(allocator) : nullptr,
             value ? value->copy(allocator) : nullptr,
             parent(),
             encoded_location(),

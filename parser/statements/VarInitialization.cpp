@@ -39,7 +39,7 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
     if (consumeToken(TokenType::ColonSym)) {
 
         // type
-        stmt->type = parseType(allocator);
+        stmt->type = parseTypeLoc(allocator);
         if(!stmt->type && requiredType) {
             error("expected type tokens for variable initialization");
             return stmt;

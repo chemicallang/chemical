@@ -577,7 +577,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     const auto specifier = to_specifier(info.getLinkage());
     const auto initializer = decl->getInit();
     auto initial_value = initializer ? (Value*) make_expr(initializer) : nullptr;
-    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, ZERO_LOC_ID(allocator, decl->getName()), made_type, initial_value, parent_node, ZERO_LOC, specifier);
+    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, ZERO_LOC_ID(allocator, decl->getName()), {made_type, ZERO_LOC}, initial_value, parent_node, ZERO_LOC, specifier);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {

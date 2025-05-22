@@ -1488,7 +1488,7 @@ struct DefThing {
     DefValue defValue;
     VarInitStatement defStmt;
 
-    DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), defValue.refType, &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
+    DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), TypeLoc(defValue.refType, ZERO_LOC), &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
         defStmt.set_compiler_decl(true);
     }
 

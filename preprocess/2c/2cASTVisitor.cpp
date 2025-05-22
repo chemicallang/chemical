@@ -2175,7 +2175,7 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
                 queue_destruct(init->name_view(), init, container);
             }
         } else if(init->type->kind() == BaseTypeKind::Array) {
-            auto type = (ArrayType*) init->type;
+            auto type = (ArrayType*) init->type.getType();
             if(type->has_array_size()) {
                 queue_destruct_arr(init->name_view(), init, type->elem_type, type->get_array_size());
             } else {

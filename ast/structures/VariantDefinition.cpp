@@ -313,7 +313,7 @@ BaseType* VariantMember::known_type() {
 }
 
 void VariantMemberParam::link_signature(SymbolResolver &linker) {
-    type->link(linker);
+    type.link(linker);
     if(def_value) {
         def_value->link(linker, def_value);
     }

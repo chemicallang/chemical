@@ -468,7 +468,7 @@ IfStatement* ASTBuildermake_if_stmt(ASTAllocator* allocator, Value* condition, b
 }
 
 ImplDefinition* ASTBuildermake_impl_def(ASTAllocator* allocator, BaseType* interface_type, BaseType* struct_type, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ImplDefinition>()) ImplDefinition(interface_type, struct_type, parent_node, location);
+    return new (allocator->allocate<ImplDefinition>()) ImplDefinition({interface_type, location}, {struct_type, location}, parent_node, location);
 }
 
 InitBlock* ASTBuildermake_init_block(ASTAllocator* allocator, ASTNode* parent_node, uint64_t location) {

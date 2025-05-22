@@ -57,7 +57,7 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 
 VarInitStatement* default_build_lab_build_flag(ASTAllocator& allocator, TypeBuilder& builder, ASTNode* parent) {
     const auto buildFlagValue = new (allocator.allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
-    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_should_build")), builder.getBoolType(), buildFlagValue, parent, ZERO_LOC);
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_should_build")), {builder.getBoolType(), ZERO_LOC}, buildFlagValue, parent, ZERO_LOC);
     return stmt;
 }
 
@@ -68,7 +68,7 @@ VarInitStatement* default_build_lab_cached_ptr(ASTAllocator& allocator, TypeBuil
     const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
 
     const auto buildPtrValue = new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
-    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_cached_build")), ptrModNmdType, buildPtrValue, parent, ZERO_LOC);
+    const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_cached_build")), {ptrModNmdType, ZERO_LOC}, buildPtrValue, parent, ZERO_LOC);
     return stmt;
 }
 

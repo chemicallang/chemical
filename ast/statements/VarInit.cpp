@@ -303,7 +303,7 @@ void VarInitStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_
 }
 
 void VarInitStatement::link_signature(SymbolResolver &linker) {
-    const auto type_resolved = !type || type->link(linker);
+    const auto type_resolved = !type || type.link(linker);
     const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());
     if(!type_resolved || !value_resolved) {
         attrs.signature_resolved = false;
@@ -311,7 +311,7 @@ void VarInitStatement::link_signature(SymbolResolver &linker) {
         if(type && value) {
             const auto as_array = value->as_array_value();
             if(type->kind() == BaseTypeKind::Array && as_array) {
-                const auto arr_type = ((ArrayType*) type);
+                const auto arr_type = ((ArrayType*) type.getType());
                 if(arr_type->has_no_array_size()) {
                     arr_type->set_array_size(as_array->array_size());
                 } else if(!as_array->has_explicit_size()) {
@@ -323,14 +323,14 @@ void VarInitStatement::link_signature(SymbolResolver &linker) {
             }
         }
         if(!type && value) {
-            type = value->create_type(*linker.ast_allocator);
+            type = {value->create_type(*linker.ast_allocator), type.getLocation()};
         }
     }
 }
 
 void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(!is_top_level()) {
-        const auto type_resolved = !type || type->link(linker);
+        const auto type_resolved = !type || type.link(linker);
         const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());
         if (!type_resolved || !value_resolved) {
             attrs.signature_resolved = false;
@@ -343,7 +343,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
             if(type && value) {
                 const auto as_array = value->as_array_value();
                 if(type->kind() == BaseTypeKind::Array && as_array) {
-                    const auto arr_type = ((ArrayType*) type);
+                    const auto arr_type = ((ArrayType*) type.getType());
                     if(arr_type->has_no_array_size()) {
                         arr_type->set_array_size(as_array->array_size());
                     } else if(!as_array->has_explicit_size()) {
@@ -355,7 +355,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
                 }
             }
             if(!type && value && !linker.generic_context) {
-                type = value->create_type(*linker.ast_allocator);
+                type = {value->create_type(*linker.ast_allocator), type.getLocation()};
             }
         }
     }

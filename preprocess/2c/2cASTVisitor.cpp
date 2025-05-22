@@ -1610,7 +1610,7 @@ struct DestructionJob {
     ASTNode* initializer;
     union {
         struct {
-            ExtendableMembersContainerNode* parent_node;
+            MembersContainer* parent_node;
             FunctionDeclaration* destructor;
             bool is_pointer;
         } default_job;
@@ -1643,7 +1643,7 @@ public:
     void conditional_destruct(
             const chem::string_view& condition,
             const chem::string_view& self_name,
-            ExtendableMembersContainerNode* linked,
+            MembersContainer* linked,
             FunctionDeclaration* destructor,
             bool is_pointer
     );
@@ -1651,7 +1651,7 @@ public:
     void queue_destruct(
             const chem::string_view& self_name,
             ASTNode* initializer,
-            ExtendableMembersContainerNode* linked,
+            MembersContainer* linked,
             bool is_pointer = false,
             bool has_drop_flag = true
     );
@@ -1917,7 +1917,7 @@ void CDestructionVisitor::destruct(const chem::string_view& self_name, MembersCo
 void CDestructionVisitor::conditional_destruct(
         const chem::string_view& condition,
         const chem::string_view& self_name,
-        ExtendableMembersContainerNode* linked,
+        MembersContainer* linked,
         FunctionDeclaration* destructor,
         bool is_pointer
 ) {
@@ -1948,7 +1948,7 @@ void init_drop_flag(ToCAstVisitor& visitor, const chem::string_view& drop_flag) 
     visitor.write("true;");
 }
 
-void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, ExtendableMembersContainerNode* linked, bool is_pointer, bool has_drop_flag) {
+void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, MembersContainer* linked, bool is_pointer, bool has_drop_flag) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
@@ -2170,9 +2170,10 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
         return;
     } else {
         if(init->type->isStructLikeType()) {
-            auto linked = init->type->linked_node();
-            if (linked)
-                queue_destruct(init->name_view(), init, linked->as_struct_def());
+            auto container = init->type->get_members_container();
+            if (container) {
+                queue_destruct(init->name_view(), init, container);
+            }
         } else if(init->type->kind() == BaseTypeKind::Array) {
             auto type = (ArrayType*) init->type;
             if(type->has_array_size()) {

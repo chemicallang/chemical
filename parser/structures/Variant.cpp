@@ -31,7 +31,7 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
                         error("expected ':' after the variant member parameter");
                     }
 
-                    auto type = parseType(allocator);
+                    auto type = parseTypeLoc(allocator);
                     if(type) {
                         param->type = type;
                     }

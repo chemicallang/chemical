@@ -1616,7 +1616,7 @@ struct DestructionJob {
         } default_job;
         struct {
             int array_size;
-            ExtendableMembersContainerNode* linked;
+            MembersContainer* linked;
             FunctionDeclaration* destructorFunc;
         } array_job;
     };
@@ -1635,7 +1635,7 @@ public:
 
     void destruct(
             const chem::string_view& self_name,
-            ExtendableMembersContainerNode* linked,
+            MembersContainer* linked,
             FunctionDeclaration* destructor,
             bool is_pointer
     );
@@ -1667,9 +1667,9 @@ public:
 
     void queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call);
 
-    void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, ExtendableMembersContainerNode* linked, FunctionDeclaration* destructor);
+    void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, MembersContainer* linked, FunctionDeclaration* destructor);
 
-    void destruct_arr(const chem::string_view& self_name, int array_size, ExtendableMembersContainerNode* linked, FunctionDeclaration* destructor) {
+    void destruct_arr(const chem::string_view& self_name, int array_size, MembersContainer* linked, FunctionDeclaration* destructor) {
         IntValue siz(array_size, ZERO_LOC);
         destruct_arr_ptr(self_name, &siz, linked, destructor);
     }
@@ -1895,7 +1895,7 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 }
 
-void CDestructionVisitor::destruct(const chem::string_view& self_name, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
+void CDestructionVisitor::destruct(const chem::string_view& self_name, MembersContainer* parent_node, FunctionDeclaration* destructor, bool is_pointer) {
     if(new_line_before) {
         visitor.new_line_and_indent();
     }
@@ -1986,7 +1986,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
     }
 }
 
-void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, ExtendableMembersContainerNode* parent_node, FunctionDeclaration* destructorFunc) {
+void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, Value* array_size, MembersContainer* parent_node, FunctionDeclaration* destructorFunc) {
 
     std::string arr_val_itr_name = visitor.get_local_temp_var_name();
     visitor.new_line_and_indent();
@@ -2070,11 +2070,9 @@ void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
 
 bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType *elem_type, int array_size) {
     if(elem_type->isStructLikeType()) {
-        auto linked = elem_type->linked_node();
-        FunctionDeclaration* destructorFunc;
-        const auto struc_def = linked->as_extendable_members_container_node();
+        auto struc_def = elem_type->get_members_container();
         if(struc_def) {
-            destructorFunc = struc_def->destructor_func();
+            const auto destructorFunc = struc_def->destructor_func();
             if (!destructorFunc) {
                 return false;
             }

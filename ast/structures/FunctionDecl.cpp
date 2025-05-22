@@ -1152,7 +1152,7 @@ void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
             resolved = false;
         }
     }
-    if(!returnType->link(linker)) {
+    if(!returnType.link(linker)) {
         resolved = false;
     }
     if(resolved) {

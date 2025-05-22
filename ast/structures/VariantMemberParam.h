@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/TypeLoc.h"
 
 class VariantMember;
 
@@ -10,7 +11,7 @@ class VariantMemberParam : public ASTNode {
 public:
 
     chem::string_view name;
-    BaseType* type;
+    TypeLoc type;
     Value* def_value;
     unsigned index;
     bool is_const;
@@ -22,7 +23,7 @@ public:
         chem::string_view name,
         unsigned index,
         bool is_const,
-        BaseType* type,
+        TypeLoc type,
         Value* def_value,
         VariantMember* parent_node,
         SourceLocation location
@@ -41,7 +42,7 @@ public:
 
     VariantMemberParam* copy(ASTAllocator& allocator) {
         return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(
-                name, index, is_const, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent(), encoded_location()
+                name, index, is_const, type.copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent(), encoded_location()
         );
     }
 

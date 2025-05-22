@@ -512,7 +512,7 @@ VariantMember* ASTBuildermake_variant_member(ASTAllocator* allocator, chem::stri
 }
 
 VariantMemberParam* ASTBuildermake_variant_member_param(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool is_const, BaseType* type, Value* defValue, VariantMember* parent_node, uint64_t location) {
-    return new (allocator->allocate<VariantMemberParam>()) VariantMemberParam(*name, index, is_const, type, defValue, parent_node, location);
+    return new (allocator->allocate<VariantMemberParam>()) VariantMemberParam(*name, index, is_const, {type, location}, defValue, parent_node, location);
 }
 
 // ------------------------------AST Methods begin here-----------------------------------------------

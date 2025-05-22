@@ -224,7 +224,7 @@ bool FunctionType::link(SymbolResolver &linker, SourceLocation loc) {
             resolved = false;
         }
     }
-    if(!returnType->link(linker)) {
+    if(!returnType.link(linker)) {
         resolved = false;
     }
     if(resolved) {

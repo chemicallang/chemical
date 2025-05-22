@@ -61,11 +61,12 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+                const auto typeLoc = loc_single(token);
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
                     return finalDecl;
                 }
-                decl->inherited.emplace_back(type, in_spec);
+                decl->inherited.emplace_back(TypeLoc{type, typeLoc}, in_spec);
             } while(consumeToken(TokenType::CommaSym));
         }
 

@@ -200,7 +200,7 @@ public:
     void copy_into(VariablesContainer& other, ASTAllocator& allocator, ASTNode* new_parent) {
         other.inherited.reserve(inherited.size());
         for(auto& inh : inherited) {
-            other.inherited.emplace_back(inh.type->copy(allocator), inh.specifier);
+            other.inherited.emplace_back(inh.type.copy(allocator), inh.specifier);
         }
         other.variables_container.reserve(variables_container.size());
         for(auto& var : variables_container) {

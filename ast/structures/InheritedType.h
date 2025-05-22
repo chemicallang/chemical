@@ -3,18 +3,19 @@
 #pragma once
 
 #include "ast/base/AccessSpecifier.h"
+#include "ast/base/TypeLoc.h"
 
 class InheritedType {
 public:
 
     AccessSpecifier specifier;
-    BaseType* type;
+    TypeLoc type;
 
     /**
      * constructor
      */
     constexpr InheritedType(
-        BaseType* type,
+        TypeLoc type,
         AccessSpecifier specifier = AccessSpecifier::Public
     ) : type(type), specifier(specifier) {
 

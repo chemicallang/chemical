@@ -336,11 +336,12 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+                const auto typeLoc = loc_single(token);
                 auto type = parseLinkedOrGenericType(allocator);
                 if(!type) {
                     return final_decl;
                 }
-                decl->inherited.emplace_back(type, in_spec);
+                decl->inherited.emplace_back(TypeLoc{type, typeLoc}, in_spec);
             } while(consumeToken(TokenType::CommaSym));
         }
         if(!consumeToken(TokenType::LBrace)) {

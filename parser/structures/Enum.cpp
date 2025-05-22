@@ -36,7 +36,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
         annotate(decl);
 
         if(consumeToken(TokenType::ColonSym)) {
-            auto type = parseType(allocator);
+            auto type = parseTypeLoc(allocator);
             if(type) {
                 decl->underlying_type = type;
             } else {
@@ -44,7 +44,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
                 return decl;
             }
         } else {
-            decl->underlying_type = new (allocator.allocate<IntType>()) IntType();
+            decl->underlying_type = {new(allocator.allocate<IntType>()) IntType(), loc};
         }
 
         if(!consumeToken(TokenType::LBrace)) {

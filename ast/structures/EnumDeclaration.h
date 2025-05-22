@@ -13,6 +13,7 @@
 #include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/types/LinkedType.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/LocatedIdentifier.h"
 
 struct EnumDeclAttributes {
@@ -34,7 +35,7 @@ public:
     EnumDeclAttributes attrs;
     LocatedIdentifier located_id; ///< The name of the enum.
     std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
-    BaseType* underlying_type;
+    TypeLoc underlying_type;
 
     /**
      * by default this index starts at zero, however if enum extends another enum
@@ -54,7 +55,7 @@ public:
      */
     EnumDeclaration(
             LocatedIdentifier name_id,
-            BaseType* underlying_type,
+            TypeLoc underlying_type,
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
@@ -120,7 +121,7 @@ public:
     EnumDeclaration* copy(ASTAllocator &allocator) override {
         const auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(
             located_id,
-            underlying_type->copy(allocator),
+            underlying_type.copy(allocator),
             parent(),
             encoded_location(),
             specifier()

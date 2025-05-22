@@ -439,7 +439,7 @@ DoWhileLoop* ASTBuildermake_do_while_loop(ASTAllocator* allocator, Value* condit
 }
 
 EnumDeclaration* ASTBuildermake_enum_decl(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(*name, name_loc), underlying_type, parent_node, location, specifier);
+    return new (allocator->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(*name, name_loc), {underlying_type, location}, parent_node, location, specifier);
 }
 
 EnumMember* ASTBuildermake_enum_member(ASTAllocator* allocator, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location) {

@@ -89,7 +89,7 @@ public:
     /**
      * register generic args
      */
-    ImplDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types);
+    ImplDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
 
     ASTNode* child(const chem::string_view &name) override {
         return master_impl->child(name);

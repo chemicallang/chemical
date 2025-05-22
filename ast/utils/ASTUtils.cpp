@@ -20,6 +20,15 @@ bool are_all_specialized(const std::span<BaseType*>& types) {
     return true;
 }
 
+bool are_all_specialized(const std::span<TypeLoc>& types) {
+    for(auto& ty : types) {
+        if(!ty || ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool has_function_call_before(ChainValue* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
@@ -139,7 +148,7 @@ FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* exp
 }
 
 void infer_generic_args(
-    std::vector<BaseType*>& out_generic_args,
+    std::vector<TypeLoc>& out_generic_args,
     std::vector<GenericTypeParameter*>& generic_params,
     FunctionCall* call,
     ASTDiagnoser& diagnoser,
@@ -199,7 +208,7 @@ void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& r
 #endif
 }
 
-int16_t get_iteration_for(std::vector<GenericTypeParameter*>& generic_params, std::vector<BaseType*>& generic_list) {
+int16_t get_iteration_for(std::vector<GenericTypeParameter*>& generic_params, std::vector<TypeLoc>& generic_list) {
     if(!generic_params.empty()) {
         int16_t i = 0;
         unsigned j;
@@ -241,7 +250,7 @@ int16_t total_generic_iterations(std::vector<GenericTypeParameter*>& generic_par
 int16_t register_generic_usage_no_check(
     ASTAllocator& allocator,
     std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<BaseType*>& generic_list
+    std::vector<TypeLoc>& generic_list
 ) {
     int16_t i = 0;
     for (const auto param: generic_params) {
@@ -255,7 +264,7 @@ int16_t register_generic_usage_no_check(
 std::pair<int16_t, bool> register_generic_usage(
         ASTAllocator& astAllocator,
         std::vector<GenericTypeParameter*>& generic_params,
-        std::vector<BaseType*>& generic_list
+        std::vector<TypeLoc>& generic_list
 ) {
     int16_t i = get_iteration_for(generic_params, generic_list);
     if(i != -1) return { i, false};
@@ -267,8 +276,8 @@ void infer_types_by_args(
         ASTNode* params_node,
         unsigned int generic_list_size,
         BaseType* param_type,
-        BaseType* arg_type,
-        std::vector<BaseType*>& inferred,
+        TypeLoc arg_type,
+        std::vector<TypeLoc>& inferred,
         Value* debug_value
 ) {
     const auto param_type_kind = param_type->kind();
@@ -293,7 +302,7 @@ void infer_types_by_args(
         }
     } else if(param_type_kind == BaseTypeKind::Generic) {
         // not directly linked generic param like func <T> add(param : Thing<T>)
-        const auto arg_type_gen = (GenericType*) arg_type;
+        const auto arg_type_gen = (GenericType*) arg_type.getType();
         const auto param_type_gen = (GenericType*) param_type;
         if((arg_type->kind() == BaseTypeKind::Generic) && arg_type->linked_struct_def() == param_type->linked_struct_def()) {
             const auto child_gen_size = param_type_gen->types.size();

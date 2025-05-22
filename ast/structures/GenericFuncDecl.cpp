@@ -124,7 +124,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     auto& diagnoser = instantiator.getDiagnoser();
 
     const auto total = generic_params.size();
-    std::vector<BaseType*> generic_args(total);
+    std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
     infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
     // purify generic args, this is done if this call is inside a generic function
     // by calling pure we resolve that type to its specialized version
@@ -134,7 +134,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     while(i < generic_args.size()) {
         auto& type = generic_args[i];
         if(type) {
-            type = type->canonical();
+            type = {type->canonical(), type.getLocation()};
         }
         i++;
     }

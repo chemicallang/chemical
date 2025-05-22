@@ -84,10 +84,10 @@ void GenericUnionDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_p
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-UnionDef* GenericUnionDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types) {
+UnionDef* GenericUnionDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
 
     const auto types_size = types.size();
-    std::vector<BaseType*> generic_args(types_size);
+    std::vector<TypeLoc> generic_args(types_size, TypeLoc(nullptr));
     unsigned i = 0;
     for(auto& type : types) {
         generic_args[i] = type;

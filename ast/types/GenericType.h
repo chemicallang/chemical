@@ -3,7 +3,7 @@
 #pragma once
 
 #include <utility>
-#include "ast/base/BaseType.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/types/LinkedType.h"
 #include <unordered_map>
 
@@ -13,7 +13,7 @@ class GenericType : public BaseType {
 public:
 
     LinkedType* referenced;
-    std::vector<BaseType*> types;
+    std::vector<TypeLoc> types;
 
     /**
      * constructor
@@ -25,7 +25,7 @@ public:
     /**
      * constructor
      */
-    GenericType(LinkedType* referenced, std::vector<BaseType*> types) : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)) {
+    GenericType(LinkedType* referenced, std::vector<TypeLoc> types) : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)) {
 
     }
 

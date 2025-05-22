@@ -177,7 +177,7 @@ ASTNode *ArrayValue::linked_node() {
 bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     auto& elemType = known_elem_type();
     if(elemType) {
-        elemType->link(linker);
+        elemType.link(linker);
     }
     if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) expected_type;

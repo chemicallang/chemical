@@ -602,7 +602,7 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
             return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
         }
     } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {
-        if(((IntNType*) type)->is_unsigned()) {
+        if(((IntNType*) type.getType())->is_unsigned()) {
             return gen.builder->CreateFPToUI(llvm_val, type->llvm_type(gen));
         } else {
             return gen.builder->CreateFPToSI(llvm_val, type->llvm_type(gen));

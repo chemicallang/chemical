@@ -420,7 +420,7 @@ public:
     /**
      * parse generic argument list
      */
-    void parseGenericArgsList(std::vector<BaseType*>& outArgs, ASTAllocator& allocator);
+    void parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator);
 
     /**
      * parse a function call

@@ -121,9 +121,9 @@ public:
         }
     }
 
-    std::vector<BaseType*>& generic_list();
+    std::vector<TypeLoc>& generic_list();
 
-    std::vector<BaseType*> create_generic_list();
+    std::vector<TypeLoc> create_generic_list();
 
 #ifdef COMPILER_BUILD
 

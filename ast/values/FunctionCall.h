@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include "ast/base/ChainValue.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/ASTNode.h"
 
 class ASTDiagnoser;
@@ -19,7 +20,7 @@ class FunctionCall : public ChainValue {
 public:
 
     ChainValue* parent_val;
-    std::vector<BaseType*> generic_list;
+    std::vector<TypeLoc> generic_list;
     std::vector<Value*> values;
 
     /**
@@ -107,14 +108,14 @@ public:
      * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,
      * for which arguments couldn't be inferred, nullptr would be used
      */
-    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred);
+    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred);
 
     /**
      * will infer return type (if it's generic type) for example a generic function with generic return type
      * func <T> sum(a : int, b : int) : T is called in another function func print(sum : int) like this
      * print(sum(10, 10)) <-- we know print expects a integer, we can assume sum should return integer
      */
-    void infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred, BaseType* expected_type);
+    void infer_return_type(ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred, BaseType* expected_type);
 
 #ifdef COMPILER_BUILD
 

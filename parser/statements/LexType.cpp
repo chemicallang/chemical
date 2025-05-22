@@ -75,9 +75,9 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
 
 BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idType) {
     if(consumeToken(TokenType::LessThanSym)) {
-        std::vector<BaseType*> types;
+        std::vector<TypeLoc> types;
         do {
-            auto type = parseType(allocator);
+            auto type = parseTypeLoc(allocator);
             if(type) {
                 types.emplace_back(type);
             } else {
@@ -91,8 +91,8 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         // TODO this is not ideal
         if(types.size() == 1 && ((NamedLinkedType*) idType)->debug_link_name() == "literal") {
             auto underlying = types.back();
-            if(underlying->kind() == BaseTypeKind::Linked && ((NamedLinkedType*) underlying)->debug_link_name() == "string") {
-                underlying = new (allocator.allocate<StringType>()) StringType();
+            if(underlying->kind() == BaseTypeKind::Linked && ((NamedLinkedType*) underlying.getType())->debug_link_name() == "string") {
+                underlying = {new(allocator.allocate<StringType>()) StringType(), underlying.getLocation()};
             }
             return new (allocator.allocate<LiteralType>()) LiteralType(underlying);
         }

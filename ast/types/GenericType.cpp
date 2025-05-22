@@ -13,7 +13,7 @@
 #include "ast/utils/GenericUtils.h"
 
 bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
-    referenced->link(linker);
+    referenced->link(linker, loc);
     const auto linked = referenced->linked;
     if(!linked) {
         return false;
@@ -63,7 +63,7 @@ bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
 GenericType* GenericType::copy(ASTAllocator& allocator) const {
     auto gen = new (allocator.allocate<GenericType>()) GenericType((LinkedType*) referenced->copy(allocator));
     for(auto& type : types) {
-        gen->types.emplace_back(type->copy(allocator));
+        gen->types.emplace_back(type.copy(allocator));
     }
     return gen;
 }

@@ -220,7 +220,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_BaseTypelink", (void*) BaseTypelink },
         { "compiler_BaseTypegetLinkedNode", (void*) BaseTypegetLinkedNode },
         { "compiler_FunctionTypeget_params", (void*) FunctionTypeget_params },
-        { "compiler_GenericTypeget_types", (void*) GenericTypeget_types },
         { "compiler_AccessChainget_values", (void*) AccessChainget_values },
         { "compiler_AccessChainas_value", (void*) AccessChainas_value },
         { "compiler_ArrayValueget_values", (void*) ArrayValueget_values },

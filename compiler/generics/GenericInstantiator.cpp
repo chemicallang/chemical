@@ -120,7 +120,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
 /**
  * what it checks is whether the argument types are linked with given generic types parameters in order
  */
-bool are_types_generic(std::vector<BaseType*>& arg_types, std::vector<GenericTypeParameter*>& type_params) {
+bool are_types_generic(std::vector<TypeLoc>& arg_types, std::vector<GenericTypeParameter*>& type_params) {
     if(arg_types.size() != type_params.size()) {
         return false;
     }

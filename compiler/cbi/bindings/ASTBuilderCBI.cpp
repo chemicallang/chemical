@@ -253,7 +253,7 @@ BoolValue* ASTBuildermake_bool_value(ASTAllocator* allocator, bool value, uint64
 }
 
 CastedValue* ASTBuildermake_casted_value(ASTAllocator* allocator, Value* value, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<CastedValue>()) CastedValue(value, type, location);
+    return new (allocator->allocate<CastedValue>()) CastedValue(value, {type, location}, location);
 }
 
 CharValue* ASTBuildermake_char_value(ASTAllocator* allocator, char value, uint64_t location) {
@@ -563,10 +563,6 @@ ASTNode* BaseTypegetLinkedNode(BaseType* type) {
 
 std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type) {
     return &func_type->params;
-}
-
-std::vector<BaseType*>* GenericTypeget_types(GenericType* gen_type) {
-    return &gen_type->types;
 }
 
 Value* AccessChainas_value(AccessChain* chain) {

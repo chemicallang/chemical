@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include "ast/base/ChainValue.h"
+#include "ast/base/TypeLoc.h"
 
 bool has_function_call_before(ChainValue* value);
 
@@ -25,7 +26,7 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
 FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* expected_type, ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
 void infer_generic_args(
-    std::vector<BaseType*>& out_generic_args,
+    std::vector<TypeLoc>& out_generic_args,
     std::vector<GenericTypeParameter*>& generic_params,
     FunctionCall* call,
     ASTDiagnoser& diagnoser,

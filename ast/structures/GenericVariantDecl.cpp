@@ -92,10 +92,10 @@ void GenericVariantDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<BaseType*>& types) {
+VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
 
     const auto types_size = types.size();
-    std::vector<BaseType*> generic_args(types_size);
+    std::vector<TypeLoc> generic_args(types_size, TypeLoc(nullptr));
     unsigned i = 0;
     for(auto& type : types) {
         generic_args[i] = type;
@@ -178,7 +178,7 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
     auto& diagnoser = instantiator.getDiagnoser();
 
     const auto total = generic_params.size();
-    std::vector<BaseType*> generic_args(total);
+    std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
 
     // set all to default type (if default type is not present, it would automatically be nullptr)
     unsigned i = 0;

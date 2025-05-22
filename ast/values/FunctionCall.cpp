@@ -835,8 +835,8 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::v
 }
 
 bool FunctionCall::link_gen_args(SymbolResolver &linker) {
-    for(const auto type : generic_list) {
-        if(!type->link(linker)) {
+    for(auto& type : generic_list) {
+        if(!type.link(linker)) {
             return false;
         }
     }
@@ -882,7 +882,7 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
 }
 
 
-void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred) {
+void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred) {
     const auto func_type = known_func_type();
     if(func_type) {
         const auto func = func_type;
@@ -893,6 +893,7 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
         while(arg_offset < values_size) {
             const auto param = func->params[arg_offset];
             const auto param_type = param->type;
+            const auto arg_type_loc = values[arg_offset]->encoded_location();
             const auto arg_type = values[arg_offset]->known_type();
             if(!arg_type) {
 #ifdef DEBUG
@@ -901,7 +902,7 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
                 arg_offset++;
                 continue;
             }
-            infer_types_by_args(diagnoser, parent_val->linked_node(), generic_list.size(), param_type, arg_type, inferred, this);
+            infer_types_by_args(diagnoser, parent_val->linked_node(), generic_list.size(), param_type, {arg_type, arg_type_loc}, inferred, this);
             arg_offset++;
         }
     } else {
@@ -912,9 +913,10 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
             auto i = 0;
             while(i < values_size) {
                 const auto param_type = (member->values.begin() + i)->second->type;
+                const auto arg_type_loc = values[i]->encoded_location();
                 const auto arg_type = values[i]->known_type();
                 if(arg_type) {
-                    infer_types_by_args(diagnoser, member->parent(), generic_list.size(), param_type, arg_type, inferred, this);
+                    infer_types_by_args(diagnoser, member->parent(), generic_list.size(), param_type, {arg_type, arg_type_loc}, inferred, this);
                 }
                 i++;
             }
@@ -922,10 +924,10 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
     }
 }
 
-void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred, BaseType* expected_type) {
+void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred, BaseType* expected_type) {
     const auto func = safe_linked_func();
     if(!func || expected_type->kind() == BaseTypeKind::Any) return;
-    infer_types_by_args(diagnoser, func, generic_list.size(), func->returnType, expected_type, inferred, this);
+    infer_types_by_args(diagnoser, func, generic_list.size(), func->returnType, {expected_type, ZERO_LOC}, inferred, this);
 }
 
 ASTNode *FunctionCall::linked_node() {
@@ -1244,8 +1246,8 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
     for(const auto value : values) {
         call->values.emplace_back(value->copy(allocator));
     }
-    for(const auto gen_arg : generic_list) {
-        call->generic_list.emplace_back(gen_arg->copy(allocator));
+    for(auto& gen_arg : generic_list) {
+        call->generic_list.emplace_back(gen_arg.copy(allocator));
     }
     return call;
 }

@@ -120,18 +120,28 @@ void ASTProcessor::determine_module_files(
             }
             for(auto& dir_path : module->paths) {
                 if (!std::filesystem::exists(dir_path.data())) {
-                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "directory doesn't exist '" << dir_path << "' for module '" << module->name << '\'' << std::endl;
+                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "directory / file doesn't exist at path'" << dir_path << "' in module '" << *module << '\'' << std::endl;
                     continue;
                 }
-                if (!std::filesystem::is_directory(dir_path.data())) {
-                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "path '" << dir_path << "' for module '" << module->name << "' is not a directory" << std::endl;
-                    continue;
-                }
-                std::vector<std::string> filePaths;
-                getFilesInDirectory(filePaths, dir_path.data());
-                for (auto& abs_path: filePaths) {
-                    auto fileId = loc_man.encodeFile(abs_path);
-                    files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                if (std::filesystem::is_directory(dir_path.data())) {
+                    std::vector<std::string> filePaths;
+                    getFilesInDirectory(filePaths, dir_path.data());
+                    for (auto& abs_path: filePaths) {
+                        auto fileId = loc_man.encodeFile(abs_path);
+                        files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                    }
+                } else if(dir_path.ends_with(".ch")) {
+                    auto file_rel_path = dir_path.to_std_string();
+                    auto abs_path = canonical_path(file_rel_path);
+                    if(abs_path.empty()) {
+                        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine canonical path for file '" << file_rel_path << "' in module '" << *module << '\'' << std::endl;
+                        continue;
+                    } else {
+                        auto fileId = loc_man.encodeFile(abs_path);
+                        files.emplace_back(fileId, &module->module_scope, file_rel_path, abs_path, "");
+                    }
+                } else {
+                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "path '" << dir_path << "' in module '" << *module << "' is not a directory or a chemical file" << std::endl;
                 }
             }
             return;

@@ -15,6 +15,8 @@ struct ModuleFileSource {
 
     chem::string_view if_condition;
 
+    bool is_negative = false;
+
 };
 
 class ModuleFileData {

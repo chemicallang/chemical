@@ -27,6 +27,10 @@ public:
 
     bool primitive() final;
 
+    bool compile_time_computable() override {
+        return value->compile_time_computable();
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;

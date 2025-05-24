@@ -1,5 +1,3 @@
-if(!def.windows) {
-
 /** @def O_RDONLY Open for reading only. */
 @comptime public const O_RDONLY = 0b00000000
 
@@ -95,5 +93,3 @@ public func write(fd : int, buf : *void, count : ulong) : ssize_t
  */
 @extern
 public func mkdir(pathname : *char, mode : uint) : int
-
-}

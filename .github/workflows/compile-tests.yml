@@ -11,8 +11,8 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # These commands use the compiler executable (chemical) from the release asset.
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm -v --assertions --mode debug_complete"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
       ASSET_REGULAR: "linux-x86-64.zip"
       ASSET_TCC: "linux-x86-64-tcc.zip"
     steps:
@@ -110,8 +110,8 @@ jobs:
     runs-on: windows-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm -v --assertions --mode debug_complete"
-      COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -o lang/tests/build.exe -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
       ASSET_REGULAR: "windows-x64.zip"
       ASSET_TCC: "windows-x64-tcc.zip"
     steps:

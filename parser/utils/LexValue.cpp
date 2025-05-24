@@ -285,7 +285,6 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
             return (Value*) parseCharValue(allocator);
         case TokenType::String:
             return (Value*) parseStringValue(allocator);
-        case TokenType::LBracket: // TODO remove this
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);

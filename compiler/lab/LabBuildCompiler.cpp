@@ -1700,9 +1700,10 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // get all the sources
     for(auto& sourcePath : modFileData.sources_list) {
-        // TODO handle the if condition for source path
-        auto abs_path = resolve_sibling(modFilePath, sourcePath.path.str());
-        module->paths.emplace_back(abs_path);
+        if(sourcePath.if_condition.empty() || is_condition_enabled(container, sourcePath.if_condition)) {
+            auto abs_path = resolve_sibling(modFilePath, sourcePath.path.str());
+            module->paths.emplace_back(abs_path);
+        }
     }
 
     // importing all compiler interfaces user requested inside the .mod file

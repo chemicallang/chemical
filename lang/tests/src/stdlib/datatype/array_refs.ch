@@ -9,18 +9,18 @@ func array_ref_at(array : std::span<int>, ind : int) : int {
 
 func test_array_refs() {
     test("array reference works implicitly with array values", () => {
-        return array_ref_size({ 10, 20 }) == 2;
+        return array_ref_size([ 10, 20 ]) == 2;
     })
     test("array reference works implicitly with referenced arrays", () => {
-        var arr = { 10 }
+        var arr = [ 10 ]
         return array_ref_size(arr) == 1;
     })
     test("array reference works implicitly with referenced arrays", () => {
-        var arr = { 10 }
+        var arr = [ 10 ]
         return array_ref_at(arr, 0) == 10;
     })
     test("array pointer is passed properly with array values", () => {
-        return array_ref_at({ 10, 20, 30 }, 2) == 30 && array_ref_at({ 10, 20, 30 }, 1) == 20;
+        return array_ref_at([ 10, 20, 30 ], 2) == 30 && array_ref_at([ 10, 20, 30 ], 1) == 20;
     })
     test("array pointer is passed properly with referenced vectors", () => {
         var arr = std::vector<int>()

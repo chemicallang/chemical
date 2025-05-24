@@ -50,7 +50,7 @@ func hashSmallColorValue(view : &std::string_view) : size_t {
     }
 
     // copy the token value
-    var arr : char[27] = {}
+    var arr : char[27] = []
     strncpy(&arr[0], view.data(), size);
     arr[size] = '\0'
 

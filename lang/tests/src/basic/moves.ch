@@ -202,7 +202,7 @@ func test_moves() {
 
     test("non movable object can be stored in array by ref", () => {
         var a = NonMovableObj { a : 556, b : 766 }
-        var n = { a }
+        var n = [ a ]
         return n[0].a == 556 && n[0].b == 766 && a.a == 556 && a.b == 766;
     })
 
@@ -251,12 +251,12 @@ func test_moves() {
     })
     test("moved into array value is valid - (cleared)", () => {
         var obj = ClearObj { i : 323 }
-        var con = { obj }
+        var con = [ obj ]
         return con[0].i == 323;
     })
     test("moved into array value using assignment is valid - (cleared)", () => {
         var obj = ClearObj { i : 656 }
-        var con = { ClearObj { i : 776 } }
+        var con = [ ClearObj { i : 776 } ]
         con[0] = obj
         return con[0].i == 656;
     })
@@ -304,12 +304,12 @@ func test_moves() {
     })
     test("moved into array value is valid - (movable)", () => {
         var obj = MoveObj { i : 323 }
-        var con = { obj }
+        var con = [ obj ]
         return con[0].i == 323;
     })
     test("moved into array value using assignment is valid - (movable)", () => {
         var obj = MoveObj { i : 656 }
-        var con = { MoveObj { i : 776 } }
+        var con = [ MoveObj { i : 776 } ]
         con[0] = obj
         return con[0].i == 656;
     })
@@ -357,12 +357,12 @@ func test_moves() {
     })
     test("moved into array value is valid - (copied)", () => {
         var obj = ImpCopyObj { i : 323 }
-        var con = { obj }
+        var con = [ obj ]
         return con[0].i == 323;
     })
     test("moved into array value using assignment is valid - (copied)", () => {
         var obj = ImpCopyObj { i : 656 }
-        var con = { ImpCopyObj { i : 776 } }
+        var con = [ ImpCopyObj { i : 776 } ]
         con[0] = obj
         return con[0].i == 656;
     })
@@ -431,7 +431,7 @@ func test_moves() {
     test("clear function is called on previous value when moving into array", () => {
         if(true) {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
-            var con2 = { con.c }
+            var con2 = [ con.c ]
         }
         return delete_called == 2;
     })
@@ -534,7 +534,7 @@ func test_moves() {
     test("move function is called on previous value when moving struct member into array", () => {
         if(true) {
             var con = MoveObjCon { m : MoveObj { i : 453 } }
-            var con2 = { con.m }
+            var con2 = [ con.m ]
             // TODO this should result in an error, that con object has uninitialized fields before destruction
         }
         return delete_called == 2;
@@ -566,7 +566,7 @@ func test_moves() {
     })
     test("explicit copy function calls work in array value", () => {
         var c = CopyObj { i : 46 }
-        var d = { c.copy() }
+        var d = [ c.copy() ]
         return d[0].i == 46;
     })
     test("explicit copy function calls work in assignment", () => {

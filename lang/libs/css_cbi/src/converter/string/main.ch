@@ -991,7 +991,7 @@ func put_hashed_string_chain(resolver : *mut SymbolResolver, builder : *mut ASTB
 }
 
 func put_class_name_chain(hash : uint32_t, prefix : char, resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode) {
-    var className : char[10] = {};
+    var className : char[10] = [];
     className[0] = '.'
     className[1] = prefix
     base64_encode_32bit(hash, &className[2])
@@ -1012,7 +1012,7 @@ func convertCSSOM(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, om 
     if(size > 0) {
         if(om.has_dynamic_values) {
             const hash = generate_random_32bit();
-            var className : char[10] = {};
+            var className : char[10] = [];
             className[0] = '.'
             className[1] = 'r'
             base64_encode_32bit(hash, &className[2])

@@ -402,7 +402,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             if(lambdaType) {
                 return lambdaType;
             } else {
-                error("expected a lambda type after '[]'");
+                error("expected a lambda type after '||' for capturing lambda");
                 return { nullptr, ZERO_LOC };
             }
         }

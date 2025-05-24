@@ -61,7 +61,7 @@ func test_pointer_math() {
         return *k == 345;
     })
     test("testing basic pointer arithmetic", () => {
-        var arr = {10, 20, 30, 40, 50};
+        var arr = [10, 20, 30, 40, 50];
         var ptr = &arr[0];
         var result1 = *ptr == 10;
         ptr++;
@@ -78,26 +78,26 @@ func test_pointer_math() {
         return result1 && result2 && result3 && result4 && result5 && result6;
     });
     test("pointer subtraction works", () => {
-        var arr = {10, 20, 30, 40, 50};
+        var arr = [10, 20, 30, 40, 50];
         var ptr1 = &arr[0] + 2;
         var ptr2 = &arr[0];
         var diff = ptr1 - ptr2;
         return diff == 2;
     })
     test("pointer comparison works - 1", () => {
-        var arr = {10, 20, 30, 40, 50};
+        var arr = [10, 20, 30, 40, 50];
         var ptr1 = &arr[0] + 2;
         var ptr2 = &arr[0];
         return ptr1 > ptr2 && ptr2 < ptr1;
     })
     test("pointer comparison works - 2", () => {
-        var arr = {10, 20, 30, 40, 50};
+        var arr = [10, 20, 30, 40, 50];
         var ptr1 = &arr[0] + 2;
         var ptr2 = &arr[0] + 2;
         return ptr1 == ptr2;
     })
     test("pointer comparison works - 3", () => {
-        var arr = {10, 20, 30, 40, 50};
+        var arr = [10, 20, 30, 40, 50];
         var ptr1 = &arr[0] + 4;
         var ptr2 = &arr[0];
         return ptr2 < ptr1;

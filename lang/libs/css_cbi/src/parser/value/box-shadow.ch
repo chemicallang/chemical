@@ -21,7 +21,7 @@ func (cssParser : &mut CSSParser) parseBoxShadow(
 
     while(true) {
 
-        var lengths : CSSValue[] = { CSSValue(), CSSValue(), CSSValue(), CSSValue() }
+        var lengths : CSSValue[] = [ CSSValue(), CSSValue(), CSSValue(), CSSValue() ]
 
         var lenInd = 0;
 

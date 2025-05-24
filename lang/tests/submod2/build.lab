@@ -11,6 +11,6 @@ public func build(ctx : *mut BuildContext) : *mut Module {
     }
 
     const path = lab::rel_path_to("src")
-    return ctx.chemical_dir_module(std::string_view(""), std::string_view("submod2"), std::string_view(path), { std_module })
+    return ctx.chemical_dir_module(std::string_view(""), std::string_view("submod2"), std::string_view(path), [ std_module ])
 
 }

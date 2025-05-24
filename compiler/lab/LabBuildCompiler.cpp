@@ -58,6 +58,15 @@
 #define DEBUG_FUTURES true
 #endif
 
+std::ostream& operator<<(std::ostream& os, const LabModule& mod) {
+    if(mod.scope_name.empty()) {
+        os << mod.name;
+    } else {
+        os << mod.scope_name << ':' << mod.name;
+    }
+    return os;
+}
+
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
         auto child_type = found->returnType->known_child_type();
@@ -891,7 +900,7 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
 int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
 #ifndef COMPILER_BUILD
     if(mod->type == LabModuleType::CPPFile) {
-        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
         return 2;
     }
 #endif
@@ -913,7 +922,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     }
 #else
     if(mod->type == LabModuleType::CPPFile) {
-        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
         return 1;
     }
     const auto compile_result = compile_c_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
@@ -1174,7 +1183,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                     }
                 }
                 case LabModuleType::ObjFile:
-                    exe->linkables.emplace_back(mod->paths[0].copy());
+                    for(auto& path : mod->paths) {
+                        exe->linkables.emplace_back(path.copy());
+                    }
                     continue;
                 default:
                     break;

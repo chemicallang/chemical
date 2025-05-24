@@ -57,6 +57,7 @@ public:
     FileScope& operator =(FileScope&& other) noexcept {
         file_path = other.file_path;
         body = std::move(other.body);
+        return *this;
     }
 
 };

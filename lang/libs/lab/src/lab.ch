@@ -77,6 +77,10 @@ public struct BuildContext {
      */
     func get_module(&self, scope_name : &std::string_view, name : &std::string_view) : *mut Module;
 
+    func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*Module>) : *mut Module
+
+    func add_path(&self, module : *mut Module, path : &std::string_view);
+
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 

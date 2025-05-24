@@ -55,7 +55,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     // build method
     output << "\nfunc build(ctx : *mut BuildContext) : *mut Module {\n";
-    output << "\tconst mod = ctx.chemical_dir_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", lab::rel_path_to(\"src\").to_view(), [ ";
+    output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", [ ";
     // calling get functions on dependencies
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {
@@ -70,6 +70,19 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
     }
     output << "]);\n";
+
+    if(!data.sources_list.empty()) {
+        for(auto& src : data.sources_list) {
+            const auto has_if = !src.if_condition.empty();
+            if(has_if) {
+                output << "if(def." << src.if_condition << ") {\n";
+            }
+            output << "\t\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
+            if(has_if) {
+                output << "\t}\n";
+            }
+        }
+    }
 
     if(!data.compiler_interfaces.empty()) {
         // writing each compiler interface

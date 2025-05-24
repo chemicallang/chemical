@@ -1696,7 +1696,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     }
 
     // create a new module
-    const auto module = context.empty_module(scope_name, module_name);
+    const auto module = context.new_module(scope_name, module_name);
 
     // get all the sources
     for(auto& sourcePath : modFileData.sources_list) {

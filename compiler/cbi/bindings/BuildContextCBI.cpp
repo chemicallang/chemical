@@ -20,6 +20,14 @@ LabModule* BuildContextget_module(LabBuildContext* self, chem::string_view* scop
     return self->storage.find_module(*scope_name, *name);
 }
 
+LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies) {
+    return self->new_module(*scope_name, *name, dependencies->ptr, dependencies->size);
+}
+
+void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path) {
+    module->paths.emplace_back(chem::string(*path));
+}
+
 LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg) {
     return self->module_from_directory(*path, *scope_name, *mod_name, *error_msg);
 }

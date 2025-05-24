@@ -37,6 +37,11 @@ extern "C" {
 
     LabModule* BuildContextget_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name);
 
+    LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies);
+
+    void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path);
+
+    [[deprecated]]
     LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg);
 
     LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);

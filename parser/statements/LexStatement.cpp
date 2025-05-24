@@ -403,6 +403,7 @@ bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data)
     }
 
     if(consumeToken(TokenType::IfKw)) {
+        source.is_negative = consumeToken(TokenType::NotSym);
         auto id = consumeIdentifierOrKeyword();
         if(id) {
             source.if_condition = allocate_view(allocator, id->value);

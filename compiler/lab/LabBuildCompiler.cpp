@@ -1636,6 +1636,10 @@ int LabBuildCompiler::translate_mod_file_to_lab(
 
 }
 
+static bool neg_it(bool neg_flag, bool result) {
+    return neg_flag ? !result : result;
+}
+
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
         const std::string_view& modFilePathView
@@ -1699,10 +1703,18 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto module = context.new_module(scope_name, module_name);
 
     // get all the sources
-    for(auto& sourcePath : modFileData.sources_list) {
-        if(sourcePath.if_condition.empty() || is_condition_enabled(container, sourcePath.if_condition)) {
-            auto abs_path = resolve_sibling(modFilePath, sourcePath.path.str());
-            module->paths.emplace_back(abs_path);
+    for(auto& src : modFileData.sources_list) {
+        if(src.if_condition.empty()) {
+            module->paths.emplace_back(resolve_sibling(modFilePath, src.path.str()));
+        } else {
+            const auto cond_result = is_condition_enabled(container, src.if_condition);
+            if(cond_result.has_value()) {
+                if(neg_it(src.is_negative, cond_result.value())) {
+                    module->paths.emplace_back(resolve_sibling(modFilePath, src.path.str()));
+                }
+            } else {
+                std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "unknown condition '" << src.if_condition << "'" << std::endl;
+            }
         }
     }
 

@@ -1,5 +1,3 @@
-if(!def.windows) {
-
 /**
  * @struct timeval
  * @brief Time value with second and microsecond resolution.
@@ -16,5 +14,3 @@ public struct timeval {
  * @return 0 on success, –1 on error.
  */
 public func gettimeofday(tv : *mut timeval, tz : *mut void) : int
-
-}

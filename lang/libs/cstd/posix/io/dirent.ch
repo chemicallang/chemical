@@ -1,5 +1,3 @@
-if(!def.windows) {
-
 /**
  * @struct dirent
  * @brief Directory entry data.
@@ -39,5 +37,3 @@ public func readdir(dirp : *mut DIR) : *mut dirent
  */
 @extern
 public func closedir(dirp : *mut DIR) : int
-
-}

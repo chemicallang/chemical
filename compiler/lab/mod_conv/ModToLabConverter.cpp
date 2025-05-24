@@ -75,7 +75,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         for(auto& src : data.sources_list) {
             const auto has_if = !src.if_condition.empty();
             if(has_if) {
-                output << "if(def." << src.if_condition << ") {\n";
+                output << "if(";
+                if(src.is_negative) {
+                    output << '!';
+                }
+                output << "def." << src.if_condition << ") {\n";
             }
             output << "\t\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
             if(has_if) {

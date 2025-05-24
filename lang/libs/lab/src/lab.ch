@@ -77,13 +77,6 @@ public struct BuildContext {
      */
     func get_module(&self, scope_name : &std::string_view, name : &std::string_view) : *mut Module;
 
-    /**
-     * create a module from a directory that contains a chemical.mod or build.lab file, the scope name and mod name is given to check if module by that name already
-     * has been parsed so we return it fast, the path is the absolute path to directory, the returned module may be null, in that case error is set to error_msg
-     * it can be that an unknown error happened and we didn't set the error, however module is still null, important to check returned module for nullability
-     */
-    func module_from_directory(&self, path : &std::string_view, scope_name : &std::string_view, mod_name : &std::string_view, error_msg : &mut std::string) : *mut Module
-
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
@@ -176,6 +169,29 @@ public struct BuildContext {
     // invoke ar with given cli args
     func invoke_ar (&self, string_arr : std::span<std::string_view>) : int;
 
+    // DEPRECATED: because we should not support importing files (.lab / .mod) that are imported conditionally
+    // using another build.lab, this is because to import another file, we must completely build the .lab file
+    // which means another module is built while there's a module for root .lab file in existence
+    // therefore this method has been removed, this creates some restrictions like not being able to copy
+    // a directory in the project and then importing it, this is intentional, we may remove these restrictions
+    // by providing a prebuild support invoked from command line
+    // the benefits are
+    // 1 - all the build.lab / chemical.mod files form a single module (a single tree of files)
+    // 2 - its performant because we parse all files in a multi-threaded fashion
+    // 3 - syntax for importing is nicer
+    // 4 - chemical.mod files are translated automatically, great interoperability
+    // 5 - the most important benefit is that the build methods in lab files are called once
+    //   - because user calls get, which checks a local variable before calling build
+    // 6 - the entirety of lab files' modules remain inside memory, which means user
+    //   - can give us a function pointer (from any lab/module) and we'll be able to call it later
+    //   - however if this method is used, we dispose the build.lab after module pointer is received
+    // /**
+    //  * create a module from a directory that contains a chemical.mod or build.lab file, the scope name and mod name is given to check if module by that name already
+    //  * has been parsed so we return it fast, the path is the absolute path to directory, the returned module may be null, in that case error is set to error_msg
+    //  * it can be that an unknown error happened and we didn't set the error, however module is still null, important to check returned module for nullability
+    //  */
+    // func module_from_directory(&self, path : &std::string_view, scope_name : &std::string_view, mod_name : &std::string_view, error_msg : &mut std::string) : *mut Module
+
 }
 
 @compiler.interface
@@ -219,20 +235,22 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
     }
 }
 
-public func (ctx : &BuildContext) native_lib_module(mod : &std::string_view) : *mut Module {
-    var path_res = ctx.resolve_native_lib_path(std::string_view(""), mod)
-    if(path_res.error.empty()) {
-        printf("resolved module %s path to be: %s\n", mod.data(), path_res.path.data());
-    } else {
-        return null;
-    }
-    var err = std::string()
-    const module = ctx.module_from_directory(std::string_view(path_res.path), std::string_view(""), mod, err)
-    if(module == null && !err.empty()) {
-        printf("error '%s' during creation of native module '%s'\n", err.data(), mod.data());
-    }
-    return module;
-}
+// DEPRECATED: this method relies on module_from_directory which is deprecated
+// please read that method's description
+// public func (ctx : &BuildContext) native_lib_module(mod : &std::string_view) : *mut Module {
+//     var path_res = ctx.resolve_native_lib_path(std::string_view(""), mod)
+//     if(path_res.error.empty()) {
+//         printf("resolved module %s path to be: %s\n", mod.data(), path_res.path.data());
+//     } else {
+//         return null;
+//     }
+//     var err = std::string()
+//     const module = ctx.module_from_directory(std::string_view(path_res.path), std::string_view(""), mod, err)
+//     if(module == null && !err.empty()) {
+//         printf("error '%s' during creation of native module '%s'\n", err.data(), mod.data());
+//     }
+//     return module;
+// }
 
 public func (ctx : &BuildContext) chemical_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;

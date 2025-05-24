@@ -71,7 +71,7 @@ func build(ctx : *mut AppBuildContext) {
 
     const headers_path = build_dir_path(ctx, std::string_view("headers.ch"));
     if(compiler::is_clang()) {
-        const empty_module = ctx.files_module(std::string_view(""), std::string_view("headers"), null, 0, []);
+        // const empty_module = ctx.files_module(std::string_view(""), std::string_view("headers"), null, 0, []);
         // TODO include headers call wasn't working on linux
         //ctx.include_headers(empty_module, {
         //    std::string("stdio.h"),

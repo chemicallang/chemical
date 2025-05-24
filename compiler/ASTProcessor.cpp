@@ -100,8 +100,8 @@ void ASTProcessor::determine_module_files(
             for (auto& str: module->paths) {
                 auto abs_path = canonical_path(str.data());
                 if (abs_path.empty()) {
-                    std::cerr << "error: couldn't determine canonical path for file '" << str.data() << "' in module '"
-                              << module->name << '\'' << std::endl;
+                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine canonical path for file '" << str.data() << "' in module '" << module->name << '\'' << std::endl;
+                    continue;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
                 // all these files belong to the given module, so it's scope will be used
@@ -114,17 +114,25 @@ void ASTProcessor::determine_module_files(
         case LabModuleType::CPPFile:
             return;
         case LabModuleType::Directory:
-            const auto& dir_path = module->paths[0];
-            path_handler.module_src_dir_path = dir_path.to_view();
-            if (!std::filesystem::exists(dir_path.data()) || !std::filesystem::is_directory(dir_path.data())) {
-                std::cerr << "error: directory doesn't exist '" << dir_path << "' for module '" << module->name.data() << '\'' << std::endl;
-                return;
+            if(module->paths.size() == 1) {
+                // TODO: this should be removed !
+                path_handler.module_src_dir_path = module->paths[0].to_view();
             }
-            std::vector<std::string> filePaths;
-            getFilesInDirectory(filePaths, dir_path.data());
-            for (auto& abs_path: filePaths) {
-                auto fileId = loc_man.encodeFile(abs_path);
-                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+            for(auto& dir_path : module->paths) {
+                if (!std::filesystem::exists(dir_path.data())) {
+                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "directory doesn't exist '" << dir_path << "' for module '" << module->name << '\'' << std::endl;
+                    continue;
+                }
+                if (!std::filesystem::is_directory(dir_path.data())) {
+                    std::cerr << rang::fg::red << "error: " << rang::fg::reset << "path '" << dir_path << "' for module '" << module->name << "' is not a directory" << std::endl;
+                    continue;
+                }
+                std::vector<std::string> filePaths;
+                getFilesInDirectory(filePaths, dir_path.data());
+                for (auto& abs_path: filePaths) {
+                    auto fileId = loc_man.encodeFile(abs_path);
+                    files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                }
             }
             return;
     }
@@ -135,7 +143,8 @@ bool ASTProcessor::import_module_files_direct(
         std::vector<ASTFileMetaData>& files,
         LabModule* module
 ) {
-    if(module->type == LabModuleType::Directory) {
+    // TODO: module's src dir path should not be visible to path handler
+    if(module->type == LabModuleType::Directory && module->paths.size() == 1) {
         path_handler.module_src_dir_path = module->paths[0].to_view();
     } else {
         path_handler.module_src_dir_path = "";

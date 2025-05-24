@@ -164,4 +164,11 @@ struct LabModule {
         return format(scope_name.to_chem_view(), name.to_chem_view(), sep);
     }
 
+    /**
+     * prints the module in format scope_name:name
+     */
+    friend std::ostream& operator<<(std::ostream& os, const LabModule& mod);
+
 };
+
+std::ostream& operator<<(std::ostream& os, const LabModule& mod);

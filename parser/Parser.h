@@ -181,6 +181,11 @@ public:
     bool parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
+     * a source statement defines a source directory in .mod file
+     */
+    bool parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */

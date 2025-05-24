@@ -1695,14 +1695,15 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         return nullptr;
     }
 
-    // TODO: support allowing src directory inside the .mod file
-    // since currently we don't support custom source directory
-    // we'll assume the source is present in 'src' directory and and use that as module directory path
-    auto srcDirPath = resolve_sibling(modFilePath, "src");
-
     // create a new module
-    auto path_view = chem::string_view(srcDirPath);
-    const auto module = context.chemical_dir_module(scope_name, module_name, &path_view, nullptr, 0);
+    const auto module = context.empty_module(scope_name, module_name);
+
+    // get all the sources
+    for(auto& sourcePath : modFileData.sources_list) {
+        // TODO handle the if condition for source path
+        auto abs_path = resolve_sibling(modFilePath, sourcePath.path.str());
+        module->paths.emplace_back(abs_path);
+    }
 
     // importing all compiler interfaces user requested inside the .mod file
     for(auto& interface : modFileData.compiler_interfaces) {

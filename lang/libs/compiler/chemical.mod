@@ -1,5 +1,7 @@
 module compiler
 
+source "src"
+
 import std
 
 interface SourceProvider

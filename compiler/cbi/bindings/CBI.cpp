@@ -27,7 +27,6 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextget_module", (void*) BuildContextget_module },
         { "lab_BuildContextmodule_from_directory", (void*) BuildContextmodule_from_directory },
         { "lab_BuildContextfiles_module", (void*) BuildContextfiles_module },
-        { "lab_BuildContextchemical_files_module", (void*) BuildContextchemical_files_module },
         { "lab_BuildContextchemical_dir_module", (void*) BuildContextchemical_dir_module },
         { "lab_BuildContextc_file_module", (void*) BuildContextc_file_module },
         { "lab_BuildContextcpp_file_module", (void*) BuildContextcpp_file_module },

@@ -80,9 +80,6 @@ public struct BuildContext {
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
-    // when paths only contain chemical files
-    func chemical_files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
-
     // directory module
     func chemical_dir_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
@@ -251,11 +248,6 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
 //     }
 //     return module;
 // }
-
-public func (ctx : &BuildContext) chemical_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
-    const path_ptr = &path;
-    return ctx.chemical_files_module(scope_name, name, &path_ptr, 1, dependencies);
-}
 
 public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const path_ptr = &path;

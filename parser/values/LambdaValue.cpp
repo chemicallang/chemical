@@ -32,9 +32,10 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
 }
 
 LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
-    if (consumeToken(TokenType::LBracket)) {
 
-        auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
+    auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
+
+    if(consumeToken(TokenType::PipeSym)) {
 
         lambda->setIsCapturing(true);
 
@@ -56,32 +57,34 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
             index++;
         } while (consumeToken(TokenType::CommaSym));
 
-        if (!consumeToken(TokenType::RBracket)) {
-            error("expected ']' after lambda function capture list");
+        if (!consumeToken(TokenType::PipeSym)) {
+            error("expected '|' after lambda function capture list");
             return lambda;
         }
 
-        if (!consumeToken(TokenType::LParen)) {
-            error("expected '(' for lambda parameter list");
-            return lambda;
-        }
-
-        auto isVariadic = parseParameterList(allocator, lambda->params, true, false);
-        lambda->setIsVariadic(isVariadic);
-
-        lexNewLineChars();
-
-        if (!consumeToken(TokenType::RParen)) {
-            error("expected ')' after the lambda parameter list");
-            return lambda;
-        }
-
-        if(!parseLambdaAfterParamsList(allocator, lambda)) {
-            return lambda;
-        }
-
-        return lambda;
-    } else {
+    } else if(!consumeToken(TokenType::LogicalOrSym)) {
         return nullptr;
     }
+
+    if (!consumeToken(TokenType::LParen)) {
+        error("expected '(' for lambda parameter list");
+        return lambda;
+    }
+
+    auto isVariadic = parseParameterList(allocator, lambda->params, true, false);
+    lambda->setIsVariadic(isVariadic);
+
+    lexNewLineChars();
+
+    if (!consumeToken(TokenType::RParen)) {
+        error("expected ')' after the lambda parameter list");
+        return lambda;
+    }
+
+    if(!parseLambdaAfterParamsList(allocator, lambda)) {
+        return lambda;
+    }
+
+    return lambda;
+
 }

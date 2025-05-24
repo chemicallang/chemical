@@ -286,7 +286,9 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
             return (Value*) parseCharValue(allocator);
         case TokenType::String:
             return (Value*) parseStringValue(allocator);
-        case TokenType::LBracket:
+        case TokenType::LBracket: // TODO remove this
+        case TokenType::LogicalOrSym:
+        case TokenType::PipeSym:
             return parseLambdaValue(allocator);
         case TokenType::Number:
             return (Value*) parseNumberValue(allocator);
@@ -320,7 +322,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
         case TokenType::String:
             return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
-        case TokenType::LBracket:
+        case TokenType::LogicalOrSym:
+        case TokenType::PipeSym:
             return parseLambdaValue(allocator);
         case TokenType::Number:
             return parseAfterValue(allocator, (Value*) parseNumberValue(allocator), start_token);

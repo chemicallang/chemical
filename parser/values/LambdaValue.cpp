@@ -62,7 +62,9 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
             return lambda;
         }
 
-    } else if(!consumeToken(TokenType::LogicalOrSym)) {
+    } else if(consumeToken(TokenType::LogicalOrSym)) {
+        lambda->setIsCapturing(true);
+    } else {
         return nullptr;
     }
 

@@ -173,11 +173,23 @@ public:
     /**
      * add the given module as a directory module
      */
-    LabModule* empty_module(
+    LabModule* new_module(
             const chem::string_view& scope_name,
             const chem::string_view& module_name
     ) {
         return add_with_type(LabModuleType::Directory, scope_name, module_name, nullptr, 0, nullptr, 0);
+    }
+
+    /**
+     * add the given module as a directory module
+     */
+    inline LabModule* new_module(
+            const chem::string_view& scope_name,
+            const chem::string_view& module_name,
+            LabModule** dependencies,
+            unsigned int dep_len
+    ) {
+        return add_with_type(LabModuleType::Directory, scope_name, module_name, nullptr, 0, dependencies, dep_len);
     }
 
     /**

@@ -44,6 +44,7 @@
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
 #include "utils/CmdUtils.h"
+#include "utils/Version.h"
 //#include <boost/asio.hpp>
 
 //using namespace asio::ip;
@@ -54,6 +55,7 @@ using namespace lsp;
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <utility>
 #include "utils/JsonUtils.h"
 
 class DummyLog : public lsp::Log {
@@ -77,6 +79,37 @@ public:
 };
 
 std::string _address = "127.0.0.1";
+
+struct ChemicalMetaParams {
+    std::string version;
+    MAKE_SWAP_METHOD(ChemicalMetaParams, version);
+};
+
+struct ChemicalMetaResult {
+    std::string version;
+    MAKE_SWAP_METHOD(ChemicalMetaResult, version);
+};
+
+MAKE_REFLECT_STRUCT(ChemicalMetaParams, version);
+MAKE_REFLECT_STRUCT(ChemicalMetaResult, version);
+
+/**
+ * The initialize request is sent as the first request from the client to
+ * the server.
+ *
+ * If the server receives request or notification before the initialize request it should act as follows:
+ *      - for a request the respond should be errored with code: -32001. The message can be picked by the server.
+ *  - notifications should be dropped, except for the exit notification. This will allow the exit a server without an initialize request.
+ *
+ * Until the server has responded to the initialize request with an InitializeResult
+ * the client must not sent any additional requests or notifications to the server.
+ *
+ * During the initialize request the server is allowed to sent the notifications window/showMessage,
+ * window/logMessage and telemetry/event as well as the window/showMessageRequest request to the client.
+ */
+
+DEFINE_REQUEST_RESPONSE_TYPE(chemical_meta, ChemicalMetaParams, ChemicalMetaResult, "chemical/meta");
+
 
 //bool isPortOccupied(unsigned short port) {
 //    using asio::ip::tcp;
@@ -152,12 +185,20 @@ public:
             const std::string &_port,
             bool _enable_watch_parent_process,
             std::string lsp_exe_path
-    ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log), manager(lsp_exe_path) {
+    ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log), manager(std::move(lsp_exe_path)) {
 
         manager.remote = &server.point;
         need_initialize_error = Rsp_Error();
         need_initialize_error->error.code = lsErrorCodes::ServerNotInitialized;
         need_initialize_error->error.message = "Server is not initialized";
+
+        _sp.registerHandler([=](const chemical_meta::request &req){
+            std::ostringstream versionStr;
+            versionStr << 'v' << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH;
+            chemical_meta::response rsp;
+            rsp.result.version = versionStr.str();
+            return std::move(rsp);
+        });
 
         _sp.registerHandler([=](const td_initialize::request &req) {
 
@@ -668,10 +709,17 @@ int main(int argc, char *argv[]) {
             CmdOption("resources", "res", CmdOptionType::SingleValue, "path to the resources directory of the compiler"),
             CmdOption("port", "port", CmdOptionType::SingleValue, "the port at which lsp should run"),
             CmdOption("watch-parent-process", "", CmdOptionType::NoValue, "should watch the parent process"),
+            CmdOption("version", "v", CmdOptionType::NoValue, "get the version"),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
     bool enable_watch_parent_process = false;
+
+    if(options.has_value("version")) {
+        std::cout << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << std::endl;
+        return 0;
+    }
+
     if (options.has_value("watch-parent-process")) {
         enable_watch_parent_process = true;
     }

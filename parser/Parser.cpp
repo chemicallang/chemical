@@ -132,6 +132,13 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
     while (true) {
         consumeNewLines();
         switch(token->type) {
+            case TokenType::Identifier: {
+                // handling source like this
+                if(!parseSourceStmt(allocator, data)) {
+                    error("unknown identifier found");
+                }
+                break;
+            }
             case TokenType::ImportKw: {
                 if(!parseSingleOrMultipleImportStatements(allocator, nodes)) {
                     goto loop_break;

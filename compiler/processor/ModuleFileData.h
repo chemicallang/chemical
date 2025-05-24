@@ -9,6 +9,14 @@
 #include "integration/common/Diagnostic.h"
 #include <string>
 
+struct ModuleFileSource {
+
+    chem::string_view path;
+
+    chem::string_view if_condition;
+
+};
+
 class ModuleFileData {
 public:
 
@@ -26,6 +34,11 @@ public:
      * the scope is used to contain the file
      */
     FileScope scope;
+
+    /**
+     * sources list tells us directories or files included in compilation
+     */
+    std::vector<ModuleFileSource> sources_list;
 
     /**
      * interface declarations in chemical.mod file allowing user to import

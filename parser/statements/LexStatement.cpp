@@ -349,7 +349,7 @@ ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
 
 bool BasicParser::parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data) {
 
-    if(token->value == "module") {
+    if(token->type == TokenType::Identifier && token->value == "module") {
         token++;
     } else {
         error("expected a module definition at top");
@@ -378,6 +378,38 @@ bool BasicParser::parseModuleDefinition(ASTAllocator& allocator, ModuleFileData&
 
     data.scope_name = allocate_view(allocator, scope_name->value);
     data.module_name = allocate_view(allocator, mod_name->value);
+
+    return true;
+
+}
+
+bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data) {
+
+    if(token->type == TokenType::Identifier && token->value == "source") {
+        token++;
+    } else {
+        return false;
+    }
+
+    data.sources_list.emplace_back();
+    auto& source = data.sources_list.back();
+
+    auto sourcePath = parseStringValue(allocator);
+    if(sourcePath == nullptr) {
+        error("expected a source path");
+        return false;
+    } else {
+        source.path = allocate_view(allocator, sourcePath->get_the_string());
+    }
+
+    if(consumeToken(TokenType::IfKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            source.if_condition = allocate_view(allocator, id->value);
+        } else {
+            error("expected if condition after if in source statement");
+        }
+    }
 
     return true;
 

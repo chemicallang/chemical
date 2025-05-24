@@ -108,15 +108,15 @@ func test_variants() {
         return get_value(c.v) == -1;
     })
     test("variants can be stored in arrays - 1", () => {
-        var c = { OptVariant.Some(76) }
+        var c = [ OptVariant.Some(76) ]
         return get_value(c[0]) == 76;
     })
     test("variants can be stored in arrays - 2", () => {
-        var c = { OptVariant.None() }
+        var c = [ OptVariant.None() ]
         return get_value(c[0]) == -1;
     })
     test("variants can be stored in arrays - 3", () => {
-        var c : OptVariant[] = { OptVariant.None(), OptVariant.Some(43) }
+        var c : OptVariant[] = [ OptVariant.None(), OptVariant.Some(43) ]
         return get_value(c[0]) == -1 && get_value(c[1]) == 43;
     })
     test("variants can be stored in variables", () => {

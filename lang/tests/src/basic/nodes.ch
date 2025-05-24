@@ -200,18 +200,18 @@ func test_nodes() {
         return p.sumP() == 13;
     });
     test("array", () => {
-        var arr = {2,4,6,8,10};
+        var arr = [2,4,6,8,10];
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
     test("uninitialized array", () => {
-        var arr : int[5] = {};
+        var arr : int[5] = [];
         arr[0] = 2;
         arr[1] = 4;
         arr[2] = 6;
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
     test("multidimensional uninitialized array", () => {
-        var arr : int[2][2] = {};
+        var arr : int[2][2] = [];
         arr[0][0] = 2;
         arr[0][1] = 4;
         arr[1][0] = 6;
@@ -220,13 +220,13 @@ func test_nodes() {
     })
     test("array inside a struct", () => {
         var ct = Container {
-            point : {10,20},
+            point : [10,20],
             is_cool : true
         }
         return ct.is_cool && ct.point[0] == 10 && ct.point[1] == 20;
     })
     test("multi dimensional array", () => {
-        var arr = {{1, 2}, {3, 4}};
+        var arr = [[1, 2], [3, 4]];
         return arr[0][0] == 1 && arr[0][1] == 2 && arr[1][0] == 3 && arr[1][1] == 4;
     })
     test("typealias statement", () => {
@@ -311,7 +311,7 @@ func test_nodes() {
         }
     })
     test("can store struct in an array", () => {
-        var arr = {
+        var arr = [
             Point {
                 x : 3,
                 y : 4
@@ -320,7 +320,7 @@ func test_nodes() {
                 x : 5,
                 y : 6
             }
-        }
+        ]
         return arr[0].x == 3 && arr[0].y == 4 && arr[1].x == 5 && arr[1].y == 6;
     })
     test("extension functions work", () => {

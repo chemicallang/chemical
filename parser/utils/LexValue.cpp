@@ -98,33 +98,38 @@ VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
 }
 
 Value* Parser::parseArrayInit(ASTAllocator& allocator) {
-    auto token1 = consumeOfType(TokenType::LBrace);
-    if (token1) {
-        auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue(nullptr, loc(token1, token), allocator);
-        do {
-            consumeNewLines();
-            auto expr = parseExpression(allocator, true);
-            if(expr) {
-                arrayValue->values.emplace_back(expr);
-            } else {
-                auto init = parseArrayInit(allocator);
-                if(init) {
-                    arrayValue->values.emplace_back(init);
-                } else {
-                    break;
-                }
-            }
-            consumeNewLines();
-        } while (consumeToken(TokenType::CommaSym));
-        if (!consumeToken(TokenType::RBrace)) {
-            error("expected a '}' when lexing an array");
-            return arrayValue;
-        }
-        arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(nullptr, arrayValue->array_size());
-        return arrayValue;
-    } else {
-        return nullptr;
+    const auto lBrackTok = consumeOfType(TokenType::LBracket);
+    auto token1 = lBrackTok;
+    if(!token1){
+//        token1 = consumeOfType(TokenType::LBrace);
+//        if (token1) {
+//            warning("deprecated syntax, please use brackets for arrays");
+//        } else {
+            return nullptr;
+//        }
     }
+    auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue(nullptr, loc(token1, token), allocator);
+    do {
+        consumeNewLines();
+        auto expr = parseExpression(allocator, true);
+        if(expr) {
+            arrayValue->values.emplace_back(expr);
+        } else {
+            auto init = parseArrayInit(allocator);
+            if(init) {
+                arrayValue->values.emplace_back(init);
+            } else {
+                break;
+            }
+        }
+        consumeNewLines();
+    } while (consumeToken(TokenType::CommaSym));
+    if (!consumeToken(lBrackTok ? TokenType::RBracket : TokenType::RBrace)) {
+        error("expected a ']' when lexing an array");
+        return arrayValue;
+    }
+    arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(nullptr, arrayValue->array_size());
+    return arrayValue;
 }
 
 /**

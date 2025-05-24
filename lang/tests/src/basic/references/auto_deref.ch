@@ -50,7 +50,7 @@ func test_auto_deref() {
     })
     test("auto dereferences when storing into an array", () => {
         var i = 356
-        var s : int[] = { give_ref(i) }
+        var s : int[] = [ give_ref(i) ]
         return s[0] == 356
     })
     test("auto dereferences when calling variants", () => {
@@ -159,7 +159,7 @@ func test_auto_deref() {
     test("automatic dereferences when passing to var args parameter", () => {
         var i = 788
         var ref = give_ref(i)
-        var str : char[20] = {}
+        var str : char[20] = []
         snprintf(&str[0], 19, "%d", ref);
         return strncmp(&str[0], "788", 3) == 0
     })

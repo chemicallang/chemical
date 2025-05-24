@@ -22,7 +22,7 @@ func (cssParser : &mut CSSParser) parseTextShadow(
     while (true) {
 
         // We'll collect length values in an array. The spec requires 2 or 3 lengths.
-        var lengths : CSSValue[] = { CSSValue(), CSSValue(), CSSValue() };  // dynamic array of CSSValue
+        var lengths : CSSValue[] = [ CSSValue(), CSSValue(), CSSValue() ];  // dynamic array of CSSValue
 
         var lenInd = 0;
 

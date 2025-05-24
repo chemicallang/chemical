@@ -245,16 +245,16 @@ public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, na
 }
 
 public func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
-    const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, {  });
+    const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, [  ]);
     return ctx.translate_to_chemical(mod, output_path);
 }
 
 public func (ctx : &BuildContext) translate_mod_to_c(module : *Module, output_dir : &std::string_view) : *mut LabJob {
-    return ctx.translate_to_c(std::string_view("ToCJob"), { module }, output_dir);
+    return ctx.translate_to_c(std::string_view("ToCJob"), [ module ], output_dir);
 }
 
 public func (ctx : &BuildContext) translate_file_to_c(chem_path : &std::string, output_path : &std::string_view) : *mut LabJob {
-    var mod = ctx.file_module(std::string_view(""), std::string_view("TempChem"), chem_path.to_view(), {});
+    var mod = ctx.file_module(std::string_view(""), std::string_view("TempChem"), chem_path.to_view(), []);
     return ctx.translate_mod_to_c(mod, output_path);
 }
 

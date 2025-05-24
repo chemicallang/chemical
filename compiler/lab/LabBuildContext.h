@@ -111,11 +111,6 @@ public:
     /**
      * add given dependencies to the given module
      */
-    static void add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len);
-
-    /**
-     * add given dependencies to the given module
-     */
     static void add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len);
 
     /**
@@ -174,20 +169,6 @@ public:
             LabModule** dependencies,
             unsigned int dep_len
     );
-
-    /**
-     * when path's list contains only chemical files
-     */
-    LabModule* chemical_files_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
-            chem::string_view** paths,
-            unsigned int path_len,
-            LabModule** dependencies,
-            unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::Files, scope_name, module_name, paths, path_len, dependencies, dep_len);
-    }
 
     /**
      * add the given module as a directory module

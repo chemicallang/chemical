@@ -30,17 +30,6 @@ void LabBuildContext::add_dependencies(LabModule* module, LabModule** dependenci
     }
 }
 
-void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len) {
-    if(!paths || path_len == 0) return;
-    auto ptr = paths;
-    unsigned i = 0;
-    while (i < path_len) {
-        into.emplace_back((*ptr)->copy());
-        ptr++;
-        i++;
-    }
-}
-
 void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len) {
     if(!paths || path_len == 0) return;
     auto ptr = paths;
@@ -154,19 +143,17 @@ LabModule* LabBuildContext::files_module(
         unsigned int dep_len
 ) {
     // create a module with no files
-    auto mod = add_with_type(LabModuleType::Files, scope_name, module_name, nullptr, 0, dependencies, dep_len);
+    auto mod = add_with_type(LabModuleType::Directory, scope_name, module_name, nullptr, 0, dependencies, dep_len);
     if(paths && path_len != 0) {
         auto ptr = *paths;
         unsigned i = 0;
         while (i < path_len) {
-            if(ptr->ends_with(".ch")) {
-                mod->paths.emplace_back(*ptr);
-            } else if(ptr->ends_with(".c")) {
+            if(ptr->ends_with(".c")) {
                 mod->add_dependency(create_of_type(LabModuleType::CFile, ptr, i));
             } else if(ptr->ends_with(".o")) {
                 mod->add_dependency(create_of_type(LabModuleType::ObjFile, ptr, i));
             } else {
-
+                mod->paths.emplace_back(*ptr);
             }
             ptr++;
             i++;
@@ -183,7 +170,6 @@ LabJob* LabBuildContext::translate_to_chemical(
     executables.emplace_back(job);
     job->abs_path.append(*out_path);
     job->dependencies.emplace_back(module);
-    init_path_aliases(job);
     return job;
 }
 
@@ -203,7 +189,6 @@ LabJob* LabBuildContext::translate_to_c(
     set_build_dir(job);
     job->abs_path.append(*out_path);
     LabBuildContext::add_dependencies(job->dependencies, dependencies, dep_len);
-    init_path_aliases(job);
     return job;
 }
 
@@ -221,7 +206,6 @@ LabJob* LabBuildContext::build_exe(
 #endif
     exe->abs_path.append(exe_path);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
-    init_path_aliases(exe);
     return exe;
 }
 
@@ -243,7 +227,6 @@ LabJob* LabBuildContext::build_dynamic_lib(
 #endif
     exe->abs_path.append(output_path);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
-    init_path_aliases(exe);
     return exe;
 }
 
@@ -256,7 +239,6 @@ LabJob* LabBuildContext::build_cbi(
     executables.emplace_back(exe);
     set_build_dir(exe);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
-    init_path_aliases(exe);
     return exe;
 }
 

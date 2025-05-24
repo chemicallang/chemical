@@ -6,11 +6,11 @@ struct Nested {
     var provider : LambdaProvider
 }
 
-func capturing(lambda : []() => bool) : bool {
+func capturing(lambda : ||() => bool) : bool {
     return lambda();
 }
 
-func delegate(lambda : []() => bool) : bool {
+func delegate(lambda : ||() => bool) : bool {
     return capturing(lambda);
 }
 
@@ -39,7 +39,7 @@ func create_lamb(first : bool) : () => int {
 /**
 func ret_new_cap_lamb() : []()=>bool {
     var captured = true;
-    return [captured]() => {
+    return |captured|() => {
         return captured;
     }
 }
@@ -70,7 +70,7 @@ struct ProvideStructLamb {
 
 struct CapSelf {
     var i : int
-    var lamb : [](&self) => int
+    var lamb : ||(&self) => int
 }
 
 struct ProvideSelfRefStructLamb {
@@ -113,38 +113,38 @@ func test_lambda() {
         });
     });
     test("testing capturing lambda type works with empty capturing lambda", () => {
-        return capturing([]() => {
+        return capturing(||() => {
             return true;
         });
     });
     test("testing capturing lambda can capture primitive bool value - 1", () => {
         var captured = true;
-        return capturing([captured]() => {
+        return capturing(|captured|() => {
             return captured;
         });
     });
     test("testing capturing lambda can capture primitive bool value - 2", () => {
         var captured = false;
-        return capturing([captured]() => {
+        return capturing(|captured|() => {
             return !captured;
         });
     });
     test("testing capturing lambda can capture by ref", () => {
         var captured = true;
-        return capturing([&captured]() => {
+        return capturing(|&captured|() => {
             return *captured;
         });
     });
     test("testing capturing lambda can be passed between functions", () => {
         var captured = true;
-        return delegate([captured]() => {
+        return delegate(|captured|() => {
             return captured;
         });
     });
     /**
     test("testing returning capturing lambda works", () => {
         var captured = true;
-        var message = ret_cap_lambda([captured]() => {
+        var message = ret_cap_lambda(|captured|() => {
             return captured;
         });
         return message();
@@ -152,7 +152,7 @@ func test_lambda() {
     **/
     test("can initialize and call a capturing lambda", () => {
         var x = true;
-        var message = [x]() => {
+        var message = |x|() => {
             return x;
         };
         return message();
@@ -254,7 +254,7 @@ func test_lambda() {
     test("capturing lambda can take a self reference", () => {
         var c = CapSelf {
             i : 14,
-            lamb : [](self) => {
+            lamb : ||(self) => {
                 return self.i;
             }
         }
@@ -264,7 +264,7 @@ func test_lambda() {
         var d = 100
         var c = CapSelf {
             i : 14,
-            lamb : [d](self) => {
+            lamb : |d|(self) => {
                 return self.i + d;
             }
         }

@@ -382,24 +382,27 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             return parseStructTypeLoc(allocator);
         case TokenType::UnionKw:
             return parseUnionTypeLoc(allocator);
-        case TokenType::LBracket:{
+        case TokenType::LogicalOrSym:
+        case TokenType::PipeSym:{
+            const auto is_pipe = token->type == TokenType::PipeSym;
             token++;
-            const auto has_number = token->type == TokenType::Number;
-            if(has_number) {
-                // max number of parameters in capture list for lambda
-                // TODO this
-                token++;
-            }
-            if(consumeToken(TokenType::RBracket)) {
-                auto lambdaType = parseLambdaTypeLoc(allocator, true);
-                if(lambdaType) {
-                    return lambdaType;
-                } else {
-                    error("expected a lambda type after '[]'");
+            if(is_pipe) {
+                const auto has_number = token->type == TokenType::Number;
+                if (has_number) {
+                    // max number of parameters in capture list for lambda
+                    // TODO this
+                    token++;
+                }
+                if(!consumeToken(TokenType::PipeSym)) {
+                    error("expected '|' for capturing lambda type");
                     return { nullptr, ZERO_LOC };
                 }
+            }
+            auto lambdaType = parseLambdaTypeLoc(allocator, true);
+            if(lambdaType) {
+                return lambdaType;
             } else {
-                error("expected ']' after '[' for lambda type");
+                error("expected a lambda type after '[]'");
                 return { nullptr, ZERO_LOC };
             }
         }

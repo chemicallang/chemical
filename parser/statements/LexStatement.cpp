@@ -246,8 +246,6 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             return parseCharValue(allocator);
         case TokenType::String:
             return parseStringValue(allocator);
-        case TokenType::LBracket:
-            return (Value*) parseLambdaValue(allocator);
         case TokenType::Number:
             return parseNumberValue(allocator);
         case TokenType::NotSym:

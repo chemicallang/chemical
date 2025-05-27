@@ -4,11 +4,9 @@
 
 #include <vector>
 #include "integration/common/Location.h"
-#include "LibLsp/lsp/textDocument/signature_help.h"
 #include "compiler/cbi/model/ASTImportUnitRef.h"
-#include "LspCpp/include/LibLsp/lsp/textDocument/signature_help.h"
-#include "LspCpp/include/LibLsp/lsp/lsPosition.h"
 #include "CaretPositionAnalyzer.h"
+#include "lsp/types.h"
 
 class ASTResult;
 
@@ -23,7 +21,7 @@ public:
     /**
      * the actual signature help collected by traversing the AST
      */
-    lsSignatureHelp help;
+    lsp::SignatureHelp help;
 
     /**
      * constructor

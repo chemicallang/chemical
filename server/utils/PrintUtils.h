@@ -8,7 +8,6 @@
 
 #include <vector>
 #include <iostream>
-#include "LibLsp/lsp/textDocument/SemanticTokens.h"
 
 
-void printTokens(const std::vector<SemanticToken> &tokens);
+//void printTokens(const std::vector<SemanticToken> &tokens);

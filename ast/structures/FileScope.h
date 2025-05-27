@@ -43,6 +43,13 @@ public:
     }
 
     /**
+     * set new parent
+     */
+    inline void set_parent(ModuleScope* parent) {
+        return ASTNode::set_parent((ASTNode*) parent);
+    }
+
+    /**
      * move constructor
      */
     FileScope(

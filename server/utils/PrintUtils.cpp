@@ -6,11 +6,11 @@
 
 #include "PrintUtils.h"
 
-void printTokens(const std::vector<SemanticToken> &tokens) {
-    for (const auto &item: tokens) {
-        std::cout << "[deltaLine]" << item.deltaLine << " - ";
-        std::cout << "[deltaStart]" << item.deltaStart << " - ";
-        std::cout << "[deltaLength]" << item.length << " - ";
-        std::cout << '\n';
-    }
-}
+//void printTokens(const std::vector<SemanticToken> &tokens) {
+//    for (const auto &item: tokens) {
+//        std::cout << "[deltaLine]" << item.deltaLine << " - ";
+//        std::cout << "[deltaStart]" << item.deltaStart << " - ";
+//        std::cout << "[deltaLength]" << item.length << " - ";
+//        std::cout << '\n';
+//    }
+//}

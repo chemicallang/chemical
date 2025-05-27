@@ -47,6 +47,13 @@ public:
     ASTUnit& operator =(ASTUnit&& other) noexcept = default;
 
     /**
+     * update module scope this unit belongs to
+     */
+    void set_parent(ModuleScope* modScope) {
+        scope.set_parent(modScope);
+    }
+
+    /**
      * the destructor
      */
     ~ASTUnit() = default;

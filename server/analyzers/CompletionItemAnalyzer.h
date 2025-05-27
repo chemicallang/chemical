@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "LibLsp/lsp/lsp_completion.h"
+#include "lsp/types.h"
 #include "integration/common/Position.h"
 #include "CaretPositionAnalyzer.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
@@ -27,7 +27,7 @@ public:
     /**
      * all the items that were found when analyzer completed
      */
-    CompletionList list;
+    lsp::CompletionList list;
 
     /**
      * current file being analyzed
@@ -41,20 +41,20 @@ public:
 
     }
 
-    /**
-     * a helper method to put simple completion items of a kind
-     */
-    void put(const chem::string_view& label, lsCompletionItemKind kind);
-
-    /**
-     * put a completion item with detail and doc
-     */
-    void put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
-
-    /**
-     * The function that analyzes tokens
-     */
-    CompletionList analyze(std::vector<CSTToken*> &tokens);
+//    /**
+//     * a helper method to put simple completion items of a kind
+//     */
+//    void put(const chem::string_view& label, lsCompletionItemKind kind);
+//
+//    /**
+//     * put a completion item with detail and doc
+//     */
+//    void put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
+//
+//    /**
+//     * The function that analyzes tokens
+//     */
+//    CompletionList analyze(std::vector<CSTToken*> &tokens);
 
     /**
      * analyze an entire import unit for better support for completions across different files

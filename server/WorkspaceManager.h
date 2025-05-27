@@ -23,6 +23,7 @@
 #include "std/chem_string_view.h"
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/ModuleStorage.h"
+#include "lsp/types.h"
 
 class LabBuildContext;
 
@@ -230,7 +231,7 @@ public:
     /**
      * initialize
      */
-    void initialize(const td_initialize::request &req);
+//    void initialize(const td_initialize::request &req);
 
     /**
      * determines build.lab path relative to project path
@@ -262,54 +263,54 @@ public:
     /**
      * get the folding range for the given absolute file path
      */
-    td_foldingRange::response get_folding_range(const lsDocumentUri& uri);
-
-    /**
-     * get completion response for the given absolute file path
-     * @param line the line number where caret position is
-     * @param character the character number where caret position is
-     */
-    td_completion::response get_completion(const lsDocumentUri& uri, unsigned int line, unsigned int character);
-
-    /**
-     * get semantic tokens for the given lex result
-     */
-    std::vector<SemanticToken> get_semantic_tokens(LexResult& ptr);
+    std::vector<lsp::FoldingRange> get_folding_range(const std::string& path);
+//
+//    /**
+//     * get completion response for the given absolute file path
+//     * @param line the line number where caret position is
+//     * @param character the character number where caret position is
+//     */
+//    td_completion::response get_completion(const lsDocumentUri& uri, unsigned int line, unsigned int character);
+//
+//    /**
+//     * get semantic tokens for the given lex result
+//     */
+    std::vector<uint32_t> get_semantic_tokens(LexResult& ptr);
 
     /**
      * get semantic tokens full response for the given document uri
      */
-    td_semanticTokens_full::response get_semantic_tokens_full(const lsDocumentUri& uri);
-
-    /**
-     * get definition at position in the given document
-     */
-    td_definition::response get_definition(const lsDocumentUri& uri, const lsPosition& position);
-
+    std::vector<uint32_t> get_semantic_tokens_full(const std::string& path);
+//
+//    /**
+//     * get definition at position in the given document
+//     */
+//    td_definition::response get_definition(const lsDocumentUri& uri, const lsPosition& position);
+//
     /**
      * get symbols in the document
      */
-    td_symbol::response get_symbols(const lsDocumentUri& uri);
-
-    /**
-     * get a hover response in the given document at position
-     */
-    td_hover::response get_hover(const lsDocumentUri& uri, const lsPosition& position);
-
-    /**
-     * get text document links response
-     */
-    td_links::response get_links(const lsDocumentUri& uri);
-
-    /**
-     * get text document hints response
-     */
-    td_inlayHint::response get_hints(const lsDocumentUri& uri);
-
-    /**
-     * get signature help response
-     */
-    td_signatureHelp::response get_signature_help(const lsDocumentUri& uri, const lsPosition& position);
+    std::vector<lsp::DocumentSymbol> get_symbols(const std::string& path);
+//
+//    /**
+//     * get a hover response in the given document at position
+//     */
+//    td_hover::response get_hover(const lsDocumentUri& uri, const lsPosition& position);
+//
+//    /**
+//     * get text document links response
+//     */
+//    td_links::response get_links(const lsDocumentUri& uri);
+//
+//    /**
+//     * get text document hints response
+//     */
+//    td_inlayHint::response get_hints(const lsDocumentUri& uri);
+//
+//    /**
+//     * get signature help response
+//     */
+//    td_signatureHelp::response get_signature_help(const lsDocumentUri& uri, const lsPosition& position);
 
     /**
      * it has to copy all the diagnostics to a request before sending
@@ -416,6 +417,11 @@ public:
     );
 
     /**
+     * get ast, in which declarations are sure to be valid
+     */
+    std::shared_ptr<ASTResult> get_decl_ast(const std::string& abs_path);
+
+    /**
      * get ast import unit for the following name
      */
     ASTImportUnitRef get_ast_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
@@ -448,8 +454,7 @@ public:
      */
     std::shared_ptr<ASTResult> get_ast_no_lock(
             Token* start_token,
-            const std::string& path,
-            GlobalInterpretScope& comptime_scope
+            const std::string& path
     );
 
     /**
@@ -488,7 +493,7 @@ public:
      * Then reads the file, performs the changes to source code (in memory) \n
      * Then calls onChangedContents above to store the changed source coe as overridden contents \n
      */
-    void onChangedContents(const lsDocumentUri &uri, const std::vector<lsTextDocumentContentChangeEvent>& changes);
+    void onChangedContents(const std::string &uri, const std::vector<lsp::TextDocumentContentChangeEvent>& changes);
 
     /**
      * when a file is closed by the user in the IDE \n

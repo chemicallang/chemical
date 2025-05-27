@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "LibLsp/lsp/textDocument/SemanticTokens.h"
+#include <vector>
 #include "lexer/Token.h"
 
 class SemanticTokensAnalyzer {
@@ -27,7 +27,7 @@ public:
     /**
      * all the items that were found when analyzer completed
      */
-    std::vector<SemanticToken> tokens;
+    std::vector<uint32_t> tokens;
 
     /**
      * constructor
@@ -38,18 +38,18 @@ public:
      * put a lsp token
      */
     void put(
-        unsigned int lineNumber,
-        unsigned int lineCharNumber,
-        unsigned int length,
-        unsigned int tokenType,
-        unsigned int tokenModifiers
+        uint32_t lineNumber,
+        uint32_t lineCharNumber,
+        uint32_t length,
+        uint32_t tokenType,
+        uint32_t tokenModifiers
     );
 
     /**
      * this just puts the given lex token as a semantic token in the tokens vector
      * also sets prev token line number to this token
      */
-    void put(Token* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
+    void put(Token* token, uint32_t tokenType, uint32_t tokenModifiers = 0);
 
     /**
      * will automatically determine the token type based on token

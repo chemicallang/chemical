@@ -60,14 +60,6 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache.outputs.cache-hit != 'true'
 
-      # Install Zlib
-      - name: Download and install zlib
-        shell: powershell
-        run: |
-          Invoke-WebRequest -Uri https://git.io/JnHTY -OutFile install_zlib.bat
-          ./install_zlib.bat
-          Remove-Item install_zlib.bat
-
       # Configure the chemical project executables via CMake
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical

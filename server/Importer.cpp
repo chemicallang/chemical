@@ -63,16 +63,18 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     result->abs_path = path;
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
-        Lexer lexer(path, &input_source, &binder, result->allocator);
+        Lexer lexer(path, &input_source, &binder, result->fileAllocator);
         lexer.getTokens(result->tokens);
+        result->allocator = std::move(lexer.str.allocator);
         result->diags = std::move(lexer.diagnoser.diagnostics);
     } else {
         FileInputSource input_source(path.data());
         if(input_source.has_error()) {
             return nullptr;
         }
-        Lexer lexer(path, &input_source, &binder, result->allocator);
+        Lexer lexer(path, &input_source, &binder, result->fileAllocator);
         lexer.getTokens(result->tokens);
+        result->allocator = std::move(lexer.str.allocator);
         result->diags = std::move(lexer.diagnoser.diagnostics);
     }
     return result;
@@ -80,21 +82,22 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
 
 std::shared_ptr<ASTResult> WorkspaceManager::get_ast_no_lock(
         Token* start_token,
-        const std::string& path,
-        GlobalInterpretScope& comptime_scope
+        const std::string& path
 ) {
 
-    ASTAllocator allocator_(0);
-    const auto modScope = new (allocator_.allocate<ModuleScope>()) ModuleScope("", "", nullptr);
     const auto fileId = loc_man.encodeFile(path);
     const auto result_ptr = new ASTResult(
             path,
-            ASTUnit(fileId, chem::string_view(path), modScope),
-            std::move(allocator_),
+            ASTUnit(fileId, chem::string_view(path), nullptr),
+            ASTAllocator(10000),
             {}
     );
     auto result = std::shared_ptr<ASTResult>(result_ptr);
     auto& allocator = result_ptr->allocator;
+
+    // TODO scope name and module name aren't done
+    const auto modScope = new (allocator.allocate<ModuleScope>()) ModuleScope("", "", nullptr);
+    result_ptr->unit.set_parent(modScope);
 
     // creating a parser and parsing the file
     Parser parser(
@@ -136,7 +139,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
         std::cout << "[LSP] AST Cache miss for " << path << std::endl;
     }
 
-    auto result = get_ast_no_lock(const_cast<Token*>(lex_result->tokens.data()), path, comptime_scope);
+    auto result = get_ast_no_lock(const_cast<Token*>(lex_result->tokens.data()), path);
 
     cache.files_ast[path] = result;
 //    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
@@ -165,7 +168,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
 
     auto cst = get_lexed(path);
 
-    auto result = get_ast_no_lock(const_cast<Token*>(cst->tokens.data()), path, comptime_scope);
+    auto result = get_ast_no_lock(const_cast<Token*>(cst->tokens.data()), path);
 
     cache.files_ast[path] = result;
 //    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;

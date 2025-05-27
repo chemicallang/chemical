@@ -7,38 +7,45 @@
 #include "SemanticTokensAnalyzer.h"
 #include <unordered_set>
 #include "ast/base/ASTNode.h"
+#include "lsp/types.h"
 
 #define DEBUG false
 
+#define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
+
 void SemanticTokensAnalyzer::put(
-        unsigned int lineNumber,
-        unsigned int lineCharNumber,
-        unsigned int length,
-        unsigned int tokenType,
-        unsigned int tokenModifiers
+        uint32_t lineNumber,
+        uint32_t lineCharNumber,
+        uint32_t length,
+        uint32_t tokenType,
+        uint32_t tokenModifiers
 ) {
-    tokens.emplace_back(
-            lineNumber - prev_token_line_num, (
-                    lineNumber == prev_token_line_num ? (
-                            // on the same line
-                            lineCharNumber - prev_token_char_num
-                    ) : (
-                            // on a different line
-                            lineCharNumber
-                    )
-            ), length, tokenType, tokenModifiers
+    const uint32_t lineDelta = lineNumber - prev_token_line_num;
+    const uint32_t charDelta = (
+            lineNumber == prev_token_line_num ? (
+                    // on the same line
+                    lineCharNumber - prev_token_char_num
+            ) : (
+                    // on a different line
+                    lineCharNumber
+            )
     );
+    tokens.emplace_back(lineDelta);
+    tokens.emplace_back(charDelta);
+    tokens.emplace_back(length);
+    tokens.emplace_back(tokenType);
+    tokens.emplace_back(tokenModifiers);
     prev_token_char_num = lineCharNumber;
     prev_token_line_num = lineNumber;
 }
 
-void SemanticTokensAnalyzer::put(Token *token, unsigned int tokenType, unsigned int tokenModifiers) {
+void SemanticTokensAnalyzer::put(Token *token, uint32_t tokenType, uint32_t tokenModifiers) {
     put(token->position.line, token->position.character, token->value.size(), tokenType, tokenModifiers);
 }
 
 void SemanticTokensAnalyzer::put_auto(Token* token) {
     if(token->type >= TokenType::IndexKwStart && token->type <= TokenType::IndexKwEnd) {
-        put(token, SemanticTokenType::ls_keyword);
+        put(token, TokenType(Keyword));
     } else {
         switch (token->type) {
             case TokenType::EndOfFile:
@@ -56,57 +63,57 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
                         switch (linked_kind) {
                             case ASTNodeKind::FunctionParam:
                             case ASTNodeKind::VariantMemberParam:
-                                put(token, SemanticTokenType::ls_parameter);
+                                put(token, TokenType(Parameter));
                                 return;
                             case ASTNodeKind::GenericTypeParam:
-                                put(token, SemanticTokenType::ls_typeParameter);
+                                put(token, TokenType(TypeParameter));
                                 return;
                             case ASTNodeKind::StructDecl:
                             case ASTNodeKind::UnnamedStruct:
                             case ASTNodeKind::UnionDecl:
                             case ASTNodeKind::UnnamedUnion:
                             case ASTNodeKind::VariantDecl:
-                                put(token, SemanticTokenType::ls_struct);
+                                put(token, TokenType(Struct));
                                 return;
                             case ASTNodeKind::EnumDecl:
-                                put(token, SemanticTokenType::ls_enum);
+                                put(token, TokenType(Enum));
                                 return;
                             case ASTNodeKind::EnumMember:
-                                put(token, SemanticTokenType::ls_enumMember);
+                                put(token, TokenType(EnumMember));
                                 return;
                             case ASTNodeKind::NamespaceDecl:
-                                put(token, SemanticTokenType::ls_namespace);
+                                put(token, TokenType(Namespace));
                                 return;
                             case ASTNodeKind::InterfaceDecl:
-                                put(token, SemanticTokenType::ls_interface);
+                                put(token, TokenType(Interface));
                                 return;
                             case ASTNodeKind::FunctionDecl: {
                                 const auto parent = linked->parent();
                                 if (parent) {
                                     const auto parent_kind = parent->kind();
                                     if (parent_kind == ASTNodeKind::VariantDecl || parent_kind == ASTNodeKind::StructDecl || parent_kind == ASTNodeKind::UnionDecl) {
-                                        put(token, SemanticTokenType::ls_method);
+                                        put(token, TokenType(Method));
                                         return;
                                     }
                                 }
-                                put(token, SemanticTokenType::ls_function);
+                                put(token, TokenType(Function));
                                 return;
                             }
                             case ASTNodeKind::VarInitStmt:
-                                put(token, SemanticTokenType::ls_variable);
+                                put(token, TokenType(Variable));
                                 return;
                             case ASTNodeKind::TypealiasStmt:
-                                put(token, SemanticTokenType::ls_type);
+                                put(token, TokenType(Type));
                                 return;
                             default:
-                                put(token, SemanticTokenType::ls_variable);
+                                put(token, TokenType(Variable));
                                 break;
                         }
                     } else {
-                        put(token, SemanticTokenType::ls_variable);
+                        put(token, TokenType(Variable));
                     }
                 } else {
-                    put(token, SemanticTokenType::ls_variable);
+                    put(token, TokenType(Variable));
                 }
                 break;
             }
@@ -146,23 +153,24 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::SemiColonSym:
             case TokenType::TripleDotSym:
             case TokenType::LambdaSym:
-                put(token, SemanticTokenType::ls_operator);
+                put(token, TokenType(Operator));
                 break;
             case TokenType::String:
             case TokenType::Char:
-                put(token, SemanticTokenType::ls_string);
+                put(token, TokenType(String));
                 break;
             case TokenType::HashMacro:
             case TokenType::Annotation:
-                put(token, SemanticTokenType::ls_macro);
+                put(token, TokenType(Macro));
                 break;
             case TokenType::SingleLineComment:
-                put(token, SemanticTokenType::ls_comment);
+                put(token, TokenType(Comment));
+                break;
             case TokenType::MultiLineComment:
                 putMultilineComment(token);
                 break;
             case TokenType::Number:
-                put(token, SemanticTokenType::ls_number);
+                put(token, TokenType(Number));
                 break;
             default:
 #ifdef DEBUG
@@ -194,14 +202,14 @@ void SemanticTokensAnalyzer::putMultilineComment(Token *token) {
     while(i < total_length) {
         if(val[i] == '\n') {
             // comment from previous start
-            put(lineStart, charStart, i - lengthCovered, SemanticTokenType::ls_comment, 0);
+            put(lineStart, charStart, i - lengthCovered, TokenType(Comment), 0);
             // update the next token start
             lineStart++;
             charStart = 0;
             lengthCovered = i;
         } else if(val[i] == '\r') {
             // comment from previous start
-            put(lineStart, charStart, i - lengthCovered, SemanticTokenType::ls_comment, 0);
+            put(lineStart, charStart, i - lengthCovered, TokenType(Comment), 0);
             // consume the next line ending
             if(val[i + 1] == '\n') {
                 i++;
@@ -214,6 +222,6 @@ void SemanticTokensAnalyzer::putMultilineComment(Token *token) {
         i++;
     }
     if(lengthCovered < total_length) {
-        put(lineStart, charStart, total_length - lengthCovered, SemanticTokenType::ls_comment, 0);
+        put(lineStart, charStart, total_length - lengthCovered, TokenType(Comment), 0);
     }
 };

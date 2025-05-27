@@ -37,138 +37,138 @@
 
 #define DEBUG_COMPLETION true
 
-void CompletionItemAnalyzer::put(const chem::string_view &label, lsCompletionItemKind kind) {
-    list.items.emplace_back(label.str(), kind);
-}
+//void CompletionItemAnalyzer::put(const chem::string_view &label, lsCompletionItemKind kind) {
+//    list.items.emplace_back(label.str(), kind);
+//}
+//
+//void CompletionItemAnalyzer::put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc) {
+//    list.items.emplace_back(label.str(), kind, detail, std::pair(std::nullopt, MarkupContent{ "markdown", doc }));
+//}
 
-void CompletionItemAnalyzer::put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc) {
-    list.items.emplace_back(label.str(), kind, detail, std::pair(std::nullopt, MarkupContent{ "markdown", doc }));
-}
-
-void put_with_doc(CompletionItemAnalyzer* analyzer, const chem::string_view& label, lsCompletionItemKind kind, ASTNode* linked_node) {
-    std::string doc;
-    markdown_documentation(analyzer->loc_man, doc, analyzer->current_file, linked_node);
-    std::string detail;
-    small_detail_of(detail, linked_node);
-    analyzer->put_with_md_doc(label, kind, detail, doc);
-}
-
-inline void put_var_init(CompletionItemAnalyzer* analyzer, VarInitStatement* node) {
-    put_with_doc(analyzer, node->name_view(), lsCompletionItemKind::Variable, node);
-}
-
-inline void put_function(CompletionItemAnalyzer* analyzer, FunctionDeclaration* node) {
-    put_with_doc(analyzer, node->name_view(), lsCompletionItemKind::Function, node);
-}
-
-inline void put_func_param(CompletionItemAnalyzer* analyzer, FunctionParam* node) {
-    put_with_doc(analyzer, node->name, lsCompletionItemKind::Variable, node);
-}
-
-inline void put_enum_decl(CompletionItemAnalyzer* analyzer, EnumDeclaration* decl) {
-    put_with_doc(analyzer, decl->name_view(), lsCompletionItemKind::Enum, decl);
-}
-
-inline void put_interface_decl(CompletionItemAnalyzer* analyzer, InterfaceDefinition* def) {
-    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Interface, def);
-}
-
-inline void put_struct_decl(CompletionItemAnalyzer* analyzer, StructDefinition* def) {
-    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
-}
-
-inline void put_union_decl(CompletionItemAnalyzer* analyzer, UnionDef* def) {
-    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
-}
-
-inline void put_namespace_decl(CompletionItemAnalyzer* analyzer, Namespace* ns) {
-    put_with_doc(analyzer, ns->name_view(), lsCompletionItemKind::Module, ns);
-}
-
-inline void put_variant_decl(CompletionItemAnalyzer* analyzer, VariantDefinition* def) {
-    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
-}
-
-lsCompletionItemKind toCompletionItemKind(ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::StructDecl:
-            return lsCompletionItemKind::Struct;
-        case ASTNodeKind::UnionDecl:
-            return lsCompletionItemKind::Struct;
-        case ASTNodeKind::InterfaceDecl:
-            return lsCompletionItemKind::Interface;
-        case ASTNodeKind::FunctionDecl:
-            return lsCompletionItemKind::Function;
-        case ASTNodeKind::NamespaceDecl:
-            return lsCompletionItemKind::Module;
-        case ASTNodeKind::TypealiasStmt:
-            return lsCompletionItemKind::Interface;
-        case ASTNodeKind::VariantDecl:
-            return lsCompletionItemKind::Struct;
-        case ASTNodeKind::EnumDecl:
-            return lsCompletionItemKind::Enum;
-        case ASTNodeKind::VarInitStmt:
-            return lsCompletionItemKind::Variable;
-        default:
-#ifdef DEBUG
-            throw std::runtime_error("unknown node completion item kind");
-#endif
-            return lsCompletionItemKind::Folder;
-    }
-}
-
-lsCompletionItemKind toCompletionItemKind(BaseType* type) {
-    const auto linked = type->linked_node();
-    if(linked) {
-        return toCompletionItemKind(linked);
-    } else {
-        return lsCompletionItemKind::Variable;
-    }
-}
-
-bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
-    const auto kind = node->kind();
-    switch(kind) {
-        case ASTNodeKind::StructDecl:
-            put_struct_decl(analyzer, node->as_struct_def_unsafe());
-            return true;
-        case ASTNodeKind::VarInitStmt:
-            put_var_init(analyzer, node->as_var_init_unsafe());
-            return true;
-        case ASTNodeKind::FunctionParam:
-            put_func_param(analyzer, node->as_func_param_unsafe());
-            return true;
-        case ASTNodeKind::UnionDecl:
-            put_union_decl(analyzer, node->as_union_def_unsafe());
-            return true;
-        case ASTNodeKind::InterfaceDecl:
-            put_interface_decl(analyzer, node->as_interface_def_unsafe());
-            return true;
-        case ASTNodeKind::FunctionDecl:
-            put_function(analyzer, node->as_function_unsafe());
-            return true;
-        case ASTNodeKind::NamespaceDecl:
-            put_namespace_decl(analyzer, node->as_namespace_unsafe());
-            return true;
-        case ASTNodeKind::TypealiasStmt:
-            put_with_doc(analyzer, node->as_typealias_unsafe()->name_view(), lsCompletionItemKind::Interface, node);
-            return true;
-        case ASTNodeKind::VariantDecl:
-            put_variant_decl(analyzer, node->as_variant_def_unsafe());
-            return true;
-        case ASTNodeKind::EnumDecl:
-            put_enum_decl(analyzer, node->as_enum_decl_unsafe());
-            return true;
-        case ASTNodeKind::UsingStmt:
-            // TODO we must provide completions for all under using statement
-            return true;
-        default:
-            return false;
-    }
-}
+//void put_with_doc(CompletionItemAnalyzer* analyzer, const chem::string_view& label, lsCompletionItemKind kind, ASTNode* linked_node) {
+//    std::string doc;
+//    markdown_documentation(analyzer->loc_man, doc, analyzer->current_file, linked_node);
+//    std::string detail;
+//    small_detail_of(detail, linked_node);
+//    analyzer->put_with_md_doc(label, kind, detail, doc);
+//}
+//
+//inline void put_var_init(CompletionItemAnalyzer* analyzer, VarInitStatement* node) {
+//    put_with_doc(analyzer, node->name_view(), lsCompletionItemKind::Variable, node);
+//}
+//
+//inline void put_function(CompletionItemAnalyzer* analyzer, FunctionDeclaration* node) {
+//    put_with_doc(analyzer, node->name_view(), lsCompletionItemKind::Function, node);
+//}
+//
+//inline void put_func_param(CompletionItemAnalyzer* analyzer, FunctionParam* node) {
+//    put_with_doc(analyzer, node->name, lsCompletionItemKind::Variable, node);
+//}
+//
+//inline void put_enum_decl(CompletionItemAnalyzer* analyzer, EnumDeclaration* decl) {
+//    put_with_doc(analyzer, decl->name_view(), lsCompletionItemKind::Enum, decl);
+//}
+//
+//inline void put_interface_decl(CompletionItemAnalyzer* analyzer, InterfaceDefinition* def) {
+//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Interface, def);
+//}
+//
+//inline void put_struct_decl(CompletionItemAnalyzer* analyzer, StructDefinition* def) {
+//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
+//}
+//
+//inline void put_union_decl(CompletionItemAnalyzer* analyzer, UnionDef* def) {
+//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
+//}
+//
+//inline void put_namespace_decl(CompletionItemAnalyzer* analyzer, Namespace* ns) {
+//    put_with_doc(analyzer, ns->name_view(), lsCompletionItemKind::Module, ns);
+//}
+//
+//inline void put_variant_decl(CompletionItemAnalyzer* analyzer, VariantDefinition* def) {
+//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
+//}
+//
+//lsCompletionItemKind toCompletionItemKind(ASTNode* node) {
+//    switch(node->kind()) {
+//        case ASTNodeKind::StructDecl:
+//            return lsCompletionItemKind::Struct;
+//        case ASTNodeKind::UnionDecl:
+//            return lsCompletionItemKind::Struct;
+//        case ASTNodeKind::InterfaceDecl:
+//            return lsCompletionItemKind::Interface;
+//        case ASTNodeKind::FunctionDecl:
+//            return lsCompletionItemKind::Function;
+//        case ASTNodeKind::NamespaceDecl:
+//            return lsCompletionItemKind::Module;
+//        case ASTNodeKind::TypealiasStmt:
+//            return lsCompletionItemKind::Interface;
+//        case ASTNodeKind::VariantDecl:
+//            return lsCompletionItemKind::Struct;
+//        case ASTNodeKind::EnumDecl:
+//            return lsCompletionItemKind::Enum;
+//        case ASTNodeKind::VarInitStmt:
+//            return lsCompletionItemKind::Variable;
+//        default:
+//#ifdef DEBUG
+//            throw std::runtime_error("unknown node completion item kind");
+//#endif
+//            return lsCompletionItemKind::Folder;
+//    }
+//}
+//
+//lsCompletionItemKind toCompletionItemKind(BaseType* type) {
+//    const auto linked = type->linked_node();
+//    if(linked) {
+//        return toCompletionItemKind(linked);
+//    } else {
+//        return lsCompletionItemKind::Variable;
+//    }
+//}
+//
+//bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
+//    const auto kind = node->kind();
+//    switch(kind) {
+//        case ASTNodeKind::StructDecl:
+//            put_struct_decl(analyzer, node->as_struct_def_unsafe());
+//            return true;
+//        case ASTNodeKind::VarInitStmt:
+//            put_var_init(analyzer, node->as_var_init_unsafe());
+//            return true;
+//        case ASTNodeKind::FunctionParam:
+//            put_func_param(analyzer, node->as_func_param_unsafe());
+//            return true;
+//        case ASTNodeKind::UnionDecl:
+//            put_union_decl(analyzer, node->as_union_def_unsafe());
+//            return true;
+//        case ASTNodeKind::InterfaceDecl:
+//            put_interface_decl(analyzer, node->as_interface_def_unsafe());
+//            return true;
+//        case ASTNodeKind::FunctionDecl:
+//            put_function(analyzer, node->as_function_unsafe());
+//            return true;
+//        case ASTNodeKind::NamespaceDecl:
+//            put_namespace_decl(analyzer, node->as_namespace_unsafe());
+//            return true;
+//        case ASTNodeKind::TypealiasStmt:
+//            put_with_doc(analyzer, node->as_typealias_unsafe()->name_view(), lsCompletionItemKind::Interface, node);
+//            return true;
+//        case ASTNodeKind::VariantDecl:
+//            put_variant_decl(analyzer, node->as_variant_def_unsafe());
+//            return true;
+//        case ASTNodeKind::EnumDecl:
+//            put_enum_decl(analyzer, node->as_enum_decl_unsafe());
+//            return true;
+//        case ASTNodeKind::UsingStmt:
+//            // TODO we must provide completions for all under using statement
+//            return true;
+//        default:
+//            return false;
+//    }
+//}
 
 void CompletionItemAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
-    put_var_init(this, init);
+    //TODO: put_var_init(this, init);
     // TODO is_caret_inside should get location of the type, however we're not storing TypeLoc yet
     if(init->type && is_caret_inside(SourceLocation(0))) {
         visit(init->type);
@@ -187,17 +187,17 @@ void CompletionItemAnalyzer::VisitAssignmentStmt(AssignStatement *assign) {
 }
 
 void CompletionItemAnalyzer::VisitFunctionDecl(FunctionDeclaration *decl) {
-    put_function(this, decl);
+    //TODO: put_function(this, decl);
     if(decl->body.has_value() && is_caret_inside(decl->body->encoded_location())) {
         for(auto& param : decl->params) {
-            put_func_param(this, param);
+            //TODO: put_func_param(this, param);
         }
         visit(decl->body.value());
     }
 }
 
 void CompletionItemAnalyzer::VisitEnumDecl(EnumDeclaration *decl) {
-    put_enum_decl(this, decl);
+    //TODO: put_enum_decl(this, decl);
     // caret is inside the enum, what should we have
 }
 
@@ -217,12 +217,12 @@ void visit_inside(CompletionItemAnalyzer* analyzer, MembersContainer* container)
 }
 
 void CompletionItemAnalyzer::VisitStructDecl(StructDefinition *def) {
-    put_struct_decl(this, def);
+    //TODO: put_struct_decl(this, def);
     visit_inside(this, def);
 }
 
 void CompletionItemAnalyzer::VisitInterfaceDecl(InterfaceDefinition *def) {
-    put_interface_decl(this, def);
+    //TODO: put_interface_decl(this, def);
     visit_inside(this, def);
 }
 
@@ -277,7 +277,7 @@ void CompletionItemAnalyzer::VisitSwitchStmt(SwitchStatement *stmt) {
 void CompletionItemAnalyzer::VisitLambdaFunction(LambdaFunction *func) {
     if(is_caret_inside(func->scope.encoded_location())) {
         for(auto& param : func->params) {
-            put_func_param(this, param);
+            //TODO: put_func_param(this, param);
         }
         visit(func->scope);
     }
@@ -305,7 +305,7 @@ void CompletionItemAnalyzer::VisitScope(Scope *scope) {
         const auto sourceLoc = node->encoded_location();
         const auto position = loc_man.getLocationPos(sourceLoc);
         if(is_caret_ahead(position.start)) {
-            put_node(this, node);
+            //TODO: put_node(this, node);
         } else if(is_caret_inside(position.start, position.end)) {
             visit(node);
         }
@@ -314,20 +314,20 @@ void CompletionItemAnalyzer::VisitScope(Scope *scope) {
 
 void put_variables_of(CompletionItemAnalyzer* analyzer, VariablesContainer* node) {
     for(auto& var : node->variables()) {
-        put_with_doc(analyzer, var->name_view(), lsCompletionItemKind::Field, var);
+        //TODO: put_with_doc(analyzer, var->name_view(), lsCompletionItemKind::Field, var);
     }
 }
 
 void put_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContainerNode* node) {
     for(const auto func : node->master_functions()) {
-        put_with_doc(analyzer, func->name_view(), lsCompletionItemKind::Function, func);
+        //TODO: put_with_doc(analyzer, func->name_view(), lsCompletionItemKind::Function, func);
     }
 }
 
 void put_non_self_param_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContainerNode* node) {
     for(const auto func : node->master_functions()) {
         if(!func->has_self_param()) {
-            put_with_doc(analyzer, func->name_view(), lsCompletionItemKind::Function, func);
+            //TODO: put_with_doc(analyzer, func->name_view(), lsCompletionItemKind::Function, func);
         }
     }
 }
@@ -385,7 +385,7 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node, boo
         case ASTNodeKind::EnumDecl:{
             const auto decl = linked_node->as_enum_decl_unsafe();
             for(auto& mem : decl->members) {
-                analyzer->put(mem.first, lsCompletionItemKind::EnumMember);
+                //TODO: analyzer->put(mem.first, lsCompletionItemKind::EnumMember);
             }
             return true;
         }
@@ -427,7 +427,7 @@ void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
         const auto sourceLoc = node->encoded_location();
         const auto location = loc_man.getLocationPos(sourceLoc);
         if(is_caret_ahead(location.start)) {
-            put_node(this, node);
+            //TODO: put_node(this, node);
         } else if(is_caret_inside(location.start, location.end)) {
             visit(node);
         }
@@ -440,7 +440,7 @@ void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
             if(file.result) {
                 auto& fileNodes = file.result->unit.scope.body.nodes;
                 for(const auto node : fileNodes) {
-                    put_node(this, node);
+                    //TODO: put_node(this, node);
                 }
             }
         }

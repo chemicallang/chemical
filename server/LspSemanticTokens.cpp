@@ -5,11 +5,9 @@
 //
 
 #include "utils/FileUtils.h"
-#include "LibLsp/lsp/AbsolutePath.h"
-#include "LibLsp/lsp/textDocument/publishDiagnostics.h"
+#include "lsp/types.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
 #include "WorkspaceManager.h"
-#include "LibLsp/JsonRpc/RemoteEndPoint.h"
 #include "compiler/SymbolResolver.h"
 #include <future>
 
@@ -27,64 +25,65 @@
  * when doing symbol resolution, we also collect diagnostics, which is tightly coupled with symbol resolution
  * so we do everything here, that's why notify_async is true, sending notification is done asynchronously
  */
-td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
-    auto abs_path = canonical(uri.GetAbsolutePath().path);
+std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string& path) {
+    auto abs_path = canonical(path);
     // get the import unit, while publishing diagnostics asynchronously
     // publish diagnostics will return ast import unit ref
-    publish_diagnostics(abs_path);
+    // TODO uncomment this
+    // publish_diagnostics(abs_path);
     // tokens for the last file
     auto last_file = get_lexed(abs_path);
     auto toks = get_semantic_tokens(*last_file);
     // preparing response
-    SemanticTokens tokens;
-    tokens.data = SemanticTokens::encodeTokens(toks);
-    td_semanticTokens_full::response rsp;
-    rsp.result = std::move(tokens);
-    return std::move(rsp);
+//    SemanticTokens tokens;
+//    tokens.data = SemanticTokens::encodeTokens(toks);
+//    td_semanticTokens_full::response rsp;
+//    rsp.result = std::move(tokens);
+    return std::move(toks);
 }
 
-void build_notify_request(
-        Notify_TextDocumentPublishDiagnostics::notify& notify,
-        const std::string& path,
-        const std::vector<std::vector<Diag>*>& diags
-) {
-    for(auto diag : diags) {
-        for(const auto &error : *diag) {
-            notify.params.diagnostics.emplace_back(
-                    lsRange(
-                            lsPosition(error.range.start.line, error.range.start.character),
-                            lsPosition(error.range.end.line, error.range.end.character)
-                    ),
-                    (lsDiagnosticSeverity) (error.severity.value()),
-                    std::nullopt,
-                    std::nullopt,
-                    std::nullopt,
-                    error.message
-            );
-        }
-    }
-    notify.params.uri = lsDocumentUri::FromPath(AbsolutePath(path));
-}
+//void build_notify_request(
+//        Notify_TextDocumentPublishDiagnostics::notify& notify,
+//        const std::string& path,
+//        const std::vector<std::vector<Diag>*>& diags
+//) {
+//    for(auto diag : diags) {
+//        for(const auto &error : *diag) {
+//            notify.params.diagnostics.emplace_back(
+//                    lsRange(
+//                            lsPosition(error.range.start.line, error.range.start.character),
+//                            lsPosition(error.range.end.line, error.range.end.character)
+//                    ),
+//                    (lsDiagnosticSeverity) (error.severity.value()),
+//                    std::nullopt,
+//                    std::nullopt,
+//                    std::nullopt,
+//                    error.message
+//            );
+//        }
+//    }
+//    notify.params.uri = lsDocumentUri::FromPath(AbsolutePath(path));
+//}
 
 void WorkspaceManager::notify_diagnostics_async(
     const std::string& path,
     const std::vector<std::vector<Diag>*>& diags
 ) {
-    const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
-    build_notify_request(*notify, path, diags);
-    std::future<void> futureObj = std::async(std::launch::async, [this, notify] {
-        remote->sendNotification(*notify);
-        delete notify;
-    });
+//    const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
+//    build_notify_request(*notify, path, diags);
+//    std::future<void> futureObj = std::async(std::launch::async, [this, notify] {
+//        remote->sendNotification(*notify);
+//        delete notify;
+//    });
 }
 
 void WorkspaceManager::notify_diagnostics_sync(
     const std::string& path,
     const std::vector<std::vector<Diag>*>& diags
 ) {
-    Notify_TextDocumentPublishDiagnostics::notify notify;
-    build_notify_request(notify, path, diags);
-    remote->sendNotification(notify);
+//    Notify_TextDocumentPublishDiagnostics::notify notify;
+//    build_notify_request(notify, path, diags);
+//    remote->sendNotification(notify);
 }
 
 std::vector<Diag> WorkspaceManager::sym_res_import_unit(
@@ -146,6 +145,22 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
 //    resolver.resolve_file(last_file->unit.scope, last_file->abs_path);
 
     return std::move(resolver.diagnostics);
+
+}
+
+std::shared_ptr<ASTResult> WorkspaceManager::get_decl_ast(const std::string& path) {
+
+    // get the module for the given file
+    // TODO: use the module
+    const auto mod = get_mod_of(chem::string_view(path));
+
+    // get the lex import unit
+    auto lex_result = get_lexed(path);
+
+    // get the ast unit
+    auto ast_unit = get_ast_no_lock(lex_result->tokens.data(), path);
+
+    return ast_unit;
 
 }
 
@@ -277,7 +292,7 @@ void WorkspaceManager::publish_diagnostics(const std::string& path) {
 
 }
 
-std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(LexResult& file) {
+std::vector<uint32_t> WorkspaceManager::get_semantic_tokens(LexResult& file) {
 
 #if defined PRINT_TOKENS && PRINT_TOKENS
     printTokens(file.unit.tokens);

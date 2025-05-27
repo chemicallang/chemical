@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "LibLsp/lsp/textDocument/foldingRange.h"
+#include "lsp/types.h"
 #include <vector>
 
 class ASTNode;
 
 class LocationManager;
 
-std::vector<FoldingRange> folding_analyze(LocationManager& locMan, std::vector<ASTNode*>& nodes);
+std::vector<lsp::FoldingRange> folding_analyze(LocationManager& locMan, std::vector<ASTNode*>& nodes);

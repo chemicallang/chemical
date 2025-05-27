@@ -11,9 +11,15 @@
 struct LexResult {
 
     /**
-     * the allocator is where the token strings are stored for the file
+     * this allocator is the allocator all strings live on, that are present inside
+     * the tokens, this is composed inside the lexer, however moved here when lexing is done
      */
     BatchAllocator allocator;
+    /**
+     * this allocator is used inside the lexer to provide support for allocating
+     * things to the nested user lexers
+     */
+    BatchAllocator fileAllocator;
     /**
      * the absolute path to the file
      */
@@ -31,7 +37,7 @@ struct LexResult {
      * constructor
      * by default 5000 bytes = 5kb is allocated for tokens of each file in batches
      */
-    LexResult(std::size_t batchSize = 5000) : allocator(batchSize) {
+    LexResult() : allocator(0), fileAllocator(0) {
 
     }
 

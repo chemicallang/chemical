@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "integration/common/Location.h"
-#include "LibLsp/lsp/textDocument/inlayHint.h"
+#include "lsp/types.h"
 #include "compiler/cbi/model/ASTImportUnitRef.h"
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "InlayHintAnalyzerApi.h"
@@ -27,7 +27,7 @@ public:
     /**
      * the collected hints by visiting nodes are stored here
      */
-    std::vector<lsInlayHint> hints;
+    std::vector<lsp::InlayHint> hints;
 
     /**
      * constructor
@@ -39,7 +39,7 @@ public:
      * token where user asked to goto def
      * It will provide locations, where that symbol has definition
      */
-    std::vector<lsInlayHint> analyze(ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path);
+    std::vector<lsp::InlayHint> analyze(ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path);
 
     void VisitFunctionCall(FunctionCall *call);
 

@@ -2,12 +2,10 @@
 
 #include "DocumentLinksAnalyzer.h"
 #include "compiler/cbi/model/LexResult.h"
-#include "LibLsp/lsp/lsDocumentUri.h"
-#include "LibLsp/lsp/AbsolutePath.h"
 #include "preprocess/ImportPathHandler.h"
 
-std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
-    std::vector<lsDocumentLink> links;
+std::vector<lsp::DocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
+    std::vector<lsp::DocumentLink> links;
     ImportPathHandler path_handler(compiler_exe_path);
     for(auto& token : result->tokens) {
 //        if(token.type == TokenType::CompImport) {

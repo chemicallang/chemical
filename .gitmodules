@@ -1,3 +1,6 @@
-[submodule "LspCpp"]
-	path = LspCpp
-	url = git@github.com:Qinetik/LspCpp.git
+[submodule "lib/asio"]
+	path = lib/asio
+	url = https://github.com/chriskohlhoff/asio.git
+[submodule "lib/lsp-framework"]
+	path = lib/lsp-framework
+	url = https://github.com/chemicallang/lsp-framework.git

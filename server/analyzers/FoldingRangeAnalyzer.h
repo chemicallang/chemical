@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "LibLsp/lsp/textDocument/foldingRange.h"
+#include "lsp/types.h"
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "ast/base/ASTNode.h"
 #include "integration/common/Position.h"
@@ -25,7 +25,7 @@ public:
     /**
      * all the folding ranges found
      */
-    std::vector<FoldingRange> ranges;
+    std::vector<lsp::FoldingRange> ranges;
 
     /**
      * constructor

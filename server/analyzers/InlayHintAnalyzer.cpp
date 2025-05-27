@@ -8,7 +8,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/VarInit.h"
 
-std::vector<lsInlayHint> inlay_hint_analyze(LocationManager& manager, ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
+std::vector<lsp::InlayHint> inlay_hint_analyze(LocationManager& manager, ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
     InlayHintAnalyzer analyzer(manager);
     analyzer.analyze(result, compiler_exe_path, lsp_exe_path);
     return std::move(analyzer.hints);
@@ -32,10 +32,10 @@ void InlayHintAnalyzer::VisitFunctionCall(FunctionCall *call) {
                 const auto location = loc_man.getLocationPos(encodedLoc);
                 const auto param = func_type->func_param_for_arg_at(i);
                 if(param) {
-                    hints.emplace_back(lsInlayHint {
-                            { (int) location.start.line, (int) location.start.character },
+                    hints.emplace_back(lsp::InlayHint {
+                            { location.start.line, location.start.character },
                             param->name.str() + ": ",
-                            lsInlayHintKind::Parameter
+                            lsp::InlayHintKind::Parameter
                     });
                 }
             }
@@ -53,17 +53,17 @@ void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
             const auto known = init->value->create_type(allocator);
             if(known) {
                 const auto& start = location.end;
-                hints.emplace_back(lsInlayHint {
-                        { (int) start.line, (int) start.character },
+                hints.emplace_back(lsp::InlayHint {
+                        { start.line, start.character },
                         " :" + known->representation(),
-                        lsInlayHintKind::Type
+                        lsp::InlayHintKind::Type
                 });
             }
         }
     }
 }
 
-std::vector<lsInlayHint> InlayHintAnalyzer::analyze(
+std::vector<lsp::InlayHint> InlayHintAnalyzer::analyze(
     ASTImportUnitRef& result,
     const std::string& compiler_exe_path,
     const std::string& lsp_exe_path

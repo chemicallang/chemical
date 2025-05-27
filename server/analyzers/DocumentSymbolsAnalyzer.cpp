@@ -14,7 +14,7 @@
 // TODO put nested symbols
 // TODO put small detail about function
 // TODO investigate why double clicking selects the wrong range, is it correct behavior
-void DocumentSymbolsAnalyzer::put(const chem::string_view &name, lsSymbolKind kind, lsRange range, lsRange selRange) {
+void DocumentSymbolsAnalyzer::put(const chem::string_view &name, lsp::SymbolKind kind, lsp::Range range, lsp::Range selRange) {
     symbols.emplace_back(
             name.str(),
             kind,
@@ -23,57 +23,77 @@ void DocumentSymbolsAnalyzer::put(const chem::string_view &name, lsSymbolKind ki
     );
 }
 
-void DocumentSymbolsAnalyzer::put(const chem::string_view& name, lsSymbolKind kind, lsRange range) {
+void DocumentSymbolsAnalyzer::put(const chem::string_view& name, lsp::SymbolKind kind, lsp::Range range) {
     symbols.emplace_back(
             name.str(),
             kind,
             range,
-            lsRange { range.start, { static_cast<int>(range.start.line), static_cast<int>(range.start.character + name.size()) } }
+            lsp::Range { range.start, { range.start.line, static_cast<lsp::uint>(range.start.character + name.size()) } }
     );
 }
 
-lsRange DocumentSymbolsAnalyzer::range(SourceLocation location) {
+void DocumentSymbolsAnalyzer::put(const chem::string_view& name, lsp::SymbolKind kind, SourceLocation location) {
     const auto pos = loc_man.getLocationPos(location);
-    return lsRange{
-            lsPosition{
-                    static_cast<int>(pos.start.line),
-                    static_cast<int>(pos.start.character)
+    auto range = lsp::Range{
+            lsp::Position {
+                    pos.start.line,
+                    pos.start.character
             },
-            lsPosition{
-                    static_cast<int>(pos.end.line),
-                    static_cast<int>(pos.end.character)
+            lsp::Position {
+                    pos.start.line,
+                    static_cast<lsp::uint>(pos.start.character + name.size())
+            }
+    };
+    symbols.emplace_back(
+            name.str(),
+            kind,
+            range,
+            range
+    );
+}
+
+lsp::Range DocumentSymbolsAnalyzer::range(SourceLocation location) {
+    const auto pos = loc_man.getLocationPos(location);
+    return lsp::Range{
+            lsp::Position {
+                    pos.start.line,
+                    pos.start.character
+            },
+            lsp::Position {
+                    pos.end.line,
+                    pos.end.character
             }
     };
 }
 
 void DocumentSymbolsAnalyzer::VisitFunctionDecl(FunctionDeclaration *decl) {
-    put(decl->name_view(), lsSymbolKind::Function, range(decl->encoded_location()));
+    put(decl->name_view(), lsp::SymbolKind::Function, decl->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitStructDecl(StructDefinition *def) {
-    put(def->name_view(), lsSymbolKind::Struct, range(def->encoded_location()));
+    put(def->name_view(), lsp::SymbolKind::Struct, def->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitUnionDecl(UnionDef *def) {
-    put(def->name_view(), lsSymbolKind::Struct, range(def->encoded_location()));
+    put(def->name_view(), lsp::SymbolKind::Struct, def->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitVariantDecl(VariantDefinition *def) {
-    put(def->name_view(), lsSymbolKind::Struct, range(def->encoded_location()));
+    put(def->name_view(), lsp::SymbolKind::Struct, def->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitInterfaceDecl(InterfaceDefinition *def) {
-    put(def->name_view(), lsSymbolKind::Interface, range(def->encoded_location()));
+    put(def->name_view(), lsp::SymbolKind::Interface, def->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitTypealiasStmt(TypealiasStatement *def) {
-    put(def->name_view(), lsSymbolKind::Interface, range(def->encoded_location()));
+    put(def->name_view(), lsp::SymbolKind::Interface, def->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitEnumDecl(EnumDeclaration *def) {
-    put(def->name_view(), lsSymbolKind::Enum, range(def->encoded_location()));
+    put(def->name_view(), lsp::SymbolKind::Enum, def->encoded_location());
 }
 
 void DocumentSymbolsAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
-    put(init->name_view(), lsSymbolKind::Enum, range(init->encoded_location()));
+    put(init->name_view(), lsp::SymbolKind::Enum, init->encoded_location());
 }

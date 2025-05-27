@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LibLsp/lsp/symbol.h"
+#include "lsp/types.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 
 #include "ast/base/ASTNode.h"
@@ -22,7 +22,7 @@ public:
     /**
      * the symbols collected
      */
-    std::vector<lsDocumentSymbol> symbols;
+    std::vector<lsp::DocumentSymbol> symbols;
 
     /**
      * the constructor
@@ -34,17 +34,22 @@ public:
     /**
      * will create a range for the given location
      */
-    lsRange range(SourceLocation location);
+    lsp::Range range(SourceLocation location);
 
     /**
      * put a symbol with given name and range
      */
-    void put(const chem::string_view& name, lsSymbolKind kind, lsRange range);;
+    void put(const chem::string_view& name, lsp::SymbolKind kind, lsp::Range range);
+
+    /**
+     * put a symbol with given name and location
+     */
+    void put(const chem::string_view& name, lsp::SymbolKind kind, SourceLocation location);
 
     /**
      * put a symbol with name, kind and range
      */
-    void put(const chem::string_view& name, lsSymbolKind kind, lsRange range, lsRange selRange);
+    void put(const chem::string_view& name, lsp::SymbolKind kind, lsp::Range range, lsp::Range selRange);
 
     /**
      * will analyzer the given top level nodes, to put symbols for the

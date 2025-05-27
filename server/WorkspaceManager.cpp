@@ -8,26 +8,15 @@
 #include "stream/SourceProvider.h"
 #include <filesystem>
 #include <sstream>
-#include "LibLsp/lsp/textDocument/foldingRange.h"
 #include "server/analyzers/FoldingRangeAnalyzerApi.h"
-#include "LibLsp/lsp/textDocument/completion.h"
-#include "LibLsp/lsp/textDocument/document_link.h"
-#include "LibLsp/lsp/textDocument/inlayHint.h"
-#include "LibLsp/lsp/textDocument/signature_help.h"
 #include "server/analyzers/CompletionItemAnalyzer.h"
-#include "LibLsp/lsp/textDocument/SemanticTokens.h"
-#include "LibLsp/lsp/textDocument/did_change.h"
-#include "LibLsp/lsp/textDocument/declaration_definition.h"
-#include "LibLsp/lsp/AbsolutePath.h"
 #include "server/analyzers/GotoDefAnalyzer.h"
-#include "LibLsp/lsp/textDocument/hover.h"
 #include "server/analyzers/HoverAnalyzer.h"
 #include "server/analyzers/DocumentSymbolsAnalyzer.h"
 #include "server/analyzers/DocumentLinksAnalyzer.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
 #include "stream/StringInputSource.h"
-#include "LibLsp/lsp/general/initialize.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/lab/LabBuildContext.h"
@@ -35,6 +24,7 @@
 #include "compiler/ASTProcessor.h"
 #include "server/analyzers/InlayHintAnalyzerApi.h"
 #include "server/analyzers/SignatureHelpAnalyzer.h"
+#include <iostream>
 #include <fstream>
 
 #define DEBUG_REPLACE false
@@ -217,14 +207,14 @@ bool WorkspaceManager::compile_build_lab() {
     }
 }
 
-void WorkspaceManager::initialize(const td_initialize::request &req) {
-    project_path = canonical_path(req.params.rootUri->GetAbsolutePath().path);
-    // doing asynchronous tasks during initialization
-    std::future<void> futureObj = std::async(std::launch::async, [this] {
-        // compile build.lab asynchronously
-        compile_build_lab();
-    });
-}
+//void WorkspaceManager::initialize(const td_initialize::request &req) {
+//    project_path = canonical_path(req.params.rootUri->GetAbsolutePath().path);
+//    // doing asynchronous tasks during initialization
+//    std::future<void> futureObj = std::async(std::launch::async, [this] {
+//        // compile build.lab asynchronously
+//        compile_build_lab();
+//    });
+//}
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {
     if (overriddenSources.contains(path)) {
@@ -234,92 +224,88 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
     }
 }
 
-td_foldingRange::response WorkspaceManager::get_folding_range(const lsDocumentUri& uri) {
-    td_foldingRange::response rsp;
-    const auto abs_path = canonical(uri.GetAbsolutePath().path);
-    auto unit = get_ast_import_unit(abs_path, cancel_request);
-    rsp.result = folding_analyze(loc_man, unit.ast_result->unit.scope.body.nodes);
-    return rsp;
+std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string& path) {
+    const auto abs_path = canonical(path);
+    auto unit = get_decl_ast(abs_path);
+    return folding_analyze(loc_man, unit->unit.scope.body.nodes);
 }
-
-td_completion::response WorkspaceManager::get_completion(
-        const lsDocumentUri& uri,
-        unsigned int line,
-        unsigned int character
-) {
-    auto can_path = canonical(uri.GetAbsolutePath().path);
-    auto unit = get_ast_import_unit(can_path, cancel_request);
-    CompletionItemAnalyzer analyzer(loc_man, { line, character });
-    td_completion::response rsp;
-    analyzer.analyze(unit);
-    rsp.result = std::move(analyzer.list);
-    return std::move(rsp);
-}
-
-td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
-    auto result = get_lexed(canonical(uri.GetAbsolutePath().path));
-    DocumentLinksAnalyzer analyzer;
-    td_links::response rsp;
-    rsp.result = analyzer.analyze(result.get(), compiler_exe_path(), lsp_exe_path);
-    return std::move(rsp);
-}
-
-td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
-    const auto abs_path = canonical(uri.GetAbsolutePath().path);
-    auto result = get_ast_import_unit(abs_path, cancel_request);
-    td_inlayHint::response rsp;
-    rsp.result = inlay_hint_analyze(loc_man, result, compiler_exe_path(), lsp_exe_path);
-    return std::move(rsp);
-}
-
-td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
-    const auto abs_path = canonical(uri.GetAbsolutePath().path);
-    auto result = get_ast_import_unit(abs_path, cancel_request);
-    SignatureHelpAnalyzer analyzer(loc_man, { .line = position.line, .character = position.character });
-    td_signatureHelp::response rsp;
-    analyzer.analyze(result);
-    rsp.result = std::move(analyzer.help);
-    return std::move(rsp);
-}
-
-td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
-    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
-    GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
-    td_definition::response rsp;
-    rsp.result.first.emplace();
-    auto analyzed = analyzer.analyze(unit.lex_result.get());
-    for (auto &loc: analyzed) {
-        rsp.result.first.value().push_back(lsLocation{
-                lsDocumentUri(AbsolutePath(loc.path)),
-                {
-                        {static_cast<int>(loc.range.start.line), static_cast<int>(loc.range.start.character)},
-                        {static_cast<int>(loc.range.end.line), static_cast<int>(loc.range.end.character)}
-                }
-        });
-    }
-    return rsp;
-}
-
-td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
-    const auto abs_path = canonical(uri.GetAbsolutePath().path);
-    auto unit = get_ast_import_unit(abs_path, cancel_request);
+//
+//td_completion::response WorkspaceManager::get_completion(
+//        const lsDocumentUri& uri,
+//        unsigned int line,
+//        unsigned int character
+//) {
+//    auto can_path = canonical(uri.GetAbsolutePath().path);
+//    auto unit = get_ast_import_unit(can_path, cancel_request);
+//    CompletionItemAnalyzer analyzer(loc_man, { line, character });
+//    td_completion::response rsp;
+//    analyzer.analyze(unit);
+//    rsp.result = std::move(analyzer.list);
+//    return std::move(rsp);
+//}
+//
+//td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
+//    auto result = get_lexed(canonical(uri.GetAbsolutePath().path));
+//    DocumentLinksAnalyzer analyzer;
+//    td_links::response rsp;
+//    rsp.result = analyzer.analyze(result.get(), compiler_exe_path(), lsp_exe_path);
+//    return std::move(rsp);
+//}
+//
+//td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
+//    const auto abs_path = canonical(uri.GetAbsolutePath().path);
+//    auto result = get_ast_import_unit(abs_path, cancel_request);
+//    td_inlayHint::response rsp;
+//    rsp.result = inlay_hint_analyze(loc_man, result, compiler_exe_path(), lsp_exe_path);
+//    return std::move(rsp);
+//}
+//
+//td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
+//    const auto abs_path = canonical(uri.GetAbsolutePath().path);
+//    auto result = get_ast_import_unit(abs_path, cancel_request);
+//    SignatureHelpAnalyzer analyzer(loc_man, { .line = position.line, .character = position.character });
+//    td_signatureHelp::response rsp;
+//    analyzer.analyze(result);
+//    rsp.result = std::move(analyzer.help);
+//    return std::move(rsp);
+//}
+//
+//td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
+//    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
+//    GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
+//    td_definition::response rsp;
+//    rsp.result.first.emplace();
+//    auto analyzed = analyzer.analyze(unit.lex_result.get());
+//    for (auto &loc: analyzed) {
+//        rsp.result.first.value().push_back(lsLocation{
+//                lsDocumentUri(AbsolutePath(loc.path)),
+//                {
+//                        {static_cast<int>(loc.range.start.line), static_cast<int>(loc.range.start.character)},
+//                        {static_cast<int>(loc.range.end.line), static_cast<int>(loc.range.end.character)}
+//                }
+//        });
+//    }
+//    return rsp;
+//}
+//
+std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string& path) {
+    const auto abs_path = canonical(path);
+    auto ast = get_decl_ast(abs_path);
     DocumentSymbolsAnalyzer analyzer(loc_man);
-    td_symbol::response rsp;
-    analyzer.analyze(unit.ast_result->unit.scope.body.nodes);
-    rsp.result = std::move(analyzer.symbols);
-    return rsp;
+    analyzer.analyze(ast->unit.scope.body.nodes);
+    return std::move(analyzer.symbols);
 }
-
-td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
-    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
-    td_hover::response rsp;
-    HoverAnalyzer analyzer(loc_man, {position.line, position.character});
-    auto value = analyzer.markdown_hover(unit.lex_result.get());
-    if(!value.empty()) {
-        rsp.result.contents.second.emplace("markdown", std::move(value));
-    }
-    return rsp;
-}
+//
+//td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
+//    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
+//    td_hover::response rsp;
+//    HoverAnalyzer analyzer(loc_man, {position.line, position.character});
+//    auto value = analyzer.markdown_hover(unit.lex_result.get());
+//    if(!value.empty()) {
+//        rsp.result.contents.second.emplace("markdown", std::move(value));
+//    }
+//    return rsp;
+//}
 
 std::string WorkspaceManager::canonical(const std::string& path) {
     try {
@@ -331,17 +317,17 @@ std::string WorkspaceManager::canonical(const std::string& path) {
 }
 
 void WorkspaceManager::onChangedContents(
-        const lsDocumentUri &uri,
-        const std::vector<lsTextDocumentContentChangeEvent> &changes
+        const std::string &abs_path,
+        const std::vector<lsp::TextDocumentContentChangeEvent> &changes
 ) {
 
     // no changes return !
     if (changes.empty()) {
-//        std::cout << "no changes in source code";
+        std::cerr << "onChangedContents: zero changes present" << std::endl;
         return;
     }
 
-    auto path = canonical(uri.GetAbsolutePath().path);
+    auto path = canonical(abs_path);
 
     // locking the incremental change mutex, when the object is destroyed, lock is released
     // causing requests to this method be processed sequentially
@@ -366,24 +352,44 @@ void WorkspaceManager::onChangedContents(
         source = overriddenSources[path];
     }
 
+    if(changes.size() == 1) {
+        auto changePtr = get_if<lsp::TextDocumentContentChangeEvent_Text>(&changes[0]);
+        if(changePtr) {
+            auto& change = *changePtr;
+            overriddenSources[path] = change.text;
+            // invalidate the cached file for this key
+            cache.files_ast.erase(path);
+            cache.cached_units.erase(path);
+            return;
+        }
+    }
+
 #if defined DEBUG_REPLACE && DEBUG_REPLACE
     std::cout << "loaded the source : " << source << std::endl;
     std::cout << "total changes :" << changes.size() << std::endl;
     if(changes.size() == 1) {
         auto change = changes[0];
-        auto start = change.range.value().start;
-        auto end = change.range.value().end;
-        std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
-                  << end.character << ";" << std::endl;
+        auto changePtr = get_if<lsp::TextDocumentContentChangeEvent_Range_Text>(&change);
+        if(changePtr) {
+            auto start = changePtr->range.start;
+            auto end = changePtr->range.end;
+            std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-' << end.character << ";" << std::endl;
+        }
     }
 #endif
 
     // make changes to the source code
-    for (const auto &change: changes) {
-        if (change.range.has_value()) {
-            auto start = change.range.value().start;
-            auto end = change.range.value().end;
+    for (auto &changeVar: changes) {
+        auto changePtr = get_if<lsp::TextDocumentContentChangeEvent_Range_Text>(&changeVar);
+        if(changePtr) {
+            auto& change = *changePtr;
+            auto& start = change.range.start;
+            auto& end = change.range.end;
             replaceSafe(source, start.line, start.character, end.line, end.character, change.text);
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("unhandled whole document change");
+#endif
         }
     }
 

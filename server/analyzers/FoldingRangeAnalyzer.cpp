@@ -9,12 +9,12 @@
 #include "cst/LocationManager.h"
 
 void FoldingRangeAnalyzer::folding_range(const Position& start, const Position& end, bool comment) {
-    ranges.push_back(FoldingRange{
-            static_cast<int>(start.line),
-            static_cast<int>(end.line),
-            static_cast<int>(start.character),
-            static_cast<int>(end.character),
-            (comment ? "comment" : "region")
+    ranges.push_back(lsp::FoldingRange{
+            start.line,
+            end.line,
+            start.character,
+            end.character,
+            comment ? lsp::FoldingRangeKind::Comment : lsp::FoldingRangeKind::Region
     });
 }
 
@@ -29,7 +29,7 @@ void FoldingRangeAnalyzer::VisitScope(Scope* scope) {
     folding_range(scope->encoded_location());
 }
 
-std::vector<FoldingRange> folding_analyze(LocationManager& locMan, std::vector<ASTNode*>& nodes) {
+std::vector<lsp::FoldingRange> folding_analyze(LocationManager& locMan, std::vector<ASTNode*>& nodes) {
     FoldingRangeAnalyzer analyzer(locMan);
     for(const auto node : nodes) {
         analyzer.visit(node);

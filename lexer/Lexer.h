@@ -113,10 +113,13 @@ public:
      */
     Lexer(
             std::string file_path,
-            InputSource* source,
+            InputSource* input,
             CompilerBinder* binder,
             BatchAllocator& file_allocator
-    );
+    ) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000),
+        user_lexer(nullptr), file_allocator(file_allocator) {
+
+    }
 
     /**
      * the function to get the next token

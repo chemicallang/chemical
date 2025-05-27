@@ -594,9 +594,27 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/InlayHintAnalyzerApi.h
 )
 
-# Add the LspCpp library directory
-set(LSPCPP_STANDALONE_ASIO ON CACHE BOOL "Use standalone Asio")
-add_subdirectory(LspCpp EXCLUDE_FROM_ALL)
+# lsp framework
+add_subdirectory(lib/lsp-framework)
+
+################################################
+# ——— Add Asio as INTERFACE target ———
+################################################
+# threading (Asio needs this)
+find_package(Threads REQUIRED)
+add_library(asio_lib INTERFACE)
+# point at the standalone Asio headers
+set(ASIO_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/lib/asio/asio/include)
+# attach that include‑dir to our INTERFACE target
+target_include_directories(asio_lib
+        INTERFACE
+        $<BUILD_INTERFACE:${ASIO_INCLUDE_DIRS}>
+        $<INSTALL_INTERFACE:include>         # if you ever install
+)
+# define ASIO_STANDALONE for any consumer
+target_compile_definitions(asio_lib INTERFACE ASIO_STANDALONE)
+# link OS threads
+target_link_libraries(asio_lib INTERFACE Threads::Threads)
 
 # Add an executable target for the second executable
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
@@ -648,7 +666,7 @@ target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS $
 target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
 
 # LSP has some definitions
-target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD LSPCPP_USE_STANDALONE_ASIO)
+target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 
 # Define common include directories
 set(COMMON_INCLUDE_DIRS
@@ -678,9 +696,10 @@ endif()
 
 # Add include directories for LspCpp
 target_include_directories(ChemicalLsp PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
         ${LIBTCC_DIR}/include
         ${COMMON_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/lib/lsp-framework
+        ${LSP_GENERATED_FILES_DIR}
 )
 
 # Add include directories for LspCpp
@@ -757,5 +776,4 @@ if(UNIX)
 endif()
 
 # Link Lsp
-#target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp ${LIBTCC_LIB})
-target_link_libraries(ChemicalLsp lspcpp ${LIBTCC_LIB})
+target_link_libraries(ChemicalLsp ${LIBTCC_LIB} asio_lib lsp)

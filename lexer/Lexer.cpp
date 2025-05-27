@@ -146,16 +146,6 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
         }
 };
 
-Lexer::Lexer(
-        std::string file_path,
-        InputSource* input,
-        CompilerBinder* binder,
-        BatchAllocator& file_allocator
-) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000),
-    user_lexer(nullptr), file_allocator(file_allocator) {
-
-}
-
 // read digits into the string
 void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {

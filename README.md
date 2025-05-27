@@ -127,7 +127,7 @@ func add(a: int, b: int): int {
 ### Requirements
 
 - 8–16 GB RAM
-- C++ toolchain & Boost (for LSP)
+- C++ toolchain (for LSP)
 - LLVM (for compiler)
 - CLion or other IDE
 
@@ -136,7 +136,7 @@ func add(a: int, b: int): int {
 1. Clone `chemical-bootstrap` in the organization.
 2. Inside it, clone this repo
 3. Run build scripts (`build.bat` / `./build`).
-4. For LSP: install Boost and clone `chemical-vscode`.
+4. For LSP: clone `chemical-vscode`.
 5. Open in your IDE and enjoy!
 
 *Open an issue for any build errors.*

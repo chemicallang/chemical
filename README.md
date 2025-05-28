@@ -25,11 +25,6 @@
 
 Chemical is an innovative, performant, type-safe, and user-friendly programming language with a low memory footprint. It comes with first-class tooling out of the box, all customizable by developers.
 
-Key design goals:
-- Prioritize safety, performance, and IDE integration
-- Reuse and extend existing concepts rather than reinventing
-- Allow language plugins to aid code generation
-
 ---
 
 > [!WARNING]  

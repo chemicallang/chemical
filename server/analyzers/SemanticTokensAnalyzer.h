@@ -7,6 +7,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 #include "lexer/Token.h"
 
 class SemanticTokensAnalyzer {

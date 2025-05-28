@@ -28,7 +28,7 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 ---
 
 > [!IMPORTANT]  
-> Chemical is experimental.
+> Chemical is in a pre-alpha state, Expect breaking changes and Do not use in production.
 
 ## 💻 Syntax
 

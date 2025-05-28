@@ -32,6 +32,12 @@ Key design goals:
 
 ---
 
+<div style="border: 2px solid #f1c40f; background-color: rgba(255, 223, 100, 0.2); color: #f1c40f; padding: 15px; border-radius: 8px; font-size: 1.1em; font-family: sans-serif;">
+  ⚠️ <strong>Chemical is experimental!</strong><br>
+  This language is under active development and is subject to change.<br>
+  Use it for exploration and experimentation, but not for production.
+</div>
+
 ## 💻 Syntax
 
 Resembles Go, TypeScript, and C++, with powerful extensions:
@@ -85,26 +91,29 @@ func add(a: int, b: int): int {
 
 ## 📊 Progress & Roadmap
 
-| Component                  | Status         |
-|----------------------------|----------------|
-| Lexer, Parser, Sym Res     | ✅              |
-| Codegen & C Translation    | ✅              |
-| Native Codegen (LLVM)      | ✅              |
-| C Translation & TCC JIT    | ✅              |
-| Custom Build System        | ✅              |
-| Basic LSP                  | 🔄 In Progress |
-| Standard Library & Docs    | 🔄 In Progress |
-| Embed Langs (HTML & CSS)   | 🔄 In Progress |
-| Advanced LSP Support       | 🔄 Planned     |
-| Memory Management & Safety | 🔄 Partial     |
-| Comptime Features          | 🔄 Planned     |
-| Multi-threaded Compiler    | 🔄 Planned     |
-| Compiler Plugins           | 🔄 Planned     |
-| Mobile & Web Support       | 🔄 Planned     |
+| Component                     | Status         |
+|-------------------------------|----------------|
+| Lexer, Parser, Sym Res        | ✅              |
+| Native Codegen (LLVM)         | ✅              |
+| C Translation & TCC JIT       | ✅              |
+| Basic Build System            | ✅              |
+| Basic Multi-threading         | ✅              |
+| Basic LSP                     | 🔄 In Progress |
+| Standard Library & Docs       | 🔄 In Progress |
+| Embedded Languages            | 🔄 In Progress |
+| Advanced LSP Support          | 🔄 Planned     |
+| Memory Management & Safety    | 🔄 Partial     |
+| Advanced Build System Support | 🔄 Planned     |
+| Comptime Features             | 🔄 Planned     |
+| Advanced Multi-threading      | 🔄 Planned     |
+| Compiler Plugins              | 🔄 Planned     |
+| Mobile & Web Support          | 🔄 Planned     |
 
 ---
 
 ## 📚 Language Features
+
+These features should give you an idea about features we have worked on
 
 - C-like syntax with structs & namespaces
 - Arrays, enums, unions
@@ -133,11 +142,31 @@ func add(a: int, b: int): int {
 
 ### Getting Started
 
-1. Clone `chemical-bootstrap` in the organization.
-2. Inside it, clone this repo
-3. Run build scripts (`build.bat` / `./build`).
-4. For LSP: clone `chemical-vscode`.
-5. Open in your IDE and enjoy!
+1. Clone `chemical-bootstrap` in the organization (contains LLVM/CLANG)
+2. Run build scripts (`./build.bat` / `./build`).
+3. Inside it, clone this repo
+4. Open this repo in your IDE and enjoy!
+
+#### TCC based builds
+
+TCC based builds require some tcc files to be present at runtime, this process will be automated someday
+
+1. If you use CLion, In directory `cmake-build-debug/packages/tcc`
+2. put `$this_repo/lib/libtcc/include` and contents of either `$this_repo/lib/libtcc/win-x64` or `$this_repo/lib/libtcc/lin-x64`
+3. extract the `package.zip` into `lib` directory, your final structure should be
+4. copy the `libtcc.dll` or `libtcc.so` into the build directory
+
+```
+directory: $output_dir/packages/tcc/include
+directory: $output_dir/packages/tcc/lib
+file:      $output_dir/libtcc.dll
+```
+
+#### LSP
+
+1. For LSP: clone `chemical-vscode`.
+2. There's a run configuration for compiling and launching extension
+3. Build and Launch the LSP server before launching the extension, The extension detects running lsp executable at port automatically
 
 *Open an issue for any build errors.*
 
@@ -145,10 +174,26 @@ func add(a: int, b: int): int {
 
 ## 🎯 Vision & Design Goals
 
-- **No traditional bootstrap:** leverage existing compilers.
+- **No traditional bootstrap:** leverage existing compilers
+
+   We won't be doing a traditional bootstrap where we write the compiler in our own language, We'll use
+   C/C++ to write the compiler and instead of bootstrap, we'll provide features like binding with the compiler
+   with the use of our custom build system.
+
 - **Sensible simplicity:** one way to do things.
-- **Extensible via plugins:** easy compiler extensions.
+
+   We don't want to make the syntax complex, the language should feel very easy to a moderately experienced programmer
+   However too much simplicity (like Python) is also not desired.
+
+- **Memory Safety:** without the cost of simplicity
+
+   This is more of a long term goal, to promote memory safety, We want to be as safe as possible without sacrificing simplicity.
+
 - **Git-based modules:** no central package repository. build system baked in
+
+   Compiler would automatically provide support for package management without having to download external package management
+   libraries / plugins. Compiler would provide support for it in build files and its command line by using git to manage
+   modules.
 
 ---
 

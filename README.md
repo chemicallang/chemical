@@ -32,11 +32,8 @@ Key design goals:
 
 ---
 
-<div style="border: 2px solid #f1c40f; background-color: rgba(255, 223, 100, 0.2); color: #f1c40f; padding: 15px; border-radius: 8px; font-size: 1.1em; font-family: sans-serif;">
-  ⚠️ <strong>Chemical is experimental!</strong><br>
-  This language is under active development and is subject to change.<br>
-  Use it for exploration and experimentation, but not for production.
-</div>
+> [!WARNING]  
+> Chemical is experimental!
 
 ## 💻 Syntax
 

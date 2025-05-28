@@ -28,7 +28,7 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 ---
 
 > [!IMPORTANT]  
-> Chemical is in a pre-alpha state, Expect breaking changes and Do not use in production.
+> Chemical is in pre-alpha state, expect breaking changes and do not use in production.
 
 ## 💻 Syntax
 
@@ -56,12 +56,9 @@ func add(a: int, b: int): int {
 
 ## ⚙️ Installation
 
-1. Download & Extract the latest ZIP from the [Releases](https://github.com/qinetik/chemical/releases) page.
+1. Download & Extract the latest ZIP from the [Releases](https://github.com/chemicallang/chemical/releases) page.
 2. Inside the folder, run `./chemical configure` or `./chemical.exe configure`
-3. Verify:
-   ```bash
-   chemical -v
-   ```
+3. Verify by running `chemical -v`
 
 ---
 
@@ -135,14 +132,15 @@ These features should give you an idea about features we have worked on
 3. Inside it, clone this repo
 4. Open this repo in your IDE and enjoy!
 
-#### TCC based builds
+#### Building the TCC based compiler
 
-TCC based builds require some tcc files to be present at runtime, this process will be automated someday
+TCC based compiler build requires some tcc files to be present at runtime, this process will be automated someday
 
-1. If you use CLion, In directory `cmake-build-debug/packages/tcc`
-2. put `$this_repo/lib/libtcc/include` and contents of either `$this_repo/lib/libtcc/win-x64` or `$this_repo/lib/libtcc/lin-x64`
-3. extract the `package.zip` into `lib` directory, your final structure should be
-4. copy the `libtcc.dll` or `libtcc.so` into the build directory
+1. If you use CLion, know that output dir would be `cmake-build-debug` (next to the TCCCompiler / ChemicalLSP)
+2. do not touch / copy `$this_repo/lib/libtcc/include` (directory)
+3. put contents of either `$this_repo/lib/libtcc/win-x64` or `$this_repo/lib/libtcc/lin-x64` into `$output_dir/packages/tcc`
+4. make sure to extract the `package.zip` into `$output_dir/packages/tcc` directory
+5. copy the `libtcc.dll` or `libtcc.so` into the `$output_dir/`, your final structure should be
 
 ```
 directory: $output_dir/packages/tcc/include

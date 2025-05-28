@@ -9,8 +9,6 @@
 #include "ast/base/ASTNode.h"
 #include "lsp/types.h"
 
-#define DEBUG false
-
 #define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
 
 void SemanticTokensAnalyzer::put(

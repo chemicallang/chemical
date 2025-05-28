@@ -27,7 +27,7 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 
 ---
 
-> [!WARNING]  
+> [!IMPORTANT]  
 > Chemical is experimental.
 
 ## 💻 Syntax

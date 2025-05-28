@@ -28,7 +28,7 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 ---
 
 > [!WARNING]  
-> Chemical is experimental!
+> Chemical is experimental.
 
 ## 💻 Syntax
 
@@ -56,15 +56,11 @@ func add(a: int, b: int): int {
 
 ## ⚙️ Installation
 
-1. Download the latest ZIP from the [Releases](https://github.com/qinetik/chemical/releases) page.
-2. Extract and add the folder to your `PATH`.
+1. Download & Extract the latest ZIP from the [Releases](https://github.com/qinetik/chemical/releases) page.
+2. Inside the folder, run `./chemical configure` or `./chemical.exe configure`
 3. Verify:
    ```bash
    chemical -v
-   ```
-4. Run the initial setup:
-   ```bash
-   chemical configure
    ```
 
 ---
@@ -76,7 +72,7 @@ func add(a: int, b: int): int {
 - **Compile-Time Evaluation:** Powerful `comptime` features.
 - **Low Memory Footprint:** Tiny executables, no garbage collector.
 - **Multiple Backends:** LLVM & C (fully functional).
-- **C Interop:** Import system headers, translate between C & Chemical.
+- **C Interop:** Translate between C & Chemical.
 - **Flexible Build System:** Custom DSL for builds and modules.
 
 ---

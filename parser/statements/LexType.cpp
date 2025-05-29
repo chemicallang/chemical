@@ -110,6 +110,9 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
         return nullptr;
     }
     auto idType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value));
+#ifdef LSP_BUILD
+    id->linked = idType;
+#endif
     return parseGenericTypeAfterId(allocator, idType);
 }
 
@@ -153,6 +156,9 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
             auto new_type = consumeIdentifierOrKeyword();
             if(new_type) {
                 auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, new_type->value), loc_single(new_type), true);
+#ifdef LSP_BUILD
+                new_type->linked = id;
+#endif
                 chain->values.emplace_back(id);
             } else {
                 error() << "expected an identifier after '" << type->value << "::' for a type";
@@ -212,6 +218,12 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
 
         const auto type = new (allocator.allocate<StructType>()) StructType(id ? allocate_view(allocator, id->value) : chem::string_view(""), parent_node, loc_single(t));
 
+#ifdef LSP_BUILD
+        if(id) {
+            id->linked = (BaseType*) type;
+        }
+#endif
+
         if(token->type != TokenType::LBrace) {
             error("expected a '{' after the struct keyword for struct type");
             return type;
@@ -256,6 +268,12 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
         const auto id = consumeIdentifierOrKeyword();
 
         const auto type = new (allocator.allocate<UnionType>()) UnionType(id ? allocate_view(allocator, id->value) : chem::string_view(""), parent_node, loc_single(t));
+
+#ifdef LSP_BUILD
+        if(id) {
+            id->linked = (BaseType*) type;
+        }
+#endif
 
         if(token->type != TokenType::LBrace) {
             error("expected a '{' after the struct keyword for union type");

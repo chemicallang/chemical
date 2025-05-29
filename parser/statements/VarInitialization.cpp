@@ -30,6 +30,10 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
 
     auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, is_ref, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
 
+#ifdef LSP_BUILD
+    id->linked = stmt;
+#endif
+
     auto prev_parent_node = parent_node;
     parent_node = stmt;
 

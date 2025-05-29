@@ -222,6 +222,10 @@ AliasStmt* Parser::parseAliasStatement(ASTAllocator& allocator, AccessSpecifier 
 
         const auto alias = new (allocator.allocate<AliasStmt>()) AliasStmt(specifier, allocate_view(allocator, id->value), nullptr, parent_node, loc_single(id));
 
+#ifdef LSP_BUILD
+        id->linked = alias;
+#endif
+
         if(!consumeToken(TokenType::EqualSym)) {
             error() << "expected an equal symbol after the alias keyword";
             return alias;

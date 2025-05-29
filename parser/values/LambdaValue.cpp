@@ -47,6 +47,9 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {
                 auto variable = new (allocator.allocate<CapturedVariable>()) CapturedVariable(allocate_view(allocator, id->value), index, lexed_amp, parent_node, loc_single(id));
+#ifdef LSP_BUILD
+                id->linked = variable;
+#endif
                 lambda->captureList.emplace_back(variable);
             } else {
                 if(lexed_amp) {

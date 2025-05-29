@@ -7,6 +7,8 @@
 #include "TokenType.h"
 #include "integration/common/Position.h"
 
+class ASTAny;
+
 /**
  * the token lexed by our lexer
  */
@@ -18,14 +20,22 @@ struct Token {
     enum TokenType type;
 
     /**
-     * the value is the string in the token
+     * the string value of the token
      */
     chem::string_view value;
 
     /**
-     * the location is where the token is
+     * the position of the token in source code
      */
     Position position;
+
+#ifdef LSP_BUILD
+    /**
+     * the linked node / value / type that was created from this token
+     * this is only present in lsp build
+     */
+    ASTAny* linked = nullptr;
+#endif
 
     /**
      * check if given token type is a keyword

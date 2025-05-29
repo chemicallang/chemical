@@ -31,6 +31,10 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
         auto decl = new (allocator.allocate<InterfaceDefinition>()) InterfaceDefinition(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
         annotate(decl);
 
+#ifdef LSP_BUILD
+        id->linked = decl;
+#endif
+
         auto prev_parent_node = parent_node;
         parent_node = decl;
 

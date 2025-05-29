@@ -15,6 +15,11 @@ Namespace* Parser::parseNamespace(ASTAllocator& allocator, AccessSpecifier speci
         }
         auto ns = new (allocator.allocate<Namespace>()) Namespace(loc_id(allocator, id), parent_node, loc_single(tok), specifier);
         annotate(ns);
+
+#ifdef LSP_BUILD
+        id->linked = ns;
+#endif
+
         auto prev_parent_node = parent_node;
         parent_node = ns;
         // we pass the module allocator

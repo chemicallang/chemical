@@ -55,6 +55,9 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         if(!value) {
             error("expected '{' after the struct keyword for unnamed struct value");
         }
+#ifdef LSP_BUILD
+        id->linked = value;
+#endif
         return value;
     }
 

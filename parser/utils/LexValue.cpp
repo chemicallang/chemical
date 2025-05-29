@@ -91,7 +91,11 @@ Value* Parser::parseNumberValue(ASTAllocator& allocator) {
 VariableIdentifier* Parser::parseVariableIdentifier(ASTAllocator& allocator) {
     auto id = consumeIdentifierOrKeyword();
     if(id) {
-        return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
+        const auto varId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
+#ifdef LSP_BUILD
+        id->linked = varId;
+#endif
+        return varId;
     } else {
         return nullptr;
     }

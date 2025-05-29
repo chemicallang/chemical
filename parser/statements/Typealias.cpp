@@ -25,6 +25,10 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
         );
         annotate(alias);
 
+#ifdef LSP_BUILD
+        id->linked = alias;
+#endif
+
         ASTNode* final_decl = alias;
 
         if(token->type == TokenType::LessThanSym) {

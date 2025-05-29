@@ -27,6 +27,10 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
     auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, loc_single(identifier), is_const, AccessSpecifier::Public);
     annotate(member);
 
+#ifdef LSP_BUILD
+    identifier->linked = member;
+#endif
+
     if(!consumeToken(TokenType::ColonSym)) {
         error("expected a colon symbol after the identifier");
     }
@@ -77,6 +81,9 @@ UnnamedStruct* Parser::parseUnnamedStruct(ASTAllocator& allocator, AccessSpecifi
         }
         auto id = consumeIdentifierOrKeyword();
         if(id) {
+#ifdef LSP_BUILD
+            id->linked = decl;
+#endif
             decl->name = allocate_view(allocator, id->value);
         }
         return decl;
@@ -305,6 +312,10 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
 
         const auto decl = new (allocator.allocate<StructDefinition>()) StructDefinition(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
         annotate(decl);
+
+#ifdef LSP_BUILD
+        identifier->linked = decl;
+#endif
 
         ASTNode* final_decl = decl;
 

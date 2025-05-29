@@ -5,7 +5,6 @@
 //
 
 #include "SemanticTokensAnalyzer.h"
-#include <unordered_set>
 #include "ast/base/ASTNode.h"
 #include "lsp/types.h"
 

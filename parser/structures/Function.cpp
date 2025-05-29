@@ -151,7 +151,11 @@ bool Parser::parseParameterList(
                 auto is_mutable = consumeToken(TokenType::MutKw); // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
-                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr), is_mutable);
+                    const auto linkedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr);
+#ifdef LSP_BUILD
+                    id->linked = linkedType;
+#endif
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(linkedType, is_mutable);
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), TypeLoc(ref_to_linked, loc_single(id)), index, nullptr, true, parent_node, loc(ampersand, id));
                     parameters.emplace_back(param);
                     index++;
@@ -171,6 +175,9 @@ bool Parser::parseParameterList(
                     if(variadicParam && consumeToken(TokenType::TripleDotSym)) {
                         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), typeLoc, index, nullptr, false, parent_node, loc_single(id));
                         parameters.emplace_back(param);
+#ifdef LSP_BUILD
+                        id->linked = param;
+#endif
                         return true;
                     }
                     Value* defValue = nullptr;
@@ -187,6 +194,9 @@ bool Parser::parseParameterList(
                     }
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), typeLoc, index, defValue, false, parent_node, loc_single(id));
                     parameters.emplace_back(param);
+#ifdef LSP_BUILD
+                    id->linked = param;
+#endif
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
                     return false;
@@ -195,6 +205,9 @@ bool Parser::parseParameterList(
                 if(optionalTypes) {
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), nullptr, index, nullptr, false, parent_node, loc_single(id));
                     parameters.emplace_back(param);
+#ifdef LSP_BUILD
+                    id->linked = param;
+#endif
                 } else {
                     error("expected colon ':' in function parameter list after the parameter name ");
                     return false;
@@ -216,6 +229,11 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
             }
             auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(allocate_view(allocator, id->value), nullptr, nullptr, parent_node, param_index, loc_single(id));
             params.emplace_back(parameter);
+
+#ifdef LSP_BUILD
+            id->linked = parameter;
+#endif
+
             if(consumeToken(TokenType::ColonSym)) {
                 auto type = parseTypeLoc(allocator);
                 if(type) {
@@ -314,6 +332,9 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         auto id = consumeIdentifierOrKeyword();
         if(id) {
             receiverParam->name = allocate_view(allocator, id->value);
+#ifdef LSP_BUILD
+            id->linked = receiverParam;
+#endif
         } else {
             error("expected identifier for receiver in extension function after '('");
             return decl;
@@ -342,6 +363,10 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         error("function name is missing after the keyword 'func'");
         return decl;
     }
+
+#ifdef LSP_BUILD
+    name->linked = (ASTNode*) decl;
+#endif
 
     const auto location = loc_single(name);
     decl->set_encoded_location(location);

@@ -13,8 +13,14 @@
 VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefinition* definition) {
     auto id = consumeIdentifierOrKeyword();
     if(id) {
+
         auto member = new (allocator.allocate<VariantMember>()) VariantMember(allocate_view(allocator, id->value), definition, loc_single(id));
         annotate(member);
+
+#ifdef LSP_BUILD
+        id->linked = member;
+#endif
+
         if(consumeToken(TokenType::LParen)) {
 
             unsigned int index = 0;
@@ -26,6 +32,11 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
                     auto name_view = allocate_view(allocator, paramId->value);
                     auto param = new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name_view, index, false, nullptr, nullptr, member, loc_single(paramId));
                     member->values[name_view] = param;
+
+
+#ifdef LSP_BUILD
+                    paramId->linked = param;
+#endif
 
                     if(!consumeToken(TokenType::ColonSym)) {
                         error("expected ':' after the variant member parameter");
@@ -108,11 +119,14 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
         auto& allocator = global_allocator;
 
         const auto decl = new (allocator.allocate<VariantDefinition>()) VariantDefinition(loc_id(allocator, id), parent_node, loc_single(id), specifier);
+        annotate(decl);
+
+#ifdef LSP_BUILD
+        id->linked = decl;
+#endif
 
         auto prev_parent_type = parent_node;
         parent_node = decl;
-
-        annotate(decl);
 
         ASTNode* finalDecl = decl;
 

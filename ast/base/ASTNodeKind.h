@@ -47,6 +47,7 @@ enum class ASTNodeKind : uint8_t {
     InitBlock,
     StructDecl,
     StructMember,
+    StructMemberInitializer,
     NamespaceDecl,
     UnionDecl,
     VariantDecl,

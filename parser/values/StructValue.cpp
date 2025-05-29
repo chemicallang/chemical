@@ -14,6 +14,9 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
             consumeNewLines();
             auto id = consumeIdentifierOrKeyword();
             if(id) {
+#ifdef LSP_BUILD
+                id->linked = structValue;
+#endif
                 if(!consumeToken(TokenType::ColonSym)) {
                     error() << "expected a ':' for initializing struct member " << id->value;
                     return structValue;

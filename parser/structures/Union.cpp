@@ -14,7 +14,6 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
     if(consumeToken(TokenType::UnionKw)) {
 
         auto decl = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion("", parent_node, loc_single(token), specifier);
-
         annotate(decl);
 
         if(!consumeToken(TokenType::LBrace)) {
@@ -40,6 +39,9 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
         }
         auto id = consumeIdentifierOrKeyword();
         if(id) {
+#ifdef LSP_BUILD
+            id->linked = decl;
+#endif
             decl->set_encoded_location(loc_single(id));
             decl->name = allocate_view(allocator, id->value);
         }
@@ -69,6 +71,10 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
 
         auto decl = new (allocator.allocate<UnionDef>()) UnionDef(loc_id(allocator, identifier), parent_node, loc_single(identifier), specifier);
         annotate(decl);
+
+#ifdef LSP_BUILD
+        identifier->linked = decl;
+#endif
 
         ASTNode* finalDecl = decl;
 

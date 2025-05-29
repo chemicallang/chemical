@@ -32,8 +32,11 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
 
         auto loc = loc_single(start_tok);
         auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(loc_id(allocator, id), nullptr, parent_node, loc, specifier);
-
         annotate(decl);
+
+#ifdef LSP_BUILD
+        id->linked = decl;
+#endif
 
         if(consumeToken(TokenType::ColonSym)) {
             auto type = parseTypeLoc(allocator);
@@ -58,6 +61,9 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
             if(memberId) {
                 const auto member_name = allocate_view(allocator, memberId->value);
                 auto member = new (allocator.allocate<EnumMember>()) EnumMember(member_name, index, nullptr, decl, loc_single(memberId));
+#ifdef LSP_BUILD
+                memberId->linked = member;
+#endif
                 const auto found = decl->members.find(member_name);
                 if(found != decl->members.end()) {
                     error() << "enum already has a member with name " << member_name;

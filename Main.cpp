@@ -158,7 +158,7 @@ void run_session(
       handler.processIncomingMessages();
     }
 
-    // Now the Shutdown response has gone out; we can close.
+    // Now the Shutdown response has gone out, we can close.
     asio::error_code sec;
     sock->shutdown(asio::ip::tcp::socket::shutdown_both, sec);
     if(sec) {

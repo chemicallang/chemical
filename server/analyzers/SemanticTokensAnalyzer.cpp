@@ -172,6 +172,8 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             default:
 #ifdef DEBUG
                 throw std::runtime_error("unhandled token type");
+#else
+                break;
 #endif
         }
     }

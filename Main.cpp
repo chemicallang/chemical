@@ -58,8 +58,15 @@ private:
 
 
 // 2) Per-client session: runs the LSP loop until error or disconnect
-void run_session(std::shared_ptr<asio::ip::tcp::socket> sock, WorkspaceManager& manager) {
+void run_session(
+        std::atomic_bool& g_shutdown,
+        asio::ip::tcp::acceptor& acceptor,
+        std::shared_ptr<asio::ip::tcp::socket> sock,
+        WorkspaceManager& manager
+) {
   try {
+
+    bool local_shutdown = false;
     SocketStream stream(sock);
     lsp::Connection connection(stream);
     lsp::MessageHandler handler(connection);
@@ -136,12 +143,48 @@ void run_session(std::shared_ptr<asio::ip::tcp::socket> sock, WorkspaceManager& 
         manager.onChangedContents(params.textDocument.uri.path(), params.contentChanges);
     });
 
+    handler.add<lsp::requests::Shutdown>([sock, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
+        std::cout << "[LSP] Shutdown requested." << std::endl;
+        // 1) mark both local and global shutdown
+        local_shutdown = true;
+        g_shutdown.store(true, std::memory_order_relaxed);
+        return nullptr;
+    });
+
     // ====================================
 
     // Main loop: will block inside processIncomingMessages()
-    while (true) {
+    while (!local_shutdown) {
       handler.processIncomingMessages();
     }
+
+    // Now the Shutdown response has gone out; we can close.
+    asio::error_code sec;
+    sock->shutdown(asio::ip::tcp::socket::shutdown_both, sec);
+    if(sec) {
+        std::cout << "[LSP] error shutting down socket " << sec.message() << std::endl;
+    } else {
+        std::cout << "[LSP] Session socket shutdown." << std::endl;
+    }
+
+    asio::error_code cec;
+    sock->close(cec);
+    if(cec) {
+        std::cout << "[LSP] error closing socket " << cec.message() << std::endl;
+    } else {
+        std::cout << "[LSP] Session socket closed." << std::endl;
+    }
+
+    // If this was *the* session that asked us to shut down,
+    // we should also close the acceptor (to break out of main’s accept loop):
+    if (g_shutdown.load(std::memory_order_relaxed)) {
+        asio::error_code ec;
+        acceptor.close(ec);
+        if(ec) {
+            std::cout << "[LSP] error closing acceptor " << ec.message() << std::endl;
+        }
+    }
+    std::cout << "[LSP] Session thread exiting." << std::endl;
 
   } catch (const lsp::RequestError& e) {
     // If you throw RequestError in a handler, lsp-framework
@@ -783,6 +826,8 @@ int main(int argc, char *argv[]) {
     WorkspaceManager manager(argv[0]);
 
     try {
+
+        std::atomic<bool> g_shutdown{false};
         asio::io_context ioctx{1};
         asio::ip::tcp::acceptor acceptor(
                 ioctx,
@@ -791,14 +836,29 @@ int main(int argc, char *argv[]) {
 
         std::cout << "[LSP] Listening on port " << port << std::endl;
 
-        while (true) {
+        while (!g_shutdown.load(std::memory_order_relaxed)) {
+
             auto socket = std::make_shared<asio::ip::tcp::socket>(ioctx);
-            acceptor.accept(*socket);
-            std::cout << "[LSP] Accepted connection from " << socket->remote_endpoint() << "\n";
+
+            asio::error_code ec;
+            acceptor.accept(*socket, ec);
+            if (ec == asio::error::operation_aborted || ec == asio::error::interrupted) {
+                // global shutdown—stop accepting
+                break;
+            }
+            if (ec) {
+                std::cerr << "[LSP] Accept error: " << ec.message() << std::endl;
+                continue;
+            }
+
+            std::cout << "[LSP] Accepted connection from " << socket->remote_endpoint() << std::endl;
 
             // Detach a thread to serve this client
-            std::thread(&run_session, socket, std::ref(manager)).detach();
+            std::thread(&run_session, std::ref(g_shutdown), std::ref(acceptor), socket, std::ref(manager)).detach();
         }
+
+        std::cout << "[LSP] Server shutting down." << std::endl;
+        ioctx.stop();
 
     } catch (const std::exception& e) {
         std::cerr << "[LSP][Fatal] " << e.what() << "\n";

@@ -68,7 +68,7 @@ func add(a: int, b: int): int {
 - **Great IDE Support:** LSP with syntax highlighting, completions, diagnostics, and more.
 - **Compile-Time Evaluation:** Powerful `comptime` features.
 - **Low Memory Footprint:** Tiny executables, no garbage collector.
-- **Multiple Backends:** LLVM & C (fully functional).
+- **Multiple Backends:** LLVM & C (both fully functional).
 - **C Interop:** Translate between C & Chemical.
 - **Flexible Build System:** Custom DSL for builds and modules.
 

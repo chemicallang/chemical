@@ -6,10 +6,13 @@
 
 #include "utils/FileUtils.h"
 #include "lsp/types.h"
+#include "lsp/messages.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
 #include "WorkspaceManager.h"
 #include "compiler/SymbolResolver.h"
 #include <future>
+#include "lsp/messagehandler.h"
+#include <utility>
 
 #define DEBUG_TOKENS false
 #define PRINT_TOKENS false
@@ -27,63 +30,54 @@
  */
 std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string& path) {
     auto abs_path = canonical(path);
-    // get the import unit, while publishing diagnostics asynchronously
-    // publish diagnostics will return ast import unit ref
-    // TODO uncomment this
-    // publish_diagnostics(abs_path);
     // tokens for the last file
     auto last_file = get_lexed(abs_path);
+    // publish diagnostics will return ast import unit ref
+    publish_diagnostics(last_file);
+    // report the tokens
     auto toks = get_semantic_tokens(*last_file);
-    // preparing response
-//    SemanticTokens tokens;
-//    tokens.data = SemanticTokens::encodeTokens(toks);
-//    td_semanticTokens_full::response rsp;
-//    rsp.result = std::move(tokens);
     return std::move(toks);
 }
 
-//void build_notify_request(
-//        Notify_TextDocumentPublishDiagnostics::notify& notify,
-//        const std::string& path,
-//        const std::vector<std::vector<Diag>*>& diags
-//) {
-//    for(auto diag : diags) {
-//        for(const auto &error : *diag) {
-//            notify.params.diagnostics.emplace_back(
-//                    lsRange(
-//                            lsPosition(error.range.start.line, error.range.start.character),
-//                            lsPosition(error.range.end.line, error.range.end.character)
-//                    ),
-//                    (lsDiagnosticSeverity) (error.severity.value()),
-//                    std::nullopt,
-//                    std::nullopt,
-//                    std::nullopt,
-//                    error.message
-//            );
-//        }
-//    }
-//    notify.params.uri = lsDocumentUri::FromPath(AbsolutePath(path));
-//}
+void build_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, const std::vector<std::vector<Diag>*>& diags) {
+    for(const auto diagsPtr : diags) {
+        for(auto& diag : *diagsPtr) {
+            diagnostics.emplace_back(lsp::Diagnostic(
+                    lsp::Range(
+                            lsp::Position(diag.range.start.line, diag.range.start.character),
+                            lsp::Position(diag.range.end.line, diag.range.end.character)
+                    ),
+                    diag.message,
+                    static_cast<lsp::DiagnosticSeverity>(static_cast<int>(diag.severity.value()))
+            ));
+        }
+    }
+}
 
 void WorkspaceManager::notify_diagnostics_async(
     const std::string& path,
     const std::vector<std::vector<Diag>*>& diags
 ) {
-//    const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
-//    build_notify_request(*notify, path, diags);
-//    std::future<void> futureObj = std::async(std::launch::async, [this, notify] {
-//        remote->sendNotification(*notify);
-//        delete notify;
-//    });
+    std::vector<lsp::Diagnostic> diagnostics_list;
+    build_diagnostics(diagnostics_list, diags);
+    std::async(std::launch::async, [this, path, diagnostics = std::move(diagnostics_list)] {
+        auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
+                lsp::FileURI(path), std::move(diagnostics), std::nullopt
+        };
+        handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
+    });
 }
 
 void WorkspaceManager::notify_diagnostics_sync(
     const std::string& path,
     const std::vector<std::vector<Diag>*>& diags
 ) {
-//    Notify_TextDocumentPublishDiagnostics::notify notify;
-//    build_notify_request(notify, path, diags);
-//    remote->sendNotification(notify);
+    std::vector<lsp::Diagnostic> diagnostics;
+    build_diagnostics(diagnostics, diags);
+    auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
+            lsp::FileURI(path), std::move(diagnostics), std::nullopt
+    };
+    handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
 }
 
 std::vector<Diag> WorkspaceManager::sym_res_import_unit(
@@ -211,6 +205,9 @@ ASTImportUnitRef WorkspaceManager::get_ast_import_unit(
 
 void build_diags_from_unit_ref(std::vector<std::vector<Diag>*>& diag_ptrs, ASTImportUnitRef& ref) {
 
+    // lex diagnostics
+    diag_ptrs.emplace_back(&ref.lex_result->diags);
+
     // parsing diagnostics for the last file (if parsing was done)
     diag_ptrs.emplace_back(&ref.ast_result->diags);
 
@@ -261,7 +258,7 @@ void WorkspaceManager::queued_single_invocation(
 
 }
 
-void WorkspaceManager::publish_diagnostics(const std::string& path) {
+void WorkspaceManager::publish_diagnostics(std::shared_ptr<LexResult> file) {
 
     std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
 
@@ -275,19 +272,13 @@ void WorkspaceManager::publish_diagnostics(const std::string& path) {
     publish_diagnostics_cancel_flag.store(false);
 
     // launch the task
-    publish_diagnostics_task = std::async(std::launch::async, [path, this]() {
-        // get the import unit ref
-        auto import_unit = get_ast_import_unit(path, publish_diagnostics_cancel_flag);
-        auto& unit = *import_unit.unit;
-
+    publish_diagnostics_task = std::async(std::launch::async, [file, this]() -> void {
+        auto ast = get_ast_no_lock(file->tokens.data(), file->abs_path);
         // publish diagnostics for import unit (if not cached and job not cancelled)
-        if(!publish_diagnostics_cancel_flag.load() && (!import_unit.is_cached || !unit.reported_diagnostics)) {
-            publish_diagnostics_for_sync(import_unit, true);
-            unit.reported_diagnostics = true;
+        if(!publish_diagnostics_cancel_flag.load()) {
+            std::vector<std::vector<Diag>*> diag_ptrs{ &file->diags, &ast->diags };
+            notify_diagnostics(file->abs_path, diag_ptrs, true);
         }
-
-        // return the import unit
-        return import_unit;
     });
 
 }

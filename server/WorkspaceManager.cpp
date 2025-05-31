@@ -43,8 +43,9 @@ struct LSPLabImpl {
 };
 
 WorkspaceManager::WorkspaceManager(
-        std::string lsp_exe_path
-) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()),
+        std::string lsp_exe_path,
+        lsp::MessageHandler& handler
+) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()) {
 
 }

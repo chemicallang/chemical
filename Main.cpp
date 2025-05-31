@@ -62,7 +62,7 @@ void run_session(
         std::atomic_bool& g_shutdown,
         asio::ip::tcp::acceptor& acceptor,
         std::shared_ptr<asio::ip::tcp::socket> sock,
-        WorkspaceManager& manager
+        const char* executable_path
 ) {
   try {
 
@@ -70,6 +70,7 @@ void run_session(
     SocketStream stream(sock);
     lsp::Connection connection(stream);
     lsp::MessageHandler handler(connection);
+    WorkspaceManager manager(executable_path, handler);
 
     handler.add<lsp::requests::Initialize>([](auto&& params){
 
@@ -823,8 +824,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    WorkspaceManager manager(argv[0]);
-
     try {
 
         std::atomic<bool> g_shutdown{false};
@@ -854,7 +853,7 @@ int main(int argc, char *argv[]) {
             std::cout << "[LSP] Accepted connection from " << socket->remote_endpoint() << std::endl;
 
             // Detach a thread to serve this client
-            std::thread(&run_session, std::ref(g_shutdown), std::ref(acceptor), socket, std::ref(manager)).detach();
+            std::thread(&run_session, std::ref(g_shutdown), std::ref(acceptor), socket, argv[0]).detach();
         }
 
         std::cout << "[LSP] Server shutting down." << std::endl;

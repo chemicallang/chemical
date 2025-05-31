@@ -6,13 +6,13 @@
 
 enum class DiagSeverity : int {
     // Reports an error.
-    Error = 1,
+    Error,
     // Reports a warning.
-    Warning = 2,
+    Warning,
     // Reports an information.
-    Information = 3,
+    Information,
     // Reports a hint.
-    Hint = 4
+    Hint
 };
 
 void color(std::ostream& os, DiagSeverity severity);

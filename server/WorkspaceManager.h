@@ -35,6 +35,10 @@ class LSPLabImpl;
 
 struct LabJob;
 
+namespace lsp {
+    class MessageHandler;
+}
+
 /**
  * Workspace manager is the operations manager for all IDE related operations
  * 1 - IDE needs semantic highlighting for a single file
@@ -143,6 +147,11 @@ private:
     CompilerBinder binder;
 
     /**
+     * message handler
+     */
+    lsp::MessageHandler& handler;
+
+    /**
      * notify_diagnostics is triggered when the client asks for semantic tokens
      * we use this mutex to launch instances of publish diagnostics without causing race conditions
      */
@@ -150,7 +159,7 @@ private:
     /**
      * the task used by publish diagnostics
      */
-    std::future<ASTImportUnitRef> publish_diagnostics_task;
+    std::future<void> publish_diagnostics_task;
     /**
      * this flag can be used to cancel the current running diagnostics task
      */
@@ -201,7 +210,7 @@ public:
     /**
      * constructor
      */
-    explicit WorkspaceManager(std::string lsp_exe_path);
+    explicit WorkspaceManager(std::string lsp_exe_path, lsp::MessageHandler& handler);
 
     /**
      * get module for the given file
@@ -377,7 +386,7 @@ public:
     /**
      * will publish diagnostics
      */
-    void publish_diagnostics(const std::string& path);
+    void publish_diagnostics(std::shared_ptr<LexResult> file);
 
     /**
      * check if lex import unit has errors

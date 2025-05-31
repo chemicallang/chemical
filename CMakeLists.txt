@@ -745,12 +745,18 @@ endif()
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
 set(NO_RTTI "-fno-rtti")
 target_compile_options(Compiler PRIVATE ${NO_RTTI})
+
+if (MSVC)
+    # Force “Multi-threaded static CRT” everywhere:
+    #   – In Debug builds → /MTd
+    #   – In Release/RelWithDebInfo/MinSizeRel → /MT
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 if (WIN32)
     # Linking Compiler executable statically is necessary because of LLVM
     # we link everything else statically on windows anyway
     target_compile_options(Compiler PRIVATE "/MT")
-    target_compile_options(TCCCompiler PRIVATE "/MT")
-    target_compile_options(Interpreter PRIVATE "/MT")
 endif ()
 
 # Linking interpreter

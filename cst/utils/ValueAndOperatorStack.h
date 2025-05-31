@@ -149,6 +149,7 @@ public:
                     stack.container.pop_back();
                     if(stack.container.empty()) {
                         parser.ASTDiagnoser::error("couldn't find second value for making expression", second.item.value);
+                        return nullptr;
                     }
                     auto first = stack.container.back();
                     stack.container.pop_back();

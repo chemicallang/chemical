@@ -67,7 +67,9 @@ lsp::Range DocumentSymbolsAnalyzer::range(SourceLocation location) {
 }
 
 void DocumentSymbolsAnalyzer::VisitFunctionDecl(FunctionDeclaration *decl) {
-    put(decl->name_view(), lsp::SymbolKind::Function, decl->encoded_location());
+    if(!decl->name_view().empty()) {
+        put(decl->name_view(), lsp::SymbolKind::Function, decl->encoded_location());
+    }
 }
 
 void DocumentSymbolsAnalyzer::VisitStructDecl(StructDefinition *def) {

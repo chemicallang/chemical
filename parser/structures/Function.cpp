@@ -328,7 +328,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         decl->setIsExtension(true);
 
         const auto receiverParam = new (allocator.allocate<FunctionParam>()) FunctionParam("", nullptr, 0, nullptr, false, decl, loc_single(token));
-        decl->params.emplace_back(receiverParam);
 
         auto id = consumeIdentifierOrKeyword();
         if(id) {
@@ -348,6 +347,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         auto type = typeLoc.getType();
         if(type) {
             receiverParam->type = typeLoc;
+            decl->params.emplace_back(receiverParam);
         } else {
             error("expected type after ':' in extension function for receiver");
             return decl;

@@ -305,7 +305,7 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
 }
 
 TypeLoc Parser::parseUnionTypeLoc(ASTAllocator& allocator) {
-    const auto type = parseStructType(allocator);
+    const auto type = parseUnionType(allocator);
     return { type, type ? type->encoded_location() : ZERO_LOC };
 }
 

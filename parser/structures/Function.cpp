@@ -16,6 +16,7 @@
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/DestructStmt.h"
+#include "ast/base/TypeBuilder.h"
 
 ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
     auto& tok = *token;
@@ -292,7 +293,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     // once we can be sure which instantiations of generics are being used in module, we can eliminate this check
     auto& allocator = member ? global_allocator : body_allocator;
 
-    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(loc_id(allocator, "", {0, 0}), nullptr, false, parent_node, 0, specifier, false);
+    const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(""), { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
     annotate(decl);
 
     ASTNode* final_node = decl;
@@ -405,7 +406,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
             return final_node;
         }
     } else {
-        decl->returnType = {new(allocator.allocate<VoidType>()) VoidType(), location };
+        decl->returnType = { typeBuilder.getVoidType(), location };
     }
 
     auto block = parseBraceBlock("function", decl, body_allocator);

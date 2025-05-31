@@ -228,13 +228,13 @@ AliasStmt* Parser::parseAliasStatement(ASTAllocator& allocator, AccessSpecifier 
 
         if(!consumeToken(TokenType::EqualSym)) {
             error() << "expected an equal symbol after the alias keyword";
-            return alias;
+            return nullptr;
         }
 
         const auto value = parseAccessChain(allocator);
         if(!value) {
             error() << "expected a value for alias statement";
-            return alias;
+            return nullptr;
         }
 
         alias->value = value;

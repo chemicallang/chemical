@@ -3,6 +3,7 @@
 #include "parser/Parser.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/GenericTypeDecl.h"
+#include "ast/base/TypeBuilder.h"
 
 ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier) {
     auto& tok = *token;
@@ -18,7 +19,7 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
         const auto loc = loc_single(tok);
         const auto alias = new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(
                 loc_id(allocator, id),
-                nullptr,
+                { (BaseType*) typeBuilder.getVoidType(), ZERO_LOC },
                 parent_node,
                 loc,
                 specifier

@@ -74,6 +74,6 @@ public:
         visit(tokens_vec, 0, tokens_vec.size());
     }
 
-    void putMultilineComment(Token *token);
+    void putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers = 0);
 
 };

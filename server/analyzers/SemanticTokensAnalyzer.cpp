@@ -153,6 +153,8 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
                 put(token, TokenType(Operator));
                 break;
             case TokenType::String:
+                putMultilineToken(token, TokenType(String));
+                break;
             case TokenType::Char:
                 put(token, TokenType(String));
                 break;
@@ -164,7 +166,7 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
                 put(token, TokenType(Comment));
                 break;
             case TokenType::MultiLineComment:
-                putMultilineComment(token);
+                putMultilineToken(token, TokenType(Comment));
                 break;
             case TokenType::Number:
                 put(token, TokenType(Number));
@@ -191,7 +193,7 @@ void SemanticTokensAnalyzer::visit(std::vector<Token> &tokens_vec, unsigned star
  * comment tokens must be divided for different lines
  * since vs code doesn't yet support a single multiline token
  */
-void SemanticTokensAnalyzer::putMultilineComment(Token *token) {
+void SemanticTokensAnalyzer::putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers) {
     auto lineStart = token->position.line;
     auto charStart = token->position.character;
     const auto& val = token->value;
@@ -201,14 +203,14 @@ void SemanticTokensAnalyzer::putMultilineComment(Token *token) {
     while(i < total_length) {
         if(val[i] == '\n') {
             // comment from previous start
-            put(lineStart, charStart, i - lengthCovered, TokenType(Comment), 0);
+            put(lineStart, charStart, i - lengthCovered, tokenType, tokenModifiers);
             // update the next token start
             lineStart++;
             charStart = 0;
             lengthCovered = i;
         } else if(val[i] == '\r') {
             // comment from previous start
-            put(lineStart, charStart, i - lengthCovered, TokenType(Comment), 0);
+            put(lineStart, charStart, i - lengthCovered, tokenType, tokenModifiers);
             // consume the next line ending
             if(val[i + 1] == '\n') {
                 i++;
@@ -221,6 +223,6 @@ void SemanticTokensAnalyzer::putMultilineComment(Token *token) {
         i++;
     }
     if(lengthCovered < total_length) {
-        put(lineStart, charStart, total_length - lengthCovered, TokenType(Comment), 0);
+        put(lineStart, charStart, total_length - lengthCovered, tokenType, tokenModifiers);
     }
 };

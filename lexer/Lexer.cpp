@@ -5,6 +5,7 @@
 #include "cst/utils/StringHelpers.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 
+const auto EmptyCStr = "";
 const auto LBraceCStr = "{";
 const auto RBraceCStr = "}";
 const auto LParenCStr = "(";
@@ -291,10 +292,15 @@ void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provi
         if(read == -1) {
             return;
         }
-        str.append(read);
-        if(read == '*' && provider.peek() == '/') {
-            str.append(provider.readCharacter());
-            return;
+        if(read != '*') {
+            str.append(read);
+        } else {
+            if(provider.peek() == '/') {
+                provider.readCharacter();
+                return;
+            } else {
+                str.append(read);
+            }
         }
     }
 }
@@ -318,8 +324,7 @@ bool read_escapable_char(SerialStrAllocator &str, SourceProvider& provider) {
     }
 }
 
-Token read_double_quoted_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
-    str.append('"');
+Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
     while(true) {
         auto current = provider.readCharacter();
         switch(current) {
@@ -331,13 +336,53 @@ Token read_double_quoted_string(Lexer& lexer, SerialStrAllocator& str, SourcePro
             case '"':
             case -1:
                 // no need to report an error if -1, since next time unexpected token will be given
-                str.append('"');
                 return Token(TokenType::String, str.finalize_view(), pos);
+            case '\n':
+            case '\r':
+                lexer.diagnoser.diagnostic("single line string doesn't have a ending", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
+            default:
+                str.append(current);
+                break;
+        }
+    }
+}
+
+Token read_multi_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
+    while(true) {
+        auto current = provider.readCharacter();
+        switch(current) {
+            case '"': {
+                // check the second "
+                const auto next = provider.peek();
+                if (next == '"') {
+                    // consume the second "
+                    provider.readCharacter();
+                    // check the last "
+                    if (provider.peek() == '"') {
+                        // consume the last "
+                        provider.readCharacter();
+                        return Token(TokenType::MultilineString, str.finalize_view(), pos);
+                    } else {
+                        str.append('"');
+                        str.append('"');
+                    }
+                } else {
+                    str.append('"');
+                }
+                break;
+            }
+            case -1:
+                // no need to report an error if -1, since next time unexpected token will be given
+                return Token(TokenType::MultilineString, str.finalize_view(), pos);
+            case '\n':
+                str.append('\n');
+                break;
             case '\r':
                 if(provider.peek() == '\n') {
-                    // only append a \n for \n\r
+                    // only append a \n for \r\n
                     str.append(provider.readCharacter());
                 } else {
+                    // don't know what a single \r is doing here, outputting it as it is
                     str.append('\r');
                 }
                 break;
@@ -527,8 +572,7 @@ Token Lexer::getNextToken() {
             if (p == '/') {
 #ifdef LSP_BUILD
                 if(keep_comments) {
-                    str.append(current);
-                    str.append(provider.readCharacter());
+                    provider.readCharacter();
                     read_current_line(str, provider);
                     return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
                 }
@@ -538,8 +582,7 @@ Token Lexer::getNextToken() {
             } else if(p == '*') {
 #ifdef LSP_BUILD
                 if(keep_comments) {
-                    str.append(current);
-                    str.append(provider.readCharacter());
+                    provider.readCharacter();
                     read_multi_line_comment_text(str, provider);
                     return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
                 }
@@ -579,7 +622,20 @@ Token Lexer::getNextToken() {
         case '\'':
             return read_character_token(*this, str, provider, pos);
         case '"':
-            return read_double_quoted_string(*this, str, provider, pos);
+            if(provider.peek() == '"') {
+                provider.readCharacter();
+                if(provider.peek() == '"') {
+                    provider.readCharacter();
+                    // here the multiline string begins
+                    return read_multi_line_string(*this, str, provider, pos);
+                } else {
+                    // empty string
+                    return Token(TokenType::String, view_str(EmptyCStr), pos);
+                }
+            } else {
+                // single line string
+                return read_single_line_string(*this, str, provider, pos);
+            }
         case ' ':
         case '\t':
 #ifdef LSP_BUILD

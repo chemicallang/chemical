@@ -76,8 +76,8 @@ func test_strings() {
         return first.equals(second);
     })
     test("check multiline strings work", () => {
-        var first = "abcdefghij
-klmnopqrstuvwxyz"
+        var first = """abcdefghij
+klmnopqrstuvwxyz"""
         return strlen(first) == 27
     })
 }

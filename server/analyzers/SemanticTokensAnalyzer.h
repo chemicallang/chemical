@@ -74,6 +74,16 @@ public:
         visit(tokens_vec, 0, tokens_vec.size());
     }
 
-    void putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers = 0);
+    void putMultilineToken(
+            Token *token,
+            uint32_t tokenType,
+            uint32_t tokenModifiers,
+            unsigned int charStartOffset,
+            unsigned int charEndOffset
+    );
+
+    void putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers = 0) {
+        putMultilineToken(token, tokenType, tokenModifiers, 0, 0);
+    }
 
 };

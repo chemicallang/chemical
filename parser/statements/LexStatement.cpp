@@ -249,6 +249,7 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
         case TokenType::Char:
             return parseCharValue(allocator);
         case TokenType::String:
+        case TokenType::MultilineString:
             return parseStringValue(allocator);
         case TokenType::Number:
             return parseNumberValue(allocator);

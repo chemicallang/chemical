@@ -7,6 +7,7 @@
 #include "SemanticTokensAnalyzer.h"
 #include "ast/base/ASTNode.h"
 #include "lsp/types.h"
+#include "cst/utils/StringHelpers.h"
 
 #define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
 
@@ -38,6 +39,36 @@ void SemanticTokensAnalyzer::put(
 
 void SemanticTokensAnalyzer::put(Token *token, uint32_t tokenType, uint32_t tokenModifiers) {
     put(token->position.line, token->position.character, token->value.size(), tokenType, tokenModifiers);
+}
+
+int get_char_length(char value) {
+    switch (value) {
+        case '\a':
+        case '\f':
+        case '\r':
+        case '\n':
+        case '\0':
+        case '\t':
+        case '\v':
+        case '\b':
+        case '\"':
+        case '\?':
+        case '\'':
+        case '\\':
+            return 2;
+        case '\x1b':
+            return 4;
+        default:
+            return 1;
+    }
+}
+
+int calculate_display_size(const chem::string_view& view, int start) {
+    int i = start;
+    for(const auto c : view) {
+        i += get_char_length(c);
+    }
+    return i;
 }
 
 void SemanticTokensAnalyzer::put_auto(Token* token) {
@@ -152,8 +183,15 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::LambdaSym:
                 put(token, TokenType(Operator));
                 break;
-            case TokenType::String:
-                putMultilineToken(token, TokenType(String));
+            case TokenType::String: {
+                auto& pos = token->position;
+                // +2 is added for the double quotes
+                put(pos.line, pos.character, calculate_display_size(token->value, 2), TokenType(String), 0);
+                break;
+            }
+            case TokenType::MultilineString:
+                // +3 for each """
+                putMultilineToken(token, TokenType(String), 0, 3, 3);
                 break;
             case TokenType::Char:
                 put(token, TokenType(String));
@@ -193,36 +231,36 @@ void SemanticTokensAnalyzer::visit(std::vector<Token> &tokens_vec, unsigned star
  * comment tokens must be divided for different lines
  * since vs code doesn't yet support a single multiline token
  */
-void SemanticTokensAnalyzer::putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers) {
+void SemanticTokensAnalyzer::putMultilineToken(
+        Token *token,
+        uint32_t tokenType,
+        uint32_t tokenModifiers,
+        unsigned int charStartOffset,
+        unsigned int charEndOffset
+) {
     auto lineStart = token->position.line;
     auto charStart = token->position.character;
-    const auto& val = token->value;
-    const auto total_length = val.size();
-    unsigned lengthCovered = 0;
+    // how many characters we have processed on current line
+    int currLineChar = static_cast<int>(charStartOffset);
+    auto& value = token->value;
     unsigned i = 0;
-    while(i < total_length) {
-        if(val[i] == '\n') {
-            // comment from previous start
-            put(lineStart, charStart, i - lengthCovered, tokenType, tokenModifiers);
-            // update the next token start
-            lineStart++;
+    const auto str_size = value.size();
+    while(i < str_size) {
+        const auto curr = value[i];
+        if(curr == '\n') {
+            put(lineStart, charStart, currLineChar, tokenType, tokenModifiers);
+            currLineChar = -1;
             charStart = 0;
-            lengthCovered = i;
-        } else if(val[i] == '\r') {
-            // comment from previous start
-            put(lineStart, charStart, i - lengthCovered, tokenType, tokenModifiers);
-            // consume the next line ending
-            if(val[i + 1] == '\n') {
-                i++;
-            }
-            // update the next token start
             lineStart++;
-            charStart = 0;
-            lengthCovered = i;
+        } else if(curr == '\r' && (i + 1 < value.size() && value[i + 1] == '\n')) {
+            i++;
+            continue;
         }
+        currLineChar++;
         i++;
     }
-    if(lengthCovered < total_length) {
-        put(lineStart, charStart, total_length - lengthCovered, tokenType, tokenModifiers);
+    currLineChar += static_cast<int>(charEndOffset);
+    if(currLineChar > 0) {
+        put(lineStart, charStart, currLineChar, tokenType, tokenModifiers);
     }
 };

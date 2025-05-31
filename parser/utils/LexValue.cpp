@@ -59,15 +59,13 @@ Value* Parser::parseCharValue(ASTAllocator& allocator) {
 
 Value* BasicParser::parseStringValue(ASTAllocator& allocator) {
     auto& t = *token;
-    if(t.type == TokenType::String) {
-        // consume it
-        token++;
-        // the value will contain double quotes around it
-        const auto actual_value = chem::string_view(t.value.data() + 1, t.value.size() - 2);
-        const auto value = new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, actual_value), loc_single(t));
-        return value;
-    } else {
-        return nullptr;
+    switch(t.type) {
+        case TokenType::String:
+        case TokenType::MultilineString:
+            token++;
+            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), loc_single(t));
+        default:
+            return nullptr;
     }
 }
 
@@ -288,6 +286,7 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
         case TokenType::Char:
             return (Value*) parseCharValue(allocator);
         case TokenType::String:
+        case TokenType::MultilineString:
             return (Value*) parseStringValue(allocator);
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
@@ -323,6 +322,7 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::Char:
             return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
         case TokenType::String:
+        case TokenType::MultilineString:
             return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:

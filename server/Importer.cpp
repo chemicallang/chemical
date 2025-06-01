@@ -57,13 +57,16 @@ bool WorkspaceManager::has_errors(const std::vector<std::shared_ptr<ASTResult>>&
     return false;
 }
 
-std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
+std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path, bool keep_comments) {
     auto overridden_source = get_overridden_source(path);
     auto result = std::make_shared<LexResult>();
     result->abs_path = path;
     if (overridden_source.has_value()) {
         StringInputSource input_source(overridden_source.value());
         Lexer lexer(path, &input_source, &binder, result->fileAllocator);
+        if(keep_comments) {
+            lexer.keep_comments = true;
+        }
         lexer.getTokens(result->tokens);
         result->allocator = std::move(lexer.str.allocator);
         result->diags = std::move(lexer.diagnoser.diagnostics);
@@ -73,11 +76,23 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
             return nullptr;
         }
         Lexer lexer(path, &input_source, &binder, result->fileAllocator);
+        if(keep_comments) {
+            lexer.keep_comments = true;
+        }
         lexer.getTokens(result->tokens);
         result->allocator = std::move(lexer.str.allocator);
         result->diags = std::move(lexer.diagnoser.diagnostics);
     }
     return result;
+}
+
+void WorkspaceManager::remove_comments(std::vector<Token>& tokens) {
+    tokens.erase(
+            std::remove_if(tokens.begin(), tokens.end(), [](const Token& t) {
+                return t.type == TokenType::SingleLineComment || t.type == TokenType::MultiLineComment;
+            }),
+            tokens.end()
+    );
 }
 
 std::shared_ptr<ASTResult> WorkspaceManager::get_ast_no_lock(

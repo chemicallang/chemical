@@ -200,11 +200,15 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::Annotation:
                 put(token, TokenType(Macro));
                 break;
-            case TokenType::SingleLineComment:
-                put(token, TokenType(Comment));
+            case TokenType::SingleLineComment: {
+                auto& pos = token->position;
+                // +2 for //
+                put(pos.line, pos.character, token->value.size() + 2, TokenType(Comment), 0);
                 break;
+            }
             case TokenType::MultiLineComment:
-                putMultilineToken(token, TokenType(Comment));
+                // +2 for each /*
+                putMultilineToken(token, TokenType(Comment), 0, 2, 2);
                 break;
             case TokenType::Number:
                 put(token, TokenType(Number));
@@ -252,7 +256,7 @@ void SemanticTokensAnalyzer::putMultilineToken(
             currLineChar = -1;
             charStart = 0;
             lineStart++;
-        } else if(curr == '\r' && (i + 1 < value.size() && value[i + 1] == '\n')) {
+        } else if(curr == '\r' && (i + 1 < str_size && value[i + 1] == '\n')) {
             i++;
             continue;
         }

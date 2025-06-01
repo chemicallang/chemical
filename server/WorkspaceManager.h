@@ -456,7 +456,12 @@ public:
      * please use the function which access FlatIGFile, which also requires the path in the import statement
      * because that path contains whether it's a system header
      */
-    std::shared_ptr<LexResult> get_lexed(const std::string& path);
+    std::shared_ptr<LexResult> get_lexed(const std::string& path, bool keep_comments = false);
+
+    /**
+     * remove comment tokens
+     */
+    static void remove_comments(std::vector<Token>& tokens);
 
     /**
      * gets the ast no locking or cache hit

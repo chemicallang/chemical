@@ -31,11 +31,13 @@
 std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string& path) {
     auto abs_path = canonical(path);
     // tokens for the last file
-    auto last_file = get_lexed(abs_path);
-    // publish diagnostics will return ast import unit ref
-    publish_diagnostics(last_file);
+    auto last_file = get_lexed(abs_path, true);
     // report the tokens
     auto toks = get_semantic_tokens(*last_file);
+    // remove the comments from the tokens
+    remove_comments(last_file->tokens);
+    // publish diagnostics will return ast import unit ref
+    publish_diagnostics(last_file);
     return std::move(toks);
 }
 

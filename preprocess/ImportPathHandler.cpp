@@ -178,7 +178,7 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string& base_p
         if(module_src_dir_path.empty()) {
             return { "", "cannot resolve path without the module root directory" };
         } else {
-            const auto child_path = resolve_rel_child_path_str(std::string(module_src_dir_path), std::string(import_path.data() + 1, import_path.size()));
+            const auto child_path = resolve_rel_child_path_str(module_src_dir_path, std::string_view(import_path.data() + 1, import_path.size() - 1));
             return {absolute_path(child_path), ""};
         }
     }

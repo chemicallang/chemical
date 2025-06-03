@@ -330,7 +330,7 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
 
 }
 
-std::string get_mod_timestamp_path(const std::string& build_dir, LabModule* mod, bool use_tcc) {
+std::string get_mod_timestamp_path(const std::string_view& build_dir, LabModule* mod, bool use_tcc) {
     auto f = mod->format('.');
     f.append(use_tcc ? "/timestamp_tcc.dat" : "/timestamp.dat");
     return resolve_rel_child_path_str(build_dir, f);
@@ -938,7 +938,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     return 0;
 }
 
-void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string& build_dir, LabModule* mod) {
+void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string_view& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto use_tcc = compiler->use_tcc(job_type);
     const auto is_use_obj_format = use_tcc || compiler->options->use_mod_obj_format || mod->type == LabModuleType::CFile;
@@ -1206,7 +1206,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             if(out_c_file.empty()) {
                 if(!job->build_dir.empty()) {
                     // TODO send this to module directory
-                    out_c_file = resolve_rel_child_path_str(job->build_dir.data(),mod->name.to_std_string() + ".2c.c");
+                    out_c_file = resolve_rel_child_path_str(job->build_dir.to_view(), mod->name.to_std_string() + ".2c.c");
                 } else if(!job->abs_path.empty()) {
                     out_c_file = job->abs_path.to_std_string();
                 }

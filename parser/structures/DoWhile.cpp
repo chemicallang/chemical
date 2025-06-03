@@ -26,17 +26,17 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
         loop->body.nodes = std::move(blk.nodes);
         loop->body.set_parent(blk.parent());
     } else {
-        error("expected a brace block { statement(s) } when lexing a while block");
+        unexpected_error("expected a brace block { statement(s) } when lexing a while block");
         return loop;
     }
 
     if(!consumeToken(TokenType::WhileKw)) {
-        error("expected 'while' with condition in a do while loop");
+        unexpected_error("expected 'while' with condition in a do while loop");
         return loop;
     }
 
     if(!consumeToken(TokenType::LParen)) {
-        error("expected a starting parenthesis ( after keyword while for while block");
+        unexpected_error("expected a starting parenthesis ( after keyword while for while block");
         return loop;
     }
 
@@ -44,12 +44,12 @@ DoWhileLoop* Parser::parseDoWhileLoop(ASTAllocator& allocator) {
     if(expr) {
         loop->condition = expr;
     } else {
-        error("expected a conditional statement for while block");
+        unexpected_error("expected a conditional statement for while block");
         return loop;
     }
 
     if(!consumeToken(TokenType::RParen)) {
-        error("expected a closing parenthesis ) for while block");
+        unexpected_error("expected a closing parenthesis ) for while block");
         return loop;
     }
 

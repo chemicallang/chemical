@@ -41,7 +41,7 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
         if(token->type == TokenType::LBrace) {
             token++;
         } else {
-            error("expected '{' for beginning of init block");
+            unexpected_error("expected '{' for beginning of init block");
         }
         while(true) {
             consumeNewLines();
@@ -54,20 +54,20 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
                 } else if(token->type == TokenType::EqualSym) {
                     token++;
                 } else {
-                    error("expected '(' or '=' for initializing the init member");
+                    unexpected_error("expected '(' or '=' for initializing the init member");
                 }
                 const auto value = parseExpression(allocator, true);
                 if(value) {
                     init->initializers[allocate_view(allocator, id->value)] = { value };
                 } else {
-                    error("expected an expression for initializing init member");
+                    unexpected_error("expected an expression for initializing init member");
                 }
                 if(has_lparen) {
                     consumeNewLines();
                     if(token->type == TokenType::RParen) {
                         token++;
                     } else {
-                        error("expected ')' for init member");
+                        unexpected_error("expected ')' for init member");
                     }
                 }
                 if(token->type == TokenType::SemiColonSym) {
@@ -80,7 +80,7 @@ InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
         if(token->type == TokenType::RBrace) {
             token++;
         } else {
-            error("expected '}' for ending the init block");
+            unexpected_error("expected '}' for ending the init block");
         }
         return init;
     } else {
@@ -97,7 +97,7 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
         if(block.has_value()) {
             unsafe->scope = std::move(block.value());
         } else {
-            error("expected a braced block after 'unsafe' keyword");
+            unexpected_error("expected a braced block after 'unsafe' keyword");
             return nullptr;
         }
         return unsafe;
@@ -118,7 +118,7 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
                 stmt->array_value = value;
             }
             if(!consumeToken(TokenType::RBracket)) {
-                error("expected a ']' after the access chain value");
+                unexpected_error("expected a ']' after the access chain value");
                 return stmt;
             }
         }
@@ -126,7 +126,7 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
         if(value) {
             stmt->identifier = value;
         } else {
-            error("expected a pointer value for the destruct statement");
+            unexpected_error("expected a pointer value for the destruct statement");
             return stmt;
         }
         return stmt;
@@ -162,7 +162,7 @@ bool Parser::parseParameterList(
                     index++;
                     continue;
                 } else {
-                    error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
+                    unexpected_error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
                     return false;
                 }
             }
@@ -188,7 +188,7 @@ bool Parser::parseParameterList(
                             if(expr) {
                                 defValue = expr;
                             } else {
-                                error("expected value after '=' for default value for the parameter");
+                                unexpected_error("expected value after '=' for default value for the parameter");
                                 break;
                             }
                         }
@@ -199,7 +199,7 @@ bool Parser::parseParameterList(
                     id->linked = param;
 #endif
                 } else {
-                    error("missing a type token for the function parameter, expected type after the colon");
+                    unexpected_error("missing a type token for the function parameter, expected type after the colon");
                     return false;
                 }
             } else {

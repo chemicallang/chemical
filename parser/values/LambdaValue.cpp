@@ -9,7 +9,7 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
 
 
     if (!consumeToken(TokenType::LambdaSym)) {
-        error("expected '=>' for a lambda");
+        unexpected_error("expected '=>' for a lambda");
         return false;
     }
 
@@ -23,7 +23,7 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
             auto returnStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(expr, &lambda->scope, ZERO_LOC);
             lambda->scope.nodes.emplace_back(returnStmt);
         } else {
-            error("expected lambda body");
+            unexpected_error("expected lambda body");
             return false;
         }
     }
@@ -53,7 +53,7 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
                 lambda->captureList.emplace_back(variable);
             } else {
                 if(lexed_amp) {
-                    error("expected identifier after '&'");
+                    unexpected_error("expected identifier after '&'");
                     return lambda;
                 }
             }
@@ -61,7 +61,7 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
         } while (consumeToken(TokenType::CommaSym));
 
         if (!consumeToken(TokenType::PipeSym)) {
-            error("expected '|' after lambda function capture list");
+            unexpected_error("expected '|' after lambda function capture list");
             return lambda;
         }
 
@@ -72,7 +72,7 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
     }
 
     if (!consumeToken(TokenType::LParen)) {
-        error("expected '(' for lambda parameter list");
+        unexpected_error("expected '(' for lambda parameter list");
         return lambda;
     }
 
@@ -82,7 +82,7 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
     lexNewLineChars();
 
     if (!consumeToken(TokenType::RParen)) {
-        error("expected ')' after the lambda parameter list");
+        unexpected_error("expected ')' after the lambda parameter list");
         return lambda;
     }
 

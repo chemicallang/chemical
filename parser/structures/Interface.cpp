@@ -17,7 +17,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
 
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
-            error("expected interface name after the interface keyword");
+            unexpected_error("expected interface name after the interface keyword");
             return nullptr;
         }
 
@@ -75,7 +75,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
         }
 
         if (!consumeToken(TokenType::LBrace)) {
-            error("expected a '{' when starting an interface block");
+            unexpected_error("expected a '{' when starting an interface block");
             return finalDecl;
         }
 
@@ -90,7 +90,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
         parent_node = prev_parent_node;
 
         if (!consumeToken(TokenType::RBrace)) {
-            error("expected a '}' when ending an interface block");
+            unexpected_error("expected a '}' when ending an interface block");
             return finalDecl;
         }
 

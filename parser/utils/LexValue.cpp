@@ -121,7 +121,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
         consumeNewLines();
     } while (consumeToken(TokenType::CommaSym));
     if (!consumeToken(TokenType::RBracket)) {
-        error("expected a ']' for an array");
+        unexpected_error("expected a ']' for an array");
         return arrayValue;
     }
     arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(nullptr, arrayValue->array_size());
@@ -156,12 +156,12 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         auto pointer_val = parseExpression(allocator);
         new_value->pointer = pointer_val;
         if(token->type != TokenType::RParen) {
-            error("expected a ')' after the pointer value in new expression");
+            unexpected_error("expected a ')' after the pointer value in new expression");
         }
         token++;
         auto value = parseExpression(allocator, true);
         if(!value) {
-            error("expected a value for placement new expression");
+            unexpected_error("expected a value for placement new expression");
         }
         new_value->value = value;
         return new_value;
@@ -173,7 +173,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
 
         auto type = parseTypeLoc(allocator);
         if(!type) {
-            error("expected type after new");
+            unexpected_error("expected type after new");
             return nullptr;
         }
 
@@ -183,7 +183,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
 
         auto value = parseExpression(allocator);
         if(!value) {
-            error("expected value after new");
+            unexpected_error("expected value after new");
             return nullptr;
         }
 
@@ -232,7 +232,7 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
             auto type = parseTypeLoc(allocator);
             auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, loc_single(start_token));
             if (!type) {
-                error("expected a type for casting after 'as' in expression");
+                unexpected_error("expected a type for casting after 'as' in expression");
             }
             return casted_value;
         }
@@ -241,7 +241,7 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
             auto type = parseTypeLoc(allocator);
             auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, loc_single(start_token));
             if (!type) {
-                error("expected a type after 'is' or '!is' in expression");
+                unexpected_error("expected a type after 'is' or '!is' in expression");
             }
             return isValue;
         }
@@ -260,9 +260,9 @@ Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {
     const auto expr = parseAccessChainOrAddrOf(allocator);
     if(!expr) {
         if(increment) {
-            error("expected an expression after the pre increment");
+            unexpected_error("expected an expression after the pre increment");
         } else {
-            error("expected an expression after the pre decrement");
+            unexpected_error("expected an expression after the pre decrement");
         }
     }
     return new (allocator.allocate<IncDecValue>()) IncDecValue(expr, increment, false, loc_single(t));
@@ -352,7 +352,7 @@ Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
         token++;
     } else {
-        error("expected '{' or '(' when parsing sizeof");
+        unexpected_error("expected '{' or '(' when parsing sizeof");
         return nullptr;
     }
     auto type = parseTypeLoc(allocator);
@@ -363,11 +363,11 @@ Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
         } else {
-            error("expected '}' or '}' after the type when parsing sizeof");
+            unexpected_error("expected '}' or '}' after the type when parsing sizeof");
         }
         return value;
     } else {
-        error("expected a type in #sizeof");
+        unexpected_error("expected a type in sizeof");
         return nullptr;
     }
 }
@@ -378,7 +378,7 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
         token++;
     } else {
-        error("expected '{' or '(' when parsing alignof");
+        unexpected_error("expected '{' or '(' when parsing alignof");
         return nullptr;
     }
     auto type = parseTypeLoc(allocator);
@@ -389,11 +389,11 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
         } else {
-            error("expected '}' or '}' after the type when parsing sizeof");
+            unexpected_error("expected '}' or '}' after the type when parsing sizeof");
         }
         return value;
     } else {
-        error("expected a type in #alignof");
+        error("expected a type in alignof");
         return nullptr;
     }
 }
@@ -404,7 +404,7 @@ Value* Parser::parseUnsafeValue(ASTAllocator& allocator) {
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
         token++;
     } else {
-        error("expected '{' or '(' when parsing comptime value");
+        unexpected_error("expected '{' or '(' when parsing comptime value");
         return nullptr;
     }
     auto expr = parseExpression(allocator);
@@ -415,11 +415,11 @@ Value* Parser::parseUnsafeValue(ASTAllocator& allocator) {
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
         } else {
-            error("expected '}' or '}' after the type when parsing comptime value");
+            unexpected_error("expected '}' or '}' after the type when parsing comptime value");
         }
         return evaluated;
     } else {
-        error("expected a value in #eval");
+        unexpected_error("expected a value in unsafe value");
         return nullptr;
     }
 }
@@ -430,7 +430,7 @@ Value* Parser::parseComptimeValue(ASTAllocator& allocator) {
     if(first_type == TokenType::LBrace || first_type == TokenType::LParen) {
         token++;
     } else {
-        error("expected '{' or '(' when parsing comptime value");
+        unexpected_error("expected '{' or '(' when parsing comptime value");
         return nullptr;
     }
     auto expr = parseExpression(allocator);
@@ -441,7 +441,7 @@ Value* Parser::parseComptimeValue(ASTAllocator& allocator) {
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
         } else {
-            error("expected '}' or '}' after the type when parsing comptime value");
+            unexpected_error("expected '}' or '}' after the type when parsing comptime value");
         }
         return evaluated;
     } else {

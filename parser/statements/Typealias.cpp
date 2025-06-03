@@ -12,7 +12,7 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
 
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
-            error("expected a type for typealias statement");
+            unexpected_error("expected a type for typealias statement");
             return nullptr;
         }
 
@@ -52,7 +52,7 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
         }
 
         if(!consumeToken(TokenType::EqualSym)) {
-            error("expected '=' after the type tokens");
+            unexpected_error("expected '=' after the type tokens");
         }
 
         // parsing the actual type

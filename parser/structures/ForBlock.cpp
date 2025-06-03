@@ -64,7 +64,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
     // start parenthesis
     if(!consumeToken(TokenType::LParen)) {
-        error("expected a starting parenthesis ( in a for block");
+        unexpected_error("expected a starting parenthesis ( in a for block");
         return loop;
     }
 
@@ -76,7 +76,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
                 loop->initializer = statement;
                 break;
             } else {
-                error("expected a var initialization in for loop");
+                unexpected_error("expected a var initialization in for loop");
                 return loop;
             }
         }
@@ -86,7 +86,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
                 loop->initializer = assign;
                 break;
             } else {
-                error("expected a variable initialization or assignment statement in for loop");
+                unexpected_error("expected a variable initialization or assignment statement in for loop");
                 return loop;
             }
         }
@@ -94,7 +94,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
     // lex ;
     if(!consumeToken(TokenType::SemiColonSym)){
-        error("expected semicolon ; after the initialization in for loop");
+        unexpected_error("expected semicolon ; after the initialization in for loop");
         return loop;
     }
 
@@ -103,12 +103,12 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     if(expr) {
         loop->conditionExpr = expr;
     } else {
-        error("expected a conditional expression after the var initialization in for loop");
+        unexpected_error("expected a conditional expression after the var initialization in for loop");
         return loop;
     }
 
     if(!consumeToken(TokenType::SemiColonSym)){
-        error("expected semicolon ; after the condition in for loop");
+        unexpected_error("expected semicolon ; after the condition in for loop");
         return loop;
     }
 
@@ -123,7 +123,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
     // end parenthesis
     if(!consumeToken(TokenType::RParen)) {
-        error("expected a closing parenthesis ) in a for block");
+        unexpected_error("expected a closing parenthesis ) in a for block");
         return loop;
     }
 
@@ -132,7 +132,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     if(block.has_value()) {
         loop->body = std::move(block.value());
     } else {
-        error("expected a brace block in a for block");
+        unexpected_error("expected a brace block in a for block");
         return loop;
     }
 
@@ -156,7 +156,7 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
     if(block.has_value()) {
         loopBlock->body = std::move(block.value());
     } else {
-        error("expected a brace block in a for block");
+        unexpected_error("expected a brace block in a for block");
         return loopBlock;
     }
 

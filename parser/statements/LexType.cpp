@@ -51,17 +51,17 @@ TypeLoc Parser::parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing) {
         func_type->setIsVariadic(isVariadic);
         consumeNewLines();
         if(!consumeToken(TokenType::RParen)) {
-            error("expected a ')' after the ')' in lambda function type");
+            unexpected_error("expected a ')' after the ')' in lambda function type");
         }
         if(consumeToken(TokenType::LambdaSym)) {
             auto type = parseTypeLoc(allocator);
             if(type) {
                 func_type->returnType = type;
             } else {
-                error("expected a return type for lambda function type");
+                unexpected_error("expected a return type for lambda function type");
             }
         } else {
-            error("expected '=>' for lambda function type");
+            unexpected_error("expected '=>' for lambda function type");
         }
         return { func_type, loc };
     } else {
@@ -85,7 +85,7 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
             }
         } while(consumeToken(TokenType::CommaSym));
         if(!consumeToken(TokenType::GreaterThanSym)) {
-            error("expected '>' for generic type");
+            unexpected_error("expected '>' for generic type");
         }
 
         // TODO this is not ideal
@@ -122,7 +122,7 @@ BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, 
             // optional array size
             auto expr = parseExpression(allocator);
             if(!consumeToken(TokenType::RBracket)) {
-                error("expected ']' for array type");
+                unexpected_error("expected ']' for array type");
                 return typeId;
             }
             typeId = new (allocator.allocate<ArrayType>()) ArrayType({typeId, location}, expr);
@@ -225,7 +225,7 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
 #endif
 
         if(token->type != TokenType::LBrace) {
-            error("expected a '{' after the struct keyword for struct type");
+            unexpected_error("expected a '{' after the struct keyword for struct type");
             return type;
         }
 
@@ -241,7 +241,7 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
         } while(token->type != TokenType::RBrace);
 
         if(token->type != TokenType::RBrace) {
-            error("expected a '}' after the struct type declaration");
+            unexpected_error("expected a '}' after the struct type declaration");
             return type;
         }
 
@@ -276,7 +276,7 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
 #endif
 
         if(token->type != TokenType::LBrace) {
-            error("expected a '{' after the struct keyword for union type");
+            unexpected_error("expected a '{' after the struct keyword for union type");
             return type;
         }
 

@@ -133,6 +133,8 @@ bool BaseType::requires_destructor() {
                 return ((VariantMember*) node)->requires_destructor();
             case ASTNodeKind::UnnamedStruct:
                 return ((UnnamedStruct*) node)->requires_destructor();
+            case ASTNodeKind::TypealiasStmt:
+                return ((TypealiasStatement*) node)->actual_type->requires_destructor();
             default:
                 return false;
         }

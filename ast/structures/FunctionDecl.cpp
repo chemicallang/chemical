@@ -832,18 +832,15 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
         llvm::Function* dtr_func_data = nullptr;
         int i = 0;
         for(auto& value : mem->values) {
-            auto ref_node = value.second->type->get_direct_linked_node();
-            if(ref_node) { // <-- the node is directly referenced
-                auto destructorFunc = gen.determine_destructor_for(value.second->type, dtr_func_data);
-                if(destructorFunc) {
-                    std::vector<llvm::Value*> args;
-                    if(destructorFunc->has_self_param()) {
-                        auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
-                        args.emplace_back(gep3);
-                    }
-                    const auto callInst = gen.builder->CreateCall(dtr_func_data, args, "");
-                    gen.di.instr(callInst, location);
+            auto destructorFunc = gen.determine_destructor_for(value.second->type, dtr_func_data);
+            if(destructorFunc) {
+                std::vector<llvm::Value*> args;
+                if(destructorFunc->has_self_param()) {
+                    auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
+                    args.emplace_back(gep3);
                 }
+                const auto callInst = gen.builder->CreateCall(dtr_func_data, args, "");
+                gen.di.instr(callInst, location);
             }
             i++;
         }

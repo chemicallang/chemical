@@ -107,16 +107,11 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     auto arrayValue = new (allocator.allocate<ArrayValue>()) ArrayValue(nullptr, loc(token1, token), allocator);
     do {
         consumeNewLines();
-        auto expr = parseExpression(allocator, true);
+        auto expr = parseExpressionOrArrayOrStruct(allocator);
         if(expr) {
             arrayValue->values.emplace_back(expr);
         } else {
-            auto init = parseArrayInit(allocator);
-            if(init) {
-                arrayValue->values.emplace_back(init);
-            } else {
-                break;
-            }
+            break;
         }
         consumeNewLines();
     } while (consumeToken(TokenType::CommaSym));

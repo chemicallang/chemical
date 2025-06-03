@@ -975,6 +975,11 @@ public:
     Value* parseExpression(ASTAllocator& allocator, bool parseStruct = false, bool parseLambda = true);
 
     /**
+     * parses an expression array, or struct
+     */
+    Value* parseExpressionOrArrayOrStruct(ASTAllocator& allocator, bool parseLambda = true);
+
+    /**
      * lexes switch block
      */
     SwitchStatement* parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value = false, bool parse_value_node = false);

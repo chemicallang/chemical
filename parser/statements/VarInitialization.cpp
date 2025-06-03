@@ -69,17 +69,12 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
     }
 
     // value
-    auto expr = parseExpression(allocator, true);
+    auto expr = parseExpressionOrArrayOrStruct(allocator);
     if(expr) {
         stmt->value = expr;
     } else {
-        auto init = parseArrayInit(allocator);
-        if(init) {
-            stmt->value = init;
-        } else {
-            error("expected an expression / array for variable initialization");
-            return stmt;
-        }
+        error("expected an expression / array for variable initialization");
+        return stmt;
     }
 
     parent_node = prev_parent_node;

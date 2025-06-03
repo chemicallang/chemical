@@ -21,19 +21,13 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
                     error() << "expected a ':' for initializing struct member " << id->value;
                     return structValue;
                 }
-                auto expression = parseExpression(allocator, true);
+                auto expression = parseExpressionOrArrayOrStruct(allocator);
                 if(expression) {
                     const auto id_view = allocate_view(allocator, id->value);
                     structValue->values.emplace(id_view, StructMemberInitializer { id_view, expression });
                 } else {
-                    auto arrayInit = parseArrayInit(allocator);
-                    if(arrayInit) {
-                        const auto id_view = allocate_view(allocator, id->value);
-                        structValue->values.emplace(id_view, StructMemberInitializer { id_view, arrayInit });
-                    } else {
-                        error() << "expected an expression after ':' for struct member " << id->value;
-                        return structValue;
-                    }
+                    error() << "expected an expression after ':' for struct member " << id->value;
+                    return structValue;
                 }
                 consumeToken(TokenType::CommaSym);
             } else {

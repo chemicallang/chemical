@@ -160,17 +160,12 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
     }
 
     // value
-    auto expr = parseExpression(allocator, true);
+    auto expr = parseExpressionOrArrayOrStruct(allocator);
     if(expr) {
         stmt->value = expr;
     } else {
-        auto init = parseArrayInit(allocator);
-        if(init) {
-            stmt->value = expr;
-        } else {
-            unexpected_error("expected a value for variable assignment");
-            return stmt;
-        }
+        unexpected_error("expected a value for variable assignment");
+        return stmt;
     }
 
     return stmt;

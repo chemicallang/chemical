@@ -430,9 +430,6 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
             builder->createExpression()
         );
     } else {
-        if(init->is_const()) {
-            return;
-        }
         llvm::DILocalVariable* Var = builder->createAutoVariable(
                 diScopes.back(),
                 to_ref(init->name_view()),
@@ -440,7 +437,8 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
                 location.start.line + 1,
                 to_di_type(*this, init->known_type(), false)
         );
-        if (auto *inst = llvm::dyn_cast<llvm::Instruction>(val)) {
+        if (!init->is_const() && llvm::isa<llvm::Instruction>(val)) {
+            llvm::Instruction *inst = llvm::cast<llvm::Instruction>(val);
             builder->insertDeclare(
                     init->llvm_ptr,                                         // Variable allocation
                     Var,

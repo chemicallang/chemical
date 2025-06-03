@@ -667,7 +667,7 @@ int main(int argc, char *argv[]) {
     // build a .lab file
     if(is_lab_file || is_mod_file) {
 
-        std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(std::string(args[0]), "build");
+        std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(args[0], "build");
         LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
         CompilerBinder binder(argv[0]);
         LabBuildCompiler compiler(binder, &compiler_opts);

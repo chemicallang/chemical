@@ -603,7 +603,7 @@ int LabBuildCompiler::process_module_tcc(
         }
     } else {
         // TODO place a check here
-        const auto out_path = resolve_sibling(mod->object_path.to_std_string(), mod->name.to_std_string() + ".2c.c");
+        const auto out_path = resolve_sibling(mod->object_path.to_view(), mod->name.to_std_string() + ".2c.c");
         writeToFile(out_path, program);
     }
 
@@ -615,7 +615,7 @@ int LabBuildCompiler::process_module_tcc(
         }
         const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
         if (compile_c_result == 1) {
-            const auto out_path = resolve_sibling(mod->object_path.to_std_string(), mod->name.to_std_string() + ".debug.c");
+            const auto out_path = resolve_sibling(mod->object_path.to_view(), mod->name.to_std_string() + ".debug.c");
             writeToFile(out_path, program);
             std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
             return 1;
@@ -1705,12 +1705,12 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // get all the sources
     for(auto& src : modFileData.sources_list) {
         if(src.if_condition.empty()) {
-            module->paths.emplace_back(resolve_sibling(modFilePath, src.path.str()));
+            module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
         } else {
             const auto cond_result = is_condition_enabled(container, src.if_condition);
             if(cond_result.has_value()) {
                 if(neg_it(src.is_negative, cond_result.value())) {
-                    module->paths.emplace_back(resolve_sibling(modFilePath, src.path.str()));
+                    module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
                 }
             } else {
                 std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "unknown condition '" << src.if_condition << "'" << std::endl;

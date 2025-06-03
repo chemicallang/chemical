@@ -66,7 +66,7 @@ bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module
 void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path) {
     init_chem_string(&result->error);
     init_chem_string(&result->path);
-    auto repResult = self->handler.resolve_import_path(base_path->str(), path->str());
+    auto repResult = self->handler.resolve_import_path(base_path->view(), path->view());
     if(!repResult.error.empty()) {
         result->error.append(repResult.error);
     }

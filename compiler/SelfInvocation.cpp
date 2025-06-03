@@ -42,9 +42,9 @@ int invoke_capturing_out(const std::vector<std::string> &command_args, std::stri
     return 0;
 }
 
-std::vector<std::string> system_headers_path(const std::string &arg0) {
+std::vector<std::string> system_headers_path(const std::string_view &arg0) {
 
-    std::vector<std::string> commands{arg0, "cc", "-v","-c","-xc++"};
+    std::vector<std::string> commands{ std::string(arg0), "cc", "-v","-c","-xc++"};
 #ifdef WIN32
     commands.emplace_back("nul");
 #else
@@ -110,7 +110,7 @@ std::string header_abs_path(std::vector<std::string>& system_headers, const std:
     return "";
 }
 
-std::string headers_dir(std::vector<std::string>& system_headers, const std::string& header) {
+std::string headers_dir(std::vector<std::string>& system_headers, const std::string_view& header) {
     for(const auto& sys_head : system_headers) {
         std::filesystem::path abs_path = std::filesystem::path(sys_head) / header;
         if (std::filesystem::exists(abs_path)) {

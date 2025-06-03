@@ -176,12 +176,9 @@ func test_nodes() {
         };
         return p.x == 5 && p.y == 6;
     });
-    /**
-    // TODO this doesn't make (sometimes)
     test("struct value pointer can be passed using direct struct", () => {
-        return give_point_ptr_sum(&Point { a : 10, b : 23 }) == 33;
+        return give_point_ptr_sum(&Point { x : 10, y : 23 }) == 33;
     })
-    **/
     test("struct functions without self ref", () => {
          var p = Point {
              x : 0,

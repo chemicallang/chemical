@@ -200,7 +200,7 @@ LabJob* LabBuildContext::build_exe(
     auto exe = new LabJob(LabJobType::Executable, chem::string(*name));
     executables.emplace_back(exe);
     set_build_dir(exe);
-    auto exe_path = resolve_rel_child_path_str(exe->build_dir.data(), name->str());
+    auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
 #ifdef _WINDOWS
     exe_path += ".exe";
 #endif
@@ -217,7 +217,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
     auto exe = new LabJob(LabJobType::Library, chem::string(*name));
     executables.emplace_back(exe);
     set_build_dir(exe);
-    auto output_path = resolve_rel_child_path_str(exe->build_dir.data(), name->str());
+    auto output_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
 #ifdef _WIN32
         output_path += ".dll";
 #elif __linux__

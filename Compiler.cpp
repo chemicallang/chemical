@@ -348,7 +348,7 @@ void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& modul
     const auto size = dependencies.size();
     while(start < size) {
         const auto mod = dependencies[start].get();
-        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_std_string(), mod->name.to_std_string());
+        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_view(), mod->name.to_view());
         if(has_ll) {
             mod->llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
         }
@@ -833,7 +833,7 @@ int main(int argc, char *argv[]) {
     const auto has_ll = options.has_value("out-ll-all");
     const auto has_asm = options.has_value("out-asm-all");
     if(has_ll || has_asm) {
-        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_std_string(), module.name.to_std_string());
+        const auto mod_dir = resolve_rel_child_path_str(job.build_dir.to_view(), module.name.to_view());
         if (has_ll) {
             module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
         }

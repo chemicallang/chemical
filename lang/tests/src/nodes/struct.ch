@@ -209,6 +209,10 @@ func test_structs() {
         var pair = create_pair();
         return pair.a == 33 && pair.b == 55;
     })
+    test("can create structs with strings as keys", () => {
+        var p = Pair { "a" : 323, "b" : 873 }
+        return p.a == 323 && p.b == 873
+    })
     test("can return a newly created struct that is referenced", () => {
         var pair = create_pair_as_variable();
         return pair.a == 44 && pair.b == 66;

@@ -3,6 +3,23 @@
 #include "parser/Parser.h"
 #include "ast/values/StructValue.h"
 
+bool parseMem(Parser& parser, ASTAllocator& allocator, StructValue* value, const chem::string_view& id) {
+    if(!parser.consumeToken(TokenType::ColonSym)) {
+        parser.error() << "expected a ':' for initializing struct member " << id;
+        return false;
+    }
+    auto expression = parser.parseExpressionOrArrayOrStruct(allocator);
+    if(expression) {
+        const auto id_view = parser.allocate_view(allocator, id);
+        value->values.emplace(id_view, StructMemberInitializer { id_view, expression });
+    } else {
+        parser.error() << "expected an expression after ':' for struct member " << id;
+        return false;
+    }
+    parser.consumeToken(TokenType::CommaSym);
+    return true;
+}
+
 StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start) {
 
     if(consumeToken(TokenType::LBrace)) {
@@ -17,21 +34,19 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
 #ifdef LSP_BUILD
                 id->linked = structValue;
 #endif
-                if(!consumeToken(TokenType::ColonSym)) {
-                    error() << "expected a ':' for initializing struct member " << id->value;
+                if(!parseMem(*this, allocator, structValue, id->value)) {
                     return structValue;
                 }
-                auto expression = parseExpressionOrArrayOrStruct(allocator);
-                if(expression) {
-                    const auto id_view = allocate_view(allocator, id->value);
-                    structValue->values.emplace(id_view, StructMemberInitializer { id_view, expression });
-                } else {
-                    error() << "expected an expression after ':' for struct member " << id->value;
-                    return structValue;
-                }
-                consumeToken(TokenType::CommaSym);
             } else {
-                break;
+                if(token->type == TokenType::String) {
+                    auto& key = token->value;
+                    token++;
+                    if(!parseMem(*this, allocator, structValue, key)) {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
         } while(true);
 

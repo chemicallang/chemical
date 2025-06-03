@@ -141,7 +141,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
     // =
     if (!consumeToken(TokenType::EqualSym)) {
         if (assOp.has_value()) {
-            error("expected an equal for assignment after the assignment operator");
+            unexpected_error("expected an equal for assignment after the assignment operator");
         }
         const auto lhs_kind = lhs->val_kind();
         if (lhs_kind == ValueKind::AccessChain) {
@@ -168,7 +168,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         if(init) {
             stmt->value = expr;
         } else {
-            error("expected a value for variable assignment");
+            unexpected_error("expected a value for variable assignment");
             return stmt;
         }
     }

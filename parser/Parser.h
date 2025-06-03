@@ -241,7 +241,7 @@ public:
      * record a diagnostic with the given severity at token position
      */
     inline Diag& diagnostic(DiagSeverity severity) {
-        return empty_diagnostic(token->position, severity) << " got \"" << token->value << "\"";
+        return empty_diagnostic(token->position, severity);
     }
 
     /**
@@ -298,6 +298,13 @@ public:
      */
     inline void error(const chem::string_view& message) {
         diagnostic(DiagSeverity::Error) << message;
+    }
+
+    /**
+     * create info diagnostic with the following message at current token position
+     */
+    inline void unexpected_error(const chem::string_view& message) {
+        diagnostic(DiagSeverity::Error) << message << ", got '" << token->value << '\'';
     }
 
     /**

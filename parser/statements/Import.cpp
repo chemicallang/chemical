@@ -25,7 +25,7 @@ bool parseImportFromPart(BasicParser& parser, ASTAllocator& allocator, ImportSta
             stmt->filePath = str2->get_the_string();
             return true;
         } else {
-            parser.error("expected path after 'from' in import statement");
+            parser.unexpected_error("expected path after 'from' in import statement");
             return false;
         }
     } else {
@@ -43,7 +43,7 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
             if(id) {
                 stmt->as_identifier = allocate_view(allocator, id->value);
             } else {
-                error("expected identifier after 'as' in import statement");
+                unexpected_error("expected identifier after 'as' in import statement");
                 return stmt;
             }
         }
@@ -58,7 +58,7 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
         } while (consumeDotOrDCol(*this));
         if(stmt->identifier.empty()) {
             if(error_out) {
-                error("expected a single identifier or a string path in import statement");
+                unexpected_error("expected a single identifier or a string path in import statement");
                 return stmt;
             } else {
                 return nullptr;
@@ -72,7 +72,7 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
             if(id) {
                 stmt->as_identifier = allocate_view(allocator, id->value);
             } else {
-                error("expected identifier after 'as' in import statement");
+                unexpected_error("expected identifier after 'as' in import statement");
                 return stmt;
             }
         }
@@ -82,7 +82,7 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
         if(id) {
             stmt->if_condition = allocate_view(allocator, id->value);
         } else {
-            error("expected if condition identifier in import statement");
+            unexpected_error("expected if condition identifier in import statement");
         }
     }
     return stmt;
@@ -172,7 +172,7 @@ bool BasicParser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator,
             nodes.emplace_back(single);
             return true;
         } else {
-            error("expected an import inside the import list");
+            unexpected_error("expected an import inside the import list");
             return false;
         }
     }

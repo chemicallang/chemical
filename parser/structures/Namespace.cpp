@@ -10,7 +10,7 @@ Namespace* Parser::parseNamespace(ASTAllocator& allocator, AccessSpecifier speci
         token++;
         auto id = consumeIdentifierOrKeyword();
         if(!id) {
-            error("expected identifier for namespace name");
+            unexpected_error("expected identifier for namespace name");
             return nullptr;
         }
         auto ns = new (allocator.allocate<Namespace>()) Namespace(loc_id(allocator, id), parent_node, loc_single(tok), specifier);

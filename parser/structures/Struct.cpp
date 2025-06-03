@@ -32,7 +32,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
 #endif
 
     if(!consumeToken(TokenType::ColonSym)) {
-        error("expected a colon symbol after the identifier");
+        unexpected_error("expected a colon symbol after the identifier");
     }
 
     auto type = parseTypeLoc(allocator);

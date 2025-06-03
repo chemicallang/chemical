@@ -166,7 +166,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         auto type = typeLoc.getType();
         if (type) {
         } else {
-            error("expected a type after ':' when lexing a lambda in parenthesized expression");
+            unexpected_error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
         auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), typeLoc, 0, nullptr, false, parent_node, loc_single(identifier));

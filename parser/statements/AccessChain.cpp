@@ -53,7 +53,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
     if(id->type == TokenType::StructKw) {
         const auto value = (Value*) parseStructValue(allocator, nullptr, id->position);
         if(!value) {
-            error("expected '{' after the struct keyword for unnamed struct value");
+            unexpected_error("expected '{' after the struct keyword for unnamed struct value");
         }
 #ifdef LSP_BUILD
         id->linked = value;
@@ -93,7 +93,7 @@ AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
         if (chain) {
             return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
         } else {
-            error("expected a value after '&' for address of");
+            unexpected_error("expected a value after '&' for address of");
             return nullptr;
         }
     } else {
@@ -112,7 +112,7 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
             if(expr) {
                 return new(allocator.allocate<DereferenceValue>()) DereferenceValue(expr, loc_single(token2));
             } else {
-                error("expected a value after '*' for dereference");
+                unexpected_error("expected a value after '*' for dereference");
                 return nullptr;
             }
         }
@@ -207,7 +207,7 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
         } while (consumeToken(TokenType::CommaSym));
         consumeNewLines();
         if (!consumeToken(TokenType::RParen)) {
-            error("expected a ')' for a function call, after starting '('");
+            unexpected_error("expected a ')' for a function call, after starting '('");
             return call;
         }
         return call;
@@ -227,7 +227,7 @@ void Parser::parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& a
             }
         } while(consumeToken(TokenType::CommaSym));
         if (!consumeToken(TokenType::GreaterThanSym)) {
-            error("expected a '>' for generic list in function call");
+            unexpected_error("expected a '>' for generic list in function call");
         }
     }
 }
@@ -269,7 +269,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
                 return nullptr;
             }
         } else {
-            error("expected a '(' or '{' after the generic list for a function call or struct initialization");
+            unexpected_error("expected a '(' or '{' after the generic list for a function call or struct initialization");
         }
     }
 

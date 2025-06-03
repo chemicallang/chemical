@@ -12,32 +12,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path) {
-    return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
-}
-
 std::string resolve_rel_child_path_str(const std::string_view& root_path, const std::string_view& file_path) {
     return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
 }
-
-std::string resolve_parent_path(const std::string& root_path) {
-    return ((std::filesystem::path) root_path).parent_path().string();
-}
-
 std::string resolve_parent_path(const std::string_view& root_path) {
     return ((std::filesystem::path) root_path).parent_path().string();
 }
 
-std::string resolve_non_canon_parent_path(const std::string& root_path, const std::string& file_path) {
-    return (((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
-}
-
 std::string resolve_non_canon_parent_path(const std::string_view& root_path, const std::string_view& file_path) {
     return (((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
-}
-
-std::string resolve_sibling(const std::string& rel_to, const std::string& sibling) {
-    return (((std::filesystem::path) rel_to).parent_path() / ((std::filesystem::path) sibling)).string();
 }
 
 std::string resolve_sibling(const std::string_view& rel_to, const std::string_view& sibling) {
@@ -60,17 +43,6 @@ std::string resolve_rel_parent_path_str(const std::string_view& root_path, const
     }
 }
 
-
-std::string resources_path_rel_to_exe(const std::string& exe_path) {
-    auto res = resolve_rel_parent_path_str(exe_path, "resources");
-#ifdef DEBUG
-    if(res.empty()) {
-        res = resolve_rel_parent_path_str(exe_path, "../lib/include");
-    }
-#endif
-    return res;
-}
-
 std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
     auto res = resolve_rel_parent_path_str(exe_path, "resources");
 #ifdef DEBUG
@@ -81,14 +53,6 @@ std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
     return res;
 }
 
-std::string canonical_path(const std::string& path) {
-    try {
-        return std::filesystem::canonical(((std::filesystem::path) path)).string();
-    } catch (std::filesystem::filesystem_error& e) {
-        return "";
-    }
-};
-
 std::string canonical(const std::string_view& path) {
     try {
         return std::filesystem::canonical(((std::filesystem::path) path)).string();
@@ -98,10 +62,6 @@ std::string canonical(const std::string_view& path) {
 }
 
 std::string absolute_path(const std::string_view& relative) {
-    return std::filesystem::absolute(relative).string();
-}
-
-std::string absolute_path(const std::string& relative) {
     return std::filesystem::absolute(relative).string();
 }
 

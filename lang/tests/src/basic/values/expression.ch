@@ -1,3 +1,7 @@
+func ret_log_expr_1() : bool {
+    return (false || false) && !(false && false)
+}
+
 func test_bodmas() {
     test("4 + 2 / 2 == 5", () => {
         return (4 + 2 / 2) == 5;
@@ -139,5 +143,16 @@ func test_bodmas() {
         } else {
             return false;
         }
+    })
+    test("nested logical expressions work - 1", () => {
+        return ret_log_expr_1() == false;
+    })
+    test("nested logical expressions work - 2", () => {
+        const res = (false || false) && !(false && false)
+        return !res;
+    })
+    test("nested logical expressions work - 3", () => {
+        var res = (false || false) && !(false && false)
+        return !res;
     })
 }

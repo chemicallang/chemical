@@ -89,16 +89,6 @@ func test_is_value() {
         type T = bool;
         return !(T is ushort || T is int || T is uint || T is bigint || T is char || T is uchar || T is short || T is long || T is ubigint);
     })
-    /** TODO these tests fail because of code generation failure of PHI nodes
-    test("long is either an int or a big int but not both", () => {
-        type T = long;
-        return (T is int || T is bigint) && !(T is int && T is bigint)
-    })
-    test("ulong is either an uint or a ubigint but not both", () => {
-        type T = ulong;
-        return (T is uint || T is ubigint) && !(T is uint && T is ubigint)
-    })
-    **/
     test("same pointer types do match", () => {
         type T = *void
         type K = *char

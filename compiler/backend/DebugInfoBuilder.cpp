@@ -430,6 +430,9 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
             builder->createExpression()
         );
     } else {
+        if(init->is_const()) {
+            return;
+        }
         llvm::DILocalVariable* Var = builder->createAutoVariable(
                 diScopes.back(),
                 to_ref(init->name_view()),

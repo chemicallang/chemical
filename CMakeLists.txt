@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.12)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical" VERSION 0.0.9)
+project("chemical" VERSION 0.0.10)
 
 # Set C++ standard 20
 set(CMAKE_CXX_STANDARD 20)
@@ -598,25 +598,6 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
 # lsp framework
 add_subdirectory(lib/lsp-framework)
 
-################################################
-# ——— Add Asio as INTERFACE target ———
-################################################
-# threading (Asio needs this)
-find_package(Threads REQUIRED)
-add_library(asio_lib INTERFACE)
-# point at the standalone Asio headers
-set(ASIO_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/lib/asio/asio/include)
-# attach that include‑dir to our INTERFACE target
-target_include_directories(asio_lib
-        INTERFACE
-        $<BUILD_INTERFACE:${ASIO_INCLUDE_DIRS}>
-        $<INSTALL_INTERFACE:include>         # if you ever install
-)
-# define ASIO_STANDALONE for any consumer
-target_compile_definitions(asio_lib INTERFACE ASIO_STANDALONE)
-# link OS threads
-target_link_libraries(asio_lib INTERFACE Threads::Threads)
-
 # Add an executable target for the second executable
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
 
@@ -783,4 +764,4 @@ if(UNIX)
 endif()
 
 # Link Lsp
-target_link_libraries(ChemicalLsp ${LIBTCC_LIB} asio_lib lsp)
+target_link_libraries(ChemicalLsp ${LIBTCC_LIB} lsp)

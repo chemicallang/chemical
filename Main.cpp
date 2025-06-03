@@ -5,6 +5,8 @@
 #include <lsp/connection.h>
 #include <lsp/io/standardio.h>
 #include <lsp/messagehandler.h>
+#include <lsp/io/stream.h>
+#include <lsp/io/socket.h>
 #include <iostream>
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
@@ -17,53 +19,23 @@
 #include <utility>
 #include "utils/JsonUtils.h"
 
-#include <asio.hpp>
+#include <sstream>
 #include <iostream>
 #include <memory>
 #include <thread>
 
-// 1) A Stream over asio::ip::tcp::socket
-class SocketStream : public lsp::io::Stream {
-public:
-  SocketStream(std::shared_ptr<asio::ip::tcp::socket> sock)
-    : socket_(std::move(sock))
-  {}
-
-  // Blocking read: returns number of bytes read or throws on error
-  void read(char* data, size_t size) override {
-    asio::error_code ec;
-    size_t n = socket_->read_some(asio::buffer(data, size), ec);
-    if (ec) {
-        std::cerr << "Socket read failed: " << ec.message() << std::endl;
-    }
-  }
-
-  // Blocking write: writes all bytes or throws on error
-  void write(const char* data, size_t size) override {
-    asio::error_code ec;
-    asio::write(*socket_, asio::buffer(data, size), ec);
-    if (ec) {
-      throw std::runtime_error("Socket write failed: " + ec.message());
-    }
-  }
-
-private:
-  std::shared_ptr<asio::ip::tcp::socket> socket_;
-};
-
-
 // 2) Per-client session: runs the LSP loop until error or disconnect
 void run_session(
         std::atomic_bool& g_shutdown,
-        asio::ip::tcp::acceptor& acceptor,
-        std::shared_ptr<asio::ip::tcp::socket> sock,
+        lsp::io::SocketListener& listener,
+        lsp::io::Socket socket,
         const char* executable_path
 ) {
   try {
 
     bool local_shutdown = false;
-    SocketStream stream(sock);
-    lsp::Connection connection(stream);
+//    SocketStream stream();
+    lsp::Connection connection(socket);
     lsp::MessageHandler handler(connection);
     WorkspaceManager manager(executable_path, handler);
 
@@ -139,7 +111,7 @@ void run_session(
         manager.onChangedContents(params.textDocument.uri.path(), params.contentChanges);
     });
 
-    handler.add<lsp::requests::Shutdown>([sock, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
+    handler.add<lsp::requests::Shutdown>([&listener, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
         std::cout << "[LSP] Shutdown requested." << std::endl;
         // 1) mark both local and global shutdown
         local_shutdown = true;
@@ -155,30 +127,13 @@ void run_session(
     }
 
     // Now the Shutdown response has gone out, we can close.
-    asio::error_code sec;
-    sock->shutdown(asio::ip::tcp::socket::shutdown_both, sec);
-    if(sec) {
-        std::cout << "[LSP] error shutting down socket " << sec.message() << std::endl;
-    } else {
-        std::cout << "[LSP] Session socket shutdown." << std::endl;
-    }
-
-    asio::error_code cec;
-    sock->close(cec);
-    if(cec) {
-        std::cout << "[LSP] error closing socket " << cec.message() << std::endl;
-    } else {
-        std::cout << "[LSP] Session socket closed." << std::endl;
-    }
+    std::cout << "[LSP] Shutting down socket." << std::endl;
+    socket.close();
 
     // If this was *the* session that asked us to shut down,
     // we should also close the acceptor (to break out of main’s accept loop):
     if (g_shutdown.load(std::memory_order_relaxed)) {
-        asio::error_code ec;
-        acceptor.close(ec);
-        if(ec) {
-            std::cout << "[LSP] error closing acceptor " << ec.message() << std::endl;
-        }
+        listener.shutdown();
     }
     std::cout << "[LSP] Session thread exiting." << std::endl;
 
@@ -193,33 +148,6 @@ void run_session(
   }
   // thread exits, socket closed on destruction
 }
-
-//bool isPortOccupied(unsigned short port) {
-//    using asio::ip::tcp;
-//
-//    asio::io_context io_service;
-//    tcp::acceptor acceptor(io_service);
-//
-//    asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port);
-//    asio::error_code error;
-//
-//    // Attempt to bind the acceptor to the port
-//    acceptor.open(endpoint.protocol(), error);
-//    if (error) {
-//        std::cerr << "Error opening socket: " << error.message() << std::endl;
-//        return true; // Port might be occupied
-//    }
-//
-//    acceptor.bind(endpoint, error);
-//    if (error) {
-//        std::cerr << "Error binding socket: " << error.message() << std::endl;
-//        return true; // Port is likely occupied
-//    }
-//
-//    // If we successfully bind, we can close the acceptor and return false
-//    acceptor.close();
-//    return false;
-//}
 
 //bool ShouldIgnoreFileForIndexing(const std::string &path) {
 //    return StartsWith(path, "git:");
@@ -811,7 +739,6 @@ int main(int argc, char *argv[]) {
     }
 
     int port_int;
-    asio::ip::port_type x;
     try {
         port_int = std::atoi(port.data());
     } catch(...) {
@@ -819,45 +746,34 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    std::cout << "[LSP] Listening on port " << port << std::endl;
+
+    std::atomic<bool> g_shutdown{false};
+    auto socketListener = lsp::io::SocketListener(port_int);
+
     try {
 
-        std::atomic<bool> g_shutdown{false};
-        asio::io_context ioctx{1};
-        asio::ip::tcp::acceptor acceptor(
-                ioctx,
-                asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port_int)
-        );
+        while(socketListener.isReady()) {
+            auto socket = socketListener.listen();
 
-        std::cout << "[LSP] Listening on port " << port << std::endl;
-
-        while (!g_shutdown.load(std::memory_order_relaxed)) {
-
-            auto socket = std::make_shared<asio::ip::tcp::socket>(ioctx);
-
-            asio::error_code ec;
-            acceptor.accept(*socket, ec);
-            if (ec == asio::error::operation_aborted || ec == asio::error::interrupted) {
-                // global shutdown—stop accepting
+            if(!socket.isOpen()) {
+                std::cout << "[LSP] Socket Not Open" << std::endl;
                 break;
             }
-            if (ec) {
-                std::cerr << "[LSP] Accept error: " << ec.message() << std::endl;
-                continue;
-            }
 
-            std::cout << "[LSP] Accepted connection from " << socket->remote_endpoint() << std::endl;
+            std::cout << "[LSP] Accepted connection"  << std::endl;
 
             // Detach a thread to serve this client
-            std::thread(&run_session, std::ref(g_shutdown), std::ref(acceptor), socket, argv[0]).detach();
-        }
+            std::thread(&run_session, std::ref(g_shutdown), std::ref(socketListener), std::move(socket), argv[0]).detach();
 
-        std::cout << "[LSP] Server shutting down." << std::endl;
-        ioctx.stop();
+        }
 
     } catch (const std::exception& e) {
         std::cerr << "[LSP][Fatal] " << e.what() << "\n";
         return 1;
     }
+
+    std::cout << "[LSP] Server shutting down." << std::endl;
 
     return 0;
 

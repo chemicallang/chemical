@@ -23,7 +23,7 @@ ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
     if(tok.type == TokenType::ReturnKw) {
         token++;
         auto stmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(nullptr, parent_node, loc_single(tok));
-        auto expr = parseExpression(allocator, true);
+        auto expr = parseExpressionOrArrayOrStruct(allocator);
         if(expr) {
             stmt->value = expr;
         }

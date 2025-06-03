@@ -321,3 +321,14 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
     return parseRemainingExpression(allocator, first_value, &start_tok);
 
 }
+
+Value* Parser::parseExpressionOrArrayOrStruct(ASTAllocator& allocator, bool parseLambda) {
+    switch(token->type) {
+        case TokenType::LBracket:
+            return parseArrayInit(allocator);
+        case TokenType::LBrace:
+            return (Value*) parseStructValue(allocator, nullptr, token->position);
+        default:
+            return parseExpression(allocator, true, parseLambda);
+    }
+}

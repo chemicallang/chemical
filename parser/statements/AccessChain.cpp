@@ -195,14 +195,11 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* ch
         token++;
         do {
             consumeNewLines();
-            auto expr = parseExpression(allocator, true);
+            auto expr = parseExpressionOrArrayOrStruct(allocator);
             if(expr) {
                 call->values.emplace_back(expr);
             } else {
-                auto init = parseArrayInit(allocator);
-                if(init) {
-                    call->values.emplace_back(init);
-                }
+                break;
             }
         } while (consumeToken(TokenType::CommaSym));
         consumeNewLines();

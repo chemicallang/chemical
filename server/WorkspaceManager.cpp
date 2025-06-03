@@ -225,7 +225,7 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
     }
 }
 
-std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string& path) {
+std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string_view& path) {
     const auto abs_path = canonical(path);
     auto unit = get_decl_ast(abs_path);
     return folding_analyze(loc_man, unit->unit.scope.body.nodes);
@@ -289,7 +289,7 @@ std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::st
 //    return rsp;
 //}
 //
-std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string& path) {
+std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string_view& path) {
     const auto abs_path = canonical(path);
     auto ast = get_decl_ast(abs_path);
     DocumentSymbolsAnalyzer analyzer(loc_man);
@@ -308,17 +308,8 @@ std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string
 //    return rsp;
 //}
 
-std::string WorkspaceManager::canonical(const std::string& path) {
-    try {
-        return std::filesystem::canonical(((std::filesystem::path) path)).string();
-    } catch (std::filesystem::filesystem_error& e) {
-        std::cerr << "[LSP_ERROR] onChangedContents : couldn't determine canonical path for " << path << std::endl;
-        return "";
-    }
-}
-
 void WorkspaceManager::onChangedContents(
-        const std::string &abs_path,
+        const std::string_view &abs_path,
         const std::vector<lsp::TextDocumentContentChangeEvent> &changes
 ) {
 

@@ -15,8 +15,6 @@
 #include <filesystem>
 #include <mutex>
 
-std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path);
-
 std::mutex& WorkspaceManager::parse_lock_path_mutex(const std::string& path) {
     // multiple calls with different paths to this function are allowed
     // multiple calls with same paths will be processed sequentially

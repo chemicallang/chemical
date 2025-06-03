@@ -272,7 +272,7 @@ public:
     /**
      * get the folding range for the given absolute file path
      */
-    std::vector<lsp::FoldingRange> get_folding_range(const std::string& path);
+    std::vector<lsp::FoldingRange> get_folding_range(const std::string_view& path);
 //
 //    /**
 //     * get completion response for the given absolute file path
@@ -289,7 +289,7 @@ public:
     /**
      * get semantic tokens full response for the given document uri
      */
-    std::vector<uint32_t> get_semantic_tokens_full(const std::string& path);
+    std::vector<uint32_t> get_semantic_tokens_full(const std::string_view& path);
 //
 //    /**
 //     * get definition at position in the given document
@@ -299,7 +299,7 @@ public:
     /**
      * get symbols in the document
      */
-    std::vector<lsp::DocumentSymbol> get_symbols(const std::string& path);
+    std::vector<lsp::DocumentSymbol> get_symbols(const std::string_view& path);
 //
 //    /**
 //     * get a hover response in the given document at position
@@ -497,17 +497,11 @@ public:
     std::optional<std::string> get_overridden_source(const std::string& path);
 
     /**
-     * will give canonical path, when provided an absolute path, or empty string
-     * will also report in cerr if couldn't determine canonical path
-     */
-    std::string canonical(const std::string& path);
-
-    /**
      * Its called with the changes that have been performed to the contents of a file in the IDE \n
      * Then reads the file, performs the changes to source code (in memory) \n
      * Then calls onChangedContents above to store the changed source coe as overridden contents \n
      */
-    void onChangedContents(const std::string &uri, const std::vector<lsp::TextDocumentContentChangeEvent>& changes);
+    void onChangedContents(const std::string_view &uri, const std::vector<lsp::TextDocumentContentChangeEvent>& changes);
 
     /**
      * when a file is closed by the user in the IDE \n

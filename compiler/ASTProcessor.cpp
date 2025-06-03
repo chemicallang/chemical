@@ -98,7 +98,7 @@ void ASTProcessor::determine_module_files(
     switch(module->type) {
         case LabModuleType::Files: {
             for (auto& str: module->paths) {
-                auto abs_path = canonical_path(str.data());
+                auto abs_path = canonical_path(str.to_view());
                 if (abs_path.empty()) {
                     std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine canonical path for file '" << str.data() << "' in module '" << module->name << '\'' << std::endl;
                     continue;

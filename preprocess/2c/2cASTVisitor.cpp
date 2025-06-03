@@ -3364,8 +3364,10 @@ void call_variant_param_func(
     FunctionDeclaration*(*choose_func)(MembersContainer*)
 ) {
     auto mem_type = mem_param->type;
-    const auto linked = mem_type->linked_node();
-    auto mem_def = linked->as_members_container();
+    const auto mem_def = mem_type->get_members_container();
+    if(!mem_def) {
+        return;
+    }
     auto func = choose_func(mem_def);
     if (!func) {
         return;

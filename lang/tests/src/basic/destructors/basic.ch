@@ -237,8 +237,23 @@ variant OptDestructible {
     None()
 }
 
+variant OptDestructible2 {
+    Some(d : DestructibleAlias)
+    None()
+}
+
 func test_variant_destruction_simple(count : *mut int) {
     var d = OptDestructible.Some(Destructible {
+        count : count,
+        lamb : (count : *mut int) => {
+            *count = *count + 1;
+        },
+        data : 3422
+     })
+}
+
+func test_variant_destruction_simple2(count : *mut int) {
+    var d = OptDestructible2.Some(DestructibleAlias {
         count : count,
         lamb : (count : *mut int) => {
             *count = *count + 1;
@@ -875,6 +890,11 @@ func test_destructors() {
         var count = 0
         test_variant_destruction_simple(&count);
         return count == 1
+    })
+    test("variant destructs the typealias struct allocated within it", () => {
+        var count = 0
+        test_variant_destruction_simple2(&count)
+        return count == 1;
     })
     test("variant destruction at early return : true", () => {
          var count = 0;

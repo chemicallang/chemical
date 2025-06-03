@@ -116,7 +116,7 @@ public:
     /**
      * declare alias for a path
      */
-    static void declare_alias(std::unordered_map<std::string, std::string>& aliases, std::string alias, std::string path);
+    static void declare_alias(std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases, std::string alias, std::string path);
 
     /**
      * declare alias for a path for user into given job

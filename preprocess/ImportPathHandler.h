@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <string>
+#include "StringViewHashEqual.h"
 #include <unordered_map>
 #include <vector>
 #include "std/chem_string_view.h"
@@ -29,7 +29,7 @@ class ASTNode;
 
 class ImportPathHandler;
 
-using ImportPathResolverFn = AtReplaceResult(*)(ImportPathHandler& handler, const std::string& filePath, unsigned int slash);
+using ImportPathResolverFn = AtReplaceResult(*)(ImportPathHandler& handler, const std::string_view& filePath, unsigned int slash);
 
 class ImportPathHandler {
 public:
@@ -58,13 +58,13 @@ public:
      * for example @system/std.io, where system is a path resolver, that takes the full path @system/std.io
      * including the index at where '/' occurred and returns the result of replacement
      */
-    std::unordered_map<std::string, ImportPathResolverFn> path_resolvers;
+    std::unordered_map<std::string, ImportPathResolverFn, StringHash, StringEqual> path_resolvers;
 
     /**
      * path aliases are used to basically alias a path using '@'
      * when user will import using an '@' we will
      */
-    std::unordered_map<std::string, std::string> path_aliases;
+    std::unordered_map<std::string, std::string, StringHash, StringEqual> path_aliases;
 
     /**
      * constructor
@@ -74,7 +74,7 @@ public:
     /**
      * get containing system headers directory for the following header
      */
-    std::string headers_dir(const std::string &header);
+    std::string headers_dir(const std::string_view &header);
 
     /**
      * a module identifier is created based on import path that includes a '@' symbol in front
@@ -106,6 +106,14 @@ public:
     );
 
     /**
+     * replace '@' in path
+     */
+    AtReplaceResult replace_at_in_path(
+            const std::string_view& filePath,
+            const std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases
+    );
+
+    /**
      * a helper method
      */
     inline AtReplaceResult replace_at_in_path(const std::string &filePath) {
@@ -113,9 +121,21 @@ public:
     }
 
     /**
+     * a helper method
+     */
+    inline AtReplaceResult replace_at_in_path(const std::string_view &filePath) {
+        return replace_at_in_path(filePath, path_aliases);
+    }
+
+    /**
      * resolve given import path
      */
     AtReplaceResult resolve_import_path(const std::string& base_path, const std::string& import_path);
+
+    /**
+     * resolve given import path
+     */
+    AtReplaceResult resolve_import_path(const std::string_view& base_path, const std::string_view& import_path);
 
     /**
      * in .mod or build.lab files imports on modules are done using import statements

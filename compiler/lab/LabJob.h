@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "std/chem_string.h"
 #include "LabJobType.h"
+#include "preprocess/StringViewHashEqual.h"
 #include "compiler/cbi/model/CBIData.h"
 #include "compiler/cbi/model/CBIFunctionIndex.h"
 
@@ -61,7 +62,7 @@ struct LabJob {
      * path aliases are used to basically alias a path using '@'
      * when user will import using an '@' we will replace it with the actual path
      */
-    std::unordered_map<std::string, std::string> path_aliases;
+    std::unordered_map<std::string, std::string, StringHash, StringEqual> path_aliases;
 
     /**
      * definitions are user defined build variables, that user can use at compile

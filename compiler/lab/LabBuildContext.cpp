@@ -41,7 +41,7 @@ void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string_vi
     }
 }
 
-void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string>& aliases, std::string alias, std::string path) {
+void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases, std::string alias, std::string path) {
     const auto path_last = path.size() - 1;
     if(path[path_last] == '/') {
         path = path.substr(0, path_last);

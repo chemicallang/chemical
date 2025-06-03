@@ -19,7 +19,7 @@ FileNodesIterator get_iterator(SymbolResolver& linker, ImportStatement* stmt) {
     if(p && p->kind() == ASTNodeKind::FileScope) {
         const auto current_file = p->as_file_scope_unsafe();
 //        const auto curr_mod = current_file->parent();
-        const auto result = linker.path_handler.resolve_import_path(current_file->file_path.str(), stmt->filePath.str());
+        const auto result = linker.path_handler.resolve_import_path(current_file->file_path.view(), stmt->filePath.view());
 //        const auto id = linker.path_handler.get_mod_identifier_from_import_path(result.replaced);
         if (result.error.empty()) {
             auto found = linker.declared_files.find(chem::string_view(result.replaced));

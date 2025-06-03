@@ -175,6 +175,14 @@ func test_no_type_structs() {
             b : 4
         }) == 54
     })
+    test("can store structs without type in other structs", () => {
+        var p = IntPair { pair : { a : 87, b : 32 } }
+        return p.pair.a == 87 && p.pair.b == 32
+    })
+    test("can store structs without type in arrays", () => {
+        var p : Pair[] = [ { a : 45, b : 76 } ]
+        return p[0].a == 45 && p[0].b == 76
+    })
     test("can store structs without type in variants", () => {
         var v = PairVarCon.Some({
             a : 87, b : 99
@@ -187,6 +195,11 @@ func test_no_type_structs() {
                 return false;
             }
         }
+    })
+    test("can store structs without type in assignment", () => {
+        var p = Pair { a : 10, b : 20 }
+        p = { a : 66, b : 77 }
+        return p.a == 66 && p.b == 77
     })
 }
 

@@ -11,11 +11,6 @@
 #include "utils/CmdUtils.h"
 #include "utils/Version.h"
 
-//using namespace asio::ip;
-using namespace std;
-using namespace lsp;
-
-
 #include <thread>
 #include <atomic>
 #include <functional>
@@ -95,13 +90,13 @@ void run_session(
              }
          );
 
-        std::variant<bool, FoldingRangeOptions, FoldingRangeRegistrationOptions> foldingOptions;
-        foldingOptions.emplace<FoldingRangeOptions>(FoldingRangeOptions{
+        std::variant<bool, lsp::FoldingRangeOptions, lsp::FoldingRangeRegistrationOptions> foldingOptions;
+        foldingOptions.emplace<lsp::FoldingRangeOptions>(lsp::FoldingRangeOptions{
                 .workDoneProgress = std::nullopt
         });
 
-        std::variant<bool, DocumentSymbolOptions> symbolOptions;
-        symbolOptions.emplace<DocumentSymbolOptions>(DocumentSymbolOptions{
+        std::variant<bool, lsp::DocumentSymbolOptions> symbolOptions;
+        symbolOptions.emplace<lsp::DocumentSymbolOptions>(lsp::DocumentSymbolOptions{
                 .workDoneProgress = std::nullopt,
                 .label = std::nullopt
         });
@@ -133,7 +128,7 @@ void run_session(
     });
 
     handler.add<lsp::requests::TextDocument_DocumentSymbol>([&manager](lsp::requests::TextDocument_DocumentSymbol::Params&& params){
-        return lsp::NullableVariant<std::vector<SymbolInformation>, std::vector<lsp::DocumentSymbol>>(manager.get_symbols(params.textDocument.uri.path()));
+        return lsp::NullableVariant<std::vector<lsp::SymbolInformation>, std::vector<lsp::DocumentSymbol>>(manager.get_symbols(params.textDocument.uri.path()));
     });
 
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){

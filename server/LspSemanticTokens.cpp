@@ -5,6 +5,7 @@
 //
 
 #include "utils/FileUtils.h"
+#include "utils/PathUtils.h"
 #include "lsp/types.h"
 #include "lsp/messages.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
@@ -28,7 +29,7 @@
  * when doing symbol resolution, we also collect diagnostics, which is tightly coupled with symbol resolution
  * so we do everything here, that's why notify_async is true, sending notification is done asynchronously
  */
-std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string& path) {
+std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string_view& path) {
     auto abs_path = canonical(path);
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);
@@ -64,7 +65,7 @@ void WorkspaceManager::notify_diagnostics_async(
     build_diagnostics(diagnostics_list, diags);
     std::async(std::launch::async, [this, path, diagnostics = std::move(diagnostics_list)] {
         auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
-                lsp::FileURI(path), std::move(diagnostics), std::nullopt
+                lsp::FileUri(path), std::move(diagnostics), std::nullopt
         };
         handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
     });

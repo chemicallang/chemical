@@ -485,11 +485,19 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
             return first;
         }
 
+        // this is here because the second value maybe a logical expressions and it may create
+        // call this method and create two more blocks, in that case we should point at the right block
+        // the final block which contains the second evaluated value
+        auto final_second = gen.builder->GetInsertBlock();
+
         gen.CreateBr(end_block, encoded_location());
         gen.SetInsertPoint(end_block);
         auto phi = gen.builder->CreatePHI(gen.builder->getInt1Ty(), 2);
         phi->addIncoming(gen.builder->getInt1(operation == Operation::LogicalOR), current_block);
-        phi->addIncoming(second, second_block);
+        // the reason we use the second value, if it came from the second block
+        // is because if && then both values have to be true for it to go to second block (true in that case)
+        // if || then second value is only calculated if first was true and second value would determine the result of expression
+        phi->addIncoming(second, final_second);
         return phi;
     }
     return nullptr;

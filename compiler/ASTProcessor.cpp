@@ -577,7 +577,7 @@ void ASTProcessor::figure_out_direct_imports(
                 // sometimes the scope is empty, so user can directly use -> import "@std/fs.ch"
                 if(stmt->filePath[0] == '@') {
 
-                    const auto atDirective = path_handler.get_atDirective(stmt->filePath.str());
+                    const auto atDirective = path_handler.get_atDirective(stmt->filePath.view());
 
                     // TODO this should be present in replace result, and that should be renamed to PathResolutionResult
                     const auto found = mod_storage.find_module(atDirective.replaced);

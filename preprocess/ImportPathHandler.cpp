@@ -75,7 +75,7 @@ AtReplaceResult lib_path_resolver(
 #endif
 }
 
-ModuleIdentifier ImportPathHandler::get_mod_identifier_from_import_path(const std::string& filePath) {
+ModuleIdentifier ImportPathHandler::get_mod_identifier_from_import_path(const std::string_view& filePath) {
     if(filePath[0] != '@') return { "", "" };
     auto slash = filePath.find('/');
     std::string_view directive_view;
@@ -184,44 +184,13 @@ std::string ImportPathHandler::headers_dir(const std::string_view &header) {
 
 }
 
-AtReplaceResult ImportPathHandler::get_atDirective_withAt(const std::string& filePath) {
-    if(filePath[0] != '@') return { filePath, "" };
+AtReplaceResult ImportPathHandler::get_atDirective(const std::string_view& filePath) {
+    if(filePath[0] != '@') return { std::string(filePath), "" };
     auto slash = filePath.find('/');
     if(slash == std::string::npos) {
-        return { filePath, "" };
+        return { std::string(filePath), "" };
     }
-    return { filePath.substr(0, slash), "" };
-}
-
-AtReplaceResult ImportPathHandler::get_atDirective(const std::string& filePath) {
-    if(filePath[0] != '@') return { filePath, "" };
-    auto slash = filePath.find('/');
-    if(slash == std::string::npos) {
-        return { filePath, "" };
-    }
-    return { filePath.substr(1, slash - 1), "" };
-}
-
-AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePath, const std::unordered_map<std::string, std::string>& aliases) {
-    if(filePath[0] != '@') return {filePath, ""};
-    auto slash = filePath.find('/');
-    if(slash == std::string::npos) {
-        slash = filePath.size();
-    }
-    auto atDirective = filePath.substr(1, slash - 1);
-    auto found = path_resolvers.find(atDirective);
-    if(found != path_resolvers.end()) {
-        return found->second(*this, filePath, slash);
-    }
-    auto next = aliases.find(atDirective);
-    if(next != aliases.end()) {
-        return { next->second + filePath.substr(slash), "" };
-    }
-    auto resolver = lib_path_replacer(atDirective, *this, filePath, slash);
-    if(resolver.error.empty()) {
-        return resolver;
-    }
-    return {filePath, "unknown '@' directive " + atDirective + " in import statement"};
+    return { std::string(filePath.substr(1, slash - 1)), "" };
 }
 
 AtReplaceResult ImportPathHandler::replace_at_in_path(
@@ -250,31 +219,6 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(
         return resolver;
     }
     return { std::string(filePath), "unknown '@' directive " + std::string(atDirective) + " in import statement"};
-}
-
-AtReplaceResult ImportPathHandler::resolve_import_path(const std::string& base_path, const std::string& import_path) {
-    const auto first_char = import_path[0];
-    if(first_char == '@') {
-        auto result = replace_at_in_path(import_path);
-        if(result.error.empty()) {
-            return { absolute_path(result.replaced), "" };
-        } else {
-            return { "", result.error };
-        }
-    } else if(first_char == '/') {
-        if(module_src_dir_path.empty()) {
-            return { "", "cannot resolve path without the module root directory" };
-        } else {
-            const auto child_path = resolve_rel_child_path_str(module_src_dir_path, std::string_view(import_path.data() + 1, import_path.size() - 1));
-            return { absolute_path(child_path), "" };
-        }
-    }
-    auto resolved = resolve_rel_parent_path_str(base_path, import_path);
-    if (resolved.empty()) {
-        return { "", "couldn't find the file to import " + import_path + " relative to base path " + resolve_parent_path(base_path) };
-    } else {
-        return { std::move(resolved), "" };
-    }
 }
 
 AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& base_path, const std::string_view& import_path) {

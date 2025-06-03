@@ -79,7 +79,7 @@ public:
     /**
      * a module identifier is created based on import path that includes a '@' symbol in front
      */
-    ModuleIdentifier get_mod_identifier_from_import_path(const std::string& path);
+    ModuleIdentifier get_mod_identifier_from_import_path(const std::string_view& path);
 
     /**
      * finds the directory path from scope and mod name
@@ -87,23 +87,9 @@ public:
     AtReplaceResult resolve_lib_dir_path(const chem::string_view& scope_name, const chem::string_view& mod_name);
 
     /**
-     * a path can be given to get the at directive
-     * the returned result also contains an '@'
-     */
-    AtReplaceResult get_atDirective_withAt(const std::string& path);
-
-    /**
      * a path can be given to get the at directive, the path has '@' in front
      */
-    AtReplaceResult get_atDirective(const std::string& path);
-
-    /**
-     * replace '@' in path
-     */
-    AtReplaceResult replace_at_in_path(
-        const std::string &filePath,
-        const std::unordered_map<std::string, std::string>& aliases
-    );
+    AtReplaceResult get_atDirective(const std::string_view& path);
 
     /**
      * replace '@' in path
@@ -116,21 +102,9 @@ public:
     /**
      * a helper method
      */
-    inline AtReplaceResult replace_at_in_path(const std::string &filePath) {
-        return replace_at_in_path(filePath, path_aliases);
-    }
-
-    /**
-     * a helper method
-     */
     inline AtReplaceResult replace_at_in_path(const std::string_view &filePath) {
         return replace_at_in_path(filePath, path_aliases);
     }
-
-    /**
-     * resolve given import path
-     */
-    AtReplaceResult resolve_import_path(const std::string& base_path, const std::string& import_path);
 
     /**
      * resolve given import path

@@ -793,19 +793,42 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
 
 void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& properly_linked) {
     auto& current_func = *linker.current_func_type;
+    const auto parent = parent_val->linked_node();
+    if(parent) {
+        const auto variant_mem = parent->as_variant_member();
+        if (variant_mem) {
+            unsigned i = 0;
+            const auto values_size = values.size();
+            const auto total_params = variant_mem->values.size();
+            while (i < values_size) {
+                auto& value_ptr = values[i];
+                auto& value = *value_ptr;
+                const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
+                const auto expected_type = param ? param->type : nullptr;
+                if (value.link(linker, value_ptr, expected_type)) {
+                    properly_linked[i] = true;
+                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                } else {
+                    properly_linked[i] = false;
+                }
+                i++;
+            }
+            return;
+        }
+    }
     auto func_type = function_type(linker.allocator);
-    if(func_type && !func_type->data.signature_resolved) {
+    if (func_type && !func_type->data.signature_resolved) {
         linker.error("calling a function whose signature couldn't be resolved", this);
         return;
     }
     unsigned i = 0;
     const auto values_size = values.size();
-    while(i < values_size) {
+    while (i < values_size) {
         auto& value_ptr = values[i];
         auto& value = *value_ptr;
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
-        if(value.link(linker, value_ptr, expected_type)) {
+        if (value.link(linker, value_ptr, expected_type)) {
             properly_linked[i] = true;
             current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         } else {

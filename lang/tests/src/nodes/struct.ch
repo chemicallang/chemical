@@ -38,11 +38,20 @@ struct IntPair {
     var pair : Pair
 }
 
+variant PairVarCon {
+    Some(pair : Pair)
+    None()
+}
+
 func create_pair() : Pair {
     return Pair {
         a : 33,
         b : 55
     }
+}
+
+func create_pair_no_type() : Pair {
+    return { a : 34, b : 56 }
 }
 
 func create_pair_as_variable() : Pair {
@@ -51,6 +60,18 @@ func create_pair_as_variable() : Pair {
         b : 66
     }
     return p;
+}
+
+func create_pair_as_variable_no_type() : Pair {
+    var p : Pair = {
+        a : 45,
+        b : 67
+    }
+    return p;
+}
+
+func take_struct_no_type(p : Pair) : int {
+    return p.a + p.b;
 }
 
 struct DeeplyNested3 {
@@ -139,7 +160,38 @@ struct IndirectFnStructPtr {
 
 // ----------------- Code Gen TEST End ----------------------
 
+func test_no_type_structs() {
+    test("can return created struct values without types", () => {
+        var pair = create_pair_no_type();
+        return pair.a == 34 && pair.b == 56;
+    })
+    test("can return a newly created struct without type that is referenced", () => {
+        var pair = create_pair_as_variable_no_type();
+        return pair.a == 45 && pair.b == 67;
+    })
+    test("can send structs without type to function calls", () => {
+        return take_struct_no_type({
+            a : 50,
+            b : 4
+        }) == 54
+    })
+    test("can store structs without type in variants", () => {
+        var v = PairVarCon.Some({
+            a : 87, b : 99
+        })
+        switch(v) {
+            Some(pair) => {
+                return pair.a == 87 && pair.b == 99;
+            }
+            None => {
+                return false;
+            }
+        }
+    })
+}
+
 func test_structs() {
+    test_no_type_structs();
     test("can return a newly created struct", () => {
         var pair = create_pair();
         return pair.a == 33 && pair.b == 55;

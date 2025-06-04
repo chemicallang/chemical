@@ -36,9 +36,7 @@ public:
 
     BaseType* create_type(ASTAllocator& allocator) final;
 
-    BaseType* known_type() final {
-        return &_ptr_type;
-    }
+    BaseType* known_type() final;
 
     ASTNode *linked_node() final {
         return value->linked_node();

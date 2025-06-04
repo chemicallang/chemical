@@ -7,7 +7,7 @@
 #include "SemanticTokensAnalyzer.h"
 #include "ast/base/ASTNode.h"
 #include "lsp/types.h"
-#include "cst/utils/StringHelpers.h"
+#include "utils/StringHelpers.h"
 
 #define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
 

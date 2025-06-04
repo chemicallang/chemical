@@ -7,7 +7,7 @@
 #pragma once
 
 #include "lsp/types.h"
-#include "integration/common/Position.h"
+#include "core/diag/Position.h"
 #include "CaretPositionAnalyzer.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 

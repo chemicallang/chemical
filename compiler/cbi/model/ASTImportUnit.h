@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 #include "ast/base/GlobalInterpretScope.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 
 class ASTResult;
 

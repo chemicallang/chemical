@@ -14,7 +14,7 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
-#include "cst/utils/ValueAndOperatorStack.h"
+#include "utils/ValueAndOperatorStack.h"
 
 void shunting_yard_on_operator(ValueAndOperatorStack& stack, ValueAndOperatorStack& final, Operation o1) {
     auto o1_precedence = to_precedence(o1);

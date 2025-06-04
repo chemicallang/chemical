@@ -10,7 +10,7 @@
 #include <vector>
 #include "stream/SourceProvider.h"
 #include "ast/utils/Operation.h"
-#include "integration/common/Diagnostic.h"
+#include "core/diag/Diagnostic.h"
 #include <memory>
 #include <optional>
 #include "compiler/ASTDiagnoser.h"
@@ -220,14 +220,14 @@ public:
      * make a diagnostic with given parameters, for the current file
      */
     Diag make_diag(Position start, const chem::string_view &message, DiagSeverity severity) {
-        return CSTDiagnoser::make_diag(message, get_file_path(), start, token->position, severity);
+        return Diagnoser::make_diag(message, get_file_path(), start, token->position, severity);
     }
 
     /**
      * get an empty diagnostic to append to
      */
     Diag& empty_diagnostic(const Position& start, const Position& end, DiagSeverity severity) {
-        return CSTDiagnoser::empty_diagnostic(get_file_path(), start, end, severity);
+        return Diagnoser::empty_diagnostic(get_file_path(), start, end, severity);
     }
 
     /**

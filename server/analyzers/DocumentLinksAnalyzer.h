@@ -4,7 +4,7 @@
 
 #include "lsp/types.h"
 #include <vector>
-#include "integration/common/Location.h"
+#include "core/diag/Location.h"
 
 class LexResult;
 

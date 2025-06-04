@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "integration/common/Position.h"
-#include "cst/SourceLocation.h"
+#include "core/diag/Position.h"
+#include "core/source/SourceLocation.h"
 #include "lexer/Token.h"
 #include <vector>
 

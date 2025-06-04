@@ -3,7 +3,7 @@
 #pragma once
 
 #include <string>
-#include "integration/common/Range.h"
+#include "core/diag/Range.h"
 
 /**
  * in a flattened import graph, each file is represented without it's imports

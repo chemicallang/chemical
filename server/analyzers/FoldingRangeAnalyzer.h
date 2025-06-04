@@ -9,7 +9,7 @@
 #include "lsp/types.h"
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "ast/base/ASTNode.h"
-#include "integration/common/Position.h"
+#include "core/diag/Position.h"
 #include "FoldingRangeAnalyzerApi.h"
 
 class LocationManager;

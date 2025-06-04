@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "integration/common/Diagnostic.h"
+#include "core/diag/Diagnostic.h"
 #include "FlatIGFile.h"
 #include "lexer/Token.h"
 #include "ast/base/BatchAllocator.h"

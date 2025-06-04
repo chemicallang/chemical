@@ -11,7 +11,7 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "Documentation.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 
 HoverAnalyzer::HoverAnalyzer(LocationManager& locMan, Position position) : loc_man(locMan), position(position) {
 

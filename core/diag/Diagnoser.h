@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "integration/common/Diagnostic.h"
-#include "cst/SourceLocation.h"
+#include "core/diag/Diagnostic.h"
+#include "core/source/SourceLocation.h"
 #include <string>
 #include <vector>
 
 class LocationManager;
 
-class CSTDiagnoser {
+class Diagnoser {
 public:
 
     /**

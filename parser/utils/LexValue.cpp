@@ -7,7 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/values/CharValue.h"
 #include "ast/values/StringValue.h"
-#include "cst/utils/StringHelpers.h"
+#include "utils/StringHelpers.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/CharValue.h"

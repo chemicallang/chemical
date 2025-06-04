@@ -4,7 +4,7 @@
 
 #include <string>
 #include <vector>
-#include "cst/base/CSTDiagnoser.h"
+#include "core/diag/Diagnoser.h"
 #include "ast/base/ASTAny.h"
 
 class Value;
@@ -17,7 +17,7 @@ class ASTNode;
  * a class that provides helpful methods and fields that allow to separate stuff from codegen
  * that could be useful to other classes, that process AST nodes for codegen purposes
  */
-class ASTDiagnoser : public CSTDiagnoser {
+class ASTDiagnoser : public Diagnoser {
 public:
 
     /**

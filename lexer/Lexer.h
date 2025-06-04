@@ -7,7 +7,7 @@
 #include "LexUnit.h"
 #include "std/alloc/SerialStrAllocator.h"
 #include "compiler/cbi/model/Model.h"
-#include "cst/base/CSTDiagnoser.h"
+#include "core/diag/Diagnoser.h"
 
 class CompilerBinder;
 
@@ -91,7 +91,7 @@ public:
     /**
      * this diagnoser is used to diagnose
      */
-    CSTDiagnoser diagnoser;
+    Diagnoser diagnoser;
 
 #ifdef LSP_BUILD
     /**

@@ -1,7 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "DocumentSymbolsAnalyzer.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"

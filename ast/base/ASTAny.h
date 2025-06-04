@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "cst/SourceLocation.h"
+#include "core/source/SourceLocation.h"
 
 class Value;
 

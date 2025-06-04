@@ -31,6 +31,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     // writing imports for modules
     output << "import lab;\n";
+    output << "import std;\n";
 
     // writing imports for dependencies
     for(const auto node : data.scope.body.nodes) {

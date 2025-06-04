@@ -618,6 +618,50 @@ void ASTProcessor::figure_out_direct_imports(
 
 }
 
+bool ASTProcessor::import_mod_file_as_lab(
+        ASTFileMetaData& meta,
+        ASTFileResult& result,
+        bool use_job_allocator,
+        InputSource* inp_source
+) {
+
+    // get the file id
+    auto& modFile = meta.abs_path;
+    const auto modFileId = meta.file_id;
+
+    // importing .mod file into data
+    ModuleFileData data(modFileId, chem::string_view(modFile));
+    auto importModFileRes = import_chemical_mod_file(file_allocator, file_allocator, loc_man, data, modFileId, modFile, inp_source);
+    if(!importModFileRes) {
+        return false;
+    }
+
+    // lets use it to translate module file into a build.lab and import it
+    std::ostringstream stream;
+    convertToBuildLab(data, stream);
+    const auto& labOut = stream.str();
+    StringInputSource labInpSource(labOut);
+
+    // import the file into result
+    return import_chemical_file(result, modFileId, modFile, &labInpSource, use_job_allocator);
+
+}
+
+std::optional<FileInputSource> ASTProcessor::make_file_input_source(const char* abs_path, ASTFileResult& result) {
+    FileInputSource inp_source(abs_path);
+    if(inp_source.has_error()) {
+        result.continue_processing = false;
+        result.read_error = inp_source.error_message();
+        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
+        if(!result.read_error.empty()) {
+            std::cerr << " because " << result.read_error;
+        }
+        std::cerr << rang::fg::reset << std::endl;
+        return std::nullopt;
+    }
+    return inp_source;
+}
+
 bool import_file_in_lab(
         ASTProcessor& proc,
         ASTFileMetaData& meta,
@@ -661,28 +705,11 @@ bool import_file_in_lab(
             // lets get a new file id for module file
             auto modFileId = proc.loc_man.encodeFile(modFile);
 
-            // importing .mod file into data
-            ModuleFileData data(modFileId, chem::string_view(modFile));
-            auto importModFileRes = proc.import_chemical_mod_file(proc.file_allocator, proc.file_allocator, proc.loc_man, data, modFileId, modFile, &inp_source);
-            if(!importModFileRes) {
-                return false;
-            }
-
-            // lets use it to translate module file into a build.lab and import it
-            std::ostringstream stream;
-            convertToBuildLab(data, stream);
-            const auto& labOut = stream.str();
-            StringInputSource labInpSource(labOut);
-
-            // import the file into result
-            const auto res = proc.import_chemical_file(result, modFileId, modFile, &labInpSource, use_job_allocator);
-
-            // after the import
             // we also change the absolute path of the file to the new chemical.mod file
             meta.file_id = modFileId;
             meta.abs_path = modFile;
 
-            return res;
+            return proc.import_mod_file_as_lab(meta, result, use_job_allocator, &inp_source);
 
         }
     }
@@ -812,26 +839,6 @@ bool ASTProcessor::import_chemical_file(
         return true;
     }
 
-}
-
-bool ASTProcessor::import_chemical_file(
-        ASTFileResult& result,
-        unsigned int fileId,
-        const std::string_view& abs_path,
-        bool use_job_allocator
-) {
-    FileInputSource inp_source(abs_path.data());
-    if(inp_source.has_error()) {
-        result.continue_processing = false;
-        result.read_error = inp_source.error_message();
-        std::cerr << rang::fg::red << "error: when reading file " << abs_path;
-        if(!result.read_error.empty()) {
-            std::cerr << " because " << result.read_error;
-        }
-        std::cerr << rang::fg::reset << std::endl;
-        return false;
-    }
-    return import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
 }
 
 bool ASTProcessor::import_chemical_mod_file(

@@ -300,7 +300,8 @@ public:
             const std::string_view& path,
             ASTProcessor& processor,
             ToCAstVisitor& c_visitor,
-            std::stringstream& output_ptr
+            std::stringstream& output_ptr,
+            bool mod_file_source
     );
 
     /**
@@ -314,7 +315,8 @@ public:
     TCCState* built_lab_file(
             LabBuildContext& context,
             ModuleDependencyRecord& dependency,
-            const std::string_view& path
+            const std::string_view& path,
+            bool mod_file_source
     );
 
     /**

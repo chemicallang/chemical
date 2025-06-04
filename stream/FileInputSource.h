@@ -2,12 +2,9 @@
 
 #pragma once
 
-#ifdef _WIN32
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 #include "InputSource.h"
+
+typedef void *HANDLE;
 
 class FileInputSource : public InputSource {
 private:
@@ -19,6 +16,12 @@ private:
 public:
 
     explicit FileInputSource(const char* file_path);
+
+    FileInputSource(const FileInputSource& other) = delete;
+
+    FileInputSource(
+        FileInputSource&& other
+    ) noexcept;
 
     InputSourceErrorKind open(const char* file_path);
 

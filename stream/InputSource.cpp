@@ -4,6 +4,8 @@
 #include <fcntl.h>   // for open, O_RDONLY
 #include <iostream>
 #ifdef _WIN32
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include "utils/PathUtils.h"
 #else
@@ -24,6 +26,22 @@ FileInputSource::FileInputSource(const char* file_path) {
     if (fileDescriptor == -1) {
         error.kind = InputSourceErrorKind::FileNotOpen;
     }
+#endif
+}
+
+FileInputSource::FileInputSource(
+    FileInputSource&& other
+) noexcept :
+#ifdef _WIN32
+fileHandle(other.fileHandle)
+#else
+fileDescriptor(other.fileDescriptor)
+#endif
+{
+#ifdef _WIN32
+    other.fileHandle = INVALID_HANDLE_VALUE;
+#else
+    other.fileDescriptor = -1;
 #endif
 }
 

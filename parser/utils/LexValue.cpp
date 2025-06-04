@@ -212,6 +212,16 @@ Value* Parser::parsePostIncDec(ASTAllocator& allocator, Value* value, Token* sta
     }
 }
 
+Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, Token* start_token, bool is_negating) {
+    parser.token++;
+    auto type = parser.parseTypeLoc(allocator);
+    auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, is_negating, parser.loc_single(start_token));
+    if (!type) {
+        parser.unexpected_error("expected a type after 'is' in expression");
+    }
+    return isValue;
+}
+
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
     switch(token->type) {
         case TokenType::DoublePlusSym: {
@@ -231,14 +241,18 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
             }
             return casted_value;
         }
-        case TokenType::IsKw: {
+        case TokenType::NotSym: {
             token++;
-            auto type = parseTypeLoc(allocator);
-            auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, false, loc_single(start_token));
-            if (!type) {
-                unexpected_error("expected a type after 'is' or '!is' in expression");
+            switch(token->type) {
+                case TokenType::IsKw:
+                    return parseIsValue(*this, allocator, value, start_token, true);
+                default:
+                    error("expected 'is' after the '!'");
+                    return value;
             }
-            return isValue;
+        }
+        case TokenType::IsKw: {
+            return parseIsValue(*this, allocator, value, start_token, false);
         }
         default:
             return value;

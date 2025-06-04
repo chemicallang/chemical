@@ -26,6 +26,7 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
 FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* expected_type, ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
 void infer_generic_args(
+    ASTAllocator& allocator,
     std::vector<TypeLoc>& out_generic_args,
     std::vector<GenericTypeParameter*>& generic_params,
     FunctionCall* call,

@@ -6,6 +6,8 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/PointerType.h"
@@ -150,6 +152,7 @@ FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* exp
 }
 
 void infer_generic_args(
+    ASTAllocator& allocator,
     std::vector<TypeLoc>& out_generic_args,
     std::vector<GenericTypeParameter*>& generic_params,
     FunctionCall* call,
@@ -175,7 +178,7 @@ void infer_generic_args(
 
     // infer args, if user gave less args than expected
     if(call->generic_list.size() != total) {
-        call->infer_generic_args(diagnoser, out_generic_args);
+        call->infer_generic_args(allocator, diagnoser, out_generic_args);
     }
     if(expected_type) {
         call->infer_return_type(diagnoser, out_generic_args, expected_type);
@@ -294,6 +297,8 @@ bool are_linked_same(ASTNode* param_node, ASTNode* arg_node) {
         switch(arg_node->kind()) {
             case ASTNodeKind::StructDecl:
                 return ((ASTNode*) arg_node->as_struct_def_unsafe()->generic_parent) == param_node;
+            case ASTNodeKind::VariantDecl:
+                return ((ASTNode*) arg_node->as_variant_def_unsafe()->generic_parent) == param_node;
             default:
                 return false;
         }
@@ -335,7 +340,8 @@ void infer_types_by_args(
             // not directly linked generic param like func <T> add(param : Thing<T>)
             const auto arg_type_gen = (GenericType*) arg_type.getType();
             const auto param_type_gen = (GenericType*) param_type;
-            if((arg_type->kind() == BaseTypeKind::Generic) && are_linked_same(param_type->get_direct_linked_canonical_node(), arg_type->get_direct_linked_canonical_node())) {
+            const auto arg_type_kind = arg_type->kind();
+            if(arg_type_kind == BaseTypeKind::Generic && are_linked_same(param_type->get_direct_linked_canonical_node(), arg_type->get_direct_linked_canonical_node())) {
                 const auto child_gen_size = param_type_gen->types.size();
                 if(arg_type_gen->types.size() == child_gen_size) {
                     unsigned i = 0;

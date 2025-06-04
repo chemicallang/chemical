@@ -108,7 +108,7 @@ public:
      * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,
      * for which arguments couldn't be inferred, nullptr would be used
      */
-    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred);
+    void infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred);
 
     /**
      * will infer return type (if it's generic type) for example a generic function with generic return type

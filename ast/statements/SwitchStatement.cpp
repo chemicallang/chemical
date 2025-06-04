@@ -6,6 +6,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/values/VariableIdentifier.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/VariantCase.h"
@@ -303,6 +304,8 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
                     variant_def = member->parent();
                 } else if(kind == ASTNodeKind::VariantDecl) {
                     variant_def = linked->as_variant_def_unsafe();
+                } else if(kind == ASTNodeKind::GenericVariantDecl) {
+                    variant_def = linked->as_gen_variant_decl_unsafe()->master_impl;
                 }
                 if (value_ptr && variant_def && (scopes.size() < variant_def->variables().size() && !has_default_case())) {
                     linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);

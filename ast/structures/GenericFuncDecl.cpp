@@ -125,7 +125,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
 
     const auto total = generic_params.size();
     std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
-    infer_generic_args(generic_args, generic_params, call, diagnoser, expected_type);
+    infer_generic_args(allocator, generic_args, generic_params, call, diagnoser, expected_type);
     // purify generic args, this is done if this call is inside a generic function
     // by calling pure we resolve that type to its specialized version
     // because this function runs in a loop, below the function 'register_indirect_generic_iteration' calls this

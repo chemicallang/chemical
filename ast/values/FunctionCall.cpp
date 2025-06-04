@@ -905,7 +905,7 @@ BaseType* FunctionCall::get_arg_type(unsigned int index) {
 }
 
 
-void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred) {
+void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred) {
     const auto func_type = known_func_type();
     if(func_type) {
         const auto func = func_type;
@@ -929,7 +929,7 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<TypeL
             const auto param = func->params[arg_offset];
             const auto param_type = param->type;
             const auto arg_type_loc = values[arg_offset]->encoded_location();
-            const auto arg_type = values[arg_offset]->known_type();
+            const auto arg_type = values[arg_offset]->create_type(allocator);
             if(!arg_type) {
 #ifdef DEBUG
                 diagnoser.error(this) << "couldn't get arg type " << values[arg_offset]->representation() << " in function call " << representation();
@@ -1296,7 +1296,14 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(linked) {
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::VariantMember) {
-            return linked->as_variant_member_unsafe()->known_type();
+            const auto mem = linked->as_variant_member_unsafe();
+            const auto def = mem->parent();
+            if(def->generic_parent != nullptr) {
+                const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(def), generic_list);
+                return gen_type;
+            } else {
+                return mem->known_type();
+            }
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             const auto func_decl = linked->as_function_unsafe();
             if(func_decl->is_constructor_fn() && func_decl->parent()) {

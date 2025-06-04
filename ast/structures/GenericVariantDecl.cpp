@@ -196,7 +196,7 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
 
     // infer args, if user gave less args than expected
     if(call->generic_list.size() != total) {
-        call->infer_generic_args(diagnoser, generic_args);
+        call->infer_generic_args(allocator, diagnoser, generic_args);
     }
 
     // inferring type by expected type

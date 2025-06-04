@@ -4,7 +4,7 @@
 
 #include <vector>
 #include "SourceLocation.h"
-#include "integration/common/Position.h"
+#include "core/diag/Position.h"
 #include "ordered_map.h"
 #include <mutex>
 

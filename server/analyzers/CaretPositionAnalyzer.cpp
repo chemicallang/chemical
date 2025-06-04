@@ -1,7 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "CaretPositionAnalyzer.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 
 bool CaretPositionAnalyzer::is_caret_inside(SourceLocation location) {
     const auto data = loc_man.getLocationPos(location);

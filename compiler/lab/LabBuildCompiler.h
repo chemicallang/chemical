@@ -7,7 +7,7 @@
 #include "LabJob.h"
 #include "ctpl.h"
 #include "compiler/cbi/model/CompilerBinder.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 #include "preprocess/ImportPathHandler.h"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/ModuleStorage.h"

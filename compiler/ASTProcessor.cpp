@@ -65,8 +65,8 @@ bool ASTProcessor::empty_diags(ASTFileResult& result) {
 void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark) {
     if(!empty_diags(result)) {
         std::cout << rang::style::bold << rang::fg::magenta << "[Parsed] " << abs_path << rang::fg::reset << rang::style::reset << '\n';
-        CSTDiagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
-        CSTDiagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
+        Diagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
+        Diagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
         if (benchmark) {
             if (result.lex_benchmark) {
                 ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
@@ -859,7 +859,7 @@ bool ASTProcessor::import_chemical_mod_file(
     if(!tokens.empty()) {
         auto& last_token = tokens.back();
         if (last_token.type == TokenType::Unexpected) {
-            parser.diagnostics.emplace_back(CSTDiagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
+            parser.diagnostics.emplace_back(Diagnoser::make_diag("[DEBUG_TRAD_LEXER] unexpected token is at last", chem::string_view(abs_path), last_token.position, last_token.position, DiagSeverity::Warning));
         }
     }
 

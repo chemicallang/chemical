@@ -6,7 +6,7 @@
 #include <iostream>
 #include "utils/PathUtils.h"
 #include "ast/base/ASTNode.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 
 GotoDefAnalyzer::GotoDefAnalyzer(
     LocationManager& manager,

@@ -12,7 +12,7 @@
 #include "compiler/chem_clang.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "ordered_map.h"
-#include "integration/common/Diagnostic.h"
+#include "core/diag/Diagnostic.h"
 
 class CTranslator;
 

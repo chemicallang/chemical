@@ -6,7 +6,7 @@
 #include <vector>
 #include <span>
 #include "ast/structures/FileScope.h"
-#include "integration/common/Diagnostic.h"
+#include "core/diag/Diagnostic.h"
 #include <string>
 
 struct ModuleFileSource {

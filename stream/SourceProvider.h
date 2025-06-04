@@ -7,7 +7,7 @@
 
 #include <string>
 #include "StreamPosition.h"
-#include "integration/common/Diagnostic.h"
+#include "core/diag/Diagnostic.h"
 #include <iosfwd>
 #include "std/chem_string.h"
 #include <istream>

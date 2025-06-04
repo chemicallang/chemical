@@ -6,7 +6,7 @@
 
 #include "FoldingRangeAnalyzer.h"
 #include "ast/structures/Scope.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 
 void FoldingRangeAnalyzer::folding_range(const Position& start, const Position& end, bool comment) {
     ranges.push_back(lsp::FoldingRange{

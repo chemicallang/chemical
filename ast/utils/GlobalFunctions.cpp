@@ -38,7 +38,7 @@
 #include "ast/types/UIntType.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/ReferenceType.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 #include "ast/base/TypeBuilder.h"
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"

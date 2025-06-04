@@ -3,7 +3,7 @@
 #pragma once
 
 #include <string>
-#include "cst/SourceLocation.h"
+#include "core/source/SourceLocation.h"
 
 template<typename T>
 struct parse_num_result {

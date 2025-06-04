@@ -2,7 +2,7 @@
 
 #include "Lexer.h"
 #include <unordered_map>
-#include "cst/utils/StringHelpers.h"
+#include "utils/StringHelpers.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 
 const auto EmptyCStr = "";

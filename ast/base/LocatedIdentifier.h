@@ -5,7 +5,7 @@
 #include "std/chem_string_view.h"
 // TODO remove string import
 #include <string>
-#include "cst/SourceLocation.h"
+#include "core/source/SourceLocation.h"
 
 
 struct LocatedIdentifier {

@@ -196,14 +196,14 @@ set(COMMON_SOURCES
         ast/types/VoidType.h
         ast/types/AnyType.h
         utils/CmdUtils.h
-        integration/common/Diagnostic.h
+        core/diag/Diagnostic.h
         parser/values/StructValue.cpp
         ast/values/StructValue.h
         ast/types/LinkedType.h
         stream/SourceProviderImpl.cpp
         ast/structures/FunctionDecl.cpp
         ast/utils/GlobalFunctions.cpp
-        integration/common/Diagnostic.cpp
+        core/diag/Diagnostic.cpp
         ast/structures/Scope.cpp
         ast/types/PointerType.h
         ast/types/GenericType.h
@@ -257,13 +257,12 @@ set(COMMON_SOURCES
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
         parser/values/LambdaValue.cpp
-        integration/common/Position.h
-        cst/base/CSTDiagnoser.h
-        cst/CSTDiagnoser.cpp
+        core/diag/Position.h
+        core/diag/Diagnoser.h
         ast/base/BaseTypeKind.h
         ast/base/BaseTypeKind.h
         ast/base/BaseType.cpp
-        cst/utils/ValueAndOperatorStack.h
+        utils/ValueAndOperatorStack.h
         ast/base/AccessSpecifier.h
         ast/values/AddrOfValue.h
         ast/values/AddrOfValue.cpp
@@ -300,10 +299,10 @@ set(COMMON_SOURCES
         ast/structures/CapturedVariable.h
         ast/values/UInt128Value.h
         ast/values/Int128Value.h
-        cst/utils/StringHelpers.h
-        cst/utils/StringHelpers.cpp
+        utils/StringHelpers.h
+        utils/StringHelpers.cpp
         ast/statements/Break.cpp
-        integration/common/DiagSeverity.h
+        core/diag/DiagSeverity.h
         utils/Benchmark.h
         utils/Benchmark.cpp
         compiler/ASTDiagnoser.h
@@ -314,8 +313,8 @@ set(COMMON_SOURCES
         compiler/cbi/model/ImportUnitCache.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
-        integration/common/Location.h
-        integration/common/Range.h
+        core/diag/Location.h
+        core/diag/Range.h
         server/analyzers/Documentation.h
         preprocess/2c/2cASTVisitor.h
         preprocess/2c/2cASTVisitor.cpp
@@ -451,9 +450,9 @@ set(COMMON_SOURCES
         ast/structures/ComptimeBlock.h
         ast/structures/ComptimeBlock.cpp
         utils/inline_attr.h
-        cst/LocationManager.h
-        cst/LocationManager.cpp
-        cst/SourceLocation.h
+        core/source/LocationManager.h
+        core/source/LocationManager.cpp
+        core/source/SourceLocation.h
         ast/base/LocatedIdentifier.h
         ast/base/BatchAllocator.h
         parser/utils/parse_num.h

@@ -6,7 +6,7 @@
 
 #include "Parser.h"
 #include "ast/types/LinkedType.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/base/AnnotableNode.h"

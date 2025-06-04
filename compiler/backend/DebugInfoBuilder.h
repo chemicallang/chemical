@@ -5,8 +5,8 @@
 #include "ast/base/ast_fwd.h"
 #include "compiler/llvmfwd.h"
 #include "std/chem_string_view.h"
-#include "integration/common/Position.h"
-#include "cst/SourceLocation.h"
+#include "core/diag/Position.h"
+#include "core/source/SourceLocation.h"
 #include <vector>
 #include <unordered_map>
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "integration/common/Position.h"
+#include "core/diag/Position.h"
 
 class LexImportUnit;
 

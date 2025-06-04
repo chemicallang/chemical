@@ -9,7 +9,7 @@
 #include "compiler/mangler/NameMangler.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 #include "compiler/Codegen.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"

@@ -15,7 +15,7 @@
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
 #include "Utils.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 #include <fstream>
 #include <span>
 #include "compiler/lab/mod_conv/ModToLabConverter.h"
@@ -50,7 +50,7 @@
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
-#include "cst/LocationManager.h"
+#include "core/source/LocationManager.h"
 
 #endif
 
@@ -1691,7 +1691,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePath);
 
     // printing the diagnostics for the file
-    CSTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");
+    Diagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");
 
     // error out if not ok
     if (!isModFileOk) {

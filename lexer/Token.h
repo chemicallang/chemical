@@ -5,7 +5,7 @@
 
 #include <string_view>
 #include "TokenType.h"
-#include "integration/common/Position.h"
+#include "core/diag/Position.h"
 
 class ASTAny;
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include <vector>
-#include "integration/common/Location.h"
+#include "core/diag/Location.h"
 #include "compiler/cbi/model/ASTImportUnitRef.h"
 #include "CaretPositionAnalyzer.h"
 #include "lsp/types.h"

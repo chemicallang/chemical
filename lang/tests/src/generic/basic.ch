@@ -122,8 +122,7 @@ func <T> gen_ret_func(value : T) : T {
 }
 
 func <T> gen_ret_func2(value : T) : T {
-    // TODO this parameter can't be inferred, please infer it
-    return gen_ret_func<T>(value)
+    return gen_ret_func(value)
 }
 
 struct check_gen_right_impl<T> {

@@ -1541,7 +1541,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // build lab file into a tcc state
         // TODO verify the build method signature in the build.lab file
-        const auto state = built_lab_file(context, dependency, buildLabPath);
+        const auto state = built_lab_file(context, dependency, buildLabPath, false);
 
         // emit a warning or error
         if(state == nullptr) {
@@ -1779,7 +1779,8 @@ TCCState* LabBuildCompiler::built_lab_file(
         const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr
+        std::stringstream& output_ptr,
+        bool mod_file_source
 ) {
 
     auto& lab_processor = processor;
@@ -1800,7 +1801,11 @@ TCCState* LabBuildCompiler::built_lab_file(
     // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
     // that we need to compile, which will free the module allocator, so if we kept on module allocator
     // we will lose everything after processing dependencies
-    lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
+    if(mod_file_source) {
+        lab_processor.import_mod_file_as_lab(buildLabMetaData, labFileResult, true);
+    } else {
+        lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
+    }
 
     // printing results for module file parsing
     print_results(labFileResult, path, true);
@@ -2220,7 +2225,8 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
         ModuleDependencyRecord& dependency,
-        const std::string_view& path
+        const std::string_view& path,
+        bool mod_file_source
 ) {
 
     // a global interpret scope required to evaluate compile time things
@@ -2265,7 +2271,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(
-            context, dependency, path, lab_processor, c_visitor, output_ptr
+            context, dependency, path, lab_processor, c_visitor, output_ptr, mod_file_source
     );
 
     return state;
@@ -2294,7 +2300,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     ModuleDependencyRecord buildLabDependency("", chem::string("chemical"), chem::string("lab"));
 
     // get build lab file into a tcc state
-    const auto state = built_lab_file(context, buildLabDependency, path);
+    const auto state = built_lab_file(context, buildLabDependency, path, false);
     if(!state) {
         return 1;
     }
@@ -2369,19 +2375,62 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     // mkdir the build directory
     create_dir(options->build_dir);
 
-    // build mod file into a module pointer
-    const auto module = built_mod_file(context, path);
+    // this is the root build.lab dependency
+    ModuleDependencyRecord buildLabDependency("", chem::string("chemical"), chem::string("lab"));
+
+    // get build lab file into a tcc state
+    const auto state = built_lab_file(context, buildLabDependency, path, true);
+    if(!state) {
+        return 1;
+    }
+
+    // automatic destroy
+    TCCDeletor auto_del(state);
 
     // clear everything from allocators before proceeding
     _job_allocator.clear();
     _mod_allocator.clear();
     _file_allocator.clear();
 
-    // lets create a single job
-    LabJob final_job(LabJobType::Executable, module->name.copy(), std::move(outputPath), chem::string(options->build_dir));
+    // get the build method
+    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+    if(!build) {
+        std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
+        return 1;
+    }
 
-    // return doing the job
-    return do_job(&final_job);
+    // clear the module storage
+    // these modules were created to facilitate the build.lab generation
+    // if not cleared, these modules will interfere with modules created for executable
+    context.storage.clear();
+
+    // call the root build.lab build's function
+    build(&context);
+
+    int job_result = 0;
+
+    // lets create a single job
+    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
+
+    // just put all the modules as this job's dependency
+    // TODO: we should only put the modules that this mod file imported
+    for(auto& mod : context.storage.get_modules()) {
+        final_job.dependencies.emplace_back(mod.get());
+    }
+
+    current_job = &final_job;
+
+    job_result = do_job(&final_job);
+    if(job_result == 1) {
+        std::cerr << rang::fg::red << "[lab] " << "error emitting executable, returned status code 1" << rang::fg::reset << std::endl;
+    }
+
+    // clearing all allocations done in all the allocators
+    _job_allocator.clear();
+    _mod_allocator.clear();
+    _file_allocator.clear();
+
+    return job_result;
 
 }
 

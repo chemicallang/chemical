@@ -21,6 +21,7 @@
 #include "compiler/processor/ModuleDependencyRecord.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "stream/InputSource.h"
+#include "stream/FileInputSource.h"
 #include <span>
 #include <mutex>
 
@@ -143,6 +144,11 @@ public:
     }
 
     /**
+     * make a file input source for given path and report error into the given result
+     */
+    static std::optional<FileInputSource> make_file_input_source(const char* abs_path, ASTFileResult& result);
+
+    /**
      * this imports the given files in parallel using the given thread pool
      * this doesn't handle any import statements present inside the files
      * @return true if succeeding importing all files with continue_processing, false otherwise
@@ -215,6 +221,34 @@ public:
     );
 
     /**
+     * imports the given mod file at path @param modFile into the @param result
+     * this translates the mod file into a build.lab before importing it
+     */
+    bool import_mod_file_as_lab(
+            ASTFileMetaData& meta,
+            ASTFileResult& result,
+            bool use_job_allocator,
+            InputSource* inp_source
+    );
+
+    /**
+     * imports the given mod file at path @param modFile into the @param result
+     * this translates the mod file into a build.lab before importing it
+     */
+    bool import_mod_file_as_lab(
+            ASTFileMetaData& meta,
+            ASTFileResult& result,
+            bool use_job_allocator
+    ) {
+        auto inp_source = make_file_input_source(meta.abs_path.data(), result);
+        if(inp_source.has_value()) {
+            return import_mod_file_as_lab(meta, result, use_job_allocator, &inp_source.value());
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * import a single file and all it's imports (in parallel) using the given thread pool
      * @return true if success importing this file and it's imports, false otherwise
      */
@@ -246,7 +280,14 @@ public:
             unsigned int fileId,
             const std::string_view& absolute_path,
             bool use_job_allocator
-    );
+    ) {
+        auto inp_source = make_file_input_source(absolute_path.data(), result);
+        if(inp_source.has_value()) {
+            return import_chemical_file(result, fileId, absolute_path, &inp_source.value(), use_job_allocator);
+        } else {
+            return false;
+        }
+    }
 
     /**
      * lex, parse in file and return Scope containing nodes

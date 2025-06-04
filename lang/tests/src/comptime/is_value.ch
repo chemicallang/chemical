@@ -19,12 +19,10 @@ func test_is_value() {
         type T = int;
         return T is int;
     })
-    /** TODO !is doesn't work
     test("int types are not not same", () => {
         type T = int;
         return !(T !is int);
     })
-    **/
     test("uint types are same", () => {
         type T = uint;
         return T is uint;
@@ -94,32 +92,26 @@ func test_is_value() {
         type K = *char
         return T is *void && K is *char
     })
-    /** TODO !is doesn't work
     test("different pointer types don't match", () => {
         type T = *void
         return (T !is *int && T !is *long && T !is *char)
     })
-    **/
     test("not a single type is void", () => {
         type T = void
         return !(T is ushort || T is ulong || T is int || T is uint || T is bigint || T is char || T is uchar || T is short || T is long || T is *void)
     })
-    /** TODO !is doesn't work
     test("double and float are not the same", () => {
         type T = double
         return T !is float
     })
-    **/
     test("same array types match", () => {
         type T = int[]
         return T is int[]
     })
-    /** TODO !is doesn't work
     test("different array types don't match", () => {
         type T = int[]
         return T !is double[]
     })
-    **/
     test("all types satisfy any", () => {
         type A = int
         type B = long

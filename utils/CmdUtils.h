@@ -10,13 +10,6 @@
 #include <cstring>
 #include "ordered_map.h"
 
-#define ANSI_COLOR_RED     "\x1b[91m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
-
-inline std::string cmd_error(const std::string& err) {
-    return ANSI_COLOR_RED + err + ANSI_COLOR_RESET;
-}
-
 enum class CmdOptionType {
     // an option that doesn't require a value --help, --version
     NoValue,
@@ -30,13 +23,7 @@ enum class CmdOptionType {
 };
 
 struct CmdOption {
-
-    std::string_view large_opt;
-    std::string_view small_opt;
-    CmdOptionType type;
-    std::string_view description;
-    bool user_used_large_opt = false;
-
+private:
     union {
 
         struct {
@@ -45,12 +32,24 @@ struct CmdOption {
 
         struct {
             std::vector<std::string_view> values;
-            bool has_value;
         } multi_value;
 
     };
+public:
+
+    std::string_view large_opt;
+    std::string_view small_opt;
+    CmdOptionType type;
+    std::string_view description;
+    bool user_used_large_opt = false;
+    bool is_initialized = false;
 
     CmdOption(std::string_view large_opt, std::string_view small_opt, CmdOptionType type, std::string_view description) : large_opt(large_opt), small_opt(small_opt), type(type), description(description) {
+
+    }
+
+    void initialize() {
+        if(is_initialized) return;
         switch(type) {
             case CmdOptionType::NoValue:
             case CmdOptionType::SingleValue:
@@ -59,9 +58,9 @@ struct CmdOption {
             case CmdOptionType::MultiValued:
             case CmdOptionType::SubCommand:
                 new (&multi_value.values) std::vector<std::string_view>();
-                multi_value.has_value = false;
                 break;
         }
+        is_initialized = true;
     }
 
     inline CmdOption(std::string_view large_opt, CmdOptionType type, std::string_view description) : CmdOption(large_opt, "", type, description) {
@@ -69,6 +68,7 @@ struct CmdOption {
     }
 
     CmdOption(CmdOption&& other) : large_opt(other.large_opt), small_opt(other.small_opt), type(other.type), description(other.description) {
+        if(!other.is_initialized) return;
         switch(type) {
             case CmdOptionType::NoValue:
             case CmdOptionType::SingleValue:
@@ -77,26 +77,28 @@ struct CmdOption {
             case CmdOptionType::MultiValued:
             case CmdOptionType::SubCommand:
                 new(&multi_value.values) std::vector(std::move(other.multi_value.values));
-                multi_value.has_value = other.multi_value.has_value;
                 break;
         }
+        is_initialized = true;
     }
 
     /**
-     * TODO: avoid this function
+     * this gets the values as strings into the vector
      */
-    void put_multi_value_vec(std::vector<std::string>& args) {
+    void get_multi_value_vec(std::vector<std::string>& outArgs) {
+        if(!is_initialized) return;
         for(auto& value : multi_value.values) {
-            args.emplace_back(value);
+            outArgs.emplace_back(value);
         }
     }
 
     /**
      * puts all multi value
      */
-    void put_multi_value_vec(std::vector<chem::string_view>& args) {
+    void get_multi_value_vec(std::vector<chem::string_view>& outArgs) {
+        if(!is_initialized) return;
         for(auto& value : multi_value.values) {
-            args.emplace_back(value);
+            outArgs.emplace_back(value);
         }
     }
 
@@ -104,15 +106,15 @@ struct CmdOption {
      * calling this method is not recommended if the option is not known to be a multi valued option
      */
     inline bool has_multi_value() {
-        return multi_value.has_value;
+        return is_initialized;
     }
 
     /**
      * take sub command if interested
      */
-    bool take_subcommand(int& i, int argc, char *argv[]) {
+    bool put_subcommand(int& i, int argc, char *argv[]) {
         if(type == CmdOptionType::SubCommand) {
-            multi_value.has_value = true;
+            initialize();
             // skip one argument, this is probably the command name
             i++;
             while(i < argc) {
@@ -126,6 +128,7 @@ struct CmdOption {
     }
 
     void put_value(const std::string_view& value, bool is_large_opt) {
+        initialize();
         switch(type) {
             case CmdOptionType::NoValue:
             case CmdOptionType::SingleValue:
@@ -139,7 +142,24 @@ struct CmdOption {
         }
     }
 
+    /**
+     * get the single option value (if this is a single value opt)
+     */
+    std::optional<std::string_view>* get_single_opt_value_init() {
+        initialize();
+        return &simple.value;
+    }
+
+    /**
+     * get multi opt values (if this is a multi opt)
+     */
+    std::span<std::string_view> get_multi_opt_values() {
+        if(!is_initialized) return { };
+        return multi_value.values;
+    }
+
     ~CmdOption() {
+        if(!is_initialized) return;
         switch(type) {
             case CmdOptionType::SingleValue:
             case CmdOptionType::NoValue:
@@ -207,19 +227,31 @@ struct CmdOptions {
     /**
      * get pointer to the single option's value
      */
-    std::optional<std::string_view>* single_opt_val_ptr(const std::string_view& opt, const std::string_view& small_opt) {
+    CmdOption* opt_val_ptr(const std::string_view& opt, const std::string_view& small_opt) {
         if(!opt.empty()) {
             auto found = data.find(opt);
             if(found != data.end()) {
-                return &found->second.simple.value;
+                return &found->second;
             }
         }
         if(!small_opt.empty()) {
             auto found = data.find(small_opt);
             if(found != data.end()) {
-                return &found->second.simple.value;
+                return &found->second;
             }
         }
+#ifdef DEBUG
+        throw std::runtime_error("data for option doesn't exist");
+#endif
+        return nullptr;
+    }
+
+    /**
+     * get pointer to the single option's value
+     */
+    std::optional<std::string_view>* single_opt_val_ptr(const std::string_view& opt, const std::string_view& small_opt) {
+        const auto ptr = opt_val_ptr(opt, small_opt);
+        if(ptr) return ptr->get_single_opt_value_init();
         return nullptr;
     }
 
@@ -314,7 +346,7 @@ struct CmdOptions {
                         auto found = data.find(user_arg);
                         if(found != data.end()) {
                             auto& opt = found->second;
-                            if(!opt.take_subcommand(i, argc, argv)) {
+                            if(!opt.put_subcommand(i, argc, argv)) {
 
                                 // TODO: error given option does not take sub arguments
 
@@ -339,7 +371,7 @@ struct CmdOptions {
                     auto found = data.find(user_arg);
                     if (found != data.end()) {
                         auto& opt = found->second;
-                        if(!opt.take_subcommand(i, argc, argv)) {
+                        if(!opt.put_subcommand(i, argc, argv)) {
 
                             // TODO: error given option does not take sub arguments
 

@@ -287,6 +287,19 @@ bool is_node_parent_of(ASTNode* params_node, GenericTypeParameter* param) {
     }
 }
 
+bool are_linked_same(ASTNode* param_node, ASTNode* arg_node) {
+    if(param_node == arg_node) {
+        return true;
+    } else {
+        switch(arg_node->kind()) {
+            case ASTNodeKind::StructDecl:
+                return ((ASTNode*) arg_node->as_struct_def_unsafe()->generic_parent) == param_node;
+            default:
+                return false;
+        }
+    }
+}
+
 void infer_types_by_args(
         ASTDiagnoser& diagnoser,
         ASTNode* params_node,
@@ -322,7 +335,7 @@ void infer_types_by_args(
             // not directly linked generic param like func <T> add(param : Thing<T>)
             const auto arg_type_gen = (GenericType*) arg_type.getType();
             const auto param_type_gen = (GenericType*) param_type;
-            if((arg_type->kind() == BaseTypeKind::Generic) && arg_type->linked_struct_def() == param_type->linked_struct_def()) {
+            if((arg_type->kind() == BaseTypeKind::Generic) && are_linked_same(param_type->get_direct_linked_canonical_node(), arg_type->get_direct_linked_canonical_node())) {
                 const auto child_gen_size = param_type_gen->types.size();
                 if(arg_type_gen->types.size() == child_gen_size) {
                     unsigned i = 0;

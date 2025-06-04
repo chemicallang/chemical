@@ -33,15 +33,13 @@ func test_generic_type_deduction() {
         const s = DeduceThing<int> {
             t : 20
         }
-        // TODO type deduction not working here as well
-        return deduce_thing<int>(s) == 20;
+        return deduce_thing(s) == 20;
     })
     test("nested generic type parameters can be deduced in function call - 2", () => {
         const s = DeduceThing<long> {
             t : 40
         }
-        // TODO type deduction not working here as well
-        return deduce_thing<long>(s) == 40;
+        return deduce_thing(s) == 40;
     })
     // TODO these types weren't being inferred, however we are unsure if we should
     //    infer the type from return statement

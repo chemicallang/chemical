@@ -7,6 +7,7 @@ public func main() : int {
     test_numbers();
     test_structs();
     test_enum();
+    test_char_ptr_strings();
     test_strings();
     test_macros();
     test_arrays();

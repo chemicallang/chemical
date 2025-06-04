@@ -250,12 +250,12 @@ const auto fno_unwind_desc = "no unwind tables would be generated";
 const auto mod_cmd_desc = "compile a dependency module, the argument must be in format <mod-scope:mod-name>=<path>";
 const auto out_dash_all_desc = "generate a corresponding file for every additional module specific via --mod";
 
-inline std::vector<std::string_view>& get_includes(CmdOptions& options) {
-    return options.data.find("include")->second.multi_value.values;
+inline std::span<std::string_view> get_includes(CmdOptions& options) {
+    return options.data.find("include")->second.get_multi_opt_values();
 }
 
 void take_include_options(LabModule& module, CmdOptions& options) {
-    auto& includes = get_includes(options);
+    auto includes = get_includes(options);
     for(auto& value : includes) {
         if(value.ends_with(".ch")) {
             module.paths.emplace_back(std::string(value));
@@ -266,11 +266,11 @@ void take_include_options(LabModule& module, CmdOptions& options) {
 }
 
 void take_linked_libs(LabJob& job, CmdOptions& options) {
-    const auto& libs = options.data.find("library")->second.multi_value.values;
+    const auto& libs = options.data.find("library")->second.get_multi_opt_values();
     for(auto& lib : libs) {
         job.linkables.emplace_back(chem::string::make_view(lib));
     }
-    const auto& libs2 = options.data.find("l")->second.multi_value.values;
+    const auto& libs2 = options.data.find("l")->second.get_multi_opt_values();
     for(auto& lib : libs2) {
         job.linkables.emplace_back(chem::string::make_view(lib));
     }
@@ -294,7 +294,7 @@ LabModule* create_module(std::vector<std::unique_ptr<LabModule>>& modules, const
 
 void include_mod_command_modules(
     std::vector<std::unique_ptr<LabModule>>& modules,
-    std::vector<std::string_view>& command_values,
+    const std::span<std::string_view>& command_values,
     LabJob& job,
     LabModule* main_mod
 ) {
@@ -324,7 +324,7 @@ void include_mod_command_modules(
 }
 
 void include_mod_d_modules(std::vector<std::unique_ptr<LabModule>>& modules, CmdOptions& options, LabJob& job, LabModule* main_mod) {
-    auto& libs = options.data.find("mod")->second.multi_value.values;
+    auto libs = options.data.find("mod")->second.get_multi_opt_values();
     include_mod_command_modules(modules, libs, job, main_mod);
 }
 
@@ -362,7 +362,7 @@ void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& modul
 }
 
 void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
-    auto& libs = options.data.find("cbi-m")->second.multi_value.values;
+    auto libs = options.data.find("cbi-m")->second.get_multi_opt_values();
     for(auto& lib : libs) {
         auto found = lib.find(':');
         if(found != std::string::npos) {
@@ -495,10 +495,10 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
     auto llvm_tool = [](int argc, char** argv, CmdOptions& options, const std::string_view& option) -> int {
         auto& cmd_opt = options.cmd_opt(option);
-        if(cmd_opt.has_multi_value() && !cmd_opt.multi_value.values.empty()) {
+        if(cmd_opt.has_multi_value() && !cmd_opt.get_multi_opt_values().empty()) {
             std::vector<chem::string_view> subc;
             subc.emplace_back(option);
-            cmd_opt.put_multi_value_vec(subc);
+            cmd_opt.get_multi_value_vec(subc);
             return llvm_ar_main2(subc);
         } else {
             return -999;
@@ -517,10 +517,10 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
     // use raw clang
     auto& cc_cmd_opt = options.cmd_opt("cc");
-    if(!cc_cmd_opt.multi_value.values.empty()) {
+    if(!cc_cmd_opt.get_multi_opt_values().empty()) {
         std::vector<std::string> subc;
         subc.emplace_back(argv[0]);
-        cc_cmd_opt.put_multi_value_vec(subc);
+        cc_cmd_opt.get_multi_value_vec(subc);
 //        std::cout << "rclg  : ";
 //        for(const auto& sub : subc) {
 //            std::cout << sub;

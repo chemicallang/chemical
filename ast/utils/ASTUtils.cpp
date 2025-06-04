@@ -9,6 +9,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
@@ -338,6 +339,14 @@ void infer_types_by_args(
         case BaseTypeKind::Pointer: {
             if(arg_type->kind() == BaseTypeKind::Pointer) {
                 infer_types_by_args(diagnoser, params_node, generic_list_size, param_type->as_pointer_type_unsafe()->type, {arg_type->as_pointer_type_unsafe()->type, arg_type.encoded_location()}, inferred, debug_value);
+            }
+            break;
+        }
+        case BaseTypeKind::Reference: {
+            if(arg_type->kind() == BaseTypeKind::Reference) {
+                infer_types_by_args(diagnoser, params_node, generic_list_size, param_type->as_reference_type_unsafe()->type, {arg_type->as_reference_type_unsafe()->type, arg_type.encoded_location()}, inferred, debug_value);
+            } else {
+                infer_types_by_args(diagnoser, params_node, generic_list_size, param_type->as_reference_type_unsafe()->type, arg_type, inferred, debug_value);
             }
             break;
         }

@@ -247,8 +247,7 @@ const auto dash_c_desc = "generate objects without linking them into final execu
 const auto no_cache_desc = "no caching will be done for future invocations";
 const auto cbi_m_desc = "compile a compiler binding interface that provides support for macros";
 const auto fno_unwind_desc = "no unwind tables would be generated";
-const auto mod_f_desc = "compile a file as a module, the argument must be in format <mod-name>:<file-path>";
-const auto mod_d_desc = "compile a directory as a module, the argument must be in format <mod-name>:<dir-path>";
+const auto mod_cmd_desc = "compile a dependency module, the argument must be in format <mod-scope:mod-name>=<path>";
 const auto out_dash_all_desc = "generate a corresponding file for every additional module specific via --mod";
 
 inline std::vector<std::string_view>& get_includes(CmdOptions& options) {
@@ -277,16 +276,17 @@ void take_linked_libs(LabJob& job, CmdOptions& options) {
     }
 }
 
-LabModule* create_or_find_module(std::vector<std::unique_ptr<LabModule>>& modules, const chem::string_view& name, const chem::string_view& path, LabModuleType mod_type) {
-    // we use the previously created module with same name, if it's a files module (to append the file to same module created before)
-    if(mod_type == LabModuleType::Files) {
-        for (auto& mod: modules) {
-            if (mod->name.to_chem_view() == name) {
-                return mod.get();
-            }
+LabModule* find_module(std::vector<std::unique_ptr<LabModule>>& modules, const chem::string_view& scope_name, const chem::string_view& name) {
+    for (auto& mod: modules) {
+        if (mod->name == name && mod->scope_name == scope_name) {
+            return mod.get();
         }
     }
-    const auto mod = new LabModule(mod_type, chem::string(""), chem::string(name));
+    return nullptr;
+}
+
+LabModule* create_module(std::vector<std::unique_ptr<LabModule>>& modules, const chem::string_view& scope_name, const chem::string_view& name, const chem::string_view& path, LabModuleType mod_type) {
+    const auto mod = new LabModule(mod_type, chem::string(scope_name), chem::string(name));
     mod->paths.emplace_back(path);
     modules.emplace_back(mod);
     return mod;
@@ -294,36 +294,38 @@ LabModule* create_or_find_module(std::vector<std::unique_ptr<LabModule>>& module
 
 void include_mod_command_modules(
     std::vector<std::unique_ptr<LabModule>>& modules,
-    const std::string_view& command_key,
     std::vector<std::string_view>& command_values,
     LabJob& job,
-    LabModule* main_mod,
-    LabModuleType mod_type
+    LabModule* main_mod
 ) {
     if(command_values.empty()) return;
     for(auto& lib : command_values) {
-        auto found = lib.find(':');
+        auto found = lib.find('=');
         if(found != std::string::npos) {
+            chem::string_view scope_name;
             auto name = chem::string_view(lib.data(), found);
-            auto path = chem::string_view(lib.data() + (found + 1));
-            const auto mod = create_or_find_module(modules, name, path, mod_type);
-            if(mod_type == LabModuleType::Directory) {
-                job.path_aliases[name.str()] = path.str();
+            auto scope_name_sep = name.view().find(':');
+            if(scope_name_sep != std::string_view::npos) {
+                scope_name = chem::string_view(name.data(), scope_name_sep);
+                name = chem::string_view(name.data() + (scope_name_sep + 1));
             }
-            main_mod->add_dependency(mod);
+            auto path = chem::string_view(lib.data() + (found + 1));
+            const auto existing = find_module(modules, scope_name, name);
+            if(existing) {
+                existing->paths.emplace_back(path);
+            } else {
+                const auto mod = create_module(modules, scope_name, name, path, LabModuleType::Directory);
+                main_mod->add_dependency(mod);
+            }
         } else {
-            std::cerr << rang::fg::red << "the argument to --" << command_key << " must be formatted as <name>:<path>" << rang::fg::reset;
+            std::cerr << rang::fg::red << "the argument to --mod must be formatted as <name>=<path>" << rang::fg::reset;
         }
     }
 }
 
 void include_mod_d_modules(std::vector<std::unique_ptr<LabModule>>& modules, CmdOptions& options, LabJob& job, LabModule* main_mod) {
-    auto& libs = options.data.find("mod-d")->second.multi_value.values;
-    include_mod_command_modules(modules, "mod-d", libs, job, main_mod, LabModuleType::Directory);
-}
-void include_mod_f_modules(std::vector<std::unique_ptr<LabModule>>& modules, CmdOptions& options, LabJob& job, LabModule* main_mod) {
-    auto& libs = options.data.find("mod-f")->second.multi_value.values;
-    include_mod_command_modules(modules, "mod-f", libs, job, main_mod, LabModuleType::Files);
+    auto& libs = options.data.find("mod")->second.multi_value.values;
+    include_mod_command_modules(modules, libs, job, main_mod);
 }
 
 void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& module, std::vector<std::unique_ptr<LabModule>>& dependencies) {
@@ -340,7 +342,6 @@ void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& modul
     auto start = dependencies.size(); // where additional modules begin
 
     include_mod_d_modules(dependencies, options, job, &module);
-    include_mod_f_modules(dependencies, options, job, &module);
 
     // setting output for ll, bc, obj and asm files for corresponding modules
     const auto has_ll = options.has_value("out-ll-all");
@@ -474,8 +475,7 @@ int main(int argc, char *argv[]) {
         CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
         CmdOption("", "fno-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
         CmdOption("", "fno-asynchronous-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
-        CmdOption("mod-f", "", CmdOptionType::MultiValued, mod_f_desc),
-        CmdOption("mod-d", "", CmdOptionType::MultiValued, mod_d_desc),
+        CmdOption("mod", "", CmdOptionType::MultiValued, mod_cmd_desc),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);

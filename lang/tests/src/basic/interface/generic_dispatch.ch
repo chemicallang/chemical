@@ -33,12 +33,10 @@ func <T : InterfaceGenericDispatchTestable> call_sum_it(value : &T) : int {
 func test_interface_generic_dispatch() {
     test("generic dispatch using generics works - 1", () => {
         var x = InterfaceGenericDispatchTestOneImpl { i : 3 }
-        // TODO deduction of type here doesn't work
-        return call_sum_it<InterfaceGenericDispatchTestOneImpl>(x) == 110
+        return call_sum_it(x) == 110
     })
     test("generic dispatch using generics works - 2", () => {
         var x = InterfaceGenericDispatchTestTwoImpl { i : 5 }
-        // TODO deduction of type here doesn't work
-        return call_sum_it<InterfaceGenericDispatchTestTwoImpl>(x) == 880
+        return call_sum_it(x) == 880
     })
 }

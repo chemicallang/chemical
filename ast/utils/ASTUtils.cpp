@@ -8,6 +8,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/PointerType.h"
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
@@ -271,6 +272,20 @@ std::pair<int16_t, bool> register_generic_usage(
     return {register_generic_usage_no_check(astAllocator, generic_params, generic_list), true };
 }
 
+bool is_node_parent_of(ASTNode* params_node, GenericTypeParameter* param) {
+    const auto parent = param->parent();
+    if(parent == params_node) {
+        return true;
+    } else {
+        switch(parent->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                return parent->as_function_unsafe()->generic_parent == params_node;
+            default:
+                return false;
+        }
+    }
+}
+
 void infer_types_by_args(
         ASTDiagnoser& diagnoser,
         ASTNode* params_node,
@@ -280,41 +295,53 @@ void infer_types_by_args(
         std::vector<TypeLoc>& inferred,
         Value* debug_value
 ) {
-    const auto param_type_kind = param_type->kind();
-    if(param_type_kind == BaseTypeKind::Linked) {
-         const auto linked = param_type->linked_node();
-        const auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::GenericTypeParam) {
-            // directly linked generic param like func <T> add(param : T) or func add() : T
-            // so we have param type T which is linked with a generic type parameter and arg type the inferred type
-            const auto gen_param = linked->as_generic_type_param_unsafe();
-            if(gen_param->parent() == params_node && gen_param->param_index >= generic_list_size) {
-                // get the function argument for this arg_offset
-                inferred[gen_param->param_index] = arg_type;
-            }
-        } else if(linked_kind == ASTNodeKind::StructDecl) {
-            // the arg type is a generic type like in a function return func copy() : MyVector<int> { return { 2 } }
-            // however the param type is MyVector<T> and we must infer the types using the arg type
-            const auto container = linked->as_members_container_unsafe();
-            if(arg_type->kind() == BaseTypeKind::Generic) {
-                // TODO handle this case
-            }
-        }
-    } else if(param_type_kind == BaseTypeKind::Generic) {
-        // not directly linked generic param like func <T> add(param : Thing<T>)
-        const auto arg_type_gen = (GenericType*) arg_type.getType();
-        const auto param_type_gen = (GenericType*) param_type;
-        if((arg_type->kind() == BaseTypeKind::Generic) && arg_type->linked_struct_def() == param_type->linked_struct_def()) {
-            const auto child_gen_size = param_type_gen->types.size();
-            if(arg_type_gen->types.size() == child_gen_size) {
-                unsigned i = 0;
-                while(i < child_gen_size) {
-                    infer_types_by_args(diagnoser, params_node, generic_list_size, param_type_gen->types[i], arg_type_gen->types[i], inferred, debug_value);
-                    i++;
+    switch(param_type->kind()) {
+        case BaseTypeKind::Linked:{
+            const auto linked = param_type->linked_node();
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::GenericTypeParam) {
+                // directly linked generic param like func <T> add(param : T) or func add() : T
+                // so we have param type T which is linked with a generic type parameter and arg type the inferred type
+                const auto gen_param = linked->as_generic_type_param_unsafe();
+                if(is_node_parent_of(params_node, gen_param) && gen_param->param_index >= generic_list_size) {
+                    // get the function argument for this arg_offset
+                    inferred[gen_param->param_index] = arg_type;
                 }
-            } else {
-                diagnoser.error(debug_value) << "given types generic arguments don't have equal length, for " << param_type_gen->representation() << ", given " << arg_type_gen->representation();
+            } else if(linked_kind == ASTNodeKind::StructDecl) {
+                // the arg type is a generic type like in a function return func copy() : MyVector<int> { return { 2 } }
+                // however the param type is MyVector<T> and we must infer the types using the arg type
+                const auto container = linked->as_members_container_unsafe();
+                if(arg_type->kind() == BaseTypeKind::Generic) {
+                    // TODO handle this case
+                }
             }
+            break;
         }
+        case BaseTypeKind::Generic: {
+            // not directly linked generic param like func <T> add(param : Thing<T>)
+            const auto arg_type_gen = (GenericType*) arg_type.getType();
+            const auto param_type_gen = (GenericType*) param_type;
+            if((arg_type->kind() == BaseTypeKind::Generic) && arg_type->linked_struct_def() == param_type->linked_struct_def()) {
+                const auto child_gen_size = param_type_gen->types.size();
+                if(arg_type_gen->types.size() == child_gen_size) {
+                    unsigned i = 0;
+                    while(i < child_gen_size) {
+                        infer_types_by_args(diagnoser, params_node, generic_list_size, param_type_gen->types[i], arg_type_gen->types[i], inferred, debug_value);
+                        i++;
+                    }
+                } else {
+                    diagnoser.error(debug_value) << "given types generic arguments don't have equal length, for " << param_type_gen->representation() << ", given " << arg_type_gen->representation();
+                }
+            }
+            break;
+        }
+        case BaseTypeKind::Pointer: {
+            if(arg_type->kind() == BaseTypeKind::Pointer) {
+                infer_types_by_args(diagnoser, params_node, generic_list_size, param_type->as_pointer_type_unsafe()->type, {arg_type->as_pointer_type_unsafe()->type, arg_type.encoded_location()}, inferred, debug_value);
+            }
+            break;
+        }
+        default:
+            return;
     }
 }

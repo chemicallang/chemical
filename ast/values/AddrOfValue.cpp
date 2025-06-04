@@ -25,11 +25,18 @@ bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
             }
         }
 
-        _ptr_type.type = value->known_type();
     }
     is_value_mutable = value->check_is_mutable(linker.allocator, true);
     return res;
 }
+
+BaseType* AddrOfValue::known_type() {
+    if(!_ptr_type.type) {
+        _ptr_type.type = value->known_type();
+    }
+    return &_ptr_type;
+}
+
 
 BaseType* AddrOfValue::create_type(ASTAllocator& allocator) {
     auto elem_type = value->create_type(allocator);

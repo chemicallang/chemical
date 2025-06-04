@@ -77,12 +77,10 @@ func test_extension_functions() {
     })
     test("generic extension functions on interfaces work - 1", () => {
         var p = SumItExtFuncTestOne {}
-        // TODO cannot deduce generic type here
-        return p.sum_gen_ext_func_inter_twice<SumItExtFuncTestOne>() == 4
+        return p.sum_gen_ext_func_inter_twice() == 4
     })
     test("generic extension functions on interfaces work - 2", () => {
         var p = SumItExtFuncTestTwo { a : 2, b : 3 }
-        // TODO cannot deduce generic type here
-        return p.sum_gen_ext_func_inter_twice<SumItExtFuncTestTwo>() == 10
+        return p.sum_gen_ext_func_inter_twice() == 10
     })
 }

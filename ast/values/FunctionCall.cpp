@@ -912,6 +912,18 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<TypeL
         // going over function parameters to see which arguments have been given, if they do have a generic type
         // going over only explicit function params
         auto arg_offset = func->explicit_func_arg_offset();
+        if(func->isExtensionFn()) {
+            auto selfParam = func->get_self_param();
+            assert(selfParam != nullptr);
+            const auto param_type = selfParam->type;
+            const auto grandpa = get_parent_from(parent_val);
+            if(grandpa) {
+                const auto arg_type = grandpa->known_type();
+                if(arg_type) {
+                    infer_types_by_args(diagnoser, parent_val->linked_node(), generic_list.size(), param_type, {arg_type, grandpa->encoded_location()}, inferred, this);
+                }
+            }
+        }
         const auto values_size = values.size();
         while(arg_offset < values_size) {
             const auto param = func->params[arg_offset];

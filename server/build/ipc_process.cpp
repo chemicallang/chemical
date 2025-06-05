@@ -142,42 +142,6 @@ bool launch_child_process(const std::vector<std::string> &argv, HANDLE &outProce
     return true;
 }
 
-#else // POSIX
-
-bool launch_child_process(const std::vector<std::string>& argv, pid_t &outPid) {
-    if (argv.empty()) return false;
-    pid_t pid = fork();
-    if (pid < 0) {
-        std::cerr << "[Parent] fork() failed: " << strerror(errno) << "\n";
-        return false;
-    }
-    if (pid == 0) {
-        // In child: build a char*[] for execvp
-        size_t n = argv.size();
-        char **cargv = new char*[n+1];
-        for (size_t i = 0; i < n; i++) {
-            cargv[i] = const_cast<char*>(argv[i].c_str());
-        }
-        cargv[n] = nullptr;
-        execvp(cargv[0], cargv);
-        // If execvp returns, it failed:
-        std::cerr << "[Child] execvp failed: " << strerror(errno) << "\n";
-        _exit(127);
-    }
-    // In parent:
-    outPid = pid;
-    return true;
-}
-
-#endif // launch_child_process
-
-
-
-//──────────────────────────────────────────────────────────────────────────
-// wait_for_child_and_read()
-//──────────────────────────────────────────────────────────────────────────
-#ifdef _WIN32
-
 ///
 /// Parent does two things on Windows:
 ///   1) CreateEvent(evParentAck)   // so that child’s OpenEvent won’t fail
@@ -245,56 +209,6 @@ bool parent_read_and_cleanup_windows(
 
     return true;
 }
-
-#else // POSIX
-
-///
-/// Attempt to open the shared memory and read header+payload.
-/// Returns true if we got any data (payload may be empty).
-///
-bool parent_read_shared_memory(const std::string &shmName, ChildResult &out) {
-    // POSIX: shared memory name must start with '/'
-    std::string posixName = shmName;
-    if (posixName.empty() || posixName[0] != '/')
-        posixName = "/" + posixName;
-
-    int fd = shm_open(posixName.c_str(), O_RDONLY, 0);
-    if (fd < 0) {
-        // No shared memory exists
-        // std::cerr << "[Parent] shm_open failed: " << strerror(errno) << "\n";
-        return false;
-    }
-    // 1) mmap the header to get length:
-    size_t headerSize = sizeof(size_t);
-    void *hdr = mmap(nullptr, headerSize, PROT_READ, MAP_SHARED, fd, 0);
-    if (hdr == MAP_FAILED) {
-        // std::cerr << "[Parent] mmap(header) failed: " << strerror(errno) << "\n";
-        close(fd);
-        return false;
-    }
-    size_t dataLen = 0;
-    memcpy(&dataLen, hdr, sizeof(size_t));
-    munmap(hdr, headerSize);
-
-    // 2) mmap the full region
-    size_t totalSize = headerSize + dataLen;
-    void *full = mmap(nullptr, totalSize, PROT_READ, MAP_SHARED, fd, 0);
-    if (full == MAP_FAILED) {
-        // std::cerr << "[Parent] mmap(full) failed: " << strerror(errno) << "\n";
-        close(fd);
-        return false;
-    }
-    char *cbuf = reinterpret_cast<char*>(full) + sizeof(size_t);
-    out.payload.assign(cbuf, dataLen);
-
-    munmap(full, totalSize);
-    close(fd);
-    return true;
-}
-
-#endif // wait_for_child_and_read
-
-#ifdef _WIN32
 
 int child_create_and_write_shm(const std::string& shmName, const std::string& evtChild, const std::string& evtParent, const std::string& payload) {
 
@@ -378,6 +292,75 @@ int child_create_and_write_shm(const std::string& shmName, const std::string& ev
 }
 
 #else
+
+bool launch_child_process(const std::vector<std::string>& argv, pid_t &outPid) {
+    if (argv.empty()) return false;
+    pid_t pid = fork();
+    if (pid < 0) {
+        std::cerr << "[Parent] fork() failed: " << strerror(errno) << "\n";
+        return false;
+    }
+    if (pid == 0) {
+        // In child: build a char*[] for execvp
+        size_t n = argv.size();
+        char **cargv = new char*[n+1];
+        for (size_t i = 0; i < n; i++) {
+            cargv[i] = const_cast<char*>(argv[i].c_str());
+        }
+        cargv[n] = nullptr;
+        execvp(cargv[0], cargv);
+        // If execvp returns, it failed:
+        std::cerr << "[Child] execvp failed: " << strerror(errno) << "\n";
+        _exit(127);
+    }
+    // In parent:
+    outPid = pid;
+    return true;
+}
+
+///
+/// Attempt to open the shared memory and read header+payload.
+/// Returns true if we got any data (payload may be empty).
+///
+bool parent_read_shared_memory(const std::string &shmName, ChildResult &out) {
+    // POSIX: shared memory name must start with '/'
+    std::string posixName = shmName;
+    if (posixName.empty() || posixName[0] != '/')
+        posixName = "/" + posixName;
+
+    int fd = shm_open(posixName.c_str(), O_RDONLY, 0);
+    if (fd < 0) {
+        // No shared memory exists
+        // std::cerr << "[Parent] shm_open failed: " << strerror(errno) << "\n";
+        return false;
+    }
+    // 1) mmap the header to get length:
+    size_t headerSize = sizeof(size_t);
+    void *hdr = mmap(nullptr, headerSize, PROT_READ, MAP_SHARED, fd, 0);
+    if (hdr == MAP_FAILED) {
+        // std::cerr << "[Parent] mmap(header) failed: " << strerror(errno) << "\n";
+        close(fd);
+        return false;
+    }
+    size_t dataLen = 0;
+    memcpy(&dataLen, hdr, sizeof(size_t));
+    munmap(hdr, headerSize);
+
+    // 2) mmap the full region
+    size_t totalSize = headerSize + dataLen;
+    void *full = mmap(nullptr, totalSize, PROT_READ, MAP_SHARED, fd, 0);
+    if (full == MAP_FAILED) {
+        // std::cerr << "[Parent] mmap(full) failed: " << strerror(errno) << "\n";
+        close(fd);
+        return false;
+    }
+    char *cbuf = reinterpret_cast<char*>(full) + sizeof(size_t);
+    out.payload.assign(cbuf, dataLen);
+
+    munmap(full, totalSize);
+    close(fd);
+    return true;
+}
 
 int child_create_and_write_shm(const std::string& shmName, const std::string& semChild, const std::string& semParent, const std::string& payload) {
 

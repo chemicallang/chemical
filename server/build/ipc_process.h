@@ -14,6 +14,9 @@ using PROCESS_HANDLE = HANDLE;
   using PROCESS_HANDLE = pid_t;
 #endif
 
+///
+/// A small struct to hold the result from the child.
+///
 enum class ChildReason {
     SUCCESS,
     CRASH,
@@ -22,18 +25,36 @@ enum class ChildReason {
 
 struct ChildResult {
     ChildReason reason;
-    int exitCode;
-    std::string resultString;
+    int        exitCode;      // On Windows: GetExitCodeProcess; On POSIX: WEXITSTATUS or 128+signal
+    std::string payload;      // The string the child wrote into shared memory
 };
 
-std::string generate_shm_name();
-bool launch_child_process(const std::vector<std::string>& argv, PROCESS_HANDLE& outHandle);
-bool wait_for_child_and_read(PROCESS_HANDLE handle, const std::string& shmName,
-                             int timeoutMs, ChildResult& outResult);
-bool child_create_and_write_shm(const std::string& shmName, const std::string& payload);
+void make_unique_names(
+    std::string &shmName,
+    std::string &evtChildDone,
+    std::string &evtParentAck
+);
 
 #ifdef _WIN32
-int wmain(int argc, wchar_t** argv);
+
+std::wstring utf8_to_wide(const std::string &s);
+
+bool parent_read_and_cleanup_windows(
+        const std::string &shmName,
+        const std::string &evtParentAck,
+        ChildResult &out
+);
+
+bool launch_child_process(const std::vector<std::string>& argv, PROCESS_HANDLE& outHandle);
+
+int child_create_and_write_shm(const std::string& shmName, const std::string& evtChild, const std::string& evtParent, const std::string& payload);
+
 #else
-int child_main(int argc, char** argv);
+
+bool parent_read_shared_memory(const std::string &shmName, ChildResult &out);
+
+bool launch_child_process(const std::vector<std::string>& argv, pid_t &outPid);
+
+int child_create_and_write_shm(const std::string& shmName, const std::string& evtChild, const std::string& evtParent, const std::string& payload);
+
 #endif

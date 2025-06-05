@@ -6,6 +6,6 @@
 
 class BasicBuildContext;
 
-int report_context_to_parent(BasicBuildContext& context, const std::string& shmName);
+int report_context_to_parent(BasicBuildContext& context, const std::string& shmName, const std::string& evtChild, const std::string& evtParent);
 
 int launch_child_build(BasicBuildContext& context, const std::string_view& lspPath, const std::string_view& buildFilePath);

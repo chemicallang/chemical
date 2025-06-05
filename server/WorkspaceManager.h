@@ -24,8 +24,7 @@
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/ModuleStorage.h"
 #include "lsp/types.h"
-
-class LabBuildContext;
+#include "compiler/lab/LabBuildContext.h"
 
 class RemoteEndPoint;
 
@@ -170,6 +169,11 @@ private:
      */
     std::atomic<bool> cancel_request{false};
 
+    /**
+     * this context is used to store information about module graph
+     */
+    BasicBuildContext context;
+
 public:
 
     /**
@@ -182,11 +186,6 @@ public:
      * path to resources folder, if empty, will be calculated relative to current executable
      */
     std::string overridden_resources_path;
-
-    /**
-     * lab build compiler
-     */
-    LSPLabImpl* lab = nullptr;
 
     /**
      * we have a pointer to the main job
@@ -266,13 +265,16 @@ public:
 
     /**
      * compile a .lab file or a .mod file
+     * this method is called in a separate process to handle compilation
+     * this method reports to parent process
+     * the lab build context is a new pointer, you are taking ownership of it
      */
-    static bool compile_lab(const std::string& path);
+    static LabBuildContext* compile_lab(const std::string& exe_path, const std::string& path);
 
     /**
-     * this compiles build.lab, also notifies the user
+     * builds the context from a build.lab or chemical.mod file present in project path
      */
-    bool compile_build_lab();
+    int build_context_from_build_lab();
 
     /**
      * get the folding range for the given absolute file path

@@ -136,6 +136,7 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                 // handling source like this
                 if(!parseSourceStmt(allocator, data)) {
                     error("unknown identifier found");
+                    goto loop_break;
                 }
                 break;
             }

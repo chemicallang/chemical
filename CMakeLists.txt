@@ -561,6 +561,8 @@ set(COMMON_SOURCES
         preprocess/StringViewHashEqual.h
         core/main/CompilerMain.h
         core/main/CompilerMain.cpp
+        utils/CmdUtils2.h
+        utils/CmdUtils.cpp
 )
 
 # Chemical LSP Executable Target
@@ -594,6 +596,12 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/CaretPositionAnalyzer.cpp
         server/analyzers/FoldingRangeAnalyzerApi.h
         server/analyzers/InlayHintAnalyzerApi.h
+        server/build/ContextSerialization.h
+        server/build/ContextSerialization.cpp
+        server/build/ChildProcessBuild.h
+        server/build/ChildProcessBuild.cpp
+        server/build/ipc_process.h
+        server/build/ipc_process.cpp
 )
 
 # lsp framework

@@ -21,6 +21,8 @@
 #include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "compiler/lab/LabBuildCompilerOptions.h"
+#include "integration/libtcc/LibTccInteg.h"
+#include "server/build/ChildProcessBuild.h"
 #include "compiler/ASTProcessor.h"
 #include "server/analyzers/InlayHintAnalyzerApi.h"
 #include "server/analyzers/SignatureHelpAnalyzer.h"
@@ -29,24 +31,13 @@
 
 #define DEBUG_REPLACE false
 
-struct LSPLabImpl {
-
-    LabBuildContext context;
-    TCCState* state = nullptr;
-
-    ~LSPLabImpl() {
-        if(state) {
-            tcc_delete(state);
-        }
-    }
-
-};
-
 WorkspaceManager::WorkspaceManager(
         std::string lsp_exe_path,
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
-    global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()) {
+    global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
+    context(modStorage)
+{
 
 }
 
@@ -69,16 +60,7 @@ std::string WorkspaceManager::get_target_triple() {
 }
 
 std::string WorkspaceManager::compiler_exe_path() {
-#ifdef DEBUG
-    std::string exe_name = "Compiler";
-#else
-    std::string exe_name = "chemical";
-#endif
-#if defined(_WIN32)
-    return resolve_rel_parent_path_str(lsp_exe_path, exe_name + ".exe");
-#else
-    return resolve_rel_parent_path_str(lsp_exe_path, exe_name);
-#endif
+    return lsp_exe_path + " cc";
 }
 
 std::string WorkspaceManager::resources_path() {
@@ -90,11 +72,11 @@ std::string WorkspaceManager::resources_path() {
 }
 
 std::string WorkspaceManager::get_mod_file_path(){
-    return resolve_sibling(project_path, "chemical.mod");
+    return resolve_rel_child_path_str(project_path, "chemical.mod");
 }
 
 std::string WorkspaceManager::get_build_lab_path(){
-    return resolve_sibling(project_path, "build.lab");
+    return resolve_rel_child_path_str(project_path, "build.lab");
 }
 
 void WorkspaceManager::switch_main_job(LabJob* job) {
@@ -103,8 +85,6 @@ void WorkspaceManager::switch_main_job(LabJob* job) {
 
 void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
 
-    const auto& build = *lab;
-    auto& context = build.context;
     if(!context.executables.empty()) {
         // using the first job as the main job
         switch_main_job(context.executables.front().get());
@@ -135,70 +115,105 @@ void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
 
 }
 
-bool WorkspaceManager::compile_lab(const std::string& lab_path) {
+inline void create_dir(const std::string& build_dir) {
+    // create the build directory for this executable
+    if (!std::filesystem::exists(build_dir)) {
+        std::filesystem::create_directory(build_dir);
+    }
+}
 
+LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, const std::string& lab_path) {
+
+    // using is64Bit as true
+    auto is64Bit = true;
+    auto compiler_exe_path = exe_path + " cc";
+    auto is_mod_source = lab_path.ends_with(".mod");
     auto build_dir = resolve_sibling(lab_path, "build");
-    LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
+    LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
+    CompilerBinder binder(compiler_exe_path);
     LabBuildCompiler compiler(binder, &options);
+    ModuleStorage modStorage;
     auto& storage = modStorage;
-    const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, lab_path), nullptr };
-    ModuleDependencyRecord record("", chem::string(""), chem::string(""));
-    const auto state = compiler.built_lab_file(impl->context, record, lab_path, is_mod_source);
+    ImportPathHandler pathHandler(compiler_exe_path);
+    auto context_ptr = new LabBuildContext(compiler, pathHandler, storage, binder, lab_path);
+    std::unique_ptr<LabBuildContext> context(context_ptr);
+    ModuleDependencyRecord record("", chem::string("chemical"), chem::string("lab"));
+
+    // allocating ast allocators
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
+
+    // the allocators that will be used for all jobs
+    compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
+
+    // create build directory before proceeding (if it doesn't exist)
+    create_dir(build_dir);
+
+    // build the lab file to a tcc state
+    const auto state = compiler.built_lab_file(*context, record, lab_path, is_mod_source);
+
+    // auto delte the tcc state
+    TCCDeletor auto_delete(state);
 
     // get the build method
-    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
+    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
     if(!build) {
-        // there's no build function in the build.lab
-        return false;
+        std::cerr << "[lsp] there's no build function in the file" << std::endl;
+        return nullptr;
     }
 
     // call the root build.lab build's function
-    build(&impl->context);
+    build(context.get());
 
+    // returning the context
     if(state) {
-
-        // set the state as active
-        impl->state = state;
-        lab = impl;
-
-        // post build lab
-        post_build_lab(&compiler);
-
-        return true;
+        return context.release();
     } else {
-        delete impl;
-        // TODO report failure to ide
-        return false;
+        return nullptr;
     }
 
 }
 
-bool WorkspaceManager::compile_build_lab() {
-    auto mod_file = get_mod_file_path();
-    if(std::filesystem::exists(mod_file)) {
-        return compile_lab(mod_file);
-    }
-    auto lab_path = get_build_lab_path();
-    if(std::filesystem::exists(lab_path)) {
-        return compile_lab(lab_path);
-    }
-    return false;
+int WorkspaceManager::build_context_from_build_lab() {
+    // doing asynchronous tasks during initialization
+    std::future<void> futureObj = std::async(std::launch::async, [this] {
+        auto mod_file = get_mod_file_path();
+        if(std::filesystem::exists(mod_file)) {
+            std::cout << "[lsp] found mod file at '" << mod_file << "', triggering build" << std::endl;
+            auto result = launch_child_build(context, lsp_exe_path, mod_file);
+            if(!result) {
+                std::cout << "[lsp] failed build '" << mod_file << "'" << std::endl;
+            }
+        }
+        auto lab_path = get_build_lab_path();
+        if(std::filesystem::exists(lab_path)) {
+            std::cout << "[lsp] found lab file at '" << lab_path << "', triggering build" << std::endl;
+            auto result = launch_child_build(context, lsp_exe_path, lab_path);
+            if(!result) {
+                std::cout << "[lsp] failed build '" << lab_path << "'" << std::endl;
+            }
+        }
+    });
+    return 0;
 }
 
 void WorkspaceManager::initialize(const lsp::InitializeParams &params) {
     if(!params.rootUri.isNull()) {
         project_path = canonical_path(params.rootUri->path());
+        // compile build.lab asynchronously
+        build_context_from_build_lab();
     } else if(params.rootPath.has_value() && !params.rootPath->isNull())  {
         project_path = canonical_path(params.rootPath->value());
+        // compile build.lab asynchronously
+        build_context_from_build_lab();
     } else {
         // couldn't get project path, user must have opened a file
         return;
     }
-    // doing asynchronous tasks during initialization
-    std::future<void> futureObj = std::async(std::launch::async, [this] {
-        // compile build.lab asynchronously
-        compile_build_lab();
-    });
 }
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {
@@ -391,7 +406,6 @@ void WorkspaceManager::clearAllStoredContents() {
 }
 
 WorkspaceManager::~WorkspaceManager() {
-    delete lab;
     GlobalInterpretScope::dispose_container(global_container);
 }
 

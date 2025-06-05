@@ -269,7 +269,7 @@ public:
      * this method reports to parent process
      * the lab build context is a new pointer, you are taking ownership of it
      */
-    static LabBuildContext* compile_lab(const std::string& exe_path, const std::string& path);
+    static LabBuildContext* compile_lab(const std::string& exe_path, const std::string& path, ModuleStorage& storage);
 
     /**
      * builds the context from a build.lab or chemical.mod file present in project path

@@ -122,7 +122,7 @@ inline void create_dir(const std::string& build_dir) {
     }
 }
 
-LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, const std::string& lab_path) {
+LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, const std::string& lab_path, ModuleStorage& modStorage) {
 
     // using is64Bit as true
     auto is64Bit = true;
@@ -132,7 +132,6 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
     CompilerBinder binder(compiler_exe_path);
     LabBuildCompiler compiler(binder, &options);
-    ModuleStorage modStorage;
     auto& storage = modStorage;
     ImportPathHandler pathHandler(compiler_exe_path);
     auto context_ptr = new LabBuildContext(compiler, pathHandler, storage, binder, lab_path);
@@ -185,16 +184,16 @@ int WorkspaceManager::build_context_from_build_lab() {
         if(std::filesystem::exists(mod_file)) {
             std::cout << "[lsp] found mod file at '" << mod_file << "', triggering build" << std::endl;
             auto result = launch_child_build(context, lsp_exe_path, mod_file);
-            if(!result) {
-                std::cout << "[lsp] failed build '" << mod_file << "'" << std::endl;
+            if(result != 0) {
+                std::cerr << "[lsp] failed build '" << mod_file << "'" << std::endl;
             }
         }
         auto lab_path = get_build_lab_path();
         if(std::filesystem::exists(lab_path)) {
             std::cout << "[lsp] found lab file at '" << lab_path << "', triggering build" << std::endl;
             auto result = launch_child_build(context, lsp_exe_path, lab_path);
-            if(!result) {
-                std::cout << "[lsp] failed build '" << lab_path << "'" << std::endl;
+            if(result != 0) {
+                std::cerr << "[lsp] failed build '" << lab_path << "'" << std::endl;
             }
         }
     });

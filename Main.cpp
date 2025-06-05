@@ -754,7 +754,8 @@ int main(int argc, char *argv[]) {
     auto build_lab = options.option_new("build-lab");
     if(build_lab.has_value()) {
 
-        const auto context = WorkspaceManager::compile_lab(std::string(argv[0]), std::string(build_lab.value()));
+        ModuleStorage storage;
+        const auto context = WorkspaceManager::compile_lab(std::string(argv[0]), std::string(build_lab.value()), storage);
 
         auto shmName = options.option_new("shmName");
         if(!shmName.has_value() || shmName.value().empty()) {

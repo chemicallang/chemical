@@ -28,34 +28,39 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
     // 3) Launch:
     PROCESS_HANDLE childHandle;
     if (!launch_child_process(argv, childHandle)) {
-        std::cerr << "Failed to launch child process" << std::endl;
+        std::cerr << "[lsp] Failed to launch child process for compiling '" << buildFilePath << '\'' << std::endl;
         return 1;
     }
 
     // 4) Wait up to 10 000 ms:
     ChildResult result;
     if (!wait_for_child_and_read(childHandle, shmName, 10'000, result)) {
-        std::cerr << "Error while waiting for child or reading shared memory" << std::endl;
+        std::cerr << "[lsp] Error while waiting for child or reading shared memory" << std::endl;
         return 1;
     }
 
     // 5) Check how it ended:
     switch (result.reason) {
         case ChildReason::SUCCESS:
-            std::cout << "[Parent] Child exited successfully." << std::endl;
+            std::cout << "[lsp] Child exited successfully." << std::endl;
             break;
         case ChildReason::CRASH:
-            std::cout << "[Parent] Child crashed (exit=" << result.exitCode << ")." << std::endl;
+            std::cout << "[lsp] Child crashed (exit=" << result.exitCode << ")." << std::endl;
             break;
         case ChildReason::TIMEOUT:
-            std::cout << "[Parent] Child timed out / was killed." << std::endl;
+            std::cout << "[lsp] Child timed out / was killed." << std::endl;
             break;
+    }
+
+    if(result.resultString.empty()) {
+        std::cerr << "[lsp] received empty string from child process" << std::endl;
+        return 1;
     }
 
     const auto ok = labBuildContext_fromJson(context, result.resultString);
 
     // 6) Print the string:
-    std::cout << "[Parent] Shared‐memory contents:\n---\n"
+    std::cout << "[lsp] Shared‐memory contents:\n---\n"
               << result.resultString
               <<  std::endl;
 

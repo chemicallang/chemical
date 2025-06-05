@@ -729,6 +729,8 @@ int main(int argc, char *argv[]) {
             CmdOption("build-lab", CmdOptionType::SingleValue, "build a lab file and report to parent process"),
             CmdOption("cc", CmdOptionType::SubCommand, "run the compiler with the given command"),
             CmdOption("shmName", CmdOptionType::SingleValue, "the shared memory name for reporting"),
+            CmdOption("evtChildDone", CmdOptionType::SingleValue, "the event for when child is done"),
+            CmdOption("evtParentAck", CmdOptionType::SingleValue, "the event for parent acknowledgement"),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
@@ -762,7 +764,21 @@ int main(int argc, char *argv[]) {
             std::cerr << "[lsp] expected a 'shmName' command line argument" << std::endl;
             return 1;
         }
-        return report_context_to_parent(*context, std::string(shmName.value()));
+
+        auto childDone = options.option_new("evtChildDone");
+        if(!childDone.has_value() || childDone.value().empty()) {
+            std::cerr << "[lsp] expected a 'evtChildDone' command line argument" << std::endl;
+            return 1;
+        }
+
+        auto parentAck = options.option_new("evtParentAck");
+        if(!parentAck.has_value() || parentAck.value().empty()) {
+            std::cerr << "[lsp] expected a 'evtParentAck' command line argument" << std::endl;
+            return 1;
+        }
+
+        return report_context_to_parent(*context, std::string(shmName.value()), std::string(childDone.value()), std::string(parentAck.value()));
+
     }
 
     std::string user_agent = "websocket-server-async";

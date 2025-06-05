@@ -240,7 +240,7 @@ public:
     /**
      * initialize
      */
-//    void initialize(const td_initialize::request &req);
+    void initialize(const lsp::InitializeParams &req);
 
     /**
      * determines build.lab path relative to project path
@@ -263,6 +263,11 @@ public:
      * or do whateer we want with the data we have received
      */
     void post_build_lab(LabBuildCompiler* compiler);
+
+    /**
+     * compile a .lab file or a .mod file
+     */
+    static bool compile_lab(const std::string& path);
 
     /**
      * this compiles build.lab, also notifies the user

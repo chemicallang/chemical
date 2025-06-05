@@ -1,9 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
-//
-// Created by Waqas Tahir on 28/02/2024.
-//
-
+#include "CompilerMain.h"
 #ifdef COMPILER_BUILD
 #include <llvm/TargetParser/Host.h>
 #endif
@@ -46,14 +43,14 @@ void print_usage() {
 
 void print_help() {
     std::cout << "[Chemical] "
-                 #ifdef COMPILER_BUILD
-                 "Compiler v"
-                 #endif
-                 #ifdef TCC_BUILD
-                 "Compiler based on Tiny CC v"
-                 #endif
-                 << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << "\n"
-                 << std::endl;
+              #ifdef COMPILER_BUILD
+              "Compiler v"
+              #endif
+              #ifdef TCC_BUILD
+              "Compiler based on Tiny CC v"
+              #endif
+              << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << "\n"
+              << std::endl;
     std::cout << "Compiling a single file : \nchemical.exe <input_filename> -o <output_filename>\n\n"
                  "<input_filename> extensions supported .c , .ch\n"
                  "<output_filename> extensions supported .exe, .o, .c, .ch\n"
@@ -74,7 +71,7 @@ void print_help() {
                  "--debug-ir          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--ignore-errors     -[empty]      ignore any errors that happen and compile any way\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
-//                 "--verify            -o            do not compile, only verify source code\n"
+                 //                 "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--no-cbi            -[empty]      this ignores cbi annotations when translating\n"
                  "--no-caching        -[empty]      no caching will be done\n"
@@ -293,10 +290,10 @@ LabModule* create_module(std::vector<std::unique_ptr<LabModule>>& modules, const
 }
 
 void include_mod_command_modules(
-    std::vector<std::unique_ptr<LabModule>>& modules,
-    const std::span<std::string_view>& command_values,
-    LabJob& job,
-    LabModule* main_mod
+        std::vector<std::unique_ptr<LabModule>>& modules,
+        const std::span<std::string_view>& command_values,
+        LabJob& job,
+        LabModule* main_mod
 ) {
     if(command_values.empty()) return;
     for(auto& lib : command_values) {
@@ -413,7 +410,7 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int compiler_main(int argc, char *argv[]) {
 
 // enable this code if debugging heap allocations is required
 //#ifdef _WIN32
@@ -435,47 +432,47 @@ int main(int argc, char *argv[]) {
     // parsing the command
     CmdOptions options;
     CmdOption cmd_data[] = {
-        CmdOption("include", CmdOptionType::MultiValued, include_cmd_desc),
-        CmdOption("build-dir", CmdOptionType::SingleValue, build_dir_desc),
-        CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_cmd_desc),
-        CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
-        CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
-        CmdOption("linker", CmdOptionType::SubCommand, linker_cmd_desc),
-        CmdOption("ar", CmdOptionType::SubCommand, ar_cmd_desc),
-        CmdOption("dlltool", CmdOptionType::SubCommand, dlltool_cmd_desc),
-        CmdOption("ranlib", CmdOptionType::SubCommand, ranlib_cmd_desc),
-        CmdOption("lib", CmdOptionType::SubCommand, lib_cmd_desc),
-        CmdOption("mode", "m", CmdOptionType::SingleValue, mode_cmd_desc),
-        CmdOption("version", CmdOptionType::NoValue, version_cmd_desc),
-        CmdOption("help", CmdOptionType::NoValue, help_cmd_desc),
-        CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
-        CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
-        CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
-        CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
-        CmdOption("verbose", "v", CmdOptionType::NoValue, verbose_desc),
-        CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue, ignore_errors_desc),
-        CmdOption("lto", CmdOptionType::NoValue, lto_desc),
-        CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
-        CmdOption("no-pie", "no-pie", CmdOptionType::NoValue, no_pie_desc),
-        CmdOption("target", "t", CmdOptionType::SingleValue, target_desc),
-        CmdOption("jit", "jit", CmdOptionType::NoValue, jit_desc),
-        CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
-        CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
-        CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
-        CmdOption("no-cache", CmdOptionType::NoValue, no_cache_desc),
-        CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
-        CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
-        CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
-        CmdOption("out-asm", CmdOptionType::SingleValue, asm_out_desc),
-        CmdOption("out-bin", CmdOptionType::SingleValue, bin_out_desc),
-        CmdOption("out-ll-all", CmdOptionType::NoValue, out_dash_all_desc),
-        CmdOption("out-asm-all", CmdOptionType::NoValue, out_dash_all_desc),
-        CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
-        CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
-        CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
-        CmdOption("", "fno-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
-        CmdOption("", "fno-asynchronous-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
-        CmdOption("mod", "", CmdOptionType::MultiValued, mod_cmd_desc),
+            CmdOption("include", CmdOptionType::MultiValued, include_cmd_desc),
+            CmdOption("build-dir", CmdOptionType::SingleValue, build_dir_desc),
+            CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_cmd_desc),
+            CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
+            CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
+            CmdOption("linker", CmdOptionType::SubCommand, linker_cmd_desc),
+            CmdOption("ar", CmdOptionType::SubCommand, ar_cmd_desc),
+            CmdOption("dlltool", CmdOptionType::SubCommand, dlltool_cmd_desc),
+            CmdOption("ranlib", CmdOptionType::SubCommand, ranlib_cmd_desc),
+            CmdOption("lib", CmdOptionType::SubCommand, lib_cmd_desc),
+            CmdOption("mode", "m", CmdOptionType::SingleValue, mode_cmd_desc),
+            CmdOption("version", CmdOptionType::NoValue, version_cmd_desc),
+            CmdOption("help", CmdOptionType::NoValue, help_cmd_desc),
+            CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
+            CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
+            CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
+            CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
+            CmdOption("verbose", "v", CmdOptionType::NoValue, verbose_desc),
+            CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue, ignore_errors_desc),
+            CmdOption("lto", CmdOptionType::NoValue, lto_desc),
+            CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
+            CmdOption("no-pie", "no-pie", CmdOptionType::NoValue, no_pie_desc),
+            CmdOption("target", "t", CmdOptionType::SingleValue, target_desc),
+            CmdOption("jit", "jit", CmdOptionType::NoValue, jit_desc),
+            CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
+            CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
+            CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
+            CmdOption("no-cache", CmdOptionType::NoValue, no_cache_desc),
+            CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
+            CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
+            CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
+            CmdOption("out-asm", CmdOptionType::SingleValue, asm_out_desc),
+            CmdOption("out-bin", CmdOptionType::SingleValue, bin_out_desc),
+            CmdOption("out-ll-all", CmdOptionType::NoValue, out_dash_all_desc),
+            CmdOption("out-asm-all", CmdOptionType::NoValue, out_dash_all_desc),
+            CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
+            CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
+            CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
+            CmdOption("", "fno-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
+            CmdOption("", "fno-asynchronous-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
+            CmdOption("mod", "", CmdOptionType::MultiValued, mod_cmd_desc),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);

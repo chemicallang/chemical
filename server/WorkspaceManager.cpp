@@ -135,87 +135,71 @@ void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
 
 }
 
+bool WorkspaceManager::compile_lab(const std::string& lab_path) {
+
+    auto build_dir = resolve_sibling(lab_path, "build");
+    LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
+    LabBuildCompiler compiler(binder, &options);
+    auto& storage = modStorage;
+    const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, lab_path), nullptr };
+    ModuleDependencyRecord record("", chem::string(""), chem::string(""));
+    const auto state = compiler.built_lab_file(impl->context, record, lab_path, is_mod_source);
+
+    // get the build method
+    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
+    if(!build) {
+        // there's no build function in the build.lab
+        return false;
+    }
+
+    // call the root build.lab build's function
+    build(&impl->context);
+
+    if(state) {
+
+        // set the state as active
+        impl->state = state;
+        lab = impl;
+
+        // post build lab
+        post_build_lab(&compiler);
+
+        return true;
+    } else {
+        delete impl;
+        // TODO report failure to ide
+        return false;
+    }
+
+}
+
 bool WorkspaceManager::compile_build_lab() {
     auto mod_file = get_mod_file_path();
     if(std::filesystem::exists(mod_file)) {
-
-        auto build_dir = resolve_sibling(mod_file, "build");
-        LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
-        LabBuildCompiler compiler(binder, &options);
-        auto& storage = modStorage;
-        const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, mod_file), nullptr };
-        ModuleDependencyRecord record("", chem::string(""), chem::string(""));
-        auto module = compiler.built_mod_file(impl->context, mod_file);
-        if(module == nullptr) {
-            return false;
-        }
-
-        // let's create a single job that depends on this module
-        chem::string abs_path(resolve_rel_child_path_str(
-                build_dir,
-#ifdef _WIN32
-                "output.exe"
-#else
-                "output"
-#endif
-        ));
-        auto job = new LabJob(LabJobType::Executable, module->name.copy(), std::move(abs_path), chem::string(build_dir));
-        impl->context.executables.emplace_back(job);
-
-        post_build_lab(&compiler);
-        return true;
-
+        return compile_lab(mod_file);
     }
     auto lab_path = get_build_lab_path();
     if(std::filesystem::exists(lab_path)) {
-
-        auto build_dir = resolve_sibling(lab_path, "build");
-        LabBuildCompilerOptions options(compiler_exe_path(), "ide", build_dir, is64Bit);
-        LabBuildCompiler compiler(binder, &options);
-        auto& storage = modStorage;
-        const auto impl = new LSPLabImpl { LabBuildContext(compiler, pathHandler, storage, binder, lab_path), nullptr };
-        ModuleDependencyRecord record("", chem::string(""), chem::string(""));
-        const auto state = compiler.built_lab_file(impl->context, record, lab_path);
-
-        // get the build method
-        auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
-        if(!build) {
-            // there's no build function in the build.lab
-            return false;
-        }
-
-        // call the root build.lab build's function
-        build(&impl->context);
-
-        if(state) {
-
-            // set the state as active
-            impl->state = state;
-            lab = impl;
-
-            // post build lab
-            post_build_lab(&compiler);
-
-            return true;
-        } else {
-            delete impl;
-            // TODO report failure to ide
-            return false;
-        }
-
-    } else {
-        return false;
+        return compile_lab(lab_path);
     }
+    return false;
 }
 
-//void WorkspaceManager::initialize(const td_initialize::request &req) {
-//    project_path = canonical_path(req.params.rootUri->GetAbsolutePath().path);
-//    // doing asynchronous tasks during initialization
-//    std::future<void> futureObj = std::async(std::launch::async, [this] {
-//        // compile build.lab asynchronously
-//        compile_build_lab();
-//    });
-//}
+void WorkspaceManager::initialize(const lsp::InitializeParams &params) {
+    if(!params.rootUri.isNull()) {
+        project_path = canonical_path(params.rootUri->path());
+    } else if(params.rootPath.has_value() && !params.rootPath->isNull())  {
+        project_path = canonical_path(params.rootPath->value());
+    } else {
+        // couldn't get project path, user must have opened a file
+        return;
+    }
+    // doing asynchronous tasks during initialization
+    std::future<void> futureObj = std::async(std::launch::async, [this] {
+        // compile build.lab asynchronously
+        compile_build_lab();
+    });
+}
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {
     if (overriddenSources.contains(path)) {

@@ -559,6 +559,8 @@ set(COMMON_SOURCES
         compiler/lab/mod_conv/ModToLabConverter.cpp
         compiler/lab/LabGetMethodInjection.h
         preprocess/StringViewHashEqual.h
+        core/main/CompilerMain.h
+        core/main/CompilerMain.cpp
 )
 
 # Chemical LSP Executable Target

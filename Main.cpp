@@ -39,7 +39,10 @@ void run_session(
     lsp::MessageHandler handler(connection);
     WorkspaceManager manager(executable_path, handler);
 
-    handler.add<lsp::requests::Initialize>([](auto&& params){
+    handler.add<lsp::requests::Initialize>([&manager](lsp::InitializeParams&& params){
+
+        // initializing the manager
+        manager.initialize(params);
 
         std::ostringstream versionStr;
         versionStr << 'v' << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH;
@@ -720,6 +723,8 @@ int main(int argc, char *argv[]) {
             CmdOption("resources", "res", CmdOptionType::SingleValue, "path to the resources directory of the compiler"),
             CmdOption("port", "port", CmdOptionType::SingleValue, "the port at which lsp should run"),
             CmdOption("version", "v", CmdOptionType::NoValue, "get the version"),
+            CmdOption("build-lab", CmdOptionType::SingleValue, "build a lab file and report to parent process"),
+            CmdOptions("compile", CmdOptionType::SubCommand, "run the compiler with the given command")
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
@@ -727,6 +732,16 @@ int main(int argc, char *argv[]) {
     if(options.has_value("version")) {
         std::cout << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << std::endl;
         return 0;
+    }
+
+    auto& compileOpt = options.cmd_opt("compile");
+    if(compileOpt.has_multi_value()) {
+
+    }
+
+    auto build_lab = options.option_new("build-lab");
+    if(build_lab.has_value()) {
+        WorkspaceManager::compile_lab();
     }
 
     std::string user_agent = "websocket-server-async";

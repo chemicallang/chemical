@@ -11,13 +11,16 @@
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
 #include "utils/CmdUtils.h"
+#include "utils/CmdUtils2.h"
 #include "utils/Version.h"
+#include "core/main/CompilerMain.h"
 
 #include <thread>
 #include <atomic>
 #include <functional>
 #include <utility>
 #include "utils/JsonUtils.h"
+#include "server/build/ChildProcessBuild.h"
 
 #include <sstream>
 #include <iostream>
@@ -724,7 +727,8 @@ int main(int argc, char *argv[]) {
             CmdOption("port", "port", CmdOptionType::SingleValue, "the port at which lsp should run"),
             CmdOption("version", "v", CmdOptionType::NoValue, "get the version"),
             CmdOption("build-lab", CmdOptionType::SingleValue, "build a lab file and report to parent process"),
-            CmdOptions("compile", CmdOptionType::SubCommand, "run the compiler with the given command")
+            CmdOption("cc", CmdOptionType::SubCommand, "run the compiler with the given command"),
+            CmdOption("shmName", CmdOptionType::SingleValue, "the shared memory name for reporting"),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
@@ -734,14 +738,30 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    auto& compileOpt = options.cmd_opt("compile");
+    auto& compileOpt = options.cmd_opt("cc");
     if(compileOpt.has_multi_value()) {
-
+        std::vector<std::string> subc;
+        subc.emplace_back(argv[0]);
+        compileOpt.get_multi_value_vec(subc);
+        auto& command_args = subc;
+        char** pointers = convert_to_pointers(command_args);
+        // invocation
+        auto result = compiler_main(command_args.size(), pointers);
+        free_pointers(pointers, command_args.size());
+        return result;
     }
 
     auto build_lab = options.option_new("build-lab");
     if(build_lab.has_value()) {
-        WorkspaceManager::compile_lab();
+
+        const auto context = WorkspaceManager::compile_lab(std::string(argv[0]), std::string(build_lab.value()));
+
+        auto shmName = options.option_new("shmName");
+        if(!shmName.has_value() || shmName.value().empty()) {
+            std::cerr << "[lsp] expected a 'shmName' command line argument" << std::endl;
+            return 1;
+        }
+        return report_context_to_parent(*context, std::string(shmName.value()));
     }
 
     std::string user_agent = "websocket-server-async";

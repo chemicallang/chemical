@@ -26,19 +26,39 @@ class ASTProcessor;
 class ToCAstVisitor;
 
 /**
+ * stores all the data required
+ */
+class BasicBuildContext {
+public:
+
+    /**
+    * all the executables created during the build process
+    */
+    std::vector<std::unique_ptr<LabJob>> executables;
+
+    /**
+     * the module storage
+     */
+    ModuleStorage& storage;
+
+    /**
+     * constructor
+     */
+    BasicBuildContext(ModuleStorage& storage) : storage(storage) {
+
+    }
+
+};
+
+/**
  * A Lab build context is just a container
  * for all the modules user creates, build variables, any resources
  * It provides easier way to create modules that will be processed by
  * our compiler to create a flat set of files for each module that are
  * compiled one by one
  */
-class LabBuildContext {
+class LabBuildContext : public BasicBuildContext {
 public:
-
-    /**
-     * all the executables created during the build process
-     */
-    std::vector<std::unique_ptr<LabJob>> executables;
 
     /**
      * build arguments given to the build lab
@@ -59,11 +79,6 @@ public:
      * if import paths are to be used with aliases in them, we need a path handler
      */
     ImportPathHandler& handler;
-
-    /**
-     * the module storage
-     */
-    ModuleStorage& storage;
 
     /**
      * the compiler binder is used to provide the binding support
@@ -93,7 +108,7 @@ public:
         ModuleStorage& storage,
         CompilerBinder& binder,
         std::string lab_file
-    ) : handler(path_handler), compiler(compiler), storage(storage), binder(binder) {
+    ) : handler(path_handler), compiler(compiler), BasicBuildContext(storage), binder(binder) {
 
     }
 

@@ -95,10 +95,14 @@ void run_session(
     });
 
     handler.add<lsp::requests::TextDocument_SemanticTokens_Full>([&manager](lsp::requests::TextDocument_SemanticTokens_Full::Params&& params){
-        auto tokens = manager.get_semantic_tokens_full(params.textDocument.uri.path());
-        return lsp::requests::TextDocument_SemanticTokens_Full::Result(lsp::SemanticTokens{
-            .data = tokens
-        });
+        try {
+            auto tokens = manager.get_semantic_tokens_full(params.textDocument.uri.path());
+            return lsp::requests::TextDocument_SemanticTokens_Full::Result(lsp::SemanticTokens{
+                    .data = tokens
+            });
+        } catch(const std::exception& e) {
+            throw std::runtime_error("UNCAUGHT_EXCEPTION");
+        }
     });
 
     handler.add<lsp::requests::TextDocument_FoldingRange>([&manager](lsp::requests::TextDocument_FoldingRange::Params&& params){

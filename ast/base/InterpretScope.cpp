@@ -222,9 +222,6 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return nullptr;
         }
     } else {
-#ifdef DEBUG
-        throw std::runtime_error("OPERATION BETWEEN VALUES OF UNKNOWN KIND");
-#endif
         scope.error("Operation between values of unknown kind", debugValue);
         return nullptr;
     }

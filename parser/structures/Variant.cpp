@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/VariantMember.h"
@@ -39,12 +40,15 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
 #endif
 
                     if(!consumeToken(TokenType::ColonSym)) {
-                        error("expected ':' after the variant member parameter");
+                        unexpected_error("expected ':' after the variant member parameter");
                     }
 
                     auto type = parseTypeLoc(allocator);
                     if(type) {
                         param->type = type;
+                    } else {
+                        unexpected_error("expected a type for variant member parameter");
+                        param->type = { (BaseType*) typeBuilder.getVoidType(), ZERO_LOC };
                     }
 
                     if(consumeToken(TokenType::EqualSym)) {

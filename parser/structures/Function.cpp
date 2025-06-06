@@ -16,6 +16,7 @@
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/DestructStmt.h"
+#include "ast/values/NullValue.h"
 #include "ast/base/TypeBuilder.h"
 
 ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
@@ -106,6 +107,13 @@ UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {
     }
 }
 
+DestructStmt* fix_destruct(DestructStmt* stmt, ASTAllocator& allocator) {
+    if(!stmt->identifier) {
+        stmt->identifier = new(allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+    }
+    return stmt;
+}
+
 DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
     auto& tok = *token;
     if(tok.type == TokenType::DestructKw) {
@@ -119,7 +127,7 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
             }
             if(!consumeToken(TokenType::RBracket)) {
                 unexpected_error("expected a ']' after the access chain value");
-                return stmt;
+                return fix_destruct(stmt, allocator);
             }
         }
         auto value = parseAccessChainOrValue(allocator);
@@ -127,7 +135,7 @@ DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
             stmt->identifier = value;
         } else {
             unexpected_error("expected a pointer value for the destruct statement");
-            return stmt;
+            return fix_destruct(stmt, allocator);
         }
         return stmt;
     } else {
@@ -324,9 +332,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
 
     if(allow_extensions && consumeToken(TokenType::LParen)) {
 
-        // set the function is extension
-        decl->setIsExtension(true);
-
         const auto receiverParam = new (allocator.allocate<FunctionParam>()) FunctionParam("", nullptr, 0, nullptr, false, decl, loc_single(token));
 
         auto id = consumeIdentifierOrKeyword();
@@ -348,6 +353,8 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         if(type) {
             receiverParam->type = typeLoc;
             decl->params.emplace_back(receiverParam);
+            // set the function is extension
+            decl->setIsExtension(true);
         } else {
             error("expected type after ':' in extension function for receiver");
             return decl;

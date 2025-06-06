@@ -6,6 +6,14 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/WhileLoop.h"
+#include "ast/values/NullValue.h"
+
+WhileLoop* fix_loop(WhileLoop* loop, ASTAllocator& allocator) {
+    if(!loop->condition) {
+        loop->condition = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+    }
+    return loop;
+}
 
 WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
 
@@ -20,7 +28,7 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
 
     if(!consumeToken(TokenType::LParen)) {
         unexpected_error("expected a starting parenthesis ( after keyword while for while block");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     auto expr = parseExpression(allocator);
@@ -28,7 +36,7 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
         loop->condition = expr;
     } else {
         unexpected_error("expected a conditional statement for while block");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     if(!consumeToken(TokenType::RParen)) {

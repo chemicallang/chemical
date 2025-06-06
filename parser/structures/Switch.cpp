@@ -1,7 +1,15 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "parser/Parser.h"
+#include "ast/values/NullValue.h"
 #include "ast/statements/SwitchStatement.h"
+
+SwitchStatement* fix_switch(SwitchStatement* stmt, ASTAllocator& allocator) {
+    if(!stmt->expression) {
+        stmt->expression = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+    }
+    return stmt;
+}
 
 SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
 
@@ -19,15 +27,15 @@ SwitchStatement* Parser::parseSwitchStatementBlock(ASTAllocator& allocator, bool
                 stmt->expression = expr;
             } else {
                 error("expected an expression tokens in switch statement");
-                return stmt;
+                return fix_switch(stmt, allocator);
             }
             if (!consumeToken(TokenType::RParen)) {
                 error("expected ')' in switch statement");
-                return stmt;
+                return fix_switch(stmt, allocator);
             }
         } else {
             error("expect '(' after keyword 'switch' for the expression");
-            return stmt;
+            return fix_switch(stmt, allocator);
         }
         consumeNewLines();
         if (consumeToken(TokenType::LBrace)) {

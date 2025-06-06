@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/GenericImplDecl.h"
 
@@ -50,6 +51,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
         if(type) {
             impl->interface_type = {type, interfaceTypeLoc};
         } else {
+            impl->interface_type = { (BaseType*) typeBuilder.getVoidType(), ZERO_LOC };
             return final_decl;
         }
         if(consumeToken(TokenType::ForKw)) {

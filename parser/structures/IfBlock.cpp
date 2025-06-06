@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/structures/If.h"
+#include "ast/values/NullValue.h"
 
 std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level) {
 
@@ -65,6 +66,9 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
         statement->condition = exprBlockValue.first;
         statement->ifBody = std::move(exprBlockValue.second);
     } else {
+        if(!statement->condition) {
+            statement->condition = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+        }
         return statement;
     }
 

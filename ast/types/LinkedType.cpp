@@ -140,7 +140,7 @@ bool NamedLinkedType::link(SymbolResolver &linker, SourceLocation loc) {
     if(found) {
         linked = found;
     } else if(linked == nullptr) {
-        linker.error(loc) << "unresolved symbol, couldn't find referenced type " << link_name;
+        linker.error(loc) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
         return false;
     }
     return true;

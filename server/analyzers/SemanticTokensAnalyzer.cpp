@@ -193,9 +193,11 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
                 // +3 for each """
                 putMultilineToken(token, TokenType(String), 0, 3, 3);
                 break;
-            case TokenType::Char:
-                put(token, TokenType(String));
+            case TokenType::Char: {
+                auto& pos = token->position;
+                put(pos.line, pos.character, calculate_display_size(token->value, 2), TokenType(String), 0);
                 break;
+            }
             case TokenType::HashMacro:
             case TokenType::Annotation:
                 put(token, TokenType(Macro));

@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/CharValue.h"
 #include "ast/values/StringValue.h"
 #include "utils/StringHelpers.h"
@@ -217,6 +218,7 @@ Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, Token
     auto type = parser.parseTypeLoc(allocator);
     auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, is_negating, parser.loc_single(start_token));
     if (!type) {
+        isValue->type = { (BaseType*) parser.typeBuilder.getVoidType(), ZERO_LOC };
         parser.unexpected_error("expected a type after 'is' in expression");
     }
     return isValue;

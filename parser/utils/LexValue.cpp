@@ -150,6 +150,10 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         auto new_value = new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(nullptr, nullptr, loc_single(new_tok));
         token++;
         auto pointer_val = parseExpression(allocator);
+        if(!pointer_val) {
+            unexpected_error("expected a pointer value for placement new");
+            return nullptr;
+        }
         new_value->pointer = pointer_val;
         if(token->type != TokenType::RParen) {
             unexpected_error("expected a ')' after the pointer value in new expression");
@@ -158,6 +162,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         auto value = parseExpression(allocator, true);
         if(!value) {
             unexpected_error("expected a value for placement new expression");
+            return nullptr;
         }
         new_value->value = value;
         return new_value;

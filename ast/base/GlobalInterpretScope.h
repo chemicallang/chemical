@@ -13,6 +13,7 @@
 #include <memory>
 #include "compiler/lab/TargetData.h"
 #include "TypeLoc.h"
+#include "compiler/OutputMode.h"
 
 class BackendContext;
 
@@ -30,6 +31,11 @@ std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem:
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
 public:
+
+    /**
+     * the output mode
+     */
+    OutputMode mode;
 
     /**
      * the target triple given by the user
@@ -87,6 +93,7 @@ public:
      * The constructor
      */
     explicit GlobalInterpretScope(
+        OutputMode mode,
         std::string target_triple,
         BackendContext* backendContext,
         LabBuildCompiler* buildCompiler,

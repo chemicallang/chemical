@@ -33,6 +33,9 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::stri
     auto abs_path = canonical(path);
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);
+    if(!last_file) {
+        return {};
+    }
     // report the tokens
     auto toks = get_semantic_tokens(*last_file);
     // remove the comments from the tokens
@@ -65,7 +68,7 @@ void WorkspaceManager::notify_diagnostics_async(
     build_diagnostics(diagnostics_list, diags);
     std::async(std::launch::async, [this, path, diagnostics = std::move(diagnostics_list)] {
         auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
-                lsp::FileUri(path), std::move(diagnostics), std::nullopt
+                lsp::FileUri::fromPath(path), std::move(diagnostics), std::nullopt
         };
         handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
     });
@@ -78,7 +81,7 @@ void WorkspaceManager::notify_diagnostics_sync(
     std::vector<lsp::Diagnostic> diagnostics;
     build_diagnostics(diagnostics, diags);
     auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
-            lsp::FileURI(path), std::move(diagnostics), std::nullopt
+            lsp::FileUri::fromPath(path), std::move(diagnostics), std::nullopt
     };
     handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
 }
@@ -280,7 +283,7 @@ void WorkspaceManager::publish_diagnostics(std::shared_ptr<LexResult> file) {
         // publish diagnostics for import unit (if not cached and job not cancelled)
         if(!publish_diagnostics_cancel_flag.load()) {
             std::vector<std::vector<Diag>*> diag_ptrs{ &file->diags, &ast->diags };
-            notify_diagnostics(file->abs_path, diag_ptrs, true);
+            notify_diagnostics_sync(file->abs_path, diag_ptrs);
         }
     });
 

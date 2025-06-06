@@ -605,6 +605,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
 )
 
 # lsp framework
+set(LSP_USE_SANITIZERS OFF CACHE BOOL "Turn off UBSan/ASan in lsp-framework" FORCE)
 add_subdirectory(lib/lsp-framework)
 
 # Add an executable target for the second executable

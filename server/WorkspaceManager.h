@@ -261,7 +261,7 @@ public:
      * when build.lab has been built, we can build modules
      * or do whateer we want with the data we have received
      */
-    void post_build_lab(LabBuildCompiler* compiler);
+    void post_build_lab();
 
     /**
      * compile a .lab file or a .mod file

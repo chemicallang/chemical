@@ -3,6 +3,7 @@
 #include "parser/Parser.h"
 #include "ast/statements/Assignment.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/NullValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/IncDecValue.h"
@@ -165,6 +166,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         stmt->value = expr;
     } else {
         unexpected_error("expected a value for variable assignment");
+        stmt->value = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
         return stmt;
     }
 

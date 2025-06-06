@@ -874,6 +874,7 @@ bool FunctionCall::link_gen_args(SymbolResolver &linker) {
 FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     const auto type = parent_val->create_type(allocator);
+    if(!type) return nullptr;
     auto func_type = type->pure_type(allocator)->as_function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {

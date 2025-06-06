@@ -9,9 +9,9 @@
 #include "ast/values/NullValue.h"
 
 bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    value->link(linker, value);
-    type.link(linker);
-    return true;
+    const auto a = value->link(linker, value);
+    const auto b = type.link(linker);
+    return a && b;
 }
 
 Value* IsValue::evaluated_value(InterpretScope &scope) {

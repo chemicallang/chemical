@@ -5,7 +5,16 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
+
+// if neither a type or a value is given, it would causes errors (in lsp)
+VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
+    if(!stmt->type && !stmt->value) {
+        stmt->type = { (BaseType*) builder.getVoidType(), ZERO_LOC };
+    }
+    return stmt;
+}
 
 VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allowDeclarations, bool requiredType) {
 
@@ -46,12 +55,12 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
         stmt->type = parseTypeLoc(allocator);
         if(!stmt->type && requiredType) {
             error("expected type tokens for variable initialization");
-            return stmt;
+            return fix_stmt(stmt, typeBuilder);
         }
 
     } else if(requiredType) {
         error("expected ':' for type");
-        return stmt;
+        return fix_stmt(stmt, typeBuilder);
     }
 
     // equal sign
@@ -64,7 +73,7 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
             return stmt;
         } else {
             error("a type or value is required to initialize a variable");
-            return stmt;
+            return fix_stmt(stmt, typeBuilder);
         }
     }
 
@@ -74,7 +83,7 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
         stmt->value = expr;
     } else {
         error("expected an expression / array for variable initialization");
-        return stmt;
+        return fix_stmt(stmt, typeBuilder);
     }
 
     parent_node = prev_parent_node;

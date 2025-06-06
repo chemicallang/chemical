@@ -25,8 +25,8 @@ bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
             }
         }
 
+        is_value_mutable = value->check_is_mutable(linker.allocator, true);
     }
-    is_value_mutable = value->check_is_mutable(linker.allocator, true);
     return res;
 }
 

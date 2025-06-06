@@ -84,17 +84,18 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
 }
 
 bool IndexOperator::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    parent_val->link(linker, (Value*&) parent_val, nullptr);
+    const auto linked = parent_val->link(linker, (Value*&) parent_val, nullptr);
     for(auto& value : values) {
-        value->link(linker, value);
+        if(!value->link(linker, value)) {
+            return false;
+        }
     }
-    return true;
+    return linked;
 }
 
 ASTNode *IndexOperator::linked_node() {
-    auto value_type = parent_val->known_type();
-    const auto child_type = value_type->known_child_type();
-    return child_type->linked_node();
+    const auto value_type = known_type();
+    return value_type ? value_type->linked_node() : nullptr;
 }
 
 Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, SourceLocation location) {
@@ -161,5 +162,8 @@ IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
 }
 
 BaseType* IndexOperator::known_type() {
+//    auto value_type = parent_val->known_type();
+//    if(!value_type) return nullptr;
+//    return value_type->known_child_type();
     return parent_val->known_type()->known_child_type();
 }

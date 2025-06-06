@@ -83,22 +83,22 @@ void WorkspaceManager::switch_main_job(LabJob* job) {
     main_job = job;
 }
 
-void WorkspaceManager::post_build_lab(LabBuildCompiler* compiler) {
+void WorkspaceManager::post_build_lab() {
 
     if(!context.executables.empty()) {
         // using the first job as the main job
         switch_main_job(context.executables.front().get());
     }
 
-    compiler->do_allocating((void*) &context, [](LabBuildCompiler* compiler, void* data) -> int {
-        auto& context = *((LabBuildContext*) data);
-        for(auto& job : context.executables) {
-            if(job->type == LabJobType::CBI) {
-                compiler->do_job(job.get());
-            }
-        }
-        return 0;
-    });
+//    compiler->do_allocating((void*) &context, [](LabBuildCompiler* compiler, void* data) -> int {
+//        auto& context = *((LabBuildContext*) data);
+//        for(auto& job : context.executables) {
+//            if(job->type == LabJobType::CBI) {
+//                compiler->do_job(job.get());
+//            }
+//        }
+//        return 0;
+//    });
 
     // lets index all the files to modules they belong to
     for(auto& mod_ptr : modStorage.get_modules()) {
@@ -128,7 +128,12 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     auto is64Bit = true;
     auto compiler_exe_path = exe_path + " cc";
     auto is_mod_source = lab_path.ends_with(".mod");
-    auto build_dir = resolve_sibling(lab_path, "build");
+    auto compiler_build_dir = resolve_sibling(lab_path, "build");
+    auto build_dir = resolve_rel_child_path_str(compiler_build_dir, "ide");
+    // create build directory before proceeding (if it doesn't exist)
+    create_dir(compiler_build_dir);
+    create_dir(build_dir);
+
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
     CompilerBinder binder(compiler_exe_path);
     LabBuildCompiler compiler(binder, &options);
@@ -148,9 +153,6 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
 
     // the allocators that will be used for all jobs
     compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
-
-    // create build directory before proceeding (if it doesn't exist)
-    create_dir(build_dir);
 
     // build the lab file to a tcc state
     const auto state = compiler.built_lab_file(*context, record, lab_path, is_mod_source);
@@ -184,7 +186,9 @@ int WorkspaceManager::build_context_from_build_lab() {
         if(std::filesystem::exists(mod_file)) {
             std::cout << "[lsp] found mod file at '" << mod_file << "', triggering build" << std::endl;
             auto result = launch_child_build(context, lsp_exe_path, mod_file);
-            if(result != 0) {
+            if(result == 0) {
+                post_build_lab();
+            } else {
                 std::cerr << "[lsp] failed build '" << mod_file << "'" << std::endl;
             }
         }
@@ -192,7 +196,9 @@ int WorkspaceManager::build_context_from_build_lab() {
         if(std::filesystem::exists(lab_path)) {
             std::cout << "[lsp] found lab file at '" << lab_path << "', triggering build" << std::endl;
             auto result = launch_child_build(context, lsp_exe_path, lab_path);
-            if(result != 0) {
+            if(result == 0) {
+                post_build_lab();
+            } else {
                 std::cerr << "[lsp] failed build '" << lab_path << "'" << std::endl;
             }
         }

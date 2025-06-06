@@ -10,6 +10,7 @@
 #include "ast/statements/Continue.h"
 #include "ast/statements/Unreachable.h"
 #include "ast/structures/ForLoop.h"
+#include "ast/values/NullValue.h"
 
 ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
     auto& tok = *token;
@@ -50,6 +51,20 @@ UnreachableStmt* Parser::parseUnreachableStatement(ASTAllocator& allocator) {
     }
 }
 
+ForLoop* fix_loop(ForLoop* loop, ASTAllocator& allocator) {
+    const auto unreachableStmt = new (allocator.allocate<UnreachableStmt>()) UnreachableStmt(loop, ZERO_LOC);
+    if(!loop->initializer) {
+        loop->initializer = unreachableStmt;
+    }
+    if(!loop->conditionExpr) {
+        loop->conditionExpr = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+    }
+    if(!loop->incrementerExpr) {
+        loop->incrementerExpr = unreachableStmt;
+    }
+    return loop;
+}
+
 ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
     auto& tok = *token;
@@ -65,7 +80,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     // start parenthesis
     if(!consumeToken(TokenType::LParen)) {
         unexpected_error("expected a starting parenthesis ( in a for block");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     switch(token->type) {
@@ -77,7 +92,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
                 break;
             } else {
                 unexpected_error("expected a var initialization in for loop");
-                return loop;
+                return fix_loop(loop, allocator);
             }
         }
         default: {
@@ -87,7 +102,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
                 break;
             } else {
                 unexpected_error("expected a variable initialization or assignment statement in for loop");
-                return loop;
+                return fix_loop(loop, allocator);
             }
         }
     }
@@ -95,7 +110,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     // lex ;
     if(!consumeToken(TokenType::SemiColonSym)){
         unexpected_error("expected semicolon ; after the initialization in for loop");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     // lex conditional expression
@@ -104,12 +119,12 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
         loop->conditionExpr = expr;
     } else {
         unexpected_error("expected a conditional expression after the var initialization in for loop");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     if(!consumeToken(TokenType::SemiColonSym)){
         unexpected_error("expected semicolon ; after the condition in for loop");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     // lex assignment token
@@ -118,7 +133,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
         loop->incrementerExpr = assignment;
     } else {
         error("missing assignment in for loop after the condition");
-        return loop;
+        return fix_loop(loop, allocator);
     }
 
     // end parenthesis

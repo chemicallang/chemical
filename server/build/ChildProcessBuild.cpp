@@ -30,7 +30,6 @@ int report_context_to_parent(BasicBuildContext& context, const std::string& shmN
 }
 
 #ifdef _WIN32
-
 int launch_child_build(BasicBuildContext& context, const std::string_view& lspPath, const std::string_view& buildFilePath) {
 
     // 1) Generate unique names:
@@ -51,6 +50,7 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         return 1;
     }
 
+    // 3) Build argv and launch child process
     std::vector<std::string> argv;
     argv.emplace_back(lspPath);
     argv.emplace_back("--build-lab");
@@ -88,6 +88,7 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
     const DWORD timeoutMs = 10'000;
     DWORD wait = WaitForSingleObject(hChildEvt, timeoutMs);
     ChildResult result;
+
     if (wait == WAIT_TIMEOUT) {
         std::cerr << "[Parent] Timeout waiting for child to signal.\n";
         // Kill child:
@@ -97,26 +98,45 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         result.exitCode = -1;
         // Attempt to read whatever‐if‐any mapping exists:
         if (parent_read_and_cleanup_windows(shmName, evtParentAck, result)) {
-            // payload (maybe partial or empty) is in result.payload
+            // payload (maybe partial or empty) is now in result.payload
         }
     }
     else if (wait == WAIT_OBJECT_0) {
         // Child signaled “done”:
-        // 1) Fetch its exit code:
+        // 1) Read the shared-memory mapping and signal “parentAck”:
+        if (!parent_read_and_cleanup_windows(shmName, evtParentAck, result)) {
+            // Reading failed; but we'll still attempt to collect exit code
+        }
+
+        // 2) Now wait for the child process to actually terminate:
+        DWORD waitProc = WaitForSingleObject(hChildProc, INFINITE);
+        if (waitProc != WAIT_OBJECT_0) {
+            DWORD e = GetLastError();
+            std::cerr << "[Parent] WaitForSingleObject(childProc) failed (GLE=" << e << ")\n";
+            CloseHandle(hChildProc);
+            CloseHandle(hChildEvt);
+            CloseHandle(hAckEvt);
+            return 1;
+        }
+
+        // 3) Fetch its exit code now that it's fully exited:
         DWORD code = 0;
-        GetExitCodeProcess(hChildProc, &code);
+        if (!GetExitCodeProcess(hChildProc, &code)) {
+            DWORD e = GetLastError();
+            std::cerr << "[Parent] GetExitCodeProcess failed (GLE=" << e << ")\n";
+            CloseHandle(hChildProc);
+            CloseHandle(hChildEvt);
+            CloseHandle(hAckEvt);
+            return 1;
+        }
         CloseHandle(hChildProc);
+
         if (code == 0) {
             result.reason = ChildReason::SUCCESS;
             result.exitCode = 0;
         } else {
             result.reason = ChildReason::CRASH;
             result.exitCode = static_cast<int>(code);
-        }
-        // 2) Read the mapping and signal “parentAck”:
-        if (!parent_read_and_cleanup_windows(shmName, evtParentAck, result)) {
-            // Reading failed:
-            // But we still have result.reason / exitCode set
         }
     }
     else {
@@ -146,20 +166,19 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
             break;
     }
 
-    if(result.payload.empty()) {
+    if (result.payload.empty()) {
         std::cerr << "[lsp] received empty string from child process" << std::endl;
         return 1;
     }
 
     const auto ok = labBuildContext_fromJson(context, result.payload);
 
-    // 6) Print the string:
+    // 7) Print the string:
     std::cout << "[lsp] Shared‐memory contents:\n---\n"
               << result.payload
-              <<  std::endl;
+              << std::endl;
 
     return ok ? 0 : 1;
-
 }
 
 #else

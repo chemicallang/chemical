@@ -18,6 +18,25 @@
 #define DEBUG_TOKENS false
 #define PRINT_TOKENS false
 
+void add_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, std::vector<Diag>& diags) {
+    for(auto& diag : diags) {
+        diagnostics.emplace_back(lsp::Diagnostic(
+                lsp::Range(
+                        lsp::Position(diag.range.start.line, diag.range.start.character),
+                        lsp::Position(diag.range.end.line, diag.range.end.character)
+                ),
+                diag.message,
+                static_cast<lsp::DiagnosticSeverity>(static_cast<int>(diag.severity.value()))
+        ));
+    }
+}
+
+void build_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, const std::vector<std::vector<Diag>*>& diags) {
+    for(const auto diagsPtr : diags) {
+        add_diagnostics(diagnostics, *diagsPtr);
+    }
+}
+
 /**
  * why are diagnostics published here ?
  * because when publishing diagnostics for a file, we have to symbol resolve it completely
@@ -30,34 +49,100 @@
  * so we do everything here, that's why notify_async is true, sending notification is done asynchronously
  */
 std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string_view& path) {
+
+    auto str_path = std::string(path);
     auto abs_path = canonical(path);
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);
     if(!last_file) {
         return {};
     }
+
+    auto& all_tokens = last_file->tokens;
+
+    // copy the tokens
+    std::vector<Token> copied_tokens;
+    copied_tokens.reserve(all_tokens.size());
+
+    // index for each token is stored (index in all_tokens)
+    std::vector<size_t> originalIndexes;
+    originalIndexes.reserve(all_tokens.size());
+
+    // copy the tokens and record the original indexes
+    size_t i = 0;
+    for(auto& token : all_tokens) {
+        if(token.type != TokenType::SingleLineComment && token.type != TokenType::MultiLineComment) {
+            copied_tokens.emplace_back(token);
+            originalIndexes.emplace_back(i);
+        }
+        i++;
+    }
+
+    // parse the copied tokens
+    auto ast = get_ast_no_lock(copied_tokens.data(), str_path);
+
+    // now restore the mapping of ast with tokens (using original indexes)
+    i = 0;
+    for(auto& token : copied_tokens) {
+        if(token.linked != nullptr) {
+            auto original_index = originalIndexes[i];
+            auto& originalToken = all_tokens[original_index];
+            originalToken.linked = token.linked;
+        }
+        i++;
+    }
+
+    // simply symbol resolve the ast
+    const unsigned int resolver_mem_size = 10000; // pre allocated 10kb
+    // all heap allocations will not be batched
+    ASTAllocator resolver_allocator(resolver_mem_size);
+
+    // a comptime scope is required for comptime things
+    // TODO use a output mode according properly
+    GlobalInterpretScope comptime_scope(OutputMode::Debug, "lsp", nullptr, nullptr, resolver_allocator, typeBuilder, loc_man);
+
+    // let's do symbol resolution
+    SymbolResolver resolver(
+            comptime_scope,
+            pathHandler,
+            is64Bit,
+            resolver_allocator,
+            &resolver_allocator,
+            &resolver_allocator
+    );
+
+    // prepare top level compiler functions
+    if(global_container) {
+        comptime_scope.rebind_container(resolver, global_container);
+    } else {
+        global_container = comptime_scope.create_container(resolver);
+    }
+
+    // declare and link file
+    resolver.declare_and_link_file(ast->unit.scope.body, str_path);
+
+    // building the diagnostics
+    std::vector<lsp::Diagnostic> diagnostics;
+    add_diagnostics(diagnostics, last_file->diags);
+    add_diagnostics(diagnostics, ast->diags);
+    add_diagnostics(diagnostics, resolver.diagnostics);
+
+    // publish diagnostics will return ast import unit ref
+    publish_diagnostics(str_path, std::move(diagnostics));
+
     // report the tokens
     auto toks = get_semantic_tokens(*last_file);
-    // remove the comments from the tokens
-    remove_comments(last_file->tokens);
-    // publish diagnostics will return ast import unit ref
-    publish_diagnostics(last_file);
     return std::move(toks);
 }
 
-void build_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, const std::vector<std::vector<Diag>*>& diags) {
-    for(const auto diagsPtr : diags) {
-        for(auto& diag : *diagsPtr) {
-            diagnostics.emplace_back(lsp::Diagnostic(
-                    lsp::Range(
-                            lsp::Position(diag.range.start.line, diag.range.start.character),
-                            lsp::Position(diag.range.end.line, diag.range.end.character)
-                    ),
-                    diag.message,
-                    static_cast<lsp::DiagnosticSeverity>(static_cast<int>(diag.severity.value()))
-            ));
-        }
-    }
+void WorkspaceManager::notify_diagnostics(
+        const std::string& path,
+        std::vector<lsp::Diagnostic> diagnostics
+) {
+    auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
+            lsp::FileUri::fromPath(path), std::move(diagnostics), std::nullopt
+    };
+    handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
 }
 
 void WorkspaceManager::notify_diagnostics_async(
@@ -66,11 +151,8 @@ void WorkspaceManager::notify_diagnostics_async(
 ) {
     std::vector<lsp::Diagnostic> diagnostics_list;
     build_diagnostics(diagnostics_list, diags);
-    std::async(std::launch::async, [this, path, diagnostics = std::move(diagnostics_list)] {
-        auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
-                lsp::FileUri::fromPath(path), std::move(diagnostics), std::nullopt
-        };
-        handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
+    std::async(std::launch::async, [this, path, diagnostics = std::move(diagnostics_list)] () mutable {
+        notify_diagnostics(path, std::move(diagnostics));
     });
 }
 
@@ -80,10 +162,7 @@ void WorkspaceManager::notify_diagnostics_sync(
 ) {
     std::vector<lsp::Diagnostic> diagnostics;
     build_diagnostics(diagnostics, diags);
-    auto params = lsp::notifications::TextDocument_PublishDiagnostics::Params{
-            lsp::FileUri::fromPath(path), std::move(diagnostics), std::nullopt
-    };
-    handler.sendNotification<lsp::notifications::TextDocument_PublishDiagnostics>(std::move(params));
+    notify_diagnostics(path, std::move(diagnostics));
 }
 
 std::vector<Diag> WorkspaceManager::sym_res_import_unit(
@@ -241,26 +320,25 @@ std::future<void>  WorkspaceManager::publish_diagnostics_for_async(ASTImportUnit
     });
 }
 
-template<typename TaskLambda>
-void WorkspaceManager::queued_single_invocation(
-        std::mutex& task_mutex,
-        std::future<void>& task,
-        std::atomic<bool>& cancel_flag,
-        const TaskLambda& lambda
-) {
+void WorkspaceManager::publish_diagnostics(const std::string& path, std::vector<lsp::Diagnostic> diagnostics) {
 
-    std::lock_guard<std::mutex> lock(task_mutex);
+    std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
 
     // Signal the current task to cancel if it's running
-    if (task.valid()) {
-        cancel_flag.store(true);
-        task.wait();  // Ensure the previous task has completed before launching a new one
+    if (publish_diagnostics_task.valid()) {
+        publish_diagnostics_cancel_flag.store(true);
+        publish_diagnostics_task.wait();  // Ensure the previous task has completed before launching a new one
     }
 
     // Reset the cancel flag for the new task
-    cancel_flag.store(false);
+    publish_diagnostics_cancel_flag.store(false);
 
-    task = std::async(std::launch::async, lambda);
+    // launch the task
+    publish_diagnostics_task = std::async(std::launch::async, [this, path, diagnostics = std::move(diagnostics)]() mutable -> void {
+        if(!publish_diagnostics_cancel_flag.load()) {
+            notify_diagnostics(path, std::move(diagnostics));
+        }
+    });
 
 }
 

@@ -329,6 +329,14 @@ public:
 //    td_signatureHelp::response get_signature_help(const lsDocumentUri& uri, const lsPosition& position);
 
     /**
+     * this will send given diagnostics by sending a notification to client
+     */
+    void notify_diagnostics(
+            const std::string& path,
+            std::vector<lsp::Diagnostic> diags
+    );
+
+    /**
      * it has to copy all the diagnostics to a request before sending
      * the request is done async
      */
@@ -380,15 +388,9 @@ public:
     }
 
     /**
-     * after the first invocation, every other invocation is queued
+     * will publish diagnostics
      */
-    template<typename TaskLambda>
-    void queued_single_invocation(
-        std::mutex& task_mutex,
-        std::future<void>& task,
-        std::atomic<bool>& cancel_flag,
-        const TaskLambda& lambda
-    );
+    void publish_diagnostics(const std::string& path, std::vector<lsp::Diagnostic> diagnostics);
 
     /**
      * will publish diagnostics

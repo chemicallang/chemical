@@ -65,7 +65,7 @@ public:
         LocationManager& loc_man,
         TypeBuilder& typeBuilder
     ) : allocator(0),
-        comptime_scope(std::move(target_triple), nullptr, nullptr, allocator, typeBuilder, loc_man),
+        comptime_scope(OutputMode::Debug, std::move(target_triple), nullptr, nullptr, allocator, typeBuilder, loc_man),
         reported_diagnostics(false)
     {
 

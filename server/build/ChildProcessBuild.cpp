@@ -197,17 +197,19 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
 
     // Unlink in case it already existed from a prior run:
     sem_unlink(semAckName.c_str());
+
     sem_t *semParentAck = sem_open(
             semAckName.c_str(),
             O_CREAT | O_EXCL,
-            0600,
-            0   // initial value = 0
+            0600,   // rw-------
+            0       // initial value = 0
     );
     if (semParentAck == SEM_FAILED) {
         std::cerr << "[Parent] sem_open(parentAck) failed: " << strerror(errno) << "\n";
         return 1;
     }
 
+    // 3) Build argv and launch child process
     std::vector<std::string> argv;
     argv.emplace_back(lspPath);
     argv.emplace_back("--build-lab");
@@ -232,11 +234,12 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         semChildName = "/" + semChildName;
     // Unlink in case it existed:
     sem_unlink(semChildName.c_str());
+
     sem_t *semChildDone = sem_open(
             semChildName.c_str(),
             O_CREAT | O_EXCL,
-            0600,
-            0  // initial = 0
+            0600,   // rw-------
+            0       // initial = 0
     );
     if (semChildDone == SEM_FAILED) {
         std::cerr << "[Parent] sem_open(childDone) failed: " << strerror(errno) << "\n";
@@ -247,51 +250,60 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         return 1;
     }
 
-    // Wait for the child to post (sem_post) on semChildDone, with timeout:
+    // Wait for the child to post semChildDone, with a 10-second timeout:
     const int timeoutMs = 10'000;
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += timeoutMs / 1000;
+    ts.tv_sec  += timeoutMs / 1000;
     ts.tv_nsec += (timeoutMs % 1000) * 1000000;
     if (ts.tv_nsec >= 1000000000) {
-        ts.tv_sec += 1;
+        ts.tv_sec  += 1;
         ts.tv_nsec -= 1000000000;
     }
 
     int semRes = sem_timedwait(semChildDone, &ts);
     ChildResult result;
+
     if (semRes == -1 && errno == ETIMEDOUT) {
         std::cerr << "[Parent] Timeout waiting for child to post.\n";
-        // Kill child:
+        // Kill child, collect whatever shared memory we can:
         kill(childPid, SIGKILL);
         waitpid(childPid, nullptr, 0);
-        result.reason = ChildReason::TIMEOUT;
+
+        result.reason   = ChildReason::TIMEOUT;
         result.exitCode = -1;
+
         // Attempt to read shared memory anyway:
         parent_read_shared_memory(shmName, result);
     }
     else if (semRes == 0) {
-        // Child signaled “done”:
-        int status = 0;
-        waitpid(childPid, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            result.reason = ChildReason::SUCCESS;
-            result.exitCode = 0;
-        } else if (WIFEXITED(status)) {
-            result.reason = ChildReason::CRASH;
-            result.exitCode = WEXITSTATUS(status);
-        } else if (WIFSIGNALED(status)) {
-            result.reason = ChildReason::CRASH;
-            result.exitCode = 128 + WTERMSIG(status);
-        } else {
-            result.reason = ChildReason::CRASH;
-            result.exitCode = -1;
-        }
-        // Read shared memory now:
+        // Child has posted “done”:
+        // --- STEP A: Read the shared memory immediately, before touching exit status
         parent_read_shared_memory(shmName, result);
 
-        // Signal parentAck so child can finish cleaning up:
+        // --- STEP B: Signal parentAck so the child’s sem_wait(sParent) can return
         sem_post(semParentAck);
+
+        // --- STEP C: Now wait for the child to actually exit:
+        int status = 0;
+        waitpid(childPid, &status, 0);
+
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            result.reason   = ChildReason::SUCCESS;
+            result.exitCode = 0;
+        }
+        else if (WIFEXITED(status)) {
+            result.reason   = ChildReason::CRASH;
+            result.exitCode = WEXITSTATUS(status);
+        }
+        else if (WIFSIGNALED(status)) {
+            result.reason   = ChildReason::CRASH;
+            result.exitCode = 128 + WTERMSIG(status);
+        }
+        else {
+            result.reason   = ChildReason::CRASH;
+            result.exitCode = -1;
+        }
     }
     else {
         std::cerr << "[Parent] sem_timedwait(childDone) failed: " << strerror(errno) << "\n";
@@ -304,26 +316,28 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         return 1;
     }
 
-    // 5) Clean up semaphores and shm:
+    // 5) Clean up semaphores and shared‐memory object:
     sem_close(semChildDone);
     sem_unlink(semChildName.c_str());
+
     sem_close(semParentAck);
     sem_unlink(semAckName.c_str());
 
     std::string shmPath = shmName;
-    if (shmPath.empty() || shmPath[0] != '/') shmPath = "/" + shmPath;
+    if (shmPath.empty() || shmPath[0] != '/')
+        shmPath = "/" + shmPath;
     shm_unlink(shmPath.c_str());
 
     // 6) Report:
     switch (result.reason) {
         case ChildReason::SUCCESS:
-            std::cout << "[Parent] Child succeeded (exit=0)\n";
+            std::cout << "[Parent] Child succeeded (exit=0)" << std::endl;
             break;
         case ChildReason::CRASH:
-            std::cout << "[Parent] Child crashed (exit=" << result.exitCode << ")\n";
+            std::cout << "[Parent] Child crashed (exit=" << result.exitCode << ")" << std::endl;
             break;
         case ChildReason::TIMEOUT:
-            std::cout << "[Parent] Child timed out\n";
+            std::cout << "[Parent] Child timed out" << std::endl;
             break;
     }
 
@@ -332,15 +346,14 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         return 1;
     }
 
-    const auto ok = labBuildContext_fromJson(context, result.payload);
+    const bool ok = labBuildContext_fromJson(context, result.payload);
 
-    // 6) Print the string:
-    std::cout << "[lsp] Shared‐memory contents:\n---\n"
+    // 7) Print the JSON for debugging:
+    std::cout << "[lsp] Shared-memory contents:\n---\n"
               << result.payload
-              <<  std::endl;
+              << "\n";
 
     return ok ? 0 : 1;
-
 }
 
 #endif

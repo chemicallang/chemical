@@ -899,6 +899,9 @@ public:
         if(call->values.empty()) return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        if(!call_scope->global->build_compiler) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
+        }
         auto& definitions = call_scope->global->build_compiler->current_job->definitions;
         auto found = definitions.find(val->get_the_string().str());
         return new (allocator.allocate<BoolValue>()) BoolValue(found != definitions.end(), ZERO_LOC);
@@ -1123,6 +1126,10 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        // TODO this should not use build compiler (not available in lsp)
+        if(!call_scope->global->build_compiler) {
+            return new (allocator.allocate<StringValue>()) StringValue("", call->encoded_location());
+        }
         auto& fileId = call_scope->global->build_compiler->options->build_dir;
         return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call->encoded_location());
     }

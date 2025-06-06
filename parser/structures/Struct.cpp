@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/UnsafeBlock.h"
@@ -24,7 +25,7 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator) {
         return nullptr;
     }
 
-    auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), nullptr, nullptr, parent_node, loc_single(identifier), is_const, AccessSpecifier::Public);
+    auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), { (BaseType*) typeBuilder.getVoidType(), ZERO_LOC }, nullptr, parent_node, loc_single(identifier), is_const, AccessSpecifier::Public);
     annotate(member);
 
 #ifdef LSP_BUILD

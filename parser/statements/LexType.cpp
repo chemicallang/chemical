@@ -46,7 +46,7 @@ TypeLoc Parser::parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
     if(t1) {
         const auto loc = loc_single(t1);
-        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(nullptr, false, isCapturing, false);
+        auto func_type = new (allocator.allocate<FunctionType>()) FunctionType({ typeBuilder.getVoidType(), ZERO_LOC }, false, isCapturing, false);
         const auto isVariadic = parseParameterList(allocator, func_type->params);
         func_type->setIsVariadic(isVariadic);
         consumeNewLines();

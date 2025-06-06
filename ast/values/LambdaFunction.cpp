@@ -91,7 +91,10 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
         if(node->as_return() != nullptr) {
             auto returnStmt = node->as_return();
             if(returnStmt->value) {
-                return returnStmt->value->create_type(allocator);
+                const auto created = returnStmt->value->create_type(allocator);
+                if(created) {
+                    return created;
+                }
             } else {
                 return new (allocator.allocate<VoidType>()) VoidType();
             }

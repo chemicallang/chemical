@@ -71,6 +71,58 @@ int calculate_display_size(const chem::string_view& view, int start) {
     return i;
 }
 
+void SemanticTokensAnalyzer::put_node_token(Token* token, ASTNode* node) {
+    switch (node->kind()) {
+        case ASTNodeKind::FunctionParam:
+        case ASTNodeKind::VariantMemberParam:
+            put(token, TokenType(Parameter));
+            return;
+        case ASTNodeKind::GenericTypeParam:
+            put(token, TokenType(TypeParameter));
+            return;
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::VariantDecl:
+            put(token, TokenType(Struct));
+            return;
+        case ASTNodeKind::EnumDecl:
+            put(token, TokenType(Enum));
+            return;
+        case ASTNodeKind::EnumMember:
+            put(token, TokenType(EnumMember));
+            return;
+        case ASTNodeKind::NamespaceDecl:
+            put(token, TokenType(Namespace));
+            return;
+        case ASTNodeKind::InterfaceDecl:
+            put(token, TokenType(Interface));
+            return;
+        case ASTNodeKind::FunctionDecl: {
+            const auto parent = node->parent();
+            if (parent) {
+                const auto parent_kind = parent->kind();
+                if (parent_kind == ASTNodeKind::VariantDecl || parent_kind == ASTNodeKind::StructDecl || parent_kind == ASTNodeKind::UnionDecl) {
+                    put(token, TokenType(Method));
+                    return;
+                }
+            }
+            put(token, TokenType(Function));
+            return;
+        }
+        case ASTNodeKind::VarInitStmt:
+            put(token, TokenType(Variable));
+            return;
+        case ASTNodeKind::TypealiasStmt:
+            put(token, TokenType(Type));
+            return;
+        default:
+            put(token, TokenType(Variable));
+            break;
+    }
+}
+
 void SemanticTokensAnalyzer::put_auto(Token* token) {
     if(token->type >= TokenType::IndexKwStart && token->type <= TokenType::IndexKwEnd) {
         put(token, TokenType(Keyword));
@@ -82,61 +134,16 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::NewLine:
                 break;
             case TokenType::Identifier: {
-                // TODO calculate the anyptr for this token
-                ASTAny* anyPtr = nullptr;
+                ASTAny* anyPtr = token->linked;
                 if(anyPtr) {
+                    const auto anyKind = anyPtr->any_kind();
+                    if(anyKind == ASTAnyKind::Node) {
+                        put_node_token(token, (ASTNode*) anyPtr);
+                        return;
+                    }
                     const auto linked = anyPtr->get_ref_linked_node();
                     if(linked) {
-                        const auto linked_kind = linked->kind();
-                        switch (linked_kind) {
-                            case ASTNodeKind::FunctionParam:
-                            case ASTNodeKind::VariantMemberParam:
-                                put(token, TokenType(Parameter));
-                                return;
-                            case ASTNodeKind::GenericTypeParam:
-                                put(token, TokenType(TypeParameter));
-                                return;
-                            case ASTNodeKind::StructDecl:
-                            case ASTNodeKind::UnnamedStruct:
-                            case ASTNodeKind::UnionDecl:
-                            case ASTNodeKind::UnnamedUnion:
-                            case ASTNodeKind::VariantDecl:
-                                put(token, TokenType(Struct));
-                                return;
-                            case ASTNodeKind::EnumDecl:
-                                put(token, TokenType(Enum));
-                                return;
-                            case ASTNodeKind::EnumMember:
-                                put(token, TokenType(EnumMember));
-                                return;
-                            case ASTNodeKind::NamespaceDecl:
-                                put(token, TokenType(Namespace));
-                                return;
-                            case ASTNodeKind::InterfaceDecl:
-                                put(token, TokenType(Interface));
-                                return;
-                            case ASTNodeKind::FunctionDecl: {
-                                const auto parent = linked->parent();
-                                if (parent) {
-                                    const auto parent_kind = parent->kind();
-                                    if (parent_kind == ASTNodeKind::VariantDecl || parent_kind == ASTNodeKind::StructDecl || parent_kind == ASTNodeKind::UnionDecl) {
-                                        put(token, TokenType(Method));
-                                        return;
-                                    }
-                                }
-                                put(token, TokenType(Function));
-                                return;
-                            }
-                            case ASTNodeKind::VarInitStmt:
-                                put(token, TokenType(Variable));
-                                return;
-                            case ASTNodeKind::TypealiasStmt:
-                                put(token, TokenType(Type));
-                                return;
-                            default:
-                                put(token, TokenType(Variable));
-                                break;
-                        }
+                        put_node_token(token, linked);
                     } else {
                         put(token, TokenType(Variable));
                     }

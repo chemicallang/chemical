@@ -328,6 +328,8 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
         return;
     }
 
+    if(!linker.current_func_type) return;
+
     // temporary moved identifiers and chains
     std::vector<VariableIdentifier*> moved_ids;
     std::vector<AccessChain*> moved_chains;

@@ -121,6 +121,22 @@ void run_session(
         manager.onChangedContents(params.textDocument.uri.path(), params.contentChanges);
     });
 
+    handler.add<lsp::notifications::Workspace_DidChangeWatchedFiles>([&manager](lsp::notifications::Workspace_DidChangeWatchedFiles::Params&& params){
+        for(auto& change : params.changes) {
+            switch(change.type.index()) {
+                case lsp::FileChangeType::Created:
+                    manager.index_new_file(change.uri.path());
+                    break;
+                case lsp::FileChangeType::Deleted:
+                    manager.de_index_deleted_file(change.uri.path());
+                    break;
+                case lsp::FileChangeType::Changed:
+                default:
+                    return;
+            }
+        }
+    });
+
     handler.add<lsp::requests::Shutdown>([&listener, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
         std::cout << "[LSP] Shutdown requested." << std::endl;
         // 1) mark both local and global shutdown

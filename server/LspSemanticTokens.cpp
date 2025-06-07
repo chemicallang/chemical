@@ -12,7 +12,15 @@
 #include "WorkspaceManager.h"
 #include "compiler/SymbolResolver.h"
 #include <future>
+#include <iostream>
+#include <filesystem>
 #include "lsp/messagehandler.h"
+#include "lexer/Lexer.h"
+#include "stream/InputSource.h"
+#include "parser/Parser.h"
+#include "compiler/ASTProcessor.h"
+#include "compiler/symres/NodeSymbolDeclarer.h"
+#include <functional>
 #include <utility>
 
 #define DEBUG_TOKENS false
@@ -36,6 +44,324 @@ void build_diagnostics(std::vector<lsp::Diagnostic> &diagnostics, const std::vec
         add_diagnostics(diagnostics, *diagsPtr);
     }
 }
+
+bool parse_file(
+        WorkspaceManager& manager,
+        ASTAllocator& allocator,
+        LocationManager& loc_man,
+        ASTUnit& unit,
+        unsigned int fileId,
+        const std::string_view& abs_path
+) {
+
+    auto& binder = manager.binder;
+    auto& typeBuilder = manager.typeBuilder;
+    const auto is64Bit = manager.is64Bit;
+
+    auto abs_path_str = std::string(abs_path);
+
+    LexResult lexResult;
+    if(!manager.get_lexed(&lexResult, abs_path_str, false)) {
+        return false;
+    }
+
+    auto& tokens = lexResult.tokens;
+
+    // do not continue, if error occurs during lexing
+    if(lexResult.has_errors) {
+        return false;
+    }
+
+    // parse the file
+    Parser parser(
+            fileId,
+            abs_path,
+            tokens.data(),
+            loc_man,
+            allocator,
+            allocator,
+            typeBuilder,
+            is64Bit,
+            &binder
+    );
+
+    // setting file scope as parent of all nodes parsed
+    parser.parent_node = &unit.scope;
+
+    // actual parsing
+    parser.parse(unit.scope.body.nodes);
+
+    if(parser.has_errors) {
+        return false;
+    } else {
+        return true;
+    }
+
+}
+
+void parseModule(
+        WorkspaceManager& manager,
+        LocationManager& loc_man,
+        LabModule* module,
+        ModuleScope* modScope,
+        std::vector<CachedASTUnitRef>& units
+) {
+
+    for(auto& file : module->direct_files) {
+
+        auto file_path_view = chem::string_view(file.abs_path);
+
+        auto found = manager.cachedUnits.find(file_path_view);
+        if(found != manager.cachedUnits.end()) {
+            units.emplace_back(CachedASTUnitRef {
+                .unit = found->second.unit.get(),
+                .is_symbol_resolved = found->second.is_symbol_resolved
+            });
+        } else {
+
+            // every file costs us 10kb batched allocator
+            // which means for module of 100 files, 1mb for each module
+            // for 2000 modules, we will allocate 2gb (+100mb metadata) on average
+            ASTAllocator allocator(10000);
+
+            const auto unitPtr = new ASTUnit(file.file_id, file_path_view, modScope);
+
+            parse_file(manager, allocator, loc_man, *unitPtr, file.file_id, file.abs_path);
+
+            manager.cachedUnits.emplace(file_path_view, CachedASTUnit{
+                    .allocator = std::move(allocator), // 10kb batched allocator
+                    .unit = std::unique_ptr<ASTUnit>(unitPtr),
+                    .is_symbol_resolved = false
+            });
+
+            units.emplace_back(CachedASTUnitRef {
+                    .unit = unitPtr,
+                    .is_symbol_resolved = false
+            });
+
+        }
+
+    }
+
+}
+
+void parseModule(
+        WorkspaceManager& manager,
+        LocationManager& loc_man,
+        LabModule* module,
+        ModuleData* modData,
+        std::vector<CachedASTUnitRef>& units
+) {
+    return parseModule(manager, loc_man, module, modData->modScope, units);
+}
+
+ModuleData* getModuleData(WorkspaceManager& manager, LabModule* module) {
+    if(!module) return nullptr;
+    auto found = manager.moduleData.find(module);
+    if(found != manager.moduleData.end()) {
+        return found->second.get();
+    } else {
+        const auto modDataPtr = new ModuleData(nullptr);
+        const auto modScope = new (modDataPtr->allocator.allocate<ModuleScope>()) ModuleScope(module->scope_name.to_chem_view(), module->name.to_chem_view(), module);
+        modDataPtr->modScope = modScope;
+        manager.moduleData.emplace(module, modDataPtr);
+        return modDataPtr;
+    }
+}
+
+//std::pair<LabModule*, std::vector<ASTUnit>> parseModuleHelper2(
+//        int id,
+//        WorkspaceManager& manager,
+//        ASTAllocator& allocator,
+//        LocationManager& loc_man,
+//        LabModule* module
+//) {
+//    return { module, parseModuleHelper(manager, allocator, loc_man, module) };
+//}
+
+//void parseModuleHelper3(
+//        int id,
+//        WorkspaceManager& manager,
+//        ASTAllocator& allocator,
+//        LocationManager& loc_man,
+//        LabModule* module,
+//        CachedModuleUnit& modUnit
+//) {
+//
+//    return { module, parseModuleHelper(manager, allocator, loc_man, module, modUnit.fileUnits) };
+//}
+
+//inline void push(
+//        std::vector<std::future<void>>& unitsFutures,
+//        WorkspaceManager& manager,
+//        ASTAllocator& allocator,
+//        LocationManager& loc_man,
+//        LabModule* module
+//) {
+//    unitsFutures.emplace_back(
+//            manager.pool.push(parseModuleHelper3, std::ref(manager), std::ref(allocator), std::ref(loc_man), module)
+//    );
+//}
+
+//inline std::future<std::pair<LabModule*, std::vector<ASTUnit>>> push(
+//        std::vector<std::future<std::pair<LabModule*, std::vector<ASTUnit>>>>& unitsFutures,
+//        WorkspaceManager& manager,
+//        ASTAllocator& allocator,
+//        LocationManager& loc_man,
+//        LabModule* module
+//) {
+//    return manager.pool.push(parseModuleHelper2, std::ref(manager), std::ref(allocator), std::ref(loc_man), module);
+//}
+
+//void parseModuleParallel(
+//        std::vector<std::future<std::pair<LabModule*, std::vector<ASTUnit>>>>& unitsFutures,
+//        WorkspaceManager& manager,
+//        ASTAllocator& allocator,
+//        LocationManager& loc_man,
+//        LabModule* module
+//) {
+//    for(const auto dep : module->dependencies) {
+//        parseModuleParallel(unitsFutures, manager, allocator, loc_man, dep);
+//    }
+//    unitsFutures.emplace_back(push(unitsFutures, manager, allocator, loc_man, module));
+//}
+
+struct ModuleUnitWithDeps {
+
+    CachedModuleUnit unit;
+
+    std::vector<ModuleUnitWithDeps> dependencies;
+
+    ModuleData* modData;
+
+    /**
+     * an empty module unit with deps
+     */
+    ModuleUnitWithDeps(LabModule* module, ModuleData* modData) : unit(module), modData(modData) {
+
+    }
+
+};
+
+void parseModuleWithDeps(
+        int id,
+        WorkspaceManager& manager,
+        LabModule* module,
+        ModuleData* modData,
+        ModuleUnitWithDeps& modWithDeps
+) {
+
+    std::vector<std::future<void>> unitsFutures;
+    auto& depsUnits = modWithDeps.dependencies;
+
+    for(const auto dep : module->dependencies) {
+
+        const auto depModData = getModuleData(manager, module);
+        depsUnits.emplace_back(module, depModData);
+        auto& depUnit = depsUnits.back();
+
+        auto future = manager.pool.push(parseModuleWithDeps, std::ref(manager), dep, depModData, std::ref(depUnit));
+        unitsFutures.emplace_back(std::move(future));
+
+    }
+
+    // lets wait for all dependencies to finish
+    for(auto& future : unitsFutures) {
+        future.get();
+    }
+
+    parseModule(manager, manager.loc_man, module, modData, modWithDeps.unit.fileUnits);
+
+}
+
+void sym_res_mod_sig(SymbolResolver& resolver, ModuleUnitWithDeps& modWithDeps) {
+
+    const auto mod_index = resolver.module_scope_start();
+
+    // this is an important step, to switch the allocators
+    const auto resolver_allocator = &modWithDeps.modData->allocator;
+    resolver.ast_allocator = resolver_allocator;
+    resolver.mod_allocator = resolver_allocator;
+
+    // declaring symbols of direct dependencies
+    SymbolResolverDeclarer declarer(resolver);
+    for(auto& depUnit : modWithDeps.dependencies) {
+        for(auto& cachedUnit : depUnit.unit.fileUnits) {
+            for(const auto node : cachedUnit.unit->scope.body.nodes) {
+                declare_node(declarer, node, AccessSpecifier::Public);
+            }
+        }
+    }
+
+    // symbol resolving all the files in the module
+    auto& modUnit = modWithDeps.unit;
+
+    // private symbol ranges are stored in this vector
+    std::vector<SymbolRange> priv_sym_ranges;
+    priv_sym_ranges.reserve(modUnit.fileUnits.size());
+
+    // declaring symbols of all files
+    for(auto& cachedUnit : modUnit.fileUnits) {
+
+        const auto unit = cachedUnit.unit;
+        auto path_str = unit->scope.file_path.str();
+
+        auto priv_sym_range = resolver.tld_declare_file(unit->scope.body, path_str);
+        priv_sym_ranges.emplace_back(priv_sym_range);
+
+    }
+
+    // linking signatures in all files
+    unsigned i = 0;
+    for(auto& cachedUnit : modUnit.fileUnits) {
+
+        const auto unit = cachedUnit.unit;
+        auto path_str = unit->scope.file_path.str();
+
+        auto& priv_sym_range = priv_sym_ranges[i];
+
+        resolver.link_signature_file(unit->scope.body, path_str, priv_sym_range);
+
+        i++;
+    }
+
+    // ending the scope, drops all the symbols from these modules
+    resolver.module_scope_end(mod_index);
+
+}
+
+void sym_res_mod_sig_recursive(
+        int id,
+        WorkspaceManager& manager,
+        SymbolResolver& resolver,
+        ModuleUnitWithDeps& modWithDeps,
+        bool& symbol_resolve_flag
+) {
+    std::vector<std::future<void>> unitsFutures;
+
+    for(auto& dep : modWithDeps.dependencies) {
+
+        auto future = manager.pool.push(sym_res_mod_sig_recursive, std::ref(manager), std::ref(resolver), std::ref(dep), std::ref(symbol_resolve_flag));
+        unitsFutures.emplace_back(std::move(future));
+
+    }
+
+    // lets wait for all dependencies to finish
+    for(auto& future : unitsFutures) {
+        future.get();
+    }
+
+    if(!symbol_resolve_flag && !modWithDeps.unit.all_files_symbol_resolved()) {
+        // force symbol resolution, if one of the file is not symbol resolved
+        symbol_resolve_flag = true;
+    }
+
+    if(!symbol_resolve_flag) return;
+
+    // symbol resolve the signature of the module
+    sym_res_mod_sig(resolver, modWithDeps);
+}
+
 
 /**
  * why are diagnostics published here ?
@@ -118,6 +444,86 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::stri
         global_container = comptime_scope.create_container(resolver);
     }
 
+    // got the module
+    const auto mod = get_mod_of(chem::string_view(abs_path));
+
+    // get the module data
+    const auto modData = mod ? getModuleData(*this, mod) : nullptr;
+
+    // this should be created here (so its destroyed after we've created the tokens)
+    ModuleUnitWithDeps modWithDeps(mod, modData);
+
+    if(mod) {
+
+        // trigger parse of module with dependencies
+        parseModuleWithDeps(0, *this, mod, modData, modWithDeps);
+
+        // this flag determines whether we should symbol resolve the modules
+        // if in case one of module hasn't been symbol resolved then it and all its dependencies are resolved
+        // this flag means, ignore cache, symbol resolve forcefully, if true
+        bool symbol_resolve_flag = false;
+
+        // symbol resolve (declare + link signature) of dependencies (recursively) (NOT current module)
+        for(auto& unit : modWithDeps.dependencies) {
+            bool sym_res_dep_flag = true;
+            sym_res_mod_sig_recursive(0, *this, resolver, unit, sym_res_dep_flag);
+            // if any of the dependency is being symbol resolved (may have changed)
+            // then we will symbol resolve the current module too
+            if(sym_res_dep_flag) {
+                symbol_resolve_flag = true;
+            }
+        }
+
+        // force symbol resolve the module, if even one of the file is not symbol resolved
+        if(!symbol_resolve_flag && !modWithDeps.unit.all_files_symbol_resolved()) {
+            symbol_resolve_flag = true;
+        }
+
+        // only symbol resolve if required (one of deps / current module file changed)
+        if(symbol_resolve_flag) {
+
+            // declaring symbols of direct dependencies
+            SymbolResolverDeclarer declarer(resolver);
+            for (auto& depUnit: modWithDeps.dependencies) {
+                for (auto& cachedUnit: depUnit.unit.fileUnits) {
+                    const auto unit = cachedUnit.unit;
+                    for (const auto node: unit->scope.body.nodes) {
+                        declare_node(declarer, node, AccessSpecifier::Public);
+                    }
+                }
+            }
+
+            std::vector<SymbolRange> priv_sym_ranges(modWithDeps.unit.fileUnits.size());
+
+            // declaring top level symbols of all files in module
+            auto curr_file_path = std::filesystem::path(path);
+            i = 0;
+            for (auto& cachedUnit: modWithDeps.unit.fileUnits) {
+                const auto unit = cachedUnit.unit;
+                auto file_path_str = unit->scope.file_path.str();
+                if (!std::filesystem::equivalent(curr_file_path, file_path_str)) {
+                    priv_sym_ranges[i] = resolver.tld_declare_file(unit->scope.body, file_path_str);
+                }
+                i++;
+            }
+
+            // linking signatures of all files in current module
+            i = 0;
+            for (auto& cachedUnit: modWithDeps.unit.fileUnits) {
+                const auto unit = cachedUnit.unit;
+                auto file_path_str = unit->scope.file_path.str();
+                if (!std::filesystem::equivalent(curr_file_path, file_path_str)) {
+                    resolver.link_signature_file(unit->scope.body, file_path_str, priv_sym_ranges[i]);
+                }
+            }
+
+        }
+
+        // must reset the diagnostics, so that we don't report diagnostics for other files
+        resolver.reset_diagnostics();
+
+    }
+
     // declare and link file
     resolver.declare_and_link_file(ast->unit.scope.body, str_path);
 
@@ -133,6 +539,57 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::stri
     // report the tokens
     auto toks = get_semantic_tokens(*last_file);
     return std::move(toks);
+}
+
+void WorkspaceManager::index_new_file(const std::string_view& path) {
+    // TODO index the file, find the module ( don't know how ) and put it in the module
+    // TODO also index with the module pointer
+    std::cout << "[lsp] created file '" << path << "', TODO: index it" << std::endl;
+}
+
+void WorkspaceManager::de_index_deleted_file(const std::string_view& path_sv) {
+    namespace fs = std::filesystem;
+    fs::path deletedPath(path_sv);
+    // Find owning module
+    if (const auto mod = get_mod_of(chem::string_view(path_sv))) {
+        auto& files = mod->direct_files;
+        for (auto it = files.begin(); it != files.end(); ++it) {
+            fs::path candidate(it->abs_path);
+            // Compare actual filesystem locations (handles case, symlinks, etc.)
+            std::error_code ec;
+            if (fs::equivalent(candidate, deletedPath, ec) && !ec) {
+                // Erase and return early
+                files.erase(it);
+                std::cout << "[lsp] de-indexed deleted file '" << path_sv << "' from module '" << mod->name << "'\n";
+                return;
+            }
+        }
+        std::cout << "[lsp] deleted file '" << path_sv << "' was not found in module '" << mod->name << "'\n";
+    } else {
+        std::cout << "[lsp] deleted file '" << path_sv << "' does not belong to any known module\n";
+    }
+}
+
+void WorkspaceManager::register_watched_files_capability() {
+
+    auto watcher = lsp::json::Object();
+    watcher["globPattern"] = "**/*.{ch,mod}";
+    watcher["kind"] = lsp::toJson(static_cast<unsigned int>(lsp::WatchKind::Create) | static_cast<unsigned int>(lsp::WatchKind::Delete));
+
+    auto watchFileRegOpts = lsp::json::Object();
+    watchFileRegOpts["watchers"] = lsp::json::Array({
+        std::move(watcher)
+    });
+
+    auto params2 = lsp::requests::Client_RegisterCapability::Params();
+    params2.registrations.emplace_back(lsp::Registration(
+            "workspace/didChangeWatchedFiles",
+            "workspace/didChangeWatchedFiles",
+            std::move(watchFileRegOpts)
+    ));
+
+    auto msgId = handler.sendRequest<lsp::requests::Client_RegisterCapability>(std::move(params2));
+
 }
 
 void WorkspaceManager::notify_diagnostics(

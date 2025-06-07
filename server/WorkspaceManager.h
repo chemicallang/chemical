@@ -25,18 +25,100 @@
 #include "compiler/lab/ModuleStorage.h"
 #include "lsp/types.h"
 #include "compiler/lab/LabBuildContext.h"
-
-class RemoteEndPoint;
+#include "ctpl.h"
 
 class GlobalInterpretScope;
-
-class LSPLabImpl;
 
 struct LabJob;
 
 namespace lsp {
     class MessageHandler;
 }
+
+class ModuleData {
+public:
+
+    /**
+     * the module's module level allocator
+     */
+    ASTAllocator allocator;
+
+    /**
+     * this is created once
+     */
+    ModuleScope* modScope;
+
+    /**
+     * constructor
+     */
+    ModuleData(ModuleScope* modScope) : allocator(5000/** 5kb **/), modScope(modScope) {
+
+    }
+
+};
+
+class CachedASTUnit {
+public:
+
+    /**
+     * the unit lives on this allocator
+     */
+    ASTAllocator allocator;
+
+    /**
+     * the pointer to unit that's cached
+     */
+    std::unique_ptr<ASTUnit> unit;
+
+    /**
+     * is the ast unit symbol resolved
+     */
+    bool is_symbol_resolved;
+
+};
+
+class CachedASTUnitRef {
+public:
+
+    /**
+     * the pointer to unit that's cached
+     */
+    ASTUnit* unit;
+
+    /**
+     * is the ast unit symbol resolved
+     */
+    bool is_symbol_resolved;
+
+};
+
+struct CachedModuleUnit {
+    /**
+     * the module file units belong to
+     */
+    LabModule* module;
+    /**
+     * all the file units for this module
+     */
+    std::vector<CachedASTUnitRef> fileUnits;
+    /**
+     * constructor
+     */
+    CachedModuleUnit(LabModule* module) : module(module) {
+
+    }
+    /**
+     * check if all files inside this module unit are symbol resolved
+     */
+    bool all_files_symbol_resolved() {
+        for(auto& unit : fileUnits) {
+            if(!unit.is_symbol_resolved) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
 
 /**
  * Workspace manager is the operations manager for all IDE related operations
@@ -56,7 +138,7 @@ namespace lsp {
  * along with workspace manager, the instance will die when the IDE closes.
  */
 class WorkspaceManager {
-private:
+public:
 
     /**
      * the argv is the path to the lsp executable
@@ -89,6 +171,16 @@ private:
      * given file in an instant
      */
     std::unordered_map<chem::string_view, LabModule*> filesIndex;
+
+    /**
+     * we store ast units for each file in this map, the unit for
+     */
+    std::unordered_map<chem::string_view, CachedASTUnit> cachedUnits;
+
+    /**
+     * each module's data is stored here
+     */
+    std::unordered_map<LabModule*, std::unique_ptr<ModuleData>> moduleData;
 
     /**
      * a single location manager is used throughout
@@ -174,18 +266,15 @@ private:
      */
     BasicBuildContext context;
 
-public:
-
-    /**
-     * the remote end point, we can use this to send diagnostics to client
-     * send notifications and stuff, it's our connection to IDE
-     */
-    RemoteEndPoint* remote;
-
     /**
      * path to resources folder, if empty, will be calculated relative to current executable
      */
     std::string overridden_resources_path;
+
+    /**
+     * the thread pool is used to launch jobs
+     */
+    ctpl::thread_pool pool;
 
     /**
      * we have a pointer to the main job
@@ -258,6 +347,11 @@ public:
     void switch_main_job(LabJob* job);
 
     /**
+     * indexes the module's files (the modules present in module storage)
+     */
+    void index_module_files();
+
+    /**
      * when build.lab has been built, we can build modules
      * or do whateer we want with the data we have received
      */
@@ -327,6 +421,22 @@ public:
 //     * get signature help response
 //     */
 //    td_signatureHelp::response get_signature_help(const lsDocumentUri& uri, const lsPosition& position);
+
+    /**
+     * if a new file is added, we try to find its module and index it
+     */
+    void index_new_file(const std::string_view& path);
+
+    /**
+     * this file will be removed from the index since user deleted it
+     * the module of this file will not contain this file after this function
+     */
+    void de_index_deleted_file(const std::string_view& path);
+
+    /**
+     * registers the watched files capability to receive watched files events
+     */
+    void register_watched_files_capability();
 
     /**
      * this will send given diagnostics by sending a notification to client
@@ -453,6 +563,11 @@ public:
      * get the ast result, only if it exists in cache
      */
     std::shared_ptr<ASTResult> get_cached_ast(const std::string& path);
+
+    /**
+     * same as the method below
+     */
+    bool get_lexed(LexResult* result, const std::string& path, bool keep_comments = false);
 
     /**
      * get tokens for the given file

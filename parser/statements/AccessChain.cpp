@@ -82,6 +82,10 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
     auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
     chain->values.emplace_back(identifier);
 
+#ifdef LSP_BUILD
+    id->linked = identifier;
+#endif
+
     return parseAccessChainAfterId(allocator, chain, id->position, parseStruct);
 
 }

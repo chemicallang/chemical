@@ -11,6 +11,10 @@
 struct LexResult {
 
     /**
+     * if any error occurred during lexing, this will be made true
+     */
+    bool has_errors = false;
+    /**
      * this allocator is the allocator all strings live on, that are present inside
      * the tokens, this is composed inside the lexer, however moved here when lexing is done
      */

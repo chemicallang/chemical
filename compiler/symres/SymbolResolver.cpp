@@ -92,6 +92,7 @@ void SymbolResolver::link_body_seq_backing_moves(
         std::vector<AccessChain*>& moved_chains
 ) {
     const auto curr_func = current_func_type;
+    if(!curr_func) return;
 
     // where the moved ids / chains of if body begin
     const auto if_moved_ids_begin = curr_func->moved_identifiers.size();

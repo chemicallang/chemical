@@ -36,7 +36,7 @@ WorkspaceManager::WorkspaceManager(
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
-    context(modStorage)
+    context(modStorage), pool((int) std::thread::hardware_concurrency())
 {
 
 }
@@ -83,6 +83,21 @@ void WorkspaceManager::switch_main_job(LabJob* job) {
     main_job = job;
 }
 
+void WorkspaceManager::index_module_files() {
+    // lets index all the files to modules they belong to
+    for(auto& mod_ptr : modStorage.get_modules()) {
+        const auto mod = mod_ptr.get();
+
+        // determine each module files
+        ASTProcessor::determine_module_files(pathHandler, loc_man, mod);
+
+        // index each module files
+        for(auto& file : mod->direct_files) {
+            filesIndex.emplace(chem::string_view(file.abs_path), mod);
+        }
+    }
+}
+
 void WorkspaceManager::post_build_lab() {
 
     if(!context.executables.empty()) {
@@ -100,18 +115,7 @@ void WorkspaceManager::post_build_lab() {
 //        return 0;
 //    });
 
-    // lets index all the files to modules they belong to
-    for(auto& mod_ptr : modStorage.get_modules()) {
-        const auto mod = mod_ptr.get();
-
-        // determine each module files
-        ASTProcessor::determine_module_files(pathHandler, loc_man, mod);
-
-        // index each module files
-        for(auto& file : mod->direct_files) {
-            filesIndex.emplace(chem::string_view(file.abs_path), mod);
-        }
-    }
+    index_module_files();
 
 }
 
@@ -217,8 +221,10 @@ void WorkspaceManager::initialize(const lsp::InitializeParams &params) {
         build_context_from_build_lab();
     } else {
         // couldn't get project path, user must have opened a file
-        return;
     }
+    std::async(std::launch::async, [this] {
+        register_watched_files_capability();
+    });
 }
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {
@@ -354,8 +360,9 @@ void WorkspaceManager::onChangedContents(
             auto& change = *changePtr;
             overriddenSources[path] = change.text;
             // invalidate the cached file for this key
-            cache.files_ast.erase(path);
-            cache.cached_units.erase(path);
+            cachedUnits.erase(chem::string_view(path));
+            // cache.files_ast.erase(path);
+            // cache.cached_units.erase(path);
             return;
         }
     }
@@ -397,8 +404,9 @@ void WorkspaceManager::onChangedContents(
     overriddenSources[path] = std::move(source);
 
     // invalidate the cached file for this key
-    cache.files_ast.erase(path);
-    cache.cached_units.erase(path);
+    cachedUnits.erase(chem::string_view(path));
+    // cache.files_ast.erase(path);
+    // cache.cached_units.erase(path);
 
 }
 

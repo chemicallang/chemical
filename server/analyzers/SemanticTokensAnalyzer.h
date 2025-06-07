@@ -10,6 +10,8 @@
 #include <cstdint>
 #include "lexer/Token.h"
 
+class ASTNode;
+
 class SemanticTokensAnalyzer {
 private:
 
@@ -51,6 +53,11 @@ public:
      * also sets prev token line number to this token
      */
     void put(Token* token, uint32_t tokenType, uint32_t tokenModifiers = 0);
+
+    /**
+     * will put the token, highlighting it according to given node
+     */
+    void put_node_token(Token* token, ASTNode* node);
 
     /**
      * will automatically determine the token type based on token

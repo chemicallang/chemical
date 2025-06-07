@@ -1260,7 +1260,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);

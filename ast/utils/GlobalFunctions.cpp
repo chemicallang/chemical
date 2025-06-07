@@ -621,20 +621,18 @@ public:
             return new (allocator.allocate<BoolValue>()) BoolValue(false, ZERO_LOC);
         }
         const auto eval = call->values.back()->evaluated_value(*call_scope);
-        bool supports;
-        if(eval->kind() == ValueKind::String) {
-            // TODO compiler feature cannot handle other features yet!!
-            if (eval->get_the_string() == "float128") {
-                supports = call_scope->global->backend_context->supports(CompilerFeatureKind::Float128);
+        bool supports = false;
+        if(call_scope->global->backend_context) {
+            if (eval->kind() == ValueKind::String) {
+                // TODO compiler feature cannot handle other features yet!!
+                if (eval->get_the_string() == "float128") {
+                    supports = call_scope->global->backend_context->supports(CompilerFeatureKind::Float128);
+                }
             } else {
-                supports = false;
-            }
-        } else {
-            const auto number = eval->get_the_number();
-            if(number.has_value()) {
-                supports = call_scope->global->backend_context->supports((CompilerFeatureKind) (int) number.value());
-            } else {
-                supports = false;
+                const auto number = eval->get_the_number();
+                if (number.has_value()) {
+                    supports = call_scope->global->backend_context->supports((CompilerFeatureKind) (int) number.value());
+                }
             }
         }
         return new (allocator.allocate<BoolValue>()) BoolValue(supports, ZERO_LOC);

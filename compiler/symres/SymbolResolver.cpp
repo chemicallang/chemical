@@ -214,12 +214,15 @@ SymbolRange SymbolResolver::tld_declare_file(Scope& scope, const std::string& ab
 }
 
 void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+    const auto prev_link_sig = linking_signature;
+    linking_signature = true;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
     scope.link_signature(*this);
     file_scope_end(scope_index);
+    linking_signature = prev_link_sig;
 }
 
 void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, const SymbolRange& range) {

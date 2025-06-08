@@ -155,9 +155,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
 
         // finding return type
         auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
-        if(found_return_type == nullptr) {
-            result = false;
-        }
+
         returnType = {found_return_type, get_location()};
 
         if(result) {
@@ -179,6 +177,12 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         }
 
     }
+
+#ifdef DEBUG
+    if(!returnType) {
+        int i = 0;
+    }
+#endif
 
     linker.current_func_type = prev_func_type;
 

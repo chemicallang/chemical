@@ -450,8 +450,10 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         const auto member = container->direct_variable(val.first);
         if(val_linked && member) {
             const auto mem_type = member->known_type();
+            if(!linker.linking_signature) {
+                current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
+            }
             auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
-            current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
             if(implicit) {
                 link_with_implicit_constructor(implicit, linker, val_ptr);
             } else if(!mem_type->satisfies(linker.allocator, value, false)) {
@@ -466,7 +468,7 @@ ASTNode *StructValue::linked_node() {
     if(definition) {
         return definition;
     } else {
-        return refType->linked_node();
+        return refType ? refType->linked_node() : nullptr;
     }
 }
 

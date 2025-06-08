@@ -206,11 +206,14 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     auto& known_elem_type = elemType;
     unsigned i = 0;
     for(auto& value : values) {
-        if(value->link(linker, value, nullptr) && i == 0 && !known_elem_type) {
+        const auto link_res = value->link(linker, value, nullptr);
+        if(link_res && i == 0 && !known_elem_type) {
             known_elem_type = TypeLoc(value->known_type(), known_elem_type.getLocation());
         }
         if(known_elem_type) {
-            current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
+            if(!linker.linking_signature) {
+                current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
+            }
             if(!known_elem_type->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, known_elem_type);
             }

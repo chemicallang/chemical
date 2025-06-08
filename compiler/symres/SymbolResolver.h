@@ -231,6 +231,13 @@ public:
     bool generic_context = false;
 
     /**
+     * this is made true, when linking signature of a file, during link signature, values
+     * shouldn't be moved, create_type shouldn't be called on values because they may haven't
+     * been linked yet
+     */
+    bool linking_signature = false;
+
+    /**
      * current function type, for which code is being linked
      */
     FunctionTypeBody* current_func_type = nullptr;

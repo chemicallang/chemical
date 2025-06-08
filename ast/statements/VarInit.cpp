@@ -322,14 +322,15 @@ void VarInitStatement::link_signature(SymbolResolver &linker) {
                 linker.unsatisfied_type_err(value, type);
             }
         }
-        if(!type && value) {
-            type = {value->create_type(*linker.ast_allocator), type.getLocation()};
-        }
     }
 }
 
 void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(!is_top_level()) {
+    if(is_top_level()) {
+        if(attrs.signature_resolved && !type && value) {
+            type = {value->create_type(*linker.ast_allocator), type.getLocation()};
+        }
+    } else {
         const auto type_resolved = !type || type.link(linker);
         const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());
         if (!type_resolved || !value_resolved) {

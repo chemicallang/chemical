@@ -38,8 +38,9 @@ StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType
                     return structValue;
                 }
             } else {
-                if(token->type == TokenType::String) {
-                    auto& key = token->value;
+                auto& t = *token;
+                if(t.type == TokenType::String) {
+                    auto& key = t.value;
                     token++;
                     if(!parseMem(*this, allocator, structValue, key)) {
                         break;

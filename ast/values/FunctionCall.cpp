@@ -807,7 +807,9 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
                 const auto expected_type = param ? param->type : nullptr;
                 if (value.link(linker, value_ptr, expected_type)) {
                     properly_linked[i] = true;
-                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                    if(!linker.linking_signature) {
+                        current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                    }
                 } else {
                     properly_linked[i] = false;
                 }
@@ -830,7 +832,9 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         const auto expected_type = param ? param->type : nullptr;
         if (value.link(linker, value_ptr, expected_type)) {
             properly_linked[i] = true;
-            current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+            if(!linker.linking_signature) {
+                current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+            }
         } else {
             properly_linked[i] = false;
         }

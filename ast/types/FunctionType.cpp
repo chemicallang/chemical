@@ -5,6 +5,7 @@
 #include "ast/base/Value.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/types/VoidType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"

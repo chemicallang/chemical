@@ -2583,7 +2583,7 @@ void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     early_declare_type(visitor, init_type);
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
-    var_init_top_level(visitor, init, init_type, !is_exported, !external_module, is_exported && external_module);
+    var_init_top_level(visitor, init, init_type, !is_exported, false, is_exported && external_module);
 }
 
 void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
@@ -3111,7 +3111,13 @@ std::string ToCAstVisitor::string_accept(Value* any) {
 }
 
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
-    if(init->is_top_level()) return;
+    if(init->is_top_level()) {
+        const auto init_type = init->type ? init->type : init->value->create_type(allocator);
+        new_line_and_indent();
+        const auto is_exported = init->is_exported();
+        var_init_top_level(*this, init, init_type, !is_exported, true, false);
+        return;
+    }
     auto init_type = init->type ? init->type : init->value->create_type(allocator);
     var_init(*this, init, init_type);
     destructor->VisitVarInitStmt(init);

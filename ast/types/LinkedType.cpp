@@ -124,6 +124,7 @@ bool LinkedType::satisfies(ASTAllocator &allocator, Value *value, bool assignmen
     const auto valueType = value->create_type(allocator);
     if(!valueType) return false;
     if(value->isValueIntegerLiteral()) {
+        if(!linked) return false;
         const auto known = linked->known_type();
         if (known) {
             const auto canonical = known->canonical();

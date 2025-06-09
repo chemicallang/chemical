@@ -250,7 +250,10 @@ void SymbolResolver::declare_and_link_file(Scope& scope, const std::string& abs_
     const auto end = stored_file_symbols.size();
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
     enable_file_symbols(range);
+    const auto prev_link_sig = linking_signature;
+    linking_signature = true;
     scope.link_signature(*this);
+    linking_signature = prev_link_sig;
     scope.declare_and_link(*this);
     file_scope_end(scope_index);
 }

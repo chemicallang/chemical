@@ -9,6 +9,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "rang.hpp"
+#include "compiler/typeverify/TypeVerifyAPI.h"
 
 SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
@@ -223,6 +224,11 @@ void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_pa
     scope.link_signature(*this);
     file_scope_end(scope_index);
     linking_signature = prev_link_sig;
+    // when linking signature is done, we should type verify only the top level var init decls
+    if(!has_errors) {
+        // we only do this if there are no errors (everything symbol resolved properly)
+        type_verify(*this, allocator, scope.nodes);
+    }
 }
 
 void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, const SymbolRange& range) {
@@ -264,10 +270,5 @@ void SymbolResolver::import_file(std::vector<ASTNode*>& nodes, const std::string
 }
 
 void SymbolResolver::unsatisfied_type_err(Value* value, BaseType* type) {
-    const auto val_type = value->create_type(allocator);
-    if(val_type) {
-        error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
-    } else {
-        error(value) << "value does not satisfy type '" << type->representation() << "'";
-    }
+    ::unsatisfied_type_err(*this, allocator, value, type);
 }

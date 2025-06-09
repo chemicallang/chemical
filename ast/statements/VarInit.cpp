@@ -318,9 +318,6 @@ void VarInitStatement::link_signature(SymbolResolver &linker) {
                     as_array->set_array_size(arr_type->get_array_size());
                 }
             }
-            if(!type->satisfies(linker.allocator, value, false)) {
-                linker.unsatisfied_type_err(value, type);
-            }
         }
     }
 }

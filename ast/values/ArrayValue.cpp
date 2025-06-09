@@ -194,7 +194,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
                 const auto implicit = def->implicit_constructor_func(linker.allocator, value);
                 if(implicit) {
                     link_with_implicit_constructor(implicit, linker, value);
-                } else if(!elemType->satisfies(linker.allocator, value, false)) {
+                } else if(!linker.linking_signature && !elemType->satisfies(linker.allocator, value, false)) {
                     linker.unsatisfied_type_err(value, elemType);
                 }
                 i++;
@@ -213,9 +213,9 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         if(known_elem_type) {
             if(!linker.linking_signature) {
                 current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
-            }
-            if(!known_elem_type->satisfies(linker.allocator, value, false)) {
-                linker.unsatisfied_type_err(value, known_elem_type);
+                if(!known_elem_type->satisfies(linker.allocator, value, false)) {
+                    linker.unsatisfied_type_err(value, known_elem_type);
+                }
             }
         }
         i++;

@@ -456,7 +456,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
             if(implicit) {
                 link_with_implicit_constructor(implicit, linker, val_ptr);
-            } else if(!mem_type->satisfies(linker.allocator, value, false)) {
+            } else if(!linker.linking_signature && !mem_type->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, mem_type);
             }
         }

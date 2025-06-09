@@ -563,6 +563,9 @@ set(COMMON_SOURCES
         core/main/CompilerMain.cpp
         utils/CmdUtils2.h
         utils/CmdUtils.cpp
+        compiler/typeverify/TypeVerify.h
+        compiler/typeverify/TypeVerifyAPI.h
+        compiler/typeverify/TypeVerify.cpp
 )
 
 # Chemical LSP Executable Target

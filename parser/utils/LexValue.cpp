@@ -241,12 +241,13 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
         }
         case TokenType::AsKw: {
             token++;
+            const auto loc = loc_single(start_token);
             auto type = parseTypeLoc(allocator);
-            auto casted_value = new(allocator.allocate<CastedValue>()) CastedValue(value, type, loc_single(start_token));
             if (!type) {
+                type = TypeLoc((BaseType*) typeBuilder.getVoidType(), loc);
                 unexpected_error("expected a type for casting after 'as' in expression");
             }
-            return casted_value;
+            return new(allocator.allocate<CastedValue>()) CastedValue(value, type, loc);
         }
         case TokenType::NotSym: {
             token++;

@@ -418,6 +418,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
     } else {
         if(!expected_type) {
             linker.error("unnamed struct value cannot link without a type", this);
+            refType = { new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, encoded_location()), encoded_location()};
             return false;
         }
         refType = {expected_type, refType.getLocation()};

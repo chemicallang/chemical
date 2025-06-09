@@ -24,8 +24,10 @@ bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
                     break;
             }
         }
-
-        is_value_mutable = value->check_is_mutable(linker.allocator, true);
+        if(!linker.linking_signature) {
+            // TODO we must perform mutability checks during link signature
+            is_value_mutable = value->check_is_mutable(linker.allocator, true);
+        }
     }
     return res;
 }

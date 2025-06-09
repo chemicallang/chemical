@@ -317,6 +317,14 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         result = false;
     }
 
+    if(result && value_ptr) {
+        auto val_node = get_value_node();
+        if(!val_node) {
+            linker.error("expected a single value node for the value", (ASTNode*) this);
+            return false;
+        }
+    }
+
     std::vector<VariableIdentifier*> moved_ids;
     std::vector<AccessChain*> moved_chains;
 
@@ -370,15 +378,9 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
 
     // restoring all the moved identifiers and chains, in all the scopes
     const auto curr_func = linker.current_func_type;
-    curr_func->restore_moved_ids(moved_ids);
-    curr_func->restore_moved_chains(moved_chains);
-
-    if(result && value_ptr) {
-        auto val_node = get_value_node();
-        if(!val_node) {
-            linker.error("expected a single value node for the value", (ASTNode*) this);
-            return false;
-        }
+    if(curr_func) {
+        curr_func->restore_moved_ids(moved_ids);
+        curr_func->restore_moved_chains(moved_chains);
     }
 
     return result;

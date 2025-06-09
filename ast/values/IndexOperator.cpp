@@ -162,8 +162,6 @@ IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
 }
 
 BaseType* IndexOperator::known_type() {
-//    auto value_type = parent_val->known_type();
-//    if(!value_type) return nullptr;
-//    return value_type->known_child_type();
-    return parent_val->known_type()->known_child_type();
+    auto value_type = parent_val->known_type();
+    return value_type ? value_type->known_child_type() : nullptr;
 }

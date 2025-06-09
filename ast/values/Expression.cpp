@@ -97,7 +97,7 @@ uint64_t Expression::byte_size(bool is64Bit) {
 }
 
 ASTNode* Expression::linked_node() {
-    return created_type->linked_node();
+    return created_type ? created_type->linked_node() : nullptr;
 }
 
 bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
@@ -108,7 +108,10 @@ bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function
     // or decl that is private or internal, however that is hard to determine
-    created_type = create_type(*linker.ast_allocator);
+    if(!linker.linking_signature) {
+        // TODO this created_type should always be created, however this creates an error
+        created_type = create_type(*linker.ast_allocator);
+    }
     return result;
 }
 

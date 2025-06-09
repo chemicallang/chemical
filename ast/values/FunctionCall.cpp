@@ -23,6 +23,7 @@
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/DynamicType.h"
+#include "ast/types/VoidType.h"
 #include "ast/structures/InterfaceDefinition.h"
 
 #ifdef COMPILER_BUILD
@@ -1180,11 +1181,6 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
     std::vector<bool> properly_linked_args(values.size());
     // link the values, based on which constructor is determined
     link_values(resolver, properly_linked_args);
-    // find the constructor based on linked values
-    if(linked_kind == ASTNodeKind::VariantMember) {
-        const auto member = linked->as_variant_member_unsafe();
-        const auto variant = member->parent();
-    }
 
     if(!gen_args_linked) {
         // link_constructor may try to register a generic instantiation
@@ -1193,6 +1189,15 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
     }
 
     link_constructor(resolver.allocator, resolver.genericInstantiator);
+
+    if(linked_kind != ASTNodeKind::VariantMember) {
+        // if its not a variant, it should give us a function type to be valid
+        const auto func_type = function_type(resolver.allocator);
+        if(!func_type) {
+            resolver.error(this) << "cannot call a non function type";
+            return false;
+        }
+    }
 
     if(gen_decl || gen_var_decl) {
         goto instantiate_block;
@@ -1292,11 +1297,12 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
     return call;
 }
 
+VoidType* voidTy(ASTAllocator& allocator) {
+    return new (allocator.allocate<VoidType>()) VoidType();
+}
+
 BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
-    if(!parent_val) return nullptr;
-//    std::vector<int16_t> active;
-//    parent_val->set_generic_iteration(active, allocator);
-    if(!parent_val) return nullptr;
+    if(!parent_val) return voidTy(allocator);
     const auto linked = parent_val->linked_node();
     if(linked) {
         const auto linked_kind = linked->kind();
@@ -1320,7 +1326,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
         }
     }
     auto func_type = function_type(allocator);
-    if(!func_type) return nullptr;
+    if(!func_type) return voidTy(allocator);
     auto pure_type = func_type->returnType->pure_type(allocator);
     return pure_type;
 }

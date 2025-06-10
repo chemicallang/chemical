@@ -605,6 +605,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/build/ChildProcessBuild.cpp
         server/build/ipc_process.h
         server/build/ipc_process.cpp
+        server/utils/LRUCache.h
 )
 
 # lsp framework

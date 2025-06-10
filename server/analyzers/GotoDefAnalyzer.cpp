@@ -9,6 +9,10 @@
 #include "core/source/LocationManager.h"
 #include "server/utils/AnalyzerUtils.h"
 
+#ifdef DEBUG
+#define DEBUG_GOTO_DEF
+#endif
+
 GotoDefAnalyzer::GotoDefAnalyzer(
     LocationManager& manager,
     Position position
@@ -39,13 +43,19 @@ std::vector<lsp::DefinitionLink> GotoDefAnalyzer::analyze(std::vector<Token>& to
                     )
                 );
             } else {
+#ifdef DEBUG_GOTO_DEF
                 std::cout << "[GotoDefAnalyzer] linked empty " << position.representation();
+#endif
             }
         } else {
+#ifdef DEBUG_GOTO_DEF
             std::cout << "[GotoDefAnalyzer] token not linked " << position.representation();
+#endif
         }
     } else {
+#ifdef DEBUG_GOTO_DEF
         std::cout << "[GotoDefAnalyzer] token not found" << position.representation();
+#endif
     }
     return std::move(defs);
 }

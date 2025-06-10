@@ -11,6 +11,7 @@
 #include <mutex>
 #include <unordered_map>
 #include "utils/lspfwd.h"
+#include "utils/LRUCache.h"
 #include <future>
 #include "compiler/cbi/model/LexResult.h"
 #include "compiler/cbi/model/ASTResult.h"
@@ -35,25 +36,18 @@ namespace lsp {
     class MessageHandler;
 }
 
-class ModuleData {
+class CachedASTUnitRef {
 public:
 
     /**
-     * the module's module level allocator
+     * the pointer to unit that's cached
      */
-    ASTAllocator allocator;
+    ASTUnit* unit;
 
     /**
-     * this is created once
+     * is the ast unit symbol resolved
      */
-    ModuleScope* modScope;
-
-    /**
-     * constructor
-     */
-    ModuleData(ModuleScope* modScope) : allocator(5000/** 5kb **/), modScope(modScope) {
-
-    }
+    bool is_symbol_resolved;
 
 };
 
@@ -70,43 +64,55 @@ public:
      */
     std::unique_ptr<ASTUnit> unit;
 
-    /**
-     * is the ast unit symbol resolved
-     */
-    bool is_symbol_resolved;
-
 };
 
-class CachedASTUnitRef {
+
+class ModuleData {
 public:
 
     /**
-     * the pointer to unit that's cached
+     * the module's module level allocator
      */
-    ASTUnit* unit;
+    ASTAllocator allocator;
 
     /**
-     * is the ast unit symbol resolved
+     * this is created once
      */
-    bool is_symbol_resolved;
+    ModuleScope* modScope;
 
-};
-
-struct CachedModuleUnit {
     /**
-     * the module file units belong to
+     * we store ast units for each file in this map, the unit for
      */
-    LabModule* module;
+    std::unordered_map<chem::string_view, CachedASTUnit> cachedUnits;
+
     /**
      * all the file units for this module
      */
     std::vector<CachedASTUnitRef> fileUnits;
+
+    /**
+     * used for synchronization of parsing and symbol resolution of this module
+     */
+    std::mutex module_mutex;
+
+    /**
+     * this is set to true, by one thread to indicate that we've prepared
+     * the fileUnits vector in this ModuleData
+     */
+    bool prepared_file_units = false;
+
+    /**
+     * dependencies of this module, prepared when file units are prepared
+     */
+    std::vector<ModuleData*> dependencies;
+
     /**
      * constructor
      */
-    CachedModuleUnit(LabModule* module) : module(module) {
+    ModuleData(ModuleScope* modScope) : allocator(5000/** 5kb **/), modScope(modScope) {
 
     }
+
     /**
      * check if all files inside this module unit are symbol resolved
      */
@@ -117,6 +123,20 @@ struct CachedModuleUnit {
             }
         }
         return true;
+    }
+
+};
+
+struct CachedModuleUnit {
+    /**
+     * the module file units belong to
+     */
+    LabModule* module;
+    /**
+     * constructor
+     */
+    CachedModuleUnit(LabModule* module) : module(module) {
+
     }
 };
 
@@ -160,6 +180,24 @@ public:
     std::mutex incremental_change_mutex;
 
     /**
+     * global container is created once for multiple threads, this mutex is used to not
+     * trigger creation of multiple global containers from different threads
+     */
+    std::mutex global_container_mutex;
+
+    /**
+     * module data mutex is used to synchronize creation of corresponding module data for each module
+     * module data contains additional data and state required for processing it
+     */
+    std::mutex module_data_mutex;
+
+    /**
+     * why ? because semantic tokens request requires access to tokens inside which
+     * linked pointers to ast nodes/values/types exist
+     */
+    LRUCache<std::string, std::shared_ptr<LexResult>> tokenCache;
+
+    /**
      * map between absolute path of a file and their mutexes
      * when you require a file is lexed, a mutex is held for each path
      * so multiple different paths can be lexed at a single time but multiple same paths cannot.
@@ -171,11 +209,6 @@ public:
      * given file in an instant
      */
     std::unordered_map<chem::string_view, LabModule*> filesIndex;
-
-    /**
-     * we store ast units for each file in this map, the unit for
-     */
-    std::unordered_map<chem::string_view, CachedASTUnit> cachedUnits;
 
     /**
      * each module's data is stored here
@@ -369,6 +402,22 @@ public:
      * builds the context from a build.lab or chemical.mod file present in project path
      */
     int build_context_from_build_lab();
+
+    /**
+     * this creates the global container (once) or binds (if already created), method
+     * is safe to use from multiple threads
+     */
+    void bind_or_create_container(GlobalInterpretScope& comptime_scope, SymbolResolver& resolver);
+
+    /**
+     * get module data for a module
+     */
+    ModuleData* getModuleData(LabModule* module);
+
+    /**
+     * this allows processing the file to place unit
+     */
+    void process_file(const std::string_view& path);
 
     /**
      * get the folding range for the given absolute file path

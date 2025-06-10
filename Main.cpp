@@ -21,6 +21,7 @@
 #include <utility>
 #include "utils/JsonUtils.h"
 #include "server/build/ChildProcessBuild.h"
+#include "server/build/ContextSerialization.h"
 
 #include <sstream>
 #include <iostream>

@@ -1796,9 +1796,14 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
 void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr) {
     auto& container = *container_ptr;
 
+    // from previous (job/lsp request) global interpret scope, user may have introduced declarations into
+    // these namespaces (which may be invalid, because their allocators have been destroyed)
     container.compiler_namespace.extended.clear();
     container.std_namespace.extended.clear();
+    container.std_namespace.memNamespace.extended.clear();
+    container.std_namespace.ptrNamespace.extended.clear();
 
+    // this would re-insert the children into extended map of namespaces
     container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
     container.std_namespace.declare_top_level(resolver, (ASTNode*&) container.std_namespace);
 

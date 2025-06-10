@@ -36,7 +36,7 @@ WorkspaceManager::WorkspaceManager(
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
-    context(modStorage), pool((int) std::thread::hardware_concurrency())
+    context(modStorage), pool((int) std::thread::hardware_concurrency()), tokenCache(10)
 {
 
 }
@@ -170,6 +170,11 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
         std::cerr << "[lsp] there's no build function in the file" << std::endl;
         return nullptr;
     }
+
+    // clear the module storage
+    // these modules were created to facilitate the build.lab generation
+    // if not cleared, these modules will interfere with modules created for executable
+    context->storage.clear();
 
     // call the root build.lab build's function
     build(context.get());
@@ -318,6 +323,14 @@ std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string
 //    return rsp;
 //}
 
+//void remove(WorkspaceManager& manager, const chem::string_view& view) {
+//    auto module = manager.get_mod_of(view);
+//    if(!module) return;
+//    const auto data = manager.getModuleData(module);
+//    if(!data) return;
+//    data->cachedUnits.erase(view);
+//}
+
 void WorkspaceManager::onChangedContents(
         const std::string_view &abs_path,
         const std::vector<lsp::TextDocumentContentChangeEvent> &changes
@@ -359,10 +372,8 @@ void WorkspaceManager::onChangedContents(
         if(changePtr) {
             auto& change = *changePtr;
             overriddenSources[path] = change.text;
-            // invalidate the cached file for this key
-            cachedUnits.erase(chem::string_view(path));
-            // cache.files_ast.erase(path);
-            // cache.cached_units.erase(path);
+            // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
+            process_file(path);
             return;
         }
     }
@@ -403,10 +414,8 @@ void WorkspaceManager::onChangedContents(
     // store the overridden sources
     overriddenSources[path] = std::move(source);
 
-    // invalidate the cached file for this key
-    cachedUnits.erase(chem::string_view(path));
-    // cache.files_ast.erase(path);
-    // cache.cached_units.erase(path);
+    // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
+    process_file(path);
 
 }
 

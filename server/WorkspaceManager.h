@@ -450,12 +450,12 @@ public:
      * get symbols in the document
      */
     std::vector<lsp::DocumentSymbol> get_symbols(const std::string_view& path);
-//
-//    /**
-//     * get a hover response in the given document at position
-//     */
-//    td_hover::response get_hover(const lsDocumentUri& uri, const lsPosition& position);
-//
+
+    /**
+     * get a hover response in the given document at position
+     */
+    std::string get_hover(const std::string_view& path, const Position& position);
+
 //    /**
 //     * get text document links response
 //     */

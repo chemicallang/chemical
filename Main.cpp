@@ -83,6 +83,7 @@ void run_session(
         return lsp::requests::Initialize::Result{
                 .capabilities = {
                         .textDocumentSync = textDocSync,
+                        .hoverProvider = true,
                         .documentSymbolProvider = symbolOptions,
                         .foldingRangeProvider = foldingOptions,
                         .semanticTokensProvider = tokensProvider,
@@ -112,6 +113,11 @@ void run_session(
 
     handler.add<lsp::requests::TextDocument_DocumentSymbol>([&manager](lsp::requests::TextDocument_DocumentSymbol::Params&& params){
         return lsp::NullableVariant<std::vector<lsp::SymbolInformation>, std::vector<lsp::DocumentSymbol>>(manager.get_symbols(params.textDocument.uri.path()));
+    });
+
+    handler.add<lsp::requests::TextDocument_Hover>([&manager](lsp::requests::TextDocument_Hover::Params&& params){
+        auto hoverStr = manager.get_hover(params.textDocument.uri.path(), Position { params.position.line, params.position.character });
+        return lsp::NullOr<lsp::Hover>(lsp::Hover{ lsp::MarkupContent{lsp::MarkupKind::Markdown, std::move(hoverStr)} });
     });
 
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){

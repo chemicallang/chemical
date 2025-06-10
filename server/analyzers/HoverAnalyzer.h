@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include <string_view>
 #include "core/diag/Position.h"
+#include <vector>
+#include <lexer/Token.h>
 
 class LexImportUnit;
 
@@ -35,9 +38,8 @@ public:
     HoverAnalyzer(LocationManager& locMan, Position position);
 
     /**
-     * it will analyze the position at hover occurred and return a markdown representation for the hover
-     * panel in the IDE
+     * markdown hover tokens
      */
-    std::string markdown_hover(LexResult* current_file);
+    std::string markdown_hover(const std::string_view& abs_path, std::vector<Token>& tokens);
 
 };

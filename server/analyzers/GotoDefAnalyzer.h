@@ -4,8 +4,8 @@
 
 #include <vector>
 #include "core/diag/Location.h"
-
-class LexImportUnit;
+#include "lsp/types.h"
+#include "lexer/Token.h"
 
 class LocationManager;
 
@@ -31,6 +31,11 @@ public:
         LocationManager& manager,
         Position position
     );
+
+    /**
+     * get the definition links
+     */
+    std::vector<lsp::DefinitionLink> analyze(std::vector<Token>& tokens);
 
     /**
      * this function analyzes the import unit, in which last file is the one which contains the

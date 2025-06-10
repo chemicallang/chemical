@@ -286,24 +286,18 @@ std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::st
 //    return std::move(rsp);
 //}
 //
-//td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
-//    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
-//    GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
-//    td_definition::response rsp;
-//    rsp.result.first.emplace();
-//    auto analyzed = analyzer.analyze(unit.lex_result.get());
-//    for (auto &loc: analyzed) {
-//        rsp.result.first.value().push_back(lsLocation{
-//                lsDocumentUri(AbsolutePath(loc.path)),
-//                {
-//                        {static_cast<int>(loc.range.start.line), static_cast<int>(loc.range.start.character)},
-//                        {static_cast<int>(loc.range.end.line), static_cast<int>(loc.range.end.character)}
-//                }
-//        });
-//    }
-//    return rsp;
-//}
-//
+std::vector<lsp::DefinitionLink> WorkspaceManager::get_definition(const std::string_view& path, const Position &position) {
+    const auto abs_path = canonical(path);
+    // check if tokens exist in cache (parsed after changed contents request of file)
+    auto cachedTokens = tokenCache.get(abs_path);
+    if(cachedTokens != nullptr) {
+        GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
+        auto& result = **cachedTokens;
+        return analyzer.analyze(result.tokens);
+    }
+    return {};
+}
+
 std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string_view& path) {
     const auto abs_path = canonical(path);
     auto ast = get_decl_ast(abs_path);

@@ -84,6 +84,7 @@ void run_session(
                 .capabilities = {
                         .textDocumentSync = textDocSync,
                         .hoverProvider = true,
+                        .definitionProvider = true,
                         .documentSymbolProvider = symbolOptions,
                         .foldingRangeProvider = foldingOptions,
                         .semanticTokensProvider = tokensProvider,
@@ -118,6 +119,11 @@ void run_session(
     handler.add<lsp::requests::TextDocument_Hover>([&manager](lsp::requests::TextDocument_Hover::Params&& params){
         auto hoverStr = manager.get_hover(params.textDocument.uri.path(), Position { params.position.line, params.position.character });
         return lsp::NullOr<lsp::Hover>(lsp::Hover{ lsp::MarkupContent{lsp::MarkupKind::Markdown, std::move(hoverStr)} });
+    });
+
+    handler.add<lsp::requests::TextDocument_Definition>([&manager](lsp::requests::TextDocument_Definition::Params&& params) -> lsp::TextDocument_DefinitionResult {
+        auto& pos = params.position;
+        return lsp::TextDocument_DefinitionResult(manager.get_definition(params.textDocument.uri.path(), Position { pos.line, pos.character }));
     });
 
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){

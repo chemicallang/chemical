@@ -242,24 +242,43 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
 
 std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string_view& path) {
     const auto abs_path = canonical(path);
-    auto unit = get_decl_ast(abs_path);
-    return folding_analyze(loc_man, unit->unit.scope.body.nodes);
+    auto unit = get_stored_unit(path);
+    if(unit) {
+        return folding_analyze(loc_man, unit->scope.body.nodes);
+    } else {
+        auto shared_unit = get_decl_ast(abs_path);
+        return folding_analyze(loc_man, shared_unit->unit.scope.body.nodes);
+    }
 }
-//
-//td_completion::response WorkspaceManager::get_completion(
-//        const lsDocumentUri& uri,
-//        unsigned int line,
-//        unsigned int character
-//) {
-//    auto can_path = canonical(uri.GetAbsolutePath().path);
-//    auto unit = get_ast_import_unit(can_path, cancel_request);
-//    CompletionItemAnalyzer analyzer(loc_man, { line, character });
-//    td_completion::response rsp;
-//    analyzer.analyze(unit);
-//    rsp.result = std::move(analyzer.list);
-//    return std::move(rsp);
-//}
-//
+
+lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& path, const Position& position) {
+    auto abs_path = canonical(path);
+    auto abs_path_view = chem::string_view(abs_path);
+    const auto mod = get_mod_of(abs_path_view);
+    const auto modData = mod ? getModuleData(mod) : nullptr;
+    ASTUnit* unit = nullptr;
+    if(modData) {
+        auto found = modData->cachedUnits.find(abs_path_view);
+        if(found != modData->cachedUnits.end()) {
+            unit = found->second.unit.get();
+        }
+    }
+    LexResult* lexResult = nullptr;
+    // check if tokens exist in cache (parsed after changed contents request of file)
+    auto cachedTokens = tokenCache.get(abs_path);
+    if(cachedTokens != nullptr) {
+        lexResult = cachedTokens->get();
+    }
+    CompletionItemAnalyzer analyzer(loc_man, position);
+    if(unit) {
+        analyzer.analyze(mod, modData, lexResult, unit);
+    } else {
+        auto shared_unit = get_decl_ast(abs_path);
+        analyzer.analyze(mod, modData, lexResult, &shared_unit->unit);
+    }
+    return std::move(analyzer.list);
+}
+
 //td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 //    auto result = get_lexed(canonical(uri.GetAbsolutePath().path));
 //    DocumentLinksAnalyzer analyzer;

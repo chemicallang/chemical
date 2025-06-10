@@ -608,6 +608,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/utils/LRUCache.h
         server/utils/AnalyzerUtils.h
         server/utils/AnalyzerUtils.cpp
+        server/model/ModuleData.h
 )
 
 # lsp framework

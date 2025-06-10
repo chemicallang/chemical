@@ -80,9 +80,14 @@ void run_session(
                 .label = std::nullopt
         });
 
+        lsp::CompletionOptions completionOptions;
+        std::vector<std::string> completionTriggers = { "." };
+        completionOptions.triggerCharacters = std::move(completionTriggers);
+
         return lsp::requests::Initialize::Result{
                 .capabilities = {
                         .textDocumentSync = textDocSync,
+                        .completionProvider = completionOptions,
                         .hoverProvider = true,
                         .definitionProvider = true,
                         .documentSymbolProvider = symbolOptions,
@@ -124,6 +129,11 @@ void run_session(
     handler.add<lsp::requests::TextDocument_Definition>([&manager](lsp::requests::TextDocument_Definition::Params&& params) -> lsp::TextDocument_DefinitionResult {
         auto& pos = params.position;
         return lsp::TextDocument_DefinitionResult(manager.get_definition(params.textDocument.uri.path(), Position { pos.line, pos.character }));
+    });
+
+    handler.add<lsp::requests::TextDocument_Completion>([&manager](lsp::requests::TextDocument_Completion::Params&& params) -> lsp::TextDocument_CompletionResult {
+      auto& pos = params.position;
+      return lsp::TextDocument_CompletionResult(manager.get_completion(params.textDocument.uri.path(), Position { pos.line, pos.character }));
     });
 
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){

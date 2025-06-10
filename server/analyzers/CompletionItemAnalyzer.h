@@ -10,6 +10,7 @@
 #include "core/diag/Position.h"
 #include "CaretPositionAnalyzer.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
+#include "ast/base/ASTUnit.h"
 
 class Position;
 
@@ -19,20 +20,24 @@ class LexImportUnit;
 
 class LexResult;
 
+struct LabModule;
+
+class ModuleData;
+
 class ASTImportUnitRef;
 
 class CompletionItemAnalyzer : public NonRecursiveVisitor<CompletionItemAnalyzer>, public CaretPositionAnalyzer {
 public:
 
     /**
-     * all the items that were found when analyzer completed
-     */
-    lsp::CompletionList list;
-
-    /**
      * current file being analyzed
      */
     std::string_view current_file;
+
+    /**
+     * all the items that were found when analyzer completed
+     */
+    lsp::CompletionList list;
 
     /**
      * constructor
@@ -41,20 +46,22 @@ public:
 
     }
 
-//    /**
-//     * a helper method to put simple completion items of a kind
-//     */
-//    void put(const chem::string_view& label, lsCompletionItemKind kind);
-//
-//    /**
-//     * put a completion item with detail and doc
-//     */
-//    void put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
-//
+    /**
+     * a helper method to put simple completion items of a kind
+     */
+    void put(const chem::string_view& label, lsp::CompletionItemKind kind);
+
+    /**
+     * put a completion item with detail and doc
+     */
+    void put_with_md_doc(const chem::string_view& label, lsp::CompletionItemKind kind, const std::string& detail, const std::string& doc);
+
 //    /**
 //     * The function that analyzes tokens
 //     */
 //    CompletionList analyze(std::vector<CSTToken*> &tokens);
+
+    void analyze(LabModule* module, ModuleData* modData, LexResult* lexResult, ASTUnit* unit);
 
     /**
      * analyze an entire import unit for better support for completions across different files

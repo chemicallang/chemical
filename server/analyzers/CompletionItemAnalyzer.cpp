@@ -33,139 +33,140 @@
 #include "compiler/cbi/model/ASTImportUnitRef.h"
 #include "compiler/cbi/model/ASTResult.h"
 #include "compiler/cbi/model/LexResult.h"
+#include "server/model/ModuleData.h"
 #include "Documentation.h"
 
 #define DEBUG_COMPLETION true
 
-//void CompletionItemAnalyzer::put(const chem::string_view &label, lsCompletionItemKind kind) {
-//    list.items.emplace_back(label.str(), kind);
-//}
-//
-//void CompletionItemAnalyzer::put_with_md_doc(const chem::string_view& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc) {
-//    list.items.emplace_back(label.str(), kind, detail, std::pair(std::nullopt, MarkupContent{ "markdown", doc }));
-//}
+void CompletionItemAnalyzer::put(const chem::string_view &label, lsp::CompletionItemKind kind) {
+    list.items.emplace_back(lsp::CompletionItem{label.str(), std::nullopt, kind});
+}
 
-//void put_with_doc(CompletionItemAnalyzer* analyzer, const chem::string_view& label, lsCompletionItemKind kind, ASTNode* linked_node) {
-//    std::string doc;
-//    markdown_documentation(analyzer->loc_man, doc, analyzer->current_file, linked_node);
-//    std::string detail;
-//    small_detail_of(detail, linked_node);
-//    analyzer->put_with_md_doc(label, kind, detail, doc);
-//}
-//
-//inline void put_var_init(CompletionItemAnalyzer* analyzer, VarInitStatement* node) {
-//    put_with_doc(analyzer, node->name_view(), lsCompletionItemKind::Variable, node);
-//}
-//
-//inline void put_function(CompletionItemAnalyzer* analyzer, FunctionDeclaration* node) {
-//    put_with_doc(analyzer, node->name_view(), lsCompletionItemKind::Function, node);
-//}
-//
-//inline void put_func_param(CompletionItemAnalyzer* analyzer, FunctionParam* node) {
-//    put_with_doc(analyzer, node->name, lsCompletionItemKind::Variable, node);
-//}
-//
-//inline void put_enum_decl(CompletionItemAnalyzer* analyzer, EnumDeclaration* decl) {
-//    put_with_doc(analyzer, decl->name_view(), lsCompletionItemKind::Enum, decl);
-//}
-//
-//inline void put_interface_decl(CompletionItemAnalyzer* analyzer, InterfaceDefinition* def) {
-//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Interface, def);
-//}
-//
-//inline void put_struct_decl(CompletionItemAnalyzer* analyzer, StructDefinition* def) {
-//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
-//}
-//
-//inline void put_union_decl(CompletionItemAnalyzer* analyzer, UnionDef* def) {
-//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
-//}
-//
-//inline void put_namespace_decl(CompletionItemAnalyzer* analyzer, Namespace* ns) {
-//    put_with_doc(analyzer, ns->name_view(), lsCompletionItemKind::Module, ns);
-//}
-//
-//inline void put_variant_decl(CompletionItemAnalyzer* analyzer, VariantDefinition* def) {
-//    put_with_doc(analyzer, def->name_view(), lsCompletionItemKind::Struct, def);
-//}
-//
-//lsCompletionItemKind toCompletionItemKind(ASTNode* node) {
-//    switch(node->kind()) {
-//        case ASTNodeKind::StructDecl:
-//            return lsCompletionItemKind::Struct;
-//        case ASTNodeKind::UnionDecl:
-//            return lsCompletionItemKind::Struct;
-//        case ASTNodeKind::InterfaceDecl:
-//            return lsCompletionItemKind::Interface;
-//        case ASTNodeKind::FunctionDecl:
-//            return lsCompletionItemKind::Function;
-//        case ASTNodeKind::NamespaceDecl:
-//            return lsCompletionItemKind::Module;
-//        case ASTNodeKind::TypealiasStmt:
-//            return lsCompletionItemKind::Interface;
-//        case ASTNodeKind::VariantDecl:
-//            return lsCompletionItemKind::Struct;
-//        case ASTNodeKind::EnumDecl:
-//            return lsCompletionItemKind::Enum;
-//        case ASTNodeKind::VarInitStmt:
-//            return lsCompletionItemKind::Variable;
-//        default:
-//#ifdef DEBUG
-//            throw std::runtime_error("unknown node completion item kind");
-//#endif
-//            return lsCompletionItemKind::Folder;
-//    }
-//}
-//
-//lsCompletionItemKind toCompletionItemKind(BaseType* type) {
-//    const auto linked = type->linked_node();
-//    if(linked) {
-//        return toCompletionItemKind(linked);
-//    } else {
-//        return lsCompletionItemKind::Variable;
-//    }
-//}
-//
-//bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
-//    const auto kind = node->kind();
-//    switch(kind) {
-//        case ASTNodeKind::StructDecl:
-//            put_struct_decl(analyzer, node->as_struct_def_unsafe());
-//            return true;
-//        case ASTNodeKind::VarInitStmt:
-//            put_var_init(analyzer, node->as_var_init_unsafe());
-//            return true;
-//        case ASTNodeKind::FunctionParam:
-//            put_func_param(analyzer, node->as_func_param_unsafe());
-//            return true;
-//        case ASTNodeKind::UnionDecl:
-//            put_union_decl(analyzer, node->as_union_def_unsafe());
-//            return true;
-//        case ASTNodeKind::InterfaceDecl:
-//            put_interface_decl(analyzer, node->as_interface_def_unsafe());
-//            return true;
-//        case ASTNodeKind::FunctionDecl:
-//            put_function(analyzer, node->as_function_unsafe());
-//            return true;
-//        case ASTNodeKind::NamespaceDecl:
-//            put_namespace_decl(analyzer, node->as_namespace_unsafe());
-//            return true;
-//        case ASTNodeKind::TypealiasStmt:
-//            put_with_doc(analyzer, node->as_typealias_unsafe()->name_view(), lsCompletionItemKind::Interface, node);
-//            return true;
-//        case ASTNodeKind::VariantDecl:
-//            put_variant_decl(analyzer, node->as_variant_def_unsafe());
-//            return true;
-//        case ASTNodeKind::EnumDecl:
-//            put_enum_decl(analyzer, node->as_enum_decl_unsafe());
-//            return true;
-//        case ASTNodeKind::UsingStmt:
-//            // TODO we must provide completions for all under using statement
-//            return true;
-//        default:
-//            return false;
-//    }
-//}
+void CompletionItemAnalyzer::put_with_md_doc(const chem::string_view& label, lsp::CompletionItemKind kind, const std::string& detail, const std::string& doc) {
+    list.items.emplace_back(lsp::CompletionItem{label.str(), std::nullopt, kind, {}, detail, lsp::MarkupContent{lsp::MarkupKind::Markdown, doc}});
+}
+
+void put_with_doc(CompletionItemAnalyzer* analyzer, const chem::string_view& label, lsp::CompletionItemKind kind, ASTNode* linked_node) {
+    std::string doc;
+    markdown_documentation(analyzer->loc_man, doc, analyzer->current_file, linked_node);
+    std::string detail;
+    small_detail_of(detail, linked_node);
+    analyzer->put_with_md_doc(label, kind, detail, doc);
+}
+
+inline void put_var_init(CompletionItemAnalyzer* analyzer, VarInitStatement* node) {
+    put_with_doc(analyzer, node->name_view(), lsp::CompletionItemKind::Variable, node);
+}
+
+inline void put_function(CompletionItemAnalyzer* analyzer, FunctionDeclaration* node) {
+    put_with_doc(analyzer, node->name_view(), lsp::CompletionItemKind::Function, node);
+}
+
+inline void put_func_param(CompletionItemAnalyzer* analyzer, FunctionParam* node) {
+    put_with_doc(analyzer, node->name, lsp::CompletionItemKind::Variable, node);
+}
+
+inline void put_enum_decl(CompletionItemAnalyzer* analyzer, EnumDeclaration* decl) {
+    put_with_doc(analyzer, decl->name_view(), lsp::CompletionItemKind::Enum, decl);
+}
+
+inline void put_interface_decl(CompletionItemAnalyzer* analyzer, InterfaceDefinition* def) {
+    put_with_doc(analyzer, def->name_view(), lsp::CompletionItemKind::Interface, def);
+}
+
+inline void put_struct_decl(CompletionItemAnalyzer* analyzer, StructDefinition* def) {
+    put_with_doc(analyzer, def->name_view(), lsp::CompletionItemKind::Struct, def);
+}
+
+inline void put_union_decl(CompletionItemAnalyzer* analyzer, UnionDef* def) {
+    put_with_doc(analyzer, def->name_view(), lsp::CompletionItemKind::Struct, def);
+}
+
+inline void put_namespace_decl(CompletionItemAnalyzer* analyzer, Namespace* ns) {
+    put_with_doc(analyzer, ns->name_view(), lsp::CompletionItemKind::Module, ns);
+}
+
+inline void put_variant_decl(CompletionItemAnalyzer* analyzer, VariantDefinition* def) {
+    put_with_doc(analyzer, def->name_view(), lsp::CompletionItemKind::Struct, def);
+}
+
+lsp::CompletionItemKind toCompletionItemKind(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::StructDecl:
+            return lsp::CompletionItemKind::Struct;
+        case ASTNodeKind::UnionDecl:
+            return lsp::CompletionItemKind::Struct;
+        case ASTNodeKind::InterfaceDecl:
+            return lsp::CompletionItemKind::Interface;
+        case ASTNodeKind::FunctionDecl:
+            return lsp::CompletionItemKind::Function;
+        case ASTNodeKind::NamespaceDecl:
+            return lsp::CompletionItemKind::Module;
+        case ASTNodeKind::TypealiasStmt:
+            return lsp::CompletionItemKind::Interface;
+        case ASTNodeKind::VariantDecl:
+            return lsp::CompletionItemKind::Struct;
+        case ASTNodeKind::EnumDecl:
+            return lsp::CompletionItemKind::Enum;
+        case ASTNodeKind::VarInitStmt:
+            return lsp::CompletionItemKind::Variable;
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("unknown node completion item kind");
+#endif
+            return lsp::CompletionItemKind::Folder;
+    }
+}
+
+lsp::CompletionItemKind toCompletionItemKind(BaseType* type) {
+    const auto linked = type->linked_node();
+    if(linked) {
+        return toCompletionItemKind(linked);
+    } else {
+        return lsp::CompletionItemKind::Variable;
+    }
+}
+
+bool put_node(CompletionItemAnalyzer* analyzer, ASTNode* node) {
+    const auto kind = node->kind();
+    switch(kind) {
+        case ASTNodeKind::StructDecl:
+            put_struct_decl(analyzer, node->as_struct_def_unsafe());
+            return true;
+        case ASTNodeKind::VarInitStmt:
+            put_var_init(analyzer, node->as_var_init_unsafe());
+            return true;
+        case ASTNodeKind::FunctionParam:
+            put_func_param(analyzer, node->as_func_param_unsafe());
+            return true;
+        case ASTNodeKind::UnionDecl:
+            put_union_decl(analyzer, node->as_union_def_unsafe());
+            return true;
+        case ASTNodeKind::InterfaceDecl:
+            put_interface_decl(analyzer, node->as_interface_def_unsafe());
+            return true;
+        case ASTNodeKind::FunctionDecl:
+            put_function(analyzer, node->as_function_unsafe());
+            return true;
+        case ASTNodeKind::NamespaceDecl:
+            put_namespace_decl(analyzer, node->as_namespace_unsafe());
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            put_with_doc(analyzer, node->as_typealias_unsafe()->name_view(), lsp::CompletionItemKind::Interface, node);
+            return true;
+        case ASTNodeKind::VariantDecl:
+            put_variant_decl(analyzer, node->as_variant_def_unsafe());
+            return true;
+        case ASTNodeKind::EnumDecl:
+            put_enum_decl(analyzer, node->as_enum_decl_unsafe());
+            return true;
+        case ASTNodeKind::UsingStmt:
+            // TODO we must provide completions for all under using statement
+            return true;
+        default:
+            return false;
+    }
+}
 
 void CompletionItemAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
     //TODO: put_var_init(this, init);
@@ -402,9 +403,51 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_
     return false;
 }
 
+void CompletionItemAnalyzer::analyze(LabModule* module, ModuleData* modData, LexResult* lexResult, ASTUnit* unit) {
+
+
+    // check is caret position before a chain
+    current_file = unit->scope.file_path.view();
+    auto chain = chain_before_caret(lexResult->tokens);
+    if(chain) {
+        // TODO handle access chain before caret, we must provide completions
+//        if(handle_chain_before_caret(chain)) {
+//            return;
+//        } else {
+//            std::cout << "[Unknown] member access into access chain : " + chain->type_string() << std::endl;
+//        }
+    }
+
+    // add completions for the last file by analyzing it in reverse fashion
+    // only nodes in which caret is inside are visited using this visitor
+    auto& currentFileNodes = unit->scope.body.nodes;
+    int i = ((int) currentFileNodes.size()) - 1;
+    while(i >= 0) {
+        const auto node = currentFileNodes[i];
+        const auto sourceLoc = node->encoded_location();
+        const auto location = loc_man.getLocationPos(sourceLoc);
+        if(is_caret_ahead(location.start)) {
+            put_node(this, node);
+        } else if(is_caret_inside(location.start, location.end)) {
+            visit(node);
+        }
+        i--;
+    }
+
+    // add completions for other files (no analyzing)
+    if(modData) {
+        for(auto& file : modData->fileUnits) {
+            auto& fileNodes = file.unit->scope.body.nodes;
+            for(const auto node : fileNodes) {
+                 put_node(this, node);
+            }
+        }
+    }
+
+}
+
 void CompletionItemAnalyzer::analyze(ASTImportUnitRef& unit) {
 
-    current_file = unit.path;
     const auto _current_file = unit.ast_result;
 
     // check is caret position before a chain

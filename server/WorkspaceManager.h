@@ -27,6 +27,7 @@
 #include "lsp/types.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "ctpl.h"
+#include "server/model/ModuleData.h"
 
 class GlobalInterpretScope;
 
@@ -35,97 +36,6 @@ struct LabJob;
 namespace lsp {
     class MessageHandler;
 }
-
-class CachedASTUnitRef {
-public:
-
-    /**
-     * the pointer to unit that's cached
-     */
-    ASTUnit* unit;
-
-    /**
-     * is the ast unit symbol resolved
-     */
-    bool is_symbol_resolved;
-
-};
-
-class CachedASTUnit {
-public:
-
-    /**
-     * the unit lives on this allocator
-     */
-    ASTAllocator allocator;
-
-    /**
-     * the pointer to unit that's cached
-     */
-    std::unique_ptr<ASTUnit> unit;
-
-};
-
-
-class ModuleData {
-public:
-
-    /**
-     * the module's module level allocator
-     */
-    ASTAllocator allocator;
-
-    /**
-     * this is created once
-     */
-    ModuleScope* modScope;
-
-    /**
-     * we store ast units for each file in this map, the unit for
-     */
-    std::unordered_map<chem::string_view, CachedASTUnit> cachedUnits;
-
-    /**
-     * all the file units for this module
-     */
-    std::vector<CachedASTUnitRef> fileUnits;
-
-    /**
-     * used for synchronization of parsing and symbol resolution of this module
-     */
-    std::mutex module_mutex;
-
-    /**
-     * this is set to true, by one thread to indicate that we've prepared
-     * the fileUnits vector in this ModuleData
-     */
-    bool prepared_file_units = false;
-
-    /**
-     * dependencies of this module, prepared when file units are prepared
-     */
-    std::vector<ModuleData*> dependencies;
-
-    /**
-     * constructor
-     */
-    ModuleData(ModuleScope* modScope) : allocator(5000/** 5kb **/), modScope(modScope) {
-
-    }
-
-    /**
-     * check if all files inside this module unit are symbol resolved
-     */
-    bool all_files_symbol_resolved() {
-        for(auto& unit : fileUnits) {
-            if(!unit.is_symbol_resolved) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-};
 
 struct CachedModuleUnit {
     /**
@@ -423,17 +333,17 @@ public:
      * get the folding range for the given absolute file path
      */
     std::vector<lsp::FoldingRange> get_folding_range(const std::string_view& path);
-//
-//    /**
-//     * get completion response for the given absolute file path
-//     * @param line the line number where caret position is
-//     * @param character the character number where caret position is
-//     */
-//    td_completion::response get_completion(const lsDocumentUri& uri, unsigned int line, unsigned int character);
-//
-//    /**
-//     * get semantic tokens for the given lex result
-//     */
+
+    /**
+     * get completion response for the given absolute file path
+     * @param line the line number where caret position is
+     * @param character the character number where caret position is
+     */
+    lsp::CompletionList get_completion(const std::string_view& path, const Position& position);
+
+    /**
+     * get semantic tokens for the given lex result
+     */
     std::vector<uint32_t> get_semantic_tokens(LexResult& ptr);
 
     /**
@@ -592,6 +502,11 @@ public:
         GlobalInterpretScope& comptime_scope,
         std::atomic<bool>& cancel_flag
     );
+
+    /**
+     * get the ast stored for this path
+     */
+    ASTUnit* get_stored_unit(const std::string_view& path);
 
     /**
      * get ast, in which declarations are sure to be valid

@@ -714,11 +714,25 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(
 
 }
 
-std::shared_ptr<ASTResult> WorkspaceManager::get_decl_ast(const std::string& path) {
+ASTUnit* WorkspaceManager::get_stored_unit(const std::string_view& path) {
 
-    // get the module for the given file
-    // TODO: use the module
-    const auto mod = get_mod_of(chem::string_view(path));
+    auto path_view = chem::string_view(path);
+    const auto mod = get_mod_of(path_view);
+    if(mod) {
+        const auto modData = getModuleData(mod);
+        if(modData) {
+            auto found = modData->cachedUnits.find(path_view);
+            if(found != modData->cachedUnits.end()) {
+                return found->second.unit.get();
+            }
+        }
+    }
+
+    return nullptr;
+
+}
+
+std::shared_ptr<ASTResult> WorkspaceManager::get_decl_ast(const std::string& path) {
 
     // get the lex import unit
     auto lex_result = get_lexed(path);

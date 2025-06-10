@@ -12,6 +12,11 @@
 #include "ast/statements/Typealias.h"
 #include "Documentation.h"
 #include "core/source/LocationManager.h"
+#include "server/utils/AnalyzerUtils.h"
+
+#ifdef DEBUG
+#define DEBUG_HOVER_ANALYZER
+#endif
 
 HoverAnalyzer::HoverAnalyzer(LocationManager& locMan, Position position) : loc_man(locMan), position(position) {
 
@@ -254,32 +259,47 @@ void markdown_documentation(LocationManager& loc_man, std::string& value, const 
     }
 }
 
-std::string HoverAnalyzer::markdown_hover(LexResult* file) {
-//    auto token = get_token_at_position(file->tokens, position);
-// TODO we must get the token at position
-    Token* token = nullptr;
-    if (token) {
-        // TODO we must get the any ptr for token
-        ASTAny* anyPtr = nullptr;
-        if (anyPtr) {
-            auto ref_linked = anyPtr->get_ref_linked_node();
-            if (ref_linked) {
-                const auto location = ref_linked->encoded_location();
+std::string HoverAnalyzer::markdown_hover(const std::string_view& abs_path, std::vector<Token>& tokens) {
+    const auto token = get_token_at_position(tokens, position);
+    if(token) {
+        if(token->linked) {
+            const auto anyKind = token->linked->any_kind();
+            if(anyKind == ASTAnyKind::Node) {
+                const auto node = (ASTNode*) token->linked;
+                const auto location = node->encoded_location();
                 if(location.isValid()) {
-                    // parent.second.first is the parent token of the linked token
-                    markdown_documentation(loc_man, value, file->abs_path, ref_linked);
+                    markdown_documentation(loc_man, value, abs_path, node);
                 } else {
-                    value += "couldn't get the linked token";
+#ifdef DEBUG_HOVER_ANALYZER
+                    value += "invalid location";
+#endif
                 }
             } else {
-                value += "has no linked declaration node";
+                const auto ref_linked = token->linked->get_ref_linked_node();
+                if(ref_linked) {
+                    const auto location = ref_linked->encoded_location();
+                    if(location.isValid()) {
+                        markdown_documentation(loc_man, value, abs_path, ref_linked);
+                    } else {
+#ifdef DEBUG_HOVER_ANALYZER
+                        value += "invalid location";
+#endif
+                    }
+                } else {
+#ifdef DEBUG_HOVER_ANALYZER
+                    value += "couldn't get linked declaration";
+#endif
+                }
             }
-        }
-        else {
-            value += "hovering an unknown reference token";
+        } else {
+#ifdef DEBUG_HOVER_ANALYZER
+            value += "token not linked with anything";
+#endif
         }
     } else {
-        value += "couldn't find the token at position";
+#ifdef DEBUG_HOVER_ANALYZER
+        value += "couldn't get the token at position";
+#endif
     }
     return std::move(value);
 }

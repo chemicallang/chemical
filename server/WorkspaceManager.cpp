@@ -311,17 +311,18 @@ std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string
     analyzer.analyze(ast->unit.scope.body.nodes);
     return std::move(analyzer.symbols);
 }
-//
-//td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
-//    auto unit = get_ast_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
-//    td_hover::response rsp;
-//    HoverAnalyzer analyzer(loc_man, {position.line, position.character});
-//    auto value = analyzer.markdown_hover(unit.lex_result.get());
-//    if(!value.empty()) {
-//        rsp.result.contents.second.emplace("markdown", std::move(value));
-//    }
-//    return rsp;
-//}
+
+std::string WorkspaceManager::get_hover(const std::string_view& path, const Position& position) {
+    const auto abs_path = canonical(path);
+    // check if tokens exist in cache (parsed after changed contents request of file)
+    auto cachedTokens = tokenCache.get(abs_path);
+    if(cachedTokens != nullptr) {
+        HoverAnalyzer analyzer(loc_man, {position.line, position.character});
+        auto& result = **cachedTokens;
+        return analyzer.markdown_hover(abs_path, result.tokens);
+    }
+    return "";
+}
 
 //void remove(WorkspaceManager& manager, const chem::string_view& view) {
 //    auto module = manager.get_mod_of(view);

@@ -403,6 +403,15 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_
     return false;
 }
 
+void analyze_module(CompletionItemAnalyzer* analyzer, ModuleData* modData) {
+    for(auto& file : modData->fileUnits) {
+        auto& fileNodes = file.unit->scope.body.nodes;
+        for(const auto node : fileNodes) {
+            put_node(analyzer, node);
+        }
+    }
+}
+
 void CompletionItemAnalyzer::analyze(LabModule* module, ModuleData* modData, LexResult* lexResult, ASTUnit* unit) {
 
 
@@ -434,14 +443,16 @@ void CompletionItemAnalyzer::analyze(LabModule* module, ModuleData* modData, Lex
         i--;
     }
 
-    // add completions for other files (no analyzing)
     if(modData) {
-        for(auto& file : modData->fileUnits) {
-            auto& fileNodes = file.unit->scope.body.nodes;
-            for(const auto node : fileNodes) {
-                 put_node(this, node);
-            }
+
+        // add completions for other files (no analyzing)
+        analyze_module(this, modData);
+
+        // add completions for direct dependencies
+        for(const auto dep : modData->dependencies) {
+            analyze_module(this, dep);
         }
+
     }
 
 }

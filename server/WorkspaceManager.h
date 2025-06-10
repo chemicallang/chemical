@@ -440,12 +440,12 @@ public:
      * get semantic tokens full response for the given document uri
      */
     std::vector<uint32_t> get_semantic_tokens_full(const std::string_view& path);
-//
-//    /**
-//     * get definition at position in the given document
-//     */
-//    td_definition::response get_definition(const lsDocumentUri& uri, const lsPosition& position);
-//
+
+    /**
+     * get definition at position in the given document
+     */
+    std::vector<lsp::DefinitionLink> get_definition(const std::string_view& path, const Position& position);
+
     /**
      * get symbols in the document
      */

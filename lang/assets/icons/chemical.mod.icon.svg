@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Transparent background -->
+  <g fill="none" stroke="#4A90E2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Outer hexagon -->
+    <polygon points="32,8 52,20 52,44 32,56 12,44 12,20" />
+    <!-- Inner module nodes -->
+    <circle cx="32" cy="24" r="4" />
+    <circle cx="24" cy="40" r="4" />
+    <circle cx="40" cy="40" r="4" />
+    <!-- Connecting lines -->
+    <path d="M32,28 L32,36" />
+    <path d="M32,36 L24,40" />
+    <path d="M32,36 L40,40" />
+  </g>
+</svg>

@@ -29,11 +29,10 @@
 #include "ast/values/StructValue.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/structures/DoWhileLoop.h"
-#include "compiler/cbi/model/LexImportUnit.h"
-#include "compiler/cbi/model/ASTImportUnitRef.h"
-#include "compiler/cbi/model/ASTResult.h"
-#include "compiler/cbi/model/LexResult.h"
+#include "server/model/ASTResult.h"
+#include "server/model/LexResult.h"
 #include "server/model/ModuleData.h"
+#include "core/source/LocationManager.h"
 #include "Documentation.h"
 
 #define DEBUG_COMPLETION true

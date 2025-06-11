@@ -5,7 +5,6 @@
 #include "std/chem_string.h"
 #include "LabModule.h"
 #include "LabJob.h"
-#include "compiler/cbi/model/FlatIGFile.h"
 #include "LabBuildCompilerOptions.h"
 #include "compiler/cbi/model/CBIData.h"
 #include "ModuleStorage.h"

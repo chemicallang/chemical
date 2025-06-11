@@ -3,11 +3,11 @@
 #pragma once
 
 #include <memory>
-#include "LexResult.h"
+#include "server/model/LexResult.h"
 #include "ast/base/ASTUnit.h"
 
 /**
- * ASTResult is converting CSTUnit to a ASTUnit
+ * ASTResult stores some additional things along with ASTUnit
  * We store diagnostics and other stuff so they can be reported
  */
 struct ASTResult {

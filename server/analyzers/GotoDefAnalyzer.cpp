@@ -1,8 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "GotoDefAnalyzer.h"
-#include "compiler/cbi/model/LexImportUnit.h"
-#include "compiler/cbi/model/LexResult.h"
+#include "server/model/LexResult.h"
 #include <iostream>
 #include "utils/PathUtils.h"
 #include "ast/base/ASTNode.h"

@@ -307,10 +307,7 @@ set(COMMON_SOURCES
         utils/Benchmark.cpp
         compiler/ASTDiagnoser.h
         compiler/ASTDiagnoser.cpp
-        compiler/cbi/model/LexResult.h
-        compiler/cbi/model/LexImportUnit.h
-        compiler/cbi/model/FlatIGFile.h
-        compiler/cbi/model/ImportUnitCache.h
+        server/model/LexResult.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
         core/diag/Location.h
@@ -414,8 +411,7 @@ set(COMMON_SOURCES
         utils/Environment.h
         ast/base/ASTAnyKind.h
         ast/base/ASTUnit.h
-        compiler/cbi/model/ASTImportUnitRef.h
-        compiler/cbi/model/ASTResult.h
+        server/model/ASTResult.h
         preprocess/2c/CBeforeStmtVisitor.h
         preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h
@@ -536,13 +532,8 @@ set(COMMON_SOURCES
         compiler/processor/ASTFileResult.h
         parser/utils/ParseModDecl.cpp
         parser/utils/ParseModDecl.h
-        compiler/cbi/model/ASTImportUnit.h
-        compiler/cbi/model/ASTImportUnitRef.h
-        compiler/cbi/model/ASTResult.h
-        compiler/cbi/model/FlatIGFile.h
-        compiler/cbi/model/ImportUnitCache.h
-        compiler/cbi/model/LexImportUnit.h
-        compiler/cbi/model/LexResult.h
+        server/model/ASTResult.h
+        server/model/LexResult.h
         compiler/cbi/model/Model.h
         compiler/cbi/model/CBIData.h
         compiler/cbi/model/CompilerBinder.h

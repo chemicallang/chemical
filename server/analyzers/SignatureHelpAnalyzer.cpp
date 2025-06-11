@@ -1,6 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
-#include "compiler/cbi/model/ASTResult.h"
+#include "server/model/ASTResult.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/FunctionParam.h"

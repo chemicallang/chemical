@@ -5,7 +5,6 @@
 #include <vector>
 #include "core/diag/Location.h"
 #include "lsp/types.h"
-#include "compiler/cbi/model/ASTImportUnitRef.h"
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "InlayHintAnalyzerApi.h"
 
@@ -33,13 +32,6 @@ public:
      * constructor
      */
     InlayHintAnalyzer(LocationManager& loc_man);
-
-    /**
-     * this function analyzes the import unit, in which last file is the one which contains the
-     * token where user asked to goto def
-     * It will provide locations, where that symbol has definition
-     */
-    std::vector<lsp::InlayHint> analyze(ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path);
 
     void VisitFunctionCall(FunctionCall *call);
 

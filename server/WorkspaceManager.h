@@ -375,11 +375,11 @@ public:
 //     * get text document hints response
 //     */
 //    td_inlayHint::response get_hints(const lsDocumentUri& uri);
-//
-//    /**
-//     * get signature help response
-//     */
-//    td_signatureHelp::response get_signature_help(const lsDocumentUri& uri, const lsPosition& position);
+
+    /**
+     * get signature help response
+     */
+    lsp::SignatureHelp get_signature_help(const std::string_view& path, const Position& position);
 
     /**
      * if a new file is added, we try to find its module and index it
@@ -583,6 +583,11 @@ public:
      * Returns the overridden source code for file at path
      */
     std::optional<std::string> get_overridden_source(const std::string& path);
+
+    /**
+     * should be called when a file is opened
+     */
+    void OnOpenedFile(const std::string_view& uri);
 
     /**
      * Its called with the changes that have been performed to the contents of a file in the IDE \n

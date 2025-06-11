@@ -294,17 +294,35 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
 //    rsp.result = inlay_hint_analyze(loc_man, result, compiler_exe_path(), lsp_exe_path);
 //    return std::move(rsp);
 //}
-//
-//td_signatureHelp::response WorkspaceManager::get_signature_help(const lsDocumentUri& uri, const lsPosition& position) {
-//    const auto abs_path = canonical(uri.GetAbsolutePath().path);
-//    auto result = get_ast_import_unit(abs_path, cancel_request);
-//    SignatureHelpAnalyzer analyzer(loc_man, { .line = position.line, .character = position.character });
-//    td_signatureHelp::response rsp;
-//    analyzer.analyze(result);
-//    rsp.result = std::move(analyzer.help);
-//    return std::move(rsp);
-//}
-//
+
+lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& path, const Position& position) {
+    const auto abs_path = canonical(path);
+    auto abs_path_view = chem::string_view(abs_path);
+    const auto mod = get_mod_of(abs_path_view);
+    const auto modData = mod ? getModuleData(mod) : nullptr;
+    ASTUnit* unit = nullptr;
+    if(modData) {
+        auto found = modData->cachedUnits.find(abs_path_view);
+        if(found != modData->cachedUnits.end()) {
+            unit = found->second.unit.get();
+        }
+    }
+    LexResult* lexResult = nullptr;
+    // check if tokens exist in cache (parsed after changed contents request of file)
+    auto cachedTokens = tokenCache.get(abs_path);
+    if(cachedTokens != nullptr) {
+        lexResult = cachedTokens->get();
+    }
+    SignatureHelpAnalyzer analyzer(loc_man, position);
+    if(unit) {
+        analyzer.analyze(mod, modData, lexResult, unit);
+    } else {
+        auto shared_unit = get_decl_ast(abs_path);
+        analyzer.analyze(mod, modData, lexResult, &shared_unit->unit);
+    }
+    return std::move(analyzer.help);
+}
+
 std::vector<lsp::DefinitionLink> WorkspaceManager::get_definition(const std::string_view& path, const Position &position) {
     const auto abs_path = canonical(path);
     // check if tokens exist in cache (parsed after changed contents request of file)
@@ -337,13 +355,9 @@ std::string WorkspaceManager::get_hover(const std::string_view& path, const Posi
     return "";
 }
 
-//void remove(WorkspaceManager& manager, const chem::string_view& view) {
-//    auto module = manager.get_mod_of(view);
-//    if(!module) return;
-//    const auto data = manager.getModuleData(module);
-//    if(!data) return;
-//    data->cachedUnits.erase(view);
-//}
+void WorkspaceManager::OnOpenedFile(const std::string_view& filePath) {
+    process_file(filePath);
+}
 
 void WorkspaceManager::onChangedContents(
         const std::string_view &abs_path,

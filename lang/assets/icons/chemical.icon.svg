@@ -1,0 +1,20 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Erlenmeyer flask outline -->
+  <path
+    d="M16 56 L48 56 L38 16 L38 8 L26 8 L26 16 Z"
+    fill="none"
+    stroke="#4A90E2"
+    stroke-width="4"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <!-- Liquid level -->
+  <line
+    x1="22" y1="40"
+    x2="42" y2="40"
+    stroke="#4A90E2"
+    stroke-width="3"
+    stroke-linecap="round"/>
+  <!-- Bubbles -->
+  <circle cx="28" cy="32" r="3" fill="#4A90E2" opacity="0.6"/>
+  <circle cx="36" cy="36" r="2" fill="#4A90E2" opacity="0.6"/>
+</svg>

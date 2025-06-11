@@ -4,19 +4,24 @@
 
 #include <vector>
 #include "core/diag/Location.h"
-#include "compiler/cbi/model/ASTImportUnitRef.h"
+#include "server/model/ModuleData.h"
 #include "CaretPositionAnalyzer.h"
 #include "lsp/types.h"
 
 class ASTResult;
 
-class SignatureHelpAnalyzer : public CaretPositionAnalyzer {
+class SignatureHelpAnalyzer{
 public:
 
     /**
-     * this allocator is disposed
+     * the location manager
      */
-    ASTAllocator allocator;
+    LocationManager& loc_man;
+
+    /**
+     * the caret position given by ide
+     */
+    Position position;
 
     /**
      * the actual signature help collected by traversing the AST
@@ -29,10 +34,8 @@ public:
     SignatureHelpAnalyzer(LocationManager& loc_man, Position position);
 
     /**
-     * this function analyzes the import unit, in which last file is the one which contains the
-     * token where user asked to goto def
-     * It will provide locations, where that symbol has definition
+     * the analyze function
      */
-    void analyze(ASTImportUnitRef& result);
+    void analyze(LabModule* module, ModuleData* modData, LexResult* lexResult, ASTUnit* unit);
 
 };

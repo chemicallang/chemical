@@ -56,17 +56,7 @@ public:
      */
     void put_with_md_doc(const chem::string_view& label, lsp::CompletionItemKind kind, const std::string& detail, const std::string& doc);
 
-//    /**
-//     * The function that analyzes tokens
-//     */
-//    CompletionList analyze(std::vector<CSTToken*> &tokens);
-
     void analyze(LabModule* module, ModuleData* modData, LexResult* lexResult, ASTUnit* unit);
-
-    /**
-     * analyze an entire import unit for better support for completions across different files
-     */
-    void analyze(ASTImportUnitRef& unit);
 
     // Visitors
 

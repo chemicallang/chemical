@@ -81,14 +81,19 @@ void run_session(
         });
 
         lsp::CompletionOptions completionOptions;
-        std::vector<std::string> completionTriggers = { "." };
+        std::vector<std::string> completionTriggers = { ".", "::" };
         completionOptions.triggerCharacters = std::move(completionTriggers);
+
+        lsp::SignatureHelpOptions signatureOptions;
+        std::vector<std::string> signatureTriggers = { "," };
+        signatureOptions.triggerCharacters = std::move(signatureTriggers);
 
         return lsp::requests::Initialize::Result{
                 .capabilities = {
                         .textDocumentSync = textDocSync,
                         .completionProvider = completionOptions,
                         .hoverProvider = true,
+                        .signatureHelpProvider = signatureOptions,
                         .definitionProvider = true,
                         .documentSymbolProvider = symbolOptions,
                         .foldingRangeProvider = foldingOptions,
@@ -136,8 +141,13 @@ void run_session(
       return lsp::TextDocument_CompletionResult(manager.get_completion(params.textDocument.uri.path(), Position { pos.line, pos.character }));
     });
 
+    handler.add<lsp::requests::TextDocument_SignatureHelp>([&manager](lsp::requests::TextDocument_SignatureHelp::Params&& params) -> lsp::TextDocument_SignatureHelpResult {
+        auto& pos = params.position;
+        return lsp::TextDocument_SignatureHelpResult(manager.get_signature_help(params.textDocument.uri.path(), Position { pos.line, pos.character }));
+    });
+
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){
-        // TODO: The file should be indexed with implementation
+       manager.OnOpenedFile(params.textDocument.uri.path());
     });
 
     handler.add<lsp::notifications::TextDocument_DidChange>([&manager](lsp::notifications::TextDocument_DidChange::Params&& params){

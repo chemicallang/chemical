@@ -13,11 +13,8 @@
 #include "utils/lspfwd.h"
 #include "utils/LRUCache.h"
 #include <future>
-#include "compiler/cbi/model/LexResult.h"
-#include "compiler/cbi/model/ASTResult.h"
-#include "compiler/cbi/model/LexImportUnit.h"
-#include "compiler/cbi/model/ASTImportUnitRef.h"
-#include "compiler/cbi/model/ImportUnitCache.h"
+#include "server/model/LexResult.h"
+#include "server/model/ASTResult.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/base/TypeBuilder.h"
 #include "preprocess/ImportPathHandler.h"
@@ -28,6 +25,7 @@
 #include "compiler/lab/LabBuildContext.h"
 #include "ctpl.h"
 #include "server/model/ModuleData.h"
+#include "core/source/LocationManager.h"
 
 class GlobalInterpretScope;
 
@@ -51,21 +49,24 @@ struct CachedModuleUnit {
 };
 
 /**
- * Workspace manager is the operations manager for all IDE related operations
+ * Workspace manager is the operations manager for all IDE related operations for a
+ * single client
+ *
  * 1 - IDE needs semantic highlighting for a single file
  * 2 - IDE needs completion items
  * 3 - User wants to rename a symbol
  *
  * Workspace manager provides functions that take into account
- * caching of files, caching of CST & AST, dispatching operations
+ * caching of files, caching of AST, dispatching operations
  *
  * It also takes into account, user workspace configuration, The main job of the
  * workspace manager is to oversee the process of integration and interaction with IDEs
+ * for a single client
  *
  * It must support at a single time, LSP operations for multiple projects in a single workspace
  *
- * It will outlive a session between our LSP and IDE, user opens IDE, LSP starts
- * along with workspace manager, the instance will die when the IDE closes.
+ * It will outlive a session between our LSP and a client, user opens IDE, LSP starts
+ * along with workspace manager, the instance will die when the client disconnects
  */
 class WorkspaceManager {
 public:
@@ -108,13 +109,6 @@ public:
     LRUCache<std::string, std::shared_ptr<LexResult>> tokenCache;
 
     /**
-     * map between absolute path of a file and their mutexes
-     * when you require a file is lexed, a mutex is held for each path
-     * so multiple different paths can be lexed at a single time but multiple same paths cannot.
-     */
-    std::unordered_map<std::string, std::mutex> parse_file_mutexes;
-
-    /**
      * we build indexes of file to module pointers, this allows us to know the module
      * given file in an instant
      */
@@ -154,23 +148,6 @@ public:
     ImportPathHandler pathHandler;
 
     /**
-     * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
-     * otherwise parallel calls might render lex_file_mutexes useless
-     */
-    std::mutex lex_file_mutexes_map_mutex;
-
-    /**
-     * the mutex used when getting ast import units, only a single ast import
-     * unit can be requested
-     */
-    std::mutex ast_import_unit_mutex;
-
-    /**
-     * import unit cache, contains different import units
-     */
-    ImportUnitCache cache;
-
-    /**
      * when initialize request is sent from client, project path is saved
      */
     std::string project_path;
@@ -198,11 +175,6 @@ public:
      * this flag can be used to cancel the current running diagnostics task
      */
     std::atomic<bool> publish_diagnostics_cancel_flag{false};
-
-    /**
-     * this flag can be used to cancel requests doing hard work
-     */
-    std::atomic<bool> cancel_request{false};
 
     /**
      * this context is used to store information about module graph
@@ -247,11 +219,6 @@ public:
      * get module for the given file
      */
     LabModule* get_mod_of(const chem::string_view& filePath);
-
-    /**
-     * gets the module and makes sure declarations for all its direct files exist
-     */
-    std::future<void> trigger_sym_res(LabModule* module);
 
     /**
      * this get the current target triple
@@ -435,73 +402,9 @@ public:
     }
 
     /**
-     * publish diagnostics synchronously
-     */
-    void publish_diagnostics_for_sync(ASTImportUnitRef& ref, bool notify_async);
-
-    /**
-     * publish diagnostics asynchronously for the given ast import unit ref
-     */
-    std::future<void> publish_diagnostics_for_async(ASTImportUnitRef& ref);
-
-    /**
-     * this allows publishing diagnostics for the given ast import unit ref
-     * @param do_async allows to collect diagnostics and publish them
-     */
-    inline void publish_diagnostics_for(ASTImportUnitRef& ref, bool async) {
-        if(async) {
-            publish_diagnostics_for_async(ref);
-        } else {
-            publish_diagnostics_for_sync(ref, true);
-        }
-    }
-
-    /**
      * will publish diagnostics
      */
     void publish_diagnostics(const std::string& path, std::vector<lsp::Diagnostic> diagnostics);
-
-    /**
-     * will publish diagnostics
-     */
-    void publish_diagnostics(std::shared_ptr<LexResult> file);
-
-    /**
-     * check if lex import unit has errors
-     */
-    static bool has_errors(const std::vector<std::shared_ptr<LexResult>>& lexFiles);
-
-    /**
-     * check if given ast files has errors
-     */
-    static bool has_errors(const std::vector<std::shared_ptr<ASTResult>>& files);
-
-    /**
-     * get the import unit for the given absolute path
-     * this function just returns ast unit for the given path and nothing else
-     */
-    [[deprecated]]
-    LexImportUnit get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
-
-    /**
-     * get the ast import unit for the given lex import unit into the files vector
-     */
-    void get_ast_import_unit(
-        std::vector<std::shared_ptr<ASTResult>>& files,
-        const LexImportUnit& unit,
-        GlobalInterpretScope& comptime_scope,
-        std::atomic<bool>& cancel_flag
-    );
-
-    /**
-     * it will symbol resolver the ast import unit
-     * it will return diagnostics of symbol resolution for the last file in import unit
-     */
-    std::vector<Diag> sym_res_import_unit(
-        std::vector<std::shared_ptr<ASTResult>>& files,
-        GlobalInterpretScope& comptime_scope,
-        std::atomic<bool>& cancel_flag
-    );
 
     /**
      * get the ast stored for this path
@@ -512,21 +415,6 @@ public:
      * get ast, in which declarations are sure to be valid
      */
     std::shared_ptr<ASTResult> get_decl_ast(const std::string& abs_path);
-
-    /**
-     * get ast import unit for the following name
-     */
-    ASTImportUnitRef get_ast_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
-
-    /**
-     * get a locked mutex for this path only
-     */
-    std::mutex& parse_lock_path_mutex(const std::string& path);
-
-    /**
-     * get the ast result, only if it exists in cache
-     */
-    std::shared_ptr<ASTResult> get_cached_ast(const std::string& path);
 
     /**
      * same as the method below
@@ -547,36 +435,11 @@ public:
     std::shared_ptr<LexResult> get_lexed(const std::string& path, bool keep_comments = false);
 
     /**
-     * remove comment tokens
-     */
-    static void remove_comments(std::vector<Token>& tokens);
-
-    /**
      * gets the ast no locking or cache hit
      */
     std::shared_ptr<ASTResult> get_ast_no_lock(
             Token* start_token,
             const std::string& path
-    );
-
-    /**
-     * gets the lex result, then converts to ASTResult
-     *
-     * this will also cache the ASTResult and provide it back
-     */
-    std::shared_ptr<ASTResult> get_ast(
-            LexResult* result,
-            GlobalInterpretScope& comptime_scope
-    );
-
-    /**
-     * gets the lex result, then converts to ASTResult
-     *
-     * this will also cache the ASTResult and provide it back
-     */
-    std::shared_ptr<ASTResult> get_ast(
-        const std::string& path,
-        GlobalInterpretScope& comptime_scope
     );
 
     /**

@@ -16,15 +16,11 @@ class Position;
 
 using caret_pos_type = Position;
 
-class LexImportUnit;
-
 class LexResult;
 
 struct LabModule;
 
 class ModuleData;
-
-class ASTImportUnitRef;
 
 class CompletionItemAnalyzer : public NonRecursiveVisitor<CompletionItemAnalyzer>, public CaretPositionAnalyzer {
 public:

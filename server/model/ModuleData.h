@@ -6,8 +6,8 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-#include "compiler/cbi/model/LexResult.h"
-#include "compiler/cbi/model/ASTResult.h"
+#include "LexResult.h"
+#include "ASTResult.h"
 #include "std/chem_string_view.h"
 #include "compiler/lab/LabModule.h"
 

@@ -7,8 +7,6 @@
 #include <vector>
 #include <lexer/Token.h>
 
-class LexImportUnit;
-
 class LocationManager;
 
 class LexResult;

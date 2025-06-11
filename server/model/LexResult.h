@@ -3,7 +3,6 @@
 #pragma once
 
 #include "core/diag/Diagnostic.h"
-#include "FlatIGFile.h"
 #include "lexer/Token.h"
 #include "ast/base/BatchAllocator.h"
 #include <memory>

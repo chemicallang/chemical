@@ -1,18 +1,19 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "InlayHintAnalyzer.h"
-#include "compiler/cbi/model/ASTResult.h"
+#include "server/model/ASTResult.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/VarInit.h"
+#include "core/source/LocationManager.h"
 
-std::vector<lsp::InlayHint> inlay_hint_analyze(LocationManager& manager, ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
-    InlayHintAnalyzer analyzer(manager);
-    analyzer.analyze(result, compiler_exe_path, lsp_exe_path);
-    return std::move(analyzer.hints);
-}
+//std::vector<lsp::InlayHint> inlay_hint_analyze(LocationManager& manager, ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
+//    InlayHintAnalyzer analyzer(manager);
+//    analyzer.analyze(result, compiler_exe_path, lsp_exe_path);
+//    return std::move(analyzer.hints);
+//}
 
 InlayHintAnalyzer::InlayHintAnalyzer(LocationManager& loc_man) : allocator(0), loc_man(loc_man) {
 
@@ -63,16 +64,16 @@ void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
     }
 }
 
-std::vector<lsp::InlayHint> InlayHintAnalyzer::analyze(
-    ASTImportUnitRef& result,
-    const std::string& compiler_exe_path,
-    const std::string& lsp_exe_path
-) {
-
-    // visit all the nodes
-    visit(result.ast_result->unit.scope.body);
-
-    // return collected hints
-    return std::move(hints);
-
-}
+//std::vector<lsp::InlayHint> InlayHintAnalyzer::analyze(
+//    ASTImportUnitRef& result,
+//    const std::string& compiler_exe_path,
+//    const std::string& lsp_exe_path
+//) {
+//
+//    // visit all the nodes
+//    visit(result.ast_result->unit.scope.body);
+//
+//    // return collected hints
+//    return std::move(hints);
+//
+//}

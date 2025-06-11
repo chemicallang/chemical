@@ -18,6 +18,7 @@
 #include "utils/PathUtils.h"
 #include "stream/StringInputSource.h"
 #include "compiler/lab/LabBuildCompiler.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include "compiler/processor/ASTFileMetaData.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "compiler/lab/LabBuildCompilerOptions.h"
@@ -44,12 +45,6 @@ WorkspaceManager::WorkspaceManager(
 LabModule* WorkspaceManager::get_mod_of(const chem::string_view& filePath) {
     auto found = filesIndex.find(filePath);
     return found != filesIndex.end() ? found->second : nullptr;
-}
-
-std::future<void> WorkspaceManager::trigger_sym_res(LabModule* module) {
-    return std::async(std::launch::async, [this, module]() {
-
-    });
 }
 
 std::string WorkspaceManager::get_target_triple() {
@@ -337,9 +332,23 @@ std::vector<lsp::DefinitionLink> WorkspaceManager::get_definition(const std::str
 
 std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string_view& path) {
     const auto abs_path = canonical(path);
-    auto ast = get_decl_ast(abs_path);
+    auto abs_path_view = chem::string_view(abs_path);
+    const auto mod = get_mod_of(abs_path_view);
+    const auto modData = mod ? getModuleData(mod) : nullptr;
+    ASTUnit* unit = nullptr;
+    if(modData) {
+        auto found = modData->cachedUnits.find(abs_path_view);
+        if(found != modData->cachedUnits.end()) {
+            unit = found->second.unit.get();
+        }
+    }
     DocumentSymbolsAnalyzer analyzer(loc_man);
-    analyzer.analyze(ast->unit.scope.body.nodes);
+    if(unit) {
+        analyzer.analyze(unit->scope.body.nodes);
+    } else {
+        auto shared_unit = get_decl_ast(abs_path);
+        analyzer.analyze(shared_unit->unit.scope.body.nodes);
+    }
     return std::move(analyzer.symbols);
 }
 

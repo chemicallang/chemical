@@ -1,7 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "DocumentLinksAnalyzer.h"
-#include "compiler/cbi/model/LexResult.h"
+#include "server/model/LexResult.h"
 #include "preprocess/ImportPathHandler.h"
 
 std::vector<lsp::DocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {

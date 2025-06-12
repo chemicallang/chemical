@@ -366,7 +366,7 @@ std::string WorkspaceManager::get_hover(const std::string_view& path, const Posi
 }
 
 void WorkspaceManager::OnOpenedFile(const std::string_view& filePath) {
-    process_file(filePath);
+    process_file(filePath, false);
 }
 
 void WorkspaceManager::onChangedContents(
@@ -411,7 +411,7 @@ void WorkspaceManager::onChangedContents(
             auto& change = *changePtr;
             overriddenSources[path] = change.text;
             // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
-            process_file(path);
+            process_file(path, true);
             return;
         }
     }
@@ -453,7 +453,7 @@ void WorkspaceManager::onChangedContents(
     overriddenSources[path] = std::move(source);
 
     // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
-    process_file(path);
+    process_file(path, true);
 
 }
 

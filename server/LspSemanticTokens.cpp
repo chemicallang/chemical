@@ -216,7 +216,7 @@ void parseModuleWithDeps(
 
 }
 
-void parseModuleWithDeps(
+void parseModuleWithDepsWait(
         int id,
         WorkspaceManager& manager,
         LabModule* module,
@@ -312,8 +312,9 @@ bool sym_res_mod_deps_sig(
 
     for(const auto dep : modData->dependencies) {
 
-        auto future = manager.pool.push(sym_res_mod_sig_recursive, std::ref(manager), std::ref(resolver), dep);
-        unitsFutures.emplace_back(std::move(future));
+        unitsFutures.emplace_back(
+            manager.pool.push(sym_res_mod_sig_recursive, std::ref(manager), std::ref(resolver), dep)
+        );
 
     }
 
@@ -391,9 +392,6 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
     auto abs_path_view = chem::string_view(abs_path);
     auto& all_tokens = last_file->tokens;
 
-    // store the tokens in token cache
-    tokenCache.put(abs_path, last_file);
-
     // if there was an error during lexing, or if it ended unexpectedly
     // we do not proceed with parsing and report lexing diagnostics
     if(last_file->has_errors) {
@@ -404,6 +402,8 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         publish_diagnostics(str_path, std::move(diagnostics));
 
         // return early, as we don't want to proceed with parsing
+        // must store the tokens in token cache (otherwise semantic tokens won't work)
+        tokenCache.put(abs_path, last_file);
         return;
 
     }
@@ -460,7 +460,8 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
     if(mod) {
 
         // trigger parse of module with dependencies
-        parseModuleWithDeps(0, *this, mod, modData);
+        // and wait for everything to be parsed
+        parseModuleWithDepsWait(0, *this, mod, modData);
 
         // symbol resolve (declare + link signature) of dependencies (recursively) (NOT current module)
         // symbol resolve dependencies concurrently
@@ -471,13 +472,13 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         sym_res_mod_deps_sig(0, *this, resolver, modData, is_direct_deps_sym_res);
 
         // should symbol resolve the current module ?
-        bool sym_res_curr_mod = false;
+        auto& sym_res_curr_mod = is_direct_deps_sym_res;
 
         // since direct dependencies say they have been symbol resolved
         // therefore not to symbol resolve the current modules
         // force symbol resolve the module, if even one of the file is not symbol resolved
         // (except current file, because we always symbol resolve that)
-        if(!is_direct_deps_sym_res) {
+        if(!sym_res_curr_mod) {
 
             // then we must check if any of its own file changed for the final verdict
             auto curr_file_path = std::filesystem::path(path);
@@ -568,7 +569,10 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
             // we don't need to even reparse it
             // we can just resolve symbols inside again (to provide)
             // diagnostics
-            if(current_file_changed) {
+
+            // file changed or the tokens for the file didn't exist before
+            // (tokens contain mapping which needs to be valid for semantic tokens to show properly)
+            if(current_file_changed || tokenCache.get(abs_path) == nullptr) {
 
                 // clear the previous unit
                 allocator.clear();
@@ -629,6 +633,9 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         }
         i++;
     }
+
+    // store the tokens in token cache
+    tokenCache.put(abs_path, last_file);
 
     // building the diagnostics
     std::vector<lsp::Diagnostic> diagnostics;

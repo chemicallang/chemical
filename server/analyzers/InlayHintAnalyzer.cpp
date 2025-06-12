@@ -9,21 +9,33 @@
 #include "ast/statements/VarInit.h"
 #include "core/source/LocationManager.h"
 
-//std::vector<lsp::InlayHint> inlay_hint_analyze(LocationManager& manager, ASTImportUnitRef& result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
-//    InlayHintAnalyzer analyzer(manager);
-//    analyzer.analyze(result, compiler_exe_path, lsp_exe_path);
-//    return std::move(analyzer.hints);
-//}
+std::vector<lsp::InlayHint> inlay_hint_analyze(LocationManager& manager, const std::span<ASTNode*>& nodes, const Range& range) {
+    InlayHintAnalyzer analyzer(manager, range);
+    analyzer.analyze(nodes);
+    return std::move(analyzer.hints);
+}
 
-InlayHintAnalyzer::InlayHintAnalyzer(LocationManager& loc_man) : allocator(0), loc_man(loc_man) {
+InlayHintAnalyzer::InlayHintAnalyzer(LocationManager& loc_man, const Range& range) : allocator(0), loc_man(loc_man), range(range) {
 
 }
 
+bool InlayHintAnalyzer::should_compute(SourceLocation location) {
+    const auto locPos = loc_man.getLocationPos(location);
+    if(locPos.start.is_behind(range.start) || locPos.end.is_ahead(range.end)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 void InlayHintAnalyzer::VisitFunctionCall(FunctionCall *call) {
-    if(call->values.empty()) {
+    if(!should_compute(call->encoded_location())) {
         return;
     }
     RecursiveVisitor<InlayHintAnalyzer>::VisitFunctionCall(call);
+    if(call->values.empty()) {
+        return;
+    }
     const auto func_type = call->function_type(allocator);
     if(func_type) {
         unsigned i = 0;
@@ -46,6 +58,9 @@ void InlayHintAnalyzer::VisitFunctionCall(FunctionCall *call) {
 }
 
 void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
+    if(!should_compute(init->encoded_location())) {
+        return;
+    }
     RecursiveVisitor<InlayHintAnalyzer>::VisitVarInitStmt(init);
     if(init->value && !init->type) {
         const auto encoded_loc = init->encoded_location();
@@ -55,7 +70,7 @@ void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
             if(known) {
                 const auto& start = location.end;
                 hints.emplace_back(lsp::InlayHint {
-                        { start.line, start.character },
+                        { start.line, static_cast<unsigned int>(start.character + init->name_view().size() + 1) },
                         " :" + known->representation(),
                         lsp::InlayHintKind::Type
                 });
@@ -64,16 +79,16 @@ void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
     }
 }
 
-//std::vector<lsp::InlayHint> InlayHintAnalyzer::analyze(
-//    ASTImportUnitRef& result,
-//    const std::string& compiler_exe_path,
-//    const std::string& lsp_exe_path
-//) {
-//
-//    // visit all the nodes
-//    visit(result.ast_result->unit.scope.body);
-//
-//    // return collected hints
-//    return std::move(hints);
-//
-//}
+void InlayHintAnalyzer::VisitFunctionDecl(FunctionDeclaration *decl) {
+    // every function is checked to avoid visiting it at top level
+    if(!should_compute(decl->encoded_location())) {
+        return;
+    }
+    RecursiveVisitor<InlayHintAnalyzer>::VisitFunctionDecl(decl);
+}
+
+void InlayHintAnalyzer::analyze(const std::span<ASTNode*>& nodes) {
+    for(const auto node : nodes) {
+        visit(node);
+    }
+}

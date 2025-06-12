@@ -337,11 +337,11 @@ public:
 //     * get text document links response
 //     */
 //    td_links::response get_links(const lsDocumentUri& uri);
-//
-//    /**
-//     * get text document hints response
-//     */
-//    td_inlayHint::response get_hints(const lsDocumentUri& uri);
+
+    /**
+     * get text document hints response
+     */
+    std::vector<lsp::InlayHint> get_hints(const std::string_view& path, const Range& range);
 
     /**
      * get signature help response

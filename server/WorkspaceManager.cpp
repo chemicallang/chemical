@@ -281,14 +281,17 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
 //    rsp.result = analyzer.analyze(result.get(), compiler_exe_path(), lsp_exe_path);
 //    return std::move(rsp);
 //}
-//
-//td_inlayHint::response WorkspaceManager::get_hints(const lsDocumentUri& uri) {
-//    const auto abs_path = canonical(uri.GetAbsolutePath().path);
-//    auto result = get_ast_import_unit(abs_path, cancel_request);
-//    td_inlayHint::response rsp;
-//    rsp.result = inlay_hint_analyze(loc_man, result, compiler_exe_path(), lsp_exe_path);
-//    return std::move(rsp);
-//}
+
+std::vector<lsp::InlayHint> WorkspaceManager::get_hints(const std::string_view& path, const Range& range) {
+    const auto abs_path = canonical(path);
+    auto unit = get_stored_unit(path);
+    if(unit) {
+        return inlay_hint_analyze(loc_man, unit->scope.body.nodes, range);
+    } else {
+        auto shared_unit = get_decl_ast(abs_path);
+        return inlay_hint_analyze(loc_man, shared_unit->unit.scope.body.nodes, range);
+    }
+}
 
 lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& path, const Position& position) {
     const auto abs_path = canonical(path);

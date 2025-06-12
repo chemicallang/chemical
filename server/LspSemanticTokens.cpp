@@ -190,28 +190,26 @@ void parseModuleWithDeps(
         return;
     }
 
-    std::vector<std::future<void>> unitsFutures;
-
+    // launch all modules concurrently and recursively
+    // because in parsing, no module is dependent on another module
     for(const auto dep : module->dependencies) {
 
+        // getting the module data for dependency module
         const auto depModData = manager.getModuleData(dep);
 
         // we are preparing dependencies of this module as well (once)
         modData->dependencies.emplace_back(depModData);
 
-        auto future = manager.pool.push(parseModuleWithDeps, std::ref(manager), dep, depModData);
-        unitsFutures.emplace_back(std::move(future));
+        // launching dependencies recursively with the same function
+        manager.pool.push(parseModuleWithDeps, std::ref(manager), dep, depModData);
 
     }
 
-    // lets wait for all dependencies to finish
-    for(auto& future : unitsFutures) {
-        future.get();
-    }
-
+    // actually parsing the module
     parseModule(manager, module, modData);
 
     // set it to true, important step for caching to work
+    // doing it while the lock is still in place
     modData->prepared_file_units = true;
 
 }

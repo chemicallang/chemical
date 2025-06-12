@@ -11,21 +11,6 @@
 #include "std/chem_string_view.h"
 #include "compiler/lab/LabModule.h"
 
-class CachedASTUnitRef {
-public:
-
-    /**
-     * the pointer to unit that's cached
-     */
-    ASTUnit* unit;
-
-    /**
-     * is the ast unit symbol resolved
-     */
-    bool is_symbol_resolved;
-
-};
-
 class CachedASTUnit {
 public:
 
@@ -37,7 +22,13 @@ public:
     /**
      * the pointer to unit that's cached
      */
-    std::unique_ptr<ASTUnit> unit;
+    ASTUnit unit;
+
+    /**
+     * is the ast unit symbol resolved
+     * against current module and dependent module's files
+     */
+    bool is_symbol_resolved;
 
 };
 
@@ -58,12 +49,12 @@ public:
     /**
      * we store ast units for each file in this map, the unit for
      */
-    std::unordered_map<chem::string_view, CachedASTUnit> cachedUnits;
+    std::unordered_map<chem::string_view, std::unique_ptr<CachedASTUnit>> cachedUnits;
 
     /**
-     * all the file units for this module
+     * all the file units for this module, arranged in a list
      */
-    std::vector<CachedASTUnitRef> fileUnits;
+    std::vector<CachedASTUnit*> fileUnits;
 
     /**
      * used for synchronization of parsing and symbol resolution of this module
@@ -93,7 +84,7 @@ public:
      */
     bool all_files_symbol_resolved() {
         for(auto& unit : fileUnits) {
-            if(!unit.is_symbol_resolved) {
+            if(!unit->is_symbol_resolved) {
                 return false;
             }
         }

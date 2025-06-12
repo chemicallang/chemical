@@ -8,6 +8,11 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/VarInit.h"
 #include "core/source/LocationManager.h"
+#include <iostream>
+
+#ifdef DEBUG
+#define DEBUG_INLAY_HINTS
+#endif
 
 std::vector<lsp::InlayHint> inlay_hint_analyze(LocationManager& manager, const std::span<ASTNode*>& nodes, const Range& range) {
     InlayHintAnalyzer analyzer(manager, range);
@@ -50,10 +55,22 @@ void InlayHintAnalyzer::VisitFunctionCall(FunctionCall *call) {
                             param->name.str() + ": ",
                             lsp::InlayHintKind::Parameter
                     });
+                } else {
+#ifdef DEBUG_INLAY_HINTS
+                    std::cerr << "couldn't get parameter for the value in inlay hint analyzer" << std::endl;
+#endif
                 }
+            } else {
+#ifdef DEBUG_INLAY_HINTS
+                std::cerr << "call value has invalid encoded location in inlay hint analyzer" << std::endl;
+#endif
             }
             i++;
         }
+    } else {
+#ifdef DEBUG_INLAY_HINTS
+    std::cerr << "couldn't compute function type for the call in inlay hint analyzer" << std::endl;
+#endif
     }
 }
 

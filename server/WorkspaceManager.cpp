@@ -237,7 +237,7 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
 
 std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string_view& path) {
     const auto abs_path = canonical(path);
-    auto unit = get_stored_unit(path);
+    auto unit = get_stored_unit(abs_path);
     if(unit) {
         return folding_analyze(loc_man, unit->scope.body.nodes);
     } else {
@@ -284,7 +284,7 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
 
 std::vector<lsp::InlayHint> WorkspaceManager::get_hints(const std::string_view& path, const Range& range) {
     const auto abs_path = canonical(path);
-    auto unit = get_stored_unit(path);
+    auto unit = get_stored_unit(abs_path);
     if(unit) {
         return inlay_hint_analyze(loc_man, unit->scope.body.nodes, range);
     } else {

@@ -98,6 +98,7 @@ void run_session(
                         .documentSymbolProvider = symbolOptions,
                         .foldingRangeProvider = foldingOptions,
                         .semanticTokensProvider = tokensProvider,
+                        .inlayHintProvider = true,
                 },
                 .serverInfo = lsp::InitializeResultServerInfo{
                         .name    = "Chemical Language Server",
@@ -119,7 +120,7 @@ void run_session(
     });
 
     handler.add<lsp::requests::TextDocument_FoldingRange>([&manager](lsp::requests::TextDocument_FoldingRange::Params&& params){
-      return lsp::Nullable(manager.get_folding_range(params.textDocument.uri.path()));
+        return lsp::Nullable(manager.get_folding_range(params.textDocument.uri.path()));
     });
 
     handler.add<lsp::requests::TextDocument_DocumentSymbol>([&manager](lsp::requests::TextDocument_DocumentSymbol::Params&& params){
@@ -137,8 +138,8 @@ void run_session(
     });
 
     handler.add<lsp::requests::TextDocument_Completion>([&manager](lsp::requests::TextDocument_Completion::Params&& params) -> lsp::TextDocument_CompletionResult {
-      auto& pos = params.position;
-      return lsp::TextDocument_CompletionResult(manager.get_completion(params.textDocument.uri.path(), Position { pos.line, pos.character }));
+        auto& pos = params.position;
+        return lsp::TextDocument_CompletionResult(manager.get_completion(params.textDocument.uri.path(), Position { pos.line, pos.character }));
     });
 
     handler.add<lsp::requests::TextDocument_SignatureHelp>([&manager](lsp::requests::TextDocument_SignatureHelp::Params&& params) -> lsp::TextDocument_SignatureHelpResult {
@@ -146,8 +147,15 @@ void run_session(
         return lsp::TextDocument_SignatureHelpResult(manager.get_signature_help(params.textDocument.uri.path(), Position { pos.line, pos.character }));
     });
 
+    handler.add<lsp::requests::TextDocument_InlayHint>([&manager](lsp::requests::TextDocument_InlayHint::Params&& params) -> lsp::TextDocument_InlayHintResult {
+        auto& start = params.range.start;
+        auto& end = params.range.end;
+        auto range = Range { Position { start.line, start.character }, Position { end.line, end.character } };
+        return lsp::TextDocument_InlayHintResult(manager.get_hints(params.textDocument.uri.path(), range));
+    });
+
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){
-       manager.OnOpenedFile(params.textDocument.uri.path());
+        manager.OnOpenedFile(params.textDocument.uri.path());
     });
 
     handler.add<lsp::notifications::TextDocument_DidChange>([&manager](lsp::notifications::TextDocument_DidChange::Params&& params){
@@ -182,7 +190,7 @@ void run_session(
 
     // Main loop: will block inside processIncomingMessages()
     while (!local_shutdown) {
-      handler.processIncomingMessages();
+        handler.processIncomingMessages();
     }
 
     // Now the Shutdown response has gone out, we can close.

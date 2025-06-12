@@ -294,37 +294,63 @@ void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
 
 }
 
-void sym_res_mod_sig_recursive(
+bool sym_res_mod_sig_recursive(
+        int id,
+        WorkspaceManager& manager,
+        SymbolResolver& resolver,
+        ModuleData* modData
+);
+
+bool sym_res_mod_deps_sig(
         int id,
         WorkspaceManager& manager,
         SymbolResolver& resolver,
         ModuleData* modData,
-        bool& symbol_resolve_flag
+        bool& is_deps_being_symbol_resolved
 ) {
-    std::vector<std::future<void>> unitsFutures;
+    std::vector<std::future<bool>> unitsFutures;
 
     for(const auto dep : modData->dependencies) {
 
-        auto future = manager.pool.push(sym_res_mod_sig_recursive, std::ref(manager), std::ref(resolver), dep, std::ref(symbol_resolve_flag));
+        auto future = manager.pool.push(sym_res_mod_sig_recursive, std::ref(manager), std::ref(resolver), dep);
         unitsFutures.emplace_back(std::move(future));
 
     }
 
     // lets wait for all dependencies to finish
     for(auto& future : unitsFutures) {
-        future.get();
+        if(future.get()) {
+            is_deps_being_symbol_resolved = true;
+        }
     }
 
-    if(!symbol_resolve_flag && !modData->all_files_symbol_resolved()) {
+    auto& is_curr_mod_sym_resolved = is_deps_being_symbol_resolved;
+
+    if(!is_curr_mod_sym_resolved && !modData->all_files_symbol_resolved()) {
         // force symbol resolution, if one of the file is not symbol resolved
-        symbol_resolve_flag = true;
+        is_curr_mod_sym_resolved = true;
     }
 
-    if(!symbol_resolve_flag) return;
+    if(!is_curr_mod_sym_resolved) return false;
 
+    // return true for current module is being symbol resolved
+    return true;
+
+}
+
+bool sym_res_mod_sig_recursive(
+        int id,
+        WorkspaceManager& manager,
+        SymbolResolver& resolver,
+        ModuleData* modData
+) {
+    bool is_deps_being_symbol_resolved = false;
+    if(!sym_res_mod_deps_sig(id, manager, resolver, modData, is_deps_being_symbol_resolved)) {
+        return false;
+    }
     // symbol resolve the signature of the module
     sym_res_mod_sig(resolver, modData);
-
+    return true;
 }
 
 void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_scope, SymbolResolver& resolver) {
@@ -436,31 +462,22 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         // trigger parse of module with dependencies
         parseModuleWithDeps(0, *this, mod, modData);
 
-        // this flag determines whether we should symbol resolve the modules
-        // if in case one of module hasn't been symbol resolved then it and all its dependencies are resolved
-        // this flag means, ignore cache, symbol resolve forcefully, if true
-        bool symbol_resolve_flag = false;
-
         // symbol resolve (declare + link signature) of dependencies (recursively) (NOT current module)
-        for(const auto depData : modData->dependencies) {
-            bool sym_res_dep_flag = false;
-            sym_res_mod_sig_recursive(0, *this, resolver, depData, sym_res_dep_flag);
-            // if any of the dependency is being symbol resolved (may have changed)
-            // then we will symbol resolve the current module too
-            if(sym_res_dep_flag) {
-                symbol_resolve_flag = true;
-            }
-        }
+        // symbol resolve dependencies concurrently
+        // if in case one of module hasn't been symbol resolved then it and all its dependencies are resolved
+        bool is_direct_deps_sym_res = false;
+        // we ignore the flag returned from this
+        // because that considers all files (we want to ignore current file)
+        sym_res_mod_deps_sig(0, *this, resolver, modData, is_direct_deps_sym_res);
 
-        // just a better name for symbol resolve flag
-        // this means should symbol resolve current module (except current file) ?
-        auto& sym_res_curr_mod = symbol_resolve_flag;
+        // should symbol resolve the current module ?
+        bool sym_res_curr_mod = false;
 
         // since direct dependencies say they have been symbol resolved
         // therefore not to symbol resolve the current modules
         // force symbol resolve the module, if even one of the file is not symbol resolved
         // (except current file, because we always symbol resolve that)
-        if(!sym_res_curr_mod) {
+        if(!is_direct_deps_sym_res) {
 
             // then we must check if any of its own file changed for the final verdict
             auto curr_file_path = std::filesystem::path(path);

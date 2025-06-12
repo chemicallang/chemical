@@ -174,7 +174,8 @@ void parseModuleWithDeps(
         int id,
         WorkspaceManager& manager,
         LabModule* module,
-        ModuleData* modData
+        ModuleData* modData,
+        std::vector<std::future<void>>& futures
 ) {
 
     // fast path, if already prepared file units, then we do not need to do it
@@ -201,7 +202,9 @@ void parseModuleWithDeps(
         modData->dependencies.emplace_back(depModData);
 
         // launching dependencies recursively with the same function
-        manager.pool.push(parseModuleWithDeps, std::ref(manager), dep, depModData);
+        futures.emplace_back(
+                manager.pool.push(parseModuleWithDeps, std::ref(manager), dep, depModData, std::ref(futures))
+        );
 
     }
 
@@ -212,6 +215,23 @@ void parseModuleWithDeps(
     // doing it while the lock is still in place
     modData->prepared_file_units = true;
 
+}
+
+void parseModuleWithDeps(
+        int id,
+        WorkspaceManager& manager,
+        LabModule* module,
+        ModuleData* modData
+) {
+    std::vector<std::future<void>> futures;
+    // parse
+    parseModuleWithDeps(
+        id,  manager, module, modData, futures
+    );
+    // wait
+    for(auto& future : futures) {
+        future.get();
+    }
 }
 
 void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {

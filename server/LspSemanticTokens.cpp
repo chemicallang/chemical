@@ -457,10 +457,13 @@ void WorkspaceManager::process_file(const std::string_view& path) {
         // this means should symbol resolve current module (except current file) ?
         auto& sym_res_curr_mod = symbol_resolve_flag;
 
+        // since direct dependencies say they have been symbol resolved
+        // therefore not to symbol resolve the current modules
         // force symbol resolve the module, if even one of the file is not symbol resolved
         // (except current file, because we always symbol resolve that)
         if(!sym_res_curr_mod) {
-            // then we must check if any of its own file changed or not
+
+            // then we must check if any of its own file changed or not for the final verdict
             auto curr_file_path = std::filesystem::path(path);
             for(auto& fileUnit : modData->fileUnits) {
                 if (!fileUnit.is_symbol_resolved && !std::filesystem::equivalent(curr_file_path, fileUnit.unit->scope.file_path.str())) {
@@ -470,6 +473,23 @@ void WorkspaceManager::process_file(const std::string_view& path) {
                     break;
                 }
             }
+
+            // since we did not symbol resolve direct dependencies
+            // the problem is that they may contain modifications to std, compiler namespace
+            // however when rebinding container, we removed these modifications
+            // to enable nodes user added to std, compiler namespace, we must go over
+            // nodes of direct dependencies and add them manually
+            for(const auto depData : modData->dependencies) {
+                for(auto& cachedUnit : depData->fileUnits) {
+                    const auto unit = cachedUnit.unit;
+                    for(const auto node : unit->scope.body.nodes) {
+                        if(node->kind() == ASTNodeKind::NamespaceDecl) {
+                            node->as_namespace_unsafe()->extend_root_namespace();
+                        }
+                    }
+                }
+            }
+
         }
 
         // must switch the allocators before performing symbol resolution for this module

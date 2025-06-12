@@ -127,6 +127,18 @@ public:
         attrs.is_anonymous = anonymous;
     }
 
+    void put_in_extended(std::unordered_map<chem::string_view, ASTNode*>& extended);
+
+    /**
+     * if the given namespace has a root namespace, it will extend it
+     * basically putting its children into root namespace's extended map
+     */
+    void extend_root_namespace() {
+        if(root) {
+            put_in_extended(root->extended);
+        }
+    }
+
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void link_signature(SymbolResolver &linker) override;

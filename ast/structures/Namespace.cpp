@@ -19,6 +19,13 @@ void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
     }
 }
 
+void Namespace::put_in_extended(std::unordered_map<chem::string_view, ASTNode*>& extended) {
+    MapSymbolDeclarer declarer(extended);
+    for(const auto node : nodes) {
+        ::declare_node(declarer, node, AccessSpecifier::Private);
+    }
+}
+
 void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto previous = linker.find(name());
     if(previous) {
@@ -37,10 +44,7 @@ void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
                 node->declare_top_level(linker, node);
             }
             // TODO we must check for duplicate symbols being declared in root_extended
-            MapSymbolDeclarer declarer(root->extended);
-            for(const auto node : nodes) {
-                ::declare_node(declarer, node, AccessSpecifier::Private);
-            }
+            put_in_extended(root->extended);
             linker.scope_end();
         } else {
             linker.dup_sym_error(name(), previous, this);

@@ -79,11 +79,11 @@ void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
         return;
     }
     RecursiveVisitor<InlayHintAnalyzer>::VisitVarInitStmt(init);
-    if(init->value && !init->type) {
+    if(init->value && !init->attrs.user_gave_type) {
         const auto encoded_loc = init->encoded_location();
         if(encoded_loc.isValid()) {
             const auto location = loc_man.getLocationPos(encoded_loc);
-            const auto known = init->value->create_type(allocator);
+            const auto known = init->get_or_create_type(allocator);
             if(known) {
                 const auto& start = location.end;
                 hints.emplace_back(lsp::InlayHint {

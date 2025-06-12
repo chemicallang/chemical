@@ -262,7 +262,7 @@ llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<ChainVal
 
 #endif
 
-BaseType* VarInitStatement::known_type_SymRes(ASTAllocator& allocator) {
+BaseType* VarInitStatement::get_or_create_type(ASTAllocator& allocator) {
     if(type) {
         return type;
     } else {

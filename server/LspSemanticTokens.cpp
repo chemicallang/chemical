@@ -426,6 +426,11 @@ void WorkspaceManager::process_file(const std::string_view& path) {
         // only symbol resolve if required (one of deps / current module file changed)
         if(symbol_resolve_flag) {
 
+            // must switch the allocators before performing symbol resolution for this module
+            // so any created types during linking remain on its allocator
+            resolver.mod_allocator = &modData->allocator;
+            resolver.ast_allocator = &modData->allocator;
+
             // declaring symbols of direct dependencies
             SymbolResolverDeclarer declarer(resolver);
             for (const auto depData: modData->dependencies) {
@@ -480,6 +485,11 @@ void WorkspaceManager::process_file(const std::string_view& path) {
             // we need to parse, because the parseModule above won't parse any file
             // since module has already (probably) prepared the file units (done once)
             parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
+
+            // switching the allocators, so any created types during linking remain on its allocator
+            // these may have not been switched due to skipped symbol resolution of main module
+            resolver.mod_allocator = &modData->allocator;
+            resolver.ast_allocator = &modData->allocator;
 
             // declare and link file
             resolver.declare_and_link_file(astUnit.scope.body, str_path);

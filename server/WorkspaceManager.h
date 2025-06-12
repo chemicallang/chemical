@@ -294,7 +294,7 @@ public:
     /**
      * this allows processing the file to place unit
      */
-    void process_file(const std::string_view& path);
+    void process_file(const std::string_view& path, bool contents_changed);
 
     /**
      * get the folding range for the given absolute file path

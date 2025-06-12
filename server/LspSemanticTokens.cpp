@@ -349,7 +349,7 @@ void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_s
 
 }
 
-void WorkspaceManager::process_file(const std::string_view& path) {
+void WorkspaceManager::process_file(const std::string_view& path, bool current_file_changed) {
 
     auto str_path = std::string(path);
     auto abs_path = canonical(path);
@@ -462,7 +462,7 @@ void WorkspaceManager::process_file(const std::string_view& path) {
         // (except current file, because we always symbol resolve that)
         if(!sym_res_curr_mod) {
 
-            // then we must check if any of its own file changed or not for the final verdict
+            // then we must check if any of its own file changed for the final verdict
             auto curr_file_path = std::filesystem::path(path);
             for(const auto fileUnit : modData->fileUnits) {
                 if (!fileUnit->is_symbol_resolved && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
@@ -547,22 +547,30 @@ void WorkspaceManager::process_file(const std::string_view& path) {
             auto& allocator = cachedUnit.allocator;
             auto& astUnit = cachedUnit.unit;
 
-            // clear the previous unit
-            allocator.clear();
-            astUnit.scope.body.nodes.clear();
+            // if the current file didn't change
+            // we don't need to even reparse it
+            // we can just resolve symbols inside again (to provide)
+            // diagnostics
+            if(current_file_changed) {
 
-            // parse the new tokens into the ast unit
-            // we need to parse, because the parseModule above won't parse any file
-            // since module has already (probably) prepared the file units (done once)
-            parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
+                // clear the previous unit
+                allocator.clear();
+                astUnit.scope.body.nodes.clear();
+
+                // parse the new tokens into the ast unit
+                // we need to parse, because the parseModule above won't parse any file
+                // since module has already (probably) prepared the file units (done once)
+                parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
+
+                // we will set this file symbol resolved = false
+                // so next time a file is opened that depends on the module that contains this file
+                // it resolves dependencies, before resolving the file
+                cachedUnit.is_symbol_resolved = false;
+
+            }
 
             // declare and link file
             resolver.declare_and_link_file(astUnit.scope.body, str_path);
-
-            // we will set this file symbol resolved = false
-            // so next time a file is opened that depends on the module that contains this file
-            // it resolves dependencies, before resolving the file
-            cachedUnit.is_symbol_resolved = false;
 
         } else if(modData->prepared_file_units) {
             // we have prepared the file units, however the file that belongs to this module

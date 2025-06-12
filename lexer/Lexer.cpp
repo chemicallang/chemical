@@ -526,7 +526,7 @@ Token Lexer::getNextToken() {
                 if(provider.readCharacter() == '.') {
                     return Token(TokenType::TripleDotSym, view_str(TripleDotCStr), pos);
                 } else {
-                    return Token(TokenType::Unexpected, { nullptr, 0 }, pos);
+                    return Token(TokenType::Unexpected, { "", 0 }, pos);
                 }
             } else {
                 return Token(TokenType::DotSym, view_str(DotOpCStr), pos);
@@ -673,7 +673,7 @@ Token Lexer::getNextToken() {
             return Token(TokenType::Identifier, str.finalize_view(), pos);
         }
     }
-    return Token(TokenType::Unexpected, { nullptr, 0 }, pos);
+    return Token(TokenType::Unexpected, { "", 0 }, pos);
 }
 
 void to_string(chem::string& strOut, std::vector<Token>& tokens) {

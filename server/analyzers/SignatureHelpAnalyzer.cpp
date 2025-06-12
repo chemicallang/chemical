@@ -87,6 +87,7 @@ void SignatureHelpAnalyzer::analyze(LabModule* module, ModuleData* modData, LexR
                 ignore_start++;
                 break;
             default:
+                current--;
                 continue;
         }
         current--;

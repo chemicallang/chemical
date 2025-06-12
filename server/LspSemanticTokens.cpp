@@ -348,6 +348,23 @@ void WorkspaceManager::process_file(const std::string_view& path) {
     auto abs_path_view = chem::string_view(abs_path);
     auto& all_tokens = last_file->tokens;
 
+    // store the tokens in token cache
+    tokenCache.put(abs_path, last_file);
+
+    // if there was an error during lexing, or if it ended unexpectedly
+    // we do not proceed with parsing and report lexing diagnostics
+    if(last_file->has_errors) {
+
+        // publish the diagnostics up until now
+        std::vector<lsp::Diagnostic> diagnostics;
+        add_diagnostics(diagnostics, last_file->diags);
+        publish_diagnostics(str_path, std::move(diagnostics));
+
+        // return early, as we don't want to proceed with parsing
+        return;
+
+    }
+
     // copy the tokens
     std::vector<Token> copied_tokens;
     copied_tokens.reserve(all_tokens.size());
@@ -533,9 +550,6 @@ void WorkspaceManager::process_file(const std::string_view& path) {
         }
         i++;
     }
-
-    // store the tokens in token cache
-    tokenCache.put(abs_path, last_file);
 
     // building the diagnostics
     std::vector<lsp::Diagnostic> diagnostics;

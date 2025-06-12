@@ -526,6 +526,7 @@ Token Lexer::getNextToken() {
                 if(provider.readCharacter() == '.') {
                     return Token(TokenType::TripleDotSym, view_str(TripleDotCStr), pos);
                 } else {
+                    diagnoser.diagnostic("unexpected dot symbol '.'", chem::string_view(file_path), provider.position(), provider.position(), DiagSeverity::Error);
                     return Token(TokenType::Unexpected, { "", 0 }, pos);
                 }
             } else {
@@ -673,6 +674,7 @@ Token Lexer::getNextToken() {
             return Token(TokenType::Identifier, str.finalize_view(), pos);
         }
     }
+    diagnoser.diagnostic("unexpected token", chem::string_view(file_path), provider.position(), provider.position(), DiagSeverity::Error);
     return Token(TokenType::Unexpected, { "", 0 }, pos);
 }
 

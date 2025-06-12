@@ -403,8 +403,8 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, BaseType* type, bool has_
 }
 
 void analyze_module(CompletionItemAnalyzer* analyzer, ModuleData* modData) {
-    for(auto& file : modData->fileUnits) {
-        auto& fileNodes = file.unit->scope.body.nodes;
+    for(const auto file : modData->fileUnits) {
+        auto& fileNodes = file->unit.scope.body.nodes;
         for(const auto node : fileNodes) {
             put_node(analyzer, node);
         }

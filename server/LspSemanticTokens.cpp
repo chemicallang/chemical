@@ -130,24 +130,23 @@ void parseModule(
 
         auto file_path_view = chem::string_view(file.abs_path);
 
+        const auto cachedUnit = new CachedASTUnit {
+            .allocator = ASTAllocator(10000),
+            .unit = ASTUnit(file.file_id, file_path_view, modData->modScope),
+            .is_symbol_resolved = false
+        };
+
         // every file costs us 10kb batched allocator
         // which means for module of 100 files, 1mb for each module
         // for 2000 modules, we will allocate 2gb (+100mb metadata) on average
-        ASTAllocator allocator(10000);
+        auto& allocator = cachedUnit->allocator;
 
-        const auto unitPtr = new ASTUnit(file.file_id, file_path_view, modData->modScope);
+        // parsing the file
+        parse_file(manager, allocator, cachedUnit->unit);
 
-        parse_file(manager, allocator, *unitPtr);
-
-        modData->cachedUnits.emplace(file_path_view, CachedASTUnit{
-                .allocator = std::move(allocator), // 10kb batched allocator
-                .unit = std::unique_ptr<ASTUnit>(unitPtr)
-        });
-
-        units.emplace_back(CachedASTUnitRef {
-                .unit = unitPtr,
-                .is_symbol_resolved = false
-        });
+        // putting the unit in module data
+        modData->cachedUnits.emplace(file_path_view, std::unique_ptr<CachedASTUnit>(cachedUnit));
+        units.emplace_back(cachedUnit);
 
     }
 
@@ -249,8 +248,8 @@ void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
     // declaring symbols of direct dependencies
     SymbolResolverDeclarer declarer(resolver);
     for(const auto depUnit : modData->dependencies) {
-        for(auto& cachedUnit : depUnit->fileUnits) {
-            for(const auto node : cachedUnit.unit->scope.body.nodes) {
+        for(const auto cachedUnit : depUnit->fileUnits) {
+            for(const auto node : cachedUnit->unit.scope.body.nodes) {
                 declare_node(declarer, node, AccessSpecifier::Public);
             }
         }
@@ -261,26 +260,26 @@ void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
     priv_sym_ranges.reserve(fileUnits.size());
 
     // declaring symbols of all files
-    for(auto& cachedUnit : fileUnits) {
+    for(const auto cachedUnit : fileUnits) {
 
-        const auto unit = cachedUnit.unit;
-        auto path_str = unit->scope.file_path.str();
+        auto& unit = cachedUnit->unit;
+        auto path_str = unit.scope.file_path.str();
 
-        auto priv_sym_range = resolver.tld_declare_file(unit->scope.body, path_str);
+        auto priv_sym_range = resolver.tld_declare_file(unit.scope.body, path_str);
         priv_sym_ranges.emplace_back(priv_sym_range);
 
     }
 
     // linking signatures in all files
     unsigned i = 0;
-    for(auto& cachedUnit : fileUnits) {
+    for(const auto cachedUnit : fileUnits) {
 
-        const auto unit = cachedUnit.unit;
-        auto path_str = unit->scope.file_path.str();
+        auto& unit = cachedUnit->unit;
+        auto path_str = unit.scope.file_path.str();
 
         auto& priv_sym_range = priv_sym_ranges[i];
 
-        resolver.link_signature_file(unit->scope.body, path_str, priv_sym_range);
+        resolver.link_signature_file(unit.scope.body, path_str, priv_sym_range);
 
         i++;
     }
@@ -289,8 +288,8 @@ void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
     resolver.module_scope_end(mod_index);
 
     // set that all files inside this module has symbol resolved
-    for(auto& fileUnit : modData->fileUnits) {
-        fileUnit.is_symbol_resolved = true;
+    for(const auto fileUnit : modData->fileUnits) {
+        fileUnit->is_symbol_resolved = true;
     }
 
 }
@@ -465,8 +464,8 @@ void WorkspaceManager::process_file(const std::string_view& path) {
 
             // then we must check if any of its own file changed or not for the final verdict
             auto curr_file_path = std::filesystem::path(path);
-            for(auto& fileUnit : modData->fileUnits) {
-                if (!fileUnit.is_symbol_resolved && !std::filesystem::equivalent(curr_file_path, fileUnit.unit->scope.file_path.str())) {
+            for(const auto fileUnit : modData->fileUnits) {
+                if (!fileUnit->is_symbol_resolved && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
                     // this is not current file
                     // must symbol resolve, changed file is not current file
                     sym_res_curr_mod = true;
@@ -480,9 +479,9 @@ void WorkspaceManager::process_file(const std::string_view& path) {
             // to enable nodes user added to std, compiler namespace, we must go over
             // nodes of direct dependencies and add them manually
             for(const auto depData : modData->dependencies) {
-                for(auto& cachedUnit : depData->fileUnits) {
-                    const auto unit = cachedUnit.unit;
-                    for(const auto node : unit->scope.body.nodes) {
+                for(const auto cachedUnit : depData->fileUnits) {
+                    auto& unit = cachedUnit->unit;
+                    for(const auto node : unit.scope.body.nodes) {
                         if(node->kind() == ASTNodeKind::NamespaceDecl) {
                             node->as_namespace_unsafe()->extend_root_namespace();
                         }
@@ -500,9 +499,9 @@ void WorkspaceManager::process_file(const std::string_view& path) {
         // declaring symbols of direct dependencies
         SymbolResolverDeclarer declarer(resolver);
         for (const auto depData: modData->dependencies) {
-            for (auto& cachedUnit: depData->fileUnits) {
-                const auto unit = cachedUnit.unit;
-                for (const auto node: unit->scope.body.nodes) {
+            for (const auto cachedUnit: depData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                for (const auto node: unit.scope.body.nodes) {
                     declare_node(declarer, node, AccessSpecifier::Public);
                 }
             }
@@ -517,22 +516,22 @@ void WorkspaceManager::process_file(const std::string_view& path) {
             // declaring top level symbols of all files in module
             auto curr_file_path = std::filesystem::path(path);
             i = 0;
-            for (auto& cachedUnit: modData->fileUnits) {
-                const auto unit = cachedUnit.unit;
-                auto file_path_str = unit->scope.file_path.str();
+            for (const auto cachedUnit: modData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                auto file_path_str = unit.scope.file_path.str();
                 if (!std::filesystem::equivalent(curr_file_path, file_path_str)) {
-                    priv_sym_ranges[i] = resolver.tld_declare_file(unit->scope.body, file_path_str);
+                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, file_path_str);
                 }
                 i++;
             }
 
             // linking signatures of all files in current module
             i = 0;
-            for (auto& cachedUnit: modData->fileUnits) {
-                const auto unit = cachedUnit.unit;
-                auto file_path_str = unit->scope.file_path.str();
+            for (const auto cachedUnit: modData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                auto file_path_str = unit.scope.file_path.str();
                 if (!std::filesystem::equivalent(curr_file_path, file_path_str)) {
-                    resolver.link_signature_file(unit->scope.body, file_path_str, priv_sym_ranges[i]);
+                    resolver.link_signature_file(unit.scope.body, file_path_str, priv_sym_ranges[i]);
                 }
             }
 
@@ -544,8 +543,9 @@ void WorkspaceManager::process_file(const std::string_view& path) {
         auto found = modData->cachedUnits.find(abs_path_view);
         if(found != modData->cachedUnits.end()) {
 
-            auto& allocator = found->second.allocator;
-            auto& astUnit = *found->second.unit;
+            auto& cachedUnit = *found->second;
+            auto& allocator = cachedUnit.allocator;
+            auto& astUnit = cachedUnit.unit;
 
             // clear the previous unit
             allocator.clear();
@@ -558,6 +558,11 @@ void WorkspaceManager::process_file(const std::string_view& path) {
 
             // declare and link file
             resolver.declare_and_link_file(astUnit.scope.body, str_path);
+
+            // we will set this file symbol resolved = false
+            // so next time a file is opened that depends on the module that contains this file
+            // it resolves dependencies, before resolving the file
+            cachedUnit.is_symbol_resolved = false;
 
         } else if(modData->prepared_file_units) {
             // we have prepared the file units, however the file that belongs to this module
@@ -734,7 +739,7 @@ ASTUnit* WorkspaceManager::get_stored_unit(const std::string_view& path) {
         if(modData) {
             auto found = modData->cachedUnits.find(path_view);
             if(found != modData->cachedUnits.end()) {
-                return found->second.unit.get();
+                return &found->second->unit;
             }
         }
     }

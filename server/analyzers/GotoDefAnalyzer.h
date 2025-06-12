@@ -37,11 +37,4 @@ public:
      */
     std::vector<lsp::DefinitionLink> analyze(std::vector<Token>& tokens);
 
-    /**
-     * this function analyzes the import unit, in which last file is the one which contains the
-     * token where user asked to goto def
-     * It will provide locations, where that symbol has definition
-     */
-    std::vector<Location> analyze(LexResult* current_file);
-
 };

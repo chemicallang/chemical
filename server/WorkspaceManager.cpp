@@ -255,7 +255,7 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
     if(modData) {
         auto found = modData->cachedUnits.find(abs_path_view);
         if(found != modData->cachedUnits.end()) {
-            unit = found->second.unit.get();
+            unit = &found->second->unit;
         }
     }
     LexResult* lexResult = nullptr;
@@ -302,7 +302,7 @@ lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& 
     if(modData) {
         auto found = modData->cachedUnits.find(abs_path_view);
         if(found != modData->cachedUnits.end()) {
-            unit = found->second.unit.get();
+            unit = &found->second->unit;
         }
     }
     LexResult* lexResult = nullptr;
@@ -327,8 +327,7 @@ std::vector<lsp::DefinitionLink> WorkspaceManager::get_definition(const std::str
     auto cachedTokens = tokenCache.get(abs_path);
     if(cachedTokens != nullptr) {
         GotoDefAnalyzer analyzer(loc_man, {position.line, position.character});
-        auto& result = **cachedTokens;
-        return analyzer.analyze(result.tokens);
+        return analyzer.analyze(cachedTokens->get()->tokens);
     }
     return {};
 }
@@ -342,7 +341,7 @@ std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string
     if(modData) {
         auto found = modData->cachedUnits.find(abs_path_view);
         if(found != modData->cachedUnits.end()) {
-            unit = found->second.unit.get();
+            unit = &found->second->unit;
         }
     }
     DocumentSymbolsAnalyzer analyzer(loc_man);
@@ -361,8 +360,7 @@ std::string WorkspaceManager::get_hover(const std::string_view& path, const Posi
     auto cachedTokens = tokenCache.get(abs_path);
     if(cachedTokens != nullptr) {
         HoverAnalyzer analyzer(loc_man, {position.line, position.character});
-        auto& result = **cachedTokens;
-        return analyzer.markdown_hover(abs_path, result.tokens);
+        return analyzer.markdown_hover(abs_path, cachedTokens->get()->tokens);
     }
     return "";
 }

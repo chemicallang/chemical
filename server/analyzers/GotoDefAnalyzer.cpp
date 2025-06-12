@@ -23,24 +23,30 @@ std::vector<lsp::DefinitionLink> GotoDefAnalyzer::analyze(std::vector<Token>& to
     std::vector<lsp::DefinitionLink> defs;
     auto token = get_token_at_position(tokens, position);
     if(token) {
-        ASTAny* astAny = token->linked;
+        const auto astAny = token->linked;
         if(astAny) {
             const auto ref_linked = astAny->get_ref_linked_node();
             if (ref_linked) {
                 const auto encoded = ref_linked->encoded_location();
-                const auto location = manager.getLocationPos(encoded);
-                const auto filePath = manager.getPathForFileId(location.fileId);
-                defs.emplace_back(
-                    lsp::DocumentUri::fromPath(filePath),
-                    lsp::Range(
-                        lsp::Position(location.start.line, location.start.character),
-                        lsp::Position(location.end.line, location.end.character)
-                    ),
-                    lsp::Range(
-                            lsp::Position(location.start.line, location.start.character),
-                            lsp::Position(location.end.line, location.end.character)
-                    )
-                );
+                if(encoded.isValid()) {
+                    const auto location = manager.getLocationPos(encoded);
+                    const auto filePath = manager.getPathForFileId(location.fileId);
+                    defs.emplace_back(
+                            lsp::DocumentUri::fromPath(filePath),
+                            lsp::Range(
+                                    lsp::Position(location.start.line, location.start.character),
+                                    lsp::Position(location.end.line, location.end.character)
+                            ),
+                            lsp::Range(
+                                    lsp::Position(location.start.line, location.start.character),
+                                    lsp::Position(location.end.line, location.end.character)
+                            )
+                    );
+                } else {
+#ifdef DEBUG_GOTO_DEF
+                    std::cout << "[GotoDefAnalyzer] invalid location preset " << position.representation();
+#endif
+                }
             } else {
 #ifdef DEBUG_GOTO_DEF
                 std::cout << "[GotoDefAnalyzer] linked empty " << position.representation();

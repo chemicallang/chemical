@@ -69,6 +69,11 @@ struct VarInitAttributes {
      */
     bool signature_resolved = true;
 
+    /**
+     * whether the user gave type
+     */
+    bool user_gave_type = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -102,7 +107,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ASTNode(ASTNodeKind::VarInitStmt, parent_node, location),
-        attrs(specifier, false, false, false, false, is_const, is_reference, false, false),
+        attrs(specifier, false, false, false, false, is_const, is_reference, false, false, true, type != nullptr),
         located_id(identifier), type(type), value(value) {
 
     }
@@ -258,6 +263,8 @@ public:
         return type;
     }
 
+    BaseType* get_or_create_type(ASTAllocator& allocator);
+
 #ifdef COMPILER_BUILD
 
     inline void check_has_type(Codegen &gen);
@@ -295,7 +302,9 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    BaseType* known_type_SymRes(ASTAllocator& allocator);
+    inline BaseType* known_type_SymRes(ASTAllocator& allocator) {
+        return get_or_create_type(allocator);
+    }
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared

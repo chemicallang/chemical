@@ -453,30 +453,45 @@ void WorkspaceManager::process_file(const std::string_view& path) {
             }
         }
 
+        // just a better name for symbol resolve flag
+        // this means should symbol resolve current module (except current file) ?
+        auto& sym_res_curr_mod = symbol_resolve_flag;
+
         // force symbol resolve the module, if even one of the file is not symbol resolved
-        if(!symbol_resolve_flag && !modData->all_files_symbol_resolved()) {
-            symbol_resolve_flag = true;
+        // (except current file, because we always symbol resolve that)
+        if(!sym_res_curr_mod) {
+            // then we must check if any of its own file changed or not
+            auto curr_file_path = std::filesystem::path(path);
+            for(auto& fileUnit : modData->fileUnits) {
+                if (!fileUnit.is_symbol_resolved && !std::filesystem::equivalent(curr_file_path, fileUnit.unit->scope.file_path.str())) {
+                    // this is not current file
+                    // must symbol resolve, changed file is not current file
+                    sym_res_curr_mod = true;
+                    break;
+                }
+            }
+        }
+
+        // must switch the allocators before performing symbol resolution for this module
+        // so any created types during linking remain on its allocator
+        resolver.mod_allocator = &modData->allocator;
+        resolver.ast_allocator = &modData->allocator;
+
+        // declaring symbols of direct dependencies
+        SymbolResolverDeclarer declarer(resolver);
+        for (const auto depData: modData->dependencies) {
+            for (auto& cachedUnit: depData->fileUnits) {
+                const auto unit = cachedUnit.unit;
+                for (const auto node: unit->scope.body.nodes) {
+                    declare_node(declarer, node, AccessSpecifier::Public);
+                }
+            }
         }
 
         // only symbol resolve if required (one of deps / current module file changed)
-        if(symbol_resolve_flag) {
+        if(sym_res_curr_mod) {
 
-            // must switch the allocators before performing symbol resolution for this module
-            // so any created types during linking remain on its allocator
-            resolver.mod_allocator = &modData->allocator;
-            resolver.ast_allocator = &modData->allocator;
-
-            // declaring symbols of direct dependencies
-            SymbolResolverDeclarer declarer(resolver);
-            for (const auto depData: modData->dependencies) {
-                for (auto& cachedUnit: depData->fileUnits) {
-                    const auto unit = cachedUnit.unit;
-                    for (const auto node: unit->scope.body.nodes) {
-                        declare_node(declarer, node, AccessSpecifier::Public);
-                    }
-                }
-            }
-
+            // a container for private symbol ranges (of files)
             std::vector<SymbolRange> priv_sym_ranges(modData->fileUnits.size());
 
             // declaring top level symbols of all files in module
@@ -521,19 +536,15 @@ void WorkspaceManager::process_file(const std::string_view& path) {
             // since module has already (probably) prepared the file units (done once)
             parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
 
-            // switching the allocators, so any created types during linking remain on its allocator
-            // these may have not been switched due to skipped symbol resolution of main module
-            resolver.mod_allocator = &modData->allocator;
-            resolver.ast_allocator = &modData->allocator;
-
             // declare and link file
             resolver.declare_and_link_file(astUnit.scope.body, str_path);
 
         } else if(modData->prepared_file_units) {
             // we have prepared the file units, however the file that belongs to this module
             // is not present inside the cachedUnits
-            // cannot throw an exception, because it gets caught by the lsp
-            abort();
+#ifdef DEBUG
+            throw std::runtime_error("prepared file units, however current file not present");
+#endif
         }
 
     } else {

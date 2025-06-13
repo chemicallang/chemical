@@ -28,6 +28,10 @@
 #include <memory>
 #include <thread>
 
+#ifdef DEBUG
+#define DEBUG_LOG_REQS
+#endif
+
 // 2) Per-client session: runs the LSP loop until error or disconnect
 void run_session(
         std::atomic_bool& g_shutdown,
@@ -44,6 +48,10 @@ void run_session(
     WorkspaceManager manager(executable_path, handler);
 
     handler.add<lsp::requests::Initialize>([&manager](lsp::InitializeParams&& params){
+
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::Initialize" << std::endl;
+#endif
 
         // initializing the manager
         manager.initialize(params);
@@ -109,8 +117,12 @@ void run_session(
     });
 
     handler.add<lsp::requests::TextDocument_SemanticTokens_Full>([&manager](lsp::requests::TextDocument_SemanticTokens_Full::Params&& params){
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_SemanticTokens_Full '" << path << '\'' << std::endl;
+#endif
         try {
-            auto tokens = manager.get_semantic_tokens_full(params.textDocument.uri.path());
+            auto tokens = manager.get_semantic_tokens_full(path);
             return lsp::requests::TextDocument_SemanticTokens_Full::Result(lsp::SemanticTokens{
                     .data = tokens
             });
@@ -120,49 +132,88 @@ void run_session(
     });
 
     handler.add<lsp::requests::TextDocument_FoldingRange>([&manager](lsp::requests::TextDocument_FoldingRange::Params&& params){
-        return lsp::Nullable(manager.get_folding_range(params.textDocument.uri.path()));
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_FoldingRange '" << path << '\'' << std::endl;
+#endif
+        return lsp::Nullable(manager.get_folding_range(path));
     });
 
     handler.add<lsp::requests::TextDocument_DocumentSymbol>([&manager](lsp::requests::TextDocument_DocumentSymbol::Params&& params){
-        return lsp::NullableVariant<std::vector<lsp::SymbolInformation>, std::vector<lsp::DocumentSymbol>>(manager.get_symbols(params.textDocument.uri.path()));
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_DocumentSymbol '" << path << '\'' << std::endl;
+#endif
+        return lsp::NullableVariant<std::vector<lsp::SymbolInformation>, std::vector<lsp::DocumentSymbol>>(manager.get_symbols(path));
     });
 
     handler.add<lsp::requests::TextDocument_Hover>([&manager](lsp::requests::TextDocument_Hover::Params&& params){
-        auto hoverStr = manager.get_hover(params.textDocument.uri.path(), Position { params.position.line, params.position.character });
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_Hover '" << path << '\'' << std::endl;
+#endif
+        auto hoverStr = manager.get_hover(path, Position { params.position.line, params.position.character });
         return lsp::NullOr<lsp::Hover>(lsp::Hover{ lsp::MarkupContent{lsp::MarkupKind::Markdown, std::move(hoverStr)} });
     });
 
     handler.add<lsp::requests::TextDocument_Definition>([&manager](lsp::requests::TextDocument_Definition::Params&& params) -> lsp::TextDocument_DefinitionResult {
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_Definition '" << path << '\'' << std::endl;
+#endif
         auto& pos = params.position;
-        return lsp::TextDocument_DefinitionResult(manager.get_definition(params.textDocument.uri.path(), Position { pos.line, pos.character }));
+        return lsp::TextDocument_DefinitionResult(manager.get_definition(path, Position { pos.line, pos.character }));
     });
 
     handler.add<lsp::requests::TextDocument_Completion>([&manager](lsp::requests::TextDocument_Completion::Params&& params) -> lsp::TextDocument_CompletionResult {
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_Completion '" << path << '\'' << std::endl;
+#endif
         auto& pos = params.position;
-        return lsp::TextDocument_CompletionResult(manager.get_completion(params.textDocument.uri.path(), Position { pos.line, pos.character }));
+        return lsp::TextDocument_CompletionResult(manager.get_completion(path, Position { pos.line, pos.character }));
     });
 
     handler.add<lsp::requests::TextDocument_SignatureHelp>([&manager](lsp::requests::TextDocument_SignatureHelp::Params&& params) -> lsp::TextDocument_SignatureHelpResult {
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_SignatureHelp '" << path << '\'' << std::endl;
+#endif
         auto& pos = params.position;
-        return lsp::TextDocument_SignatureHelpResult(manager.get_signature_help(params.textDocument.uri.path(), Position { pos.line, pos.character }));
+        return lsp::TextDocument_SignatureHelpResult(manager.get_signature_help(path, Position { pos.line, pos.character }));
     });
 
     handler.add<lsp::requests::TextDocument_InlayHint>([&manager](lsp::requests::TextDocument_InlayHint::Params&& params) -> lsp::TextDocument_InlayHintResult {
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::TextDocument_InlayHint '" << path << '\'' << std::endl;
+#endif
         auto& start = params.range.start;
         auto& end = params.range.end;
         auto range = Range { Position { start.line, start.character }, Position { end.line, end.character } };
-        return lsp::TextDocument_InlayHintResult(manager.get_hints(params.textDocument.uri.path(), range));
+        return lsp::TextDocument_InlayHintResult(manager.get_hints(path, range));
     });
 
     handler.add<lsp::notifications::TextDocument_DidOpen>([&manager](lsp::notifications::TextDocument_DidOpen::Params&& params){
-        manager.OnOpenedFile(params.textDocument.uri.path());
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::notifications::TextDocument_DidOpen '" << path << '\'' << std::endl;
+#endif
+        manager.OnOpenedFile(path);
     });
 
     handler.add<lsp::notifications::TextDocument_DidChange>([&manager](lsp::notifications::TextDocument_DidChange::Params&& params){
-        manager.onChangedContents(params.textDocument.uri.path(), params.contentChanges);
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::notifications::TextDocument_DidChange '" << path << '\'' << std::endl;
+#endif
+        manager.onChangedContents(path, params.contentChanges);
     });
 
     handler.add<lsp::notifications::Workspace_DidChangeWatchedFiles>([&manager](lsp::notifications::Workspace_DidChangeWatchedFiles::Params&& params){
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::notifications::Workspace_DidChangeWatchedFiles" << std::endl;
+#endif
         for(auto& change : params.changes) {
             switch(change.type.index()) {
                 case lsp::FileChangeType::Created:
@@ -179,7 +230,9 @@ void run_session(
     });
 
     handler.add<lsp::requests::Shutdown>([&listener, &local_shutdown, &g_shutdown]() -> std::nullptr_t {
-        std::cout << "[LSP] Shutdown requested." << std::endl;
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::requests::Shutdown" << std::endl;
+#endif
         // 1) mark both local and global shutdown
         local_shutdown = true;
         g_shutdown.store(true, std::memory_order_relaxed);

@@ -130,11 +130,11 @@ void parseModule(
 
         auto file_path_view = chem::string_view(file.abs_path);
 
-        const auto cachedUnit = new CachedASTUnit {
-            .allocator = ASTAllocator(10000),
-            .unit = ASTUnit(file.file_id, file_path_view, modData->modScope),
-            .is_symbol_resolved = false
-        };
+        const auto cachedUnit = new CachedASTUnit(
+                10000,
+                file.file_id, file_path_view,
+                modData->modScope
+        );
 
         // every file costs us 10kb batched allocator
         // which means for module of 100 files, 1mb for each module
@@ -288,9 +288,7 @@ void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
     resolver.module_scope_end(mod_index);
 
     // set that all files inside this module has symbol resolved
-    for(const auto fileUnit : modData->fileUnits) {
-        fileUnit->is_symbol_resolved = true;
-    }
+    modData->set_all_files_symbol_resolved();
 
 }
 
@@ -483,7 +481,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
             // then we must check if any of its own file changed for the final verdict
             auto curr_file_path = std::filesystem::path(path);
             for(const auto fileUnit : modData->fileUnits) {
-                if (!fileUnit->is_symbol_resolved && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
+                if (!fileUnit->get_is_symbol_resolved() && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
                     // this is not current file
                     // must symbol resolve, changed file is not current file
                     sym_res_curr_mod = true;
@@ -574,6 +572,11 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
             // (tokens contain mapping which needs to be valid for semantic tokens to show properly)
             if(current_file_changed || tokenCache.get(abs_path) == nullptr) {
 
+                // THE ORDER OF OPERATIONS IN THE NEXT THREE STATEMENTS IS IMPORTANT
+                // we will set this file symbol resolved = false
+                // so next time a file is opened that depends on the module that contains this file
+                // it resolves dependencies, before resolving the file
+                modData->unset_all_files_symbol_resolved(cachedUnit);
                 // clear the previous unit
                 allocator.clear();
                 astUnit.scope.body.nodes.clear();
@@ -582,11 +585,6 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
                 // we need to parse, because the parseModule above won't parse any file
                 // since module has already (probably) prepared the file units (done once)
                 parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
-
-                // we will set this file symbol resolved = false
-                // so next time a file is opened that depends on the module that contains this file
-                // it resolves dependencies, before resolving the file
-                cachedUnit.is_symbol_resolved = false;
 
             }
 
@@ -624,6 +622,9 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
     }
 
     // now restore the mapping of ast with tokens (using original indexes)
+    // the order in which this operation occurs is important because
+    // first the copied_tokens must be linked before we can link original tokens
+    // which happens after symbol resolution, so this must take place after symbol resolution
     i = 0;
     for(auto& token : copied_tokens) {
         if(token.linked != nullptr) {

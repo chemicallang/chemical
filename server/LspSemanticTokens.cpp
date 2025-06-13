@@ -130,11 +130,10 @@ void parseModule(
 
         auto file_path_view = chem::string_view(file.abs_path);
 
-        const auto cachedUnit = new CachedASTUnit(
-                10000,
-                file.file_id, file_path_view,
-                modData->modScope
-        );
+        const auto cachedUnit = new CachedASTUnit {
+                .allocator = ASTAllocator(10000),
+                .unit = ASTUnit(file.file_id, file_path_view, modData->modScope)
+        };
 
         // every file costs us 10kb batched allocator
         // which means for module of 100 files, 1mb for each module
@@ -153,6 +152,11 @@ void parseModule(
     // set it to true, important step for caching to work
     modData->prepared_file_units = true;
 
+}
+
+ModuleData* WorkspaceManager::getModuleData(const chem::string_view& filePath) {
+    auto found = filesIndex.find(filePath);
+    return found != filesIndex.end() ? found->second : nullptr;
 }
 
 ModuleData* WorkspaceManager::getModuleData(LabModule* module) {
@@ -233,8 +237,7 @@ void parseModuleWithDepsWait(
     }
 }
 
-void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
-
+void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, ModuleData* modData) {
     const auto mod_index = resolver.module_scope_start();
 
     // this is an important step, to switch the allocators
@@ -288,7 +291,7 @@ void sym_res_mod_sig(SymbolResolver& resolver, ModuleData* modData) {
     resolver.module_scope_end(mod_index);
 
     // set that all files inside this module has symbol resolved
-    modData->set_all_files_symbol_resolved();
+    manager.unmake_module_dirty(modData);
 
 }
 
@@ -348,7 +351,7 @@ bool sym_res_mod_sig_recursive(
         return false;
     }
     // symbol resolve the signature of the module
-    sym_res_mod_sig(resolver, modData);
+    sym_res_mod_sig(manager, resolver, modData);
     return true;
 }
 
@@ -374,10 +377,61 @@ void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_s
 
 }
 
-void WorkspaceManager::process_file(const std::string_view& path, bool current_file_changed) {
 
-    auto str_path = std::string(path);
-    auto abs_path = canonical(path);
+bool exists_in_deps(std::vector<ModuleData*>& deps, ModuleData* modData) {
+    for(const auto dep : deps) {
+        if(dep == modData) {
+            return true;
+        }
+        if(!dep->dependencies.empty() && exists_in_deps(dep->dependencies, modData)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool WorkspaceManager::should_process_file(const std::string_view& path, ModuleData* modData) {
+
+    if (dirtyModules.empty()) {
+        return false;
+    }
+
+    // if there is no module that we depend on, is dirty, we can skip symbol resolution
+    for(const auto dirtyMod : dirtyModules) {
+        if(dirtyMod == modData) {
+            const auto dirtyFilesSize = dirtyMod->dirtyFiles.size();
+            if(dirtyFilesSize == 1) {
+                const auto dirtyFile = *dirtyMod->dirtyFiles.begin();
+                if (dirtyModules.size() == 1 && dirtyFile->unit.scope.file_path.view() == path) {
+                    // don't need to symbol resolve, a single module and file is dirty and it's the same file request is for
+                    return false;
+                } else {
+                    // its the same module, and the file that is dirty is not the same for which request is for
+                    // so must symbol resolve
+                    return true;
+                }
+            } else if (dirtyFilesSize > 1) {
+                // it's the same module as the file for which request is for
+                // and more than a single file is dirty, we should symbol resolve it
+                return true;
+            }
+        } else {
+            // check if dirty module exists in the module dependencies
+            if(exists_in_deps(modData->dependencies, dirtyMod)) {
+                // must process the file
+                return true;
+            }
+        }
+    }
+
+    return false;
+
+}
+
+void WorkspaceManager::process_file(const std::string_view& abs_path_std_view, bool current_file_changed) {
+
+    // convert the path to string for usage
+    auto abs_path = std::string(abs_path_std_view);
 
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);
@@ -387,7 +441,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         return;
     }
 
-    auto abs_path_view = chem::string_view(abs_path);
+    auto abs_path_view = chem::string_view(abs_path_std_view);
     auto& all_tokens = last_file->tokens;
 
     // if there was an error during lexing, or if it ended unexpectedly
@@ -397,7 +451,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         // publish the diagnostics up until now
         std::vector<lsp::Diagnostic> diagnostics;
         add_diagnostics(diagnostics, last_file->diags);
-        publish_diagnostics(str_path, std::move(diagnostics));
+        publish_diagnostics(abs_path, std::move(diagnostics));
 
         // return early, as we don't want to proceed with parsing
         // must store the tokens in token cache (otherwise semantic tokens won't work)
@@ -446,11 +500,11 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
     // prepare top level compiler functions (std, compiler namespace)
     bind_or_create_container(comptime_scope, resolver);
 
-    // got the module
-    const auto mod = get_mod_of(abs_path_view);
-
     // get the module data
-    const auto modData = mod ? getModuleData(mod) : nullptr;
+    const auto modData = getModuleData(abs_path_view);
+
+    // got the module
+    const auto mod = modData ? modData->getModule() : nullptr;
 
     // must hold parse diagnostics from different sources
     std::vector<Diag> parse_diagnostics;
@@ -479,9 +533,9 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         if(!sym_res_curr_mod) {
 
             // then we must check if any of its own file changed for the final verdict
-            auto curr_file_path = std::filesystem::path(path);
+            auto curr_file_path = std::filesystem::path(abs_path);
             for(const auto fileUnit : modData->fileUnits) {
-                if (!fileUnit->get_is_symbol_resolved() && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
+                if (modData->is_dirty(fileUnit) && !std::filesystem::equivalent(curr_file_path, fileUnit->unit.scope.file_path.str())) {
                     // this is not current file
                     // must symbol resolve, changed file is not current file
                     sym_res_curr_mod = true;
@@ -530,7 +584,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
             std::vector<SymbolRange> priv_sym_ranges(modData->fileUnits.size());
 
             // declaring top level symbols of all files in module
-            auto curr_file_path = std::filesystem::path(path);
+            auto curr_file_path = std::filesystem::path(abs_path);
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
@@ -576,7 +630,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
                 // we will set this file symbol resolved = false
                 // so next time a file is opened that depends on the module that contains this file
                 // it resolves dependencies, before resolving the file
-                modData->unset_all_files_symbol_resolved(cachedUnit);
+                make_module_dirty(modData, &cachedUnit);
                 // clear the previous unit
                 allocator.clear();
                 astUnit.scope.body.nodes.clear();
@@ -589,7 +643,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
             }
 
             // declare and link file
-            resolver.declare_and_link_file(astUnit.scope.body, str_path);
+            resolver.declare_and_link_file(astUnit.scope.body, abs_path);
 
         } else if(modData->prepared_file_units) {
             // we have prepared the file units, however the file that belongs to this module
@@ -617,7 +671,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
         parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
 
         // declare and link file
-        resolver.declare_and_link_file(astUnit.scope.body, str_path);
+        resolver.declare_and_link_file(astUnit.scope.body, abs_path);
 
     }
 
@@ -645,7 +699,7 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
     add_diagnostics(diagnostics, resolver.diagnostics);
 
     // publish diagnostics will return ast import unit ref
-    publish_diagnostics(str_path, std::move(diagnostics));
+    publish_diagnostics(abs_path, std::move(diagnostics));
 
 }
 
@@ -662,8 +716,8 @@ void WorkspaceManager::process_file(const std::string_view& path, bool current_f
  */
 std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::string_view& path) {
 
-    auto str_path = std::string(path);
     auto abs_path = canonical(path);
+    process_file_on_request(abs_path);
 
     // check if tokens exist in cache (parsed after changed contents request of file)
     auto cachedTokens = tokenCache.get(abs_path);
@@ -688,27 +742,62 @@ void WorkspaceManager::index_new_file(const std::string_view& path) {
     std::cout << "[lsp] created file '" << path << "', TODO: index it" << std::endl;
 }
 
-void WorkspaceManager::de_index_deleted_file(const std::string_view& path_sv) {
+void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_given_path) {
+
+    // get the canonical path
+    auto path_sv = canonical_path(editor_given_path);
+    auto path_view = chem::string_view(path_sv);
+
+    // get the module data
+    const auto modData = getModuleData(path_view);
+    if(!modData) {
+        std::cout << "[lsp] deleted file '" << path_sv << "' does not belong to any known module\n";
+        return;
+    }
+    const auto mod = modData->getModule();
+
+    auto foundCachedUnit = modData->cachedUnits.find(path_view);
+    if(foundCachedUnit != modData->cachedUnits.end()) {
+
+        // removing from mod data prepared file units
+        auto& v = modData->fileUnits;
+        auto it = std::find(v.begin(), v.end(), foundCachedUnit->second.get());
+        if (it != v.end()) {
+            v.erase(it);
+        }
+
+        // removing from cachedUnits
+        modData->cachedUnits.erase(foundCachedUnit);
+
+    } else {
+#ifdef DEBUG
+        std::cout << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' cached units" << std::endl;
+#endif
+    }
+
+    // remove from actual module's direct files
     namespace fs = std::filesystem;
     fs::path deletedPath(path_sv);
-    // Find owning module
-    if (const auto mod = get_mod_of(chem::string_view(path_sv))) {
-        auto& files = mod->direct_files;
-        for (auto it = files.begin(); it != files.end(); ++it) {
-            fs::path candidate(it->abs_path);
-            // Compare actual filesystem locations (handles case, symlinks, etc.)
-            std::error_code ec;
-            if (fs::equivalent(candidate, deletedPath, ec) && !ec) {
-                // Erase and return early
-                files.erase(it);
-                std::cout << "[lsp] de-indexed deleted file '" << path_sv << "' from module '" << mod->name << "'\n";
-                return;
-            }
+
+    auto& files = mod->direct_files;
+    for (auto it = files.begin(); it != files.end(); ++it) {
+        fs::path candidate(it->abs_path);
+        // Compare actual filesystem locations (handles case, symlinks, etc.)
+        std::error_code ec;
+        if (fs::equivalent(candidate, deletedPath, ec) && !ec) {
+            // Erase and return early
+            files.erase(it);
+#ifdef DEBUG
+            std::cout << "[lsp] de-indexed deleted file '" << path_sv << "' from module's '" << mod->format() << "' direct files" << std::endl;
+#endif
+            return;
         }
-        std::cout << "[lsp] deleted file '" << path_sv << "' was not found in module '" << mod->name << "'\n";
-    } else {
-        std::cout << "[lsp] deleted file '" << path_sv << "' does not belong to any known module\n";
     }
+
+#ifdef DEBUG
+    std::cout << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' direct files" << std::endl;
+#endif
+
 }
 
 void WorkspaceManager::register_watched_files_capability() {
@@ -761,24 +850,6 @@ void WorkspaceManager::notify_diagnostics_sync(
     std::vector<lsp::Diagnostic> diagnostics;
     build_diagnostics(diagnostics, diags);
     notify_diagnostics(path, std::move(diagnostics));
-}
-
-ASTUnit* WorkspaceManager::get_stored_unit(const std::string_view& path) {
-
-    auto path_view = chem::string_view(path);
-    const auto mod = get_mod_of(path_view);
-    if(mod) {
-        const auto modData = getModuleData(mod);
-        if(modData) {
-            auto found = modData->cachedUnits.find(path_view);
-            if(found != modData->cachedUnits.end()) {
-                return &found->second->unit;
-            }
-        }
-    }
-
-    return nullptr;
-
 }
 
 void WorkspaceManager::publish_diagnostics(const std::string& path, std::vector<lsp::Diagnostic> diagnostics) {

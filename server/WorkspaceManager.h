@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 #include "utils/lspfwd.h"
 #include "utils/LRUCache.h"
 #include <future>
@@ -112,12 +113,18 @@ public:
      * we build indexes of file to module pointers, this allows us to know the module
      * given file in an instant
      */
-    std::unordered_map<chem::string_view, LabModule*> filesIndex;
+    std::unordered_map<chem::string_view, ModuleData*> filesIndex;
 
     /**
      * each module's data is stored here
      */
     std::unordered_map<LabModule*, std::unique_ptr<ModuleData>> moduleData;
+
+    /**
+     * these modules have changed, they contain a unordered set of files
+     * which tells you exactly which files have changed
+     */
+    std::unordered_set<ModuleData*> dirtyModules;
 
     /**
      * a single location manager is used throughout
@@ -216,11 +223,6 @@ public:
     explicit WorkspaceManager(std::string lsp_exe_path, lsp::MessageHandler& handler);
 
     /**
-     * get module for the given file
-     */
-    LabModule* get_mod_of(const chem::string_view& filePath);
-
-    /**
      * this get the current target triple
      */
     std::string get_target_triple();
@@ -287,14 +289,61 @@ public:
     void bind_or_create_container(GlobalInterpretScope& comptime_scope, SymbolResolver& resolver);
 
     /**
+     * get module for the given file
+     */
+    ModuleData* getModuleData(const chem::string_view& filePath);
+
+    /**
      * get module data for a module
      */
     ModuleData* getModuleData(LabModule* module);
 
     /**
+     * makes the module dirty (must be symbol resolved, before next request comes in)
+     */
+    void make_module_dirty(ModuleData* modData, CachedASTUnit* dirtyFile) {
+        modData->make_single_file_dirty(dirtyFile);
+        dirtyModules.insert(modData);
+    }
+
+    /**
+     * removed the module from dirty modules (has been symbol resolved)
+     */
+    void unmake_module_dirty(ModuleData* modData) {
+        modData->set_all_files_symbol_resolved();
+        dirtyModules.erase(modData);
+    }
+
+    /**
+     * before request, a file can be prepared, in this case
+     * if this file is dirty, or a file it depends upon is dirty (not symbol resolved)
+     * is symbol resolved so that everything is ready to serve the request (tokens, unit)
+     */
+    bool should_process_file(const std::string_view& path, ModuleData* modData);
+
+    /**
      * this allows processing the file to place unit
      */
     void process_file(const std::string_view& path, bool contents_changed);
+
+    /**
+     * process the file only if it need by
+     */
+    inline void process_file_on_request(const std::string_view& path, ModuleData* modData) {
+        if(modData && should_process_file(path, modData)) {
+            process_file(path, false);
+        }
+    }
+
+    /**
+     * process the file only if it need by
+     */
+    inline void process_file_on_request(const std::string_view& path) {
+        const auto modData = getModuleData(chem::string_view(path));
+        if(modData && should_process_file(path, modData)) {
+            process_file(path, false);
+        }
+    }
 
     /**
      * get the folding range for the given absolute file path
@@ -405,11 +454,6 @@ public:
      * will publish diagnostics
      */
     void publish_diagnostics(const std::string& path, std::vector<lsp::Diagnostic> diagnostics);
-
-    /**
-     * get the ast stored for this path
-     */
-    ASTUnit* get_stored_unit(const std::string_view& path);
 
     /**
      * get ast, in which declarations are sure to be valid

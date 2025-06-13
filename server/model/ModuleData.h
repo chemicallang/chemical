@@ -6,23 +6,13 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 #include "LexResult.h"
 #include "ASTResult.h"
 #include "std/chem_string_view.h"
 #include "compiler/lab/LabModule.h"
 
 class CachedASTUnit {
-private:
-
-    // ModuleData modifies the is_symbol_resolved flag
-    friend class ModuleData;
-
-    /**
-     * is the ast unit symbol resolved
-     * against current module and dependent module's files
-     */
-    bool is_symbol_resolved = false;
-
 public:
 
     /**
@@ -34,25 +24,6 @@ public:
      * the pointer to unit that's cached
      */
     ASTUnit unit;
-
-    /**
-     * cached ast unit
-     */
-    CachedASTUnit(
-            size_t allocator_batch_size,
-            unsigned int file_id,
-            const chem::string_view& path,
-            ModuleScope* modScope
-    ) : allocator(allocator_batch_size), unit(file_id, path, modScope) {
-
-    }
-
-    /**
-     * get if this file is symbol resolved
-     */
-    bool get_is_symbol_resolved() {
-        return is_symbol_resolved;
-    }
 
 };
 
@@ -81,6 +52,11 @@ public:
     std::vector<CachedASTUnit*> fileUnits;
 
     /**
+     * the files that have changed are stored inside
+     */
+    std::unordered_set<CachedASTUnit*> dirtyFiles;
+
+    /**
      * used for synchronization of parsing and symbol resolution of this module
      */
     std::mutex module_mutex;
@@ -90,15 +66,6 @@ public:
      * the fileUnits vector in this ModuleData
      */
     bool prepared_file_units = false;
-
-    /**
-     * this is set by symbol resolution and is tweaked
-     * when different files change, this is used along with each files'
-     * is_symbol_resoled flag, if this is true, you should ignore any file
-     * flags and assume its symbol resolved, if its false, you should check
-     * the file flag to know which individual file is not symbol resolved
-     */
-    bool is_module_symbol_resolved = false;
 
     /**
      * dependencies of this module, prepared when file units are prepared
@@ -113,17 +80,31 @@ public:
     }
 
     /**
+     * get the module
+     */
+    inline LabModule* getModule() {
+        return modScope->container;
+    }
+
+    /**
      * check if all files inside this module unit are symbol resolved
      */
-    bool all_files_symbol_resolved() {
-        return is_module_symbol_resolved;
+    inline bool all_files_symbol_resolved() {
+        return dirtyFiles.empty();
+    }
+
+    /**
+     * check if the given file is dirty (not symbol resolved / changed)
+     */
+    inline bool is_dirty(CachedASTUnit* unit) {
+        return dirtyFiles.contains(unit);
     }
 
     /**
      * with this you can set that all files in the module have symbol resolved
      */
-    void set_all_files_symbol_resolved() {
-        is_module_symbol_resolved = true;
+    inline void set_all_files_symbol_resolved() {
+        dirtyFiles.clear();
     }
 
     /**
@@ -131,12 +112,9 @@ public:
      * file is assumed to be the only one not symbol resolved inside this
      * module
      */
-    void unset_all_files_symbol_resolved(CachedASTUnit& failedUnit) {
-        is_module_symbol_resolved = false;
-        for(const auto unit : fileUnits) {
-            unit->is_symbol_resolved = true;
-        }
-        failedUnit.is_symbol_resolved = false;
+    void make_single_file_dirty(CachedASTUnit* failedUnit) {
+        dirtyFiles.clear();
+        dirtyFiles.insert(failedUnit);
     }
 
 };

@@ -42,11 +42,6 @@ WorkspaceManager::WorkspaceManager(
 
 }
 
-LabModule* WorkspaceManager::get_mod_of(const chem::string_view& filePath) {
-    auto found = filesIndex.find(filePath);
-    return found != filesIndex.end() ? found->second : nullptr;
-}
-
 std::string WorkspaceManager::get_target_triple() {
     // TODO we should get the current target triple from the compiler executable
     // then we store that target triple as the default, for example on windows
@@ -86,9 +81,12 @@ void WorkspaceManager::index_module_files() {
         // determine each module files
         ASTProcessor::determine_module_files(pathHandler, loc_man, mod);
 
+        // get a module data from the module pointer
+        const auto modData = getModuleData(mod);
+
         // index each module files
         for(auto& file : mod->direct_files) {
-            filesIndex.emplace(chem::string_view(file.abs_path), mod);
+            filesIndex.emplace(chem::string_view(file.abs_path), modData);
         }
     }
 }
@@ -237,7 +235,17 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
 
 std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string_view& path) {
     const auto abs_path = canonical(path);
-    auto unit = get_stored_unit(abs_path);
+    auto abs_path_view = chem::string_view(abs_path);
+    const auto modData = getModuleData(abs_path_view);
+    const auto mod = modData ? modData->getModule() : nullptr;
+    process_file_on_request(abs_path, modData);
+    ASTUnit* unit = nullptr;
+    if(modData) {
+        auto found = modData->cachedUnits.find(abs_path_view);
+        if(found != modData->cachedUnits.end()) {
+            unit = &found->second->unit;
+        }
+    }
     if(unit) {
         return folding_analyze(loc_man, unit->scope.body.nodes);
     } else {
@@ -249,8 +257,9 @@ std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::st
 lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& path, const Position& position) {
     auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);
-    const auto mod = get_mod_of(abs_path_view);
-    const auto modData = mod ? getModuleData(mod) : nullptr;
+    const auto modData = getModuleData(abs_path_view);
+    const auto mod = modData ? modData->getModule() : nullptr;
+    process_file_on_request(abs_path, modData);
     ASTUnit* unit = nullptr;
     if(modData) {
         auto found = modData->cachedUnits.find(abs_path_view);
@@ -284,7 +293,17 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
 
 std::vector<lsp::InlayHint> WorkspaceManager::get_hints(const std::string_view& path, const Range& range) {
     const auto abs_path = canonical(path);
-    auto unit = get_stored_unit(abs_path);
+    auto abs_path_view = chem::string_view(abs_path);
+    const auto modData = getModuleData(abs_path_view);
+    const auto mod = modData ? modData->getModule() : nullptr;
+    process_file_on_request(abs_path, modData);
+    ASTUnit* unit = nullptr;
+    if(modData) {
+        auto found = modData->cachedUnits.find(abs_path_view);
+        if(found != modData->cachedUnits.end()) {
+            unit = &found->second->unit;
+        }
+    }
     if(unit) {
         return inlay_hint_analyze(loc_man, unit->scope.body.nodes, range);
     } else {
@@ -296,8 +315,9 @@ std::vector<lsp::InlayHint> WorkspaceManager::get_hints(const std::string_view& 
 lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& path, const Position& position) {
     const auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);
-    const auto mod = get_mod_of(abs_path_view);
-    const auto modData = mod ? getModuleData(mod) : nullptr;
+    const auto modData = getModuleData(abs_path_view);
+    const auto mod = modData ? modData->getModule() : nullptr;
+    process_file_on_request(abs_path, modData);
     ASTUnit* unit = nullptr;
     if(modData) {
         auto found = modData->cachedUnits.find(abs_path_view);
@@ -323,6 +343,7 @@ lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& 
 
 std::vector<lsp::DefinitionLink> WorkspaceManager::get_definition(const std::string_view& path, const Position &position) {
     const auto abs_path = canonical(path);
+    process_file_on_request(abs_path);
     // check if tokens exist in cache (parsed after changed contents request of file)
     auto cachedTokens = tokenCache.get(abs_path);
     if(cachedTokens != nullptr) {
@@ -335,8 +356,9 @@ std::vector<lsp::DefinitionLink> WorkspaceManager::get_definition(const std::str
 std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string_view& path) {
     const auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);
-    const auto mod = get_mod_of(abs_path_view);
-    const auto modData = mod ? getModuleData(mod) : nullptr;
+    const auto modData = getModuleData(abs_path_view);
+    const auto mod = modData ? modData->getModule() : nullptr;
+    process_file_on_request(abs_path, modData);
     ASTUnit* unit = nullptr;
     if(modData) {
         auto found = modData->cachedUnits.find(abs_path_view);
@@ -356,6 +378,7 @@ std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string
 
 std::string WorkspaceManager::get_hover(const std::string_view& path, const Position& position) {
     const auto abs_path = canonical(path);
+    process_file_on_request(abs_path);
     // check if tokens exist in cache (parsed after changed contents request of file)
     auto cachedTokens = tokenCache.get(abs_path);
     if(cachedTokens != nullptr) {
@@ -366,11 +389,12 @@ std::string WorkspaceManager::get_hover(const std::string_view& path, const Posi
 }
 
 void WorkspaceManager::OnOpenedFile(const std::string_view& filePath) {
-    process_file(filePath, false);
+    auto abs_path = canonical_path(filePath);
+    process_file(abs_path, false);
 }
 
 void WorkspaceManager::onChangedContents(
-        const std::string_view &abs_path,
+        const std::string_view &non_canon_path,
         const std::vector<lsp::TextDocumentContentChangeEvent> &changes
 ) {
 
@@ -380,7 +404,7 @@ void WorkspaceManager::onChangedContents(
         return;
     }
 
-    auto path = canonical(abs_path);
+    auto path = canonical(non_canon_path);
 
     // locking the incremental change mutex, when the object is destroyed, lock is released
     // causing requests to this method be processed sequentially

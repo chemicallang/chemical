@@ -328,7 +328,7 @@ bool sym_res_mod_deps_sig(
 
     auto& is_curr_mod_sym_resolved = is_deps_being_symbol_resolved;
 
-    if(!is_curr_mod_sym_resolved && !modData->all_files_symbol_resolved()) {
+    if(!is_curr_mod_sym_resolved && !modData->completely_symbol_resolved()) {
         // force symbol resolution, if one of the file is not symbol resolved
         is_curr_mod_sym_resolved = true;
     }
@@ -432,6 +432,10 @@ void WorkspaceManager::process_file(const std::string_view& abs_path_std_view, b
 
     // convert the path to string for usage
     auto abs_path = std::string(abs_path_std_view);
+
+#ifdef DEBUG
+    std::cout << "[lsp] processing file '" << abs_path << "'" << std::endl;
+#endif
 
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);

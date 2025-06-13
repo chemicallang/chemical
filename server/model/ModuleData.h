@@ -12,6 +12,17 @@
 #include "compiler/lab/LabModule.h"
 
 class CachedASTUnit {
+private:
+
+    // ModuleData modifies the is_symbol_resolved flag
+    friend class ModuleData;
+
+    /**
+     * is the ast unit symbol resolved
+     * against current module and dependent module's files
+     */
+    bool is_symbol_resolved = false;
+
 public:
 
     /**
@@ -25,10 +36,23 @@ public:
     ASTUnit unit;
 
     /**
-     * is the ast unit symbol resolved
-     * against current module and dependent module's files
+     * cached ast unit
      */
-    bool is_symbol_resolved;
+    CachedASTUnit(
+            size_t allocator_batch_size,
+            unsigned int file_id,
+            const chem::string_view& path,
+            ModuleScope* modScope
+    ) : allocator(allocator_batch_size), unit(file_id, path, modScope) {
+
+    }
+
+    /**
+     * get if this file is symbol resolved
+     */
+    bool get_is_symbol_resolved() {
+        return is_symbol_resolved;
+    }
 
 };
 
@@ -68,6 +92,15 @@ public:
     bool prepared_file_units = false;
 
     /**
+     * this is set by symbol resolution and is tweaked
+     * when different files change, this is used along with each files'
+     * is_symbol_resoled flag, if this is true, you should ignore any file
+     * flags and assume its symbol resolved, if its false, you should check
+     * the file flag to know which individual file is not symbol resolved
+     */
+    bool is_module_symbol_resolved = false;
+
+    /**
      * dependencies of this module, prepared when file units are prepared
      */
     std::vector<ModuleData*> dependencies;
@@ -83,12 +116,27 @@ public:
      * check if all files inside this module unit are symbol resolved
      */
     bool all_files_symbol_resolved() {
-        for(auto& unit : fileUnits) {
-            if(!unit->is_symbol_resolved) {
-                return false;
-            }
+        return is_module_symbol_resolved;
+    }
+
+    /**
+     * with this you can set that all files in the module have symbol resolved
+     */
+    void set_all_files_symbol_resolved() {
+        is_module_symbol_resolved = true;
+    }
+
+    /**
+     * this sets that module is not symbol resolved, and the provided
+     * file is assumed to be the only one not symbol resolved inside this
+     * module
+     */
+    void unset_all_files_symbol_resolved(CachedASTUnit& failedUnit) {
+        is_module_symbol_resolved = false;
+        for(const auto unit : fileUnits) {
+            unit->is_symbol_resolved = true;
         }
-        return true;
+        failedUnit.is_symbol_resolved = false;
     }
 
 };

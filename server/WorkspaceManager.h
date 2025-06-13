@@ -310,7 +310,7 @@ public:
      * removed the module from dirty modules (has been symbol resolved)
      */
     void unmake_module_dirty(ModuleData* modData) {
-        modData->set_all_files_symbol_resolved();
+        modData->set_completely_symbol_resolved();
         dirtyModules.erase(modData);
     }
 

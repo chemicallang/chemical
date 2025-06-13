@@ -68,6 +68,12 @@ public:
     bool prepared_file_units = false;
 
     /**
+     * a module to be symbol resolved, it must not have dirty files
+     * and must be symbol resolved completely at least once
+     */
+    bool symbol_resolved_once = false;
+
+    /**
      * dependencies of this module, prepared when file units are prepared
      */
     std::vector<ModuleData*> dependencies;
@@ -89,8 +95,8 @@ public:
     /**
      * check if all files inside this module unit are symbol resolved
      */
-    inline bool all_files_symbol_resolved() {
-        return dirtyFiles.empty();
+    inline bool completely_symbol_resolved() {
+        return symbol_resolved_once && dirtyFiles.empty();
     }
 
     /**
@@ -103,7 +109,8 @@ public:
     /**
      * with this you can set that all files in the module have symbol resolved
      */
-    inline void set_all_files_symbol_resolved() {
+    inline void set_completely_symbol_resolved() {
+        symbol_resolved_once = true;
         dirtyFiles.clear();
     }
 

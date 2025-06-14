@@ -390,7 +390,7 @@ std::string WorkspaceManager::get_hover(const std::string_view& path, const Posi
 
 void WorkspaceManager::OnOpenedFile(const std::string_view& filePath) {
     auto abs_path = canonical_path(filePath);
-    process_file(abs_path, false);
+    process_file_on_open(abs_path);
 }
 
 void WorkspaceManager::onChangedContents(

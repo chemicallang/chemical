@@ -319,17 +319,22 @@ public:
      * if this file is dirty, or a file it depends upon is dirty (not symbol resolved)
      * is symbol resolved so that everything is ready to serve the request (tokens, unit)
      */
-    bool should_process_file(const std::string_view& path, ModuleData* modData);
+    bool should_process_file(const std::string& path, ModuleData* modData);
 
     /**
      * this allows processing the file to place unit
      */
-    void process_file(const std::string_view& path, bool contents_changed);
+    void process_file(const std::string& path, bool contents_changed);
+
+    /**
+     * process file on open (contents haven't changed, if tokens & ast exist in cache, can be skipped)
+     */
+    void process_file_on_open(const std::string& path);
 
     /**
      * process the file only if it need by
      */
-    inline void process_file_on_request(const std::string_view& path, ModuleData* modData) {
+    inline void process_file_on_request(const std::string& path, ModuleData* modData) {
         if(modData && should_process_file(path, modData)) {
             process_file(path, false);
         }
@@ -338,7 +343,7 @@ public:
     /**
      * process the file only if it need by
      */
-    inline void process_file_on_request(const std::string_view& path) {
+    inline void process_file_on_request(const std::string& path) {
         const auto modData = getModuleData(chem::string_view(path));
         if(modData && should_process_file(path, modData)) {
             process_file(path, false);

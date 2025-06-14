@@ -390,7 +390,7 @@ bool exists_in_deps(std::vector<ModuleData*>& deps, ModuleData* modData) {
     return false;
 }
 
-bool WorkspaceManager::should_process_file(const std::string_view& path, ModuleData* modData) {
+bool WorkspaceManager::should_process_file(const std::string& path, ModuleData* modData) {
 
     if (dirtyModules.empty()) {
         return false;
@@ -430,10 +430,7 @@ bool WorkspaceManager::should_process_file(const std::string_view& path, ModuleD
 
 }
 
-void WorkspaceManager::process_file(const std::string_view& abs_path_std_view, bool current_file_changed) {
-
-    // convert the path to string for usage
-    auto abs_path = std::string(abs_path_std_view);
+void WorkspaceManager::process_file(const std::string& abs_path, bool current_file_changed) {
 
 #ifdef DEBUG
     std::cout << "[lsp] processing file '" << abs_path << "'" << std::endl;
@@ -447,7 +444,7 @@ void WorkspaceManager::process_file(const std::string_view& abs_path_std_view, b
         return;
     }
 
-    auto abs_path_view = chem::string_view(abs_path_std_view);
+    auto abs_path_view = chem::string_view(abs_path);
     auto& all_tokens = last_file->tokens;
 
     // if there was an error during lexing, or if it ended unexpectedly
@@ -711,6 +708,13 @@ void WorkspaceManager::process_file(const std::string_view& abs_path_std_view, b
     // publish diagnostics will return ast import unit ref
     publish_diagnostics(abs_path, std::move(diagnostics));
 
+}
+
+void WorkspaceManager::process_file_on_open(const std::string& path) {
+    if(tokenCache.contains(path)) {
+        return;
+    }
+    process_file(path, false);
 }
 
 /**

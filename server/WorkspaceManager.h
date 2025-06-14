@@ -27,6 +27,7 @@
 #include "ctpl.h"
 #include "server/model/ModuleData.h"
 #include "core/source/LocationManager.h"
+#include "compiler/processor/ModuleFileData.h"
 
 class GlobalInterpretScope;
 
@@ -125,6 +126,12 @@ public:
      * which tells you exactly which files have changed
      */
     std::unordered_set<ModuleData*> dirtyModules;
+
+    /**
+     * if user is editing .mod file, we keep its module file data
+     * in this lru cache, tokens are stored in usual token cache
+     */
+    LRUCache<std::string, std::shared_ptr<ModuleFileDataUnit>> modFileData;
 
     /**
      * a single location manager is used throughout
@@ -327,9 +334,19 @@ public:
     void process_file(const std::string& path, bool contents_changed, bool depends_on_dirty);
 
     /**
+     * process a dot mod file
+     */
+    void process_dot_mod_file(const std::string& path);
+
+    /**
+     * processes any file including .mod and build.lab files
+     */
+    void process_any_file(const std::string& path, bool contents_changed, bool depends_on_dirty);
+
+    /**
      * process file on open (contents haven't changed, if tokens & ast exist in cache, can be skipped)
      */
-    void process_file_on_open(const std::string& path);
+    void process_any_file_on_open(const std::string& path);
 
     /**
      * process the file only if it need by

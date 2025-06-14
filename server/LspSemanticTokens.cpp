@@ -402,9 +402,11 @@ bool WorkspaceManager::should_process_file(const std::string_view& path, ModuleD
             const auto dirtyFilesSize = dirtyMod->dirtyFiles.size();
             if(dirtyFilesSize == 1) {
                 const auto dirtyFile = *dirtyMod->dirtyFiles.begin();
-                if (dirtyModules.size() == 1 && dirtyFile->unit.scope.file_path.view() == path) {
-                    // don't need to symbol resolve, a single module and file is dirty and it's the same file request is for
-                    return false;
+                if (dirtyFile->unit.scope.file_path.view() == path) {
+                    if(dirtyModules.size() == 1) {
+                        // don't need to symbol resolve, a single module and file is dirty and it's the same file request is for
+                        return false;
+                    }
                 } else {
                     // its the same module, and the file that is dirty is not the same for which request is for
                     // so must symbol resolve
@@ -659,6 +661,10 @@ void WorkspaceManager::process_file(const std::string_view& abs_path_std_view, b
 
     } else {
 
+#ifdef DEBUG
+        std::cerr << "[lsp] couldn't find module file '" << abs_path << "' belongs to" << std::endl;
+#endif
+
         // creating a 10kb allocator for parsing this file
         ASTAllocator allocator(10000);
 
@@ -728,6 +734,10 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::stri
     if(cachedTokens != nullptr) {
         return get_semantic_tokens(**cachedTokens);
     }
+
+#ifdef DEBUG
+    std::cout << "[lsp] couldn't find tokens for file '" << abs_path << "' in token cache" << std::endl;
+#endif
 
     // tokens for the last file
     auto last_file = get_lexed(abs_path, true);

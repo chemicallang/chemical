@@ -761,7 +761,7 @@ bool AddrOfValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& inde
 
 llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(!gen.current_func_type->returnType->isStructLikeType()) {
-        gen.error("expected current function to have a struct return type for compiler::return_struct", this);
+        gen.error("expected current function to have a struct return type for intrinsics::return_struct", this);
         return nullptr;
     }
     // TODO implicitly returning struct parameter index is hardcoded

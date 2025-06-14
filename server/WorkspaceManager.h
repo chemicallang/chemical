@@ -207,7 +207,7 @@ public:
 
     /**
      * this container is created once, it holds all the global functions
-     * and classes, like compiler namespace and std namespace is by default
+     * and classes, like intrinsics namespace and std namespace is by default
      * provided by the compiler
      */
     GlobalContainer* global_container = nullptr;

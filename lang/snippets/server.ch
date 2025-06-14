@@ -87,7 +87,7 @@ const AI_PASSIVE = 0x00000001
 
 @comptime
 func ZeroMemory(Destination : *mut void, Length : size_t) : any {
-    return compiler::wrap(memset(Destination, 0, Length));
+    return intrinsics::wrap(memset(Destination, 0, Length));
 }
 
 struct addrinfo {

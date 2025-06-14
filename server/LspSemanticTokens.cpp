@@ -500,7 +500,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             &resolver_allocator
     );
 
-    // prepare top level compiler functions (std, compiler namespace)
+    // prepare top level compiler functions (intrinsics namespace)
     bind_or_create_container(comptime_scope, resolver);
 
     // get the module data

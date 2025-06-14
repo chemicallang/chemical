@@ -161,7 +161,7 @@ namespace InterpretVector {
 
     Value *InterpretVectorConstructor::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
         if(call->generic_list.empty()) {
-            call_scope->error("expected a generic argument for compiler::vector", call);
+            call_scope->error("expected a generic argument for intrinsics::vector", call);
             return nullptr;
         }
         const auto node = (InterpretVectorNode*) parent();
@@ -398,7 +398,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.empty()) {
-            call_scope->error("compiler::size called without arguments", call);
+            call_scope->error("intrinsics::size called without arguments", call);
             return nullptr;
         }
         const auto val = call->values[0];
@@ -406,17 +406,17 @@ public:
 //        const auto val_type_pure = val_type->pure_type(allocator);
 //        const auto val_type_kind = val_type_pure->kind();
 //        if(val_type_kind != BaseTypeKind::String && val_type_kind != BaseTypeKind::Array) {
-//            call_scope->error("compiler::size called with invalid arguments", call);
+//            call_scope->error("intrinsics::size called with invalid arguments", call);
 //            return nullptr;
 //        }
         auto value = resolve_ref(val, call_scope);
         if(!value) {
-            call_scope->error("couldn't get value for compiler::size", call);
+            call_scope->error("couldn't get value for intrinsics::size", call);
             return nullptr;
         }
         const auto val_kind = value->val_kind();
         if(val_kind != ValueKind::String && val_kind != ValueKind::ArrayValue) {
-            call_scope->error("compiler::size called with invalid arguments", call);
+            call_scope->error("intrinsics::size called with invalid arguments", call);
             return nullptr;
         }
         switch(val_kind) {
@@ -432,10 +432,10 @@ public:
 
 /**
  * evaluates comptime identifiers and function calls in a wrap value
- * suppose compiler::wrap(constructor(value, compiler::size(value)))
+ * suppose intrinsics::wrap(constructor(value, intrinsics::size(value)))
  * in this value constructor is a function call that is not comptime
- * so constructor won't be called, but compiler::size is a comptime
- * function call, compiler::size will be called with value as argument
+ * so constructor won't be called, but intrinsics::size is a comptime
+ * function call, intrinsics::size will be called with value as argument
  * so the ending call would become constructor(value, 12) or something
  * since here value is a identifier, which could be pointing to value present
  * inside the function declaration, we replace that with it's evaluated value as well
@@ -958,7 +958,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 2) {
-            call_scope->error("wrong arguments size given to compiler::satisfies function", call);
+            call_scope->error("wrong arguments size given to intrinsics::satisfies function", call);
             return nullptr;
         }
         const auto val_one = call->values[0];

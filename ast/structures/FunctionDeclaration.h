@@ -38,7 +38,7 @@ struct FuncDeclAttributes {
     bool is_comptime = false;
     /**
      * compiler functions are present inside the compiler
-     * like compiler::println
+     * like intrinsics::forget
      */
     bool is_compiler_decl = false;
     /**

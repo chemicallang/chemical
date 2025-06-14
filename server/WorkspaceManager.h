@@ -526,6 +526,11 @@ public:
     void onChangedContents(const std::string_view &uri, const std::vector<lsp::TextDocumentContentChangeEvent>& changes);
 
     /**
+     * on save this method is called
+     */
+    void onSave(const std::string_view& uri);
+
+    /**
      * when a file is closed by the user in the IDE \n
      * this function removes any cache associated with that file \n
      */

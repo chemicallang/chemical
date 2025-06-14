@@ -482,6 +482,27 @@ void WorkspaceManager::onChangedContents(
 
 }
 
+void WorkspaceManager::onSave(const std::string_view& uri) {
+    if(project_path.empty()) return;
+    try {
+        if (uri.ends_with("chemical.mod") || uri.ends_with(".lab")) {
+            // lets try to clear everything we have on modules
+            modStorage.clear();
+            moduleData.clear();
+            tokenCache.clear();
+            context.executables.clear();
+            filesIndex.clear();
+
+            // this will try to rebuild context from chemical.mod/build.lab file present in project_dir
+            build_context_from_build_lab();
+        }
+    } catch(std::filesystem::filesystem_error& e) {
+#ifdef DEBUG
+        std::cerr << "couldn't resolve canonical path for the file '" << uri << "'" << std::endl;
+#endif
+    }
+}
+
 void WorkspaceManager::onClosedFile(const std::string &path) {
     overriddenSources.erase(path);
 }

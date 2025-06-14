@@ -61,7 +61,7 @@ void run_session(
 
         std::variant<lsp::TextDocumentSyncOptions, lsp::TextDocumentSyncKindEnum> textDocSync;
         textDocSync.emplace<lsp::TextDocumentSyncOptions>(
-            true, lsp::TextDocumentSyncKind::Incremental, false, false, std::nullopt
+            true, lsp::TextDocumentSyncKind::Incremental, false, false, true
         );
 
         std::variant<lsp::SemanticTokensOptions, lsp::SemanticTokensRegistrationOptions> tokensProvider;
@@ -208,6 +208,14 @@ void run_session(
         std::cout << "[lsp] lsp::notifications::TextDocument_DidChange '" << path << '\'' << std::endl;
 #endif
         manager.onChangedContents(path, params.contentChanges);
+    });
+
+    handler.add<lsp::notifications::TextDocument_DidSave>([&manager](lsp::notifications::TextDocument_DidSave::Params&& params){
+        auto path = params.textDocument.uri.path();
+#ifdef DEBUG_LOG_REQS
+        std::cout << "[lsp] lsp::notifications::TextDocument_DidSave '" << path << '\'' << std::endl;
+#endif
+        manager.onSave(path);
     });
 
     handler.add<lsp::notifications::Workspace_DidChangeWatchedFiles>([&manager](lsp::notifications::Workspace_DidChangeWatchedFiles::Params&& params){

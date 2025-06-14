@@ -340,6 +340,50 @@ bool sym_res_mod_deps_sig(
 
 }
 
+void recursive_dedupe(ModuleData* file, std::unordered_map<ModuleData*, bool>& imported, std::vector<ModuleData*>& flat_map) {
+    for(auto nested : file->dependencies) {
+        recursive_dedupe(nested, imported, flat_map);
+    }
+    auto found = imported.find(file);
+    if(found == imported.end()) {
+        imported[file] = true;
+        flat_map.emplace_back(file);
+    }
+}
+
+std::vector<ModuleData*> flatten_dedupe_sorted(const std::vector<ModuleData*>& modules) {
+    std::vector<ModuleData*> new_modules;
+    std::unordered_map<ModuleData*, bool> imported;
+    for(auto mod : modules) {
+        recursive_dedupe(mod, imported, new_modules);
+    }
+    return new_modules;
+}
+
+void sym_res_mod_deps_seq(
+        int id,
+        WorkspaceManager& manager,
+        SymbolResolver& resolver,
+        ModuleData* modData,
+        bool& is_deps_being_symbol_resolved
+) {
+
+    // this prevents duplicate module entries
+    // and sorts in the order of independence (independent first)
+    auto flattened_deps = flatten_dedupe_sorted(modData->dependencies);
+
+    // symbol resolve all modules that are flattened
+    for(const auto mod : flattened_deps) {
+        if(!is_deps_being_symbol_resolved && !mod->completely_symbol_resolved()) {
+            // force symbol resolution, if one of the file is not symbol resolved
+            is_deps_being_symbol_resolved = true;
+        }
+        if(!is_deps_being_symbol_resolved) continue;
+        sym_res_mod_sig(manager, resolver, mod);
+    }
+
+}
+
 bool sym_res_mod_sig_recursive(
         int id,
         WorkspaceManager& manager,
@@ -524,7 +568,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         bool is_direct_deps_sym_res = false;
         // we ignore the flag returned from this
         // because that considers all files (we want to ignore current file)
-        sym_res_mod_deps_sig(0, *this, resolver, modData, is_direct_deps_sym_res);
+        sym_res_mod_deps_seq(0, *this, resolver, modData, is_direct_deps_sym_res);
 
         // should symbol resolve the current module ?
         auto& sym_res_curr_mod = is_direct_deps_sym_res;

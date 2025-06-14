@@ -1514,7 +1514,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
     output.close();
     return 0;
 #else
-    std::cerr << "Translating c files to chemical can only be done by the compiler executable, please check using compiler::is_clang_based() in build.lab" << std::endl;
+    std::cerr << "Translating c files to chemical can only be done by the compiler executable, please check using intrinsics::is_clang() in build.lab" << std::endl;
     return 1;
 #endif
 }

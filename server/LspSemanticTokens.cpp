@@ -546,22 +546,28 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 }
             }
 
-            // since we did not symbol resolve direct dependencies
-            // the problem is that they may contain modifications to std, compiler namespace
-            // however when rebinding container, we removed these modifications
-            // to enable nodes user added to std, compiler namespace, we must go over
-            // nodes of direct dependencies and add them manually
-            for(const auto depData : modData->dependencies) {
-                for(const auto cachedUnit : depData->fileUnits) {
-                    auto& unit = cachedUnit->unit;
-                    for(const auto node : unit.scope.body.nodes) {
-                        if(node->kind() == ASTNodeKind::NamespaceDecl) {
-                            node->as_namespace_unsafe()->extend_root_namespace();
+        }
+
+        // direct dependencies may contain modifications to std, compiler namespace
+        // however when rebinding container, we removed these modifications
+        // except these modifications were introduced when first symbol resolving
+        // however after that modifications were lost (after first complete resolution)
+        // after first complete resolution, this maybe duplicate work (does not matter)
+        // to enable nodes user added to std, compiler namespace, we must go over
+        // nodes of direct dependencies and add them manually
+        for(const auto depData : modData->dependencies) {
+            for(const auto cachedUnit : depData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                for(const auto node : unit.scope.body.nodes) {
+                    if(node->kind() == ASTNodeKind::NamespaceDecl) {
+                        const auto ns = node->as_namespace_unsafe();
+                        // only std and compiler namespaces need to be extended to root
+                        if(ns->name_view() == "std" || ns->name_view() == "compiler") {
+                            ns->extend_root_namespace();
                         }
                     }
                 }
             }
-
         }
 
         // must switch the allocators before performing symbol resolution for this module

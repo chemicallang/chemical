@@ -262,6 +262,14 @@ public:
     );
 
     /**
+     * change the ast allocator to given allocator
+     */
+    void setASTAllocator(ASTAllocator& newASTAllocator) {
+        ast_allocator = &newASTAllocator;
+        genericInstantiator.setAllocator(newASTAllocator);
+    }
+
+    /**
      * global scope start
      */
     inline void global_scope_start() {

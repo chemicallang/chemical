@@ -976,6 +976,13 @@ ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
     return giPtr->diagnoser;
 }
 
+void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
+    if(owns) {
+        delete giPtr;
+    }
+    giPtr = new GenericInstantiator(allocator, giPtr->diagnoser);
+}
+
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {
     giPtr->FinalizeSignature(decl, instantiations);
 }

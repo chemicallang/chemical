@@ -83,7 +83,7 @@ func add(a: int, b: int): int {
 | C Translation & TCC JIT       | ✅              |
 | Basic Build System            | ✅              |
 | Basic Multi-threading         | ✅              |
-| Basic LSP                     | 🔄 In Progress |
+| Basic LSP                     | ✅              |
 | Standard Library & Docs       | 🔄 In Progress |
 | Embedded Languages            | 🔄 In Progress |
 | Advanced LSP Support          | 🔄 Planned     |

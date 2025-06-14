@@ -1350,8 +1350,45 @@ public:
     }
 };
 
+class MemNamespace : public Namespace {
+public:
+
+    InterpretMemCopy memCopyFn;
+
+    explicit MemNamespace(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(cache, this) {
+        set_compiler_decl(true);
+        nodes = { &memCopyFn };
+    }
+
+};
+
+class PtrNamespace : public Namespace {
+public:
+
+    InterpretIsPtrNull isNullFn;
+    InterpretIsPtrNotNull isNotNullFn;
+
+    explicit PtrNamespace(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : Namespace(ZERO_LOC_ID("ptr"), parent_node, ZERO_LOC, AccessSpecifier::Public),
+        isNullFn(cache, this), isNotNullFn(cache, this)
+    {
+        set_compiler_decl(true);
+        nodes = { &isNullFn, &isNotNullFn };
+    }
+
+};
+
 class CompilerNamespace : public Namespace {
 public:
+
+    // sub namespaces
+    MemNamespace memNamespace;
+    PtrNamespace ptrNamespace;
 
     InterpretSupports interpretSupports;
     InterpretPrint printFn;
@@ -1391,6 +1428,7 @@ public:
     CompilerNamespace(
             TypeBuilder& cache
     ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
+        memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), get_target_fn(cache, this), get_build_dir(cache, this),
@@ -1401,63 +1439,13 @@ public:
     {
         set_compiler_decl(true);
         nodes = {
+            &memNamespace, &ptrNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn
         };
-    }
-
-};
-
-class MemNamespace : public Namespace {
-public:
-
-    InterpretMemCopy memCopyFn;
-
-    explicit MemNamespace(
-            TypeBuilder& cache,
-            ASTNode* parent_node
-    ) : Namespace(ZERO_LOC_ID("mem"), parent_node, ZERO_LOC, AccessSpecifier::Public), memCopyFn(cache, this) {
-        set_compiler_decl(true);
-        nodes = { &memCopyFn };
-    }
-
-};
-
-class PtrNamespace : public Namespace {
-public:
-
-    InterpretIsPtrNull isNullFn;
-    InterpretIsPtrNotNull isNotNullFn;
-
-    explicit PtrNamespace(
-            TypeBuilder& cache,
-            ASTNode* parent_node
-    ) : Namespace(ZERO_LOC_ID("ptr"), parent_node, ZERO_LOC, AccessSpecifier::Public),
-        isNullFn(cache, this), isNotNullFn(cache, this)
-    {
-        set_compiler_decl(true);
-        nodes = { &isNullFn, &isNotNullFn };
-    }
-
-};
-
-
-class StdNamespace : public Namespace {
-public:
-
-    MemNamespace memNamespace;
-    PtrNamespace ptrNamespace;
-
-    StdNamespace(
-            TypeBuilder& cache
-    ) : Namespace(ZERO_LOC_ID("std"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        memNamespace(cache, this), ptrNamespace(cache, this)
-    {
-        set_compiler_decl(true);
-        nodes = { &memNamespace, &ptrNamespace };
     }
 
 };
@@ -1513,13 +1501,12 @@ struct DefThing {
 struct GlobalContainer {
 
     CompilerNamespace compiler_namespace;
-    StdNamespace std_namespace;
     InterpretDefined defined;
     DefThing defThing;
 
     GlobalContainer(
             TypeBuilder& cache
-    ) : compiler_namespace(cache), std_namespace(cache), defined(cache) {
+    ) : compiler_namespace(cache), defined(cache) {
 
     }
 
@@ -1799,13 +1786,11 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     // from previous (job/lsp request) global interpret scope, user may have introduced declarations into
     // these namespaces (which may be invalid, because their allocators have been destroyed)
     container.compiler_namespace.extended.clear();
-    container.std_namespace.extended.clear();
-    container.std_namespace.memNamespace.extended.clear();
-    container.std_namespace.ptrNamespace.extended.clear();
+    container.compiler_namespace.memNamespace.extended.clear();
+    container.compiler_namespace.ptrNamespace.extended.clear();
 
     // this would re-insert the children into extended map of namespaces
     container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
-    container.std_namespace.declare_top_level(resolver, (ASTNode*&) container.std_namespace);
 
     // TODO these symbols will be removed when module ends
     // TODO use exported declare or rename function to convey meaning better
@@ -1827,7 +1812,6 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     auto& container = *container_ptr;
 
     container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
-    container.std_namespace.declare_top_level(resolver, (ASTNode*&) container.std_namespace);
     container.defined.declare_top_level(resolver, (ASTNode*&) container.defined);
 
     // definitions using defThing

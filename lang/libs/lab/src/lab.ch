@@ -367,10 +367,10 @@ public namespace lab {
 
     @comptime
     public func curr_dir() : std::string {
-        const call_loc = compiler::get_call_loc(9999) // this gets the first runtime call location to this function
-        const loc_path = compiler::get_loc_file_path(call_loc)
-        const loc_path_size = compiler::size(loc_path)
-        return compiler::wrap(curr_dir_of(loc_path, loc_path_size)) as std::string
+        const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
+        const loc_path = intrinsics::get_loc_file_path(call_loc)
+        const loc_path_size = intrinsics::size(loc_path)
+        return intrinsics::wrap(curr_dir_of(loc_path, loc_path_size)) as std::string
     }
 
     public func appended_str(str : std::string, path : *char) : std::string {
@@ -380,7 +380,7 @@ public namespace lab {
 
     @comptime
     public func rel_path_to(path : *char) : std::string {
-        return compiler::wrap(appended_str(curr_dir(), path)) as std::string
+        return intrinsics::wrap(appended_str(curr_dir(), path)) as std::string
     }
 
 }

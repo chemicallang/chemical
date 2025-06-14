@@ -4,7 +4,7 @@ func (str : &std::string) view() : std::string_view {
 }
 
 func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain {
-    const location = compiler::get_raw_location();
+    const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("page"), false, location);
@@ -23,7 +23,7 @@ func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain
 }
 
 func make_append_css_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_t, hash : size_t) : *mut AccessChain {
-    const location = compiler::get_raw_location();
+    const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("page"), false, location);
@@ -42,7 +42,7 @@ func make_append_css_value_chain(builder : *mut ASTBuilder, value : *mut Value, 
 }
 
 func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
-    const location = compiler::get_raw_location();
+    const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("page"), false, location);
@@ -80,13 +80,13 @@ func replace_value_in_expr_chain(builder : *mut ASTBuilder, chain : *mut AccessC
 }
 
 func make_chain_of_view(builder : *mut ASTBuilder, view : &std::string_view) : *mut AccessChain {
-    const location = compiler::get_raw_location();
+    const location = intrinsics::get_raw_location();
     const value = builder.make_string_value(builder.allocate_view(view), location)
     return make_value_chain(builder, value, view.size());
 }
 
 func make_chain_of(builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
-    const location = compiler::get_raw_location();
+    const location = intrinsics::get_raw_location();
     const value = builder.make_string_value(builder.allocate_view(str.view()), location)
     const size = str.size()
     str.clear();
@@ -112,7 +112,7 @@ func put_view_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, v
 }
 
 func put_append_css_value_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, view : &std::string_view, hash : size_t) {
-    const location = compiler::get_raw_location();
+    const location = intrinsics::get_raw_location();
     const value = builder.make_string_value(builder.allocate_view(view), location)
     const chain = make_append_css_value_chain(builder, value, view.size(), hash);
     var wrapped = builder.make_value_wrapper(chain, parent)
@@ -138,7 +138,7 @@ func get_string_val(builder : *mut ASTBuilder) : *mut StringValue {
     if(empty_string_val != null) {
         return empty_string_val
     }
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     empty_string_val = builder.make_string_value(view(""), loc);
     return empty_string_val;
 }

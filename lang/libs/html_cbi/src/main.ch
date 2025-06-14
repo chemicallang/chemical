@@ -2,7 +2,7 @@
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro value\n");
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         const value = builder.make_int_value(10, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
@@ -22,7 +22,7 @@ func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolRe
 func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
     printf("running html symResNodeReplacement\n");
     fflush(null)
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     const root = data as *mut HtmlRoot;
     var scope = builder.make_scope(root.parent, loc);
     var scope_nodes = scope.getNodes();
@@ -35,7 +35,7 @@ func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolReso
 public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
     printf("running html_parseMacroNode\n");
     fflush(null)
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")

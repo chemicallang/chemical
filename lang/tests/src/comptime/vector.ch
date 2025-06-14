@@ -1,6 +1,6 @@
 @comptime
 func compiler_vector_sum(a : int) : int {
-    var vec = compiler::vector<int>();
+    var vec = intrinsics::vector<int>();
     vec.push(a);
     vec.push(10);
     vec.push(20);
@@ -17,7 +17,7 @@ func compiler_vector_sum(a : int) : int {
 
 @comptime
 func compiler_vector_sum_l(a : long) : long {
-    var vec = compiler::vector<long>();
+    var vec = intrinsics::vector<long>();
     vec.push(a);
     vec.push(10);
     vec.push(20);

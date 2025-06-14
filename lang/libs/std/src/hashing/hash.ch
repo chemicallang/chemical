@@ -32,13 +32,13 @@ public interface Eq {
 @comptime
 func <T> compare(value : T, value2 : T) : bool {
     type ptr_any = *any
-    if(T is char || T is uchar || is_type_number<T>() || compiler::satisfies(ptr_any, T)) {
-        return compiler::wrap(value == value2) as bool
+    if(T is char || T is uchar || is_type_number<T>() || intrinsics::satisfies(ptr_any, T)) {
+        return intrinsics::wrap(value == value2) as bool
     } else if(T is Eq) {
        const comp = value as Eq
-       return compiler::wrap(comp.equals(value2 as Eq)) as bool
+       return intrinsics::wrap(comp.equals(value2 as Eq)) as bool
     }
-    compiler::error("couldn't determine the hash function for the given type");
+    intrinsics::error("couldn't determine the hash function for the given type");
     return false;
 }
 
@@ -52,20 +52,20 @@ public interface Hashable {
 func <T> hash(value : T) : uint {
     type ptr_any = *any
     if(T is char || T is uchar || T is &char || T is &uchar) {
-        return compiler::wrap(value as uint) as uint
+        return intrinsics::wrap(value as uint) as uint
     } else if(T is short || T is ushort) {
-        return compiler::wrap(value * KnuthsMultiplicativeConstant) as uint
-    } else if(compiler::satisfies(ptr_any, T)) {
-        return compiler::wrap(murmurhash(value as *char, sizeof(T), 0)) as uint
+        return intrinsics::wrap(value * KnuthsMultiplicativeConstant) as uint
+    } else if(intrinsics::satisfies(ptr_any, T)) {
+        return intrinsics::wrap(murmurhash(value as *char, sizeof(T), 0)) as uint
     } else if(is_type_number<T>()) {
-        return compiler::wrap(__wrap_murmur_hash<T>(value)) as uint
+        return intrinsics::wrap(__wrap_murmur_hash<T>(value)) as uint
     } else if(is_type_ref_number<T>()) {
-        return compiler::wrap(__wrap_murmur_hash<T>(value)) as uint
+        return intrinsics::wrap(__wrap_murmur_hash<T>(value)) as uint
     } else if (T is Hashable) {
         const hashable = value as Hashable
-        return compiler::wrap(hashable.hash()) as uint
+        return intrinsics::wrap(hashable.hash()) as uint
     }
-    compiler::println("unknown value type for hashing ", compiler::type_to_string<T>());
-    compiler::error("couldn't determine the hash function for the given type");
+    intrinsics::println("unknown value type for hashing ", intrinsics::type_to_string<T>());
+    intrinsics::error("couldn't determine the hash function for the given type");
     return 0;
 }

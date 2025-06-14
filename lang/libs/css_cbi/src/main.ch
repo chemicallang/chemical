@@ -2,7 +2,7 @@
 func symResValueReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut Value {
     printf("running css symResValueReplacement\n");
     fflush(null)
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     const root = data as *mut CSSOM;
     var scope = builder.make_block_value(root.parent, loc);
     var scope_nodes = scope.get_body();
@@ -18,7 +18,7 @@ func symResValueReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolRes
 public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("running css_parseMacroValue\n");
     fflush(null)
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
         printf("parsed to css om\n")
@@ -41,7 +41,7 @@ func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolRe
 func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
     printf("running css symResNodeReplacement\n");
     fflush(null)
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     const root = data as *mut CSSOM;
     var scope = builder.make_scope(root.parent, loc);
     var scope_nodes = scope.getNodes();
@@ -54,7 +54,7 @@ func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolReso
 public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
     printf("running css_parseMacroNode\n");
     fflush(null)
-    const loc = compiler::get_raw_location();
+    const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
         printf("parsed to css om\n")

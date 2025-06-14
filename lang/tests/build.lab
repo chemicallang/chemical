@@ -28,7 +28,7 @@ func gen_bc(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Mod
 
 func gen_c(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
     const path = ctx.build_mod_file_path(exe_name, module.scope_name.to_view(), module.name.to_view(), std::string_view("mod_c.c"))
-    if(compiler::is_clang()) {
+    if(intrinsics::is_clang()) {
         ctx.translate_mod_to_c(module, path.to_view());
         printf("module : %s, output c : %s\n", module.name.data(), path.data());
     } else {
@@ -48,7 +48,7 @@ func build(ctx : *mut AppBuildContext) {
 
     const debug = true;
     if(debug) {
-        const curr_path_str = std::string(compiler::get_current_file_path());
+        const curr_path_str = std::string(intrinsics::get_current_file_path());
         printf("[build.lab] current file path : %s\n", curr_path_str.data());
         const curr_dir_path = lab::curr_dir();
         printf("[build.lab] current dir path : %s\n", curr_dir_path.data());
@@ -56,7 +56,7 @@ func build(ctx : *mut AppBuildContext) {
         printf("[build.lab] interested relative path : %s\n", interested_path.data());
     }
 
-    const compiler_version = compiler::version();
+    const compiler_version = intrinsics::version();
     printf("Compiler Version = %s\n", compiler_version);
     const str_arg = std::string_view("hello");
     if(ctx.has_arg(str_arg)) {
@@ -70,7 +70,7 @@ func build(ctx : *mut AppBuildContext) {
     }
 
     const headers_path = build_dir_path(ctx, std::string_view("headers.ch"));
-    if(compiler::is_clang()) {
+    if(intrinsics::is_clang()) {
         // const empty_module = ctx.files_module(std::string_view(""), std::string_view("headers"), null, 0, []);
         // TODO include headers call wasn't working on linux
         //ctx.include_headers(empty_module, {
@@ -125,9 +125,9 @@ func build(ctx : *mut AppBuildContext) {
     const do_llvm_ir = true;
     const do_asm = false;
     const do_bc = true;
-    const do_to_ch = compiler::is_clang();
+    const do_to_ch = intrinsics::is_clang();
 
-    const do_c = !compiler::is_clang();
+    const do_c = !intrinsics::is_clang();
     var do_dyn_lib = !is_minimal;
     const do_one_job = false;
 

@@ -42,7 +42,7 @@ public struct vector<T> {
             resize(data_cap * 2);
         }
         memcpy(&data_ptr[s], &value, sizeof(T))
-        compiler::forget(value)
+        intrinsics::forget(value)
         data_size = s + 1
     }
 

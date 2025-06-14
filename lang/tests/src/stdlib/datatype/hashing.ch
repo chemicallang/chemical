@@ -84,7 +84,7 @@ func check_str_hash32(s : *char) : HashingResult {
 
 @comptime
 func comptime_murmur(s : *char) : uint32_t {
-    return murmurhash(s, compiler::size(s), 0)
+    return murmurhash(s, intrinsics::size(s), 0)
 }
 
 func wrap_murmur(s : *char) : uint32_t {

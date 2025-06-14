@@ -9,9 +9,9 @@ struct Pair66 {
     @constructor
     func check(value : bool) {
         if(value){
-            return compiler::wrap(first())
+            return intrinsics::wrap(first())
         } else {
-            return compiler::wrap(second())
+            return intrinsics::wrap(second())
         }
     }
 
@@ -65,7 +65,7 @@ struct CTStructGetChild {
 
 @comptime
 func give_me_some_sum() : (a : int, b : int) => int {
-    return compiler::get_child_fn(CTStructGetChild, "fake_sum") as (a : int, b : int) => int;
+    return intrinsics::get_child_fn(CTStructGetChild, "fake_sum") as (a : int, b : int) => int;
 }
 
 @comptime
@@ -100,7 +100,7 @@ func call_struct_func() : int {
 
 @comptime
 func determine_str_len(str : literal<string>) : ubigint {
-    return compiler::size(str);
+    return intrinsics::size(str);
 }
 
 func runtime_sum(a : int, b : int) : int {
@@ -114,12 +114,12 @@ func return_runtime_sum() : (a : int, b : int) => int {
 
 @comptime
 func sum_multiple(x : int) : int {
-    return compiler::wrap(runtime_sum(x * 2, x * 2)) as int;
+    return intrinsics::wrap(runtime_sum(x * 2, x * 2)) as int;
 }
 
 // TODO should this be allowed
 func ret_struct_boi() : Pair66 {
-    const p = compiler::return_struct() as *mut Pair66
+    const p = intrinsics::return_struct() as *mut Pair66
     p.a = 343
     p.b = 979
     return;
@@ -145,7 +145,7 @@ struct CompTimeCounter {
     @comptime
     @constructor
     func constructor(thing : *mut int) {
-        return compiler::wrap(actual(thing, 1));
+        return intrinsics::wrap(actual(thing, 1));
     }
     @constructor
     func actual(thing : *mut int, inc : int) {
@@ -160,7 +160,7 @@ func get_line_no() : ubigint {
 
 @comptime
 func give_caller_line_no() : ubigint {
-    return compiler::get_caller_line_no();
+    return intrinsics::get_caller_line_no();
 }
 
 func test_comptime() {
@@ -239,11 +239,11 @@ func test_comptime() {
         return !defined("CHECK_DEF2");
     })
     test("compiler get target function works", () => {
-        var t = compiler::get_target();
+        var t = intrinsics::get_target();
         return true;
     })
     test("get compiler line number", () => {
-        var current = compiler::get_line_no();
+        var current = intrinsics::get_line_no();
         var lo = give_caller_line_no();
         return lo == current + 1;
     })
@@ -262,12 +262,12 @@ func test_comptime() {
         return give_me_some_sum()(9, 3) == 72;
     })
     test("module scope is as expected", () => {
-        var scope_name = std::string_view(compiler::get_module_scope())
+        var scope_name = std::string_view(intrinsics::get_module_scope())
         var exp_scope_name = std::string_view("")
         return scope_name.equals(exp_scope_name)
     })
     test("module name is as expected", () => {
-        var module_name = std::string_view(compiler::get_module_name())
+        var module_name = std::string_view(intrinsics::get_module_name())
         var exp_module_name = std::string_view("main")
         return module_name.equals(exp_module_name)
     })

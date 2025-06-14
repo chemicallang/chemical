@@ -1383,7 +1383,7 @@ public:
 
 };
 
-class CompilerNamespace : public Namespace {
+class IntrinsicsNamespace : public Namespace {
 public:
 
     // sub namespaces
@@ -1425,9 +1425,9 @@ public:
     InterpretForget forget_fn;
     InterpretError error_fn;
 
-    CompilerNamespace(
+    IntrinsicsNamespace(
             TypeBuilder& cache
-    ) : Namespace(ZERO_LOC_ID("compiler"), nullptr, ZERO_LOC, AccessSpecifier::Public),
+    ) : Namespace(ZERO_LOC_ID("intrinsics"), nullptr, ZERO_LOC, AccessSpecifier::Public),
         memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
@@ -1500,13 +1500,13 @@ struct DefThing {
 
 struct GlobalContainer {
 
-    CompilerNamespace compiler_namespace;
+    IntrinsicsNamespace intrinsics_namespace;
     InterpretDefined defined;
     DefThing defThing;
 
     GlobalContainer(
             TypeBuilder& cache
-    ) : compiler_namespace(cache), defined(cache) {
+    ) : intrinsics_namespace(cache), defined(cache) {
 
     }
 
@@ -1785,12 +1785,12 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
 
     // from previous (job/lsp request) global interpret scope, user may have introduced declarations into
     // these namespaces (which may be invalid, because their allocators have been destroyed)
-    container.compiler_namespace.extended.clear();
-    container.compiler_namespace.memNamespace.extended.clear();
-    container.compiler_namespace.ptrNamespace.extended.clear();
+    container.intrinsics_namespace.extended.clear();
+    container.intrinsics_namespace.memNamespace.extended.clear();
+    container.intrinsics_namespace.ptrNamespace.extended.clear();
 
     // this would re-insert the children into extended map of namespaces
-    container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
+    container.intrinsics_namespace.declare_top_level(resolver, (ASTNode*&) container.intrinsics_namespace);
 
     // TODO these symbols will be removed when module ends
     // TODO use exported declare or rename function to convey meaning better
@@ -1811,7 +1811,7 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     const auto container_ptr = new GlobalContainer(typeCache);
     auto& container = *container_ptr;
 
-    container.compiler_namespace.declare_top_level(resolver, (ASTNode*&) container.compiler_namespace);
+    container.intrinsics_namespace.declare_top_level(resolver, (ASTNode*&) container.intrinsics_namespace);
     container.defined.declare_top_level(resolver, (ASTNode*&) container.defined);
 
     // definitions using defThing

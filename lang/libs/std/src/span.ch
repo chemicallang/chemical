@@ -9,14 +9,14 @@ public struct span<T> {
     @comptime
     @constructor
     func make2(array : T[]) {
-        return compiler::wrap(constructor<T>(array, compiler::size(array)))
+        return intrinsics::wrap(constructor<T>(array, intrinsics::size(array)))
     }
 
     @implicit
     @comptime
     @constructor
     func make2(vec : &vector<T>) {
-        return compiler::wrap(constructor<T>(vec.data(), vec.size()))
+        return intrinsics::wrap(constructor<T>(vec.data(), vec.size()))
     }
 
     @constructor

@@ -242,7 +242,7 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
     // this is an important step, to switch the allocators
     const auto resolver_allocator = &modData->allocator;
-    resolver.ast_allocator = resolver_allocator;
+    resolver.setASTAllocator(*resolver_allocator);
     resolver.mod_allocator = resolver_allocator;
 
     // get the file units
@@ -551,7 +551,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         // must switch the allocators before performing symbol resolution for this module
         // so any created types during linking remain on its allocator
         resolver.mod_allocator = &modData->allocator;
-        resolver.ast_allocator = &modData->allocator;
+        resolver.setASTAllocator(modData->allocator);
 
         // declaring symbols of direct dependencies
         SymbolResolverDeclarer declarer(resolver);
@@ -571,13 +571,11 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             std::vector<SymbolRange> priv_sym_ranges(modData->fileUnits.size());
 
             // declaring top level symbols of all files in module
-            auto curr_file_path = std::filesystem::path(abs_path);
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                auto file_path_str = unit.scope.file_path.str();
-                if (!std::filesystem::equivalent(curr_file_path, file_path_str)) {
-                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, file_path_str);
+                if (abs_path_view != unit.scope.file_path) {
+                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.file_path.str());
                 }
                 i++;
             }
@@ -586,9 +584,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             i = 0;
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
-                auto file_path_str = unit.scope.file_path.str();
-                if (!std::filesystem::equivalent(curr_file_path, file_path_str)) {
-                    resolver.link_signature_file(unit.scope.body, file_path_str, priv_sym_ranges[i]);
+                if (abs_path_view != unit.scope.file_path) {
+                    resolver.link_signature_file(unit.scope.body, unit.scope.file_path.str(), priv_sym_ranges[i]);
                 }
             }
 

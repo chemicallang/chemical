@@ -52,6 +52,11 @@ public:
     ASTDiagnoser& getDiagnoser();
 
     /**
+     * this will change the allocator to this
+     */
+    void setAllocator(ASTAllocator& allocator);
+
+    /**
      * finalize the signature of generic type decl
      */
     void FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations);

@@ -37,7 +37,8 @@ WorkspaceManager::WorkspaceManager(
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
-    context(modStorage), pool((int) std::thread::hardware_concurrency()), tokenCache(10)
+    context(modStorage), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
+    modFileData(10)
 {
 
 }
@@ -390,7 +391,7 @@ std::string WorkspaceManager::get_hover(const std::string_view& path, const Posi
 
 void WorkspaceManager::OnOpenedFile(const std::string_view& filePath) {
     auto abs_path = canonical_path(filePath);
-    process_file_on_open(abs_path);
+    process_any_file_on_open(abs_path);
 }
 
 void WorkspaceManager::onChangedContents(
@@ -435,7 +436,7 @@ void WorkspaceManager::onChangedContents(
             auto& change = *changePtr;
             overriddenSources[path] = change.text;
             // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
-            process_file(path, true, false);
+            process_any_file(path, true, false);
             return;
         }
     }
@@ -477,7 +478,7 @@ void WorkspaceManager::onChangedContents(
     overriddenSources[path] = std::move(source);
 
     // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
-    process_file(path, true, false);
+    process_any_file(path, true, false);
 
 }
 

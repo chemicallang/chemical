@@ -691,11 +691,67 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
 }
 
-void WorkspaceManager::process_file_on_open(const std::string& path) {
-    if(tokenCache.contains(path)) {
-        return;
+void WorkspaceManager::process_dot_mod_file(const std::string& path) {
+
+#ifdef DEBUG
+    std::cout << "[lsp] processing .mod file '" << path << "'" << std::endl;
+#endif
+
+    // lex the .mod file
+    const auto lexUnit = get_lexed(path, true);
+
+    // put the token into token cache
+    tokenCache.put(path, lexUnit);
+
+    // construct a parser
+    const auto fileId = loc_man.encodeFile(path);
+    BasicParser basicParser(loc_man, fileId, lexUnit->tokens.data());
+
+    // getting the module file data
+    ModuleFileDataUnit* unit;
+    auto unitPtr = modFileData.get(path);
+    if(unitPtr == nullptr) {
+        const auto modFileDataUnit = new ModuleFileDataUnit {ASTAllocator(10000), ModuleFileData(fileId, chem::string_view(lexUnit->abs_path))};
+        modFileData.put(path, std::shared_ptr<ModuleFileDataUnit>(modFileDataUnit));
+        unit = modFileDataUnit;
+    } else {
+        unitPtr->get()->modFileData.scope.file_path = chem::string_view(lexUnit->abs_path);
+        unit = unitPtr->get();
     }
-    process_file(path, false, false);
+
+    // parse the .mod file
+    basicParser.parseModuleFile(unit->allocator, unit->modFileData);
+
+    // publish diagnotics of parsing
+    std::vector<lsp::Diagnostic> diagnostics;
+    add_diagnostics(diagnostics, unit->modFileData.diagnostics);
+    publish_diagnostics(path, diagnostics);
+
+}
+
+void WorkspaceManager::process_any_file(const std::string& path, bool contents_changed, bool depends_on_dirty) {
+    if(path.ends_with("chemical.mod")) {
+        process_dot_mod_file(path);
+    } else if(path.ends_with(".lab")) {
+        // TODO handle .lab file some other way
+        process_file(path, contents_changed, depends_on_dirty);
+    } else {
+        process_file(path, contents_changed, depends_on_dirty);
+    }
+}
+
+void WorkspaceManager::process_any_file_on_open(const std::string& path) {
+    if(path.ends_with("chemical.mod")) {
+        process_dot_mod_file(path);
+    } else if(path.ends_with(".lab")) {
+        // TODO handle .lab file some other way
+        process_file(path, false, false);
+    } else {
+        if(tokenCache.contains(path)) {
+            return;
+        }
+        process_file(path, false, false);
+    }
 }
 
 /**

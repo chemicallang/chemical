@@ -70,3 +70,18 @@ public:
     }
 
 };
+
+class ModuleFileDataUnit {
+public:
+
+    /**
+     * allocator
+     */
+    ASTAllocator allocator;
+
+    /**
+     * module file data
+     */
+    ModuleFileData modFileData;
+
+};

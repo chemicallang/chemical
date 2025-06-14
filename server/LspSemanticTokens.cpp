@@ -430,7 +430,7 @@ bool WorkspaceManager::should_process_file(const std::string& path, ModuleData* 
 
 }
 
-void WorkspaceManager::process_file(const std::string& abs_path, bool current_file_changed) {
+void WorkspaceManager::process_file(const std::string& abs_path, bool current_file_changed, bool depends_on_dirty) {
 
 #ifdef DEBUG
     std::cout << "[lsp] processing file '" << abs_path << "'" << std::endl;
@@ -627,7 +627,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
             // file changed or the tokens for the file didn't exist before
             // (tokens contain mapping which needs to be valid for semantic tokens to show properly)
-            if(current_file_changed || tokenCache.get(abs_path) == nullptr) {
+            if(depends_on_dirty || current_file_changed || tokenCache.get(abs_path) == nullptr) {
 
                 // THE ORDER OF OPERATIONS IN THE NEXT THREE STATEMENTS IS IMPORTANT
                 // we will set this file symbol resolved = false
@@ -714,7 +714,7 @@ void WorkspaceManager::process_file_on_open(const std::string& path) {
     if(tokenCache.contains(path)) {
         return;
     }
-    process_file(path, false);
+    process_file(path, false, false);
 }
 
 /**

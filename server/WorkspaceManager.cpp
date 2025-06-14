@@ -435,7 +435,7 @@ void WorkspaceManager::onChangedContents(
             auto& change = *changePtr;
             overriddenSources[path] = change.text;
             // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
-            process_file(path, true);
+            process_file(path, true, false);
             return;
         }
     }
@@ -477,7 +477,7 @@ void WorkspaceManager::onChangedContents(
     overriddenSources[path] = std::move(source);
 
     // reprocess the file (re-parse and symbol resolve, reporting diagnostics)
-    process_file(path, true);
+    process_file(path, true, false);
 
 }
 

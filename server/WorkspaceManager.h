@@ -324,7 +324,7 @@ public:
     /**
      * this allows processing the file to place unit
      */
-    void process_file(const std::string& path, bool contents_changed);
+    void process_file(const std::string& path, bool contents_changed, bool depends_on_dirty);
 
     /**
      * process file on open (contents haven't changed, if tokens & ast exist in cache, can be skipped)
@@ -336,7 +336,7 @@ public:
      */
     inline void process_file_on_request(const std::string& path, ModuleData* modData) {
         if(modData && should_process_file(path, modData)) {
-            process_file(path, false);
+            process_file(path, false, true);
         }
     }
 
@@ -346,7 +346,7 @@ public:
     inline void process_file_on_request(const std::string& path) {
         const auto modData = getModuleData(chem::string_view(path));
         if(modData && should_process_file(path, modData)) {
-            process_file(path, false);
+            process_file(path, false, true);
         }
     }
 

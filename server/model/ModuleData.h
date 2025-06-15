@@ -39,7 +39,7 @@ public:
     /**
      * this is created once
      */
-    ModuleScope* modScope;
+    ModuleScope modScope;
 
     /**
      * we store ast units for each file in this map, the unit for
@@ -81,7 +81,11 @@ public:
     /**
      * constructor
      */
-    ModuleData(ModuleScope* modScope) : allocator(5000/** 5kb **/), modScope(modScope) {
+    ModuleData(
+            const chem::string_view& scope_name,
+            const chem::string_view& mod_name,
+            LabModule* container
+    ) : allocator(5000/** 5kb **/), modScope(scope_name, mod_name, container) {
 
     }
 
@@ -89,7 +93,7 @@ public:
      * get the module
      */
     inline LabModule* getModule() {
-        return modScope->container;
+        return modScope.container;
     }
 
     /**

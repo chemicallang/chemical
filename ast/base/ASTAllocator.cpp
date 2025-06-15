@@ -65,9 +65,19 @@ void ASTAllocator::clear() {
     std::lock_guard<std::mutex> lock(*allocator_mutex);
     destruct_ptr_storage();
     destruct_cleanup_storage();
-    destroy_memory();
-    heap_memory.clear();
-    heap_offset = heap_batch_size; // force heap allocation
+    if(heap_memory.empty()) {
+        // force heap allocation
+        heap_offset = heap_batch_size;
+    } else {
+        // delete all but the first block
+        for (size_t i = 1; i < heap_memory.size(); ++i) {
+            ::operator delete(heap_memory[i]);
+        }
+        // shrink vector back to size 1
+        heap_memory.erase(heap_memory.begin() + 1, heap_memory.end());
+        // reset offset so that next allocation will start fresh in that one block
+        heap_offset = 0;
+    }
 }
 
 void BatchAllocator::destroy_memory() {

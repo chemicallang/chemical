@@ -305,6 +305,27 @@ void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provi
     }
 }
 
+// reads an escape sequence without escaping it into the string
+void read_escape_sequence(SerialStrAllocator& str, SourceProvider& provider) {
+    char current = provider.readCharacter();
+    if(current != 'x') {
+        str.append(current);
+    } else {
+        if(provider.increment('1')) {
+            if(provider.increment('b')) {
+                str.append('x');
+                str.append('1');
+                str.append('b');
+            } else {
+                str.append('x');
+                str.append('1');
+            }
+        } else {
+            str.append('x');
+        }
+    }
+}
+
 // returns whether the escape sequence is known or not
 // if unknown reads it into the string without escaping it
 bool read_escapable_char(SerialStrAllocator &str, SourceProvider& provider) {
@@ -329,9 +350,13 @@ Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvi
         auto current = provider.readCharacter();
         switch(current) {
             case '\\':
+#ifdef LSP_BUILD
+                str.append(current);
+#else
                 if(!read_escapable_char(str, provider)) {
                     lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
                 }
+#endif
                 break;
             case '"':
             case -1:
@@ -394,27 +419,29 @@ Token read_multi_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvid
 }
 
 Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
-    str.append('\'');
     auto current = provider.readCharacter();
     switch(current) {
         case '\\':
+#ifdef LSP_BUILD
+            str.append(current);
+            read_escape_sequence(str, provider);
+#else
             if(!read_escapable_char(str, provider)) {
                 lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
             }
+#endif
             break;
         case '\'':
             lexer.diagnoser.diagnostic("no value given inside single quotes", chem::string_view(lexer.file_path), pos, provider.position(), DiagSeverity::Error);
-            str.append('\0');
             return Token(TokenType::Char, str.finalize_view(), pos);
         case -1:
-            str.append('\'');
             return Token(TokenType::Char, str.finalize_view(), pos);
         default:
             str.append(current);
             break;
     }
     if(provider.peek() == '\'') {
-        str.append(provider.readCharacter());
+        provider.readCharacter();
         return Token(TokenType::Char, str.finalize_view(), pos);
     } else {
         lexer.diagnoser.diagnostic("expected a single quote after the value", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);

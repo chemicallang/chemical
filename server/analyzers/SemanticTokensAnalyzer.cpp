@@ -41,35 +41,6 @@ void SemanticTokensAnalyzer::put(Token *token, uint32_t tokenType, uint32_t toke
     put(token->position.line, token->position.character, token->value.size(), tokenType, tokenModifiers);
 }
 
-int get_char_length(char value) {
-    switch (value) {
-        case '\a':
-        case '\f':
-        case '\r':
-        case '\n':
-        case '\0':
-        case '\t':
-        case '\v':
-        case '\b':
-        case '\"':
-        case '\?':
-        case '\\':
-            return 2;
-        case '\x1b':
-            return 4;
-        default:
-            return 1;
-    }
-}
-
-int calculate_display_size(const chem::string_view& view) {
-    int i = 0;
-    for(const auto c : view) {
-        i += get_char_length(c);
-    }
-    return i;
-}
-
 void SemanticTokensAnalyzer::put_node_token(Token* token, ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::FunctionParam:
@@ -192,7 +163,7 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::String: {
                 auto& pos = token->position;
                 // +2 is added for the double quotes
-                put(pos.line, pos.character, calculate_display_size(token->value) + 2, TokenType(String), 0);
+                put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
                 break;
             }
             case TokenType::MultilineString:
@@ -202,7 +173,7 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
             case TokenType::Char: {
                 // +2 is added for the quotes
                 auto& pos = token->position;
-                put(pos.line, pos.character, calculate_display_size(token->value) + 2, TokenType(String), 0);
+                put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
                 break;
             }
             case TokenType::HashMacro:

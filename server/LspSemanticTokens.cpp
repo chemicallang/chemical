@@ -975,11 +975,23 @@ void WorkspaceManager::index_new_file(const std::string_view& non_canon_path) {
 
 }
 
+std::string weak_canonical(const std::string_view& path) {
+    try {
+        return std::filesystem::weakly_canonical(path).string();
+    } catch(...) {
+        return std::string(path);
+    }
+}
+
 void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_given_path) {
 
     // get the canonical path
-    auto path_sv = canonical_path(editor_given_path);
+    // we have to do weakly canonical, because file has been deleted and canonical throws on non existent paths
+    auto path_sv = weak_canonical(editor_given_path);
     auto path_view = chem::string_view(path_sv);
+
+    // log
+    std::cout << "[lsp] de indexing deleted file '" << path_sv << "'" << std::endl;
 
     // get the module data
     const auto modData = getModuleData(path_view);
@@ -987,8 +999,9 @@ void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_give
         std::cout << "[lsp] deleted file '" << path_sv << "' does not belong to any known module\n";
         return;
     }
-    const auto mod = modData->getModule();
 
+    const auto mod = modData->getModule();
+    // removing from module's cached units
     auto foundCachedUnit = modData->cachedUnits.find(path_view);
     if(foundCachedUnit != modData->cachedUnits.end()) {
 
@@ -997,6 +1010,10 @@ void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_give
         auto it = std::find(v.begin(), v.end(), foundCachedUnit->second.get());
         if (it != v.end()) {
             v.erase(it);
+        } else {
+#ifdef DEBUG
+            std::cerr << "[lsp] deleted file '" << path_sv << "' was not found in module's file units" << std::endl ;
+#endif
         }
 
         // removing from cachedUnits
@@ -1004,32 +1021,32 @@ void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_give
 
     } else {
 #ifdef DEBUG
-        std::cout << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' cached units" << std::endl;
+        std::cerr << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' cached units" << std::endl;
 #endif
     }
 
-    // remove from actual module's direct files
-    namespace fs = std::filesystem;
-    fs::path deletedPath(path_sv);
-
-    auto& files = mod->direct_files;
-    for (auto it = files.begin(); it != files.end(); ++it) {
-        fs::path candidate(it->abs_path);
-        // Compare actual filesystem locations (handles case, symlinks, etc.)
-        std::error_code ec;
-        if (fs::equivalent(candidate, deletedPath, ec) && !ec) {
-            // Erase and return early
-            files.erase(it);
+    // removing from file to module index map
+    auto found = filesIndex.find(path_view);
+    if(found != filesIndex.end()) {
+        filesIndex.erase(found);
+    } else {
 #ifdef DEBUG
-            std::cout << "[lsp] de-indexed deleted file '" << path_sv << "' from module's '" << mod->format() << "' direct files" << std::endl;
+        std::cerr << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' direct files" << std::endl;
 #endif
-            return;
-        }
     }
 
+    // removing from module direct files as well
+    auto& v = mod->direct_files;
+    auto it = std::find_if(v.begin(), v.end(), [path_sv](ASTFileMetaData& data) {
+        return data.abs_path == path_sv;
+    });
+    if(it != v.end()) {
+        v.erase(it);
+    } else {
 #ifdef DEBUG
-    std::cout << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' direct files" << std::endl;
+        std::cerr << "[lsp] deleted file '" << path_sv << "' was not found in module's '" << mod->format() << "' direct files" << std::endl;
 #endif
+    }
 
 }
 

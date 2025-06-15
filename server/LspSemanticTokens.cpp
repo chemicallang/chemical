@@ -132,7 +132,7 @@ void parseModule(
 
         const auto cachedUnit = new CachedASTUnit {
                 .allocator = ASTAllocator(10000),
-                .unit = ASTUnit(file.file_id, file_path_view, modData->modScope)
+                .unit = ASTUnit(file.file_id, file_path_view, &modData->modScope)
         };
 
         // every file costs us 10kb batched allocator
@@ -165,9 +165,7 @@ ModuleData* WorkspaceManager::getModuleData(LabModule* module) {
     if(found != moduleData.end()) {
         return found->second.get();
     } else {
-        const auto modDataPtr = new ModuleData(nullptr);
-        const auto modScope = new (modDataPtr->allocator.allocate<ModuleScope>()) ModuleScope(module->scope_name.to_chem_view(), module->name.to_chem_view(), module);
-        modDataPtr->modScope = modScope;
+        const auto modDataPtr = new ModuleData(module->scope_name.to_chem_view(), module->name.to_chem_view(), module);
         moduleData.emplace(module, modDataPtr);
         return modDataPtr;
     }
@@ -239,6 +237,12 @@ void parseModuleWithDepsWait(
 
 void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, ModuleData* modData) {
     const auto mod_index = resolver.module_scope_start();
+
+    // clear the allocator, this will get rid of any results stored
+    // because of symbol resolution we performed earlier
+    // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
+    // this causes comparison with freed pointers causing lsp crash
+    // modData->allocator.clear();
 
     // this is an important step, to switch the allocators
     const auto resolver_allocator = &modData->allocator;
@@ -610,6 +614,12 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
         // only symbol resolve if required (one of deps / current module file changed)
         if(sym_res_curr_mod) {
+
+            // since we are symbol resolving the module again, we
+            // can delete previous stuff off
+            // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
+            // this causes comparison with freed pointers causing lsp crash
+            // modData->allocator.clear();
 
             // a container for private symbol ranges (of files)
             std::vector<SymbolRange> priv_sym_ranges(modData->fileUnits.size());

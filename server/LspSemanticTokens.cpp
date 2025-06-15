@@ -116,6 +116,37 @@ bool parse_file(
 
 }
 
+CachedASTUnit* parseFile(
+        WorkspaceManager& manager,
+        LabModule* module,
+        ModuleData* modData,
+        unsigned int fileId,
+        const chem::string_view& file_path_view
+) {
+
+    // we use a 10kb allocator
+    const auto cachedUnit = new CachedASTUnit {
+            .allocator = ASTAllocator(10000),
+            .unit = ASTUnit(fileId, file_path_view, &modData->modScope)
+    };
+
+    // every file costs us 10kb batched allocator
+    // which means for module of 100 files, 1mb for each module
+    // for 2000 modules, we will allocate 2gb (+100mb metadata) on average
+    auto& allocator = cachedUnit->allocator;
+
+    // parsing the file
+    parse_file(manager, allocator, cachedUnit->unit);
+
+    // putting the unit in module data
+    modData->cachedUnits.emplace(file_path_view, std::unique_ptr<CachedASTUnit>(cachedUnit));
+    modData->fileUnits.emplace_back(cachedUnit);
+
+    // return the cached unit
+    return cachedUnit;
+
+}
+
 void parseModule(
         WorkspaceManager& manager,
         LabModule* module,
@@ -128,24 +159,7 @@ void parseModule(
     // lets prepare the file units
     for(auto& file : module->direct_files) {
 
-        auto file_path_view = chem::string_view(file.abs_path);
-
-        const auto cachedUnit = new CachedASTUnit {
-                .allocator = ASTAllocator(10000),
-                .unit = ASTUnit(file.file_id, file_path_view, &modData->modScope)
-        };
-
-        // every file costs us 10kb batched allocator
-        // which means for module of 100 files, 1mb for each module
-        // for 2000 modules, we will allocate 2gb (+100mb metadata) on average
-        auto& allocator = cachedUnit->allocator;
-
-        // parsing the file
-        parse_file(manager, allocator, cachedUnit->unit);
-
-        // putting the unit in module data
-        modData->cachedUnits.emplace(file_path_view, std::unique_ptr<CachedASTUnit>(cachedUnit));
-        units.emplace_back(cachedUnit);
+        parseFile(manager, module, modData, file.file_id, chem::string_view(file.abs_path));
 
     }
 
@@ -885,10 +899,80 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens_full(const std::stri
 
 }
 
-void WorkspaceManager::index_new_file(const std::string_view& path) {
-    // TODO index the file, find the module ( don't know how ) and put it in the module
-    // TODO also index with the module pointer
-    std::cout << "[lsp] created file '" << path << "', TODO: index it" << std::endl;
+// Returns true if 'parent' is the same as or a directory ancestor (direct or indirect) of 'file'.
+// Both 'parent' and 'file' are assumed to be canonical (no ".", "..", or symlinks).
+bool contains_path_or_equal(const std::filesystem::path& parent, const std::filesystem::path& file) {
+    // Fast reject: parent must not have more components than file
+    auto parent_len = std::distance(parent.begin(), parent.end());
+    auto file_len   = std::distance(file.begin(), file.end());
+    if (parent_len > file_len)
+        return false;
+
+    // Compare component‑by‑component
+    auto pit = parent.begin();
+    auto fit = file.begin();
+    for (; pit != parent.end(); ++pit, ++fit) {
+        if (*pit != *fit)
+            return false;
+    }
+    return true;
+}
+
+LabModule* find_module_parent_of(const std::vector<std::unique_ptr<LabModule>>& modules, const std::string& filePath) {
+    for(auto& modPtr : modules) {
+        const auto mod = modPtr.get();
+        for(auto& path : mod->paths) {
+            if(contains_path_or_equal(path.to_view(), filePath)) {
+                return mod;
+            }
+        }
+    }
+    return nullptr;
+}
+
+void WorkspaceManager::index_new_file(const std::string_view& non_canon_path) {
+
+    auto abs_path = canonical_path(non_canon_path);
+
+#ifdef DEBUG
+    std::cout << "[lsp] indexing created file '" << abs_path << "'" << std::endl;
+#endif
+
+    const auto mod = find_module_parent_of(modStorage.get_modules(), abs_path);
+    if(mod == nullptr) {
+        std::cerr << "[lsp] couldn't find the module file '" << abs_path << "' belongs to" << std::endl;
+        return;
+    }
+
+    // encoding the file in location manager
+    const auto fileId = loc_man.encodeFile(abs_path);
+
+    // put the file in direct files
+    mod->direct_files.emplace_back(fileId, nullptr, abs_path);
+    auto& file = mod->direct_files.back();
+
+    // lets get module data
+    const auto modData = getModuleData(mod);
+    if(!modData) {
+        std::cout << "[lsp] assuming file '" << abs_path << "' created before initialization" << std::endl;
+        return;
+    }
+
+    // set the module scope now
+    // we didn't set it before hand, because if module data is not found
+    // it probably means, we haven't initialized yet, so we should still put the file into the direct_files
+    file.module = &modData->modScope;
+
+    // parse the file
+    parseFile(*this, mod, modData, fileId, chem::string_view(file.abs_path));
+
+    // indexing the file into files index
+    filesIndex[chem::string_view(file.abs_path)] = modData;
+
+    // log
+    std::cout << "[lsp] file '" << abs_path << "' has been indexed in module '" << mod->format() << '\'' << std::endl;
+
+
 }
 
 void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_given_path) {

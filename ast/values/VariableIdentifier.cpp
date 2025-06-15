@@ -6,6 +6,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/types/VoidType.h"
 #include "TypeInsideValue.h"
 
 VarInitStatement* declaration(Value* value) {
@@ -126,7 +127,7 @@ BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
         const auto type = linked->known_type();
         return type ? type->copy(allocator) : nullptr;
     } else {
-        return nullptr;
+        return new (allocator.allocate<VoidType>()) VoidType();
     }
 }
 

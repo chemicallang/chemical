@@ -757,9 +757,29 @@ void WorkspaceManager::process_dot_mod_file(const std::string& path) {
     // put the token into token cache
     tokenCache.put(path, lexUnit);
 
+    auto& all_tokens = lexUnit->tokens;
+
+    // copy the tokens
+    std::vector<Token> copied_tokens;
+    copied_tokens.reserve(all_tokens.size());
+
+    // index for each token is stored (index in all_tokens)
+    std::vector<size_t> originalIndexes;
+    originalIndexes.reserve(all_tokens.size());
+
+    // copy the tokens and record the original indexes
+    size_t i = 0;
+    for(auto& token : all_tokens) {
+        if(token.type != TokenType::SingleLineComment && token.type != TokenType::MultiLineComment) {
+            copied_tokens.emplace_back(token);
+            originalIndexes.emplace_back(i);
+        }
+        i++;
+    }
+
     // construct a parser
     const auto fileId = loc_man.encodeFile(path);
-    BasicParser basicParser(loc_man, fileId, lexUnit->tokens.data());
+    BasicParser basicParser(loc_man, fileId, copied_tokens.data());
 
     // getting the module file data
     ModuleFileDataUnit* unit;
@@ -775,6 +795,20 @@ void WorkspaceManager::process_dot_mod_file(const std::string& path) {
 
     // parse the .mod file
     basicParser.parseModuleFile(unit->allocator, unit->modFileData);
+
+    // now restore the mapping of ast with tokens (using original indexes)
+    // the order in which this operation occurs is important because
+    // first the copied_tokens must be linked before we can link original tokens
+    // which happens after symbol resolution, so this must take place after symbol resolution
+    i = 0;
+    for(auto& token : copied_tokens) {
+        if(token.linked != nullptr) {
+            auto original_index = originalIndexes[i];
+            auto& originalToken = all_tokens[original_index];
+            originalToken.linked = token.linked;
+        }
+        i++;
+    }
 
     // publish diagnotics of parsing
     std::vector<lsp::Diagnostic> diagnostics;

@@ -996,7 +996,7 @@ void WorkspaceManager::de_index_deleted_file(const std::string_view& editor_give
     // get the module data
     const auto modData = getModuleData(path_view);
     if(!modData) {
-        std::cout << "[lsp] deleted file '" << path_sv << "' does not belong to any known module\n";
+        std::cerr << "[lsp] deleted file '" << path_sv << "' does not belong to any known module" << std::endl;
         return;
     }
 

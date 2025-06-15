@@ -16,6 +16,7 @@
 #include <future>
 #include "server/model/LexResult.h"
 #include "server/model/ASTResult.h"
+#include "server/model/AnonymousFileData.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/base/TypeBuilder.h"
 #include "preprocess/ImportPathHandler.h"
@@ -36,19 +37,6 @@ struct LabJob;
 namespace lsp {
     class MessageHandler;
 }
-
-struct CachedModuleUnit {
-    /**
-     * the module file units belong to
-     */
-    LabModule* module;
-    /**
-     * constructor
-     */
-    CachedModuleUnit(LabModule* module) : module(module) {
-
-    }
-};
 
 /**
  * Workspace manager is the operations manager for all IDE related operations for a
@@ -132,6 +120,12 @@ public:
      * in this lru cache, tokens are stored in usual token cache
      */
     LRUCache<std::string, std::shared_ptr<ModuleFileDataUnit>> modFileData;
+
+    /**
+     * we store anonymous files (that don't belong to any module) in this cache
+     * while user is editing them, however tokens are still stored in token cache
+     */
+    LRUCache<std::string, std::shared_ptr<AnonymousFileData>> anonFilesData;
 
     /**
      * a single location manager is used throughout

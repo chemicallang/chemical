@@ -38,7 +38,7 @@ WorkspaceManager::WorkspaceManager(
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
     context(modStorage), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
-    modFileData(10)
+    modFileData(10), anonFilesData(10)
 {
 
 }

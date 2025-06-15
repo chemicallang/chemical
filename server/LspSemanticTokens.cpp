@@ -697,20 +697,26 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         std::cerr << "[lsp] couldn't find module file '" << abs_path << "' belongs to" << std::endl;
 #endif
 
-        // creating a 10kb allocator for parsing this file
-        ASTAllocator allocator(10000);
-
-        // this file doesn't belong to any module (or we don't know about it)
-        const auto anonymous_scope = new (allocator.allocate<ModuleScope>()) ModuleScope(chem::string_view(""), chem::string_view("anon"), nullptr);
-
         // encode the file path to get file id
         const auto fileId = loc_man.encodeFile(abs_path);
 
-        // the temporary ast unit
-        ASTUnit astUnit(fileId, abs_path_view, anonymous_scope);
+        // create the anonymous file data
+        AnonymousFileData* fileData;
+        {
+            auto anonFileData = anonFilesData.get(abs_path);
+            if (anonFileData == nullptr) {
+                const auto newAnonFileData = new AnonymousFileData(fileId, abs_path);
+                anonFilesData.put(abs_path, std::shared_ptr<AnonymousFileData>(newAnonFileData));
+                fileData = newAnonFileData;
+            } else {
+                fileData = anonFileData->get();
+            }
+        }
+
+        auto& astUnit = fileData->unit;
 
         // parsing the file to unit
-        parse_file(*this, allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
+        parse_file(*this, fileData->allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
 
         // declare and link file
         resolver.declare_and_link_file(astUnit.scope.body, abs_path);

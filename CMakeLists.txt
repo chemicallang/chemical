@@ -600,6 +600,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/utils/AnalyzerUtils.h
         server/utils/AnalyzerUtils.cpp
         server/model/ModuleData.h
+        server/model/AnonymousFileData.h
 )
 
 # lsp framework

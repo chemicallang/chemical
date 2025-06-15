@@ -46,13 +46,95 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 
+#ifdef LSP_BUILD
+
+bool read_escapable_char(const char** currentPtrPtr, const char* end, std::string& str) {
+
+    // load the current character
+    const auto currentPtr = *currentPtrPtr;
+    const char current = *currentPtr;
+
+    // set next to current character
+    *currentPtrPtr = currentPtr + 1;
+
+    if(current != 'x') {
+        const auto next = escaped_char(current);
+        str.append(1, next);
+        return next != current || next == '\\' || next == '\'' || next == '"';
+    } else {
+
+        // load next
+        auto nextPtr = currentPtr + 1;
+        if(nextPtr == end) return false;
+        const auto next = *nextPtr;
+
+        // load next next
+        auto nextNextPtr = nextPtr + 1;
+        if(nextNextPtr == end) return false;
+
+        const auto nextNext = *nextNextPtr;
+        if(next == '1' && nextNext == 'b') {
+            // set current ptr next to \x1b| <-- here (at pipe)
+            *currentPtrPtr = nextNextPtr + 1;
+            str.append(1, '\x1b');
+            return true;
+        } else {
+            str.append(1, current);
+            return false;
+        }
+    }
+}
+
+// returns whether the escape sequence is known or not
+// if unknown reads it into the string without escaping it
+chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, const chem::string_view& value) {
+    std::string str;
+
+    // start and end
+    auto currentPtr = value.data();
+    auto end = value.data() + value.size();
+
+    while(currentPtr != end) {
+        const auto current = *currentPtr;
+        if(current == '\\') {
+            currentPtr++;
+            if(currentPtr == end) {
+                parser.error("couldn't escape the character");
+                break;
+            } else {
+                if (!read_escapable_char(&currentPtr, end, str)) {
+                    parser.error("couldn't escape the character");
+                }
+            }
+        } else {
+            str.append(1, current);
+            currentPtr++;
+        }
+    }
+
+    return parser.allocate_view(allocator, chem::string_view(str));
+
+}
+
+#endif
+
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::Char) {
         // consume the token
         token++;
         // the value will contain single quotes around it
-        return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data() + 1), loc_single(t));
+#ifdef LSP_BUILD
+        auto escaped = escaped_view(allocator, *this, t.value);
+        if(escaped.empty()) {
+            return new (allocator.allocate<CharValue>()) CharValue('\0', loc_single(t));
+        } else if(escaped.size() != 1) {
+            error("couldn't handle escape sequence in character value");
+        }
+        return new (allocator.allocate<CharValue>()) CharValue(*escaped.data(), loc_single(t));
+#else
+        return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data()), loc_single(t));
+#endif
     } else {
         return nullptr;
     }
@@ -62,6 +144,12 @@ Value* BasicParser::parseStringValue(ASTAllocator& allocator) {
     auto& t = *token;
     switch(t.type) {
         case TokenType::String:
+            token++;
+#ifdef LSP_BUILD
+            return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), loc_single(t));
+#else
+            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), loc_single(t));
+#endif
         case TokenType::MultilineString:
             token++;
             return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), loc_single(t));

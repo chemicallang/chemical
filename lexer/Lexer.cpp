@@ -346,12 +346,16 @@ bool read_escapable_char(SerialStrAllocator &str, SourceProvider& provider) {
 }
 
 Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
+#ifdef LSP_BUILD
+    bool escaping = false;
+#endif
     while(true) {
         auto current = provider.readCharacter();
         switch(current) {
             case '\\':
 #ifdef LSP_BUILD
                 str.append(current);
+                escaping = true;
 #else
                 if(!read_escapable_char(str, provider)) {
                     lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
@@ -359,13 +363,24 @@ Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvi
 #endif
                 break;
             case '"':
-            case -1:
+#ifdef LSP_BUILD
+                if(escaping) {
+                    str.append('"');
+                    escaping = false;
+                    break;
+                }
+#endif
                 // no need to report an error if -1, since next time unexpected token will be given
+                return Token(TokenType::String, str.finalize_view(), pos);
+            case -1:
                 return Token(TokenType::String, str.finalize_view(), pos);
             case '\n':
             case '\r':
                 lexer.diagnoser.diagnostic("single line string doesn't have a ending", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
             default:
+#ifdef LSP_BUILD
+                escaping = false;
+#endif
                 str.append(current);
                 break;
         }

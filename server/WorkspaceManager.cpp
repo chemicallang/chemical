@@ -234,19 +234,32 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
     }
 }
 
+// analyzers that expect symbol resolved ast units, should call this function to get the ast
+// if this doesn't provide then it means before request a symbol resolved ast wasn't cached
+// if that's the case, analyzers should not run
+ASTUnit* get_cached_unit(WorkspaceManager& manager, ModuleData* modData, const std::string& path) {
+    if(modData) {
+        auto found = modData->cachedUnits.find(chem::string_view(path));
+        if(found != modData->cachedUnits.end()) {
+            return &found->second->unit;
+        }
+    } else {
+        // it maybe an anonymous file
+        auto found = manager.anonFilesData.get(path);
+        if(found != nullptr) {
+            return &found->get()->unit;
+        }
+    }
+    return nullptr;
+}
+
 std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string_view& path) {
     const auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);
     const auto modData = getModuleData(abs_path_view);
     const auto mod = modData ? modData->getModule() : nullptr;
     process_file_on_request(abs_path, modData);
-    ASTUnit* unit = nullptr;
-    if(modData) {
-        auto found = modData->cachedUnits.find(abs_path_view);
-        if(found != modData->cachedUnits.end()) {
-            unit = &found->second->unit;
-        }
-    }
+    const auto unit = get_cached_unit(*this, modData, abs_path);
     if(unit) {
         return folding_analyze(loc_man, unit->scope.body.nodes);
     } else {
@@ -261,13 +274,7 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
     const auto modData = getModuleData(abs_path_view);
     const auto mod = modData ? modData->getModule() : nullptr;
     process_file_on_request(abs_path, modData);
-    ASTUnit* unit = nullptr;
-    if(modData) {
-        auto found = modData->cachedUnits.find(abs_path_view);
-        if(found != modData->cachedUnits.end()) {
-            unit = &found->second->unit;
-        }
-    }
+    const auto unit = get_cached_unit(*this, modData, abs_path);
     LexResult* lexResult = nullptr;
     // check if tokens exist in cache (parsed after changed contents request of file)
     auto cachedTokens = tokenCache.get(abs_path);
@@ -277,9 +284,6 @@ lsp::CompletionList WorkspaceManager::get_completion(const std::string_view& pat
     CompletionItemAnalyzer analyzer(loc_man, position);
     if(unit) {
         analyzer.analyze(mod, modData, lexResult, unit);
-    } else {
-        auto shared_unit = get_decl_ast(abs_path);
-        analyzer.analyze(mod, modData, lexResult, &shared_unit->unit);
     }
     return std::move(analyzer.list);
 }
@@ -296,20 +300,14 @@ std::vector<lsp::InlayHint> WorkspaceManager::get_hints(const std::string_view& 
     const auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);
     const auto modData = getModuleData(abs_path_view);
-    const auto mod = modData ? modData->getModule() : nullptr;
     process_file_on_request(abs_path, modData);
-    ASTUnit* unit = nullptr;
-    if(modData) {
-        auto found = modData->cachedUnits.find(abs_path_view);
-        if(found != modData->cachedUnits.end()) {
-            unit = &found->second->unit;
-        }
-    }
+    const auto unit = get_cached_unit(*this, modData, abs_path);
     if(unit) {
         return inlay_hint_analyze(loc_man, unit->scope.body.nodes, range);
     } else {
-        auto shared_unit = get_decl_ast(abs_path);
-        return inlay_hint_analyze(loc_man, shared_unit->unit.scope.body.nodes, range);
+        // since we couldn't find the unit, we will not provide inlay hints
+        // it would be best not to provide these
+        return {};
     }
 }
 
@@ -319,13 +317,7 @@ lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& 
     const auto modData = getModuleData(abs_path_view);
     const auto mod = modData ? modData->getModule() : nullptr;
     process_file_on_request(abs_path, modData);
-    ASTUnit* unit = nullptr;
-    if(modData) {
-        auto found = modData->cachedUnits.find(abs_path_view);
-        if(found != modData->cachedUnits.end()) {
-            unit = &found->second->unit;
-        }
-    }
+    const auto unit = get_cached_unit(*this, modData, abs_path);
     LexResult* lexResult = nullptr;
     // check if tokens exist in cache (parsed after changed contents request of file)
     auto cachedTokens = tokenCache.get(abs_path);
@@ -335,9 +327,6 @@ lsp::SignatureHelp WorkspaceManager::get_signature_help(const std::string_view& 
     SignatureHelpAnalyzer analyzer(loc_man, position);
     if(unit) {
         analyzer.analyze(mod, modData, lexResult, unit);
-    } else {
-        auto shared_unit = get_decl_ast(abs_path);
-        analyzer.analyze(mod, modData, lexResult, &shared_unit->unit);
     }
     return std::move(analyzer.help);
 }
@@ -360,19 +349,10 @@ std::vector<lsp::DocumentSymbol> WorkspaceManager::get_symbols(const std::string
     const auto modData = getModuleData(abs_path_view);
     const auto mod = modData ? modData->getModule() : nullptr;
     process_file_on_request(abs_path, modData);
-    ASTUnit* unit = nullptr;
-    if(modData) {
-        auto found = modData->cachedUnits.find(abs_path_view);
-        if(found != modData->cachedUnits.end()) {
-            unit = &found->second->unit;
-        }
-    }
+    const auto unit = get_cached_unit(*this, modData, abs_path);
     DocumentSymbolsAnalyzer analyzer(loc_man);
     if(unit) {
         analyzer.analyze(unit->scope.body.nodes);
-    } else {
-        auto shared_unit = get_decl_ast(abs_path);
-        analyzer.analyze(shared_unit->unit.scope.body.nodes);
     }
     return std::move(analyzer.symbols);
 }

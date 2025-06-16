@@ -5,6 +5,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/VoidType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/base/InterpretScope.h"
@@ -72,11 +73,9 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
     auto current_type = parent_val->create_type(allocator);
     while(i > 0) {
         const auto childType = current_type->create_child_type(allocator);
-#ifdef DEBUG
         if(!childType) {
-            throw std::runtime_error("couldn't create the child type in index operator");
+            return new (allocator.allocate<VoidType>()) VoidType();
         }
-#endif
         current_type = childType;
         i--;
     }

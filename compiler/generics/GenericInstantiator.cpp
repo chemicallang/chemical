@@ -977,10 +977,11 @@ ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
 }
 
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
-    if(owns) {
-        delete giPtr;
-    }
+    const auto prev = giPtr;
     giPtr = new GenericInstantiator(allocator, giPtr->diagnoser);
+    if(owns) {
+        delete prev;
+    }
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {

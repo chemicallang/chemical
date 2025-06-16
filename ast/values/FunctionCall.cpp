@@ -816,14 +816,31 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
                 }
                 i++;
             }
+
+            // checking arguments exist for all variant call parameters
+            const auto func_param_size = variant_mem->values.size();
+            while (i < func_param_size) {
+                auto param = (variant_mem->values.begin() + 1)->second;
+                if (param) {
+                    linker.error(this) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
+                } else {
+#ifdef DEBUG
+                    throw std::runtime_error("couldn't get param");
+#endif
+                }
+                i++;
+            }
+
             return;
         }
     }
+
     auto func_type = function_type(linker.allocator);
     if (func_type && !func_type->data.signature_resolved) {
         linker.error("calling a function whose signature couldn't be resolved", this);
         return;
     }
+
     unsigned i = 0;
     const auto values_size = values.size();
     while (i < values_size) {
@@ -841,6 +858,25 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         }
         i++;
     }
+
+    // checking arguments exist for all function call values
+    if(func_type) {
+        const auto func_param_size = func_type->expectedArgsSize();
+        while (i < func_param_size) {
+            auto param = func_type->func_param_for_arg_at(i);
+            if (param) {
+                if (param->defValue == nullptr && !func_type->isInVarArgs(i)) {
+                    linker.error(this) << "function parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
+                }
+            } else {
+#ifdef DEBUG
+                throw std::runtime_error("couldn't get param");
+#endif
+            }
+            i++;
+        }
+    }
+
 }
 
 void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked){

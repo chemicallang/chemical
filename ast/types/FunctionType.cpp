@@ -100,7 +100,7 @@ unsigned FunctionType::total_implicit_params() {
 }
 
 unsigned int FunctionType::expectedArgsSize() {
-    return params.size() - total_implicit_params() - (isExtensionFn() ? 1 : 0);
+    return params.size() - total_implicit_params() - (isExtensionFn() ? 1 : 0) - (isVariadic() ? 1 : 0);
 }
 
 FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {

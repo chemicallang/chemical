@@ -275,6 +275,7 @@ namespace InterpretVector {
 class InterpretPrint : public FunctionDeclaration {
 public:
 
+    FunctionParam param;
     std::ostringstream ostring;
     RepresentationVisitor visitor;
 
@@ -286,9 +287,12 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring) {
+    ), visitor(ostring), param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, 0)
+    {
+        set_compiler_decl(true);
         visitor.interpret_representation = true;
-    }
+        params = { &param };
+    };
 
     inline explicit InterpretPrint(TypeBuilder& cache, ASTNode* parent_node) : InterpretPrint(cache, parent_node, ZERO_LOC_ID("print")) {
 
@@ -560,6 +564,7 @@ public:
 class InterpretRetStructPtr : public FunctionDeclaration {
 public:
 
+    FunctionParam param;
     // TODO we shouldn't return pointer to void type
     PointerType ptrType;
 
@@ -571,9 +576,12 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrType(cache.getVoidType(), ZERO_LOC) {
+    ), ptrType(cache.getVoidType(), ZERO_LOC),
+        param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, 0)
+    {
         set_compiler_decl(true);
-    }
+        params = { &param };
+    };
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(ZERO_LOC);
     }
@@ -1256,7 +1264,8 @@ public:
             AccessSpecifier::Public,
             true
     ), param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, 0),
-                                                                                   methodParam("method", { cache.getStringType(), ZERO_LOC }, 1, nullptr, false, this, 0) {
+       methodParam("method", { cache.getStringType(), ZERO_LOC }, 1, nullptr, false, this, 0)
+   {
         set_compiler_decl(true);
         params = { &param, &methodParam };
     };
@@ -1290,6 +1299,7 @@ public:
 class InterpretTypeToString : public FunctionDeclaration {
 public:
 
+    FunctionParam param;
     std::ostringstream ostring;
     RepresentationVisitor visitor;
 
@@ -1301,8 +1311,11 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), visitor(ostring) {
+    ), param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, 0), visitor(ostring)
+    {
         visitor.interpret_representation = true;
+        set_compiler_decl(true);
+        params = { &param };
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {

@@ -4,7 +4,7 @@
 </p>
 <h1>The Chemical Programming Language</h1>
 
-[Website](https://chemical.qinetik.org)
+[Website](https://chemicallang.github.io/learn-chemical)
 | [Docs](https://github.com/chemicallang/chemical/blob/main/lang/docs/README.md)
 | [Changelog](https://github.com/chemicallang/chemical/releases)
 | [Speed](https://chemical.qinetik.org/speed)

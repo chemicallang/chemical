@@ -3,6 +3,14 @@ variant OptVariant {
     None()
 }
 
+func check_variant_is_some(opt : OptVariant) : bool {
+    return opt is OptVariant.Some
+}
+
+func check_variant_is_none(opt : OptVariant) : bool {
+    return opt is OptVariant.None
+}
+
 struct CheckImpParam22 {
     var a : int
     @implicit
@@ -136,5 +144,41 @@ func test_variants() {
     test("implicit args in variant calls", () => {
         var v = ImpVar22.Some(99)
         return get_value_iv22(v) == 99;
+    })
+    test("is values work with variants - 1", () => {
+        var v1 = OptVariant.Some(10)
+        return v1 is OptVariant.Some
+    })
+    test("is values work with variants - 2", () => {
+        var v1 = OptVariant.Some(10)
+        return v1 !is OptVariant.None
+    })
+    test("is values work with variants - 3", () => {
+        var v1 = OptVariant.None()
+        return v1 is OptVariant.None
+    })
+    test("is values work with variants - 4", () => {
+        var v1 = OptVariant.None()
+        return v1 !is OptVariant.Some
+    })
+    test("is values work with variants - 5", () => {
+        var v1 = OptVariant.Some(10)
+        return v1 is OptVariant.Some && v1 !is OptVariant.None
+    })
+    test("is values work with variants - 6", () => {
+        var v1 = OptVariant.None()
+        return v1 is OptVariant.None && v1 !is OptVariant.Some
+    })
+    test("is values work with variants - 7", () => {
+        return check_variant_is_some(OptVariant.Some(10))
+    })
+    test("is values work with variants - 8", () => {
+        return !check_variant_is_none(OptVariant.Some(10))
+    })
+    test("is values work with variants - 9", () => {
+        return check_variant_is_none(OptVariant.None())
+    })
+    test("is values work with variants - 10", () => {
+        return !check_variant_is_some(OptVariant.None())
     })
 }

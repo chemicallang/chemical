@@ -4034,6 +4034,25 @@ void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
     auto comp_time = isValue->get_comp_time_result();
     if(comp_time.has_value()) {
         result = comp_time.value();
+    } else {
+        const auto linked = isValue->type->get_direct_linked_node();
+        if(linked->kind() == ASTNodeKind::VariantMember) {
+            const auto mem = linked->as_variant_member_unsafe();
+            const auto var = mem->parent();
+            // turn on the active iteration of the variant
+            write('(');
+            visit(isValue->value);
+            write_accessor(*this, isValue->value, nullptr);
+            write(variant_type_variant_name);
+            if(isValue->is_negating) {
+                write(" != ");
+            } else {
+                write(" == ");
+            }
+            *output << var->variable_index(mem->name, false);
+            write(')');
+            return;
+        }
     }
     write(result ? '1' : '0');
 }
@@ -4665,36 +4684,36 @@ void ToCAstVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
     type_def_stmt(*this, stmt);
 }
 
-void write_variant_call_id_index(ToCAstVisitor& visitor, VariantDefinition* variant, VariableIdentifier* value) {
+void write_variant_call_id_index(ToCAstVisitor& visitor, VariableIdentifier* value) {
     const auto member = value->linked->as_variant_member();
     if(member) {
-        *visitor.output << variant->variable_index(member->name, false);
+        *visitor.output << member->parent()->variable_index(member->name, false);
     } else {
         visitor.write("-1");
     }
 }
 
-void write_variant_call_call_index(ToCAstVisitor& visitor, VariantDefinition* variant, FunctionCall* value) {
+void write_variant_call_call_index(ToCAstVisitor& visitor, FunctionCall* value) {
     const auto member = value->parent_val->linked_node()->as_variant_member();
     if(member) {
-        *visitor.output << variant->variable_index(member->name, false);
+        *visitor.output << member->parent()->variable_index(member->name, false);
     } else {
         visitor.write("-1");
     }
 }
 
-void write_variant_call_index(ToCAstVisitor& visitor, VariantDefinition* variant, Value* value) {
+void write_variant_call_index(ToCAstVisitor& visitor, Value* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
-            write_variant_call_id_index(visitor, variant, value->as_identifier_unsafe());
+            write_variant_call_id_index(visitor, value->as_identifier_unsafe());
             return;
         case ValueKind::FunctionCall:
-            write_variant_call_call_index(visitor, variant, value->as_func_call_unsafe());
+            write_variant_call_call_index(visitor, value->as_func_call_unsafe());
             return;
         case ValueKind::AccessChain: {
             const auto chain = value->as_access_chain_unsafe();
             if(chain) {
-                write_variant_call_index(visitor, variant, chain->values.back());
+                write_variant_call_index(visitor, chain->values.back());
             } else {
                 visitor.write("-1");
             }
@@ -4760,7 +4779,7 @@ void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
                 write("case ");
 
                 if(variant) {
-                    write_variant_call_index(*this, variant, switch_case.first);
+                    write_variant_call_index(*this, switch_case.first);
                 } else {
                     visit(switch_case.first);
                 }

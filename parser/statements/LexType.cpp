@@ -151,7 +151,8 @@ LinkedValueType* Parser::parseLinkedValueType(ASTAllocator& allocator, Token* ty
     auto first_id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, type->value), location, true);
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain({ first_id }, false, location);
     while(true) {
-        if(token->type == TokenType::DoubleColonSym) {
+        const auto t = token->type;
+        if(t == TokenType::DoubleColonSym || t == TokenType::DotSym) {
             token++;
             auto new_type = consumeIdentifierOrKeyword();
             if(new_type) {
@@ -552,7 +553,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             type = typeBuilder.getVoidType();
             break;
         default:
-            if(token->type == TokenType::DoubleColonSym) {
+            if(token->type == TokenType::DoubleColonSym || token->type == TokenType::DotSym) {
                 type = parseLinkedValueType(allocator, typeToken, location);
             } else {
                 type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));

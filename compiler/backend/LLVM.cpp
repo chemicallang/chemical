@@ -645,6 +645,31 @@ llvm::Value* IsValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto comp_time = get_comp_time_result();
     if(comp_time.has_value()) {
         result = comp_time.value();
+    } else {
+        const auto linked = type->get_direct_linked_node();
+        if(linked->kind() == ASTNodeKind::VariantMember) {
+            const auto mem = linked->as_variant_member_unsafe();
+            const auto variant_def = mem->parent();
+
+            // loading the type integer from the variant
+            const auto expr_value = value->llvm_value(gen);
+            const auto def_type = variant_def->llvm_type(gen);
+            std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
+            const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
+            const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+            gen.di.instr(loadInst, value);
+
+            // getting the index of the variant member type
+            const auto indexVal = gen.builder->getInt32(variant_def->variable_index(mem->name, false));
+
+            // comparing the type integer with the index of variant member type
+            if(is_negating) {
+                return gen.builder->CreateICmpNE(loadInst, indexVal);
+            } else {
+                return gen.builder->CreateICmpEQ(loadInst, indexVal);
+            }
+
+        }
     }
     return gen.builder->getInt1(result);
 }

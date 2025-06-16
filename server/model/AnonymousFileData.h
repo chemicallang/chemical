@@ -39,8 +39,8 @@ public:
     AnonymousFileData(
             unsigned int fileId,
             std::string abs_path
-    ) : allocator(10000 /** 10 kb **/), abs_path(abs_path),
-        modScope("", "", nullptr), unit(fileId, chem::string_view(abs_path), &modScope)
+    ) : allocator(10000 /** 10 kb **/), abs_path(std::move(abs_path)),
+        modScope("", "", nullptr), unit(fileId, chem::string_view(this->abs_path), &modScope)
     {
 
     }

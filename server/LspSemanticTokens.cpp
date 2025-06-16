@@ -732,6 +732,10 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         // parsing the file to unit
         parse_file(*this, fileData->allocator, astUnit, copied_tokens.data(), &parse_diagnostics);
 
+        // we should shift the resolver allocator to use anonymous file allocator
+        resolver.ast_allocator = &fileData->allocator;
+        resolver.mod_allocator = &fileData->allocator;
+
         // declare and link file
         resolver.declare_and_link_file(astUnit.scope.body, abs_path);
 

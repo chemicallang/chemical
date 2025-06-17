@@ -5,9 +5,13 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/PointerValue.h"
 #include "ast/base/InterpretScope.h"
+#include "compiler/SymbolResolver.h"
 #include <iostream>
 
 bool DereferenceValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    if(linker.safe_context) {
+        linker.warn("dereferencing a pointer in safe context is prohibited", this);
+    }
     return value->link(linker, value);
 }
 

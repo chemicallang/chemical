@@ -378,12 +378,12 @@ VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::str
     return new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
 }
 
-VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, Value* parent_value, SwitchStatement* stmt, uint64_t location) {
-    return new (allocator->allocate<VariantCase>()) VariantCase(parent_value, stmt, location);
+VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, VariantMember* member, SwitchStatement* stmt, uint64_t location) {
+    return new (allocator->allocate<VariantCase>()) VariantCase(member, stmt, location);
 }
 
-VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariableIdentifier* parent_val, SwitchStatement* switch_stmt, uint64_t location) {
-    return new (allocator->allocate<VariantCaseVariable>()) VariantCaseVariable(*name, parent_val, switch_stmt, location);
+VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariantMemberParam* param, SwitchStatement* switch_stmt, uint64_t location) {
+    return new (allocator->allocate<VariantCaseVariable>()) VariantCaseVariable(*name, param, switch_stmt, location);
 }
 
 AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* lhs, Value* rhs, Operation op, ASTNode* parent_node, uint64_t location) {
@@ -610,7 +610,7 @@ void StructValueadd_value(StructValue* structValue, chem::string_view* name, Val
 
 void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable) {
     // TODO remove this method
-    variantCase->identifier_list.emplace_back(std::move(variable->name), nullptr, nullptr, variable->encoded_location());
+    variantCase->identifier_list.emplace_back(variable);
 }
 
 std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {

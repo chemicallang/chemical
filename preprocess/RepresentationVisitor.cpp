@@ -12,6 +12,7 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumMember.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
@@ -961,14 +962,14 @@ void RepresentationVisitor::VisitDeleteStmt(DestructStmt *delStmt) {
 }
 
 void RepresentationVisitor::VisitVariantCase(VariantCase *chain) {
-    visit(chain->parent_val);
+    write(chain->member->name);
     write('(');
     bool is_first = true;
-    for(auto& var : chain->identifier_list) {
+    for(const auto var : chain->identifier_list) {
         if(!is_first) {
             write(", ");
         }
-        visit(&var);
+        visit(var);
         is_first = false;
     }
     write(')');

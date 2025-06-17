@@ -486,9 +486,9 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_identifier(&self, value : &string_view, is_ns : bool, location : ubigint) : *mut VariableIdentifier
 
-    func make_variant_case(&self, chain : *AccessChain, stmt : *SwitchStatement, location : ubigint) : *mut VariantCase
+    func make_variant_case(&self, mem : *VariantMember, stmt : *SwitchStatement, location : ubigint) : *mut VariantCase
 
-    func make_variant_case_variable(&self, name : &string_view, parent_val : *VariableIdentifier, stmt : *SwitchStatement, location : ubigint) : *mut VariantCaseVariable
+    func make_variant_case_variable(&self, name : &string_view, param : *VariantMemberParam, stmt : *SwitchStatement, location : ubigint) : *mut VariantCaseVariable
 
     func make_assignment_stmt(&self, lhs : *Value, rhs : *Value, op : Operation, parent_node : *ASTNode, location : ubigint) : *mut AssignStatement
 

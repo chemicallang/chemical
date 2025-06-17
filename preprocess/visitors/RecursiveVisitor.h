@@ -374,8 +374,9 @@ public:
     }
 
     void VisitVariantCase(VariantCase* value) {
-        visit_it(value->parent_val);
-        // TODO figure out how to handle variant case variables
+        for(auto& var : value->identifier_list) {
+            visit_it(var);
+        }
     }
 
     void VisitAccessChain(AccessChain *chain) {

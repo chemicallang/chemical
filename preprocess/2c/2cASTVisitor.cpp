@@ -4123,7 +4123,7 @@ void ToCAstVisitor::VisitLoopBlock(LoopBlock *loop) {
 }
 
 void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
-    const auto member = variant_case->parent_val->linked_node()->as_variant_member();
+    const auto member = variant_case->member;
     *output << member->parent()->direct_child_index(member->name);
 }
 
@@ -4778,11 +4778,7 @@ void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
                 }
                 write("case ");
 
-                if(variant) {
-                    write_variant_call_index(*this, switch_case.first);
-                } else {
-                    visit(switch_case.first);
-                }
+                visit(switch_case.first);
 
                 write(':');
                 has_line_before = false;
@@ -5063,8 +5059,8 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
             }
             case ASTNodeKind::VariantCaseVariable:{
                 const auto var = linked->as_variant_case_var_unsafe();
-                Value* expr = var->switch_statement->expression;
-                const auto var_mem = var->parent_val->linked_node()->as_variant_member();
+                const auto expr = var->parent()->expression;
+                const auto var_mem = var->member_param->parent();
                 visit(expr);
                 write_accessor(*this, expr, identifier);
                 write(var_mem->name);

@@ -261,9 +261,9 @@ extern "C" {
 
     VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location);
 
-    VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, Value* parent_value, SwitchStatement* stmt, uint64_t location);
+    VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, VariantMember* member, SwitchStatement* stmt, uint64_t location);
 
-    VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariableIdentifier* parent_val, SwitchStatement* switch_stmt, uint64_t location);
+    VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariantMemberParam* param, SwitchStatement* switch_stmt, uint64_t location);
 
     AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* lhs, Value* rhs, Operation op, ASTNode* parent_node, uint64_t location);
 

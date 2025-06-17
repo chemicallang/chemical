@@ -11,19 +11,17 @@ class VariantCaseVariable : public ASTNode {
 public:
 
     chem::string_view name;
-    VariableIdentifier* parent_val;
     VariantMemberParam* member_param;
-    SwitchStatement* switch_statement;
 
     /**
      * variant case
      */
     constexpr VariantCaseVariable(
             chem::string_view name,
-            VariableIdentifier* parent_val,
+            VariantMemberParam* member_param,
             SwitchStatement* switch_statement,
-            SourceLocation token
-    ) : ASTNode(ASTNodeKind::VariantCaseVariable, (ASTNode*) switch_statement, parent_val->encoded_location()), name(name), parent_val(parent_val), switch_statement(switch_statement) {
+            SourceLocation loc
+    ) : ASTNode(ASTNodeKind::VariantCaseVariable, (ASTNode*) switch_statement, loc), name(name), member_param(member_param) {
 
     }
 

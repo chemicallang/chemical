@@ -541,7 +541,7 @@ Value* Parser::parseComptimeValue(ASTAllocator& allocator) {
     auto expr = parseExpression(allocator);
     if(expr) {
         auto last = token;
-        auto evaluated = new (allocator.allocate<ComptimeValue>()) ComptimeValue(&allocator, expr);
+        auto evaluated = new (allocator.allocate<ComptimeValue>()) ComptimeValue(expr);
         const auto last_type = last->type;
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;

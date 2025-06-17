@@ -96,6 +96,7 @@
 #include "ast/values/UCharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
+#include "ast/values/ComptimeValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/values/Int128Value.h"
@@ -5130,6 +5131,15 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
 
     nested_value = prev_nested;
     write(')');
+}
+
+void ToCAstVisitor::VisitComptimeValue(ComptimeValue* value) {
+    const auto evaluated = value->evaluate(allocator, &comptime_scope);
+    if(evaluated) {
+        visit(evaluated);
+    } else {
+        error(value) << "couldn't evaluate comptime value";
+    }
 }
 
 void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {

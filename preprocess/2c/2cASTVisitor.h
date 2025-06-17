@@ -592,7 +592,7 @@ public:
 
     // comptime values are replaced
     // throw error if it exists
-    void VisitComptimeValue(ComptimeValue* value) {}
+    void VisitComptimeValue(ComptimeValue* value);
 
     void VisitAlignOfValue(AlignOfValue* value);
 

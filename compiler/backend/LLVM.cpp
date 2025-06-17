@@ -43,6 +43,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/ComptimeValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/AddrOfValue.h"
@@ -445,6 +446,19 @@ llvm::Value *DereferenceValue::llvm_value(Codegen &gen, BaseType* expected_type)
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
     gen.di.instr(loadInst, this);
     return loadInst;
+}
+
+llvm::Type* ComptimeValue::llvm_type(Codegen &gen) {
+    return value->llvm_type(gen);
+}
+
+llvm::Value* ComptimeValue::llvm_value(Codegen &gen, BaseType *type) {
+    const auto evaluated = evaluate(gen.allocator, &gen.comptime_scope);
+    if(evaluated) {
+        return evaluated->llvm_value(gen, type);
+    } else {
+        gen.error(this) << "couldn't evaluate comptime value";
+    }
 }
 
 llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType) {

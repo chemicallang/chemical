@@ -125,7 +125,7 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
 BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
     if(linked) {
         const auto type = linked->known_type();
-        return type ? type->copy(allocator) : nullptr;
+        return type ? type->copy(allocator) : new (allocator.allocate<VoidType>()) VoidType();;
     } else {
         return new (allocator.allocate<VoidType>()) VoidType();
     }

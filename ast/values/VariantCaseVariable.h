@@ -41,6 +41,12 @@ public:
 
     bool is_generic_param();
 
+    VariantCaseVariable* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<VariantCaseVariable>()) VariantCaseVariable(
+            name, member_param, parent(), encoded_location()
+        );
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Value* llvm_pointer_no_itr(Codegen& gen);

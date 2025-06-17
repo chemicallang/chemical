@@ -77,6 +77,13 @@ func get_sum(v : GenVar<int>) : int {
     }
 }
 
+func <T> get_sum_gen(v : GenVar<T>) : T {
+    switch(v) {
+        First(a, b) => return a + b;
+        Second(a, b, c) => return a + b + c;
+    }
+}
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;
@@ -140,6 +147,18 @@ func test_variants() {
     })
     test("generic variants work - 2", () => {
         return get_sum(GenVar.Second(20, 30, 2)) == 52;
+    })
+    test("generic variants work with generic switch - 1", () => {
+        return get_sum_gen(GenVar.First<short>(20, 30)) == 50;
+    })
+    test("generic variants work with generic switch - 2", () => {
+        return get_sum_gen(GenVar.Second<short>(20, 30, 2)) == 52;
+    })
+    test("generic variants work with generic switch - 3", () => {
+        return get_sum_gen(GenVar.First<long>(20, 30)) == 50;
+    })
+    test("generic variants work with generic switch - 4", () => {
+        return get_sum_gen(GenVar.Second<long>(20, 30, 2)) == 52;
     })
     test("implicit args in variant calls", () => {
         var v = ImpVar22.Some(99)

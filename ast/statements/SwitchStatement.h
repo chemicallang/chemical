@@ -26,24 +26,9 @@ public:
 
     }
 
-    SwitchStatement* copy(ASTAllocator &allocator) override {
-        const auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(
-            expression,
-            parent(),
-            is_value,
-            ASTNode::encoded_location()
-        );
-        stmt->cases.reserve(cases.size());
-        for(auto& aCase : cases) {
-            stmt->cases.emplace_back(aCase.first->copy(allocator), aCase.second);
-        }
-        stmt->scopes.reserve(scopes.size());
-        for(auto& scope : scopes) {
-            stmt->scopes.emplace_back(scope.parent(), scope.encoded_location());
-            scope.copy_into(stmt->scopes.back(), allocator, stmt);
-        }
-        return stmt;
-    }
+    VariantDefinition* getVarDefFromExpr();
+
+    SwitchStatement* copy(ASTAllocator &allocator) override;
 
     bool declare_and_link(SymbolResolver &linker, Value** value_ptr);
 

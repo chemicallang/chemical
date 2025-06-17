@@ -111,6 +111,8 @@ public:
         table.declare(node->name_view(), node);
     }
 
+    void VisitSwitchStmt(SwitchStatement* node);
+
     inline void VisitVariableIdentifier(VariableIdentifier* value) {
         relink_identifier(value);
     }

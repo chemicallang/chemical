@@ -117,6 +117,72 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
     }
 }
 
+void GenericInstantiator::VisitSwitchStmt(SwitchStatement* stmt) {
+    visit_it(stmt->expression);
+    const auto varDef = stmt->getVarDefFromExpr();
+    if(varDef == nullptr) {
+        for (auto& thing: stmt->cases) {
+            visit_it(thing.first);
+        }
+        for (auto& scope: stmt->scopes) {
+            visit_it(scope);
+        }
+        return;
+    }
+
+    // we must switch the pointers to variant definition properly
+    for(auto& aCase : stmt->cases) {
+        if(aCase.first->kind() == ValueKind::VariantCase) {
+            const auto varCase = aCase.first->as_variant_case_unsafe();
+            const auto newChild = varDef->child(varCase->member->name);
+            if(newChild && newChild->kind() == ASTNodeKind::VariantMember) {
+                const auto newMem = newChild->as_variant_member_unsafe();
+                varCase->member = newMem;
+                for(const auto caseVar : varCase->identifier_list) {
+                    auto foundNewVar = newMem->values.find(caseVar->name);
+                    if(foundNewVar != newMem->values.end()) {
+                        caseVar->member_param = foundNewVar->second;
+                    } else {
+                        diagnoser.error(aCase.first) << "couldn't find variant member by name '" << caseVar->name << "' during generic instantiation";
+                    }
+                }
+            } else {
+                diagnoser.error(aCase.first) << "couldn't find variant member by name '" << varCase->member->name << "' during generic instantiation";
+            }
+        }
+    }
+
+    // now when linking scopes, we must declare the variant case variables
+    // so users (identifiers) point to new variant case variables
+    int i = 0;
+    const auto total = stmt->scopes.size();
+    while(i < total) {
+        auto& scope = stmt->scopes[i];
+
+        // start a scope for variant case variables
+        table.scope_start();
+
+        // get and declare variant case variables
+        for(auto& aCase : stmt->cases) {
+            if(aCase.first->kind() == ValueKind::VariantCase && aCase.second == i) {
+                const auto variantCase = aCase.first->as_variant_case_unsafe();
+                for(const auto caseVar : variantCase->identifier_list) {
+                    table.declare(caseVar->name, caseVar);
+                }
+            }
+        }
+
+        // linking the scope
+        visit_it(scope);
+
+        // end the scope to delete all the variant case variables
+        table.scope_end();
+
+        i++;
+    }
+
+}
+
 /**
  * what it checks is whether the argument types are linked with given generic types parameters in order
  */

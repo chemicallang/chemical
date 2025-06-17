@@ -46,42 +46,42 @@ void SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value
     gen.current_assignable = prev_assignable;
 }
 
-llvm::ConstantInt* write_variant_call_id_index(Codegen& gen, VariantDefinition* variant, VariableIdentifier* value) {
-    const auto member = value->linked->as_variant_member();
-    if(member) {
-        return gen.builder->getInt32(variant->variable_index(member->name, false));
-    } else {
-        return gen.builder->getInt32(-1);
-    }
-}
-
-llvm::ConstantInt* write_variant_call_call_index(Codegen& gen, VariantDefinition* variant, FunctionCall* value) {
-    const auto member = value->parent_val->linked_node()->as_variant_member();
-    if(member) {
-        return gen.builder->getInt32(variant->variable_index(member->name, false));
-    } else {
-        return gen.builder->getInt32(-1);
-    }
-}
-
-llvm::ConstantInt* write_variant_call_index(Codegen& gen, VariantDefinition* variant, Value* value) {
-    switch(value->val_kind()) {
-        case ValueKind::Identifier:
-            return write_variant_call_id_index(gen, variant, value->as_identifier_unsafe());
-        case ValueKind::FunctionCall:
-            return write_variant_call_call_index(gen, variant, value->as_func_call_unsafe());
-        case ValueKind::AccessChain: {
-            const auto chain = value->as_access_chain_unsafe();
-            if(chain) {
-                return write_variant_call_index(gen, variant, chain->values.back());
-            } else {
-                return gen.builder->getInt32(-1);
-            }
-        }
-        default:
-            return gen.builder->getInt32(-1);
-    }
-}
+//llvm::ConstantInt* write_variant_call_id_index(Codegen& gen, VariantDefinition* variant, VariableIdentifier* value) {
+//    const auto member = value->linked->as_variant_member();
+//    if(member) {
+//        return gen.builder->getInt32(variant->variable_index(member->name, false));
+//    } else {
+//        return gen.builder->getInt32(-1);
+//    }
+//}
+//
+//llvm::ConstantInt* write_variant_call_call_index(Codegen& gen, VariantDefinition* variant, FunctionCall* value) {
+//    const auto member = value->parent_val->linked_node()->as_variant_member();
+//    if(member) {
+//        return gen.builder->getInt32(variant->variable_index(member->name, false));
+//    } else {
+//        return gen.builder->getInt32(-1);
+//    }
+//}
+//
+//llvm::ConstantInt* write_variant_call_index(Codegen& gen, VariantDefinition* variant, Value* value) {
+//    switch(value->val_kind()) {
+//        case ValueKind::Identifier:
+//            return write_variant_call_id_index(gen, variant, value->as_identifier_unsafe());
+//        case ValueKind::FunctionCall:
+//            return write_variant_call_call_index(gen, variant, value->as_func_call_unsafe());
+//        case ValueKind::AccessChain: {
+//            const auto chain = value->as_access_chain_unsafe();
+//            if(chain) {
+//                return write_variant_call_index(gen, variant, chain->values.back());
+//            } else {
+//                return gen.builder->getInt32(-1);
+//            }
+//        }
+//        default:
+//            return gen.builder->getInt32(-1);
+//    }
+//}
 
 /// Implicitly casts an integer constant to the target integer type,
 /// performing sign or zero extension (or truncation) as needed.
@@ -197,16 +197,12 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
         for(auto& switch_case : cases) {
             if(switch_case.second == scope_ind) {
-                if(variant_def) {
-                    switchInst->addCase(write_variant_call_index(gen, variant_def, switch_case.first), caseBlock);
+                const auto caseValue =  switch_case.first->llvm_value(gen);
+                if(llvm::isa<llvm::ConstantInt>(caseValue)) {
+                    const auto castedCase = implicit_cast_constant((llvm::ConstantInt*) caseValue, expr_type, expr_value->getType());
+                    switchInst->addCase(castedCase, caseBlock);
                 } else {
-                    const auto caseValue =  switch_case.first->llvm_value(gen);
-                    if(llvm::isa<llvm::ConstantInt>(caseValue)) {
-                        const auto castedCase = implicit_cast_constant((llvm::ConstantInt*) caseValue, expr_type, expr_value->getType());
-                        switchInst->addCase(castedCase, caseBlock);
-                    } else {
-                        gen.error("switch case value is not a constant", switch_case.first);
-                    }
+                    gen.error("switch case value is not a constant", switch_case.first);
                 }
             }
         }
@@ -264,30 +260,52 @@ ASTNode *SwitchStatement::linked_node() {
     return known ? known->linked_node() : nullptr;
 }
 
-void link_variant_mem(SymbolResolver& resolver, VariantDefinition* var_def, VariableIdentifier* id) {
-    id->linked = var_def->child(id->value);
-    if(!id->linked) {
+VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, VariableIdentifier* id) {
+    auto& allocator = *resolver.ast_allocator;
+    const auto child = def->child(id->value);
+    if(child) {
+        if(child->kind() == ASTNodeKind::VariantMember) {
+            return new (allocator.allocate<VariantCase>()) VariantCase(child->as_variant_member_unsafe(), stmt, id->encoded_location());
+        } else {
+            resolver.error(id) << "couldn't find variant member with name '" << id->value << "'";
+        }
+    } else {
         resolver.error(id) << "couldn't find the variant member with name '" << id->value << "'";
     }
+    return nullptr;
 }
 
-void link_variant_call(SymbolResolver& resolver, VariantDefinition* var_def, FunctionCall* call, SwitchStatement* stmt) {
+VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, FunctionCall* call) {
     auto& astAlloc = *resolver.ast_allocator;
-    const auto first_id = call->parent_val->as_identifier();
-    if(first_id) {
-        link_variant_mem(resolver, var_def, first_id);
-        for(const auto value : call->values) {
-            const auto id = value->as_identifier();
-            if(id) {
-                auto variable = new (astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, first_id, stmt, 0);
-                variable->declare_and_link(resolver, (ASTNode*&) (variable));
-            } else {
-                resolver.error("expected value to be a identifier", value);
+    if(call->parent_val->kind() == ValueKind::Identifier) {
+        const auto first_id = call->parent_val->as_identifier_unsafe();
+        const auto varCase = create_variant_case(resolver, stmt, def, first_id);
+        if(varCase) {
+            // put all values as variant case variables
+            for (const auto value: call->values) {
+                if (value->kind() == ValueKind::Identifier) {
+                    const auto id = value->as_identifier_unsafe();
+                    const auto param = varCase->member->values.find(id->value);
+                    if (param != varCase->member->values.end()) {
+
+                        auto variable = new(astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, 0);
+                        varCase->identifier_list.emplace_back(variable);
+                        variable->declare_and_link(resolver, (ASTNode*&) (variable));
+
+                    } else {
+                        resolver.error("couldn't find variant member parameter with that name", value);
+                    }
+                } else {
+                    resolver.error("expected value to be a identifier", value);
+                }
             }
+            return varCase;
         }
+        return nullptr;
     } else {
         resolver.error("expected first value in the function call to be identifier", call->parent_val);
     }
+    return nullptr;
 }
 
 bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
@@ -340,20 +358,34 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
                     // link with the case
                     const auto case_kind = switch_case.first->val_kind();
                     switch(case_kind) {
-                        case ValueKind::Identifier:
-                            link_variant_mem(linker, variant_def, switch_case.first->as_identifier_unsafe());
+                        case ValueKind::Identifier: {
+                            const auto varCase = create_variant_case(linker, this, variant_def, switch_case.first->as_identifier_unsafe());
+                            if (varCase) {
+                                switch_case.first = varCase;
+                            }
                             continue;
-                        case ValueKind::FunctionCall:
-                            link_variant_call(linker, variant_def, switch_case.first->as_func_call_unsafe(), this);
+                        }
+                        case ValueKind::FunctionCall: {
+                            const auto varCase = create_variant_case(linker, this, variant_def, switch_case.first->as_func_call_unsafe());
+                            if (varCase) {
+                                switch_case.first = varCase;
+                            }
                             continue;
+                        }
                         case ValueKind::AccessChain:{
                             const auto chain = switch_case.first->as_access_chain_unsafe();
                             if(chain && chain->values.size() == 1) {
                                 const auto kind = chain->values.back()->val_kind();
                                 if(kind == ValueKind::FunctionCall) {
-                                    link_variant_call(linker, variant_def, chain->values.back()->as_func_call_unsafe(), this);
+                                    const auto varCase = create_variant_case(linker, this, variant_def, chain->values.back()->as_func_call_unsafe());
+                                    if(varCase) {
+                                        switch_case.first = varCase;
+                                    }
                                 } else if(kind == ValueKind::Identifier) {
-                                    link_variant_mem(linker, variant_def, chain->values.back()->as_identifier_unsafe());
+                                    const auto varCase = create_variant_case(linker, this, variant_def, chain->values.back()->as_identifier_unsafe());
+                                    if(varCase) {
+                                        switch_case.first = varCase;
+                                    }
                                 } else {
                                     linker.error("unknown value in switch when resolving variant cases", switch_case.first);
                                 }

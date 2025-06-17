@@ -150,10 +150,10 @@ bool VariantMemberParam::add_child_index(Codegen& gen, std::vector<llvm::Value *
 }
 
 llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
-    const auto linked_member = parent_val->linked_node()->as_variant_member();
+    const auto linked_member = member;
     auto index = linked_member->parent()->direct_child_index(linked_member->name);
     if(index == -1) {
-        gen.error(this) << "couldn't find case index of variant member '" << parent_val->representation() << "'";
+        gen.error(this) << "couldn't find case index of variant member '" << linked_member->name << "'";
         return nullptr;
     } else {
         return gen.builder->getInt32(index);
@@ -161,8 +161,9 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
+    const auto switch_statement = parent();
     const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
-    const auto linked_member = parent_val->linked_node()->as_variant_member();
+    const auto linked_member = member_param->parent();
     const auto linked_def = linked_member->parent();
     const auto largest_member = linked_def->largest_member()->as_variant_member_unsafe();
     llvm::Type* container_type;
@@ -176,14 +177,14 @@ llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
-    const auto expr = switch_statement->expression;
+    const auto expr = parent()->expression;
     const auto expr_type = expr->create_type(gen.allocator);
     const auto ptr = llvm_pointer_no_itr(gen);
     return ptr;
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen& gen, SourceLocation location) {
-    const auto expr = switch_statement->expression;
+    const auto expr = parent()->expression;
     const auto expr_type = expr->create_type(gen.allocator);
     const auto value = Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer_no_itr(gen), location);
     return value;
@@ -326,17 +327,11 @@ ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
 }
 
 bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
-    Value* empty_val = nullptr;
-    parent_val->link(linker, empty_val, nullptr);
-    for(auto& variable : identifier_list) {
-        variable.declare_and_link(linker, (ASTNode*&) variable);
-    }
     return true;
 }
 
 void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    const auto member = parent_val->linked_node()->as_variant_member();
+    const auto member = member_param->parent();
     auto node = member->values.find(name);
     if(node == member->values.end()) {
         linker.error(this) << "variant case member variable not found in switch statement, name '" << name << "' not found";

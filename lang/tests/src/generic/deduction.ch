@@ -15,7 +15,6 @@ variant DeduceThingVar<T> {
     None()
 }
 
-/** TODO variant call in switch case tries to instantiate
 func <T> deduce_thing_var(thing : DeduceThingVar<T>) : T {
     switch(thing) {
         Some(value) => {
@@ -26,7 +25,6 @@ func <T> deduce_thing_var(thing : DeduceThingVar<T>) : T {
         }
     }
 }
-**/
 
 func <T> give_gen_ret(a : int, b : int) : T {
     return a + b;
@@ -59,7 +57,6 @@ func test_generic_type_deduction() {
         }
         return deduce_thing(s) == 40;
     })
-    /** TODO fix variant call generic deduction
     test("nested generic type parameters can be deduced in function call - 1", () => {
         const s = DeduceThingVar.Some<int>(20)
         return deduce_thing_var(s) == 20;
@@ -68,7 +65,6 @@ func test_generic_type_deduction() {
         const s = DeduceThingVar.Some<long>(40)
         return deduce_thing_var(s) == 40;
     })
-    **/
     // TODO these types weren't being inferred, however we are unsure if we should
     //    infer the type from return statement
     test("generic return type can be deduced when in function call - 1", () => {

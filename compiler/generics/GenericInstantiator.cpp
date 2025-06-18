@@ -48,7 +48,7 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(allocator, diagnoser);
+    GenericInstantiator instantiator(container, allocator, diagnoser);
     GenericInstantiatorAPI genApi(&instantiator);
     if(!call->instantiate_gen_call(genApi, nullptr)) {
         diagnoser.error("couldn't instantiate call", call);
@@ -111,7 +111,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(allocator, diagnoser);
+        GenericInstantiator instantiator(container, allocator, diagnoser);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi);
     }
@@ -229,7 +229,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiator instantiator(container, allocator, diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_struct_def_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -243,7 +243,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiator instantiator(container, allocator, diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_union_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -257,7 +257,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiator instantiator(container, allocator, diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_interface_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -272,7 +272,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiator instantiator(container, allocator, diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -286,7 +286,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(allocator, diagnoser);
+            GenericInstantiator instantiator(container, allocator, diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_type_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -300,6 +300,15 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
 
 void GenericInstantiator::Clear() {
     table.clear();
+}
+
+void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t itr) {
+    auto types = container.getInstantiationTypesFor(gen_decl)[itr];
+    unsigned i = 0;
+    for(const auto param : gen_decl->generic_params) {
+        param->set_active_type(types[i]);
+        i++;
+    }
 }
 
 void GenericInstantiator::FinalizeSignature(TypealiasStatement* impl) {
@@ -319,9 +328,7 @@ void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStat
     current_gen = decl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // finalize the signature of typealias instantiation
     FinalizeSignature(impl);
@@ -358,9 +365,7 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, FunctionDecla
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // finalize signature of the function
     FinalizeSignature(impl);
@@ -384,9 +389,7 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, FunctionDeclaratio
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // visit the body if exists
     if(impl->body.has_value()) {
@@ -425,9 +428,7 @@ void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, StructDefin
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -464,9 +465,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // create a symbol scope
     table.scope_start();
@@ -530,9 +529,7 @@ void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, UnionDef* im
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -568,9 +565,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // create a symbol scope
     table.scope_start();
@@ -633,9 +628,7 @@ void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, Interfac
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -671,9 +664,7 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // create a symbol scope
     table.scope_start();
@@ -736,9 +727,7 @@ void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, VariantDef
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -774,9 +763,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // create a symbol scope
     table.scope_start();
@@ -839,9 +826,7 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // visiting inherited types
     for(auto& inh : impl->inherited) {
@@ -876,9 +861,7 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
     current_impl_ptr = impl;
 
     // activating iteration in params
-    for(const auto param : decl->generic_params) {
-        param->set_active_iteration((int) itr);
-    }
+    activateIteration(decl, itr);
 
     // create a symbol scope
     table.scope_start();
@@ -1022,9 +1005,10 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, const std::span<Im
 // Generic Instantiator API
 
 GenericInstantiatorAPI::GenericInstantiatorAPI(
+    InstantiationsContainer& container,
     ASTAllocator& astAllocator,
     ASTDiagnoser& diagnoser
-) : giPtr(new GenericInstantiator(astAllocator, diagnoser)) {
+) : giPtr(new GenericInstantiator(container, astAllocator, diagnoser)) {
 
 }
 
@@ -1032,6 +1016,10 @@ GenericInstantiatorAPI::~GenericInstantiatorAPI() {
     if(owns) {
         delete giPtr;
     }
+}
+
+InstantiationsContainer& GenericInstantiatorAPI::getContainer() {
+    return giPtr->container;
 }
 
 ASTAllocator& GenericInstantiatorAPI::getAllocator() {
@@ -1044,7 +1032,7 @@ ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
 
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
     const auto prev = giPtr;
-    giPtr = new GenericInstantiator(allocator, giPtr->diagnoser);
+    giPtr = new GenericInstantiator(giPtr->container, allocator, giPtr->diagnoser);
     if(owns) {
         delete prev;
     }

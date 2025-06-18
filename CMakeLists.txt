@@ -557,6 +557,7 @@ set(COMMON_SOURCES
         compiler/typeverify/TypeVerify.h
         compiler/typeverify/TypeVerifyAPI.h
         compiler/typeverify/TypeVerify.cpp
+        compiler/generics/InstantiationsContainer.h
 )
 
 # Chemical LSP Executable Target

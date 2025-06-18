@@ -10,6 +10,7 @@
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/symres/SymbolRange.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
+#include "compiler/generics/InstantiationsContainer.h"
 
 class ASTNode;
 
@@ -189,6 +190,11 @@ public:
      * symbol resolved
      */
     ASTAllocator& allocator;
+
+    /**
+     * this contains the generic instantiations
+     */
+    InstantiationsContainer instantiations_container;
 
     /**
      * the generic instantiator, that instantiates concrete generic implementations

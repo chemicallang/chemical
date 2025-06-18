@@ -999,18 +999,6 @@ void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& no
     }
 }
 
-void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* type) {
-    if(type) {
-        usage.emplace_back(type->copy(allocator));
-    } else {
-        if(def_type) {
-            usage.emplace_back(def_type->copy(allocator));
-        } else {
-            std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent()->get_located_id()->identifier << std::endl;
-        }
-    }
-}
-
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();

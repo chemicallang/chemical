@@ -10,6 +10,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "StructMemberInitializer.h"
 #include "ast/statements/VarInit.h"
+#include "compiler/generics/InstantiationsContainer.h"
 
 class NameMangler;
 

@@ -213,67 +213,62 @@ void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& r
 #endif
 }
 
-int16_t get_iteration_for(std::vector<GenericTypeParameter*>& generic_params, std::vector<TypeLoc>& generic_list) {
-    if(!generic_params.empty()) {
-        int16_t i = 0;
-        unsigned j;
-        const auto total = generic_params[0]->usage.size();
-        while(i < total) {
-            j = 0;
-            bool all_params_found = true;
-            for(auto& param : generic_params) {
-                const auto generic_arg = j < generic_list.size() ? generic_list[j] : nullptr;
-                const auto generic_arg_pure = generic_arg ? generic_arg->canonical() : param->def_type;
-                if(!generic_arg_pure || !param->usage[i]->is_same(generic_arg_pure)) {
-                    all_params_found = false;
-                    break;
-                }
-                j++;
-            }
-            if(all_params_found) {
-                break;
-            }
-            i++;
-        }
-        if(i == total) {
-            return -1;
-        }
-        return i;
-    } else {
-        return 0;
-    }
-}
-
-int16_t total_generic_iterations(std::vector<GenericTypeParameter*>& generic_params) {
-    if(generic_params.empty()) {
-        return 1;
-    } else {
-        return (int16_t) generic_params[0]->usage.size();
-    }
-}
-
-int16_t register_generic_usage_no_check(
-    ASTAllocator& allocator,
-    std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<TypeLoc>& generic_list
+int16_t get_iteration_for(
+        const std::span<std::span<BaseType*>>& instantiations,
+        std::vector<TypeLoc>& generic_list
 ) {
     int16_t i = 0;
-    for (const auto param: generic_params) {
-        const auto arg_type = i < generic_list.size() ? generic_list[i] : param->def_type;
-        param->register_usage(allocator, arg_type);
+    unsigned j;
+    const auto total = instantiations.size();
+    while(i < total) {
+        bool all_params_found = true;
+        auto& instantiation = instantiations[i];
+        j = 0;
+        for(const auto instType : instantiation) {
+            const auto generic_arg_pure = generic_list[j]->canonical();
+            if(!generic_arg_pure || !instType->is_same(generic_arg_pure)) {
+                all_params_found = false;
+                break;
+            }
+            j++;
+        }
+        if(all_params_found) {
+            break;
+        }
         i++;
     }
-    return (int16_t) ((int16_t) total_generic_iterations(generic_params) - (int16_t) 1);
+    if(i == total) {
+        return -1;
+    }
+    return i;
 }
 
 std::pair<int16_t, bool> register_generic_usage(
         ASTAllocator& astAllocator,
-        std::vector<GenericTypeParameter*>& generic_params,
-        std::vector<TypeLoc>& generic_list
+        void* key,
+        InstantiationsContainer& container,
+        std::vector<TypeLoc>& generic_list,
+        std::vector<void*>& instVec
 ) {
-    int16_t i = get_iteration_for(generic_params, generic_list);
+
+    // check if previous instantiation already exists
+    auto instantiations = container.getInstantiationTypesFor(key);
+    auto i = get_iteration_for(instantiations, generic_list);
     if(i != -1) return { i, false};
-    return {register_generic_usage_no_check(astAllocator, generic_params, generic_list), true };
+
+    // allocate generic list vector on the allocator (so we can pass it around as a span)
+    const auto initial = (BaseType**) astAllocator.allocate_released_size(sizeof(void*) * generic_list.size(), alignof(void*));
+    auto vec = initial;
+    for(auto& type : generic_list) {
+        *vec = const_cast<BaseType*>(type.getType());
+        vec++;
+    }
+    auto generic_list_allocated = std::span<BaseType*>(initial, generic_list.size());
+
+    // register the instantiation
+    const auto index = container.registerInstantiation(key, generic_list_allocated, instVec);
+    return { (int16_t) index, true };
+
 }
 
 bool is_node_parent_of(ASTNode* params_node, GenericTypeParameter* param) {

@@ -18,7 +18,6 @@ public:
     chem::string_view identifier;
     TypeLoc at_least_type;
     TypeLoc def_type;
-    std::vector<BaseType*> usage;
     // TODO use int32 here
      // <-- index of active type in usage vector
     unsigned param_index = 0; // <-- index in the generic type parameters
@@ -43,15 +42,8 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
-    void register_usage(ASTAllocator& allocator, BaseType* type);
-
-    void set_active_iteration(int iteration) {
-#ifdef DEBUG
-        if(iteration < 0 || iteration >= usage.size()) {
-            throw std::runtime_error("wrong iteration");
-        }
-#endif
-        active_type = usage[iteration];
+    void set_active_type(BaseType* type) {
+        active_type = type;
     }
 
     void deactivate_iteration() {

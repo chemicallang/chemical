@@ -19,7 +19,7 @@ SymbolResolver::SymbolResolver(
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
 ) : comptime_scope(global), path_handler(handler), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
-    mod_allocator(modAllocator), ast_allocator(astAllocator), genericInstantiator(*astAllocator, *this), table(512)
+    mod_allocator(modAllocator), ast_allocator(astAllocator), genericInstantiator(instantiations_container, *astAllocator, *this), table(512)
 {
     global_scope_start();
     stored_file_symbols.reserve(128);

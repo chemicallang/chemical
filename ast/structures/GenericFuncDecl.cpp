@@ -120,6 +120,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     BaseType* expected_type
 ) {
 
+    auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
 
@@ -144,7 +145,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         return nullptr;
     }
 
-    const auto itr = register_generic_usage(allocator, generic_params, generic_args);
+    const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
 
     // this will only happen, when we probably couldn't infer the generic args
     if(itr.first == -1) {

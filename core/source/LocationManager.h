@@ -124,6 +124,14 @@ public:
     }
 
     /**
+     * get the file id for the following source location
+     */
+    [[nodicard]]
+    unsigned int getFileId(SourceLocation loc) const {
+        return getLocation(loc.encoded).fileId;
+    }
+
+    /**
      * method only should be used if not using any other method for a single location
      */
     uint32_t getLineStartFast(SourceLocation data);

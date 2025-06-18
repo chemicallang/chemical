@@ -5,6 +5,7 @@
 #include "GenericMembersDecl.h"
 #include "ast/structures/StructDefinition.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
+#include "compiler/generics/InstantiationsContainer.h"
 
 /**
  * summary:

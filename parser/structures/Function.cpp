@@ -238,6 +238,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
             }
             auto parameter = new (allocator.allocate<GenericTypeParameter>()) GenericTypeParameter(allocate_view(allocator, id->value), nullptr, nullptr, parent_node, param_index, loc_single(id));
             params.emplace_back(parameter);
+            param_index++;
 
 #ifdef LSP_BUILD
             id->linked = parameter;

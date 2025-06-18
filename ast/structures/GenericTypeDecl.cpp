@@ -41,12 +41,13 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAP
         i++;
     }
 
+    auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
 
-    const auto itr = register_generic_usage(allocator, generic_params, generic_args);
+    const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
-        // iteration already exist
+        // iteration already exists
         return instantiations[itr.first];
     }
 

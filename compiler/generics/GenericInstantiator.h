@@ -4,9 +4,15 @@
 
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include "compiler/symres/SymbolTable.h"
+#include "compiler/generics/InstantiationsContainer.h"
 
 class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
+
+    /**
+     * instantiations container contains types for each instantiation
+     */
+    InstantiationsContainer& container;
 
     /**
      * the allocator which allows to allocate memory for all instantiations
@@ -39,9 +45,10 @@ public:
      * the allocator must be an ast allocator
      */
     GenericInstantiator(
+        InstantiationsContainer& container,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser
-    ) : allocator(allocator), diagnoser(diagnoser), table() {
+    ) : container(container), allocator(allocator), diagnoser(diagnoser), table() {
 
     }
 
@@ -120,6 +127,8 @@ public:
     void VisitAccessChain(AccessChain* value);
 
     void VisitFunctionCall(FunctionCall *call);
+
+    void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 
     void FinalizeSignature(TypealiasStatement* decl);
 

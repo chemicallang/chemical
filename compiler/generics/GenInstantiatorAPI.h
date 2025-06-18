@@ -7,6 +7,8 @@
 
 class GenericInstantiator;
 
+class InstantiationsContainer;
+
 class GenericInstantiatorAPI {
 private:
     /**
@@ -32,6 +34,7 @@ public:
      * the constructor
      */
     GenericInstantiatorAPI(
+        InstantiationsContainer& container,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser
     );
@@ -40,6 +43,11 @@ public:
      * must not perform a copy
      */
     GenericInstantiatorAPI(const GenericInstantiatorAPI& other) = delete;
+
+    /**
+     * get the container
+     */
+    InstantiationsContainer& getContainer();
 
     /**
      * get the allocator

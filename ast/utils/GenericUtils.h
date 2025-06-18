@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <span>
+#include "compiler/generics/InstantiationsContainer.h"
 
 class BaseType;
 
@@ -17,23 +18,15 @@ bool are_all_specialized(const std::span<TypeLoc>& types);
  * non generic functions return 0
  */
 int16_t get_iteration_for(
-    std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<TypeLoc>& generic_list
+        const std::vector<std::span<BaseType*>>& instantiations,
+        std::vector<TypeLoc>& generic_list
 );
 
 /**
- * how many actual functions are generated from this generic function
- * non-generic functions return 1
+ * get iteration for given generic args, if it exists, otherwise returns -1
+ * non generic functions return 0
  */
-int16_t total_generic_iterations(std::vector<GenericTypeParameter*>& generic_params);
-
-/**
- * this means it doesn't check for existing usages of the generic, and forces to register
- * an iteration for the given generic args, this should be called carefully only after
- * checking that get_iteration_for(args) == -1 is true (meaning it doesn't exist)
- */
-int16_t register_generic_usage_no_check(
-    ASTAllocator& allocator,
+int16_t get_iteration_for(
     std::vector<GenericTypeParameter*>& generic_params,
     std::vector<TypeLoc>& generic_list
 );
@@ -47,9 +40,11 @@ int16_t register_generic_usage_no_check(
  * couldn't find iteration and had to create one
  */
 std::pair<int16_t, bool> register_generic_usage(
-    ASTAllocator& astAllocator,
-    std::vector<GenericTypeParameter*>& generic_params,
-    std::vector<TypeLoc>& generic_list
+        ASTAllocator& astAllocator,
+        void* key,
+        InstantiationsContainer& container,
+        std::vector<TypeLoc>& generic_list,
+        std::vector<void*>& instVec
 );
 
 /**

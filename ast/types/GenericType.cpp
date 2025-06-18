@@ -27,31 +27,56 @@ bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
         case ASTNodeKind::GenericStructDecl:
             if(are_all_specialized(types)) {
                 // relink generic struct decl with instantiated type, only if all types are specialized
-                referenced->linked = linked->as_gen_struct_def_unsafe()->register_generic_args(linker.genericInstantiator, types);
+                const auto impl = linked->as_gen_struct_def_unsafe()->instantiate_type(linker.genericInstantiator, types);
+                if(!impl) {
+                    linker.error("couldn't instantiate generic type", loc);
+                    return false;
+                }
+                referenced->linked = impl;
             }
             break;
         case ASTNodeKind::GenericUnionDecl:
             if(are_all_specialized(types)) {
                 // relink generic struct decl with instantiated type, only if all types are specialized
-                referenced->linked = linked->as_gen_union_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+                const auto impl = linked->as_gen_union_decl_unsafe()->instantiate_type(linker.genericInstantiator, types);
+                if(!impl) {
+                    linker.error("couldn't instantiate generic type", loc);
+                    return false;
+                }
+                referenced->linked = impl;
             }
             break;
         case ASTNodeKind::GenericInterfaceDecl:
             if(are_all_specialized(types)) {
                 // relink generic struct decl with instantiated type, only if all types are specialized
-                referenced->linked = linked->as_gen_interface_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+                const auto impl = linked->as_gen_interface_decl_unsafe()->instantiate_type(linker.genericInstantiator, types);
+                if(!impl) {
+                    linker.error("couldn't instantiate generic type", loc);
+                    return false;
+                }
+                referenced->linked = impl;
             }
             break;
         case ASTNodeKind::GenericVariantDecl:
             if(are_all_specialized(types)) {
                 // relink generic struct decl with instantiated type, only if all types are specialized
-                referenced->linked = linked->as_gen_variant_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+                const auto impl = linked->as_gen_variant_decl_unsafe()->instantiate_type(linker.genericInstantiator, types);
+                if(!impl) {
+                    linker.error("couldn't instantiate generic type", loc);
+                    return false;
+                }
+                referenced->linked = impl;
             }
             break;
         case ASTNodeKind::GenericTypeDecl:
             if(are_all_specialized(types)) {
                 // relink generic type decl with instantiated type, only if all types are specialized
-                referenced->linked = linked->as_gen_type_decl_unsafe()->register_generic_args(linker.genericInstantiator, types);
+                const auto impl = linked->as_gen_type_decl_unsafe()->instantiate_type(linker.genericInstantiator, types);
+                if(!impl) {
+                    linker.error("couldn't instantiate generic type", loc);
+                    return false;
+                }
+                referenced->linked = impl;
             }
             break;
         default:

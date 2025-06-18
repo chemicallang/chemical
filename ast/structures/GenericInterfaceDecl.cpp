@@ -84,15 +84,7 @@ void GenericInterfaceDecl::declare_and_link(SymbolResolver &linker, ASTNode *&no
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-InterfaceDefinition* GenericInterfaceDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
-
-    const auto types_size = types.size();
-    std::vector<TypeLoc> generic_args(types_size, TypeLoc(nullptr));
-    unsigned i = 0;
-    for(auto& type : types) {
-        generic_args[i] = type;
-        i++;
-    }
+InterfaceDefinition* GenericInterfaceDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
 
     auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
@@ -151,6 +143,31 @@ InterfaceDefinition* GenericInterfaceDecl::register_generic_args(GenericInstanti
     }
 
     return impl;
+
+}
+
+InterfaceDefinition* GenericInterfaceDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
+
+    auto& diagnoser = instantiator.getDiagnoser();
+
+    const auto total = generic_params.size();
+    std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
+
+    // default the generic args (to contain default type from generic parameters)
+    default_generic_args(generic_args, generic_params, types);
+
+    // check all types have been inferred
+    unsigned i = 0;
+    for(const auto arg : generic_args) {
+        if(arg == nullptr) {
+            diagnoser.error(arg.encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i);
+            return nullptr;
+        }
+        i++;
+    }
+
+    return register_generic_args(instantiator, generic_args);
+
 
 }
 

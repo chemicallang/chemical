@@ -368,3 +368,24 @@ void infer_types_by_args(
             return;
     }
 }
+
+void default_generic_args(
+        std::vector<TypeLoc>& out_generic_args,
+        std::vector<GenericTypeParameter*>& generic_params,
+        std::vector<TypeLoc>& user_generic_list
+) {
+    // set all to default type (if default type is not present, it would automatically be nullptr)
+    const auto total = generic_params.size();
+    unsigned i = 0;
+    while(i < total) {
+        out_generic_args[i] = generic_params[i]->def_type;
+        i++;
+    }
+
+    // set given generic args to generic parameters
+    i = 0;
+    for(auto& arg : user_generic_list) {
+        out_generic_args[i] = arg;
+        i++;
+    }
+}

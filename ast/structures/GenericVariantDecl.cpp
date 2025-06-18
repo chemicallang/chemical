@@ -92,15 +92,7 @@ void GenericVariantDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node
     linker.genericInstantiator.FinalizeBody(this, instantiations);
 }
 
-VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
-
-    const auto types_size = types.size();
-    std::vector<TypeLoc> generic_args(types_size, TypeLoc(nullptr));
-    unsigned i = 0;
-    for(auto& type : types) {
-        generic_args[i] = type;
-        i++;
-    }
+VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
 
     auto& container = instantiator.getContainer();
     auto& allocator = instantiator.getAllocator();
@@ -173,6 +165,30 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
 
 }
 
+VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
+
+    auto& diagnoser = instantiator.getDiagnoser();
+
+    const auto total = generic_params.size();
+    std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
+
+    // default the generic args (to contain default type from generic parameters)
+    default_generic_args(generic_args, generic_params, types);
+
+    // check all types have been inferred
+    unsigned i = 0;
+    for(const auto arg : generic_args) {
+        if(arg == nullptr) {
+            diagnoser.error(arg.encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i);
+            return nullptr;
+        }
+        i++;
+    }
+
+    return register_generic_args(instantiator, generic_args);
+
+}
+
 VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& instantiator, FunctionCall* call, BaseType* expected_type) {
 
     auto& allocator = instantiator.getAllocator();
@@ -181,24 +197,16 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
     const auto total = generic_params.size();
     std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
 
-    // set all to default type (if default type is not present, it would automatically be nullptr)
-    unsigned i = 0;
-    while(i < total) {
-        generic_args[i] = generic_params[i]->def_type;
-        i++;
-    }
-
-    // set given generic args to generic parameters
-    i = 0;
-    for(auto& arg : call->generic_list) {
-        generic_args[i] = arg;
-        i++;
-    }
+    // default the generic args (to contain default type from generic parameters)
+    default_generic_args(generic_args, generic_params, call->generic_list);
 
     // infer args, if user gave less args than expected
     if(call->generic_list.size() != total) {
         call->infer_generic_args(allocator, diagnoser, generic_args);
     }
+
+    // temporary variable
+    unsigned i = 0;
 
     // inferring type by expected type
     if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
@@ -216,12 +224,9 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
     // check all types have been inferred
     i = 0;
     for(const auto arg : generic_args) {
-        if(arg) {
-//            if(arg->kind() == BaseTypeKind::Linked && arg->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
-//                diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-//            }
-        } else {
+        if(arg == nullptr) {
             diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
+            return nullptr;
         }
         i++;
     }

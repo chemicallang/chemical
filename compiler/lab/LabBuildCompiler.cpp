@@ -407,6 +407,18 @@ void set_generated_instantiations(ASTNode* node) {
             }
             break;
         }
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = node->as_if_stmt_unsafe();
+            if(stmt->computed_scope.has_value()) {
+                const auto scope = stmt->computed_scope.value();
+                if(scope) {
+                    for(const auto child : scope->nodes) {
+                        set_generated_instantiations(child);
+                    }
+                }
+            }
+            break;
+        }
         case ASTNodeKind::InterfaceDecl: {
             // interfaces generate vtables for structs
             const auto interface = node->as_interface_def_unsafe();

@@ -163,7 +163,7 @@ bool ASTProcessor::import_module_files_direct(
     return import_chemical_files_direct(pool, files);
 }
 
-SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::string& abs_path) {
+SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -171,7 +171,7 @@ SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::stri
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    const auto range = resolver->tld_declare_file(scope, abs_path);
+    const auto range = resolver->tld_declare_file(scope, fileId, abs_path);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes:declare", abs_path, bm_results.get());
@@ -182,7 +182,7 @@ SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, const std::stri
     return range;
 }
 
-void ASTProcessor::sym_res_link_sig_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -190,7 +190,7 @@ void ASTProcessor::sym_res_link_sig_file(Scope& scope, const std::string& abs_pa
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    resolver->link_signature_file(scope, abs_path, range);
+    resolver->link_signature_file(scope, fileId, range);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes:link_sig", abs_path, bm_results.get());
@@ -200,7 +200,7 @@ void ASTProcessor::sym_res_link_sig_file(Scope& scope, const std::string& abs_pa
     }
 }
 
-void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -208,7 +208,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    resolver->link_file(scope, abs_path, range);
+    resolver->link_file(scope, fileId, range);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes:link", abs_path, bm_results.get());
@@ -218,7 +218,7 @@ void ASTProcessor::sym_res_link_file(Scope& scope, const std::string& abs_path, 
     }
 }
 
-void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, const std::string& abs_path) {
+void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     std::unique_ptr<BenchmarkResults> bm_results;
@@ -226,7 +226,7 @@ void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, const std::string
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    resolver->declare_and_link_file(scope, abs_path);
+    resolver->declare_and_link_file(scope, fileId, abs_path);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes:link_seq", abs_path, bm_results.get());
@@ -258,7 +258,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         auto& file = *file_ptr.result;
 
-        file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.abs_path);
+        file.private_symbol_range = sym_res_tld_declare_file(file.unit.scope.body, file.file_id, file.abs_path);
 
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
@@ -274,7 +274,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         auto& file = *file_ptr.result;
 
-        sym_res_link_sig_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
+        sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
             std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
@@ -289,7 +289,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         auto& file = *file_ptr.result;
 
-        sym_res_link_file(file.unit.scope.body, file.abs_path, file.private_symbol_range);
+        sym_res_link_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         if (resolver->has_errors && !options->ignore_errors) {
             std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
             return 1;
@@ -337,7 +337,7 @@ int ASTProcessor::sym_res_module_seq(LabModule* module) {
 
         auto& file = *file_ptr.result;
 
-        sym_res_declare_and_link_file(file.unit.scope.body, file.abs_path);
+        sym_res_declare_and_link_file(file.unit.scope.body, file.file_id, file.abs_path);
 
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {

@@ -29,6 +29,7 @@
 #include "server/model/ModuleData.h"
 #include "core/source/LocationManager.h"
 #include "compiler/processor/ModuleFileData.h"
+#include "compiler/generics/InstantiationsContainer.h"
 
 class GlobalInterpretScope;
 
@@ -93,6 +94,12 @@ public:
     std::mutex module_data_mutex;
 
     /**
+     * we run only a single process file operation, which resolves all dependency modules
+     * to make the requested file available and completely symbol resolved
+     */
+    std::mutex process_file_mutex;
+
+    /**
      * why ? because semantic tokens request requires access to tokens inside which
      * linked pointers to ast nodes/values/types exist
      */
@@ -154,6 +161,11 @@ public:
      * the path handler
      */
     ImportPathHandler pathHandler;
+
+    /**
+     * we use this to store and remove generic instantiations when required
+     */
+    InstantiationsContainer instContainer;
 
     /**
      * when initialize request is sent from client, project path is saved

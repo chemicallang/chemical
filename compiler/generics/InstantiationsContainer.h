@@ -110,6 +110,16 @@ public:
     }
 
     /**
+     * this will remove instantiations for the given key
+     */
+    void removeInstantiationsFor(void* key) {
+        auto found = instantiations.find(key);
+        if(found != instantiations.end()) {
+            instantiations.erase(found);
+        }
+    }
+
+    /**
      * Remove all instantiations that were registered from `fileId`.
      * This runs in O(1) per instantiation (no middle‑of‑vector erases).
      */
@@ -122,7 +132,12 @@ public:
         for (int i = static_cast<int>(registry.size()) - 1; i >= 0; --i) {
             auto rec = registry[i];
             auto  kit = instantiations.find(rec.key);
-            assert(kit != instantiations.end());  // must exist
+            if(kit == instantiations.end()) {
+                // instantiation doesn't exist, probably because file changed and
+                // its declarations were removed instantiations of (using key)
+                registry.pop_back();
+                continue;
+            }
             auto& decl = kit->second;
 
             unsigned int removeIdx = rec.typeIndex;

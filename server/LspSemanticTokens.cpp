@@ -264,7 +264,7 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     // because of symbol resolution we performed earlier
     // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
     // this causes comparison with freed pointers causing lsp crash
-    // modData->allocator.clear();
+    modData->allocator.clear();
 
     // this is an important step, to switch the allocators
     const auto resolver_allocator = &modData->allocator;
@@ -497,6 +497,45 @@ bool WorkspaceManager::should_process_file(const std::string& path, ModuleData* 
 
 }
 
+void removeNodeInstantiations(InstantiationsContainer& container, ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericVariantDecl:
+            container.removeInstantiationsFor(node);
+            break;
+        case ASTNodeKind::NamespaceDecl:{
+            const auto ns = node->as_namespace_unsafe();
+            for(const auto child : ns->nodes) {
+                removeNodeInstantiations(container, child);
+            }
+            break;
+        }
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = node->as_if_stmt_unsafe();
+            if(stmt->computed_scope.has_value()) {
+                const auto scope = stmt->computed_scope.value();
+                if(scope) {
+                    for(const auto child : scope->nodes) {
+                        removeNodeInstantiations(container, child);
+                    }
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void removeDeclInstantiations(InstantiationsContainer& container, Scope& scope) {
+    for(const auto node : scope.nodes) {
+        removeNodeInstantiations(container, node);
+    }
+}
+
 void WorkspaceManager::process_file(const std::string& abs_path, bool current_file_changed, bool depends_on_dirty) {
 
 #ifdef DEBUG
@@ -642,7 +681,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             // can delete previous stuff off
             // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
             // this causes comparison with freed pointers causing lsp crash
-            // modData->allocator.clear();
+            modData->allocator.clear();
 
             // a container for private symbol ranges (of files)
             std::vector<SymbolRange> priv_sym_ranges(modData->fileUnits.size());
@@ -663,6 +702,18 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 auto& unit = cachedUnit->unit;
                 if (abs_path_view != unit.scope.file_path) {
                     resolver.link_signature_file(unit.scope.body, unit.scope.file_id, priv_sym_ranges[i]);
+                }
+            }
+
+        } else {
+
+            // declaring symbols of current module, before linking current file
+            for (const auto cachedUnit: modData->fileUnits) {
+                auto& unit = cachedUnit->unit;
+                if(abs_path_view != unit.scope.file_path) {
+                    for (const auto node: unit.scope.body.nodes) {
+                        declare_node(declarer, node, AccessSpecifier::Internal);
+                    }
                 }
             }
 
@@ -695,6 +746,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 // remove any instantiations we may have for this file
                 // this will also remove from inside the ast (must be done before clearing allocator)
                 instContainer.removeInstantiationsFor(astUnit.scope.file_id);
+                removeDeclInstantiations(instContainer, astUnit.scope.body);
                 // clear the previous unit
                 allocator.clear();
                 astUnit.scope.body.nodes.clear();

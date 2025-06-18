@@ -19,7 +19,7 @@ SymbolResolver::SymbolResolver(
     ASTAllocator& fileAllocator,
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
-) : comptime_scope(global), path_handler(handler), instantiations_container(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
+) : comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
     mod_allocator(modAllocator), ast_allocator(astAllocator), genericInstantiator(container, *astAllocator, *this), table(512)
 {
     global_scope_start();
@@ -204,7 +204,12 @@ void SymbolResolver::enable_file_symbols(const SymbolRange& range) {
     }
 }
 
-SymbolRange SymbolResolver::tld_declare_file(Scope& scope, const std::string& abs_path) {
+SymbolRange SymbolResolver::tld_declare_file(
+        Scope& scope,
+        unsigned int fileId,
+        const std::string& abs_path
+) {
+    instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
     // TODO abs_path could be referencing a path that would freed
     declared_files.emplace(chem::string_view(abs_path), scope);
@@ -215,9 +220,14 @@ SymbolRange SymbolResolver::tld_declare_file(Scope& scope, const std::string& ab
     return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
 
-void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_path, const SymbolRange& range) {
+void SymbolResolver::link_signature_file(
+        Scope& scope,
+        unsigned int fileId,
+        const SymbolRange& range
+) {
     const auto prev_link_sig = linking_signature;
     linking_signature = true;
+    instContainer.current_file_id = fileId;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
@@ -232,7 +242,12 @@ void SymbolResolver::link_signature_file(Scope& scope, const std::string& abs_pa
     }
 }
 
-void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, const SymbolRange& range) {
+void SymbolResolver::link_file(
+        Scope& nodes_scope,
+        unsigned int fileId,
+        const SymbolRange& range
+) {
+    instContainer.current_file_id = fileId;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
@@ -241,7 +256,8 @@ void SymbolResolver::link_file(Scope& nodes_scope, const std::string& abs_path, 
     file_scope_end(scope_index);
 }
 
-void SymbolResolver::declare_and_link_file(Scope& scope, const std::string& abs_path) {
+void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
+    instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
     // TODO abs_path could be referencing a path that would freed
     declared_files.emplace(chem::string_view(abs_path), scope);

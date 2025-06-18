@@ -252,6 +252,14 @@ void parseModuleWithDepsWait(
 void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, ModuleData* modData) {
     const auto mod_index = resolver.module_scope_start();
 
+    // get the file units
+    auto& fileUnits = modData->fileUnits;
+
+    // remove the generic instantiations for the given file
+    // this must be done before clearing the allocator
+    for(const auto cachedUnit : fileUnits) {
+        manager.instContainer.removeInstantiationsFor(cachedUnit->unit.scope.file_id);
+    }
     // clear the allocator, this will get rid of any results stored
     // because of symbol resolution we performed earlier
     // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
@@ -262,9 +270,6 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     const auto resolver_allocator = &modData->allocator;
     resolver.setASTAllocator(*resolver_allocator);
     resolver.mod_allocator = resolver_allocator;
-
-    // get the file units
-    auto& fileUnits = modData->fileUnits;
 
     // declaring symbols of direct dependencies
     SymbolResolverDeclarer declarer(resolver);
@@ -286,7 +291,7 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
         auto& unit = cachedUnit->unit;
         auto path_str = unit.scope.file_path.str();
 
-        auto priv_sym_range = resolver.tld_declare_file(unit.scope.body, path_str);
+        auto priv_sym_range = resolver.tld_declare_file(unit.scope.body, unit.scope.file_id, path_str);
         priv_sym_ranges.emplace_back(priv_sym_range);
 
     }
@@ -300,7 +305,7 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
 
         auto& priv_sym_range = priv_sym_ranges[i];
 
-        resolver.link_signature_file(unit.scope.body, path_str, priv_sym_range);
+        resolver.link_signature_file(unit.scope.body, unit.scope.file_id, priv_sym_range);
 
         i++;
     }
@@ -551,10 +556,14 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
     // TODO use a output mode according properly
     GlobalInterpretScope comptime_scope(OutputMode::Debug, "lsp", nullptr, nullptr, resolver_allocator, typeBuilder, loc_man);
 
+    // guard from multiple requests, we only process a single file
+    std::lock_guard guard_process_file(process_file_mutex);
+
     // let's do symbol resolution
     SymbolResolver resolver(
             comptime_scope,
             pathHandler,
+            instContainer,
             is64Bit,
             resolver_allocator,
             // these allocators are switched before symbol resolution for each module
@@ -643,7 +652,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
                 if (abs_path_view != unit.scope.file_path) {
-                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.file_path.str());
+                    priv_sym_ranges[i] = resolver.tld_declare_file(unit.scope.body, unit.scope.file_id, unit.scope.file_path.str());
                 }
                 i++;
             }
@@ -653,7 +662,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             for (const auto cachedUnit: modData->fileUnits) {
                 auto& unit = cachedUnit->unit;
                 if (abs_path_view != unit.scope.file_path) {
-                    resolver.link_signature_file(unit.scope.body, unit.scope.file_path.str(), priv_sym_ranges[i]);
+                    resolver.link_signature_file(unit.scope.body, unit.scope.file_id, priv_sym_ranges[i]);
                 }
             }
 
@@ -683,6 +692,9 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
                 // so next time a file is opened that depends on the module that contains this file
                 // it resolves dependencies, before resolving the file
                 make_module_dirty(modData, &cachedUnit);
+                // remove any instantiations we may have for this file
+                // this will also remove from inside the ast (must be done before clearing allocator)
+                instContainer.removeInstantiationsFor(astUnit.scope.file_id);
                 // clear the previous unit
                 allocator.clear();
                 astUnit.scope.body.nodes.clear();
@@ -695,7 +707,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             }
 
             // declare and link file
-            resolver.declare_and_link_file(astUnit.scope.body, abs_path);
+            resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.file_id, abs_path);
 
         } else if(modData->prepared_file_units) {
             // we have prepared the file units, however the file that belongs to this module
@@ -713,6 +725,9 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
         // encode the file path to get file id
         const auto fileId = loc_man.encodeFile(abs_path);
+
+        // remove any stored generic instantiations for the given file
+        instContainer.removeInstantiationsFor(fileId);
 
         // create the anonymous file data
         AnonymousFileData* fileData;
@@ -737,7 +752,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
         resolver.mod_allocator = &fileData->allocator;
 
         // declare and link file
-        resolver.declare_and_link_file(astUnit.scope.body, abs_path);
+        resolver.declare_and_link_file(astUnit.scope.body, astUnit.scope.file_id, abs_path);
 
     }
 

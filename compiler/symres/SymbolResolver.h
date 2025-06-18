@@ -194,7 +194,7 @@ public:
     /**
      * this contains the generic instantiations
      */
-    InstantiationsContainer& instantiations_container;
+    InstantiationsContainer& instContainer;
 
     /**
      * the generic instantiator, that instantiates concrete generic implementations
@@ -488,22 +488,38 @@ public:
     /**
      * top level declare all the symbols in a file
      */
-    SymbolRange tld_declare_file(Scope& scope, const std::string& abs_path);
+    SymbolRange tld_declare_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path
+    );
 
     /**
      * link the signatures in the file
      */
-    void link_signature_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
+    void link_signature_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
+    );
 
     /**
      * should be called, after tld_declare_file, if file's top level symbols have already been declared
      */
-    void link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
+    void link_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
+    );
 
     /**
      * declare and link file in one shot, the symbols inside the file are erased
      */
-    void declare_and_link_file(Scope& scope, const std::string& abs_path);
+    void declare_and_link_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path
+    );
 
     /**
      * do not symbol resolve the file, just import it, it will just declare the symbols inside

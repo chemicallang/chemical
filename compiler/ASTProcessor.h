@@ -332,23 +332,41 @@ public:
     /**
      * it declares all the symbols inside the file and returns a scope index for the file
      */
-    SymbolRange sym_res_tld_declare_file(Scope& scope, const std::string& abs_path);
+    SymbolRange sym_res_tld_declare_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path
+    );
 
     /**
      * links the signature of the file
      */
-    void sym_res_link_sig_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
+    void sym_res_link_sig_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path,
+            const SymbolRange& range
+    );
 
     /**
      * this function is used to resolve symbols inside the file, the scope_index is used to enable
      * the file's private symbols
      */
-    void sym_res_link_file(Scope& scope, const std::string& abs_path, const SymbolRange& range);
+    void sym_res_link_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path,
+            const SymbolRange& range
+    );
 
     /**
      * declare and link file in one shot, no symbols of the file will be retained
      */
-    void sym_res_declare_and_link_file(Scope& scope, const std::string& abs_path);
+    void sym_res_declare_and_link_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path
+    );
 
     /**
      * symbol resolves the module, creating the scope

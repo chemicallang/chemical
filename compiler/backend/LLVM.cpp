@@ -1543,7 +1543,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error(this) << "array size given in brackets '[" << array_value->representation() << "]' is redundant as array size is known to be " << std::to_string(arr_type->get_array_size()) << " with value " << identifier->representation();
             return;
         } else if (arr_type->has_no_array_size() && !array_value) {
-            gen.error(this) << "array is size is not known, so it must be provided in brackets for destructing value " << identifier->representation();
+            gen.error(this) << "array size is not known, so it must be provided in brackets for destructing value " << identifier->representation();
             return;
         }
         auto def = elem_type->get_direct_linked_struct();

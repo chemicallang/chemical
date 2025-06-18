@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.12)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical" VERSION 0.0.13)
+project("chemical" VERSION 0.0.14)
 
 # Set C++ standard 20
 set(CMAKE_CXX_STANDARD 20)

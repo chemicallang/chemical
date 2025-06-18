@@ -1069,8 +1069,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // an interpretation scope for interpreting compile time function calls
     GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
+    // we hold the instantiated types inside this container
+    InstantiationsContainer instContainer;
+
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // beginning
     std::stringstream output_ptr;
@@ -1262,8 +1265,11 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // an interpretation scope for interpreting compile time function calls
     GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
+    // generic instantiations types are stored here
+    InstantiationsContainer instContainer;
+
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
@@ -2232,8 +2238,11 @@ TCCState* LabBuildCompiler::built_lab_file(
     // a global interpret scope required to evaluate compile time things
     GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
 
+    // instantiations container holds the types
+    InstantiationsContainer instContainer;
+
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, path_handler, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver lab_resolver(global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(

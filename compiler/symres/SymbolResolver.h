@@ -194,7 +194,7 @@ public:
     /**
      * this contains the generic instantiations
      */
-    InstantiationsContainer instantiations_container;
+    InstantiationsContainer& instantiations_container;
 
     /**
      * the generic instantiator, that instantiates concrete generic implementations
@@ -261,6 +261,7 @@ public:
     SymbolResolver(
             GlobalInterpretScope& global,
             ImportPathHandler& handler,
+            InstantiationsContainer& container,
             bool is64Bit,
             ASTAllocator& allocator,
             ASTAllocator* modAllocator,

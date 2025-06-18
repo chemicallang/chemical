@@ -48,7 +48,7 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(container, allocator, diagnoser);
+    GenericInstantiator instantiator(container, getAllocator(), diagnoser);
     GenericInstantiatorAPI genApi(&instantiator);
     if(!call->instantiate_gen_call(genApi, nullptr)) {
         diagnoser.error("couldn't instantiate call", call);
@@ -111,7 +111,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(container, allocator, diagnoser);
+        GenericInstantiator instantiator(container, getAllocator(), diagnoser);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi);
     }
@@ -229,7 +229,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, allocator, diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_struct_def_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -243,7 +243,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, allocator, diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_union_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -257,7 +257,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, allocator, diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_interface_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -272,7 +272,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, allocator, diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -286,7 +286,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, allocator, diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_type_decl_unsafe()->register_generic_args(genApi, type->types);
             return;
@@ -1023,7 +1023,7 @@ InstantiationsContainer& GenericInstantiatorAPI::getContainer() {
 }
 
 ASTAllocator& GenericInstantiatorAPI::getAllocator() {
-    return giPtr->allocator;
+    return giPtr->getAllocator();
 }
 
 ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
@@ -1031,11 +1031,7 @@ ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
 }
 
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
-    const auto prev = giPtr;
-    giPtr = new GenericInstantiator(giPtr->container, allocator, giPtr->diagnoser);
-    if(owns) {
-        delete prev;
-    }
+    giPtr->setAllocator(allocator);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {

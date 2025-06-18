@@ -17,7 +17,7 @@ public:
     /**
      * the allocator which allows to allocate memory for all instantiations
      */
-    ASTAllocator& allocator;
+    ASTAllocator* allocator_ptr;
 
     /**
      * the diagnoser to report errors
@@ -48,8 +48,16 @@ public:
         InstantiationsContainer& container,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser
-    ) : container(container), allocator(allocator), diagnoser(diagnoser), table() {
+    ) : container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table() {
 
+    }
+
+    inline ASTAllocator& getAllocator() {
+        return *allocator_ptr;
+    }
+
+    inline void setAllocator(ASTAllocator& allocator) {
+        allocator_ptr = &allocator;
     }
 
     void make_gen_type_concrete(BaseType*& type);
@@ -108,7 +116,7 @@ public:
     void VisitVarInitStmt(VarInitStatement* node) {
         RecursiveVisitor<GenericInstantiator>::VisitVarInitStmt(node);
         if(!node->type) {
-            node->type = {node->value->create_type(allocator), node->type.getLocation()};
+            node->type = {node->value->create_type(getAllocator()), node->type.getLocation()};
         }
         table.declare(node->name_view(), node);
     }

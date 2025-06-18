@@ -262,8 +262,6 @@ void sym_res_mod_sig(WorkspaceManager& manager, SymbolResolver& resolver, Module
     }
     // clear the allocator, this will get rid of any results stored
     // because of symbol resolution we performed earlier
-    // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
-    // this causes comparison with freed pointers causing lsp crash
     modData->allocator.clear();
 
     // this is an important step, to switch the allocators
@@ -679,8 +677,6 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
             // since we are symbol resolving the module again, we
             // can delete previous stuff off
-            // TODO: generic instantiations caused by this module in dependency modules are stored and disposed
-            // this causes comparison with freed pointers causing lsp crash
             modData->allocator.clear();
 
             // a container for private symbol ranges (of files)

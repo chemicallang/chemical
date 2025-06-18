@@ -231,7 +231,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_struct_def_unsafe()->register_generic_args(genApi, type->types);
+            linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types);
             return;
         }
         case ASTNodeKind::GenericUnionDecl: {
@@ -245,7 +245,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_union_decl_unsafe()->register_generic_args(genApi, type->types);
+            linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
         }
         case ASTNodeKind::GenericInterfaceDecl:{
@@ -259,7 +259,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_interface_decl_unsafe()->register_generic_args(genApi, type->types);
+            linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
         }
         case ASTNodeKind::GenericVariantDecl:{
@@ -274,7 +274,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_variant_decl_unsafe()->register_generic_args(genApi, type->types);
+            linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
         }
         case ASTNodeKind::GenericTypeDecl: {
@@ -288,7 +288,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(container, getAllocator(), diagnoser);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_type_decl_unsafe()->register_generic_args(genApi, type->types);
+            linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
         }
         default:
@@ -303,9 +303,20 @@ void GenericInstantiator::Clear() {
 }
 
 void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t itr) {
-    auto types = container.getInstantiationTypesFor(gen_decl)[itr];
+    auto instantiations = container.getInstantiationTypesFor(gen_decl);
+#ifdef DEBUG
+    if(itr >= instantiations.size()) {
+        throw std::runtime_error("iteration wasn't registered to instantiations container");
+    }
+#endif
+    auto types = instantiations[itr];
     unsigned i = 0;
     for(const auto param : gen_decl->generic_params) {
+#ifdef DEBUG
+        if(i >= types.size()) {
+            throw std::runtime_error("no type for generic parameter exists");
+        }
+#endif
         param->set_active_type(types[i]);
         i++;
     }

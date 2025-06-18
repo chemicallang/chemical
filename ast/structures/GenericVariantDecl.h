@@ -90,6 +90,11 @@ public:
     VariantDefinition* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
 
     /**
+     * a generic type for this generic variant is given, with the following generic argument types
+     */
+    VariantDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+
+    /**
      * a variant call notifies a definition, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic
      * @return iteration that corresponds to this call

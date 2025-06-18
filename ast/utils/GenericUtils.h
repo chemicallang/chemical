@@ -66,3 +66,13 @@ void infer_types_by_args(
         std::vector<TypeLoc>& inferred,
         Value* debug_value
 );
+
+/**
+ * assumes that out_generic_args has size equals to generic_params.size()
+ * this just fixes the out_generic_args to have default types from generic type parameters
+ */
+void default_generic_args(
+        std::vector<TypeLoc>& out_generic_args,
+        std::vector<GenericTypeParameter*>& generic_params,
+        std::vector<TypeLoc>& user_generic_list
+);

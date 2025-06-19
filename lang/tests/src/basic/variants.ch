@@ -66,6 +66,15 @@ variant GenVar<T> {
     Second(a : T, b : T, c : T)
 }
 
+variant GenVarDef<T = ulong> {
+    Some(value : T)
+    None()
+}
+
+func <T> test_gen_var_def(value : T) : bool {
+    return T is ulong
+}
+
 func get_sum(v : GenVar<int>) : int {
     switch(v) {
         First(a, b) => {
@@ -199,5 +208,16 @@ func test_variants() {
     })
     test("is values work with variants - 10", () => {
         return !check_variant_is_some(OptVariant.None())
+    })
+    test("default generic parameter types work in variants", () => {
+        var s = GenVarDef.Some<>(10)
+        switch(s) {
+            Some(value) => {
+               return test_gen_var_def(value)
+            }
+            None => {
+                return false;
+            }
+        }
     })
 }

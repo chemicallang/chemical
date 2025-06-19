@@ -694,13 +694,8 @@ llvm::Type* NewTypedValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* NewTypedValue::llvm_value(Codegen &gen, BaseType *exp_type) {
-    // TODO cache malloc function
     auto& mod = *gen.module;
-    auto mallocFn = mod.getFunction("malloc");
-    if(mallocFn == nullptr) {
-        gen.error("malloc function hasn't been declared", this);
-        return nullptr;
-    }
+    auto mallocFn = gen.getMallocFn();
     auto size = mod.getDataLayout().getTypeAllocSize(type->llvm_type(gen));
     auto size_val = gen.builder->getIntN(mallocFn->getArg(0)->getType()->getIntegerBitWidth(), size);
     const auto callInst = gen.builder->CreateCall(mallocFn, { size_val });
@@ -713,15 +708,8 @@ llvm::Type* NewValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
-
-    // TODO cache malloc function
     auto& mod = *gen.module;
-    auto mallocFn = mod.getFunction("malloc");
-    if(mallocFn == nullptr) {
-        gen.error("malloc function hasn't been declared", this);
-        return nullptr;
-    }
-
+    auto mallocFn = gen.getMallocFn();
     // chain and struct value both return the exact type (including accounting for generics so we should use that)
     auto size = mod.getDataLayout().getTypeAllocSize(value->llvm_type(gen));
     auto size_val = gen.builder->getIntN(mallocFn->getArg(0)->getType()->getIntegerBitWidth(), size);

@@ -207,6 +207,19 @@ llvm::Function* create_func(
     return fn;
 }
 
+llvm::Function* Codegen::getMallocFn() {
+    const auto previousFunc = module->getFunction("malloc");
+    if(previousFunc != nullptr) {
+        return previousFunc;
+    } else {
+        auto& data = comptime_scope.target_data;
+        const auto paramType = (data.is_win64 || data.is_64Bit) ? builder->getInt64Ty() : builder->getInt32Ty();
+        const auto retTy = builder->getPtrTy();
+        const auto type = llvm::FunctionType::get(retTy, { paramType }, false);
+        return create_func(*this, "malloc", type, llvm::Function::LinkageTypes::ExternalLinkage);
+    }
+}
+
 llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
     const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
     current_function = fn;

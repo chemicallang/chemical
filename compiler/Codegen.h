@@ -268,6 +268,11 @@ public:
     }
 
     /**
+     * this gets the malloc function or declares it in the current module
+     */
+    llvm::Function* getMallocFn();
+
+    /**
      * the method to create a function
      */
     llvm::Function *create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier);

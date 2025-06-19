@@ -83,6 +83,13 @@ struct OV1Point {
     var c : int
 }
 
+struct GenStructDef<T = long> {
+    var value : T
+    func test(&self) : bool {
+        return T is long
+    }
+}
+
 func get_other_var1_point(value : int, some : bool) : OtherVar1<OV1Point> {
     if(some) {
         return OtherVar1.Some(OV1Point { a : value, b : value, c : value })
@@ -476,5 +483,9 @@ func test_basic_generics() {
     test("can create generic structs using generic struct values - 3", () => {
         var s1 = create_pair_gen_generically<long>()
         return s1.a == 8 && s1.b == 8 && s1.add() == 16;
+    })
+    test("default generic parameter type works in struct", () => {
+        var s = GenStructDef<> { value : 10 }
+        return s.test();
     })
 }

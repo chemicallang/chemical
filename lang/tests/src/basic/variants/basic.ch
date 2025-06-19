@@ -71,6 +71,20 @@ variant GenVarDef<T = ulong> {
     None()
 }
 
+variant FuncInVariant {
+
+    First(value : int)
+    Second(value : int)
+
+    func get(&self) : int {
+        switch(self) {
+            First(value) => return value;
+            Second(value) => return value;
+        }
+    }
+
+}
+
 func <T> test_gen_var_def(value : T) : bool {
     return T is ulong
 }
@@ -219,5 +233,13 @@ func test_variants() {
                 return false;
             }
         }
+    })
+    test("functions in variants work - 1", () => {
+        var v = FuncInVariant.First(232)
+        return v.get() == 232
+    })
+    test("functions in variants work - 2", () => {
+        var v = FuncInVariant.Second(987)
+        return v.get() == 987
     })
 }

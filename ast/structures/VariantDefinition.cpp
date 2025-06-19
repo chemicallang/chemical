@@ -275,7 +275,7 @@ void VariantMember::link_signature(SymbolResolver &linker) {
 
 ASTNode *VariantMember::child(const chem::string_view &name) {
     auto found = values.find(name);
-    if(found == values.end()) {
+    if(found != values.end()) {
         return (ASTNode*) &found->second;
     }
     return nullptr;
@@ -310,7 +310,7 @@ bool VariantMember::requires_copy_fn() {
 }
 
 BaseType* VariantMember::known_type() {
-    return &ref_type;
+    return parent()->known_type();
 }
 
 void VariantMemberParam::link_signature(SymbolResolver &linker) {

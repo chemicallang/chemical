@@ -300,6 +300,15 @@ bool are_linked_same(ASTNode* param_node, ASTNode* arg_node) {
     }
 }
 
+TypeLoc get_param_def_type(BaseType* type) {
+    const auto linked = type->get_direct_linked_node();
+    if(linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        return linked->as_generic_type_param_unsafe()->def_type;
+    } else {
+        return nullptr;
+    }
+}
+
 void infer_types_by_args(
         ASTDiagnoser& diagnoser,
         ASTNode* params_node,
@@ -338,14 +347,16 @@ void infer_types_by_args(
             const auto arg_type_kind = arg_type->kind();
             if(arg_type_kind == BaseTypeKind::Generic && are_linked_same(param_type->get_direct_linked_canonical_node(), arg_type->get_direct_linked_canonical_node())) {
                 const auto child_gen_size = param_type_gen->types.size();
-                if(arg_type_gen->types.size() == child_gen_size) {
-                    unsigned i = 0;
-                    while(i < child_gen_size) {
-                        infer_types_by_args(diagnoser, params_node, generic_list_size, param_type_gen->types[i], arg_type_gen->types[i], inferred, debug_value);
-                        i++;
+                unsigned i = 0;
+                while(i < child_gen_size) {
+                    const auto param_type_child = param_type_gen->types[i];
+                    const auto arg_type_child = i < arg_type_gen->types.size() ? arg_type_gen->types[i] : get_param_def_type(param_type_child);
+                    if(arg_type_child) {
+                        infer_types_by_args(diagnoser, params_node, generic_list_size, param_type_child, arg_type_child, inferred, debug_value);
+                    } else {
+                        diagnoser.error(debug_value) << "couldn't infer generic argument for " << param_type_gen->representation() << ", at index " << std::to_string(i);
                     }
-                } else {
-                    diagnoser.error(debug_value) << "given types generic arguments don't have equal length, for " << param_type_gen->representation() << ", given " << arg_type_gen->representation();
+                    i++;
                 }
             }
             break;

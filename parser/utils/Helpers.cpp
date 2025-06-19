@@ -73,15 +73,19 @@ static bool read_gen_type_token(Parser& parser) {
 
 bool Parser::isGenericEndAhead() {
     auto current_token = token;
-    consumeOfType(TokenType::LessThanSym);
+    consumeToken(TokenType::LessThanSym);
+    if(consumeToken(TokenType::GreaterThanSym)) {
+        token = current_token;
+        return true;
+    }
     auto& lexer = *this;
     do {
         if (!read_type_involving_token(lexer)) {
             token = current_token;
             return false;
         }
-    } while (consumeOfType(TokenType::CommaSym));
-    const bool is_generic = consumeOfType(TokenType::GreaterThanSym);
+    } while (consumeToken(TokenType::CommaSym));
+    const auto is_generic = consumeToken(TokenType::GreaterThanSym);
     token = current_token;
     return is_generic;
 }

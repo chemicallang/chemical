@@ -3053,6 +3053,13 @@ void ToCAstVisitor::prepare_translate() {
     write("#include <stddef.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(*this);
+    // declaring malloc function
+    new_line_and_indent();
+    if(comptime_scope.target_data.is_win64) {
+        write("extern void* malloc(unsigned long long size);");
+    } else {
+        write("extern void* malloc(unsigned long size);");
+    }
 }
 
 void ToCAstVisitor::reset() {
@@ -5257,6 +5264,27 @@ void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
     write(';');
 }
 
+void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const std::string& lamb_name) {
+    visitor.write("(struct ");
+    visitor.write_str(lamb_name);
+    visitor.write("_cap");
+    visitor.write(')');
+    visitor.write('{');
+    unsigned i = 0;
+    while (i < func->captureList.size()) {
+        auto& cap = func->captureList[i];
+        if (cap->capture_by_ref) {
+            visitor.write('&');
+        }
+        visitor.write(cap->name);
+        if (i != func->captureList.size() - 1) {
+            visitor.write(',');
+        }
+        i++;
+    }
+    visitor.write('}');
+}
+
 void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {
@@ -5272,25 +5300,28 @@ void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
             if(func->captureList.empty()) {
                 write("NULL");
             } else {
-                write("(&(struct ");
-                write(found->second);
-                write("_cap");
-                write(')');
-                write('{');
-                unsigned i = 0;
-                while(i < func->captureList.size()) {
-                    auto& cap = func->captureList[i];
-                    if(cap->capture_by_ref) {
-                        write('&');
-                    }
-                    write(cap->name);
-                    if(i != func->captureList.size() - 1) {
-                        write(',');
-                    }
-                    i++;
-                }
-                write('}');
-                write(')');
+//                 if(does_live_on_stack) {
+                    write("(&");
+                    write_captured_struct(*this, func, found->second);
+                    write(')');
+//                } else {
+//                    auto temp_var = get_local_temp_var_name();
+//                    write("({ struct ");
+//                    write(found->second);
+//                    write("_cap");
+//                    write("* ");
+//                    write(temp_var);
+//                    write(" = ");
+//                    write("malloc(sizeof(struct ");
+//                    write(found->second);
+//                    write("_cap)); *");
+//                    write(temp_var);
+//                    write(" = ");
+//                    write_captured_struct(*this, func, found->second);
+//                    write("; ");
+//                    write(temp_var);
+//                    write("; })");
+//                }
             }
             write('}');
             write(')');

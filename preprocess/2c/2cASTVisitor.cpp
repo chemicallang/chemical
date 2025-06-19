@@ -2414,7 +2414,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl)
 
 void early_declare_node(ToCAstVisitor& visitor, ASTNode* node);
 
-void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
+inline void declare_inherited(ToCAstVisitor& visitor, VariablesContainer* def) {
     // declare inherited types
     for(auto& inherit : def->inherited) {
         auto in_node = inherit.type->get_direct_linked_node();
@@ -2422,6 +2422,10 @@ void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
             early_declare_node(visitor, in_node);
         }
     }
+}
+
+void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
+    declare_inherited(visitor, def);
     // declare sub variables
     for(const auto var : def->variables()) {
         const auto known_t = var->known_type();
@@ -2431,6 +2435,14 @@ void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
                 early_declare_node(visitor, sub_node);
             }
         }
+    }
+}
+
+void early_declare_container(ToCAstVisitor& visitor, VariantDefinition* def) {
+    declare_inherited(visitor, def);
+    // declare sub variables
+    for(const auto var : def->variables()) {
+        early_declare_node(visitor, var->as_variant_member_unsafe());
     }
 }
 

@@ -90,6 +90,7 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* d
             const auto func = parseFunctionStructureTokens(allocator, specifier, true);
             if(func) {
                 def->get_parsed_nodes_container().emplace_back(func);
+                return true;
             }
             break;
         }

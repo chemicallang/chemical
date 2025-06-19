@@ -18,7 +18,7 @@ func create_optional(condition : bool) : Optional<int> {
 }
 
 func check_usage_without_else(opt: Optional<int>) {
-    if let Some(value) = opt {
+    if var Some(value) = opt {
         printf("value has been given, %d\n", value);
     } else {
         printf("couldn't get value\n");
@@ -46,17 +46,17 @@ func check_switch_with_optional(opt: Optional<int>) {
 
 func check_default_values_in_optional(opt: Optional<int>) {
     // early-return on None
-    let Some(value) = opt else return;
+    var Some(value) = opt else return;
     printf("value has been given, %d\n", value);
 }
 
 func check_return_on_no_value(opt: Optional<int>) {
-    let Some(value) = opt else -1;
+    var Some(value) = opt else -1;
     printf("value has been given, %d\n", value);
 }
 
 func check_unreachable_path_in_optional(opt: Optional<int>) {
-    let Some(value) = opt else unreachable;
+    var Some(value) = opt else unreachable;
     printf("value has been given, %d\n", value);
 }
 ```

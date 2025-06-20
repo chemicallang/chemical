@@ -115,6 +115,7 @@
 #include "ast/values/NewTypedValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
+#include "ast/values/PatternMatchExpr.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/UIntValue.h"
@@ -3274,8 +3275,8 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
     }
 }
 
-void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
-    const auto val = returnStatement->value;
+void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
+    const auto val = returnValue;
     const auto return_type = current_func_type->returnType;
     std::string saved_into_temp_var;
     const auto has_struct_like_return = return_type->isStructLikeType();
@@ -3298,14 +3299,14 @@ void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
     int i = ((int) destructor->destruct_jobs.size()) - 1;
     auto new_line_prev = destructor->new_line_before;
     destructor->new_line_before = false;
-    auto current_return = returnStatement->value ? returnStatement->value : nullptr;
+    auto current_return = returnValue ? returnValue : nullptr;
     while(i >= 0) {
         destructor->destruct(destructor->destruct_jobs[i], current_return);
         i--;
     }
     destructor->new_line_before = new_line_prev;
     destructor->destroy_current_scope = false;
-    if(returnStatement->value) {
+    if(returnValue) {
 //        if(handle_return_after) {
             write("return");
             if(!saved_into_temp_var.empty()) {
@@ -3328,6 +3329,10 @@ void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
             write(';');
         }
     }
+}
+
+void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
+    writeReturnStmtFor(returnStatement->value);
 }
 
 void ToCAstVisitor::VisitDoWhileLoopStmt(DoWhileLoop *doWhileLoop) {
@@ -5087,6 +5092,32 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 write('.');
                 break;
             }
+            case ASTNodeKind::PatternMatchId: {
+                const auto id = linked->as_patt_match_id_unsafe();
+                const auto matchExpr = id->matchExpr;
+                auto allocated = local_allocated.find(matchExpr);
+                const auto elseKind = matchExpr->elseExpression.kind;
+                if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
+                    if (allocated != local_allocated.end()) {
+                        write(allocated->second);
+                        write("->");
+                        write(matchExpr->member_name);
+                        write('.');
+                        write(id->identifier);
+                        return;
+                    } else {
+                        //TODO handle this
+                    };
+                } else if(elseKind == PatternElseExprKind::DefValue) {
+                    if (allocated != local_allocated.end()) {
+                        write(allocated->second);
+                        return;
+                    } else {
+                        //TODO handle this
+                    };
+                }
+                break;
+            }
             case ASTNodeKind::EnumMember: {
                 write_enum(*this, linked->as_enum_member_unsafe());
                 return;
@@ -5179,6 +5210,83 @@ void ToCAstVisitor::VisitAddrOfValue(AddrOfValue *value) {
         write('&');
     }
     visit(value->value);
+}
+
+void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
+
+    const auto elseKind = value->elseExpression.kind;
+    if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
+        const auto type = value->expression->create_type(allocator);
+        visit(type);
+        write('*');
+    } else if(elseKind == PatternElseExprKind::DefValue) {
+        visit(value->param_names[0]->member_param->type);
+    }
+    auto varName = get_local_temp_var_name();
+    write(' ');
+    write(varName);
+    write(" = ");
+
+    if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
+        write('&');
+        visit(value->expression);
+    } else if(elseKind == PatternElseExprKind::DefValue) {
+        const auto memberId = value->param_names[0];
+        auto varName2 = get_local_temp_var_name();
+        write("({ ");
+        const auto type = value->expression->create_type(allocator);
+        visit(type);
+        write('*');
+        write(' ');
+        write(varName2);
+        write(" = ");
+        write('&');
+        visit(value->expression);
+        write("; ");
+        write(varName2);
+        write("->");
+        write(variant_type_variant_name);
+        write(" == ");
+        const auto member = memberId->member_param->parent();
+        const auto def = member->parent();
+        *output << def->direct_child_index(member->name);
+        write(" ? ");
+        write(varName2);
+        write("->");
+        write(member->name);
+        write('.');
+        write(memberId->identifier);
+        write(" : ");
+        visit(value->elseExpression.value);
+        write("; })");
+    }
+
+    if(elseKind == PatternElseExprKind::Return) {
+        write(';');
+        const auto memberId = value->param_names[0];
+        new_line_and_indent();
+        write("if(");
+        write(varName);
+        write("->");
+        write(variant_type_variant_name);
+        write(" != ");
+        const auto member = memberId->member_param->parent();
+        const auto def = member->parent();
+        *output << def->direct_child_index(member->name);
+        write(") {");
+        indentation_level += 1;
+        new_line_and_indent();
+        const auto returnValue = value->elseExpression.value;
+        if(returnValue) {
+            writeReturnStmtFor(returnValue);
+        }
+        indentation_level -= 1;
+        new_line_and_indent();
+        write('}');
+    }
+
+
+    local_allocated[value] = varName;
 }
 
 void ToCAstVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {

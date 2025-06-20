@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/base/ASTNode.h"
 #include "std/chem_string_view.h"
 
 enum class PatternElseExprKind {
@@ -26,8 +27,13 @@ public:
     Value* value = nullptr;
 };
 
-class PatternMatchIdentifier : ASTNode {
+class PatternMatchIdentifier : public ASTNode {
 public:
+
+    /**
+     * the pattern match expression
+     */
+    PatternMatchExpr* matchExpr;
 
     /**
      * the name of the identifier, that'll be destructured
@@ -35,13 +41,19 @@ public:
     chem::string_view identifier;
 
     /**
+     * this is set by pattern match expression during linking
+     */
+    VariantMemberParam* member_param = nullptr;
+
+    /**
      * constructor
      */
     PatternMatchIdentifier(
+        PatternMatchExpr* matchExpr,
         chem::string_view identifier,
         ASTNode* parent_node,
         SourceLocation loc
-    ) : ASTNode(ASTNodeKind::PatternMatchId, parent_node, loc), identifier(identifier) {
+    ) : ASTNode(ASTNodeKind::PatternMatchId, parent_node, loc), matchExpr(matchExpr), identifier(identifier) {
 
     }
 
@@ -84,5 +96,9 @@ public:
     {
 
     }
+
+    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+
+    BaseType* create_type(ASTAllocator &allocator) override;
 
 };

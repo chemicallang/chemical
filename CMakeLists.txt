@@ -559,6 +559,7 @@ set(COMMON_SOURCES
         compiler/typeverify/TypeVerify.cpp
         compiler/generics/InstantiationsContainer.h
         ast/values/PatternMatchExpr.h
+        ast/values/PatternMatchExpr.cpp
 )
 
 # Chemical LSP Executable Target

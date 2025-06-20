@@ -1238,4 +1238,12 @@ public:
         return (AssignStatement*) this;
     }
 
+    /**
+     * return as pattern match expr
+     */
+    inline PatternMatchIdentifier* as_patt_match_id_unsafe() {
+        CHECK_CAST(ASTNodeKind::PatternMatchId);
+        return (PatternMatchIdentifier*) this;
+    }
+
 };

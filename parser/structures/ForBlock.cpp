@@ -86,7 +86,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     switch(token->type) {
         case TokenType::VarKw:
         case TokenType::ConstKw: {
-            auto statement = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, false);
+            auto statement = parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, false, false);
             if(statement) {
                 loop->initializer = statement;
                 break;

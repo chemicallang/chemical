@@ -49,6 +49,7 @@ public enum ASTNodeKind {
     VariantMemberParam,
     CapturedVariable,
     VariantCaseVariable,
+    PatternMatchId,
 
     StructType,
     UnionType,

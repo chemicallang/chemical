@@ -63,6 +63,7 @@ enum class ASTNodeKind : uint8_t {
     VariantMemberParam,
     CapturedVariable,
     VariantCaseVariable,
+    PatternMatchId,
 
     StructType,
     UnionType,
@@ -76,6 +77,6 @@ enum class ASTNodeKind : uint8_t {
     GenericTypeDecl,
 
     FileScope,
-    ModuleScope
+    ModuleScope,
 
 };

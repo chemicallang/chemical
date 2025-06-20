@@ -504,7 +504,7 @@ public:
             bool is_const,
             chem::string_view name_view,
             Token* start_token,
-            bool elseRequired
+            bool parseElse
     );
 
     /**

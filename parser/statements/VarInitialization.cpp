@@ -24,7 +24,7 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
         bool is_const,
         chem::string_view name_view,
         Token* start_token,
-        bool elseRequired
+        bool parseElse
 ) {
 
     // pattern match expression
@@ -69,7 +69,7 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
         error("expected an expression from which to destructure");
     }
 
-    if(token->type == TokenType::ElseKw) {
+    if(parseElse && token->type == TokenType::ElseKw) {
         token++;
         switch(token->type) {
             case TokenType::UnreachableKw:
@@ -96,8 +96,6 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
                 break;
             }
         }
-    } else if(elseRequired) {
-        error("else branch is required for pattern match expression");
     }
 
     return patternMatch;

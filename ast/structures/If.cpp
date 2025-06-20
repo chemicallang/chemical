@@ -250,6 +250,18 @@ bool IfStatement::link_conditions(SymbolResolver &linker) {
     return true;
 }
 
+bool IfStatement::link_conditions_no_patt_match_expr(SymbolResolver &linker) {
+    if(condition->kind() != ValueKind::PatternMatchExpr && !condition->link(linker, condition)) {
+        return false;
+    }
+    for (auto& cond: elseIfs) {
+        if(cond.first->kind() != ValueKind::PatternMatchExpr && !cond.first->link(linker, cond.first)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::optional<Scope*> IfStatement::resolve_evaluated_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser) {
     auto condition_val = resolved_condition ? get_condition_const(comptime_scope) : std::optional(false);
     if(condition_val.has_value()) {
@@ -296,10 +308,35 @@ void IfStatement::link_signature(SymbolResolver &linker) {
     }
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
-    if(!is_computable) {
-        link_conditions(linker);
+void link_body(
+    Scope& body,
+    Value*& conditionExpr,
+    SymbolResolver& linker,
+    std::vector<VariableIdentifier*>& moved_ids,
+    std::vector<AccessChain*>& moved_chains
+) {
+    linker.scope_start();
+    if(conditionExpr->kind() == ValueKind::PatternMatchExpr) {
+        // we must link it here
+        // since pattern matching introduces symbols to link against
+        conditionExpr->link(linker, conditionExpr, nullptr);
     }
+    linker.link_body_seq_backing_moves(body, moved_ids, moved_chains);
+    linker.scope_end();
+}
+
+void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
+
+    if(is_top_level()) {
+        auto scope = get_evaluated_scope_by_linking(linker);
+        if(scope) {
+            scope->declare_and_link(linker);
+        }
+        return;
+    }
+
+    link_conditions_no_patt_match_expr(linker);
+
     if(is_computable || compile_time_computable()) {
         is_computable = true;
         if(computed_scope.has_value()) {
@@ -323,11 +360,9 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
             }
         }
     }
-    if(is_top_level()) {
-        linker.error("cannot evaluate compile time top level if statement", (ASTNode*) this);
-        return;
-    }
 
+    // current func type is only not present when its a top level if
+    // or maybe during parsing malformed code can cause it
     if(!linker.current_func_type) return;
 
     // temporary moved identifiers and chains
@@ -335,14 +370,10 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     std::vector<AccessChain*> moved_chains;
 
     // link the body
-    linker.scope_start();
-    linker.link_body_seq_backing_moves(ifBody, moved_ids, moved_chains);
-    linker.scope_end();
+    link_body(ifBody, condition, linker, moved_ids, moved_chains);
     // link the else ifs
     for(auto& elseIf : elseIfs) {
-        linker.scope_start();
-        linker.link_body_seq_backing_moves(elseIf.second, moved_ids, moved_chains);
-        linker.scope_end();
+        link_body(elseIf.second, elseIf.first, linker, moved_ids, moved_chains);
     }
     // link the else body
     if(elseBody.has_value()) {

@@ -169,6 +169,24 @@ public:
         diagnostic(err, node->encoded_location(), DiagSeverity::Error);
     }
 
+    inline void info(chem::string_view err, SourceLocation loc1, SourceLocation loc2)
+    {
+        diagnostic(err, loc1, DiagSeverity::Information);
+        diagnostic(err, loc2, DiagSeverity::Information);
+    }
+
+    inline void warn(chem::string_view err, SourceLocation loc1, SourceLocation loc2)
+    {
+        diagnostic(err, loc1, DiagSeverity::Warning);
+        diagnostic(err, loc2, DiagSeverity::Warning);
+    }
+
+    inline void error(chem::string_view err, SourceLocation loc1, SourceLocation loc2)
+    {
+        diagnostic(err, loc1, DiagSeverity::Error);
+        diagnostic(err, loc2, DiagSeverity::Error);
+    }
+
     template <typename NodeT1, typename NodeT2>
     inline void info(chem::string_view err, NodeT1* node, NodeT2* other)
     requires requires(NodeT1 n) { n.encoded_location(); } &&

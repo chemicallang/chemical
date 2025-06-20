@@ -155,6 +155,10 @@ public:
 
     static llvm::StructType* llvm_type_with_member(Codegen& gen, VariantMember* member, bool anonymous = true);
 
+    llvm::Value* load_type_int(Codegen &gen, llvm::Value* pointer, SourceLocation location);
+
+    llvm::Value* get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param);
+
     llvm::Type* llvm_type(Codegen &gen) final;
 
     llvm::Type *llvm_type(Codegen &gen, int16_t iteration);

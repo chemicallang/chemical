@@ -34,6 +34,28 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
     }
 }
 
+llvm::Value* VariantDefinition::load_type_int(Codegen &gen, llvm::Value* pointer, SourceLocation location) {
+    const auto def_type = llvm_type(gen);
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
+    const auto gep = gen.builder->CreateGEP(def_type, pointer, idxList, "",gen.inbounds);
+    const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+    gen.di.instr(loadInst, location);
+    return loadInst;
+}
+
+llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param) {
+    const auto mem = param->parent();
+    const auto largest = largest_member()->as_variant_member_unsafe();
+    llvm::Type* container_type;
+    if(largest == mem) {
+        container_type = llvm_type(gen);
+    } else {
+        container_type = llvm_type_with_member(gen, mem);
+    }
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
+    return gen.builder->CreateGEP(container_type, pointer, idxList, "", gen.inbounds);
+}
+
 llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
     if(llvm_struct_type) {
         return llvm_struct_type;
@@ -177,8 +199,8 @@ llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
-    const auto expr = parent()->expression;
-    const auto expr_type = expr->create_type(gen.allocator);
+    // const auto expr = parent()->expression;
+    // const auto expr_type = expr->create_type(gen.allocator);
     const auto ptr = llvm_pointer_no_itr(gen);
     return ptr;
 }

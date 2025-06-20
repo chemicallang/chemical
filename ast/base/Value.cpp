@@ -412,8 +412,8 @@ llvm::Value* Value::llvm_arg_value(Codegen& gen, BaseType* expected_type) {
  * this method is called by return statement to get the return value for this Value
  * if this class defines specific behavior for return, it should override this method
  */
-llvm::Value* Value::llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
-    return llvm_value(gen, returnStmt->known_type());
+llvm::Value* Value::llvm_ret_value(Codegen& gen, Value* returnValue) {
+    return llvm_value(gen, nullptr);
 }
 
 /**

@@ -387,6 +387,11 @@ public:
     bool requires_return(Value* val);
 
     /**
+     * its like writing a return statement
+     */
+    void writeReturnStmtFor(Value* value);
+
+    /**
      * write the return value, the type is the type of the function
      */
     void return_value(Value* val, BaseType* type);
@@ -599,6 +604,8 @@ public:
     void VisitVariantCase(VariantCase* value);
 
     void VisitAddrOfValue(AddrOfValue* value);
+
+    void VisitPatternMatchExpr(PatternMatchExpr* value);
 
     // TODO handle pointer value
     void VisitPointerValue(PointerValue* value) {}

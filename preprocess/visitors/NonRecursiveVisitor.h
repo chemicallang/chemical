@@ -370,6 +370,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitPatternMatchExpr(PatternMatchExpr* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitWrapValue(WrapValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -785,6 +789,9 @@ public:
                 return;
             case ValueKind::TypeInsideValue:
                 static_cast<Derived*>(this)->VisitTypeInsideValue((TypeInsideValue*) value);
+                return;
+            case ValueKind::PatternMatchExpr:
+                static_cast<Derived*>(this)->VisitPatternMatchExpr((PatternMatchExpr*) value);
                 return;
             case ValueKind::BlockValue:
                 static_cast<Derived*>(this)->VisitBlockValue((BlockValue*) value);

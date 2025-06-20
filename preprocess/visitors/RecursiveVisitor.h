@@ -111,6 +111,7 @@
 //#include "ast/values/ULongValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
+#include "ast/values/PatternMatchExpr.h"
 
 template<typename Derived>
 class RecursiveVisitor : public NonRecursiveVisitor<Derived> {
@@ -439,6 +440,14 @@ public:
 
     void VisitTypeInsideValue(TypeInsideValue* value) {
         visit_it(value->type);
+    }
+
+    void VisitPatternMatchExpr(PatternMatchExpr* value) {
+        visit_it(value->expression);
+        auto& elseVal = value->elseExpression.value;
+        if(elseVal) {
+            visit_it(elseVal);
+        }
     }
 
     inline void VisitReferenceType(ReferenceType* type) {

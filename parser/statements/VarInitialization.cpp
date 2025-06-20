@@ -29,7 +29,7 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
 
     // pattern match expression
     const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
-        is_const, name_view, loc_single(start_token)
+        is_const, allocate_view(allocator, name_view), loc_single(start_token)
     );
 
     // lets parse the identifiers
@@ -39,7 +39,7 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
         if(!id) break;
 
         const auto pmId = new (allocator.allocate<PatternMatchIdentifier>()) PatternMatchIdentifier(
-            id->value, parent_node, loc_single(id)
+            patternMatch, allocate_view(allocator, id->value), parent_node, loc_single(id)
         );
 
 #ifdef LSP_BUILD

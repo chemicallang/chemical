@@ -22,6 +22,8 @@ class VariantMember;
 
 class VariantMemberParam;
 
+class PatternMatchIdentifier;
+
 class PatternMatchExpr;
 
 class ProvideStmt;

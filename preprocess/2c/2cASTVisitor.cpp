@@ -3820,6 +3820,37 @@ void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
     }
 }
 
+void do_patt_mat_expr(ToCAstVisitor& visitor, PatternMatchExpr* value) {
+    const auto elseKind = value->elseExpression.kind;
+    const auto type = value->expression->create_type(visitor.allocator);
+    visitor.visit(type);
+    visitor.write('*');
+    auto varName = visitor.get_local_temp_var_name();
+    visitor.write(' ');
+    visitor.write(varName);
+    visitor.write(" = ");
+    visitor.write('&');
+    visitor.visit(value->expression);
+    visitor.write(';');
+    visitor.local_allocated[value] = varName;
+}
+
+void do_patt_mat_expr_cond(ToCAstVisitor& visitor, PatternMatchExpr* value) {
+    auto found = visitor.local_allocated.find(value);
+#ifdef DEBUG
+    if(found == visitor.local_allocated.end()) {
+        throw std::runtime_error("this shouldn't fail");
+    }
+#endif
+    visitor.write(found->second);
+    visitor.write("->");
+    visitor.write(variant_type_variant_name);
+    visitor.write(" == ");
+    const auto mem = value->param_names[0]->member_param->parent();
+    const auto def = mem->parent();
+    *visitor.output << def->direct_child_index(mem->name);
+}
+
 void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     // generating code for compile time if statements
     if(decl->computed_scope.has_value()) {
@@ -3837,10 +3868,18 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
            return;
         }
     }
+    if(decl->condition->kind() == ValueKind::PatternMatchExpr) {
+        do_patt_mat_expr(*this, decl->condition->as_pattern_match_expr_unsafe());
+        new_line_and_indent();
+    }
     // generating code for normal if statements
     write("if(");
     nested_value = true;
-    visit(decl->condition);
+    if(decl->condition->kind() == ValueKind::PatternMatchExpr) {
+        do_patt_mat_expr_cond(*this, decl->condition->as_pattern_match_expr_unsafe());
+    } else {
+        visit(decl->condition);
+    }
     nested_value = false;
     write(')');
     scope(*this, decl->ifBody);
@@ -5097,20 +5136,20 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 const auto matchExpr = id->matchExpr;
                 auto allocated = local_allocated.find(matchExpr);
                 const auto elseKind = matchExpr->elseExpression.kind;
-                if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
+                if(elseKind == PatternElseExprKind::DefValue) {
+                    if (allocated != local_allocated.end()) {
+                        write(allocated->second);
+                        return;
+                    } else {
+                        //TODO handle this
+                    };
+                } else {
                     if (allocated != local_allocated.end()) {
                         write(allocated->second);
                         write("->");
                         write(matchExpr->member_name);
                         write('.');
                         write(id->identifier);
-                        return;
-                    } else {
-                        //TODO handle this
-                    };
-                } else if(elseKind == PatternElseExprKind::DefValue) {
-                    if (allocated != local_allocated.end()) {
-                        write(allocated->second);
                         return;
                     } else {
                         //TODO handle this
@@ -5276,10 +5315,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write(") {");
         indentation_level += 1;
         new_line_and_indent();
-        const auto returnValue = value->elseExpression.value;
-        if(returnValue) {
-            writeReturnStmtFor(returnValue);
-        }
+        writeReturnStmtFor(value->elseExpression.value);
         indentation_level -= 1;
         new_line_and_indent();
         write('}');

@@ -934,6 +934,10 @@ public:
         return isWrapValue(val_kind()) ? ((WrapValue*) this) : nullptr;
     }
 
+    inline PatternMatchExpr* as_pattern_match_expr() {
+        return val_kind() == ValueKind::PatternMatchExpr ? ((PatternMatchExpr*) this) : nullptr;
+    }
+
     // --------------------------------------------
     // ------- as_value_unsafe methods begin here ---------
     // --------------------------------------------
@@ -1121,6 +1125,11 @@ public:
     inline WrapValue* as_wrap_value_unsafe() {
         CHECK_CAST(ValueKind::WrapValue);
         return ((WrapValue*) this);
+    }
+
+    inline PatternMatchExpr* as_pattern_match_expr_unsafe() {
+        CHECK_CAST(ValueKind::PatternMatchExpr);
+        return ((PatternMatchExpr*) this);
     }
 
 };

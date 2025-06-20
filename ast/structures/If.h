@@ -64,6 +64,8 @@ public:
 
     bool link_conditions(SymbolResolver &linker);
 
+    bool link_conditions_no_patt_match_expr(SymbolResolver &linker);
+
 protected:
 
     Scope* link_evaluated_scope(SymbolResolver& linker);

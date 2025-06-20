@@ -69,8 +69,12 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
         error("expected an expression from which to destructure");
     }
 
-    if(parseElse && token->type == TokenType::ElseKw) {
-        token++;
+    if(parseElse) {
+        if(token->type == TokenType::ElseKw) {
+            token++;
+        } else {
+            error("expected else keyword for else branch");
+        }
         switch(token->type) {
             case TokenType::UnreachableKw:
                 token++;

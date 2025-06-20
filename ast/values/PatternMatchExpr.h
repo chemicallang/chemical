@@ -130,6 +130,8 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) override;
 
+    void llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) override;
+
 #endif
 
 };

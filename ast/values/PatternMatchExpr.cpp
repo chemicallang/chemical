@@ -122,6 +122,30 @@ llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
     return nullptr;
 }
 
+void PatternMatchExpr::llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) {
+
+    const auto pointer = expression->llvm_pointer(gen);
+
+    // must be set
+    llvm_expr = pointer;
+
+    const auto param = param_names[0];
+    const auto mem_param = param->member_param;
+    const auto mem = mem_param->parent();
+    const auto variant_def = mem->parent();
+
+    // check the variant type
+    const auto loadInst = variant_def->load_type_int(gen, pointer, expression->encoded_location());
+
+    // compare the type integer (if its the member that we did NOT expect (then return))
+    const auto index = variant_def->direct_child_index(mem->name);
+    const auto compareResult = gen.builder->CreateICmpEQ(loadInst, gen.builder->getInt32(index));
+
+    // conditional branch to blocks
+    gen.CreateCondBr(compareResult, then_block, otherwise_block, encoded_location());
+
+}
+
 llvm::Type* PatternMatchExpr::llvm_type(Codegen &gen) {
     return nullptr;
 }

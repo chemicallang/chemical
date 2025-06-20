@@ -4,9 +4,12 @@
 // Created by Waqas Tahir on 16/02/2024.
 //
 
+#include <cassert>
 #include "parser/Parser.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
+#include "ast/values/PatternMatchExpr.h"
+#include "ast/statements/ValueWrapperNode.h"
 
 // if neither a type or a value is given, it would causes errors (in lsp)
 VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
@@ -16,7 +19,97 @@ VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
     return stmt;
 }
 
-VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allowDeclarations, bool requiredType) {
+PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
+        ASTAllocator& allocator,
+        bool is_const,
+        chem::string_view name_view,
+        Token* start_token,
+        bool elseRequired
+) {
+
+    // pattern match expression
+    const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
+        is_const, name_view, loc_single(start_token)
+    );
+
+    // lets parse the identifiers
+    do {
+
+        const auto id = consumeIdentifierOrKeyword();
+        if(!id) break;
+
+        const auto pmId = new (allocator.allocate<PatternMatchIdentifier>()) PatternMatchIdentifier(
+            id->value, parent_node, loc_single(id)
+        );
+
+#ifdef LSP_BUILD
+        id->linked = (ASTAny*) pmId;
+#endif
+
+        patternMatch->param_names.emplace_back(pmId);
+
+    } while(consumeToken(TokenType::CommaSym));
+
+    if(token->type == TokenType::RParen) {
+        token++;
+    } else {
+        error("expected a right parenthesis after identifier list");
+    }
+
+    if(token->type == TokenType::EqualSym) {
+        token++;
+    } else {
+        error("expected a equal symbol after identifier list");
+    }
+
+    const auto expr = parseExpression(allocator, false, false);
+    if(expr) {
+        patternMatch->expression = expr;
+    } else {
+        error("expected an expression from which to destructure");
+    }
+
+    if(token->type == TokenType::ElseKw) {
+        token++;
+        switch(token->type) {
+            case TokenType::UnreachableKw:
+                token++;
+                patternMatch->elseExpression.kind = PatternElseExprKind::Unreachable;
+                break;
+            case TokenType::ReturnKw:{
+                token++;
+                patternMatch->elseExpression.kind = PatternElseExprKind::Return;
+                const auto elseExpr = parseExpression(allocator, true, true);
+                if(elseExpr) {
+                    patternMatch->elseExpression.value = elseExpr;
+                }
+                break;
+            }
+            default:{
+                const auto elseExpr = parseExpression(allocator, true, true);
+                if(elseExpr) {
+                    patternMatch->elseExpression.kind = PatternElseExprKind::DefValue;
+                    patternMatch->elseExpression.value = elseExpr;
+                } else {
+                    error("expected an expression for default value after else in pattern match");
+                }
+                break;
+            }
+        }
+    } else if(elseRequired) {
+        error("else branch is required for pattern match expression");
+    }
+
+    return patternMatch;
+}
+
+ASTNode* Parser::parseVarInitializationTokens(
+        ASTAllocator& allocator,
+        AccessSpecifier specifier,
+        bool matchExpr,
+        bool allowDeclarations,
+        bool requiredType
+) {
 
     auto& start_tok = *token;
     auto is_const = start_tok.type == TokenType::ConstKw;
@@ -35,6 +128,23 @@ VarInitStatement* Parser::parseVarInitializationTokens(ASTAllocator& allocator, 
     if(!id) {
         error("expected an identifier for variable initialization");
         return nullptr;
+    }
+
+    if(matchExpr && token->type == TokenType::LParen) {
+        // this is a destructuring operation
+        token++;
+        const auto patternMatchExpr = parsePatternMatchExprAfterId(allocator, is_const, id->value, &start_tok, true);
+        assert(patternMatchExpr != nullptr);
+
+#ifdef LSP_BUILD
+        id->linked = patternMatchExpr;
+#endif
+
+        const auto wrapperNode = new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(
+                patternMatchExpr, parent_node
+        );
+
+        return wrapperNode;
     }
 
     auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, is_ref, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);

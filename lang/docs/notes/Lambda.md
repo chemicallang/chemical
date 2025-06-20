@@ -141,6 +141,6 @@ struct function_instance {
     
 }
 
-type function<T> = @transform("capture") T using function_instance;
+type function<T, M = function_instance> = #lambda<T, M>;
 
 ```

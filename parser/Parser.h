@@ -497,13 +497,30 @@ public:
     Value* parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
+     * parse a pattern match expression
+     */
+    PatternMatchExpr* parsePatternMatchExprAfterId(
+            ASTAllocator& allocator,
+            bool is_const,
+            chem::string_view name_view,
+            Token* start_token,
+            bool elseRequired
+    );
+
+    /**
      * lex allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;
      * @param allowDeclarations when true, it will allow allowDeclarations only without the value initialization
      * like #var x : int; when false however, it'll be strict initialization
      * @return whether it was able to lex the tokens for the statement
      */
-    VarInitStatement* parseVarInitializationTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool allowDeclarations = true, bool requiredType = false);
+    ASTNode* parseVarInitializationTokens(
+            ASTAllocator& allocator,
+            AccessSpecifier specifier,
+            bool matchExpr,
+            bool allowDeclarations,
+            bool requiredType
+    );
 
     /**
      * lex assignment tokens

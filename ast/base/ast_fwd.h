@@ -22,6 +22,8 @@ class VariantMember;
 
 class VariantMemberParam;
 
+class PatternMatchExpr;
+
 class ProvideStmt;
 
 class ImportStatement;

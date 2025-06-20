@@ -4,6 +4,7 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
+#include <cassert>
 #include "parser/Parser.h"
 #include "ast/structures/If.h"
 #include "ast/values/NullValue.h"
@@ -16,10 +17,43 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         return std::nullopt;
     }
 
-    auto expr = parseExpression(allocator);
-    if(!expr) {
-        error("expected a conditional expression when lexing a if block");
-        return std::nullopt;
+    Value* expr;
+
+    auto& t = *token;
+    const auto isVar = t.type == TokenType::VarKw;
+    if(isVar || t.type == TokenType::ConstKw) {
+        token++;
+
+        const auto id = consumeIdentifierOrKeyword();
+        if(id == nullptr) {
+            error("expected an identifier for pattern match");
+            return std::nullopt;
+        }
+
+        if(token->type == TokenType::LParen) {
+            token++;
+        } else {
+            error("expected a left parenthesis for pattern match");
+            return std::nullopt;
+        }
+
+        // parse pattern match
+        const auto patternMatch = parsePatternMatchExprAfterId(allocator, !isVar, id->value, &t, false);
+        assert(patternMatch != nullptr);
+
+#ifdef LSP_BUILD
+        id->linked = (ASTAny*) patternMatch;
+#endif
+        expr = (Value*) patternMatch;
+
+    } else {
+        const auto valueExpr = parseExpression(allocator);
+        if(valueExpr != nullptr) {
+            expr = valueExpr;
+        } else {
+            error("expected a conditional expression when lexing a if block");
+            return std::nullopt;
+        }
     }
 
     consumeNewLines();

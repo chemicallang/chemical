@@ -57,6 +57,20 @@ public:
 
     }
 
+    BaseType* known_type() override;
+
+    ASTNode* child(const chem::string_view &name) override;
+
+#ifdef COMPILER_BUILD
+
+    llvm::Type* llvm_type(Codegen &gen) override;
+
+    llvm::Value* llvm_load(Codegen &gen, SourceLocation location) override;
+
+    llvm::Value* llvm_pointer(Codegen &gen) override;
+
+#endif
+
 };
 
 class PatternMatchExpr : public Value {
@@ -84,6 +98,15 @@ public:
      */
     PatternElseExpr elseExpression;
 
+#ifdef COMPILER_BUILD
+
+    /**
+     * this is evaluated in llvm_value
+     */
+    llvm::Value* llvm_expr = nullptr;
+
+#endif
+
     /**
      * constructor
      */
@@ -100,5 +123,13 @@ public:
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
 
     BaseType* create_type(ASTAllocator &allocator) override;
+
+#ifdef COMPILER_BUILD
+
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+
+    llvm::Type* llvm_type(Codegen &gen) override;
+
+#endif
 
 };

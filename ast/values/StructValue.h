@@ -161,7 +161,7 @@ public:
 
     void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
 
-    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) final;
+    llvm::Value *llvm_ret_value(Codegen &gen, Value* returnValue) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

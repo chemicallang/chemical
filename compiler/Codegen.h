@@ -351,6 +351,12 @@ public:
      */
     void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location);
 
+    /**
+     * writes the return statement for the given return value, also accounting
+     * for destructors and other stuff
+     */
+    void writeReturnStmtFor(Value* returnValue, SourceLocation location);
+
 //    /**
 //     * move the value
 //     * @param type is the type of value, expected

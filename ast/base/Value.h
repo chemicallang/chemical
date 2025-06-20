@@ -469,7 +469,7 @@ public:
      * this method is called by return statement to get the return value for this Value
      * if this class defines specific behavior for return, it should override this method
      */
-    virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt);
+    virtual llvm::Value* llvm_ret_value(Codegen& gen, Value* returnValue);
 
     /**
      * called by assignment, to assign the current value to left hand side

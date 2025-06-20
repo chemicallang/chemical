@@ -1011,7 +1011,9 @@ void Codegen::conditional_destruct(
     }
 }
 
-void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
+
+    auto& gen = *this;
 
     const auto func_type = gen.current_func_type;
 
@@ -1033,14 +1035,14 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
             auto value_ptr = value->llvm_pointer(gen);
-            if(!gen.assign_dyn_obj(value, func_type->returnType, dest, value_ptr, encoded_location())) {
+            if(!gen.assign_dyn_obj(value, func_type->returnType, dest, value_ptr, location)) {
                 llvm::MaybeAlign noAlign;
                 auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
                 const auto memCpyInst = gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
-                gen.di.instr(memCpyInst, this);
+                gen.di.instr(memCpyInst, location);
             }
         } else {
-            return_value = value->llvm_ret_value(gen, this);
+            return_value = value->llvm_ret_value(gen, value);
             if(return_value && func_type) {
                 auto value_type = value->get_pure_type(gen.allocator);
                 auto to_type = func_type->returnType->pure_type(gen.allocator);
@@ -1062,7 +1064,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
         }
     }
 
-    VariableIdentifier temp_id("", encoded_location(), false);
+    VariableIdentifier temp_id("", location, false);
 
     // destruction
     if(!gen.has_current_block_ended) {
@@ -1073,9 +1075,9 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             // if it's nested member has been moved somewhere, because we canot
             temp_id.linked = nodePair.first;
             if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-                gen.conditional_destruct(nodePair, value, encoded_location());
+                gen.conditional_destruct(nodePair, value, location);
             } else {
-                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first, this);
+                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first->encoded_location(), location);
             }
             i--;
         }
@@ -1083,10 +1085,14 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     }
     // return the return value calculated above
     if (value) {
-        gen.CreateRet(return_value, encoded_location());
+        gen.CreateRet(return_value, location);
     } else {
-        gen.DefaultRet(encoded_location());
+        gen.DefaultRet(location);
     }
+}
+
+void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+    gen.writeReturnStmtFor(value, encoded_location());
 }
 
 void TypealiasStatement::code_gen(Codegen &gen) {

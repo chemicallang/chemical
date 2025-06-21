@@ -98,6 +98,11 @@ public:
      */
     PatternElseExpr elseExpression;
 
+    /**
+     * we set this during linking
+     */
+    VariantMember* member = nullptr;
+
 #ifdef COMPILER_BUILD
 
     /**
@@ -123,6 +128,8 @@ public:
     bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
 
     BaseType* create_type(ASTAllocator &allocator) override;
+
+    VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

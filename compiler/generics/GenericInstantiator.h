@@ -132,6 +132,8 @@ public:
         relink_identifier(value);
     }
 
+    void VisitPatternMatchExpr(PatternMatchExpr* value);
+
     void VisitAccessChain(AccessChain* value);
 
     void VisitFunctionCall(FunctionCall *call);

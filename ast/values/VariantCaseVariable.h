@@ -49,8 +49,6 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value* llvm_pointer_no_itr(Codegen& gen);
-
     llvm::Value* llvm_pointer(Codegen &gen) final;
 
     llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final;

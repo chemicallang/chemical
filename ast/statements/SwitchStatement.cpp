@@ -164,12 +164,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                     // TODO only do this when switch is a value
                     auto_default_case = true;
                 }
-                const auto def_type = variant_def->llvm_type(gen);
-                std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
-                const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
-                const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
-                gen.di.instr(loadInst, expression);
-                expr_value = loadInst;
+                expr_value = variant_def->load_type_int(gen, expr_value, expression->encoded_location());
             }
         }
 

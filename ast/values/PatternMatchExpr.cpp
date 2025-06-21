@@ -30,15 +30,7 @@ llvm::Value* PatternMatchIdentifier::llvm_pointer(Codegen &gen) {
     }
     const auto linked_member = member_param->parent();
     const auto linked_def = linked_member->parent();
-    const auto largest_member = linked_def->largest_member()->as_variant_member_unsafe();
-    llvm::Type* container_type;
-    if(largest_member == linked_member) {
-        container_type = linked_def->llvm_type(gen);
-    } else {
-        container_type = linked_def->llvm_type_with_member(gen, linked_member);
-    }
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32(0), gen.builder->getInt32((int) member_param->index) };
-    return gen.builder->CreateGEP(container_type, holder_pointer, idxList, "", gen.inbounds);
+    return linked_def->get_param_pointer(gen, holder_pointer, member_param);
 }
 
 llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {

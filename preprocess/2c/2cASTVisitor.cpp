@@ -5279,7 +5279,9 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write(' ');
         write(varName2);
         write(" = ");
-        write('&');
+        if(!is_value_param_hidden_pointer(value->expression)) {
+            write('&');
+        }
         visit(value->expression);
         write("; ");
         write(varName2);

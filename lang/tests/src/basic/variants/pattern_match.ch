@@ -3,6 +3,11 @@ variant PMOpt1 {
     None()
 }
 
+func get_pm_opt1_val(opt : PMOpt1) : int {
+    var Some(value) = opt else -1
+    return value;
+}
+
 variant PMMultiOpt {
     Some(value1 : int, value2 : int)
     None()
@@ -23,6 +28,12 @@ func test_variant_pattern_matching() {
         var opt2 = PMOpt1.None()
         var Some(value) = opt2 else 10
         return value == 10;
+    })
+    test("variant pattern matching works in functions - 1", () => {
+        return get_pm_opt1_val(PMOpt1.Some(32)) == 32
+    })
+    test("variant pattern matching works in functions - 2", () => {
+        return get_pm_opt1_val(PMOpt1.None()) == -1
     })
     test("variant pattern matching with return works - 1", () => {
         var opt3 = PMOpt1.Some(15)

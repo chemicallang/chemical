@@ -57,6 +57,17 @@ public:
 
     }
 
+    PatternMatchIdentifier* copy(ASTAllocator &allocator) override {
+        const auto copied = new (allocator.allocate<PatternMatchIdentifier>()) PatternMatchIdentifier(
+            matchExpr,
+            identifier,
+            parent(),
+            encoded_location()
+        );
+        copied->member_param = member_param;
+        return copied;
+    }
+
     BaseType* known_type() override;
 
     ASTNode* child(const chem::string_view &name) override;
@@ -130,6 +141,23 @@ public:
     BaseType* create_type(ASTAllocator &allocator) override;
 
     VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+
+    Value* copy(ASTAllocator &allocator) override {
+        const auto copied = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
+            is_const, member_name, encoded_location()
+        );
+        for(const auto name : param_names) {
+            copied->param_names.emplace_back(name->copy(allocator));
+        }
+        copied->expression = expression->copy(allocator);
+        auto& elseExpr = copied->elseExpression;
+        elseExpr.kind = elseExpression.kind;
+        if(elseExpression.value) {
+            elseExpr.value = elseExpression.value->copy(allocator);
+        }
+        copied->member = member;
+        return copied;
+    }
 
 #ifdef COMPILER_BUILD
 

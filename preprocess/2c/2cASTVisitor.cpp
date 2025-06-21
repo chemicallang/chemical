@@ -5274,10 +5274,14 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         }
         visit(value->expression);
     } else if(elseKind == PatternElseExprKind::DefValue) {
+
+        const auto type = value->expression->create_type(allocator);
         const auto memberId = value->param_names[0];
+        const auto member = memberId->member_param->parent();
+        const auto def = member->parent();
+
         auto varName2 = get_local_temp_var_name();
         write("({ ");
-        const auto type = value->expression->create_type(allocator);
         visit(type);
         write('*');
         write(' ');
@@ -5292,8 +5296,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write("->");
         write(variant_type_variant_name);
         write(" == ");
-        const auto member = memberId->member_param->parent();
-        const auto def = member->parent();
+
         *output << def->direct_child_index(member->name);
         write(" ? ");
         write(varName2);

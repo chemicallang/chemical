@@ -147,7 +147,9 @@ public:
             is_const, member_name, encoded_location()
         );
         for(const auto name : param_names) {
-            copied->param_names.emplace_back(name->copy(allocator));
+            const auto id = name->copy(allocator);
+            id->matchExpr = copied;
+            copied->param_names.emplace_back(id);
         }
         copied->expression = expression->copy(allocator);
         auto& elseExpr = copied->elseExpression;

@@ -25,6 +25,28 @@ variant PMMultiOpt {
     None()
 }
 
+variant PMOptGen1<T> {
+    Some(value : T)
+    None()
+}
+
+func <T> get_pm_opt1_gen_val(opt : PMOptGen1<T>) : int {
+    var Some(value) = opt else -1
+    return value;
+}
+
+func <T> get_pm_opt1_gen_val_with_ret(opt : PMOptGen1<T>) : int {
+    var Some(value) = opt else return 0
+    return value;
+}
+
+func <T> get_pm_opt1_gen_val_with_if(opt : PMOptGen1<T>) : int {
+    if(var Some(value) = opt) {
+        return value;
+    }
+    return -1;
+}
+
 func test_variant_pattern_matching() {
     test("variant pattern matching with unreachable works", () => {
         var opt = PMOpt1.Some(10)
@@ -58,6 +80,42 @@ func test_variant_pattern_matching() {
     })
     test("variant pattern matching works in functions with if - 2", () => {
         return get_pm_opt1_val_with_if(PMOpt1.None()) == -1
+    })
+    test("variant pattern matching with generic works in functions - 1", () => {
+        return get_pm_opt1_gen_val(PMOptGen1.Some<short>(32)) == 32
+    })
+    test("variant pattern matching with generic  works in functions - 2", () => {
+        return get_pm_opt1_gen_val(PMOptGen1.None<short>()) == -1
+    })
+    test("variant pattern matching with generic  works in functions with return - 1", () => {
+        return get_pm_opt1_gen_val_with_ret(PMOptGen1.Some<short>(75)) == 75
+    })
+    test("variant pattern matching with generic  works in functions with return - 2", () => {
+        return get_pm_opt1_gen_val_with_ret(PMOptGen1.None<short>()) == 0
+    })
+    test("variant pattern matching with generic  works in functions with if - 1", () => {
+        return get_pm_opt1_gen_val_with_if(PMOptGen1.Some<short>(26)) == 26
+    })
+    test("variant pattern matching with generic  works in functions with if - 2", () => {
+        return get_pm_opt1_gen_val_with_if(PMOptGen1.None<short>()) == -1
+    })
+    test("variant pattern matching with generic works in functions - 1", () => {
+        return get_pm_opt1_gen_val(PMOptGen1.Some<long>(32)) == 32
+    })
+    test("variant pattern matching with generic  works in functions - 2", () => {
+        return get_pm_opt1_gen_val(PMOptGen1.None<long>()) == -1
+    })
+    test("variant pattern matching with generic  works in functions with return - 1", () => {
+        return get_pm_opt1_gen_val_with_ret(PMOptGen1.Some<long>(75)) == 75
+    })
+    test("variant pattern matching with generic  works in functions with return - 2", () => {
+        return get_pm_opt1_gen_val_with_ret(PMOptGen1.None<long>()) == 0
+    })
+    test("variant pattern matching with generic  works in functions with if - 1", () => {
+        return get_pm_opt1_gen_val_with_if(PMOptGen1.Some<long>(26)) == 26
+    })
+    test("variant pattern matching with generic  works in functions with if - 2", () => {
+        return get_pm_opt1_gen_val_with_if(PMOptGen1.None<long>()) == -1
     })
     test("variant pattern matching with return works - 1", () => {
         var opt3 = PMOpt1.Some(15)

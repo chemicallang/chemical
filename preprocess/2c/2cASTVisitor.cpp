@@ -5267,7 +5267,9 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
     write(" = ");
 
     if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
-        write('&');
+        if(!is_value_param_hidden_pointer(value->expression)) {
+            write('&');
+        }
         visit(value->expression);
     } else if(elseKind == PatternElseExprKind::DefValue) {
         const auto memberId = value->param_names[0];

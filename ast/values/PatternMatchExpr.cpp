@@ -3,6 +3,7 @@
 #include "PatternMatchExpr.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/VariantMember.h"
 
@@ -68,7 +69,8 @@ llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
 
         // the block that loads the else value
         gen.SetInsertPoint(avoidBlock);
-        const auto loadedElse = elseExpression.value->llvm_value(gen, nullptr);
+        const auto loadedElseNotCasted = elseExpression.value->llvm_value(gen, nullptr);
+        const auto loadedElse = gen.implicit_cast(loadedElseNotCasted, mem_param->type, paramType);
         gen.CreateBr(endBlock, elseExpression.value->encoded_location());
 
         // the block that decides the final value
@@ -160,21 +162,34 @@ VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, 
         diagnoser.error("couldn't resolve linked declaration", expression);
         return nullptr;
     }
-    if(linked_node->kind() != ASTNodeKind::VariantDecl) {
+    if(linked_node->kind() == ASTNodeKind::VariantDecl) {
+        const auto decl = linked_node->as_variant_def_unsafe();
+        const auto found_child = decl->child(member_name);
+        if(!found_child) {
+            diagnoser.error(this) << "couldn't find member with name '" << member_name << "'";
+            return nullptr;
+        }
+        if(found_child->kind() != ASTNodeKind::VariantMember) {
+            diagnoser.error("member is not a variant member", this);
+            return nullptr;
+        }
+        return found_child->as_variant_member_unsafe();
+    } else if(linked_node->kind() == ASTNodeKind::GenericVariantDecl) {
+        const auto decl = linked_node->as_gen_variant_decl_unsafe();
+        const auto found_child = decl->child(member_name);
+        if(!found_child) {
+            diagnoser.error(this) << "couldn't find member with name '" << member_name << "'";
+            return nullptr;
+        }
+        if(found_child->kind() != ASTNodeKind::VariantMember) {
+            diagnoser.error("member is not a variant member", this);
+            return nullptr;
+        }
+        return found_child->as_variant_member_unsafe();
+    } else {
         diagnoser.error("linked declaration is not a variant", expression);
         return nullptr;
     }
-    const auto decl = linked_node->as_variant_def_unsafe();
-    const auto found_child = decl->child(member_name);
-    if(!found_child) {
-        diagnoser.error(this) << "couldn't find member with name '" << member_name << "'";
-        return nullptr;
-    }
-    if(found_child->kind() != ASTNodeKind::VariantMember) {
-        diagnoser.error("member is not a variant member", this);
-        return nullptr;
-    }
-    return found_child->as_variant_member_unsafe();
 }
 
 bool PatternMatchExpr::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {

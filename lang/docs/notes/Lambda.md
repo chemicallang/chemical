@@ -86,12 +86,22 @@ struct function_instance {
     // is the captured struct allocated on heap 
     var is_heap : bool
     
-    @make
+    @comptime
     func make(lambda : () => void) {
+        const ptr = intrinsics::get_lambda_fn(lambda)
+        const cap = intrinsics::get_lambda_captured(lambda)
+        const destr = intrinsics::get_lambda_captured_destructor(lambda)
+        const size_data = intrinsics::sizeof_lambda_captured(lambda);
+        const align_data = intrinsics::alignof_lambda_captured(lambda)
+        return intrinsics::wrap(make(ptr, cap, destr, size_data, align_data))
+    }
+    
+    @make
+    func make(ptr : *void, cap : *void, destr : (obj : *void) => void, size_data : size_t, align_data : size_t) {
         // copy the fat pointer
-        fn_pointer = compiler::get_lambda_fn(lambda);
+        fn_pointer = ptr;
         // we get the captured struct from the lambda
-        const captured = intrinsics::get_lambda_captured(lambda)
+        const captured = cap
         // since lambda has no captured data, we don't need to do anything else
         if(captured == null) {
             fn_data_ptr = null;
@@ -100,10 +110,8 @@ struct function_instance {
             return;
         }
         // set the destructor function for the given lambda
-        dtor = intrinsics::get_lambda_captured_destructor(lambda)
+        dtor = destr
         // now lets store the data into buffer
-        const size_data = intrinsics::sizeof_lambda_captured(lambda);
-        const align_data = intrinsics::alignof_lambda_captured(lambda)
         if(size_data >= 32) {
             // we are going to need to allocate the lambda on heap, its too big
             var allocated = malloc(size_data, align_data) as *mut char

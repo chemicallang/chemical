@@ -3846,7 +3846,7 @@ void do_patt_mat_expr_cond(ToCAstVisitor& visitor, PatternMatchExpr* value) {
     visitor.write("->");
     visitor.write(variant_type_variant_name);
     visitor.write(" == ");
-    const auto mem = value->param_names[0]->member_param->parent();
+    const auto mem = value->member;
     const auto def = mem->parent();
     *visitor.output << def->direct_child_index(mem->name);
 }
@@ -5301,16 +5301,17 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
     }
 
     if(elseKind == PatternElseExprKind::Return) {
+
+        const auto member = value->member;
+        const auto def = member->parent();
+
         write(';');
-        const auto memberId = value->param_names[0];
         new_line_and_indent();
         write("if(");
         write(varName);
         write("->");
         write(variant_type_variant_name);
         write(" != ");
-        const auto member = memberId->member_param->parent();
-        const auto def = member->parent();
         *output << def->direct_child_index(member->name);
         write(") {");
         indentation_level += 1;
@@ -5319,6 +5320,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         indentation_level -= 1;
         new_line_and_indent();
         write('}');
+
     }
 
 

@@ -5,10 +5,11 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/VariantMember.h"
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
 
 #ifdef COMPILER_BUILD
+
+#include "compiler/Codegen.h"
+#include "compiler/llvmimpl.h"
 
 llvm::Type* PatternMatchIdentifier::llvm_type(Codegen &gen) {
     return member_param->type->llvm_type(gen);
@@ -91,9 +92,7 @@ llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
 
         if(elseKind == PatternElseExprKind::Return) {
 
-            const auto param = param_names[0];
-            const auto mem_param = param->member_param;
-            const auto mem = mem_param->parent();
+            const auto mem = member;
             const auto variant_def = mem->parent();
 
             // check the variant type
@@ -129,9 +128,7 @@ void PatternMatchExpr::llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *t
     // must be set
     llvm_expr = pointer;
 
-    const auto param = param_names[0];
-    const auto mem_param = param->member_param;
-    const auto mem = mem_param->parent();
+    const auto mem = member;
     const auto variant_def = mem->parent();
 
     // check the variant type
@@ -160,34 +157,52 @@ ASTNode* PatternMatchIdentifier::child(const chem::string_view &name) {
     return member_param->child(name);
 }
 
+VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+    const auto type = expression->create_type(allocator);
+    if(!type) {
+        diagnoser.error("couldn't resolve linked declaration", expression);
+        return nullptr;
+    }
+    const auto linked_node = type->get_direct_linked_canonical_node();
+    if(!linked_node) {
+        diagnoser.error("couldn't resolve linked declaration", expression);
+        return nullptr;
+    }
+    if(linked_node->kind() != ASTNodeKind::VariantDecl) {
+        diagnoser.error("linked declaration is not a variant", expression);
+        return nullptr;
+    }
+    const auto decl = linked_node->as_variant_def_unsafe();
+    const auto found_child = decl->child(member_name);
+    if(!found_child) {
+        diagnoser.error(this) << "couldn't find member with name '" << member_name << "'";
+        return nullptr;
+    }
+    if(found_child->kind() != ASTNodeKind::VariantMember) {
+        diagnoser.error("member is not a variant member", this);
+        return nullptr;
+    }
+    return found_child->as_variant_member_unsafe();
+}
+
 bool PatternMatchExpr::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
     if(!expression->link(linker, expression, nullptr)) {
         return false;
     }
-    const auto type = expression->create_type(linker.allocator);
-    if(!type) {
-        linker.error("couldn't resolve linked declaration", expression);
+    const auto child_member = find_member_from_expr(linker.allocator, linker);
+    if(!child_member) {
         return false;
     }
-    const auto linked_node = type->get_direct_linked_canonical_node();
-    if(!linked_node) {
-        linker.error("couldn't resolve linked declaration", expression);
+    // set the member, so we don't need to resolve it again
+    member = child_member;
+    auto& params = child_member->values;
+    if(elseExpression.kind == PatternElseExprKind::DefValue && param_names.size() != 1) {
+        linker.error("must destructure one member for default value to work", this);
         return false;
     }
-    if(linked_node->kind() != ASTNodeKind::VariantDecl) {
-        linker.error("linked declaration is not a variant", expression);
-        return false;
-    }
-    const auto decl = linked_node->as_variant_def_unsafe();
-    const auto child_member = decl->child(member_name);
-    if(child_member->kind() != ASTNodeKind::VariantMember) {
-        linker.error("member is not a variant member", this);
-        return false;
-    }
-    const auto member = child_member->as_variant_member_unsafe();
     for(const auto nameId : param_names) {
-        auto found = member->values.find(nameId->identifier);
-        if(found == member->values.end()) {
+        auto found = params.find(nameId->identifier);
+        if(found == params.end()) {
             linker.error("couldn't find parameter in variant member", nameId);
         } else {
             nameId->member_param = found->second;

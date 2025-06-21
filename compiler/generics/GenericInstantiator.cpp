@@ -104,6 +104,32 @@ void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
 }
 
+void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitPatternMatchExpr(value);
+
+    const auto member = value->find_member_from_expr(getAllocator(), diagnoser);
+    if(member == nullptr) {
+        return;
+    }
+
+    // set the member
+    value->member = member;
+
+    // declare the members so variables are relinked for generics
+    auto& params = member->values;
+    for(const auto nameId : value->param_names) {
+        auto found = params.find(nameId->identifier);
+        if(found == params.end()) {
+            diagnoser.error(nameId) << "couldn't find parameter in variant member";
+        } else {
+            nameId->member_param = found->second;
+            // we declare this id, so anyone can link with it
+            table.declare(nameId->identifier, nameId);
+        }
+    }
+
+}
+
 void GenericInstantiator::VisitStructValue(StructValue *val) {
     RecursiveVisitor<GenericInstantiator>::VisitStructValue(val);
     const auto linked = val->linked_extendable();

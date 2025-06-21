@@ -3829,7 +3829,9 @@ void do_patt_mat_expr(ToCAstVisitor& visitor, PatternMatchExpr* value) {
     visitor.write(' ');
     visitor.write(varName);
     visitor.write(" = ");
-    visitor.write('&');
+    if(!is_value_param_hidden_pointer(value->expression)) {
+        visitor.write('&');
+    }
     visitor.visit(value->expression);
     visitor.write(';');
     visitor.local_allocated[value] = varName;

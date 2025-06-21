@@ -29,6 +29,7 @@ public func main() : int {
     test_array_refs();
     test_dynamic_dispatch();
     test_variants();
+    test_variant_pattern_matching();
     test_optional_type();
     test_result_type();
     test_is_value();

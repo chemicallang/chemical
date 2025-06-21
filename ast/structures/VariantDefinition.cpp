@@ -182,34 +182,16 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
     }
 }
 
-llvm::Value* VariantCaseVariable::llvm_pointer_no_itr(Codegen& gen) {
+llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     const auto switch_statement = parent();
     const auto holder_pointer = switch_statement->expression->llvm_pointer(gen);
     const auto linked_member = member_param->parent();
     const auto linked_def = linked_member->parent();
-    const auto largest_member = linked_def->largest_member()->as_variant_member_unsafe();
-    llvm::Type* container_type;
-    if(largest_member == linked_member) {
-        container_type = linked_def->llvm_type(gen);
-    } else {
-        container_type = linked_def->llvm_type_with_member(gen, linked_member);
-    }
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32(0), gen.builder->getInt32((int) member_param->index) };
-    return gen.builder->CreateGEP(container_type, holder_pointer, idxList, "", gen.inbounds);
-}
-
-llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
-    // const auto expr = parent()->expression;
-    // const auto expr_type = expr->create_type(gen.allocator);
-    const auto ptr = llvm_pointer_no_itr(gen);
-    return ptr;
+    return linked_def->get_param_pointer(gen, holder_pointer, member_param);
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen& gen, SourceLocation location) {
-    const auto expr = parent()->expression;
-    const auto expr_type = expr->create_type(gen.allocator);
-    const auto value = Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer_no_itr(gen), location);
-    return value;
+    return Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer(gen), location);
 }
 
 llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {

@@ -45,6 +45,7 @@
 #include "ast/types/GenericType.h"
 //#include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/CapturingFunctionType.h"
 //#include "ast/types/BigIntType.h"
 //#include "ast/types/BoolType.h"
 //#include "ast/types/CharType.h"
@@ -102,7 +103,7 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/ExpressionType.h"
 #include "ast/statements/AliasStmt.h"
-//#include "ast/values/NumberValue.h"
+#include "ast/values/ExtractionValue.h"
 //#include "ast/values/ShortValue.h"
 //#include "ast/values/StringValue.h"
 //#include "ast/values/UBigIntValue.h"
@@ -450,6 +451,10 @@ public:
         }
     }
 
+    void VisitExtractionValue(ExtractionValue* value) {
+        visit_it(value->value);
+    }
+
     inline void VisitReferenceType(ReferenceType* type) {
         visit_it(type->type);
     }
@@ -470,6 +475,11 @@ public:
             visit_it(ty);
         }
         visit_it(type->returnType);
+    }
+
+    void VisitCapturingFunctionType(CapturingFunctionType* type) {
+        visit_it(type->func_type);
+        visit_it(type->instance_type);
     }
 
     void VisitStructType(StructType* type) {

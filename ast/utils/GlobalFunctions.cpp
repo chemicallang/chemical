@@ -20,6 +20,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/ExtractionValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/FunctionCall.h"
@@ -1363,6 +1364,174 @@ public:
     }
 };
 
+class InterpretGetLambdaFnPtr : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretGetLambdaFnPtr(
+        TypeBuilder& cache,
+        ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("get_lambda_fn_ptr"),
+            {cache.getVoidType(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+        }
+        const auto arg = call->values.front();
+        return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
+            arg, ExtractionKind::LambdaFnPtr, call->encoded_location()
+        );
+    }
+};
+
+class InterpretGetLambdaCapPtr : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretGetLambdaCapPtr(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("get_lambda_cap_ptr"),
+            {cache.getVoidType(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+        }
+        const auto arg = call->values.front();
+        return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
+                arg, ExtractionKind::LambdaCapturedPtr, call->encoded_location()
+        );
+    }
+};
+
+
+class InterpretGetLambdaCapDestructor : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretGetLambdaCapDestructor(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("get_lambda_cap_destructor"),
+            {cache.getVoidType(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+        }
+        const auto arg = call->values.front();
+        return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
+                arg, ExtractionKind::LambdaCapturedDestructor, call->encoded_location()
+        );
+    }
+};
+
+class InterpretSizeOfLambdaCaptured : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretSizeOfLambdaCaptured(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("sizeof_lambda_captured"),
+            {cache.getUBigIntType(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+        }
+        const auto arg = call->values.front();
+        return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
+                arg, ExtractionKind::SizeOfLambdaCaptured, call->encoded_location()
+        );
+    }
+};
+
+
+class InterpretAlignOfLambdaCaptured : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretAlignOfLambdaCaptured(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("alignof_lambda_captured"),
+            {cache.getUBigIntType(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) {
+            call_scope->error("call requires a single argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+        }
+        const auto arg = call->values.front();
+        return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
+                arg, ExtractionKind::AlignOfLambdaCaptured, call->encoded_location()
+        );
+    }
+};
+
+
 class MemNamespace : public Namespace {
 public:
 
@@ -1432,6 +1601,13 @@ public:
     InterpretGetModuleScope get_module_scope;
     InterpretGetModuleName get_module_name;
     InterpretGetModuleDir get_module_dir;
+
+    InterpretGetLambdaFnPtr get_lambda_fn_ptr;
+    InterpretGetLambdaCapPtr get_lambda_cap_ptr;
+    InterpretGetLambdaCapDestructor get_lambda_cap_destructor;
+    InterpretSizeOfLambdaCaptured sizeof_lambda_captured;
+    InterpretAlignOfLambdaCaptured alignof_lambda_captured;
+
     // TODO get_child_fn should be removed
     // we should use get destructor explicitly
     InterpretGetChildFunction get_child_fn;
@@ -1448,7 +1624,9 @@ public:
         get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this), get_call_loc(cache, this), get_char_no(cache, this),
         get_caller_line_no(cache, this), get_caller_char_no(cache, this), get_loc_file_path(cache, this),
         get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this), get_child_fn(cache, this),
-        forget_fn(cache, this), error_fn(cache, this)
+        forget_fn(cache, this), error_fn(cache, this),
+        get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
+        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -1457,7 +1635,8 @@ public:
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path,
-            &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn
+            &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
+            &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured
         };
     }
 

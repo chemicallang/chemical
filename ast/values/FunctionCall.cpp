@@ -18,6 +18,7 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -907,16 +908,15 @@ bool FunctionCall::link_gen_args(SymbolResolver &linker) {
     return true;
 }
 
-//std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
-//    auto func_type = parent_val->known_type();
-//    return std::unique_ptr<FunctionType>((FunctionType*) func_type.release());
-//}
-
 FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     if(!parent_val) return nullptr;
     const auto type = parent_val->create_type(allocator);
     if(!type) return nullptr;
-    auto func_type = type->pure_type(allocator)->as_function_type();
+    const auto can_type = type->canonical();
+    if(can_type->kind() == BaseTypeKind::CapturingFunction) {
+        return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    auto func_type = can_type->as_function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
         const auto struct_def = func_decl->parent()->as_struct_def();

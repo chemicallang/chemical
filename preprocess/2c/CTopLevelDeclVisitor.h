@@ -93,6 +93,8 @@ public:
 
     void VisitStructDecl(StructDefinition *structDefinition);
 
+    void VisitGenericTypeDecl(GenericTypeDecl* node);
+
     void VisitGenericStructDecl(GenericStructDecl* node);
 
     void VisitGenericUnionDecl(GenericUnionDecl* node);

@@ -172,6 +172,8 @@ class PointerValue;
 
 class DestructValue;
 
+class ExtractionValue;
+
 class AddrOfValue;
 
 class RetStructParamValue;

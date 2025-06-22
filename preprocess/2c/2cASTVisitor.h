@@ -470,6 +470,8 @@ public:
 
     void VisitInitBlock(InitBlock* node);
 
+    void VisitGenericTypeDecl(GenericTypeDecl* node);
+
     void VisitStructDecl(StructDefinition* node);
 
     void VisitGenericStructDecl(GenericStructDecl* node);
@@ -619,6 +621,8 @@ public:
     // TODO throw error if it exists
     void VisitDestructValue(DestructValue* value) {}
 
+    void VisitExtractionValue(ExtractionValue* value);
+
     // TYPES
 
     void VisitAnyType(AnyType* type);
@@ -642,6 +646,8 @@ public:
     void VisitFloat128Type(Float128Type* type);
 
     void VisitFunctionType(FunctionType* type);
+
+    void VisitCapturingFunctionType(CapturingFunctionType* type);
 
     void VisitGenericType(GenericType* type);
 

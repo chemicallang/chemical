@@ -38,7 +38,7 @@ public:
             TypealiasStatement* master_impl,
             ASTNode* parent_node,
             SourceLocation location
-    ) : BaseGenericDecl(ASTNodeKind::GenericStructDecl, parent_node, location), master_impl(master_impl) {
+    ) : BaseGenericDecl(ASTNodeKind::GenericTypeDecl, parent_node, location), master_impl(master_impl) {
 
     }
 

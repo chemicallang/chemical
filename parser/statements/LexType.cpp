@@ -87,16 +87,6 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         if(!consumeToken(TokenType::GreaterThanSym)) {
             unexpected_error("expected '>' for generic type");
         }
-
-        // TODO this is not ideal
-        if(types.size() == 1 && ((NamedLinkedType*) idType)->debug_link_name() == "literal") {
-            auto underlying = types.back();
-            if(underlying->kind() == BaseTypeKind::Linked && ((NamedLinkedType*) underlying.getType())->debug_link_name() == "string") {
-                underlying = {new(allocator.allocate<StringType>()) StringType(), underlying.getLocation()};
-            }
-            return new (allocator.allocate<LiteralType>()) LiteralType(underlying);
-        }
-
         return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types));
     } else {
         return idType;
@@ -554,11 +544,46 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             break;
         default:
             if(token->type == TokenType::DoubleColonSym || token->type == TokenType::DotSym) {
-                type = parseLinkedValueType(allocator, typeToken, location);
+
+                const auto linkedValueType = parseLinkedValueType(allocator, typeToken, location);
+
+                type = parseGenericTypeAfterId(allocator, linkedValueType);
+
             } else {
-                type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
+
+                // literal type being handled badly
+                if(typeToken->value == "literal" && consumeToken(TokenType::LessThanSym)) {
+
+                    TypeLoc child_type(nullptr);
+
+                    if(token->type == TokenType::Identifier && token->value == "string") {
+                        token++;
+                        child_type = TypeLoc(new (allocator.allocate<StringType>()) StringType(), loc_single(token));
+                    } else {
+                        child_type = parseTypeLoc(allocator);
+                    }
+
+                    if(!child_type) {
+                        error("expected a child type for literal type");
+                    }
+
+                    auto literalTy = TypeLoc(new (allocator.allocate<LiteralType>()) LiteralType(child_type), loc_single(typeToken));
+
+                    if(!consumeToken(TokenType::GreaterThanSym)) {
+                        unexpected_error("expected '>' for literal type");
+                    }
+
+                    type = literalTy;
+
+                } else {
+
+                    const auto namedLinkedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
+
+                    type = parseGenericTypeAfterId(allocator, namedLinkedType);
+
+                }
+
             }
-            type = parseGenericTypeAfterId(allocator, type);
             break;
     }
     type = parseArrayAndPointerTypesAfterTypeId(allocator, type, location);

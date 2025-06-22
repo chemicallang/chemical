@@ -11,6 +11,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/types/LinkedValueType.h"
 #include "ast/types/ExpressionType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
@@ -551,38 +552,65 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
 
             } else {
 
-                // literal type being handled badly
-                if(typeToken->value == "literal" && consumeToken(TokenType::LessThanSym)) {
+                if(token->type == TokenType::LessThanSym) {
+                    auto hash = std::hash<chem::string_view>();
+                    switch (hash(typeToken->value)) {
+                        case hash("literal"): {
 
-                    TypeLoc child_type(nullptr);
+                            token++;
 
-                    if(token->type == TokenType::Identifier && token->value == "string") {
-                        token++;
-                        child_type = TypeLoc(new (allocator.allocate<StringType>()) StringType(), loc_single(token));
-                    } else {
-                        child_type = parseTypeLoc(allocator);
+                            TypeLoc child_type(nullptr);
+
+                            if (token->type == TokenType::Identifier && token->value == "string") {
+                                token++;
+                                child_type = TypeLoc(new(allocator.allocate<StringType>()) StringType(), loc_single(token));
+                            } else {
+                                child_type = parseTypeLoc(allocator);
+                            }
+
+                            if (!child_type) {
+                                error("expected a child type for literal type");
+                            }
+
+                            auto literalTy = TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(child_type), loc_single(typeToken));
+
+                            if (!consumeToken(TokenType::GreaterThanSym)) {
+                                unexpected_error("expected '>' for literal type");
+                            }
+
+                            type = literalTy;
+
+                            break;
+                        }
+                        case hash("capture"): {
+                            token++;
+                            auto child_type = parseTypeLoc(allocator);
+                            if(!child_type) {
+                                unexpected_error("expected a function type for capturing function type");
+                            }
+                            auto instance_type = parseTypeLoc(allocator);
+                            if(!instance_type) {
+                                unexpected_error("expected a instance type for capturing function type");
+                            }
+
+                            type = new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
+                                child_type, instance_type
+                            );
+
+                            if (!consumeToken(TokenType::GreaterThanSym)) {
+                                unexpected_error("expected '>' for capture type");
+                            }
+                            break;
+                        }
+                        default:
+                            const auto namedLinkedType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
+                            type = parseGenericTypeAfterId(allocator, namedLinkedType);
+                            break;
                     }
-
-                    if(!child_type) {
-                        error("expected a child type for literal type");
-                    }
-
-                    auto literalTy = TypeLoc(new (allocator.allocate<LiteralType>()) LiteralType(child_type), loc_single(typeToken));
-
-                    if(!consumeToken(TokenType::GreaterThanSym)) {
-                        unexpected_error("expected '>' for literal type");
-                    }
-
-                    type = literalTy;
-
                 } else {
-
-                    const auto namedLinkedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
-
+                    const auto namedLinkedType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
                     type = parseGenericTypeAfterId(allocator, namedLinkedType);
-
                 }
-
             }
             break;
     }

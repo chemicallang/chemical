@@ -154,7 +154,7 @@ namespace std {
     template <>
     struct hash<chem::string_view> {
         // Hash Specialization Using FNV-1a
-        std::size_t operator()(const chem::string_view& s) const noexcept {
+        constexpr std::size_t operator()(const chem::string_view& s) const noexcept {
             std::size_t hash = 0xcbf29ce484222325; // FNV offset basis
             for (char c : s) {
                 hash ^= static_cast<std::size_t>(c);

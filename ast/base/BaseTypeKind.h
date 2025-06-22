@@ -30,6 +30,7 @@ enum class BaseTypeKind : uint8_t {
 
     Float128,
     Function,
+    CapturingFunction,
     Generic,
     IntN,
     Pointer,

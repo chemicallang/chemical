@@ -56,6 +56,7 @@ public enum ValueKind {
     BlockValue,
     TypeInsideValue,
     PatternMatchExpr,
+    ExtractionValue,
     WrapValue,
 
     DestructValue,

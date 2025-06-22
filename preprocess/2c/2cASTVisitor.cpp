@@ -39,6 +39,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/ComptimeBlock.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
@@ -76,6 +77,7 @@
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/values/UShortValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/IntValue.h"
@@ -96,6 +98,7 @@
 #include "ast/values/UCharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
+#include "ast/values/ExtractionValue.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/IndexOperator.h"
@@ -2773,6 +2776,12 @@ void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
     declare_struct_iterations(def);
 }
 
+void CTopLevelDeclarationVisitor::VisitGenericTypeDecl(GenericTypeDecl* node) {
+    for(const auto impl : node->instantiations) {
+        VisitTypealiasStmt(impl);
+    }
+}
+
 void CTopLevelDeclarationVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
     for(const auto impl : node->instantiations) {
         VisitStructDecl(impl);
@@ -4681,6 +4690,12 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 
 }
 
+void ToCAstVisitor::VisitGenericTypeDecl(GenericTypeDecl* node) {
+    for(const auto inst : node->instantiations) {
+        visit(inst);
+    }
+}
+
 void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
     const auto container = initBlock->getContainer();
     auto& initializers = initBlock->initializers;
@@ -5380,6 +5395,22 @@ void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
     write("NULL");
 }
 
+void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
+    const auto src = value->value;
+    switch(value->extractionKind) {
+        case ExtractionKind::LambdaFnPtr:
+            break;
+        case ExtractionKind::LambdaCapturedPtr:
+            break;
+        case ExtractionKind::LambdaCapturedDestructor:
+            break;
+        case ExtractionKind::SizeOfLambdaCaptured:
+            break;
+        case ExtractionKind::AlignOfLambdaCaptured:
+            break;
+    }
+}
+
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {
     auto val_kind = node->value->val_kind();
     if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
@@ -5536,6 +5567,10 @@ void ToCAstVisitor::VisitFunctionType(FunctionType *type) {
         return;
     }
     func_type_with_id(*this, type, "NOT_FOUND");
+}
+
+void ToCAstVisitor::VisitCapturingFunctionType(CapturingFunctionType* type) {
+    visit(type->instance_type);
 }
 
 void ToCAstVisitor::VisitGenericType(GenericType *gen_type) {

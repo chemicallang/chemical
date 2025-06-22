@@ -588,6 +588,9 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                             if(!child_type) {
                                 unexpected_error("expected a function type for capturing function type");
                             }
+                            if(!consumeToken(TokenType::CommaSym)) {
+                                unexpected_error("expected a comma");
+                            }
                             auto instance_type = parseTypeLoc(allocator);
                             if(!instance_type) {
                                 unexpected_error("expected a instance type for capturing function type");

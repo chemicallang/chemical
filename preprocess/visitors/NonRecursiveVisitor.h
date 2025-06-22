@@ -111,6 +111,9 @@ public:
     inline void VisitFunctionDecl(FunctionDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitGenericTypeDecl(GenericTypeDecl* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitGenericFuncDecl(GenericFuncDecl* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -382,6 +385,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitExtractionValue(ExtractionValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     // Types begin here
 
     inline void VisitAnyType(AnyType* type) {
@@ -472,6 +479,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
+    inline void VisitCapturingFunctionType(CapturingFunctionType* type) {
+        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
+    }
+
     void VisitNodeNoNullCheck(ASTNode* node) {
         switch(node->kind()) {
             case ASTNodeKind::AssignmentStmt:
@@ -554,6 +565,9 @@ public:
                 return;
             case ASTNodeKind::FunctionDecl:
                 static_cast<Derived*>(this)->VisitFunctionDecl((FunctionDeclaration*) node);
+                return;
+            case ASTNodeKind::GenericTypeDecl:
+                static_cast<Derived*>(this)->VisitGenericTypeDecl((GenericTypeDecl*) node);
                 return;
             case ASTNodeKind::GenericFuncDecl:
                 static_cast<Derived*>(this)->VisitGenericFuncDecl((GenericFuncDecl*) node);
@@ -880,6 +894,9 @@ public:
                 return;
             case BaseTypeKind::NullPtr:
                 static_cast<Derived*>(this)->VisitNullPtrType((NullPtrType*) type);
+                return;
+            case BaseTypeKind::CapturingFunction:
+                static_cast<Derived*>(this)->VisitCapturingFunctionType((CapturingFunctionType*) type);
                 return;
 #ifdef DEBUG
             default:

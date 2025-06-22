@@ -160,6 +160,19 @@ struct IndirectFnStructPtr {
 
 // ----------------- Code Gen TEST End ----------------------
 
+// tests that early return in constructors works
+struct EarlyReturnConstructor {
+    var i : int
+    @make
+    func make(early : bool) {
+        if(early) {
+            i = 2;
+            return;
+        }
+        i = 33;
+    }
+}
+
 func test_no_type_structs() {
     test("can return created struct values without types", () => {
         var pair = create_pair_no_type();
@@ -365,4 +378,12 @@ func test_structs() {
         return implicit_constructor_called_or_not == true
     })
     test_inheritance();
+    test("early return in constructors works - 1", () => {
+        var early = EarlyReturnConstructor(true)
+        return early.i == 2;
+    })
+    test("early return in constructors works - 2", () => {
+        var early = EarlyReturnConstructor(false)
+        return early.i == 33;
+    })
 }

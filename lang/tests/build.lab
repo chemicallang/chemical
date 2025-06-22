@@ -104,7 +104,7 @@ func build(ctx : *mut AppBuildContext) {
     const submod = ctx.chemical_dir_module(std::string_view(""), std::string_view("submod"), std::string_view(submod_path), [])
 
     // build imported submod2 module, with it's own build method
-    const submod2 = submod2.build(ctx);
+    const submod2 = submod2.get(ctx);
 
     // submod 3 module built
     const submod3 = submod3.get(ctx)

@@ -5399,15 +5399,73 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
     const auto src = value->value;
     switch(value->extractionKind) {
         case ExtractionKind::LambdaFnPtr:
+            visit(src);
+            write("->first");
             break;
         case ExtractionKind::LambdaCapturedPtr:
+            visit(src);
+            write("->second");
             break;
-        case ExtractionKind::LambdaCapturedDestructor:
+        case ExtractionKind::LambdaCapturedDestructor:{
+            const auto linked = src->linked_node();
+            if (linked->kind() == ASTNodeKind::VarInitStmt) {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->value->kind() == ValueKind::LambdaFunc) {
+                    const auto lambda = init->value->as_lambda_func_unsafe();
+                    auto& aliases = declarer->aliases;
+                    auto alias = aliases.find(lambda);
+                    if (alias != aliases.end()) {
+                        write(alias->second);
+                        write("_cap_destr");
+                        return;
+                    }
+                }
+            }
+            write("[error: extraction destructor lambda captured failed]");
             break;
-        case ExtractionKind::SizeOfLambdaCaptured:
+        }
+        case ExtractionKind::SizeOfLambdaCaptured: {
+            const auto linked = src->linked_node();
+            if (linked->kind() == ASTNodeKind::VarInitStmt) {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->value->kind() == ValueKind::LambdaFunc) {
+                    const auto lambda = init->value->as_lambda_func_unsafe();
+                    auto& aliases = declarer->aliases;
+                    auto alias = aliases.find(lambda);
+                    if (alias != aliases.end()) {
+                        write("sizeof(");
+                        write("struct ");
+                        write(alias->second);
+                        write("_cap");
+                        write(')');
+                        return;
+                    }
+                }
+            }
+            write("[error: extraction size of lambda captured failed]");
             break;
-        case ExtractionKind::AlignOfLambdaCaptured:
+        }
+        case ExtractionKind::AlignOfLambdaCaptured: {
+            const auto linked = src->linked_node();
+            if (linked->kind() == ASTNodeKind::VarInitStmt) {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->value->kind() == ValueKind::LambdaFunc) {
+                    const auto lambda = init->value->as_lambda_func_unsafe();
+                    auto& aliases = declarer->aliases;
+                    auto alias = aliases.find(lambda);
+                    if (alias != aliases.end()) {
+                        write("_Alignof(");
+                        write("struct ");
+                        write(alias->second);
+                        write("_cap");
+                        write(')');
+                        return;
+                    }
+                }
+            }
+            write("[error: extraction align of lambda captured failed]");
             break;
+        }
     }
 }
 

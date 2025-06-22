@@ -33,6 +33,8 @@ private:
     UShortType* uShortType;
     VoidType* voidType;
 
+    PointerType* ptrToVoid;
+
 public:
 
     ASTAllocator& allocator;
@@ -186,6 +188,13 @@ public:
      */
     VoidType* getVoidType() {
         return voidType;
+    }
+
+    /**
+     * get PointerType
+     */
+    PointerType* getPtrToVoid() {
+        return ptrToVoid;
     }
 
 };

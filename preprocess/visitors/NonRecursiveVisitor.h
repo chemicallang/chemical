@@ -816,6 +816,9 @@ public:
             case ValueKind::DestructValue:
                 static_cast<Derived*>(this)->VisitDestructValue((DestructValue*) value);
                 return;
+            case ValueKind::ExtractionValue:
+                static_cast<Derived*>(this)->VisitExtractionValue((ExtractionValue*) value);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: value kind in non recursive visitor";

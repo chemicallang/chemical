@@ -1,6 +1,7 @@
 import lab
 import std
 import "./submod2/build.lab" as submod2
+import "./submod3/build.lab" as submod3
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 
@@ -105,8 +106,11 @@ func build(ctx : *mut AppBuildContext) {
     // build imported submod2 module, with it's own build method
     const submod2 = submod2.build(ctx);
 
+    // submod 3 module built
+    const submod3 = submod3.get(ctx)
+
     // currently the last dependency becomes null if we don't take it out like this
-    var dependencies = [ ext_module, ext_cpp_module, submod, submod2, std_module ]
+    var dependencies = [ ext_module, ext_cpp_module, submod, submod2, submod3, std_module ]
     const main_mod_path = lab::rel_path_to("src");
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("main"), std::string_view(main_mod_path), dependencies);
 

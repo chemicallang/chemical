@@ -363,7 +363,8 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
 
     // current func type is only not present when its a top level if
     // or maybe during parsing malformed code can cause it
-    if(!linker.current_func_type) return;
+    const auto curr_func = linker.current_func_type;
+    if(!curr_func) return;
 
     // temporary moved identifiers and chains
     std::vector<VariableIdentifier*> moved_ids;
@@ -382,7 +383,6 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
         linker.scope_end();
     }
 
-    const auto curr_func = linker.current_func_type;
     curr_func->restore_moved_ids(moved_ids);
     curr_func->restore_moved_chains(moved_chains);
 }

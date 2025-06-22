@@ -695,4 +695,9 @@ public:
         return (VoidType*) this;
     }
 
+    inline CapturingFunctionType* as_capturing_func_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::CapturingFunction);
+        return (CapturingFunctionType*) this;
+    }
+
 };

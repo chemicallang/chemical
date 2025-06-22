@@ -280,6 +280,8 @@ class TypeType;
 
 class VoidType;
 
+class CapturingFunctionType;
+
 class DynamicType;
 
 class ThrowStatement;

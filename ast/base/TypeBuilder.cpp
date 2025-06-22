@@ -21,6 +21,7 @@
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/PointerType.h"
 
 void TypeBuilder::initialize() {
 
@@ -44,5 +45,6 @@ void TypeBuilder::initialize() {
     uLongType = new (allocator.allocate<ULongType>()) ULongType();
     uShortType = new (allocator.allocate<UShortType>()) UShortType();
     voidType = new (allocator.allocate<VoidType>()) VoidType();
+    ptrToVoid = new (allocator.allocate<PointerType>()) PointerType(voidType, true);
 
 }

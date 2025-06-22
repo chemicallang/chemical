@@ -1374,7 +1374,7 @@ public:
         ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("get_lambda_fn_ptr"),
-            {cache.getVoidType(), ZERO_LOC},
+            {cache.getPtrToVoid(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -1407,7 +1407,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("get_lambda_cap_ptr"),
-            {cache.getVoidType(), ZERO_LOC},
+            {cache.getPtrToVoid(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -1441,7 +1441,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("get_lambda_cap_destructor"),
-            {cache.getVoidType(), ZERO_LOC},
+            {cache.getPtrToVoid(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,

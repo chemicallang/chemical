@@ -174,7 +174,6 @@ BaseType* BaseType::canonical() {
                 return this;
             }
         }
-        // TODO try removing if doesn't work
         case BaseTypeKind::Generic: {
             const auto gen = as_generic_type_unsafe();
             return gen->referenced->canonical();

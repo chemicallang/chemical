@@ -17,13 +17,17 @@ void writeWithSep(std::vector<chem::string_view>& list, char sep, std::ostream& 
     }
 }
 
-void writeAsIdentifier(ImportStatement* stmt, std::ostream& output) {
+void writeAsIdentifier(ImportStatement* stmt, unsigned index, std::ostream& output) {
     if(!stmt->as_identifier.empty()) {
         output << "__mod_";
         output << stmt->as_identifier;
     } else {
-        output << "__mod_";
-        writeWithSep(stmt->identifier, '_', output);
+        if(stmt->identifier.empty()) {
+            output << "__mod_" << index << "_stmt";
+        } else {
+            output << "__mod_";
+            writeWithSep(stmt->identifier, '_', output);
+        }
     }
 }
 
@@ -33,17 +37,27 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << "import lab;\n";
     output << "import std;\n";
 
+    unsigned i = 0;
+
     // writing imports for dependencies
     for(const auto node : data.scope.body.nodes) {
         // for each import statement, we emit a statement
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
-                output << "import \"@";
-                writeWithSep(stmt->identifier, ':', output);
-                output << "/build.lab\" as ";
-                writeAsIdentifier(stmt, output);
-                output << '\n';
+                if(stmt->filePath.empty()) {
+                    output << "import \"@";
+                    writeWithSep(stmt->identifier, ':', output);
+                    output << "/build.lab\" as ";
+                    writeAsIdentifier(stmt, i, output);
+                    output << '\n';
+                } else {
+                    output << "import \"";
+                    output << stmt->filePath;
+                    output << "/build.lab\" as ";
+                    writeAsIdentifier(stmt, i, output);
+                    output << '\n';
+                }
                 break;
             }
             default:
@@ -52,23 +66,27 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 #endif
                 continue;
         }
+        i++;
     }
 
     // build method
     output << "\nfunc build(ctx : *mut BuildContext) : *mut Module {\n";
     output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", [ ";
+
+    i = 0;
     // calling get functions on dependencies
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
-                writeAsIdentifier(stmt, output);
+                writeAsIdentifier(stmt, i, output);
                 output << ".get(ctx), ";
                 break;
             }
             default:
-                continue;
+                break;
         }
+        i++;
     }
     output << "]);\n";
 
@@ -80,9 +98,9 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 if(src.is_negative) {
                     output << '!';
                 }
-                output << "def." << src.if_condition << ") {\n";
+                output << "def." << src.if_condition << ") {\n\t";
             }
-            output << "\t\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
+            output << "\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
             if(has_if) {
                 output << "\t}\n";
             }

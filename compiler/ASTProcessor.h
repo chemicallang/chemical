@@ -211,16 +211,6 @@ public:
     );
 
     /**
-     * the problem with build.labs is that user doesn't tell us which module it depends on, so we figure that out based on its imports
-     * this function creates modules on the fly based on the imported file by the importer, it also sets the appropriate dependency in the
-     * importer's modules
-     */
-    void figure_out_module_dependency_based_on_import(
-            ASTFileResult& imported,
-            std::vector<ModuleDependencyRecord>& dependencies
-    );
-
-    /**
      * imports the given mod file at path @param modFile into the @param result
      * this translates the mod file into a build.lab before importing it
      */

@@ -115,4 +115,10 @@ func test_imported_modules() {
     test("check submod2 linked properly", () => {
         return give_submod2_rand_num() == 83838;
     })
+    test("module with chemical.mod file imported works", () => {
+        return submod3_sum(2, 5) == 18
+    })
+    test("module with chemical.mod file nested module import works", () => {
+        return submod3_delgated_sum(1, 6) == 13
+    })
 }

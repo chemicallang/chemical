@@ -238,19 +238,12 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
             return { absolute_path(child_path), "" };
         }
     }
-    auto resolved = resolve_rel_parent_path_str(base_path, import_path);
-    if (resolved.empty()) {
-        std::string errPath("couldn't find the file to import ");
-        errPath.append(import_path);
-        errPath.append(" relative to base path ");
-        errPath.append(resolve_parent_path(base_path));
-        return { "",  std::move(errPath) };
-    } else {
-        return { std::move(resolved), "" };
-    }
+    // resolve sibling never returns empty path
+    return { resolve_sibling(base_path, import_path), "" };
 }
 
 void ImportPathHandler::figure_out_mod_dep_using_imports(
+        const std::string_view& base_path,
         std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
         std::vector<ASTNode*>& nodes,
         GlobalContainer* container
@@ -281,15 +274,15 @@ void ImportPathHandler::figure_out_mod_dep_using_imports(
             imp_scope_name.clear();
             imp_mod_name.clear();
             if(impStmt->identifier.empty() && !impStmt->filePath.empty()) {
-                // here we will consider this file path given a scope name and module name identifier
-                auto v = impStmt->filePath.view();
-                auto colInd = v.find(':');
-                if(colInd != std::string_view::npos) {
-                    imp_scope_name.append(chem::string_view(v.data(), colInd));
-                    imp_mod_name.append(chem::string_view(v.data() + colInd + 1, v.size() - colInd));
+                // user has given relative path to a directory / file
+                auto final_path = resolve_sibling(base_path, impStmt->filePath.view());
+                auto fs_path = std::filesystem::path(final_path);
+                if(std::filesystem::is_directory(fs_path)) {
+                    buildLabModuleDependencies.emplace_back(std::move(final_path));
+                    continue;
                 } else {
-                    // consider the identifier a module name with scope name empty
-                    imp_mod_name.append(impStmt->filePath);
+                    // TODO, this path is not a directory and is a file
+                    continue;
                 }
             } else if(!impStmt->identifier.empty()) {
                 const auto idSize = impStmt->identifier.size();
@@ -314,7 +307,7 @@ void ImportPathHandler::figure_out_mod_dep_using_imports(
                 // TODO: explicit import for a directory with scope name and module name
                 imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
             }
-            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path), std::move(imp_scope_name), std::move(imp_mod_name));
+            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path));
         }
     }
 }

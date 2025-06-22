@@ -296,7 +296,6 @@ public:
      */
     TCCState* built_lab_file(
             LabBuildContext& context,
-            ModuleDependencyRecord& dependency,
             const std::string_view& path,
             ASTProcessor& processor,
             ToCAstVisitor& c_visitor,
@@ -314,7 +313,6 @@ public:
      */
     TCCState* built_lab_file(
             LabBuildContext& context,
-            ModuleDependencyRecord& dependency,
             const std::string_view& path,
             bool mod_file_source
     );

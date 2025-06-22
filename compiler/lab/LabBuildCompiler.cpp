@@ -1542,11 +1542,6 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         ModuleDependencyRecord& dependency
 ) {
 
-    const auto module = context.storage.find_module(dependency.scope_name.to_chem_view(), dependency.mod_name.to_chem_view());
-    if(module != nullptr) {
-        return module;
-    }
-
     auto& module_path = dependency.module_dir_path;
     auto buildLabPath = resolve_rel_child_path_str(module_path, "build.lab");
     if(std::filesystem::exists(buildLabPath)) {
@@ -1559,7 +1554,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // build lab file into a tcc state
         // TODO verify the build method signature in the build.lab file
-        const auto state = built_lab_file(context, dependency, buildLabPath, false);
+        const auto state = built_lab_file(context, buildLabPath, false);
 
         // emit a warning or error
         if(state == nullptr) {
@@ -1593,7 +1588,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         } else {
 
-            std::cerr << rang::fg::red << "error:" << rang::fg::reset << " module '" << dependency.scope_name << ':' << dependency.mod_name << '\'' << " at path '" << dependency.module_dir_path << "' doesn't contain a 'build.lab' or 'chemical.mod' therefore cannot be imported" << std::endl;
+            std::cerr << rang::fg::red << "error:" << rang::fg::reset << " directory at path '" << dependency.module_dir_path << "' doesn't contain a 'build.lab' or 'chemical.mod' therefore cannot be imported" << std::endl;
             return nullptr;
 
         }
@@ -1756,6 +1751,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // this function figures out dependencies based on import statements
     path_handler.figure_out_mod_dep_using_imports(
+            modFilePathView,
             buildLabModuleDependencies,
             modFileData.scope.body.nodes,
             container
@@ -1793,7 +1789,6 @@ FunctionDeclaration* find_lab_build_method(const std::string& abs_path, std::vec
 
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
-        ModuleDependencyRecord& dependency,
         const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
@@ -1876,7 +1871,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     // the build lab object file (cached)
     const auto labDir = resolve_rel_child_path_str(options->build_dir, "lab");
     const auto labBuildDir = resolve_rel_child_path_str(labDir, "build");
-    const auto labModDir = resolve_rel_child_path_str(labBuildDir, LabModule::format(dependency.scope_name.to_chem_view(), dependency.mod_name.to_chem_view(), '.'));
+    const auto labModDir = resolve_rel_child_path_str(labBuildDir, "chemical.lab");
 
     // create required directories
     create_dir(labDir);
@@ -1895,6 +1890,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // based on imports figures out which modules have been imported
     path_handler.figure_out_mod_dep_using_imports(
+        path_view,
         buildLabModuleDependencies,
         labFileResult.unit.scope.body.nodes,
         container
@@ -2242,7 +2238,6 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
-        ModuleDependencyRecord& dependency,
         const std::string_view& path,
         bool mod_file_source
 ) {
@@ -2292,7 +2287,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(
-            context, dependency, path, lab_processor, c_visitor, output_ptr, mod_file_source
+            context, path, lab_processor, c_visitor, output_ptr, mod_file_source
     );
 
     return state;
@@ -2317,11 +2312,8 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // mkdir the build directory
     create_dir(options->build_dir);
 
-    // this is the root build.lab dependency
-    ModuleDependencyRecord buildLabDependency("", chem::string("chemical"), chem::string("lab"));
-
     // get build lab file into a tcc state
-    const auto state = built_lab_file(context, buildLabDependency, path, false);
+    const auto state = built_lab_file(context, path, false);
     if(!state) {
         return 1;
     }
@@ -2396,11 +2388,8 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     // mkdir the build directory
     create_dir(options->build_dir);
 
-    // this is the root build.lab dependency
-    ModuleDependencyRecord buildLabDependency("", chem::string("chemical"), chem::string("lab"));
-
     // get build lab file into a tcc state
-    const auto state = built_lab_file(context, buildLabDependency, path, true);
+    const auto state = built_lab_file(context, path, true);
     if(!state) {
         return 1;
     }

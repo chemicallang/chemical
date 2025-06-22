@@ -139,7 +139,6 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     ImportPathHandler pathHandler(compiler_exe_path);
     auto context_ptr = new LabBuildContext(compiler, pathHandler, storage, binder, lab_path);
     std::unique_ptr<LabBuildContext> context(context_ptr);
-    ModuleDependencyRecord record("", chem::string("chemical"), chem::string("lab"));
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -153,7 +152,7 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
 
     // build the lab file to a tcc state
-    const auto state = compiler.built_lab_file(*context, record, lab_path, is_mod_source);
+    const auto state = compiler.built_lab_file(*context, lab_path, is_mod_source);
 
     // auto delte the tcc state
     TCCDeletor auto_delete(state);

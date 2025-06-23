@@ -55,6 +55,11 @@ public:
     }
 
     /**
+     * get function type from parent type
+     */
+    FunctionType* func_type_from_parent_type(ASTAllocator& allocator, BaseType* parent_type);
+
+    /**
      * get the function type
      */
     FunctionType* function_type(ASTAllocator& allocator);

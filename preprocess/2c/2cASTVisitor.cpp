@@ -4592,12 +4592,45 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
     const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
-    const auto func_type = call->function_type(allocator);
+    const auto parent_type = call->parent_val->create_type(allocator);
+    const auto canonical_parent = parent_type->canonical();
+    const auto func_type = call->func_type_from_parent_type(allocator, canonical_parent);
 
     // handling comptime functions
     if(func_decl && func_decl->is_comptime()) {
         const auto value = evaluated_func_val(*this, func_decl, call);
         visit(value);
+        return;
+    }
+
+    if(canonical_parent->kind() == BaseTypeKind::CapturingFunction) {
+        const auto capType = canonical_parent->as_capturing_func_type_unsafe();
+        auto temp_var = get_local_temp_var_name();
+        write("({ ");
+        VisitCapturingFunctionType(capType);
+        write("* ");
+        write(temp_var);
+        write(" = ");
+        write('&');
+        visit(call->parent_val);
+        write("; ");
+        write("(");
+        write("(");
+        func_type_with_id_no_params(*this, func_type, "");
+        write("void*");
+        func_type_params(*this, func_type, 0, true);
+        write(")");
+        write(")");
+        write(temp_var);
+        write("->fn_pointer");
+        write(")");
+        write('(');
+        write(temp_var);
+        write("->fn_data_ptr");
+        write_implicit_args(*this, func_type, call, false);
+        func_call_args(*this, call, func_type);
+        write(')');
+        write("; })");
         return;
     }
 

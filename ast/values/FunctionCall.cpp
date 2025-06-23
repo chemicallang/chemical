@@ -908,11 +908,7 @@ bool FunctionCall::link_gen_args(SymbolResolver &linker) {
     return true;
 }
 
-FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
-    if(!parent_val) return nullptr;
-    const auto type = parent_val->create_type(allocator);
-    if(!type) return nullptr;
-    const auto can_type = type->canonical();
+FunctionType* FunctionCall::func_type_from_parent_type(ASTAllocator& allocator, BaseType* can_type) {
     if(can_type->kind() == BaseTypeKind::CapturingFunction) {
         return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
     }
@@ -925,6 +921,14 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
         }
     }
     return func_type;
+}
+
+FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
+    if(!parent_val) return nullptr;
+    const auto type = parent_val->create_type(allocator);
+    if(!type) return nullptr;
+    const auto can_type = type->canonical();
+    return func_type_from_parent_type(allocator, can_type);
 }
 
 FunctionType* FunctionCall::known_func_type() {

@@ -151,6 +151,13 @@ public:
             llvm::Value* grandparent = nullptr
     );
 
+    llvm::Value* llvm_chain_value(
+            Codegen &gen,
+            llvm::Value* returnedStruct = nullptr,
+            llvm::Value* callee_value = nullptr,
+            llvm::Value* grandparent = nullptr
+    );
+
     bool store_in_parent(
         Codegen &gen,
         llvm::Value* allocated,

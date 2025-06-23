@@ -54,6 +54,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             gen.error(this) << "couldn't get struct child " << value.first << " in definition with name " << definition->name_view();
         } else {
 
+            const auto pure_type = variable.second->canonical();
+
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             const auto elem_index = is_union() ? 0 : variable.first;
 
@@ -73,7 +75,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                 }
             }
 
-            value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, variable.second);
+            value_ptr->store_in_struct(gen, this, inst, parent_type, idx, elem_index, pure_type);
 
         }
     }

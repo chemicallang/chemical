@@ -96,6 +96,12 @@ unsigned int Value::store_in_struct(
 
     const auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
 
+    // mutating capturing function into instance type
+    const auto mutated = gen.mutate_capturing_function(expected_type, this, elementPtr);
+    if(mutated) {
+        return index + 1;
+    }
+
     // if it's a struct type that can be mem copied directly into the element pointer
     if(requires_memcpy_ref_struct(expected_type)) {
         if(!gen.copy_or_move_struct(expected_type, this, elementPtr)) {
@@ -138,6 +144,12 @@ unsigned int Value::store_in_array(
 ) {
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
 
+    // mutating capturing function into instance type
+    const auto mutated = gen.mutate_capturing_function(expected_type, this, elementPtr);
+    if(mutated) {
+        return index + 1;
+    }
+
     // if it's a struct type that can be mem copied directly into the element pointer
     if(requires_memcpy_ref_struct(expected_type)) {
         if(!gen.copy_or_move_struct(expected_type, this, elementPtr)) {
@@ -148,6 +160,7 @@ unsigned int Value::store_in_array(
 
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
+
         const auto value_pure = create_type(gen.allocator)->pure_type(gen.allocator);
         const auto derefType = value_pure->getAutoDerefType(expected_type);
 

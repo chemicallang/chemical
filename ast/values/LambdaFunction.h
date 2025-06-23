@@ -27,6 +27,7 @@ public:
 
     llvm::Function* func_ptr = nullptr;
     llvm::Value *captured_struct = nullptr;
+    llvm::Function* capturedDestructor = nullptr;
 
 #endif
 
@@ -73,7 +74,11 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
+    llvm::Value* llvm_value_unpacked(Codegen &gen, BaseType* expected_type);
+
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
+
+    void generate_captured_destructor(Codegen &gen);
 
 #endif
 

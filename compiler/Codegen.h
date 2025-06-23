@@ -275,7 +275,14 @@ public:
     /**
      * the method to create a function
      */
-    llvm::Function *create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier);
+    llvm::Function *create_function(const std::string_view &name, llvm::FunctionType *type, AccessSpecifier specifier);
+
+    /**
+     * the method to create a function
+     */
+    llvm::Function *create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
+        return create_function(name, type, specifier);
+    }
 
     /**
      * create a nested function
@@ -296,6 +303,11 @@ public:
      * create a function's basic block, with the given name
      */
     llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
+
+    /**
+     * capturing lambdas need to be mutated to capturing function types
+     */
+    llvm::Value* mutate_capturing_function(BaseType* pure_type, Value* value);
 
     /**
      * a struct type with two pointers inside

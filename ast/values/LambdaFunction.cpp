@@ -58,14 +58,81 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
     }
 }
 
-llvm::Value *LambdaFunction::llvm_value(Codegen &gen, BaseType* expected_type) {
+void LambdaFunction::generate_captured_destructor(Codegen &gen) {
+    const auto destrFuncType = llvm::FunctionType::get(gen.builder->getVoidTy(), {gen.builder->getPtrTy()}, false);
+
+    // creating temporary ast nodes for captured destructor
+    VoidType voidType;
+    PointerType ptrType(&voidType, true);
+    FunctionParam functionParam("self", TypeLoc(&ptrType, ZERO_LOC), 0, nullptr, false, nullptr, ZERO_LOC);
+    FunctionDeclaration funcDecl(
+            LocatedIdentifier("lambda_cap_destr"),
+            TypeLoc(&voidType, ZERO_LOC),
+            false,
+            nullptr,
+            ZERO_LOC,
+            AccessSpecifier::Internal,
+            false
+    );
+    funcDecl.params.emplace_back(&functionParam);
+    funcDecl.body.emplace(Scope(&funcDecl, ZERO_LOC));
+
+    const auto prev_destroy_scope = gen.destroy_current_scope;
+    const auto prev_block_ended = gen.has_current_block_ended;
+    const auto prev_block = gen.builder->GetInsertBlock();
+    const auto prev_current_func = gen.current_function;
+    const auto prev_func_type = gen.current_func_type;
+
+    gen.SetInsertPoint(nullptr);
+    const auto nested_function = gen.create_function("lambda_cap_destr", destrFuncType, AccessSpecifier::Internal);
+    gen.current_function = nested_function;
+    // this begins the function scope by creating a di subprogram
+    gen.di.start_nested_function_scope(&funcDecl, nested_function);
+
+    capturedDestructor = nested_function;
+    auto captured = nested_function->getArg(0);
+    for(const auto cap : captureList) {
+        llvm::Function* destr;
+        const auto destrDecl = gen.determine_destructor_for(cap->known_type(), destr);
+        if(destrDecl) {
+            const auto capturedMember = gen.builder->CreateStructGEP(capture_struct_type(gen), captured, cap->index);
+            const auto callInst = gen.builder->CreateCall(destr, { capturedMember });
+            gen.di.instr(callInst, encoded_location());
+        }
+    }
+    gen.CreateRet(nullptr, encoded_location());
+
+    // this will end the function scope we started by creating a di subprogram above
+    gen.di.end_function_scope();
+    gen.has_current_block_ended = prev_block_ended;
+    gen.SetInsertPoint(prev_block);
+    gen.current_function = prev_current_func;
+    gen.destroy_current_scope = prev_destroy_scope;
+
+}
+
+llvm::Value* LambdaFunction::llvm_value_unpacked(Codegen &gen, BaseType* expected_type) {
     if(func_ptr) {
-        gen.error("llvm_value called multiple times on LambdaFunction", (Value*) this);
+        return func_ptr;
     }
     func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), this, scope);
     if(!captureList.empty()) {
         // storing captured variables in a struct
         captured_struct = capture_struct(gen);
+        generate_captured_destructor(gen);
+    }
+    return func_ptr;
+}
+
+llvm::Value *LambdaFunction::llvm_value(Codegen &gen, BaseType* expected_type) {
+    if(func_ptr) {
+        return packed_lambda_val(gen, this);
+    }
+    func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), this, scope);
+    if(!captureList.empty()) {
+        // storing captured variables in a struct
+        captured_struct = capture_struct(gen);
+        generate_captured_destructor(gen);
     }
     return packed_lambda_val(gen, this);
 }
@@ -177,12 +244,6 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         }
 
     }
-
-#ifdef DEBUG
-    if(!returnType) {
-        int i = 0;
-    }
-#endif
 
     linker.current_func_type = prev_func_type;
 

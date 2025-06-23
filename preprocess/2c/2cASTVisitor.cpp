@@ -837,7 +837,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                         write("_pair");
                         write(" = ");
                         VisitLambdaFunction(value->as_lambda_func_unsafe());
-                        write(';');
+                        write("; &");
 
                         accept_mutating_value_explicit(type, eval, assigning_value);
                         write(';');
@@ -921,6 +921,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         auto param = func_type->func_param_for_arg_at(i);
         auto val = call->values[i];
         bool is_destructible_ref = false;
+        const auto param_type = param->type->canonical();
 
         // passing a function call or struct value to a reference, whereas the struct is destructible
         if(param->type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
@@ -951,7 +952,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             }
         }
         const auto param_type_kind = param->type->kind();
-        const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
+        const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param_type->kind() != BaseTypeKind::CapturingFunction && param->type->isStructLikeType();
         bool is_movable_or_copyable_struct = val->requires_memcpy_ref_struct(param->type);
         bool is_memcpy_ref_str = is_movable_or_copyable_struct && !val->is_ref_moved();
         if(is_movable_or_copyable_struct) {
@@ -1211,6 +1212,10 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
         write_type_post_id(visitor, type);
     }
     visitor.write(" = ");
+
+    if(type->canonical()->kind() == BaseTypeKind::CapturingFunction && value->kind() == ValueKind::LambdaFunc) {
+        visitor.write("*");
+    }
 
     if(value->is_ref_moved()) {
         // since we're moving the value here
@@ -4653,7 +4658,9 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         write("* ");
         write(temp_var);
         write(" = ");
-        write('&');
+        if(!is_value_param_hidden_pointer(call->parent_val)) {
+            write('&');
+        }
         visit(call->parent_val);
         write("; ");
         write("(");

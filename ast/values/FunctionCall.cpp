@@ -232,6 +232,13 @@ llvm::Value* arg_value(
         if(dyn_impl) {
             argValue = gen.pack_fat_pointer(argValue, dyn_impl, value->encoded_location());
         } else {
+
+            // mutate if we can to a capturing function type
+            const auto mutated = gen.mutate_capturing_function(pure_type, value);
+            if(mutated) {
+                argValue = mutated;
+            }
+
             // automatic dereference arguments that are references
             const auto derefType = val_type->getAutoDerefType(func_param->type);
             if(derefType) {
@@ -241,6 +248,7 @@ llvm::Value* arg_value(
             } else if(pure_type->kind() != BaseTypeKind::Any) {
                 argValue = gen.implicit_cast(argValue, pure_type, pure_type->llvm_param_type(gen));
             }
+
         }
     }
 
@@ -558,6 +566,31 @@ llvm::Type* variant_llvm_type(Codegen &gen, VariantMember* member) {
     return def_type;
 }
 
+llvm::FunctionType* cloneFunctionTypeWithParamAtBeginning(
+        llvm::FunctionType* originalType,
+        llvm::Type* newParamType
+) {
+    // Get the original parameter types
+    std::vector<llvm::Type*> newParams;
+    newParams.reserve(originalType->getNumParams() + 1);
+
+    // Insert the new parameter first
+    newParams.push_back(newParamType);
+
+    // Append the original parameters
+    newParams.insert(newParams.end(),
+                     originalType->param_begin(),
+                     originalType->param_end()
+    );
+
+    // Create and return the new FunctionType
+    return llvm::FunctionType::get(
+            originalType->getReturnType(),
+            newParams,
+            originalType->isVarArg()
+    );
+}
+
 llvm::Value* FunctionCall::llvm_chain_value(
         Codegen &gen,
         std::vector<llvm::Value*>& args,
@@ -583,7 +616,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
         return returnedStruct;
     }
 
-    auto func_type = function_type(gen.allocator);
+    auto parent_type = parent_val->create_type(gen.allocator)->canonical();
+    const auto func_type = func_type_from_parent_type(gen.allocator, parent_type);
     if(func_type->isCapturing()) {
         return call_capturing_lambda(gen, this, func_type, destructibles);
     }
@@ -638,14 +672,26 @@ llvm::Value* FunctionCall::llvm_chain_value(
                     return nullptr;
                 }
             } else {
-                const auto g = get_parent_from(parent_val);
-                if(g) {
-                    const auto is_func_call = g->val_kind() == ValueKind::FunctionCall;
-                    if(is_func_call || !is_node_decl(g->linked_node())) {
-                        const auto grandpa = build_parent_chain(parent_val, gen.allocator);
-                        grandparent = grandpa->llvm_value(gen, nullptr);
-                        if(is_func_call) {
-                            destructibles.emplace_back(grandpa, grandparent);
+                // lets check if this is a call to capturing function type
+                if(parent_type->kind() == BaseTypeKind::CapturingFunction) {
+                    const auto instance_type = parent_type->as_capturing_func_type_unsafe()->instance_type;
+                    const auto instance_llvm_type = instance_type->llvm_type(gen);
+                    const auto fnPtr = gen.builder->CreateGEP(instance_llvm_type, callee_value, { gen.builder->getInt32(0), gen.builder->getInt32(0) });
+                    const auto fnPtrLoaded = gen.builder->CreateLoad(gen.builder->getPtrTy(), fnPtr);
+                    const auto fnDataPtr = gen.builder->CreateGEP(instance_llvm_type, callee_value, { gen.builder->getInt32(0), gen.builder->getInt32(1) });
+                    const auto fnDataPtrLoaded = gen.builder->CreateLoad(gen.builder->getPtrTy(), fnDataPtr);
+                    callee_value = fnPtrLoaded;
+                    args.emplace_back(fnDataPtrLoaded);
+                } else {
+                    const auto g = get_parent_from(parent_val);
+                    if (g) {
+                        const auto is_func_call = g->val_kind() == ValueKind::FunctionCall;
+                        if (is_func_call || !is_node_decl(g->linked_node())) {
+                            const auto grandpa = build_parent_chain(parent_val, gen.allocator);
+                            grandparent = grandpa->llvm_value(gen, nullptr);
+                            if (is_func_call) {
+                                destructibles.emplace_back(grandpa, grandparent);
+                            }
                         }
                     }
                 }
@@ -668,7 +714,10 @@ llvm::Value* FunctionCall::llvm_chain_value(
     // auto fn = decl != nullptr ? decl->llvm_func(gen) : nullptr;
     to_llvm_args(gen, this, func_type, values, args, 0, grandparent, destructibles);
 
-    const auto llvm_func_type = llvm_linked_func_type(gen);
+    auto llvm_func_type = func_type->llvm_func_type(gen);
+    if(parent_type->kind() == BaseTypeKind::CapturingFunction) {
+        llvm_func_type = cloneFunctionTypeWithParamAtBeginning(llvm_func_type, gen.builder->getPtrTy());
+    }
     const auto call_value = gen.builder->CreateCall(llvm_func_type, callee_value, args);
     gen.di.instr(call_value, this);
 

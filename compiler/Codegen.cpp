@@ -22,6 +22,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/NullValue.h"
+#include "ast/types/CapturingFunctionType.h"
 #include <cstdlib>
 #include <optional>
 #include <llvm/TargetParser/Host.h>
@@ -77,6 +78,7 @@
 #include "rang.hpp"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/LabBuildCompiler.h"
+#include "ast/utils/ASTUtils.h"
 
 Codegen::Codegen(
         CodegenOptions& options,
@@ -220,7 +222,7 @@ llvm::Function* Codegen::getMallocFn() {
     }
 }
 
-llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
+llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, AccessSpecifier specifier) {
     const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
     current_function = fn;
     createFunctionBlock(current_function);
@@ -483,6 +485,26 @@ void Codegen::destruct(
 
 llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {
     return llvm::BasicBlock::Create(*ctx, name, fn);
+}
+
+llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* value) {
+    // function takes a capturing function type, and we have a lambda
+    if(pure_type->kind() == BaseTypeKind::CapturingFunction && value->kind() == ValueKind::LambdaFunc) {
+        const auto capFuncTy = pure_type->as_capturing_func_type_unsafe();
+        const auto instanceNode = capFuncTy->instance_type->get_direct_linked_canonical_node();
+        if(instanceNode->kind() == ASTNodeKind::StructDecl) {
+            const auto makeFn = instanceNode->as_struct_def_unsafe()->child("make");
+            if(makeFn->kind() == ASTNodeKind::FunctionDecl) {
+                const auto makeFnDecl = makeFn->as_function_unsafe();
+                if(makeFnDecl->is_comptime()) {
+                    auto called = call_with_arg(makeFnDecl, value, pure_type, allocator, *this);
+                    const auto evaluated = eval_comptime(called, makeFnDecl);
+                    return evaluated->llvm_value(*this);
+                }
+            }
+        }
+    }
+    return nullptr;
 }
 
 llvm::StructType* Codegen::fat_pointer_type() {

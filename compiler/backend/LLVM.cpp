@@ -27,6 +27,7 @@
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/ComplexType.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/CharValue.h"
@@ -54,6 +55,7 @@
 #include "ast/values/IncDecValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/ExtractionValue.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/Unreachable.h"
 #include "ast/statements/Return.h"
@@ -75,6 +77,7 @@
 #include "ast/structures/LoopBlock.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/LambdaFunction.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/BlockValue.h"
 #include "ast/types/FunctionType.h"
@@ -265,6 +268,14 @@ llvm::Type* DynamicType::llvm_type(Codegen& gen) {
 
 llvm::Type* DynamicType::llvm_param_type(Codegen& gen) {
     return gen.builder->getPtrTy();
+}
+
+llvm::Type* CapturingFunctionType::llvm_type(Codegen &gen) {
+    return instance_type->llvm_type(gen);
+}
+
+llvm::Type* CapturingFunctionType::llvm_param_type(Codegen &gen) {
+    return instance_type->llvm_param_type(gen);
 }
 
 // ------------------------------ Values
@@ -793,6 +804,57 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
     }
     // TODO implicitly returning struct parameter index is hardcoded
     return gen.current_function->getArg(0);
+}
+
+llvm::Type* ExtractionValue::llvm_type(Codegen &gen) {
+    const auto type = create_type(gen.allocator);
+    return type->llvm_type(gen);
+}
+
+llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
+    switch(extractionKind) {
+        case ExtractionKind::LambdaFnPtr:
+            if(value->kind() != ValueKind::LambdaFunc) {
+                gen.error("expected value to be a lambda function", value);
+                return nullptr;
+            }
+            return value->as_lambda_func_unsafe()->llvm_value_unpacked(gen, nullptr);
+        case ExtractionKind::LambdaCapturedPtr: {
+            if (value->kind() != ValueKind::LambdaFunc) {
+                gen.error("expected value to be a lambda function", value);
+                return nullptr;
+            }
+            const auto lambda = value->as_lambda_func_unsafe();
+            return lambda->captured_struct;
+        }
+        case ExtractionKind::LambdaCapturedDestructor:{
+            if (value->kind() != ValueKind::LambdaFunc) {
+                gen.error("expected value to be a lambda function", value);
+                return nullptr;
+            }
+            const auto lambda = value->as_lambda_func_unsafe();
+            return lambda->capturedDestructor;
+        }
+        case ExtractionKind::SizeOfLambdaCaptured:{
+            if (value->kind() != ValueKind::LambdaFunc) {
+                gen.error("expected value to be a lambda function", value);
+                return nullptr;
+            }
+            const auto lambda = value->as_lambda_func_unsafe();
+            const auto capType = lambda->capture_struct_type(gen);
+            return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(capType));
+        }
+        case ExtractionKind::AlignOfLambdaCaptured: {
+            if (value->kind() != ValueKind::LambdaFunc) {
+                gen.error("expected value to be a lambda function", value);
+                return nullptr;
+            }
+            const auto lambda = value->as_lambda_func_unsafe();
+            const auto capType = lambda->capture_struct_type(gen);
+            auto align = gen.module->getDataLayout().getABITypeAlign(capType);
+            return gen.builder->getInt64(align.value());
+        }
+    }
 }
 
 llvm::Type* SizeOfValue::llvm_type(Codegen &gen) {

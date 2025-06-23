@@ -2307,6 +2307,25 @@ void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, co
     }
 }
 
+bool has_destructor(BaseType* mem_type) {
+    if (mem_type->isStructLikeType()) {
+        const auto container = mem_type->get_members_container();
+        if(!container) return false;
+        return container->destructor_func() != nullptr;
+    } else {
+        return false;
+    }
+}
+
+bool has_any_destructor(std::vector<CapturedVariable*>& caps) {
+    for(const auto cap : caps) {
+        if(has_destructor(cap->known_type())) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     RecursiveValueVisitor::VisitLambdaFunction(lamb);
     std::string lamb_name = "__chemda_";
@@ -2338,19 +2357,27 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         visitor.write("};");
 
         // writing the destructor
-        visitor.new_line_and_indent();
-        visitor.write("void ");
-        visitor.write(lamb_name);
-        visitor.write("_cap_destr(struct ");
-        visitor.write(lamb_name);
-        visitor.write("_cap* self) {");
-        visitor.indentation_level += 1;
-        for(const auto var : lamb->captureList) {
-            call_struct_member_delete_fn(visitor, var->known_type(), var->name);
+        if(has_any_destructor(lamb->captureList)) {
+            visitor.new_line_and_indent();
+            visitor.write("void ");
+            visitor.write(lamb_name);
+            visitor.write("_cap_destr(struct ");
+            visitor.write(lamb_name);
+            visitor.write("_cap* self) {");
+            visitor.indentation_level += 1;
+            for (const auto var: lamb->captureList) {
+                call_struct_member_delete_fn(visitor, var->known_type(), var->name);
+            }
+            visitor.indentation_level -= 1;
+            visitor.new_line_and_indent();
+            visitor.write("}");
+        } else {
+            visitor.new_line_and_indent();
+            visitor.write("#define ");
+            visitor.write(lamb_name);
+            visitor.write("_cap_destr NULL;");
         }
-        visitor.indentation_level -= 1;
-        visitor.new_line_and_indent();
-        visitor.write("}");
+
     }
     visitor.new_line_and_indent();
     accept_func_return_with_name(visitor, lamb, chem::string_view(lamb_name.data(), lamb_name.size()), true);

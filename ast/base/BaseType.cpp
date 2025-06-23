@@ -12,6 +12,7 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/LiteralType.h"
@@ -55,6 +56,8 @@ bool BaseType::isStructLikeType() {
             return true;
         case BaseTypeKind::Generic:
             return as_generic_type_unsafe()->referenced->isStructLikeType();
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe()->instance_type->isStructLikeType();
         case BaseTypeKind::Linked: {
             const auto linked = as_linked_type_unsafe()->linked;
             switch (linked->kind()) {

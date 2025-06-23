@@ -218,6 +218,7 @@ func test_no_type_structs() {
 
 func test_structs() {
     test_no_type_structs();
+    test_structs_aliases();
     test("can return a newly created struct", () => {
         var pair = create_pair();
         return pair.a == 33 && pair.b == 55;
@@ -385,5 +386,34 @@ func test_structs() {
     test("early return in constructors works - 2", () => {
         var early = EarlyReturnConstructor(false)
         return early.i == 33;
+    })
+}
+
+type PairAlias = Pair
+
+func create_pair_alias() : PairAlias {
+    return PairAlias { a : 20, b : 40 }
+}
+
+func create_pair_alias_inferred() : PairAlias {
+    return { a : 22, b : 44 }
+}
+
+func take_my_pair_alias(p : PairAlias) : bool {
+    return p.a == 21 && p.b == 45
+}
+
+func test_structs_aliases() {
+    test("returning struct alias works", () => {
+        var pairAlias = create_pair_alias();
+        return pairAlias.a == 20 && pairAlias.b == 40;
+    })
+    test("return struct alias with inferred type works", () => {
+        var pairAlias = create_pair_alias_inferred();
+        return pairAlias.a == 22 && pairAlias.b == 44;
+    })
+    test("taking struct alias as parameters works", () => {
+        var pairAlias = PairAlias { a : 21, b : 45 }
+        return take_my_pair_alias(pairAlias);
     })
 }

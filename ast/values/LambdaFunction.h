@@ -87,6 +87,11 @@ public:
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 
+    Value* copy(ASTAllocator &allocator) override {
+        // TODO: this can fail
+        return this;
+    }
+
     void set_return(InterpretScope &scope, Value *value) override {
 #ifdef DEBUG
       throw std::runtime_error("NOT YET IMPLEMENTED");

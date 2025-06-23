@@ -1390,7 +1390,7 @@ public:
             call_scope->error("call requires a single argument", call);
             return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
         }
-        const auto arg = call->values.front();
+        const auto arg = call->values.front()->evaluated_value(*call_scope);
         return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
             arg, ExtractionKind::LambdaFnPtr, call->encoded_location()
         );
@@ -1423,7 +1423,7 @@ public:
             call_scope->error("call requires a single argument", call);
             return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
         }
-        const auto arg = call->values.front();
+        const auto arg = call->values.front()->evaluated_value(*call_scope);
         return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
                 arg, ExtractionKind::LambdaCapturedPtr, call->encoded_location()
         );
@@ -1457,7 +1457,7 @@ public:
             call_scope->error("call requires a single argument", call);
             return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
         }
-        const auto arg = call->values.front();
+        const auto arg = call->values.front()->evaluated_value(*call_scope);
         return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
                 arg, ExtractionKind::LambdaCapturedDestructor, call->encoded_location()
         );
@@ -1490,7 +1490,7 @@ public:
             call_scope->error("call requires a single argument", call);
             return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
         }
-        const auto arg = call->values.front();
+        const auto arg = call->values.front()->evaluated_value(*call_scope);
         return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
                 arg, ExtractionKind::SizeOfLambdaCaptured, call->encoded_location()
         );
@@ -1524,7 +1524,7 @@ public:
             call_scope->error("call requires a single argument", call);
             return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
         }
-        const auto arg = call->values.front();
+        const auto arg = call->values.front()->evaluated_value(*call_scope);
         return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
                 arg, ExtractionKind::AlignOfLambdaCaptured, call->encoded_location()
         );

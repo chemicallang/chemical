@@ -562,6 +562,7 @@ set(COMMON_SOURCES
         ast/values/PatternMatchExpr.cpp
         ast/types/CapturingFunctionType.h
         ast/values/ExtractionValue.h
+        ast/values/ExtractionValue.cpp
 )
 
 # Chemical LSP Executable Target

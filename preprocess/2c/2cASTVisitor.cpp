@@ -2375,7 +2375,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
             visitor.new_line_and_indent();
             visitor.write("#define ");
             visitor.write(lamb_name);
-            visitor.write("_cap_destr NULL;");
+            visitor.write("_cap_destr NULL");
         }
 
     }

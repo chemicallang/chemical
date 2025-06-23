@@ -1109,16 +1109,28 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
                 auto value_type = value->get_pure_type(gen.allocator);
                 auto to_type = func_type->returnType->pure_type(gen.allocator);
 
-                // automatic dereference if required
-                const auto derefType = value_type->getAutoDerefType(to_type);
-                if(derefType) {
-                    const auto loadInst = gen.builder->CreateLoad(derefType->llvm_type(gen), return_value);
-                    gen.di.instr(loadInst, value);
-                    return_value = loadInst;
+                const auto mutated = gen.mutate_capturing_function(to_type, value);
+                if(mutated) {
+                    auto dest = gen.current_function->getArg(0);
+                    llvm::MaybeAlign noAlign;
+                    auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
+                    const auto memCpyInst = gen.builder->CreateMemCpy(dest, noAlign, mutated, noAlign, alloc_size);
+                    gen.di.instr(memCpyInst, location);
+                    return_value = nullptr;
                 } else {
 
-                    // implicit cast to value that's required
-                    return_value = gen.implicit_cast(return_value, to_type, to_type->llvm_type(gen));
+                    // automatic dereference if required
+                    const auto derefType = value_type->getAutoDerefType(to_type);
+                    if (derefType) {
+                        const auto loadInst = gen.builder->CreateLoad(derefType->llvm_type(gen), return_value);
+                        gen.di.instr(loadInst, value);
+                        return_value = loadInst;
+                    } else {
+
+                        // implicit cast to value that's required
+                        return_value = gen.implicit_cast(return_value, to_type, to_type->llvm_type(gen));
+
+                    }
 
                 }
 

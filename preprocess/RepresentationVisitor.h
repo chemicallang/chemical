@@ -392,6 +392,8 @@ public:
 
     void VisitVoidType(VoidType* type);
 
+    void VisitCapturingFunctionType(CapturingFunctionType* type);
+
     // TODO handle this
     void VisitExpressionType(ExpressionType* type) {}
 

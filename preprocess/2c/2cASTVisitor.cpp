@@ -2274,6 +2274,39 @@ inline void scope(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
 ////    }
 //}
 
+void call_struct_member_fn(
+        ToCAstVisitor& visitor,
+        BaseType* mem_type,
+        const chem::string_view& member_name,
+        FunctionDeclaration*(*choose_func)(MembersContainer* container)
+) {
+    const auto mem_def = mem_type->get_members_container();
+    if(!mem_def) {
+        return;
+    }
+    auto func = choose_func(mem_def);
+    if (!func) {
+        return;
+    }
+    visitor.new_line_and_indent();
+    visitor.mangle(func);
+    visitor.write('(');
+    if (func->has_self_param()) {
+        visitor.write("&self->");
+        visitor.write(member_name);
+    }
+    visitor.write(')');
+    visitor.write(';');
+}
+
+void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, const chem::string_view& mem_name) {
+    if (mem_type->isStructLikeType()) {
+        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
+            return def->destructor_func();
+        });
+    }
+}
+
 void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     RecursiveValueVisitor::VisitLambdaFunction(lamb);
     std::string lamb_name = "__chemda_";
@@ -2303,6 +2336,21 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         visitor.indentation_level -= 1;
         visitor.new_line_and_indent();
         visitor.write("};");
+
+        // writing the destructor
+        visitor.new_line_and_indent();
+        visitor.write("void ");
+        visitor.write(lamb_name);
+        visitor.write("_cap_destr(struct ");
+        visitor.write(lamb_name);
+        visitor.write("_cap* self) {");
+        visitor.indentation_level += 1;
+        for(const auto var : lamb->captureList) {
+            call_struct_member_delete_fn(visitor, var->known_type(), var->name);
+        }
+        visitor.indentation_level -= 1;
+        visitor.new_line_and_indent();
+        visitor.write("}");
     }
     visitor.new_line_and_indent();
     accept_func_return_with_name(visitor, lamb, chem::string_view(lamb_name.data(), lamb_name.size()), true);
@@ -3586,39 +3634,6 @@ void write_type_assignment_in_variant_copy(ToCAstVisitor& visitor, FunctionDecla
     visitor.write("->");
     visitor.write(variant_type_variant_name);
     visitor.write(';');
-}
-
-void call_struct_member_fn(
-        ToCAstVisitor& visitor,
-        BaseType* mem_type,
-        const chem::string_view& member_name,
-        FunctionDeclaration*(*choose_func)(MembersContainer* container)
-) {
-    const auto mem_def = mem_type->get_members_container();
-    if(!mem_def) {
-        return;
-    }
-    auto func = choose_func(mem_def);
-    if (!func) {
-        return;
-    }
-    visitor.new_line_and_indent();
-    visitor.mangle(func);
-    visitor.write('(');
-    if (func->has_self_param()) {
-        visitor.write("&self->");
-        visitor.write(member_name);
-    }
-    visitor.write(')');
-    visitor.write(';');
-}
-
-void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, const chem::string_view& mem_name) {
-    if (mem_type->isStructLikeType()) {
-        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
-            return def->destructor_func();
-        });
-    }
 }
 
 void call_struct_members_pre_move_fn(

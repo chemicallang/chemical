@@ -54,6 +54,7 @@
 #include "ast/types/Int128Type.h"
 #include "ast/values/UCharValue.h"
 #include "ast/types/IntNType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/IntType.h"
 #include "ast/types/LongType.h"
 #include "ast/types/LinkedType.h"
@@ -926,6 +927,14 @@ void RepresentationVisitor::VisitStructType(StructType *def) {
 
 void RepresentationVisitor::VisitVoidType(VoidType *func) {
     write("void");
+}
+
+void RepresentationVisitor::VisitCapturingFunctionType(CapturingFunctionType* type) {
+    write("capture<");
+    visit(type->func_type);
+    write(',');
+    visit(type->instance_type);
+    write('>');
 }
 
 void RepresentationVisitor::VisitNullPtrType(NullPtrType* type) {

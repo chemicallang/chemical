@@ -109,20 +109,19 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
                 llvm::Value* dyn_obj_impl = nullptr;
 
-                if(type && type->isStructLikeType() && value->as_struct_value() == nullptr) {
-                    // get it's dynamic object implementation based on expected type
-                    dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
+                if(type) {
+                    const auto canType = type->canonical();
+                    const auto mutated = gen.mutate_capturing_function(canType, value);
+                    if(mutated) {
+                        llvm_ptr = mutated;
+                        gen.di.declare(this, llvm_ptr);
+                        return;
+                    }
+                    if(type->isStructLikeType() && value->as_struct_value() == nullptr) {
+                        // get it's dynamic object implementation based on expected type
+                        dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
+                    }
                 }
-
-//                if(!dyn_obj_impl) {
-//                    auto llvmType = llvm_type(gen);
-//                    // is referencing another struct, that is non movable and must be mem copied into the pointer
-//                    llvm_ptr = gen.memcpy_ref_struct(created_val_type, value, nullptr, llvmType);
-//                    if (llvm_ptr) {
-//                        gen.di.declare(this, llvm_ptr);
-//                        return;
-//                    }
-//                }
 
                 llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
                 if(dyn_obj_impl) {

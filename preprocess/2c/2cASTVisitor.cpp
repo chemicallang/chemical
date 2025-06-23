@@ -721,64 +721,6 @@ bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType*
     return false;
 }
 
-void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value) {
-    // automatically passing address to a reference type
-    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_ref(allocator)) {
-        const auto ref_type = type->as_reference_type_unsafe();
-        if(write_value_for_ref_type(*this, value, ref_type)) {
-            return;
-        }
-    }
-    // automatic dereference
-    if(type) {
-        if (type->get_direct_linked_canonical_node() != nullptr && is_value_param_hidden_pointer(value)) {
-            write('*');
-        } else {
-            const auto value_type = value->create_type(allocator);
-            const auto derefType = value_type->getAutoDerefType(type);
-            if (derefType) {
-                write('*');
-            }
-        }
-    }
-    // mutating value
-    if(!implicit_mutate_value_default(*this, type, value)) {
-        visit(value);
-    }
-}
-
-void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, const chem::string_view& var_name, bool is_var_ptr) {
-    const auto new_expected_type = imp_constructor->params[0]->type;
-    visitor.mangle(imp_constructor);
-    visitor.write("(");
-    if(!is_var_ptr) {
-        visitor.write('&');
-    }
-    visitor.write(var_name);
-    visitor.write(", ");
-    visitor.accept_mutating_value_explicit(new_expected_type, value, false);
-    visitor.write(")");
-}
-
-void call_implicit_constructor_with_name(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, bool take_addr, const chem::string_view& var_name) {
-    visitor.write("({");
-    // TODO check if we need to destroy this so we should allocate it in before stmt visitor
-    allocate_struct_by_name_no_init(visitor, imp_constructor->parent(), var_name);
-    visitor.write("; ");
-    call_implicit_constructor_no_alloc(visitor, imp_constructor, value, var_name, false);
-    visitor.write("; ");
-    if(take_addr) {
-        visitor.write('&');
-    }
-    visitor.write(var_name);
-    visitor.write("; })");
-}
-
-void call_implicit_constructor(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, bool take_addr) {
-    const auto temp_name = visitor.get_local_temp_var_name();
-    call_implicit_constructor_with_name(visitor, imp_constructor, value, take_addr, chem::string_view(temp_name.data(), temp_name.size()));
-}
-
 Value* evaluate_comptime_func(
         ToCAstVisitor& visitor,
         FunctionDeclaration* func_decl,
@@ -814,6 +756,105 @@ Value* evaluated_func_val(
 
 inline Value* evaluated_func_val_proper(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
     return evaluated_func_val(visitor, func_decl, call);
+}
+
+void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, const chem::string_view& var_name, bool is_var_ptr) {
+    const auto new_expected_type = imp_constructor->params[0]->type;
+    visitor.mangle(imp_constructor);
+    visitor.write("(");
+    if(!is_var_ptr) {
+        visitor.write('&');
+    }
+    visitor.write(var_name);
+    visitor.write(", ");
+    visitor.accept_mutating_value_explicit(new_expected_type, value, false);
+    visitor.write(")");
+}
+
+void call_implicit_constructor_with_name(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, bool take_addr, const chem::string_view& var_name) {
+    visitor.write("({");
+    // TODO check if we need to destroy this so we should allocate it in before stmt visitor
+    allocate_struct_by_name_no_init(visitor, imp_constructor->parent(), var_name);
+    visitor.write("; ");
+    call_implicit_constructor_no_alloc(visitor, imp_constructor, value, var_name, false);
+    visitor.write("; ");
+    if(take_addr) {
+        visitor.write('&');
+    }
+    visitor.write(var_name);
+    visitor.write("; })");
+}
+
+void call_implicit_constructor(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, bool take_addr) {
+    const auto temp_name = visitor.get_local_temp_var_name();
+    call_implicit_constructor_with_name(visitor, imp_constructor, value, take_addr, chem::string_view(temp_name.data(), temp_name.size()));
+}
+
+void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value) {
+    // automatically passing address to a reference type
+    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_ref(allocator)) {
+        const auto ref_type = type->as_reference_type_unsafe();
+        if(write_value_for_ref_type(*this, value, ref_type)) {
+            return;
+        }
+    }
+    if(type) {
+        // automatic dereference
+        if (type->get_direct_linked_canonical_node() != nullptr && is_value_param_hidden_pointer(value)) {
+            write('*');
+        } else {
+            const auto value_type = value->create_type(allocator);
+            const auto derefType = value_type->getAutoDerefType(type);
+            if (derefType) {
+                write('*');
+            }
+        }
+        // capturing function type
+        const auto canonical = type->canonical();
+        if(canonical->kind() == BaseTypeKind::CapturingFunction && value->kind() == ValueKind::LambdaFunc) {
+            const auto cap_type = canonical->as_capturing_func_type_unsafe();
+            const auto instance = cap_type->instance_type->get_direct_linked_canonical_node();
+            if(instance->kind() == ASTNodeKind::StructDecl) {
+                const auto makeFn = instance->child("make");
+                if(makeFn && makeFn->kind() == ASTNodeKind::FunctionDecl) {
+                    const auto makeFnDecl = makeFn->as_function_unsafe();
+                    const auto imp_cons = makeFnDecl;
+                    if(imp_cons->is_comptime()) {
+                        const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
+                        const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_cons_call);
+
+                        auto aliases = declarer->aliases;
+                        auto found = aliases.find(value);
+                        if(found == aliases.end()) {
+                            write("[error: couldn't find lambda alias]");
+                            return;
+                        }
+
+                        write("({ ");
+                        write(fat_pointer_type);
+                        write("* ");
+                        write(found->second);
+                        write("_pair");
+                        write(" = ");
+                        VisitLambdaFunction(value->as_lambda_func_unsafe());
+                        write(';');
+
+                        accept_mutating_value_explicit(type, eval, assigning_value);
+                        write(';');
+                        write(" })");
+
+                    } else {
+                        call_implicit_constructor(*this, imp_cons, value, false);
+                    }
+                }
+            }
+            return;
+        }
+    }
+    // mutating value
+    if(!implicit_mutate_value_default(*this, type, value)) {
+        visit(value);
+    }
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
@@ -5396,74 +5437,40 @@ void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
 }
 
 void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
+
     const auto src = value->value;
+    auto& aliases = declarer->aliases;
+    auto found = declarer->aliases.find(src);
+    if(found == aliases.end()) return;
+
     switch(value->extractionKind) {
         case ExtractionKind::LambdaFnPtr:
-            visit(src);
-            write("->first");
+            write(found->second);
+            write("_pair->first");
             break;
         case ExtractionKind::LambdaCapturedPtr:
-            visit(src);
-            write("->second");
+            write(found->second);
+            write("_pair->second");
             break;
         case ExtractionKind::LambdaCapturedDestructor:{
-            const auto linked = src->linked_node();
-            if (linked->kind() == ASTNodeKind::VarInitStmt) {
-                const auto init = linked->as_var_init_unsafe();
-                if (init->value->kind() == ValueKind::LambdaFunc) {
-                    const auto lambda = init->value->as_lambda_func_unsafe();
-                    auto& aliases = declarer->aliases;
-                    auto alias = aliases.find(lambda);
-                    if (alias != aliases.end()) {
-                        write(alias->second);
-                        write("_cap_destr");
-                        return;
-                    }
-                }
-            }
-            write("[error: extraction destructor lambda captured failed]");
+            write(found->second);
+            write("_cap_destr");
             break;
         }
         case ExtractionKind::SizeOfLambdaCaptured: {
-            const auto linked = src->linked_node();
-            if (linked->kind() == ASTNodeKind::VarInitStmt) {
-                const auto init = linked->as_var_init_unsafe();
-                if (init->value->kind() == ValueKind::LambdaFunc) {
-                    const auto lambda = init->value->as_lambda_func_unsafe();
-                    auto& aliases = declarer->aliases;
-                    auto alias = aliases.find(lambda);
-                    if (alias != aliases.end()) {
-                        write("sizeof(");
-                        write("struct ");
-                        write(alias->second);
-                        write("_cap");
-                        write(')');
-                        return;
-                    }
-                }
-            }
-            write("[error: extraction size of lambda captured failed]");
+            write("sizeof(");
+            write("struct ");
+            write(found->second);
+            write("_cap");
+            write(')');
             break;
         }
         case ExtractionKind::AlignOfLambdaCaptured: {
-            const auto linked = src->linked_node();
-            if (linked->kind() == ASTNodeKind::VarInitStmt) {
-                const auto init = linked->as_var_init_unsafe();
-                if (init->value->kind() == ValueKind::LambdaFunc) {
-                    const auto lambda = init->value->as_lambda_func_unsafe();
-                    auto& aliases = declarer->aliases;
-                    auto alias = aliases.find(lambda);
-                    if (alias != aliases.end()) {
-                        write("_Alignof(");
-                        write("struct ");
-                        write(alias->second);
-                        write("_cap");
-                        write(')');
-                        return;
-                    }
-                }
-            }
-            write("[error: extraction align of lambda captured failed]");
+            write("_Alignof(");
+            write("struct ");
+            write(found->second);
+            write("_cap");
+            write(')');
             break;
         }
     }

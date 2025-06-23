@@ -44,4 +44,6 @@ public:
         );
     }
 
+    BaseType* create_type(ASTAllocator &allocator) override;
+
 };

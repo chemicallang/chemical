@@ -660,11 +660,15 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     if(!callee_value) {
-        if(parent_val->val_kind() == ValueKind::FunctionCall || (parent_linked && linked_kind == ASTNodeKind::StructMember)) {
+        if(parent_val->val_kind() == ValueKind::FunctionCall || (parent_linked && linked_kind == ASTNodeKind::StructMember && parent_type->kind() != BaseTypeKind::CapturingFunction)) {
             // creating access chain to the last member as an identifier instead of function call
             callee_value = parent_val->llvm_value(gen, nullptr);
         } else {
-            callee_value = llvm_linked_func_callee(gen);
+            if(linked_kind == ASTNodeKind::StructMember && parent_type->kind() == BaseTypeKind::CapturingFunction) {
+                callee_value = parent_val->llvm_pointer(gen);
+            } else {
+                callee_value = llvm_linked_func_callee(gen);
+            }
             if(callee_value == nullptr) {
                 callee_value = parent_val->llvm_value(gen, nullptr);
                 if(callee_value == nullptr) {
@@ -723,6 +727,19 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     return returnedValue ? returnedValue : call_value;
 
+}
+
+llvm::Value* FunctionCall::llvm_chain_value(
+        Codegen &gen,
+        llvm::Value* returnedStruct,
+        llvm::Value* callee_value,
+        llvm::Value* grandparent
+) {
+    std::vector<llvm::Value *> args;
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    const auto res = llvm_chain_value(gen, args, destructibles, returnedStruct, callee_value, grandparent);
+    Value::destruct(gen, destructibles);
+    return res;
 }
 
 bool FunctionCall::store_in_parent(

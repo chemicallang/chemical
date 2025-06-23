@@ -11,6 +11,7 @@
 #include "llvmimpl.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
+#include "ast/values/FunctionCall.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
 #include <string>
@@ -487,7 +488,7 @@ llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn)
     return llvm::BasicBlock::Create(*ctx, name, fn);
 }
 
-llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* value) {
+llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* value, llvm::Value* pointer) {
     // function takes a capturing function type, and we have a lambda
     if(pure_type->kind() == BaseTypeKind::CapturingFunction && value->kind() == ValueKind::LambdaFunc) {
         const auto capFuncTy = pure_type->as_capturing_func_type_unsafe();
@@ -499,7 +500,12 @@ llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* valu
                 if(makeFnDecl->is_comptime()) {
                     auto called = call_with_arg(makeFnDecl, value, pure_type, allocator, *this);
                     const auto evaluated = eval_comptime(called, makeFnDecl);
-                    return evaluated->llvm_value(*this);
+                    if(pointer && evaluated->kind() == ValueKind::FunctionCall) {
+                        const auto call = evaluated->as_func_call_unsafe();
+                        return call->llvm_chain_value(*this, pointer);
+                    } else {
+                        return evaluated->llvm_value(*this);
+                    }
                 }
             }
         }

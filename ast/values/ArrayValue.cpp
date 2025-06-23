@@ -36,7 +36,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
-    auto known_child_t = element_type(gen.allocator);
+    auto known_child_t = element_type(gen.allocator)->canonical();
     const auto def = known_child_t->linked_struct_def();
     auto parent_type = llvm_type(gen);
     bool moved = false;

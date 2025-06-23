@@ -307,7 +307,7 @@ public:
     /**
      * capturing lambdas need to be mutated to capturing function types
      */
-    llvm::Value* mutate_capturing_function(BaseType* pure_type, Value* value);
+    llvm::Value* mutate_capturing_function(BaseType* pure_type, Value* value, llvm::Value* pointer = nullptr);
 
     /**
      * a struct type with two pointers inside

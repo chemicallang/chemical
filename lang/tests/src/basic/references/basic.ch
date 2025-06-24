@@ -143,4 +143,10 @@ func test_references() {
         var r = ReferenceCastedMethod { a : 32, b : 5 }
         return call_on_casted_ref<ReferenceCastedMethod>(r) == 37
     })
+    test("assignment to stored reference inside struct works", () => {
+        var i = 0
+        var r = ReferencableInt { i : i }
+        r.i = 458
+        return i == 458;
+    })
 }

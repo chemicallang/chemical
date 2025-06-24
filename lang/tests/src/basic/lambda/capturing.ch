@@ -18,6 +18,10 @@ func take_cap_func(func : std::function<() => int>) : int {
     return func()
 }
 
+func pass_func_lambda(func : std::function<() => int>) : int {
+    return take_cap_func(func);
+}
+
 func test_capturing_lambda() {
     test("capturing lambda works in var init", () => {
         var temp = 11;
@@ -73,5 +77,9 @@ func test_capturing_lambda() {
             return temp;
         }
         return fn() == temp;
+    })
+    test("capturing functions can be passed around", () => {
+        var temp = 384
+        return pass_func_lambda(|temp|() => { return temp; }) == 384
     })
 }

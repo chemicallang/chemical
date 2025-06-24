@@ -1497,9 +1497,9 @@ bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Valu
 void AssignStatement::code_gen(Codegen &gen) {
 
     const auto pointer = lhs->llvm_pointer(gen);
+    const auto lhs_type = lhs->create_type(gen.allocator);
 
     if(assOp == Operation::Assignment) {
-        const auto lhs_type = lhs->create_type(gen.allocator);
         const auto container = lhs_type->get_members_container();
         if(container) {
             const auto id = lhs->get_chain_id();

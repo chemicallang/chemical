@@ -9,6 +9,11 @@ struct CapLambTestCont {
     var lamb1 : std::function<() => int>
 }
 
+variant OptCapLamb {
+    Some(lamb : std::function<() => int>)
+    None()
+}
+
 func take_cap_func(func : std::function<() => int>) : int {
     return func()
 }
@@ -52,5 +57,11 @@ func test_capturing_lambda() {
         return take_cap_func(|temp|() => {
             return temp;
         }) == temp
+    })
+    test("capturing lambda can be stored and called from variant", () => {
+        var temp = 873
+        var s = OptCapLamb.Some(|temp|() => { return temp; })
+        var Some(lamb) = s else unreachable
+        return lamb() == temp;
     })
 }

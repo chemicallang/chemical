@@ -955,7 +955,8 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         }
         const auto param_type_kind = param->type->kind();
         const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
-        const auto isStructLikeTypeDecl = isStructLikeTypePtr && param_type->kind() != BaseTypeKind::CapturingFunction;
+        const auto is_capturing_function = param_type->kind() == BaseTypeKind::CapturingFunction;
+        const auto isStructLikeTypeDecl = isStructLikeTypePtr && !is_capturing_function;
         bool is_movable_or_copyable_struct = val->requires_memcpy_ref_struct(param->type);
         bool is_memcpy_ref_str = is_movable_or_copyable_struct && !val->is_ref_moved();
         if(is_movable_or_copyable_struct) {
@@ -981,7 +982,13 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
         bool accept_value = true;
         if(isStructLikeTypePtr && !is_memcpy_ref_str) {
-            visitor.write('&');
+            if(is_capturing_function) {
+                if(!is_value_param_hidden_pointer(val)) {
+                    visitor.write('&');
+                }
+            } else {
+                visitor.write('&');
+            }
         } else if(is_param_type_ref && !val->is_ptr_or_ref(visitor.allocator)) {
             accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
         }

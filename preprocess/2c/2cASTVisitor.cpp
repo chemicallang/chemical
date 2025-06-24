@@ -5665,7 +5665,7 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
 void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {
-        if(func->isCapturing()) {
+        if(!func->captureList.empty()) {
             write('(');
             write('&');
             write('(');

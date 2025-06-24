@@ -825,7 +825,11 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
                 return nullptr;
             }
             const auto lambda = value->as_lambda_func_unsafe();
-            return lambda->captured_struct;
+            if(lambda->captured_struct) {
+                return lambda->captured_struct;
+            } else {
+                return NullValue::null_llvm_value(gen);
+            }
         }
         case ExtractionKind::LambdaCapturedDestructor:{
             if (value->kind() != ValueKind::LambdaFunc) {
@@ -845,8 +849,12 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
                 return nullptr;
             }
             const auto lambda = value->as_lambda_func_unsafe();
-            const auto capType = lambda->capture_struct_type(gen);
-            return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(capType));
+            if(lambda->captureList.empty()) {
+                gen.builder->getInt64(0);
+            } else {
+                const auto capType = lambda->capture_struct_type(gen);
+                return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(capType));
+            }
         }
         case ExtractionKind::AlignOfLambdaCaptured: {
             if (value->kind() != ValueKind::LambdaFunc) {
@@ -854,9 +862,13 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
                 return nullptr;
             }
             const auto lambda = value->as_lambda_func_unsafe();
-            const auto capType = lambda->capture_struct_type(gen);
-            auto align = gen.module->getDataLayout().getABITypeAlign(capType);
-            return gen.builder->getInt64(align.value());
+            if(lambda->captureList.empty()) {
+                gen.builder->getInt64(0);
+            } else {
+                const auto capType = lambda->capture_struct_type(gen);
+                auto align = gen.module->getDataLayout().getABITypeAlign(capType);
+                return gen.builder->getInt64(align.value());
+            }
         }
     }
 }

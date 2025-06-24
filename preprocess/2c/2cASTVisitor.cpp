@@ -831,6 +831,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                             write("[error: couldn't find lambda alias]");
                             return;
                         }
+                        const auto lambdaFn = value->as_lambda_func_unsafe();
 
                         write("*({ ");
                         write(fat_pointer_type);
@@ -838,7 +839,13 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                         write(found->second);
                         write("_pair");
                         write(" = ");
-                        VisitLambdaFunction(value->as_lambda_func_unsafe());
+                        if(lambdaFn->captureList.empty()) {
+                            write("&(__chemical_fat_pointer__){");
+                            VisitLambdaFunction(lambdaFn);
+                            write(",NULL}");
+                        } else {
+                            VisitLambdaFunction(lambdaFn);
+                        }
                         write("; &");
 
                         accept_mutating_value_explicit(type, eval, assigning_value);
@@ -5557,24 +5564,39 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
             write("_pair->second");
             break;
         case ExtractionKind::LambdaCapturedDestructor:{
-            write(found->second);
-            write("_cap_destr");
+            const auto lamb = src->as_lambda_func_unsafe();
+            if(lamb->captureList.empty()) {
+                write("NULL");
+            } else {
+                write(found->second);
+                write("_cap_destr");
+            }
             break;
         }
         case ExtractionKind::SizeOfLambdaCaptured: {
-            write("sizeof(");
-            write("struct ");
-            write(found->second);
-            write("_cap");
-            write(')');
+            const auto lamb = src->as_lambda_func_unsafe();
+            if(lamb->captureList.empty()) {
+                write('0');
+            } else {
+                write("sizeof(");
+                write("struct ");
+                write(found->second);
+                write("_cap");
+                write(')');
+            }
             break;
         }
         case ExtractionKind::AlignOfLambdaCaptured: {
-            write("_Alignof(");
-            write("struct ");
-            write(found->second);
-            write("_cap");
-            write(')');
+            const auto lamb = src->as_lambda_func_unsafe();
+            if(lamb->captureList.empty()) {
+                write('0');
+            } else {
+                write("_Alignof(");
+                write("struct ");
+                write(found->second);
+                write("_cap");
+                write(')');
+            }
             break;
         }
     }

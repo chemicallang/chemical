@@ -21,12 +21,10 @@ func test_capturing_lambda() {
         }
         return fn() == 11;
     })
-    /**
     test("capturing lambda works in function return", () => {
         var lambda = cap_func_ret();
         return lambda() == 22;
     })
-    **/
     test("capturing lambda works in array value", () => {
         var temp1 = 87;
         var temp2 = 99;

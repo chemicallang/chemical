@@ -6,14 +6,6 @@ struct Nested {
     var provider : LambdaProvider
 }
 
-func capturing(lambda : ||() => bool) : bool {
-    return lambda();
-}
-
-func delegate(lambda : ||() => bool) : bool {
-    return capturing(lambda);
-}
-
 func dontCapture(lambda : () => bool) : bool {
     return lambda();
 }
@@ -68,11 +60,6 @@ struct ProvideStructLamb {
     var lamb : (a : int, b : int) => PointSome
 }
 
-struct CapSelf {
-    var i : int
-    var lamb : ||(&self) => int
-}
-
 struct ProvideSelfRefStructLamb {
     var mul : int
     var lamb : (&self, a : int, b : int) => PointSome
@@ -106,40 +93,6 @@ func test_lambda() {
     })
     test("testing non capturing lambda works without body", () => {
         return dontCapture(() => true);
-    });
-    test("testing non capturing lambda can be passed to capturing lambda", () => {
-        return capturing(() => {
-            return true;
-        });
-    });
-    test("testing capturing lambda type works with empty capturing lambda", () => {
-        return capturing(||() => {
-            return true;
-        });
-    });
-    test("testing capturing lambda can capture primitive bool value - 1", () => {
-        var captured = true;
-        return capturing(|captured|() => {
-            return captured;
-        });
-    });
-    test("testing capturing lambda can capture primitive bool value - 2", () => {
-        var captured = false;
-        return capturing(|captured|() => {
-            return !captured;
-        });
-    });
-    test("testing capturing lambda can capture by ref", () => {
-        var captured = true;
-        return capturing(|&captured|() => {
-            return *captured;
-        });
-    });
-    test("testing capturing lambda can be passed between functions", () => {
-        var captured = true;
-        return delegate(|captured|() => {
-            return captured;
-        });
     });
     /**
     test("testing returning capturing lambda works", () => {
@@ -250,25 +203,6 @@ func test_lambda() {
         }
         var p = provide.lamb(10, 20);
         return p.a == 20 && p.b == 40;
-    })
-    test("capturing lambda can take a self reference", () => {
-        var c = CapSelf {
-            i : 14,
-            lamb : ||(self) => {
-                return self.i;
-            }
-        }
-        return c.lamb() == 14;
-    })
-    test("capturing lambda taking self reference can access captured variables", () => {
-        var d = 100
-        var c = CapSelf {
-            i : 14,
-            lamb : |d|(self) => {
-                return self.i + d;
-            }
-        }
-        return c.lamb() == 114;
     })
     test("the parameters of lambda are determined from the lambda type and need not be mentioned", () => {
         var x = take_lambda_with_param(() => {

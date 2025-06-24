@@ -53,6 +53,7 @@ public func main() : int {
     test_generic_static_interfaces();
     test_external_interfaces();
     test_interface_generic_dispatch();
+    test_capturing_lambda();
     print_test_stats();
     return 0;
 }

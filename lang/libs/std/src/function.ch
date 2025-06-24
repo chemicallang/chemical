@@ -1,0 +1,79 @@
+public namespace std {
+
+public struct default_function_instance {
+
+    // the pointer to function we are going to call
+    var fn_pointer : *mut void
+
+    // we store data pointer, so storage can be done on stack or heap
+    var fn_data_ptr : *mut void
+
+    // 32 bytes of buffer, 4 pointers
+    @maxalign
+    var buffer : char[32]
+
+    // a destructor pointer is stored inside the function so we can
+    // handle destruction of any variables required
+    var dtor : (obj : *mut void) => void;
+
+    // is the captured struct allocated on heap
+    var is_heap : bool
+
+    @comptime
+    @make
+    func make(lambda : () => void) {
+        const ptr = intrinsics::get_lambda_fn_ptr(lambda)
+        const cap = intrinsics::get_lambda_cap_ptr(lambda)
+        const destr = intrinsics::get_lambda_cap_destructor(lambda)
+        const size_data = intrinsics::sizeof_lambda_captured(lambda);
+        const align_data = intrinsics::alignof_lambda_captured(lambda)
+        return intrinsics::wrap(make2(ptr, cap, destr, size_data, align_data))
+    }
+
+    @make
+    func make2(ptr : *mut void, cap : *mut void, destr : (obj : *mut void) => void, size_data : size_t, align_data : size_t) {
+        // copy the fat pointer
+        fn_pointer = ptr;
+        // we get the captured struct from the lambda
+        const captured = cap
+        // since lambda has no captured data, we don't need to do anything else
+        if(captured == null) {
+            fn_data_ptr = null;
+            is_heap = false;
+            dtor = null;
+            return;
+        }
+        // set the destructor function for the given lambda
+        dtor = destr
+        // now lets store the data into buffer
+        if(size_data >= 32) {
+            // we are going to need to allocate the lambda on heap, its too big
+            // TODO: malloc call should take alignment malloc(size_data, align_data)
+            var allocated = malloc(size_data) as *mut char
+            memcpy(allocated, captured, size_data)
+            fn_data_ptr = allocated
+            is_heap = true;
+        } else {
+            // we are going to allocate it in buffer
+            var dest = &buffer[0]
+            memcpy(dest, captured, size_data)
+            fn_data_ptr = dest
+            is_heap = false;
+        }
+    }
+
+    @delete
+    func delete(&self) {
+        if(dtor != null) {
+            dtor(fn_data_ptr)
+        }
+        if(is_heap) {
+            free(fn_data_ptr)
+        }
+    }
+
+}
+
+public type function<T, M = default_function_instance> = capture<T, M>;
+
+}

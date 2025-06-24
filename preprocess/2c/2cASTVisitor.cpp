@@ -213,9 +213,12 @@ void ToCAstVisitor::declare_type_alias(ASTNode* node) {
     auto& visitor = *this;
     switch(node->kind()) {
         case ASTNodeKind::TypealiasStmt:{
-            const auto alias = node->as_typealias_unsafe();
-            if(alias->is_top_level()) {
-                tld.VisitTypealiasStmt(alias);
+            tld.VisitTypealiasStmt(node->as_typealias_unsafe());
+            break;
+        }
+        case ASTNodeKind::GenericTypeDecl: {
+            for(const auto child : node->as_gen_type_decl_unsafe()->instantiations) {
+                tld.VisitTypealiasStmt(child->as_typealias_unsafe());
             }
             break;
         }
@@ -226,7 +229,6 @@ void ToCAstVisitor::declare_type_alias(ASTNode* node) {
             break;
         case ASTNodeKind::IfStmt: {
             const auto stmt = node->as_if_stmt_unsafe();
-            if (!stmt->is_top_level()) return;
             if (stmt->computed_scope.has_value()) {
                 auto scope = stmt->computed_scope.value();
                 if (scope) {
@@ -830,7 +832,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                             return;
                         }
 
-                        write("({ ");
+                        write("*({ ");
                         write(fat_pointer_type);
                         write("* ");
                         write(found->second);
@@ -952,7 +954,8 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             }
         }
         const auto param_type_kind = param->type->kind();
-        const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param_type->kind() != BaseTypeKind::CapturingFunction && param->type->isStructLikeType();
+        const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
+        const auto isStructLikeTypeDecl = isStructLikeTypePtr && param_type->kind() != BaseTypeKind::CapturingFunction;
         bool is_movable_or_copyable_struct = val->requires_memcpy_ref_struct(param->type);
         bool is_memcpy_ref_str = is_movable_or_copyable_struct && !val->is_ref_moved();
         if(is_movable_or_copyable_struct) {
@@ -983,7 +986,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
         }
         auto base_type = val->create_type(visitor.allocator);
-        if(isStructLikeTypePtr || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
+        if(isStructLikeTypeDecl || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
             auto allocated = visitor.local_allocated.find(val);
             if(allocated != visitor.local_allocated.end()) {
                 visitor.write(allocated->second);
@@ -1213,10 +1216,6 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
     }
     visitor.write(" = ");
 
-    if(type->canonical()->kind() == BaseTypeKind::CapturingFunction && value->kind() == ValueKind::LambdaFunc) {
-        visitor.write("*");
-    }
-
     if(value->is_ref_moved()) {
         // since we're moving the value here
         // what we must do is set the drop flag to false
@@ -1404,16 +1403,28 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
         const auto returnType = func_type->returnType->canonical();
         const auto returnTypeKind = returnType->kind();
         if (returnTypeKind != BaseTypeKind::Dynamic) {
-            const auto return_linked = returnType->get_direct_linked_node();
-            if (return_linked) {
-                const auto returnKind = return_linked->kind();
-                if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-                    const auto temp_name = visitor.get_local_temp_var_name();
-                    const auto temp_name_view = chem::string_view(temp_name);
-                    allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
-                    write(';');
-                    visitor.new_line_and_indent();
-                    visitor.local_allocated[call] = temp_name;
+            if(returnTypeKind == BaseTypeKind::CapturingFunction) {
+                const auto capType = returnType->as_capturing_func_type_unsafe();
+                const auto instanceType = capType->instance_type;
+                const auto return_linked = instanceType->get_direct_linked_node();
+                const auto temp_name = visitor.get_local_temp_var_name();
+                const auto temp_name_view = chem::string_view(temp_name);
+                allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
+                write(';');
+                visitor.new_line_and_indent();
+                visitor.local_allocated[call] = temp_name;
+            } else {
+                const auto return_linked = returnType->get_direct_linked_node();
+                if (return_linked) {
+                    const auto returnKind = return_linked->kind();
+                    if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
+                        const auto temp_name = visitor.get_local_temp_var_name();
+                        const auto temp_name_view = chem::string_view(temp_name);
+                        allocate_struct_by_name_no_init(visitor, return_linked, temp_name_view);
+                        write(';');
+                        visitor.new_line_and_indent();
+                        visitor.local_allocated[call] = temp_name;
+                    }
                 }
             }
         }
@@ -3341,19 +3352,23 @@ void struct_initialize_inside_braces(ToCAstVisitor& visitor, StructValue* val) {
 
 bool ToCAstVisitor::requires_return(Value* val) {
     if(val->as_struct_value()) {
-        if(pass_structs_to_initialize) {
+        if (pass_structs_to_initialize) {
             return false;
         } else {
             return true;
         }
-    } else if(val->create_type(allocator)->isStructLikeType()) {
-        return false;
     } else {
-        return true;
+        const auto valType = val->create_type(allocator);
+        if(valType->isStructLikeType()) {
+            return false;
+        } else {
+            return true;
+        }
     }
 }
 
-void ToCAstVisitor::return_value(Value* val, BaseType* type) {
+void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
+    const auto type = non_canon_type->canonical();
     const auto imp_cons = type->implicit_constructor_for(allocator, val);
     if(imp_cons) {
         if(imp_cons->is_comptime()) {
@@ -3390,6 +3405,11 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
         } else {
             struct_initialize_inside_braces(*this, (StructValue*) val);
         }
+    } else if(val->kind() == ValueKind::LambdaFunc && type->kind() == BaseTypeKind::CapturingFunction) {
+        write('*');
+        write(struct_passed_param_name);
+        write(" = ");
+        accept_mutating_value_explicit(type, val, false);
     } else if(val_type->isStructLikeType()) {
         write('*');
         write(struct_passed_param_name);
@@ -4626,6 +4646,38 @@ void ToCAstVisitor::VisitAccessChain(AccessChain *chain) {
     access_chain(*this, chain->values, 0, size);
 }
 
+void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call, ASTNode* return_linked, FunctionType* func_type) {
+    visitor.write("(*({ ");
+    auto found = visitor.local_allocated.find(call);
+    if(found != visitor.local_allocated.end()) {
+        auto temp_name = chem::string_view(found->second);
+        // write function name
+        visitor.visit(call->parent_val);
+        visitor.write("(&");
+        visitor.write(temp_name);
+        write_implicit_args(visitor, func_type, call, false);
+        func_call_args(visitor, call, func_type);
+        visitor.write("); &");
+        visitor.write(temp_name);
+        visitor.write("; }))");
+    } else {
+        // TODO we'll remove this block, and generate an error
+        const auto temp_name_str = visitor.get_local_temp_var_name();
+        const auto temp_name = chem::string_view(temp_name_str);
+        allocate_struct_by_name_no_init(visitor, return_linked, temp_name);
+        visitor.write("; ");
+        // write function name
+        visitor.visit(call->parent_val);
+        visitor.write("(&");
+        visitor.write(temp_name);
+        write_implicit_args(visitor, func_type, call, false);
+        func_call_args(visitor, call, func_type);
+        visitor.write("); &");
+        visitor.write(temp_name);
+        visitor.write("; }))");
+    }
+}
+
 void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 
     const auto linked = call->parent_val->linked_node();
@@ -4763,41 +4815,18 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                 write(';');
             }
             return;
+        } else if(returnTypeKind == BaseTypeKind::CapturingFunction) {
+            const auto instanceType = returnType->as_capturing_func_type_unsafe()->instance_type;
+            const auto return_linked = instanceType->get_direct_linked_canonical_node();
+            writeStructReturningFunctionCall(*this, call, return_linked, func_type);
+            return;
         } else {
             // functions that return struct like (struct, variants, unions) are handled in this block of code
             const auto return_linked = returnType->get_direct_linked_node();
             if (return_linked) {
                 const auto returnKind = return_linked->kind();
                 if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
-                    write("(*({ ");
-                    auto found = local_allocated.find(call);
-                    if(found != local_allocated.end()) {
-                        auto temp_name = chem::string_view(found->second);
-                        // write function name
-                        visit(call->parent_val);
-                        write("(&");
-                        write(temp_name);
-                        write_implicit_args(*this, func_type, call, false);
-                        func_call_args(*this, call, func_type);
-                        write("); &");
-                        write(temp_name);
-                        write("; }))");
-                    } else {
-                        // TODO we'll remove this block, and generate an error
-                        const auto temp_name_str = get_local_temp_var_name();
-                        const auto temp_name = chem::string_view(temp_name_str);
-                        allocate_struct_by_name_no_init(*this, return_linked, temp_name);
-                        write("; ");
-                        // write function name
-                        visit(call->parent_val);
-                        write("(&");
-                        write(temp_name);
-                        write_implicit_args(*this, func_type, call, false);
-                        func_call_args(*this, call, func_type);
-                        write("); &");
-                        write(temp_name);
-                        write("; }))");
-                    }
+                    writeStructReturningFunctionCall(*this, call, return_linked, func_type);
                     return;
                 }
             }
@@ -5138,12 +5167,14 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     auto prev = nested_value;
     nested_value = true;
     bool has_value_before = false;
+    indentation_level += 1;
     for(auto& value : val->values) {
         if(has_value_before) {
             write(", ");
         } else {
             has_value_before = true;
         }
+        new_line_and_indent();
         // we are only getting direct / inherited members, not inherited structs here
         const auto member = val->child_member(value.first);
         write('.');
@@ -5172,6 +5203,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             } else {
                 has_value_before = true;
             }
+            new_line_and_indent();
             if(defValue) {
                 write('.');
                 write(var->name);
@@ -5182,7 +5214,9 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             }
         }
     }
+    indentation_level -= 1;
     nested_value = prev;
+    new_line_and_indent();
     write('}');
 }
 

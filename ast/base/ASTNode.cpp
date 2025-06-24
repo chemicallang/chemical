@@ -17,6 +17,7 @@
 #include "compiler/mangler/NameMangler.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
@@ -174,6 +175,8 @@ LocatedIdentifier* ASTNode::get_located_id() {
             return as_gen_func_decl_unsafe()->master_impl->get_located_id();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->get_located_id();
+        case ASTNodeKind::GenericTypeDecl:
+            return as_gen_type_decl_unsafe()->master_impl->get_located_id();
         case ASTNodeKind::GenericStructDecl:
             return as_gen_struct_def_unsafe()->master_impl->get_located_id();
         case ASTNodeKind::GenericUnionDecl:
@@ -237,6 +240,8 @@ AccessSpecifier ASTNode::specifier() {
     switch(k) {
         case ASTNodeKind::StructDecl:
             return as_struct_def_unsafe()->specifier();
+        case ASTNodeKind::GenericTypeDecl:
+            return as_gen_type_decl_unsafe()->master_impl->specifier();
         case ASTNodeKind::GenericFuncDecl:
             return as_gen_func_decl_unsafe()->master_impl->specifier();
         case ASTNodeKind::GenericStructDecl:

@@ -78,6 +78,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
+    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) override;
+
     void generate_captured_destructor(Codegen &gen);
 
 #endif

@@ -62,11 +62,12 @@ is not going to be accessible after the function ends, so there's no point in al
 on the heap.
 
 To be able to store and manage allocation and de-allocation of capturing lambdas, we need to write
-a struct, called lambda provider, this struct is allocated, constructed and dropped in a 
-capturing lambda lifecycle when user requires. 
+a struct, called lambda instance, this struct is allocated, constructed and dropped in a 
+capturing lambda lifecycle when user requires.
+
+This struct is non generic to keep it simple without requiring generic instantiations
 
 ```
-@lambda.instance
 struct function_instance {
     
     // every capturing lambda is a fat pointer
@@ -149,6 +150,6 @@ struct function_instance {
     
 }
 
-type function<T, M = function_instance> = #lambda<T, M>;
+type function<T, M = function_instance> = capture<T, M>;
 
 ```

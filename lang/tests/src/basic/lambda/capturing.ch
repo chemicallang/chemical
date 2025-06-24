@@ -64,4 +64,14 @@ func test_capturing_lambda() {
         var Some(lamb) = s else unreachable
         return lamb() == temp;
     })
+    test("capturing lambda works with assignment", () => {
+        var temp = 836;
+        var fn : std::function<() => int> = |temp|() => {
+            return temp + 11;
+        }
+        fn = |temp|() => {
+            return temp;
+        }
+        return fn() == temp;
+    })
 }

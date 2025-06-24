@@ -653,6 +653,9 @@ bool is_node_assignable(ASTNode* node) {
                 return true;
             }
         }
+        case ASTNodeKind::PatternMatchId: {
+            return true;
+        }
         default:
             return false;
     }

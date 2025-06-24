@@ -448,7 +448,7 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_lambda_function(&self, value : *Value, type : *BaseType, isVariadic : bool, parent_node : *ASTNode, location : ubigint) : *mut LambdaFunction
 
-    func make_captured_variable(&self, name : &string_view, index : uint, capture_by_ref : bool, value : long, location : ubigint) : *mut CapturedVariable
+    func make_captured_variable(&self, name : &string_view, index : uint, capture_by_ref : bool, mutable_ref : bool, value : long, location : ubigint) : *mut CapturedVariable
 
     func make_long_value(&self, value : long, location : ubigint) : *mut LongValue
 

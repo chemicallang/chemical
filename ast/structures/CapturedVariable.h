@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
-#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 
 class CapturedVariable : public ASTNode {
 public:
@@ -12,7 +12,7 @@ public:
     chem::string_view name;
     unsigned int index;
     ASTNode *linked;
-    PointerType ptrType;
+    ReferenceType refType;
 
     /**
      * constructor
@@ -21,10 +21,11 @@ public:
         chem::string_view name,
         unsigned int index,
         bool capture_by_ref,
+        bool mutable_ref,
         ASTNode* parent_node,
         SourceLocation location
     ) : ASTNode(ASTNodeKind::CapturedVariable, parent_node, location), name(name), index(index),
-        capture_by_ref(capture_by_ref), ptrType(nullptr, false) {
+        capture_by_ref(capture_by_ref), refType(nullptr, mutable_ref) {
 
     }
 
@@ -43,6 +44,7 @@ public:
             name,
             index,
             capture_by_ref,
+            refType.is_mutable,
             parent(),
             encoded_location()
         );

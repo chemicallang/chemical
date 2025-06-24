@@ -278,6 +278,17 @@ StructDefinition* BaseType::get_direct_non_movable_struct() {
     }
 }
 
+FunctionType* BaseType::get_function_type() {
+    switch(kind()) {
+        case BaseTypeKind::Function:
+            return (FunctionType*) this;
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe()->func_type->as_function_type();
+        default:
+            return nullptr;
+    }
+}
+
 bool BaseType::requires_moving() {
     auto node = get_direct_linked_node();
     return node != nullptr && node->requires_moving(node->kind());

@@ -40,6 +40,7 @@
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/CastedValue.h"
+#include "ast/structures/CapturedVariable.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/If.h"
 #include <ranges>
@@ -643,6 +644,14 @@ bool is_node_assignable(ASTNode* node) {
         case ASTNodeKind::UnnamedUnion:
         case ASTNodeKind::UnnamedStruct: {
             return !node->as_base_def_member_unsafe()->get_is_const();
+        }
+        case ASTNodeKind::CapturedVariable: {
+            const auto cap = node->as_captured_var_unsafe();
+            if(cap->capture_by_ref) {
+                return cap->refType.is_mutable;
+            } else {
+                return true;
+            }
         }
         default:
             return false;

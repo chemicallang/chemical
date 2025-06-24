@@ -2354,8 +2354,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
             aliases[var] = capture_struct_name;
             visitor.new_line_and_indent();
             if(var->capture_by_ref) {
-                PointerType pointer(var->linked->known_type(), ZERO_LOC);
-                visitor.visit(&pointer);
+                visitor.visit(var->known_type());
             } else {
                 visitor.visit(var->linked->known_type());
             }

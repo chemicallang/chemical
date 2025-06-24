@@ -59,6 +59,10 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
 }
 
 void LambdaFunction::generate_captured_destructor(Codegen &gen) {
+    if(!has_destructor_for_capture()) {
+        // capture struct doesn't have a destructor
+        return;
+    }
     const auto destrFuncType = llvm::FunctionType::get(gen.builder->getVoidTy(), {gen.builder->getPtrTy()}, false);
 
     // creating temporary ast nodes for captured destructor
@@ -162,6 +166,20 @@ llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
 }
 
 #endif
+
+bool LambdaFunction::has_destructor_for_capture() {
+    if(captureList.empty()) {
+        // since user did not capture any variable, we don't need to generate a destructor
+        return false;
+    }
+    for(const auto cap : captureList) {
+        const auto ty = cap->known_type();
+        if(ty && ty->get_destructor() != nullptr){
+            return true;
+        }
+    }
+    return false;
+}
 
 BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
     auto func_type = FunctionType::copy(allocator);

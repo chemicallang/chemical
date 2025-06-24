@@ -2323,25 +2323,6 @@ void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, co
     }
 }
 
-bool has_destructor(BaseType* mem_type) {
-    if (mem_type->isStructLikeType()) {
-        const auto container = mem_type->get_members_container();
-        if(!container) return false;
-        return container->destructor_func() != nullptr;
-    } else {
-        return false;
-    }
-}
-
-bool has_any_destructor(std::vector<CapturedVariable*>& caps) {
-    for(const auto cap : caps) {
-        if(has_destructor(cap->known_type())) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     RecursiveValueVisitor::VisitLambdaFunction(lamb);
     std::string lamb_name = "__chemda_";
@@ -2373,7 +2354,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         visitor.write("};");
 
         // writing the destructor
-        if(has_any_destructor(lamb->captureList)) {
+        if(lamb->has_destructor_for_capture()) {
             visitor.new_line_and_indent();
             visitor.write("void ");
             visitor.write(lamb_name);

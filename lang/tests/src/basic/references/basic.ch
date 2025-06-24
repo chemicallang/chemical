@@ -149,4 +149,11 @@ func test_references() {
         r.i = 458
         return i == 458;
     })
+    test("assignment to stored reference inside variant works", () => {
+        var j = 0
+        var opt = OptRefInt.Some(j)
+        var Some(i) = opt else unreachable
+        i = 873
+        return j == 873
+    })
 }

@@ -45,6 +45,8 @@ public:
     [[nodiscard]]
     GenericType* copy(ASTAllocator& allocator) const final;
 
+    uint64_t byte_size(bool is64Bit) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

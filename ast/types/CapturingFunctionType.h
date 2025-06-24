@@ -49,6 +49,10 @@ public:
         return true;
     }
 
+    uint64_t byte_size(bool is64Bit) override {
+        return instance_type->byte_size(is64Bit);
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

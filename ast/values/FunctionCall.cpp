@@ -514,7 +514,7 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
     for(auto& value_ptr : call->values) {
 
         const auto param = itr->second;
-        const auto param_type = param->type;
+        const auto param_type = param->type->canonical();
 
         auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
         if (implicit_constructor) {

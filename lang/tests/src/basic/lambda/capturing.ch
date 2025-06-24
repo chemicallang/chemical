@@ -82,7 +82,10 @@ func test_capturing_lambda() {
         var temp = 384
         return pass_func_lambda(|temp|() => { return temp; }) == 384
     })
-    test("non capturing functions can be passed to capturing function types", () => {
+    test("non capturing functions can be passed to capturing function types - 1", () => {
         return pass_func_lambda(() => { return 832; }) == 832
+    })
+    test("non capturing functions can be passed to capturing function types - 2", () => {
+        return pass_func_lambda(||() => { return 234; }) == 234
     })
 }

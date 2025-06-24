@@ -14,12 +14,12 @@ variant OptCapLamb {
     None()
 }
 
-func take_cap_func(func : std::function<() => int>) : int {
-    return func()
+func take_cap_func(fun : std::function<() => int>) : int {
+    return fun()
 }
 
-func pass_func_lambda(func : std::function<() => int>) : int {
-    return take_cap_func(func);
+func pass_func_lambda(fun : std::function<() => int>) : int {
+    return take_cap_func(fun);
 }
 
 func test_capturing_lambda() {
@@ -87,5 +87,19 @@ func test_capturing_lambda() {
     })
     test("non capturing functions can be passed to capturing function types - 2", () => {
         return pass_func_lambda(||() => { return 234; }) == 234
+    })
+    test("can read captured reference", () => {
+        var temp = 434
+        return take_cap_func(|&temp|() => {
+            return temp;
+        }) == 434
+    })
+    test("can modify captured reference", () => {
+        var temp = 0
+        take_cap_func(|&mut temp|() => {
+            temp = 121;
+            return 0;
+        })
+        return temp == 121;
     })
 }

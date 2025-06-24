@@ -356,6 +356,11 @@ public:
     StructDefinition* get_direct_non_movable_struct();
 
     /**
+     * this gets the function type, if any
+     */
+    FunctionType* get_function_type();
+
+    /**
      * this type references a struct
      */
     inline bool is_linked_struct() {

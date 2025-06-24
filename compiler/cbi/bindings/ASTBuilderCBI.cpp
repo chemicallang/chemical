@@ -300,9 +300,9 @@ LambdaFunction* ASTBuildermake_lambda_function(ASTAllocator* allocator, Value* v
     return new (allocator->allocate<LambdaFunction>()) LambdaFunction(isVariadic, parent_node, location);
 }
 
-CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool capture_by_ref, long value, uint64_t location) {
+CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool capture_by_ref, bool mutable_ref, long value, uint64_t location) {
     // TODO passing nullptr as parent in captured variable
-    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, nullptr, location);
+    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, mutable_ref, nullptr, location);
 }
 
 LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, uint64_t location) {

@@ -43,10 +43,11 @@ LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
         unsigned int index = 0;
         do {
             consumeNewLines();
-            bool lexed_amp = consumeOfType(TokenType::AmpersandSym);
+            bool lexed_amp = consumeToken(TokenType::AmpersandSym);
+            bool lexed_mut = lexed_amp && consumeToken(TokenType::MutKw);
             auto id = consumeIdentifierOrKeyword();
             if(id) {
-                auto variable = new (allocator.allocate<CapturedVariable>()) CapturedVariable(allocate_view(allocator, id->value), index, lexed_amp, parent_node, loc_single(id));
+                auto variable = new (allocator.allocate<CapturedVariable>()) CapturedVariable(allocate_view(allocator, id->value), index, lexed_amp, lexed_mut, parent_node, loc_single(id));
 #ifdef LSP_BUILD
                 id->linked = variable;
 #endif

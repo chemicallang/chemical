@@ -1272,8 +1272,8 @@ Value *FunctionDeclaration::call(
 BaseType* CapturedVariable::known_type() {
     auto val_type = linked->known_type();
     if(capture_by_ref) {
-        ptrType.type = val_type;
-        return &ptrType;
+        refType.type = val_type;
+        return &refType;
     } else {
         return val_type;
     }

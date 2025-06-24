@@ -90,6 +90,11 @@ public:
         return this;
     }
 
+    /**
+     * should generate a destructor for capture struct
+     */
+    bool has_destructor_for_capture();
+
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
 
     bool link(SymbolResolver &linker, FunctionType* func_type);

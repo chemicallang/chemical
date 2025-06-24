@@ -833,7 +833,11 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
                 return nullptr;
             }
             const auto lambda = value->as_lambda_func_unsafe();
-            return lambda->capturedDestructor;
+            if(lambda->capturedDestructor) {
+                return lambda->capturedDestructor;
+            } else {
+                return NullValue::null_llvm_value(gen);
+            }
         }
         case ExtractionKind::SizeOfLambdaCaptured:{
             if (value->kind() != ValueKind::LambdaFunc) {

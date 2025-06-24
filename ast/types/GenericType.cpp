@@ -12,6 +12,10 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/utils/GenericUtils.h"
 
+uint64_t GenericType::byte_size(bool is64Bit) {
+    return referenced->byte_size(is64Bit);
+}
+
 bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
     referenced->link(linker, loc);
     const auto linked = referenced->linked;

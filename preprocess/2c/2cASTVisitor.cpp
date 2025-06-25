@@ -1783,22 +1783,34 @@ std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer) {
     return visitor.get_drop_flag_name(initializer);
 }
 
+void destruct_assign_lhs(ToCAstVisitor& visitor, Value* lhs, FunctionDeclaration* destr) {
+    func_container_name(visitor, destr);
+    visitor.write('(');
+    visitor.write('&');
+    visitor.visit(lhs);
+    visitor.write(')');
+    visitor.write(';');
+    visitor.new_line_and_indent();
+}
+
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     auto type = assign->lhs->create_type(visitor.allocator)->pure_type(visitor.allocator);
     // assignment to a reference, automatic dereferencing
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');
     }
-    if(type->requires_moving() && !assign->lhs->is_ref_moved()) {
-        auto container = type->linked_node()->as_members_container();
-        auto destr = container->destructor_func();
-        func_container_name(visitor, destr);
-        visitor.write('(');
-        visitor.write('&');
-        visitor.visit(assign->lhs);
-        visitor.write(')');
-        visitor.write(';');
-        visitor.new_line_and_indent();
+    if(!assign->lhs->is_ref_moved()) {
+        if(type->kind() == BaseTypeKind::CapturingFunction) {
+            const auto destr = type->as_capturing_func_type_unsafe()->instance_type->get_destructor();
+            if(destr) {
+                destruct_assign_lhs(visitor, assign->lhs, destr);
+            }
+        } else {
+            const auto destr = type->get_destructor();
+            if (destr) {
+                destruct_assign_lhs(visitor, assign->lhs, destr);
+            }
+        }
     }
     const auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;

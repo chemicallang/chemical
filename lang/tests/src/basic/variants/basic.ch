@@ -242,4 +242,36 @@ func test_variants() {
         var v = FuncInVariant.Second(987)
         return v.get() == 987
     })
+    test("storing in variants via pattern matched unreachable works", () => {
+        var x = OptVariant.Some(0)
+        var Some(a) = x else unreachable
+        a = 87
+        switch(x) {
+            Some(a) => return a == 87;
+            None => return false;
+        }
+    })
+    test("storing in variants via pattern matched return works", () => {
+        var x = OptVariant.Some(0)
+        var Some(a) = x else return false
+        a = 15
+        switch(x) {
+            Some(a) => return a == 15;
+            None => return false;
+        }
+    })
+    /**
+    test("storing in variants via switch var case works", () => {
+        var x = OptVariant.Some(0)
+        var Some(a) = x else return false
+        switch(x) {
+            Some(a) => { a = 234 };
+            None => return false;
+        }
+        switch(x) {
+            Some(a) => return a == 234;
+            None => return false;
+        }
+    })
+    **/
 }

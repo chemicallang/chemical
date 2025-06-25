@@ -44,6 +44,51 @@ class FunctionCall;
 
 class FunctionDeclaration;
 
+enum class DestructibleKind {
+    Single,
+    Array
+};
+
+struct Destructible {
+
+    DestructibleKind kind;
+
+    ASTNode* initializer;
+
+    llvm::Value* dropFlag;
+
+    llvm::Value* pointer;
+
+    union {
+
+        // only available in single
+        ASTNode* container;
+
+        // only available in array
+        ArrayType* arrType;
+
+    };
+
+    inline ASTNode* getInitializer() {
+        return initializer;
+    }
+
+    inline llvm::Value* getDropFlag() {
+        return dropFlag;
+    }
+
+    [[deprecated]]
+    inline ASTNode* first() {
+        return initializer;
+    }
+
+    [[deprecated]]
+    inline llvm::Value* second() {
+        return dropFlag;
+    }
+
+};
+
 class Codegen : public ASTDiagnoser {
 public:
 
@@ -91,7 +136,7 @@ public:
      * destruction should be performed at runtime, because certain values become moved
      * and therefore no destruction is performed on them
      */
-    std::vector<std::pair<ASTNode*, llvm::Value*>> destruct_nodes;
+    std::vector<Destructible> destruct_nodes;
 
     /**
      * when a function is evaluated, it's value is stored on this map, so it can be looked up for destruction
@@ -590,13 +635,30 @@ public:
     llvm::Value* find_drop_flag(ASTNode* node);
 
     /**
+     * this creates the destructible for the given node or none if couldn't create it
+     * this node must be the initializer
+     */
+    std::optional<Destructible> create_destructible_for(ASTNode* node, llvm::Value* oldDropFlag);
+
+    /**
+     * this is a better method for enqueuing destructible
+     */
+    void enqueue_destructible(BaseType* type, ASTNode* initializer, llvm::Value* pointer);
+
+    /**
+     * this will execute the job, meaning destruct it
+     * @param destructible
+     */
+    void destruct(Destructible& destructible, SourceLocation location);
+
+    /**
      * conditional destruction of the pair, if this is return statement
      * give the return value, so it can be checked (if node returned, it won't be destructed)
      */
     void conditional_destruct(
-        const std::pair<ASTNode*, llvm::Value*>& pair,
-        Value* returnValue,
-        SourceLocation location
+            Destructible& pair,
+            Value* returnValue,
+            SourceLocation location
     );
 
     /**

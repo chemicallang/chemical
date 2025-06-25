@@ -1056,16 +1056,58 @@ void UnreachableStmt::code_gen(Codegen &gen) {
     gen.CreateUnreachable(encoded_location());
 }
 
+void Codegen::destruct(Destructible& destructible, SourceLocation location) {
+    auto& gen = *this;
+    const auto node = destructible.getInitializer();
+    if(destructible.kind == DestructibleKind::Single) {
+        destructible.container->llvm_destruct(gen, destructible.pointer, location);
+    } else {
+        destruct(destructible.pointer, destructible.arrType->get_array_size(), destructible.arrType->elem_type, location);
+    }
+}
+
+// this just checks whether the node being destructed is being returned
+// in that case we should not destruct the node
+bool should_destruct_node(ASTNode* node, Value* returnValue) {
+    switch(node->kind()) {
+        case ASTNodeKind::VarInitStmt:{
+            const auto init = node->as_var_init_unsafe();
+            if(returnValue && returnValue->linked_node() == node) {
+                return false;
+            }
+            return true;
+        }
+        case ASTNodeKind::FunctionParam:{
+            const auto param = node->as_func_param_unsafe();
+            if(returnValue && returnValue->linked_node() == node) {
+                return false;
+            }
+            return true;
+        }
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("unknown node, in should_destruct node");
+#endif
+            return false;
+    }
+}
+
 void Codegen::conditional_destruct(
-        const std::pair<ASTNode*, llvm::Value*>& pair,
+        Destructible& pair,
         Value* returnValue,
         SourceLocation location
 ) {
+    const auto initializer = pair.getInitializer();
+    if(!should_destruct_node(initializer, returnValue)) {
+        return;
+    }
+
+    const auto dropFlag = pair.getDropFlag();
     auto& gen = *this;
-    if(pair.second) {
+    if(dropFlag) {
 
         // we must check the destruct flag before destruction
-        const auto loadIns = gen.builder->CreateLoad(gen.builder->getInt1Ty(), pair.second);
+        const auto loadIns = gen.builder->CreateLoad(gen.builder->getInt1Ty(), dropFlag);
         gen.di.instr(loadIns, location);
 
         // create a conditional block, for destruction
@@ -1077,7 +1119,7 @@ void Codegen::conditional_destruct(
 
         // destruction code
         gen.SetInsertPoint(destructBlock);
-        pair.first->code_gen_destruct(gen, returnValue, location);
+        destruct(pair, location);
         gen.CreateBr(endBlock, location);
 
         // generate next code in a other blocks
@@ -1085,7 +1127,7 @@ void Codegen::conditional_destruct(
 
     } else {
         // there's no runtime flag, so we just destruct it
-        pair.first->code_gen_destruct(gen, returnValue, location);
+        destruct(pair, location);
     }
 }
 
@@ -1163,11 +1205,11 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
             auto& nodePair = gen.destruct_nodes[i];
             // before we send this node for destruction, we must emit an error
             // if it's nested member has been moved somewhere, because we canot
-            temp_id.linked = nodePair.first;
+            temp_id.linked = nodePair.getInitializer();
             if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
                 gen.conditional_destruct(nodePair, value, location);
             } else {
-                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first->encoded_location(), location);
+                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer()->encoded_location(), location);
             }
             i--;
         }
@@ -1239,8 +1281,8 @@ void BaseType::llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation 
 
 llvm::Value* Codegen::find_drop_flag(ASTNode* node) {
     for(auto& pair : destruct_nodes) {
-        if(pair.first == node) {
-            return pair.second;
+        if(pair.getInitializer() == node) {
+            return pair.getDropFlag();
         }
     }
     return nullptr;
@@ -1340,11 +1382,11 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
         while (i >= (int) destruct_begin) {
             auto& nodePair = gen.destruct_nodes[i];
             // TODO use the location that represents the scope end
-            temp_id.linked = nodePair.first;
+            temp_id.linked = nodePair.getInitializer();
             if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
                 gen.conditional_destruct(nodePair, nullptr, encoded_location());
             } else {
-                gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.first, this);
+                gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer(), this);
             }
             i--;
         }
@@ -1527,7 +1569,10 @@ void AssignStatement::code_gen(Codegen &gen) {
                 const auto drop_flag = gen.find_drop_flag(node);
                 // we must destruct the previous value before we memcpy this value into the pointer
                 // we're doing this conditionally, meaning a drop flag is checked to see if value should be dropped (was initialized)
-                gen.conditional_destruct({node, drop_flag}, nullptr, lhs->encoded_location());
+                auto destructible = gen.create_destructible_for(node, drop_flag);
+                if(destructible.has_value()) {
+                    gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
+                }
                 // now we're going to set the drop flag back to true for this
                 // because if previously the drop flag was false, since we've reinitialized, we must set it to true,
                 // so it can be dropped, when the scope ends
@@ -1765,8 +1810,8 @@ bool LLVMBackendContext::forget(ASTNode* targetNode) {
     auto it = std::find_if(
             gen.destruct_nodes.begin(),
             gen.destruct_nodes.end(),
-            [targetNode](auto const& p){
-                return p.first == targetNode;
+            [targetNode](auto& p){
+                return p.getInitializer() == targetNode;
             });
     if (it == gen.destruct_nodes.end()) return false;
     gen.destruct_nodes.erase(it);

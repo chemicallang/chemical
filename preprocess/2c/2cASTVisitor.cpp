@@ -1759,6 +1759,8 @@ public:
 
     bool queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
+    void queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, const chem::string_view& self_name);
+
     void VisitVarInitStmt(VarInitStatement *init);
 
     void dispatch_jobs_from_no_clean(int begin);
@@ -2175,7 +2177,11 @@ bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name,
 
 void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
     const auto init_val_kind = init_value->val_kind();
-    if(init_val_kind == ValueKind::AccessChain) {
+    const auto knownType = init->known_type();
+    if(init_val_kind == ValueKind::LambdaFunc && knownType && knownType->canonical()->kind() == BaseTypeKind::CapturingFunction) {
+        const auto capType = knownType->canonical()->as_capturing_func_type_unsafe();
+        queue_destruct_varInit_type(capType->instance_type, init, init->name_view());
+    } else if(init_val_kind == ValueKind::AccessChain) {
         auto chain = init_value->as_access_chain_unsafe();
         const auto last_func_call = chain->values.back()->as_func_call();
         if(last_func_call) {
@@ -2224,6 +2230,26 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     }
 }
 
+void CDestructionVisitor::queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, const chem::string_view& self_name) {
+    const auto tKind = type->kind();
+    if(tKind == BaseTypeKind::CapturingFunction) {
+        const auto capType = type->as_capturing_func_type_unsafe();
+        queue_destruct_varInit_type(capType->instance_type, initializer, self_name);
+    } else if(type->isStructLikeType()) {
+        auto container = type->get_members_container();
+        if (container) {
+            queue_destruct(self_name, initializer, container);
+        }
+    } else if(type->kind() == BaseTypeKind::Array) {
+        auto arrType = type->as_array_type_unsafe();
+        if(arrType->has_array_size()) {
+            queue_destruct_arr(self_name, initializer, arrType->elem_type, arrType->get_array_size());
+        } else {
+            // cannot destruct array type without size
+        }
+    }
+}
+
 void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
     const auto pure_t = init->known_type()->pure_type(visitor.allocator);
     const auto pure_t_kind = pure_t->kind();
@@ -2250,19 +2276,7 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
         process_init_value(init, init_value);
         return;
     } else {
-        if(init->type->isStructLikeType()) {
-            auto container = init->type->get_members_container();
-            if (container) {
-                queue_destruct(init->name_view(), init, container);
-            }
-        } else if(init->type->kind() == BaseTypeKind::Array) {
-            auto type = (ArrayType*) init->type.getType();
-            if(type->has_array_size()) {
-                queue_destruct_arr(init->name_view(), init, type->elem_type, type->get_array_size());
-            } else {
-                // cannot destruct array type without size
-            }
-        }
+        queue_destruct_varInit_type(pure_t, init, init->name_view());
     }
 }
 
@@ -2309,17 +2323,20 @@ inline void scope(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
 ////    }
 //}
 
-void call_struct_member_fn(
+void call_struct_member_delete_fn(
         ToCAstVisitor& visitor,
         BaseType* mem_type,
-        const chem::string_view& member_name,
-        FunctionDeclaration*(*choose_func)(MembersContainer* container)
+        const chem::string_view& member_name
 ) {
+    if(mem_type->kind() == BaseTypeKind::CapturingFunction) {
+        call_struct_member_delete_fn(visitor, mem_type->as_capturing_func_type_unsafe()->instance_type, member_name);
+        return;
+    }
     const auto mem_def = mem_type->get_members_container();
     if(!mem_def) {
         return;
     }
-    auto func = choose_func(mem_def);
+    auto func = mem_def->destructor_func();
     if (!func) {
         return;
     }
@@ -2332,14 +2349,6 @@ void call_struct_member_fn(
     }
     visitor.write(')');
     visitor.write(';');
-}
-
-void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, const chem::string_view& mem_name) {
-    if (mem_type->isStructLikeType()) {
-        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
-            return def->destructor_func();
-        });
-    }
 }
 
 void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
@@ -3738,7 +3747,7 @@ void process_struct_members_using(
     }
     for (const auto var : def->variables()) {
         auto value_type = var->known_type();
-        process_member(visitor, value_type, var->name);
+        process_member(visitor, value_type->canonical(), var->name);
     }
 }
 

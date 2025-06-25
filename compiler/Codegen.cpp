@@ -330,8 +330,13 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
 }
 
 bool has_allocated_storage(Value* value) {
+    if(value->is_func_call()) {
+        // values (references) returned from a function call, do not have
+        // allocated storage
+        return false;
+    }
     const auto linked = value->linked_node();
-    if(!linked) return false;
+    if(!linked) return true;
     switch(linked->kind()) {
         case ASTNodeKind::FunctionParam:
             return false;
@@ -342,7 +347,7 @@ bool has_allocated_storage(Value* value) {
 
 void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value, SourceLocation location) {
     if(lhs) {
-        const auto lhsType = lhs->create_type(allocator);
+        const auto lhsType = lhs->create_type(allocator)->canonical();
         if (!assign_dyn_obj(rhs, lhsType, pointer, value, location)) {
 
             const auto value_pure = rhs->create_type(allocator);
@@ -363,8 +368,7 @@ void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::V
                 // and do a store instruction on it
                 // in rhs we have just int which doesn't matter
                 // we'll handle this by reversing the logic of auto dereference
-                const auto derefLhs = lhsType->getAutoDerefType(value_pure);
-                if(derefLhs && has_allocated_storage(lhs)) {
+                if(lhsType->kind() == BaseTypeKind::Reference && has_allocated_storage(lhs)) {
                     const auto loadInst = builder->CreateLoad(builder->getPtrTy(), pointer);
                     di.instr(loadInst, lhs);
                     pointer = loadInst;

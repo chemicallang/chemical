@@ -2151,8 +2151,12 @@ void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     }
 }
 
-bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType *elem_type, int array_size) {
-    if(elem_type->isStructLikeType()) {
+bool CDestructionVisitor::queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType *elem_type_non_canon, int array_size) {
+    const auto elem_type = elem_type_non_canon->canonical();
+    if(elem_type->kind() == BaseTypeKind::CapturingFunction) {
+        const auto capType = elem_type->as_capturing_func_type_unsafe();
+        return queue_destruct_arr(self_name, initializer, capType->instance_type, array_size);
+    } else if(elem_type->isStructLikeType()) {
         auto struc_def = elem_type->get_members_container();
         if(struc_def) {
             const auto destructorFunc = struc_def->destructor_func();

@@ -33,4 +33,16 @@ func test_capturing_lambda_destruction() {
         }
         return counter == 1;
     })
+    test("capturing lambda function is destructed in array", () => {
+        var counter = 0;
+        var m = CapLambDestrCounter { counter : &counter }
+        if(counter == 0) {
+            var container : std::function<() => void>[] = [
+                |m|() => {
+
+                }
+            ]
+        }
+        return counter == 1;
+    })
 }

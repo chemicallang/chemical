@@ -10,6 +10,11 @@ struct CapLambContainer {
     var fun : std::function<() => void>
 }
 
+variant CapLambVarCon {
+    Some(fun : std::function<() => void>)
+    None()
+}
+
 func test_capturing_lambda_destruction() {
     test("capturing lambda destructor is called in var init", () => {
         var counter = 0;
@@ -44,5 +49,15 @@ func test_capturing_lambda_destruction() {
             ]
         }
         return counter == 1;
+    })
+    test("capturing lambda function is destructed in variant", () => {
+        var counter = 0;
+        var m = CapLambDestrCounter { counter : &counter }
+        if(counter == 0) {
+            var some = CapLambVarCon.Some(|m|() => {
+
+            })
+        }
+        return counter == 1
     })
 }

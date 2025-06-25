@@ -12,6 +12,9 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/types/GenericType.h"
+#include "ast/types/ArrayType.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
 #include <string>
@@ -208,6 +211,154 @@ llvm::Function* create_func(
         fn->addFnAttr(llvm::Attribute::NoUnwind);
     }
     return fn;
+}
+
+bool get_has_move(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::VarInitStmt:
+            return node->as_var_init_unsafe()->get_has_move();
+        case ASTNodeKind::FunctionParam:
+            return node->as_func_param_unsafe()->get_has_move();
+        default:
+            return false;
+    }
+}
+
+llvm::Value* createDropFlag(Codegen & gen, SourceLocation location) {
+    // create a boolean flag
+    const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
+    gen.di.instr(instr, location);
+
+    // store true in it, that this value should be destructed
+    const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
+    gen.di.instr(storeIns, location);
+
+    // return instruction
+    return instr;
+}
+
+Destructible create_destructible(
+        llvm::Value* pointer,
+        llvm::Value* dropFlag,
+        ASTNode* node,
+        ASTNode* containerNode
+) {
+    return Destructible{
+            .kind = DestructibleKind::Single,
+            .initializer = node,
+            .dropFlag = dropFlag,
+            .pointer = pointer,
+            .container = containerNode
+    };
+}
+
+Destructible create_arr_destructible(
+        llvm::Value* pointer,
+        llvm::Value* dropFlag,
+        ASTNode* node,
+        ASTNode* containerNode,
+        ArrayType* arrType
+) {
+    return Destructible{
+            .kind = DestructibleKind::Array,
+            .initializer = node,
+            .dropFlag = dropFlag,
+            .pointer = pointer,
+            .arrType = arrType
+    };
+}
+
+std::optional<Destructible> create_destructible_with_drop_flag(
+        Codegen& gen,
+        llvm::Value* pointer,
+        ASTNode* node,
+        ASTNode* containerNode,
+        SourceLocation location,
+        llvm::Value* oldDropFlag
+) {
+    const auto container = containerNode->get_members_container();
+    if(container) {
+        const auto destructor = container->destructor_func();
+        if(destructor) {
+            const auto dropFlag = oldDropFlag ? oldDropFlag : get_has_move(node) ? createDropFlag(gen, location) : nullptr;
+            return create_destructible(
+                    pointer, dropFlag, node, containerNode
+            );
+        }
+    } else if(containerNode->kind() == ASTNodeKind::VariantMember) {
+        return create_destructible_with_drop_flag(gen, pointer, node, (ASTNode*) containerNode->as_variant_member_unsafe()->parent(), location, oldDropFlag);
+    }
+    return std::nullopt;
+}
+
+ASTNode* get_destructible_type_node(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::CapturingFunction:{
+            const auto instType = type->as_capturing_func_type_unsafe()->instance_type;
+            return get_destructible_type_node(instType);
+        }
+        case BaseTypeKind::Linked:
+            return type->as_linked_type_unsafe()->linked;
+        case BaseTypeKind::Generic:
+            return type->as_generic_type_unsafe()->referenced->linked;
+        case BaseTypeKind::Array:
+            return get_destructible_type_node(type->as_array_type_unsafe()->elem_type->canonical());
+        default:
+            return nullptr;
+    }
+}
+
+std::optional<Destructible> create_destructible_for(
+        Codegen& gen,
+        ASTNode* node,
+        BaseType* nonCanonType,
+        llvm::Value* pointer,
+        llvm::Value* oldDropFlag
+) {
+    const auto type = nonCanonType->canonical();
+    const auto location = node->encoded_location();
+    const auto linkedNode = get_destructible_type_node(type);
+    if(linkedNode) {
+        if(type->kind() == BaseTypeKind::Array) {
+            const auto arrType = type->as_array_type_unsafe();
+            const auto container = linkedNode->get_members_container();
+            if(container->destructor_func() == nullptr) {
+                return std::nullopt;
+            }
+            const auto dropFlag = oldDropFlag ? oldDropFlag : get_has_move(node) ? createDropFlag(gen, node->encoded_location()) : nullptr;
+            return create_arr_destructible(
+                    pointer, dropFlag, node, container, arrType
+            );
+        } else {
+            return create_destructible_with_drop_flag(gen, pointer, node, linkedNode, node->encoded_location(), oldDropFlag);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<Destructible> Codegen::create_destructible_for(ASTNode* node, llvm::Value* oldDropFlag) {
+    switch(node->kind()) {
+        case ASTNodeKind::VarInitStmt: {
+            const auto init = node->as_var_init_unsafe();
+            const auto type = init->known_type();
+            return ::create_destructible_for(*this, node, type, init->llvm_ptr, oldDropFlag);
+        }
+        case ASTNodeKind::FunctionParam:{
+            const auto param = node->as_func_param_unsafe();
+            const auto argInd = param->calculate_c_or_llvm_index(current_func_type);
+            const auto ptr = current_function->getArg(argInd);
+            return ::create_destructible_for(*this, node, param->type, ptr, oldDropFlag);
+        }
+        default:
+            return std::nullopt;
+    }
+}
+
+void Codegen::enqueue_destructible(BaseType* nonCanonType, ASTNode* node, llvm::Value* pointer) {
+    auto destructible = ::create_destructible_for(*this, node, nonCanonType, pointer, nullptr);
+    if(destructible.has_value()) {
+        destruct_nodes.emplace_back(destructible.value());
+    }
 }
 
 llvm::Function* Codegen::getMallocFn() {

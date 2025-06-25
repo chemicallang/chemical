@@ -3,6 +3,7 @@
 #include "VarInit.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "compiler/mangler/NameMangler.h"
@@ -114,6 +115,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     const auto mutated = gen.mutate_capturing_function(canType, value);
                     if(mutated) {
                         llvm_ptr = mutated;
+                        put_destructible(gen);
                         gen.di.declare(this, llvm_ptr);
                         return;
                     }
@@ -149,51 +151,77 @@ void VarInitStatement::code_gen(Codegen &gen) {
     }
 }
 
-void queue_destruct(Codegen& gen, VarInitStatement* node, ASTNode* typeLinked) {
-    const auto container = typeLinked->get_members_container();
-    if(container) {
-        const auto destructor = container->destructor_func();
-        if(destructor) {
-            llvm::Value* should_destruct = nullptr;
-            // if a single move was performed using this variable
-            // we allocate a flag
-            if(node->get_has_move()) {
-
-                // create a boolean flag
-                const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
-                gen.di.instr(instr, node);
-
-                // store true in it, that this value should be destructed
-                const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
-                gen.di.instr(storeIns, node);
-
-                should_destruct = instr;
-            }
-            gen.destruct_nodes.emplace_back(node, should_destruct);
-        }
-    } else if(typeLinked->kind() == ASTNodeKind::VariantMember) {
-        queue_destruct(gen, node, typeLinked->as_variant_member_unsafe()->parent());
-    }
-}
-
-void queue_destruct(Codegen& gen, VarInitStatement* node, BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::Linked:
-            queue_destruct(gen, node, type->as_linked_type_unsafe()->linked);
-            return;
-        case BaseTypeKind::Generic:
-            queue_destruct(gen, node, type->as_generic_type_unsafe()->referenced->linked);
-            return;
-        case BaseTypeKind::Array:
-            queue_destruct(gen, node, type->as_array_type_unsafe()->elem_type);
-            return;
-        default:
-            return;
-    }
-}
+//void queue_destruct(Codegen& gen, VarInitStatement* node, ArrayType* arrType, ASTNode* typeLinked) {
+//    const auto container = typeLinked->get_members_container();
+//    if(container) {
+//        const auto destructor = container->destructor_func();
+//        if(destructor) {
+//
+//            llvm::Value* should_destruct = nullptr;
+//            // if a single move was performed using this variable
+//            // we allocate a flag
+//            if(node->get_has_move()) {
+//
+//                // create a boolean flag
+//                const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
+//                gen.di.instr(instr, node);
+//
+//                // store true in it, that this value should be destructed
+//                const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
+//                gen.di.instr(storeIns, node);
+//
+//                should_destruct = instr;
+//            }
+//
+//            if(arrType == nullptr) {
+//                gen.destruct_nodes.emplace_back(Destructible{
+//                        .kind = DestructibleKind::Single,
+//                        .initializer = node,
+//                        .dropFlag = should_destruct,
+//                        .container = typeLinked
+//                });
+//            } else {
+//                gen.destruct_nodes.emplace_back(Destructible{
+//                        .kind = DestructibleKind::Array,
+//                        .initializer = node,
+//                        .dropFlag = should_destruct,
+//                        .arrType = arrType
+//                });
+//            }
+//
+//        }
+//    } else if(typeLinked->kind() == ASTNodeKind::VariantMember) {
+//
+//        queue_destruct(gen, node, arrType, typeLinked->as_variant_member_unsafe()->parent());
+//
+//    }
+//}
+//
+//void queue_destruct(Codegen& gen, VarInitStatement* node, BaseType* nonCanonType) {
+//    const auto type = nonCanonType->canonical();
+//    switch(type->kind()) {
+//        case BaseTypeKind::CapturingFunction:{
+//            const auto instType = type->as_capturing_func_type_unsafe()->instance_type;
+//            queue_destruct(gen, node, instType);
+//            return;
+//        }
+//        case BaseTypeKind::Linked:
+//            queue_destruct(gen, node, nullptr, type->as_linked_type_unsafe()->linked);
+//            return;
+//        case BaseTypeKind::Generic:
+//            queue_destruct(gen, node, nullptr, type->as_generic_type_unsafe()->referenced->linked);
+//            return;
+//        case BaseTypeKind::Array:
+//            // TODO: array of capturing functions won't be destructed this way
+//            queue_destruct(gen, node, type->as_array_type_unsafe(), type->as_array_type_unsafe()->elem_type->get_direct_linked_node());
+//            return;
+//        default:
+//            return;
+//    }
+//}
 
 void VarInitStatement::put_destructible(Codegen& gen) {
-    queue_destruct(gen, this, known_type_or_err());
+    gen.enqueue_destructible(known_type_or_err(), this, llvm_ptr);
 }
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {

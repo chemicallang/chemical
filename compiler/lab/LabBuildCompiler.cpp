@@ -2422,6 +2422,24 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     // lets create a single job
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
 
+    // check if user gave command to output ir or asm
+    if(cmd) {
+        const auto has_ll = cmd->has_value("out-ll-all");
+        const auto has_asm = cmd->has_value("out-asm-all");
+        if(has_ll || has_asm) {
+            for(auto& modPtr : mod_storage.get_modules()) {
+                auto& module = *modPtr.get();
+                const auto mod_dir = resolve_rel_child_path_str(final_job.build_dir.to_view(), module.name.to_view());
+                if (has_ll) {
+                    module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
+                }
+                if (has_asm) {
+                    module.asm_path.append(resolve_rel_child_path_str(mod_dir, "mod_asm.s"));
+                }
+            }
+        }
+    }
+
     // just put all the modules as this job's dependency
     // TODO: we should only put the modules that this mod file imported
     for(auto& mod : context.storage.get_modules()) {

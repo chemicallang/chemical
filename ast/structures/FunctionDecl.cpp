@@ -152,23 +152,8 @@ llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
     for(const auto param : params) {
-        const auto directly_linked = param->type->get_direct_linked_container();
-        if(directly_linked && directly_linked->destructor_func()) {
-            llvm::Value* should_destruct = nullptr;
-            if(param->get_has_move()) {
-
-                // create a boolean flag
-                const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
-                gen.di.instr(instr, param->type.getLocation());
-
-                // store true in it, that this value should be destructed
-                const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
-                gen.di.instr(storeIns, param->type.getLocation());
-
-                should_destruct = instr;
-            }
-            gen.destruct_nodes.emplace_back(param, should_destruct);
-        }
+        const auto ptr = gen.current_function->getArg(param->calculate_c_or_llvm_index(gen.current_func_type));
+        gen.enqueue_destructible(param->type, param, ptr);
     }
 }
 

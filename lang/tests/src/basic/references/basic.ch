@@ -156,4 +156,10 @@ func test_references() {
         i = 873
         return j == 873
     })
+    test("assignment to stored reference inside array works", () => {
+        var i = 0
+        var arr = [ give_int_ref_32(i) ]
+        arr[0] = 827
+        return i == 827
+    })
 }

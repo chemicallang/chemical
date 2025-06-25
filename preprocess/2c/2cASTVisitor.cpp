@@ -792,9 +792,14 @@ void call_implicit_constructor(ToCAstVisitor& visitor, FunctionDeclaration* imp_
     call_implicit_constructor_with_name(visitor, imp_constructor, value, take_addr, chem::string_view(temp_name.data(), temp_name.size()));
 }
 
+bool isRef(ToCAstVisitor& visitor, Value* value) {
+    const auto type = value->create_type(visitor.allocator);
+    return type->canonical()->is_reference();
+}
+
 void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value) {
     // automatically passing address to a reference type
-    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !value->is_ref(allocator)) {
+    if(!assigning_value && type && type->kind() == BaseTypeKind::Reference && !isRef(*this, value)) {
         const auto ref_type = type->as_reference_type_unsafe();
         if(write_value_for_ref_type(*this, value, ref_type)) {
             return;

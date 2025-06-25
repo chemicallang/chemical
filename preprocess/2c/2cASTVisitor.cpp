@@ -792,6 +792,35 @@ void call_implicit_constructor(ToCAstVisitor& visitor, FunctionDeclaration* imp_
     call_implicit_constructor_with_name(visitor, imp_constructor, value, take_addr, chem::string_view(temp_name.data(), temp_name.size()));
 }
 
+VariableIdentifier* get_single_id(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::Identifier:
+            return value->as_identifier_unsafe();
+        case ValueKind::AccessChain: {
+            auto& values = value->as_access_chain_unsafe()->values;
+            if(values.size() == 1) {
+                return values.back()->as_identifier();
+            }
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer);
+
+void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
+    const auto id = get_single_id(value);
+    if(id) {
+        const auto flag = get_drop_flag(*visitor.destructor, id->linked);
+        if(flag) {
+            visitor.write(*flag);
+            visitor.write(" = false;");
+        }
+    }
+}
+
 bool isRef(ToCAstVisitor& visitor, Value* value) {
     const auto type = value->create_type(visitor.allocator);
     return type->canonical()->is_reference();
@@ -839,6 +868,18 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                         const auto lambdaFn = value->as_lambda_func_unsafe();
 
                         write("*({ ");
+
+                        for(const auto captured : lambdaFn->captureList) {
+                            // since we're moving the value here
+                            // what we must do is set the drop flag to false
+                            const auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
+                                captured->name, captured->encoded_location(), false
+                            );
+                            identifier->linked = captured->linked;
+                            set_moved_ref_drop_flag(*this, identifier);
+                            space();
+                        }
+
                         write(fat_pointer_type);
                         write("* ");
                         write(found->second);
@@ -886,35 +927,6 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool ass
         }
     }
     accept_mutating_value_explicit(type, value, assigning_value);
-}
-
-VariableIdentifier* get_single_id(Value* value) {
-    switch(value->kind()) {
-        case ValueKind::Identifier:
-            return value->as_identifier_unsafe();
-        case ValueKind::AccessChain: {
-            auto& values = value->as_access_chain_unsafe()->values;
-            if(values.size() == 1) {
-                return values.back()->as_identifier();
-            }
-            return nullptr;
-        }
-        default:
-            return nullptr;
-    }
-}
-
-std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer);
-
-void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
-    const auto id = get_single_id(value);
-    if(id) {
-        const auto flag = get_drop_flag(*visitor.destructor, id->linked);
-        if(flag) {
-            visitor.write(*flag);
-            visitor.write(" = false;");
-        }
-    }
 }
 
 void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, unsigned i = 0) {

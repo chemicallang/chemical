@@ -11,6 +11,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/types/VoidType.h"
 #include "ast/statements/VarInit.h"
+#include "ast/values/VariableIdentifier.h"
 #include "ast/base/LoopASTNode.h"
 #include "ast/values/StructValue.h"
 #include "ast/types/PointerType.h"
@@ -280,7 +281,25 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
     }
 
     if(!captureList.empty()) {
+
+        if(prev_func_type) {
+            for (const auto captured: captureList) {
+                if (captured->capture_by_ref) {
+                    continue;
+                }
+                // we have to allocate an identifier to mark it moved
+                // maybe design for this should change a little
+                const auto identifier = new(linker.ast_allocator->allocate<VariableIdentifier>()) VariableIdentifier(
+                        captured->name, captured->encoded_location(), false
+                );
+                identifier->linked = captured->linked;
+                // we must move the identifiers in capture list
+                prev_func_type->mark_moved_value(linker.allocator, identifier, captured->linked->known_type(), linker, false);
+            }
+        }
+
         setIsCapturing(true);
+
     }
 
     linker.current_func_type = prev_func_type;

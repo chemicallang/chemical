@@ -69,4 +69,14 @@ func test_capturing_lambda_destruction() {
         }
         return counter == 2;
     })
+    test("capturing lambda moves the values, destructor is not called on moved", () => {
+        var counter = 0;
+        if(counter == 0) {
+            var m = CapLambDestrCounter { counter : &counter }
+            var lambda : std::function<() => void> = |m|() => {
+
+            }
+        }
+        return counter == 1;
+    })
 }

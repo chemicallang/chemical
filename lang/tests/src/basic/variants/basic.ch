@@ -260,12 +260,11 @@ func test_variants() {
             None => return false;
         }
     })
-    /**
     test("storing in variants via switch var case works", () => {
         var x = OptVariant.Some(0)
         var Some(a) = x else return false
         switch(x) {
-            Some(a) => { a = 234 };
+            Some(a) => { a = 234 }
             None => return false;
         }
         switch(x) {
@@ -273,5 +272,4 @@ func test_variants() {
             None => return false;
         }
     })
-    **/
 }

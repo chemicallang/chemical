@@ -18,6 +18,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/UnsafeBlock.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/statements/AliasStmt.h"
 #include "ast/structures/If.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -556,7 +557,7 @@ bool all_variables_type_require(VariablesContainer& container, bool(*requirement
 
 bool variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*), bool variant_container) {
     for(const auto& inh : container.inherited) {
-        if(requirement(inh.type)) {
+        if(requirement(inh.type->canonical())) {
             return true;
         }
     }
@@ -564,7 +565,7 @@ bool variables_type_require(VariablesContainer& container, bool(*requirement)(Ba
         for(const auto var : container.variables()) {
             const auto mem = var->as_variant_member_unsafe();
             for(auto& val : mem->values) {
-                if(requirement(val.second->type)) {
+                if(requirement(val.second->type->canonical())) {
                     return true;
                 }
             }
@@ -584,7 +585,7 @@ bool variables_type_require(VariablesContainer& container, bool(*requirement)(Ba
                     }
                     break;
                 case ASTNodeKind::StructMember:
-                    if(requirement(var->as_struct_member_unsafe()->type)) {
+                    if(requirement(var->as_struct_member_unsafe()->type->canonical())) {
                         return true;
                     }
                     break;
@@ -617,7 +618,11 @@ bool MembersContainer::all_members_has_def_constructor() {
 
 bool MembersContainer::any_member_has_destructor() {
     return one_member_type_requires(*this, [](BaseType* type)-> bool {
-        return type->get_destructor() != nullptr;
+        if(type->kind() == BaseTypeKind::CapturingFunction) {
+            return type->as_capturing_func_type_unsafe()->instance_type->get_destructor() != nullptr;
+        } else {
+            return type->get_destructor() != nullptr;
+        }
     });
 }
 

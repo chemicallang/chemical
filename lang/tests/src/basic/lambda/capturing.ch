@@ -102,4 +102,5 @@ func test_capturing_lambda() {
         })
         return temp == 121;
     })
+    test_capturing_lambda_destruction()
 }

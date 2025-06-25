@@ -3554,17 +3554,8 @@ void call_variant_param_func(
     ToCAstVisitor& visitor,
     VariantMember* member,
     VariantMemberParam* mem_param,
-    FunctionDeclaration*(*choose_func)(MembersContainer*)
+    FunctionDeclaration* func
 ) {
-    auto mem_type = mem_param->type;
-    const auto mem_def = mem_type->get_members_container();
-    if(!mem_def) {
-        return;
-    }
-    auto func = choose_func(mem_def);
-    if (!func) {
-        return;
-    }
     visitor.new_line_and_indent();
     visitor.mangle(func);
     visitor.write('(');
@@ -3578,16 +3569,23 @@ void call_variant_param_func(
     visitor.write(';');
 }
 
-inline void call_variant_member_fn(ToCAstVisitor& visitor, VariantMember* member, FunctionDeclaration*(*choose_func)(MembersContainer*)) {
-    for(auto& mem_param : member->values) {
-        call_variant_param_func(visitor, member, mem_param.second, choose_func);
+void call_variant_member_delete_fn(ToCAstVisitor& visitor, VariantMember* member, VariantMemberParam* param, BaseType* type) {
+    if(type->kind() == BaseTypeKind::CapturingFunction) {
+        const auto capType = type->as_capturing_func_type_unsafe();
+        call_variant_member_delete_fn(visitor, member, param, capType->instance_type);
+    } else {
+        const auto deleteFn = type->get_destructor();
+        if(!deleteFn) {
+            return;
+        }
+        call_variant_param_func(visitor, member, param, deleteFn);
     }
 }
 
-void call_variant_member_delete_fn(ToCAstVisitor& visitor, VariantMember* member) {
-    call_variant_member_fn(visitor, member, [](MembersContainer* container)-> FunctionDeclaration* {
-        return container->destructor_func();
-    });
+inline void call_variant_member_delete_fn(ToCAstVisitor& visitor, VariantMember* member) {
+    for(auto& mem_param : member->values) {
+        call_variant_member_delete_fn(visitor, member, mem_param.second, mem_param.second->type->canonical());
+    }
 }
 
 void variant_member_pre_move_fn_gen(

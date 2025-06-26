@@ -256,15 +256,18 @@ Destructible create_arr_destructible(
         llvm::Value* pointer,
         llvm::Value* dropFlag,
         ASTNode* node,
-        ASTNode* containerNode,
-        ArrayType* arrType
+        unsigned int arrSize,
+        BaseType* elemType
 ) {
     return Destructible{
             .kind = DestructibleKind::Array,
             .initializer = node,
             .dropFlag = dropFlag,
             .pointer = pointer,
-            .arrType = arrType
+            .array = {
+                    .arrSize = arrSize,
+                    .elem_type = elemType
+            }
     };
 }
 
@@ -327,7 +330,7 @@ std::optional<Destructible> create_destructible_for(
             }
             const auto dropFlag = oldDropFlag ? oldDropFlag : get_has_move(node) ? createDropFlag(gen, node->encoded_location()) : nullptr;
             return create_arr_destructible(
-                    pointer, dropFlag, node, container, arrType
+                    pointer, dropFlag, node, arrType->get_array_size(), linkedNode->known_type()
             );
         } else {
             return create_destructible_with_drop_flag(gen, pointer, node, linkedNode, node->encoded_location(), oldDropFlag);

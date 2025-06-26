@@ -53,19 +53,23 @@ struct Destructible {
 
     DestructibleKind kind;
 
-    ASTNode* initializer;
+    ASTNode* initializer = nullptr;
 
-    llvm::Value* dropFlag;
+    llvm::Value* dropFlag = nullptr;
 
-    llvm::Value* pointer;
+    llvm::Value* pointer = nullptr;
 
     union {
 
-        // only available in single
         ASTNode* container;
 
-        // only available in array
-        ArrayType* arrType;
+        struct {
+
+            unsigned int arrSize;
+
+            BaseType* elem_type;
+
+        } array;
 
     };
 
@@ -74,16 +78,6 @@ struct Destructible {
     }
 
     inline llvm::Value* getDropFlag() {
-        return dropFlag;
-    }
-
-    [[deprecated]]
-    inline ASTNode* first() {
-        return initializer;
-    }
-
-    [[deprecated]]
-    inline llvm::Value* second() {
         return dropFlag;
     }
 

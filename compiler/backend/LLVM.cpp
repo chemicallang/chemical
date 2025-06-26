@@ -1062,7 +1062,7 @@ void Codegen::destruct(Destructible& destructible, SourceLocation location) {
     if(destructible.kind == DestructibleKind::Single) {
         destructible.container->llvm_destruct(gen, destructible.pointer, location);
     } else {
-        destruct(destructible.pointer, destructible.arrType->get_array_size(), destructible.arrType->elem_type, location);
+        destruct(destructible.pointer, destructible.array.arrSize, destructible.array.elem_type, location);
     }
 }
 

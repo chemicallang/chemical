@@ -28,6 +28,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/utils/ASTUtils.h"
@@ -528,6 +529,25 @@ void create_call_member_func(
     gen.di.instr(callInst, location);
 }
 
+void code_gen_process_members_types(
+        Codegen& gen,
+        StructDefinition* def,
+        llvm::Function* func,
+        SourceLocation location,
+        void(*member_func_call)(Codegen& gen, BaseType* mem_type, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location)
+) {
+    unsigned index = 0;
+    for(auto& inherited : def->inherited) {
+        member_func_call(gen, inherited.type->canonical(), def, func, index, location);
+        index++;
+    }
+    for(const auto var : def->variables()) {
+        auto mem_type = var->known_type();
+        member_func_call(gen, mem_type->canonical(), def, func, index, location);
+        index++;
+    }
+}
+
 void code_gen_process_members(
         Codegen& gen,
         StructDefinition* def,
@@ -782,12 +802,18 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
     // sets up the cleanup along with generating the body user provided
     setup_cleanup_block(gen, func);
 
-    code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
-        const auto decl = mem_def->destructor_func();
-        if(!decl) {
+    code_gen_process_members_types(gen, def, func, body_location(), [](Codegen& gen, BaseType* mem_type, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
+        if(mem_type->kind() == BaseTypeKind::CapturingFunction) {
+            const auto decl = mem_type->as_capturing_func_type_unsafe()->instance_type->get_destructor();
+            if(decl) {
+                create_call_member_func(gen, decl, def, func, index, false, location);
+            }
             return;
         }
-        create_call_member_func(gen, decl, def, func, index, false, location);
+        const auto decl = mem_type->get_destructor();
+        if(decl) {
+            create_call_member_func(gen, decl, def, func, index, false, location);
+        }
     });
 
     // TODO use the ending location

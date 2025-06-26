@@ -1779,6 +1779,8 @@ public:
 
     void dispatch_jobs_from(int begin);
 
+    void queue_destruct_type(const chem::string_view& self_name, ASTNode* initializer, BaseType* type);
+
     void queue_destruct_decl_params(FunctionType* decl);
 
     void process_init_value(VarInitStatement *init, Value* value);
@@ -2163,15 +2165,23 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
     destruct_jobs.erase(itr, destruct_jobs.end());
 }
 
+void CDestructionVisitor::queue_destruct_type(const chem::string_view& self_name, ASTNode* initializer, BaseType* type) {
+    if(type->kind() == BaseTypeKind::CapturingFunction) {
+        queue_destruct_type(self_name, initializer, type->as_capturing_func_type_unsafe()->instance_type);
+        return;
+    }
+    const auto container = type->get_members_container();
+    if(container) {
+        const auto destructor_func = container->destructor_func();
+        if (destructor_func) {
+            queue_destruct(self_name, initializer, container->as_extendable_members_container_node(), true);
+        }
+    }
+}
+
 void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
-        const auto container = d_param->type->get_direct_linked_container();
-        if(container) {
-            const auto destructor_func = container->destructor_func();
-            if (destructor_func) {
-                queue_destruct(d_param->name, d_param, container->as_extendable_members_container_node(), true);
-            }
-        }
+        queue_destruct_type(d_param->name, d_param, d_param->type->canonical());
     }
 }
 

@@ -39,8 +39,13 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
             const auto instr = gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
             gen.di.instr(instr, cap);
         } else {
-            const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr);
-            gen.di.instr(instr, cap);
+            const auto type = cap->linked->known_type();
+            if(type->isStructLikeType()) {
+                gen.memcpy_struct(type->llvm_type(gen), ptr, cap->linked->llvm_pointer(gen), cap->encoded_location());
+            } else {
+                const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr);
+                gen.di.instr(instr, cap);
+            }
         }
         i++;
     }

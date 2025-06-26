@@ -15,6 +15,10 @@ variant CapLambVarCon {
     None()
 }
 
+func test_destr_cap_lamb_param(fun : std::function<() => void>) {
+
+}
+
 func test_capturing_lambda_destruction() {
     test("capturing lambda destructor is called in var init", () => {
         var counter = 0;
@@ -78,5 +82,15 @@ func test_capturing_lambda_destruction() {
             }
         }
         return counter == 1;
+    })
+    test("capturing lambda is destructed when passed to a function as an argument", () => {
+        var counter = 0
+        var m = CapLambDestrCounter { counter : &counter }
+        if(counter == 0) {
+            test_destr_cap_lamb_param(|m|() => {
+
+            })
+        }
+        return counter == 1
     })
 }

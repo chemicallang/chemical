@@ -630,9 +630,14 @@ public:
     );
 
     /**
-     * find destruct ref for the given node
+     * find destruct ref for the given node, node should be var init / function param
      */
     llvm::Value* find_drop_flag(ASTNode* node);
+
+    /**
+     * set drop flag for given node, node should be var init / function param
+     */
+    bool set_drop_flag_for_node(ASTNode* node, bool flag, SourceLocation loc);
 
     /**
      * this creates the destructible for the given node or none if couldn't create it

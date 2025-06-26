@@ -840,13 +840,17 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
     process_members_calling_fns(gen, def, allocaInst, func, body_location(), [](VariantMember* mem) -> bool {
         return mem->requires_destructor();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func, SourceLocation location) {
-        llvm::Function* dtr_func_data = nullptr;
         int i = 0;
         for(auto& value : mem->values) {
-            auto destructorFunc = gen.determine_destructor_for(value.second->type, dtr_func_data);
-            if(destructorFunc) {
+            const auto canonicalType = value.second->type->canonical();
+            const auto type = canonicalType->kind() == BaseTypeKind::CapturingFunction ? (
+                    canonicalType->as_capturing_func_type_unsafe()->instance_type
+            ) : canonicalType;
+            const auto destructor = type->get_destructor();
+            if(destructor) {
+                const auto dtr_func_data = destructor->llvm_func(gen);
                 std::vector<llvm::Value*> args;
-                if(destructorFunc->has_self_param()) {
+                if(destructor->has_self_param()) {
                     auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
                     args.emplace_back(gep3);
                 }

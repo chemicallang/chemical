@@ -125,6 +125,9 @@ FunctionDeclaration* BaseType::get_copy_fn() {
 }
 
 bool BaseType::requires_destructor() {
+    if(kind() == BaseTypeKind::CapturingFunction) {
+        return as_capturing_func_type_unsafe()->instance_type->requires_destructor();
+    }
     auto node = get_direct_linked_node();
     if(!node) return false;
     auto node_kind = node->kind();

@@ -67,9 +67,10 @@ func test_capturing_lambda_destruction() {
     test("capturing lambda function is destructed in assignment", () => {
         var counter = 0;
         var m = CapLambDestrCounter { counter : &counter }
+        var m2 = CapLambDestrCounter { counter : &counter }
         if(counter == 0) {
             var some : std::function<() => void> = |m|() => {}
-            some = |m|() => {}
+            some = |m2|() => {}
         }
         return counter == 2;
     })

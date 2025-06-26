@@ -1288,14 +1288,14 @@ llvm::Value* Codegen::find_drop_flag(ASTNode* node) {
     return nullptr;
 }
 
-bool set_drop_flag_for_node(Codegen& gen, ASTNode* node, bool flag, SourceLocation loc) {
+bool Codegen::set_drop_flag_for_node(ASTNode* node, bool flag, SourceLocation loc) {
     switch (node->kind()) {
         case ASTNodeKind::VarInitStmt:
         case ASTNodeKind::FunctionParam:{
-            const auto ref = gen.find_drop_flag(node);
+            const auto ref = find_drop_flag(node);
             if(ref) {
-                const auto instr = gen.builder->CreateStore(gen.builder->getInt1(flag), ref);
-                gen.di.instr(instr, loc);
+                const auto instr = builder->CreateStore(builder->getInt1(flag), ref);
+                di.instr(instr, loc);
                 return true;
             } else {
                 return false;
@@ -1314,7 +1314,7 @@ bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
                 const auto chain = value->as_access_chain_unsafe();
                 const auto first = chain->values.front();
                 if(first->kind() == ValueKind::Identifier && (chain->is_moved() || first->as_identifier_unsafe()->is_moved)) {
-                    return set_drop_flag_for_node(gen, first->as_identifier_unsafe()->linked, flag, first->encoded_location());
+                    return gen.set_drop_flag_for_node(first->as_identifier_unsafe()->linked, flag, first->encoded_location());
                 } else {
                     return true;
                 }
@@ -1324,7 +1324,7 @@ bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
         }
         case ValueKind::Identifier: {
             if(value->as_identifier_unsafe()->is_moved) {
-                return set_drop_flag_for_node(gen, value->as_identifier_unsafe()->linked, flag, value->encoded_location());
+                return gen.set_drop_flag_for_node(value->as_identifier_unsafe()->linked, flag, value->encoded_location());
             } else {
                 return true;
             }

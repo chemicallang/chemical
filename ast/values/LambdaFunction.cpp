@@ -41,6 +41,9 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
         } else {
             const auto type = cap->linked->known_type();
             if(type->isStructLikeType()) {
+                // we set the drop flag for linked node to false so destructor is not called on it
+                gen.set_drop_flag_for_node(cap->linked, false, cap->encoded_location());
+                // we memcpy struct type into the captured struct
                 gen.memcpy_struct(type->llvm_type(gen), ptr, cap->linked->llvm_pointer(gen), cap->encoded_location());
             } else {
                 const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr);

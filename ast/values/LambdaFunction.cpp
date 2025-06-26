@@ -297,6 +297,8 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
                 }
                 // we have to allocate an identifier to mark it moved
                 // maybe design for this should change a little
+                // TODO: this identifier doesn't allow us to check if value has been moved prior
+                // because is_moved is used to check
                 const auto identifier = new(linker.ast_allocator->allocate<VariableIdentifier>()) VariableIdentifier(
                         captured->name, captured->encoded_location(), false
                 );

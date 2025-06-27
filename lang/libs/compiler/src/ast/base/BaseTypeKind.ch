@@ -17,6 +17,7 @@ public enum BaseTypeKind {
 
     Float128,
     Function,
+    CapturingFunction,
     Generic,
     IntN,
     Pointer,

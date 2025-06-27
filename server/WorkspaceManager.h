@@ -283,6 +283,11 @@ public:
     void post_build_lab();
 
     /**
+     * this will compile a cbi
+     */
+    int compile_cbi(LabJobCBI* job);
+
+    /**
      * compile a .lab file or a .mod file
      * this method is called in a separate process to handle compilation
      * this method reports to parent process

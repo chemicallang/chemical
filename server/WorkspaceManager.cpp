@@ -37,7 +37,7 @@ WorkspaceManager::WorkspaceManager(
         lsp::MessageHandler& handler
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
-    context(modStorage), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
+    context(modStorage, binder), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
     modFileData(10), anonFilesData(10)
 {
 
@@ -99,17 +99,17 @@ void WorkspaceManager::post_build_lab() {
         switch_main_job(context.executables.front().get());
     }
 
-//    compiler->do_allocating((void*) &context, [](LabBuildCompiler* compiler, void* data) -> int {
-//        auto& context = *((LabBuildContext*) data);
-//        for(auto& job : context.executables) {
-//            if(job->type == LabJobType::CBI) {
-//                compiler->do_job(job.get());
-//            }
-//        }
-//        return 0;
-//    });
-
     index_module_files();
+
+    // before we get compiling, the modules
+
+    // compile cbi jobs and have their tcc state ready for invocation
+    // the tcc state will end up inside the compiler binder
+    for(auto& job : context.executables) {
+        if(job->type == LabJobType::CBI) {
+            compile_cbi((LabJobCBI*) job.get());
+        }
+    }
 
 }
 
@@ -118,6 +118,42 @@ inline void create_dir(const std::string& build_dir) {
     if (!std::filesystem::exists(build_dir)) {
         std::filesystem::create_directory(build_dir);
     }
+}
+
+
+int WorkspaceManager::compile_cbi(LabJobCBI* job) {
+
+    // using is64Bit as true
+    auto exe_path = compiler_exe_path();
+    auto& compiler_exe_path = exe_path;
+    auto root_build_dir = resolve_rel_child_path_str(project_path, "build");
+    auto ide_build_dir = resolve_rel_child_path_str(root_build_dir, "ide");
+    auto build_dir = resolve_rel_child_path_str(ide_build_dir, "cbi");
+
+    // create build directory before proceeding (if it doesn't exist)
+    create_dir(root_build_dir);
+    create_dir(ide_build_dir);
+    create_dir(build_dir);
+
+    // setup stuff
+    LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
+    LabBuildCompiler compiler(loc_man, binder, &options);
+    compiler.container = global_container;
+
+    // allocating ast allocators
+    const auto job_mem_size = 100000; // 100 kb
+    const auto mod_mem_size = 100000; // 100 kb
+    const auto file_mem_size = 100000; // 100 kb
+    ASTAllocator _job_allocator(job_mem_size);
+    ASTAllocator _mod_allocator(mod_mem_size);
+    ASTAllocator _file_allocator(file_mem_size);
+
+    // the allocators that will be used for all jobs
+    compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
+
+    // do the job, the tcc state will automatically end up in compiler binder
+    return compiler.do_job(job);
+
 }
 
 LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, const std::string& lab_path, ModuleStorage& modStorage) {
@@ -134,7 +170,8 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
 
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
     CompilerBinder binder(compiler_exe_path);
-    LabBuildCompiler compiler(binder, &options);
+    LocationManager loc_man;
+    LabBuildCompiler compiler(loc_man, binder, &options);
     auto& storage = modStorage;
     ImportPathHandler pathHandler(compiler_exe_path);
     auto context_ptr = new LabBuildContext(compiler, pathHandler, storage, binder, lab_path);

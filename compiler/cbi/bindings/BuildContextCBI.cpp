@@ -57,6 +57,9 @@ bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module
     auto found = maps.find(*interface);
     if(found != maps.end()) {
         module->compiler_interfaces.emplace_back(found->second);
+#ifdef LSP_BUILD
+        module->compiler_interfaces_str.emplace_back(chem::string(*interface));
+#endif
         return true;
     } else {
         return false;

@@ -98,6 +98,14 @@ struct LabModule {
      */
     std::optional<bool> has_changed = std::nullopt;
 
+#ifdef LSP_BUILD
+    /**
+     * compiler interfaces strings are retained in lsp build, so they can
+     * be serialized properly
+     */
+    std::vector<chem::string> compiler_interfaces_str;
+#endif
+
     /**
      * formats the scope name module name into a single string separated by colon
      */

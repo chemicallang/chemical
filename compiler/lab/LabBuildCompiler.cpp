@@ -111,9 +111,10 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 }
 
 LabBuildCompiler::LabBuildCompiler(
+    LocationManager& loc_man,
     CompilerBinder& binder,
     LabBuildCompilerOptions *options
-) : path_handler(options->exe_path), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
+) : path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
     global_allocator(100000 /** 100 kb**/), type_builder(global_allocator)
 {
 
@@ -1736,6 +1737,9 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         auto found = binder.interface_maps.find(interface);
         if(found != binder.interface_maps.end()) {
             module->compiler_interfaces.emplace_back(found->second);
+#ifdef LSP_BUILD
+            module->compiler_interfaces_str.emplace_back(chem::string(interface));
+#endif
         } else {
             std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "unknown compiler interface '" << interface << "' in mod file a '" << modFilePathView << "'" << std::endl;
             return nullptr;

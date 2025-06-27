@@ -65,7 +65,7 @@ public:
      * the location manager is used to track locations inside all the files
      * processed by this compiler
      */
-    LocationManager loc_man;
+    LocationManager& loc_man;
 
     /**
      * lab build compiler options
@@ -128,6 +128,7 @@ public:
      * constructor
      */
     explicit LabBuildCompiler(
+        LocationManager& loc_man,
         CompilerBinder& binder,
         LabBuildCompilerOptions* options
     );

@@ -41,9 +41,17 @@ public:
     ModuleStorage& storage;
 
     /**
+     * the compiler binder is used to provide the binding support
+     */
+    CompilerBinder& binder;
+
+    /**
      * constructor
      */
-    BasicBuildContext(ModuleStorage& storage) : storage(storage) {
+    BasicBuildContext(
+            ModuleStorage& storage,
+            CompilerBinder& binder
+    ) : storage(storage), binder(binder) {
 
     }
 
@@ -80,11 +88,6 @@ public:
     ImportPathHandler& handler;
 
     /**
-     * the compiler binder is used to provide the binding support
-     */
-    CompilerBinder& binder;
-
-    /**
      * the compiler is available to build nested modules
      */
     LabBuildCompiler& compiler;
@@ -107,7 +110,7 @@ public:
         ModuleStorage& storage,
         CompilerBinder& binder,
         std::string lab_file
-    ) : handler(path_handler), compiler(compiler), BasicBuildContext(storage), binder(binder) {
+    ) : handler(path_handler), compiler(compiler), BasicBuildContext(storage, binder) {
 
     }
 

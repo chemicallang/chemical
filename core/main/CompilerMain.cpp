@@ -667,7 +667,8 @@ int compiler_main(int argc, char *argv[]) {
         std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(args[0], "build");
         LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
         CompilerBinder binder(argv[0]);
-        LabBuildCompiler compiler(binder, &compiler_opts);
+        LocationManager loc_man;
+        LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
         compiler.set_cmd_options(&options);
 
         // Prepare compiler options
@@ -735,7 +736,8 @@ int compiler_main(int argc, char *argv[]) {
     std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : "./";
     LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
     CompilerBinder binder(argv[0]);
-    LabBuildCompiler compiler(binder, &compiler_opts);
+    LocationManager loc_man;
+    LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
     compiler.set_cmd_options(&options);
 
     // set default compiler options

@@ -29,17 +29,7 @@ const char* CompilerBinder::index_function(CBIFunctionIndex& index, TCCState* st
     if(!sym) {
         return "function with this name doesn't exist";
     }
-    switch(index.fn_type) {
-        case CBIFunctionType::InitializeLexer:
-            initializeLexerFunctions[index.key.to_chem_view()] = (UserLexerInitializeFn) sym;
-            break;
-        case CBIFunctionType::ParseMacroValue:
-            parseMacroValueFunctions[index.key.to_chem_view()] = (UserParserParseMacroValueFn) sym;
-            break;
-        case CBIFunctionType::ParseMacroNode:
-            parseMacroNodeFunctions[index.key.to_chem_view()] = (UserParserParseMacroNodeFn) sym;
-            break;
-    }
+    registerHook(index.fn_type, index.key.to_chem_view(), sym);
     return nullptr;
 }
 

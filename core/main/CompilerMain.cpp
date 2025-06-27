@@ -400,9 +400,10 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
                 }
                 auto& cbi_name_ref = cbiDataItr->first;
                 auto cbi_name = chem::string_view(cbi_name_ref.data(), cbi_name_ref.size());
-                compiler.binder.initializeLexerFunctions[cbi_name] = (UserLexerInitializeFn) sym;
-                compiler.binder.parseMacroValueFunctions[cbi_name] = (UserParserParseMacroValueFn) sym2;
-                compiler.binder.parseMacroNodeFunctions[cbi_name] = (UserParserParseMacroNodeFn) sym3;
+                auto& binder = compiler.binder;
+                binder.registerHook(CBIFunctionType::InitializeLexer, cbi_name, sym);
+                binder.registerHook(CBIFunctionType::ParseMacroValue, cbi_name, sym2);
+                binder.registerHook(CBIFunctionType::ParseMacroNode, cbi_name, sym3);
             }
         } else {
             std::cerr << rang::fg::red << "the argument to --cbi must be formatted as <name>:<directory_path>" << rang::fg::reset;

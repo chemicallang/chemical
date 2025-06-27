@@ -586,11 +586,10 @@ Token Lexer::getNextToken() {
         case '#': {
             str.append('#');
             read_annotation_id(str, provider);
-            auto& functions_map = binder->initializeLexerFunctions;
             auto view = chem::string_view((str.data + 1), str.length - 1);
-            auto found = functions_map.find(view);
-            if(found != functions_map.end()) {
-                found->second(this);
+            auto found = binder->findHook(view, CBIFunctionType::InitializeLexer);
+            if(found) {
+                ((UserLexerInitializeFn) found)(this);
             }
             return Token(TokenType::HashMacro, str.finalize_view(), pos);
         }

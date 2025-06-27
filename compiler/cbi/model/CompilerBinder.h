@@ -15,6 +15,21 @@ class Parser;
 
 class CSTToken;
 
+struct CBIFunctionKey {
+    chem::string_view key;
+    CBIFunctionType type;
+    bool operator==(const CBIFunctionKey& other) const noexcept {
+        return key == other.key && type == other.type;
+    }
+};
+
+// Custom hash function for HookKey
+struct CBIFunctionHash {
+    size_t operator()(const CBIFunctionKey& k) const noexcept {
+        return std::hash<chem::string_view>{}(k.key) ^ (size_t(k.type) << 1);
+    }
+};
+
 /**
  * compiler binder based on tiny c compiler
  */
@@ -22,21 +37,9 @@ class CompilerBinder {
 public:
 
     /**
-     * all the initializer functions are indexed in the single unordered map
+     * all the functions user has asked us to hook
      */
-    std::unordered_map<chem::string_view, UserLexerInitializeFn> initializeLexerFunctions;
-
-    /**
-     * parseMacroValue functions are called by the parser to provide a value for a given macro
-     * when parsing
-     */
-    std::unordered_map<chem::string_view, UserParserParseMacroValueFn> parseMacroValueFunctions;
-
-    /**
-     * parseMacroNode functions are called by the parser to provide a node for a given macro
-     * when parsing
-     */
-    std::unordered_map<chem::string_view, UserParserParseMacroNodeFn> parseMacroNodeFunctions;
+    std::unordered_map<CBIFunctionKey, void*, CBIFunctionHash> hooks_;
 
     /**
      * contains a map between cbi_name and module data
@@ -63,6 +66,22 @@ public:
      * imports the given compiler interfaces
      */
     static void import_compiler_interface(const std::span<const std::pair<chem::string_view, void*>>& interface, TCCState* state);
+
+    /**
+     * index a function with given cbi function type and key
+     */
+    inline void registerHook(CBIFunctionType type, const chem::string_view& key, void* function) {
+        hooks_.emplace(CBIFunctionKey{key, type}, function);
+    }
+
+    /**
+     * find a function
+     */
+    [[nodiscard]]
+    void* findHook(const chem::string_view& key, CBIFunctionType type) const noexcept {
+        auto it = hooks_.find(CBIFunctionKey{key, type});
+        return it != hooks_.end() ? it->second : nullptr;
+    }
 
     /**
      * indexes the given function

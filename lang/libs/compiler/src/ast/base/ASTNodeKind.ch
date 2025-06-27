@@ -34,6 +34,7 @@ public enum ASTNodeKind {
     InitBlock,
     StructDecl,
     StructMember,
+    StructMemberInitializer,
     NamespaceDecl,
     UnionDecl,
     VariantDecl,
@@ -64,6 +65,5 @@ public enum ASTNodeKind {
 
     FileScope,
     ModuleScope,
-    PackageDef,
 
 }

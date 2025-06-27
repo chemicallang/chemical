@@ -7,7 +7,7 @@ func (cssParser : &mut CSSParser) parseAtRule(om : &mut CSSOM, parser : *mut Par
     if(token.type == TokenType.At) {
         parser.increment();
     } else {
-        return null;
+        return false;
     }
 
     const next = parser.getToken()

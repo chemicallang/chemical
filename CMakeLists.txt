@@ -563,6 +563,7 @@ set(COMMON_SOURCES
         ast/types/CapturingFunctionType.h
         ast/values/ExtractionValue.h
         ast/values/ExtractionValue.cpp
+        server/cbi/hooks.h
 )
 
 # Chemical LSP Executable Target
@@ -607,6 +608,8 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/utils/AnalyzerUtils.cpp
         server/model/ModuleData.h
         server/model/AnonymousFileData.h
+        compiler/cbi/bindings/lsp/LSPHooks.h
+        compiler/cbi/bindings/lsp/LSPHooks.cpp
 )
 
 # lsp framework

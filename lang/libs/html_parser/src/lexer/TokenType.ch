@@ -1,4 +1,4 @@
-enum TokenType {
+public enum TokenType {
 
     EndOfFile,
     Unexpected,

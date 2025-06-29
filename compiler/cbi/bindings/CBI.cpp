@@ -11,6 +11,9 @@
 #include "SerialStrAllocatorCBI.h"
 #include "LexerCBI.h"
 #include "ParserCBI.h"
+#ifdef LSP_BUILD
+#include "compiler/cbi/bindings/lsp/LSPHooks.h"
+#endif
 
 dispose_string::~dispose_string(){
     ptr->~string();
@@ -258,6 +261,16 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_InitBlockadd_initializer", (void*) InitBlockadd_initializer },
 };
 
+#ifdef LSP_BUILD
+const std::pair<chem::string_view, void*> SemanticTokensAnalyzerMap[] = {
+        {"ide_SemanticTokensAnalyzerputAuto", (void*) SemanticTokensAnalyzerputAuto},
+        {"ide_SemanticTokensAnalyzergetCurrentTokenPtr", (void*) SemanticTokensAnalyzergetCurrentTokenPtr},
+        {"ide_SemanticTokensAnalyzergetEndToken", (void*) SemanticTokensAnalyzergetEndToken},
+        {"ide_SemanticTokensAnalyzerput", (void*) SemanticTokensAnalyzerput},
+        {"ide_SemanticTokensAnalyzerputToken", (void*) SemanticTokensAnalyzerputToken},
+};
+#endif
+
 void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std::pair<chem::string_view, void*>>>& interface_maps) {
     interface_maps.reserve(9);
     interface_maps.emplace("SourceProvider", SourceProviderSymMap);
@@ -270,4 +283,7 @@ void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std:
     interface_maps.emplace("PtrVec", PtrVecSymMap);
     // couldn't create a constant empty array
     interface_maps["SymbolResolver"] = {};
+#ifdef LSP_BUILD
+    interface_maps.emplace("SemanticTokensAnalyzer", SemanticTokensAnalyzerMap);
+#endif
 }

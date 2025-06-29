@@ -8,6 +8,8 @@
 #include "ast/base/ASTNode.h"
 #include "lsp/types.h"
 #include "utils/StringHelpers.h"
+#include "compiler/cbi/model/CompilerBinder.h"
+#include "server/cbi/hooks.h"
 
 #define TokenType(e) (static_cast<uint32_t>(lsp::SemanticTokenTypes::e))
 
@@ -176,7 +178,20 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
                 put(pos.line, pos.character, token->value.size() + 2, TokenType(String), 0);
                 break;
             }
-            case TokenType::HashMacro:
+            case TokenType::HashMacro: {
+
+                // triggering nested semantic token put
+                auto& t = *token;
+                const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
+                const auto hook = binder.findHook(view, CBIFunctionType::SemanticTokensPut);
+                if(hook) {
+                    ((EmbeddedSemanticTokensPut) hook)(this);
+                } else {
+                    put(token, TokenType(Macro));
+                }
+
+                break;
+            }
             case TokenType::Annotation:
                 put(token, TokenType(Macro));
                 break;
@@ -203,11 +218,13 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
     }
 }
 
-void SemanticTokensAnalyzer::visit(std::vector<Token> &tokens_vec, unsigned start, unsigned till) {
-    auto i = start;
-    while (i < till) {
-        put_auto(&tokens_vec[i]);
-        i++;
+void SemanticTokensAnalyzer::analyze(std::vector<Token>& lexedTokens) {
+    current_token = lexedTokens.data();
+    const auto endToken = current_token + lexedTokens.size();
+    end_token = endToken;
+    while(current_token != endToken) {
+        put_auto(current_token);
+        current_token++;
     }
 }
 

@@ -1,0 +1,34 @@
+// Copyright (c) Chemical Language Foundation 2025.
+
+#pragma once
+
+#include <cstdint>
+
+class SemanticTokensAnalyzer;
+struct Token;
+
+extern "C" {
+
+    void SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* token);
+
+    Token** SemanticTokensAnalyzergetCurrentTokenPtr(SemanticTokensAnalyzer* analyzer);
+
+    Token* SemanticTokensAnalyzergetEndToken(SemanticTokensAnalyzer* analyzer);
+
+    void SemanticTokensAnalyzerput(
+            SemanticTokensAnalyzer* analyzer,
+            uint32_t lineNumber,
+            uint32_t lineCharNumber,
+            uint32_t length,
+            uint32_t tokenType,
+            uint32_t tokenModifiers
+    );
+
+    void SemanticTokensAnalyzerputToken(
+            SemanticTokensAnalyzer* analyzer,
+            Token* token,
+            uint32_t tokenType,
+            uint32_t tokenModifiers
+    );
+
+}

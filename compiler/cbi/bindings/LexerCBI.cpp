@@ -13,7 +13,7 @@ void LexersetUserLexer(Lexer* lexer, void* instance, void* subroutine) {
     }
     lexer->other_mode = true;
     lexer->user_mode = true;
-    lexer->user_lexer = UserLexerGetNextToken { instance, (UserLexerGetNextTokenFn) subroutine };
+    lexer->user_lexer = UserLexerGetNextToken { instance, (EmbeddedLexerGetNextTokenFn) subroutine };
 }
 
 void LexerunsetUserLexer(Lexer* lexer) {

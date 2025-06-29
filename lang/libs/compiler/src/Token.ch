@@ -7,4 +7,8 @@ public struct Token {
 
     var position : Position
 
+    if(def.lsp) {
+        var linked : *mut ASTAny = null
+    }
+
 }

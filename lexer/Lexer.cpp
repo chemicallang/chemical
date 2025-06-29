@@ -589,7 +589,7 @@ Token Lexer::getNextToken() {
             auto view = chem::string_view((str.data + 1), str.length - 1);
             auto found = binder->findHook(view, CBIFunctionType::InitializeLexer);
             if(found) {
-                ((UserLexerInitializeFn) found)(this);
+                ((EmbeddedLexerInitializeFn) found)(this);
             }
             return Token(TokenType::HashMacro, str.finalize_view(), pos);
         }

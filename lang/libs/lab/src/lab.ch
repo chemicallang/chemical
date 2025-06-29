@@ -55,13 +55,15 @@ public struct LabJobCBI : LabJob {
 
 public enum CBIType {
     MacroLexer,
-    MacroParser
+    MacroParser,
+    IDESupport
 }
 
 public enum CBIFunctionType {
     InitializeLexer,
     ParseMacroValue,
-    ParseMacroNode
+    ParseMacroNode,
+    SemanticTokensPut
 }
 
 public struct PathResolutionResult {
@@ -301,6 +303,12 @@ public func (ctx : &BuildContext) add_cbi_type(job : *mut LabJobCBI, type : CBIT
             var view2 = std::string_view("_parseMacroNode")
             fn_name2.append_with_len(view2.data(), view2.size())
             ctx.index_cbi_fn(job, job.name.to_view(), fn_name2.to_view(), CBIFunctionType.ParseMacroNode)
+        }
+        CBIType.IDESupport => {
+            var fn_name = job.name.copy()
+            var view = std::string_view("_semanticTokensPut")
+            fn_name.append_with_len(view.data(), view.size())
+            ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), CBIFunctionType.SemanticTokensPut)
         }
     }
     return true;

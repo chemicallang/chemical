@@ -130,6 +130,12 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
     auto ide_build_dir = resolve_rel_child_path_str(root_build_dir, "ide");
     auto build_dir = resolve_rel_child_path_str(ide_build_dir, "cbi");
 
+    // set the job's build directory
+    job->build_dir.clear();
+    job->build_dir.append(build_dir);
+    job->build_dir.append('/');
+    job->build_dir.append(job->name.to_chem_view());
+
     // create build directory before proceeding (if it doesn't exist)
     create_dir(root_build_dir);
     create_dir(ide_build_dir);

@@ -1210,7 +1210,7 @@ std::vector<uint32_t> WorkspaceManager::get_semantic_tokens(LexResult& file) {
     utils.serialize("debug/tokens.json", result.tokens);
 #endif
 
-    SemanticTokensAnalyzer analyzer;
+    SemanticTokensAnalyzer analyzer(binder);
     analyzer.analyze(file.tokens);
     return std::move(analyzer.tokens);
 

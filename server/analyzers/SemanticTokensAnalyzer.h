@@ -12,6 +12,8 @@
 
 class ASTNode;
 
+class CompilerBinder;
+
 class SemanticTokensAnalyzer {
 private:
 
@@ -28,6 +30,21 @@ private:
 public:
 
     /**
+     * this is a cache variable
+     */
+    Token* current_token;
+
+    /**
+     * this is a cache variable
+     */
+    Token* end_token;
+
+    /**
+     * compiler binder is required to support nested token support
+     */
+    CompilerBinder& binder;
+
+    /**
      * all the items that were found when analyzer completed
      */
     std::vector<uint32_t> tokens;
@@ -35,7 +52,7 @@ public:
     /**
      * constructor
      */
-    SemanticTokensAnalyzer() {}
+    SemanticTokensAnalyzer(CompilerBinder& binder) : binder(binder) {}
 
     /**
      * put a lsp token
@@ -64,23 +81,14 @@ public:
      */
     void put_auto(Token* token);
 
-    // Visitors
+    /**
+     * analyzes the given tokens
+     */
+    void analyze(std::vector<Token> &tokens);
 
     /**
-     * @param tokens the tokens vector
-     * @param start inclusive start
-     * @param till exclusive end
+     * put a multiline token
      */
-    void visit(std::vector<Token> &tokens, unsigned start, unsigned till);
-
-    inline void visit(std::vector<Token> &tokens_vec, unsigned start = 0) {
-        visit(tokens_vec, start, tokens_vec.size());
-    }
-
-    inline void analyze(std::vector<Token> &tokens_vec) {
-        visit(tokens_vec, 0, tokens_vec.size());
-    }
-
     void putMultilineToken(
             Token *token,
             uint32_t tokenType,
@@ -89,7 +97,10 @@ public:
             unsigned int charEndOffset
     );
 
-    void putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers = 0) {
+    /**
+     * helper function
+     */
+    inline void putMultilineToken(Token *token, uint32_t tokenType, uint32_t tokenModifiers = 0) {
         putMultilineToken(token, tokenType, tokenModifiers, 0, 0);
     }
 

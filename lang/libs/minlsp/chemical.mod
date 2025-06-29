@@ -1,0 +1,3 @@
+module minlsp
+
+source "src"

@@ -8,6 +8,8 @@ enum class CBIFunctionType : int {
 
     ParseMacroValue = 1,
 
-    ParseMacroNode = 2
+    ParseMacroNode = 2,
+
+    SemanticTokensPut = 3
 
 };

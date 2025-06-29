@@ -98,13 +98,13 @@ public enum ChemicalTokenType {
     LBracket, // ]
     RBracket, // ]
 
-    // when the value is inside double quotes, this will be a multiline string
-    // escape sequences will be processed so string with double quotes will be present
-    // like "my string"
-    String,
     // when the value is inside single quotes, for example 'x' or even '\x1b'
     // escape sequences will be processed
     Char,
+    // when the value is inside double quotes
+    String,
+    // a multiline string begins and ends with three double quotes
+    MultilineString,
     // #macro_name
     HashMacro,
     // @annotation

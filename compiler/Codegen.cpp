@@ -94,13 +94,15 @@ Codegen::Codegen(
         ASTAllocator& allocator
 ) : ASTDiagnoser(comptime_scope.loc_man), options(options), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
-    di(comptime_scope.loc_man, nullptr, *this), mode(comptime_scope.build_compiler->options->outMode),
+    di(comptime_scope.loc_man, nullptr, *this), llvm(di), mode(comptime_scope.build_compiler->options->outMode),
     mangler(mangler)
 {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder
     builder = new llvm::IRBuilder<>(*ctx);
+    // updating the builder
+    llvm.updateBuilder(builder);
 }
 
 void Codegen::declare_nodes(std::vector<ASTNode*>& nodes) {
@@ -164,7 +166,7 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
     // creating the modules
     module = std::make_unique<llvm::Module>(final_module_name, *ctx);
     diBuilder = std::make_unique<llvm::DIBuilder>(*module, true);
-    di.update_builder(diBuilder.get());
+    llvm.di.update_builder(diBuilder.get());
 
 }
 

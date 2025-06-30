@@ -9,6 +9,7 @@ namespace llvm {
     class BranchInst;
     class ReturnInst;
     class AllocaInst;
+    class StoreInst;
     class GlobalVariable;
     class Function;
     class FunctionType;

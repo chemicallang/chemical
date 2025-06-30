@@ -508,9 +508,6 @@ Token win_new_line(SourceProvider& provider, const Position& pos) {
 
 Token Lexer::getNextToken() {
     auto pos = provider.position();
-    if(provider.peek() == -1) {
-        return Token(TokenType::EndOfFile, { "", 0 }, pos);
-    }
     if(other_mode) {
         if(user_mode) {
             Token t;
@@ -524,6 +521,8 @@ Token Lexer::getNextToken() {
     }
     const auto current = provider.readCharacter();
     switch(current) {
+        case -1:
+            return Token(TokenType::EndOfFile, { "", 0 }, pos);
         case '{':
             return Token(TokenType::LBrace, view_str(LBraceCStr), pos);
         case '}':

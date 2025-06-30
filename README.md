@@ -160,12 +160,6 @@ file:      $output_dir/libtcc.dll
 
 ## 🎯 Vision & Design Goals
 
-- **No traditional bootstrap:** leverage existing compilers
-
-   We won't be doing a traditional bootstrap where we write the compiler in our own language, We'll use
-   C/C++ to write the compiler and instead of bootstrap, we'll provide features like binding with the compiler
-   with the use of our custom build system.
-
 - **Sensible simplicity:** one way to do things.
 
    We don't want to make the syntax complex, the language should feel very easy to a moderately experienced programmer

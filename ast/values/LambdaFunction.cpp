@@ -29,15 +29,13 @@ llvm::Type *LambdaFunction::llvm_type(Codegen &gen) {
 llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
     // storing captured variables in a struct
     auto capturedStructType = capture_struct_type(gen);
-    auto capturedAlloca = gen.builder->CreateAlloca(capturedStructType);
-    gen.di.instr(capturedAlloca, (Value*) this);
+    auto capturedAlloca = gen.llvm.CreateAlloca(capturedStructType, (Value*) this);
     unsigned i = 0;
     while(i < captureList.size()) {
         auto cap = captureList[i];
-        auto ptr = gen.builder->CreateStructGEP(capturedStructType, capturedAlloca, i);
+        auto ptr = gen.llvm.CreateStructGEP(capturedStructType, capturedAlloca, i);
         if(cap->capture_by_ref) {
-            const auto instr = gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
-            gen.di.instr(instr, cap);
+            gen.llvm.CreateStore(cap->linked->llvm_pointer(gen), ptr, cap);
         } else {
             const auto type = cap->linked->known_type();
             if(type->isStructLikeType()) {
@@ -46,13 +44,12 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
                 // we memcpy struct type into the captured struct
                 gen.memcpy_struct(type->llvm_type(gen), ptr, cap->linked->llvm_pointer(gen), cap->encoded_location());
             } else {
-                const auto instr = gen.builder->CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr);
-                gen.di.instr(instr, cap);
+                const auto instr = gen.llvm.CreateStore(cap->linked->llvm_load(gen, cap->encoded_location()), ptr, cap);
             }
         }
         i++;
     }
-    return capturedAlloca;
+    return (llvm::AllocaInst*) capturedAlloca;
 }
 
 llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {

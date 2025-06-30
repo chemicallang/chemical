@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 #include <vector>
-#include <iostream>
 #include "ast/utils/Operation.h"
 #include "llvmfwd.h"
 #include "ast/base/AccessSpecifier.h"
@@ -21,6 +20,7 @@
 #include "backend/DebugInfoBuilder.h"
 #include "compiler/backend/include/LLVMArrayDestructor.h"
 #include "CodegenOptions.h"
+#include "compiler/backend/bindings/LLVMGen.h"
 
 class ASTAllocator;
 
@@ -119,10 +119,14 @@ public:
     OutputMode mode;
 
     /**
-     * Debug info builder basically just generates the debug information
-     * it's conveniently named di so it's easier to access
+     * the debug info builder
      */
     DebugInfoBuilder di;
+
+    /**
+     * llvm generator
+     */
+    LLVMGen llvm;
 
     /**
      * contains references to nodes that must be destructed at return

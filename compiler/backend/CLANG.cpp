@@ -10,6 +10,7 @@
 #include <clang/AST/RecordLayout.h>
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
+#include <iostream>
 #include <memory>
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"

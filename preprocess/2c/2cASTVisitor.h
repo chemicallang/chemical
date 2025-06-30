@@ -13,6 +13,7 @@
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 #include "compiler/mangler/NameMangler.h"
+#include "core/source/LocationManager.h"
 
 class GlobalInterpretScope;
 class ASTAllocator;
@@ -28,6 +29,11 @@ class MembersContainer;
 
 class ToCAstVisitor : public NonRecursiveVisitor<ToCAstVisitor>, public ASTDiagnoser {
 public:
+
+    /**
+     * the location manager is used to emit locations
+     */
+    LocationManager& loc_man;
 
     /**
      * compile time interpret scope
@@ -65,6 +71,33 @@ public:
 #else
     bool debug_comments = false;
 #endif
+
+    /**
+     * when true, output c will be like c++
+     * it'll use bool instead of _Bool for example
+     */
+    bool cpp_like = false;
+
+    /**
+     * when on, line directives will be written
+     */
+    bool line_directives = false;
+
+    /**
+     * 0 means in root, no indentation
+     * 1 means a single '\t' and so on...
+     */
+    unsigned int indentation_level = 0;
+
+    /**
+     * local temporary variable counter, we create these variables for allocations
+     */
+    unsigned int local_temp_var_i = 0;
+
+    /**
+     * if true, function calls won't have a semicolon at the end
+     */
+    bool nested_value = false;
 
     /**
      * a typedef struct containing two void pointers is prepared
@@ -146,22 +179,6 @@ public:
     ASTAllocator& allocator;
 
     /**
-     * 0 means in root, no indentation
-     * 1 means a single '\t' and so on...
-     */
-    unsigned int indentation_level = 0;
-
-    /**
-     * local temporary variable counter, we create these variables for allocations
-     */
-    unsigned int local_temp_var_i = 0;
-
-    /**
-     * if true, function calls won't have a semicolon at the end
-     */
-    bool nested_value = false;
-
-    /**
      * when not empty, return statement would make a goto to this block instead
      */
     std::string return_redirect_block;
@@ -170,14 +187,6 @@ public:
      * sometimes temporary var names are allocated
      */
     std::vector<std::string> allocated_temp_var_names;
-
-    // --------- Configuration Variables ------------------
-
-    /**
-     * when true, output c will be like c++
-     * it'll use bool instead of _Bool for example
-     */
-    bool cpp_like = false;
 
     /**
      * constructor
@@ -227,10 +236,66 @@ public:
         allocated_temp_var_names.emplace_back(get_local_temp_var_name());
         return chem::string_view(allocated_temp_var_names.back());
     }
+    /**
+     * emits a new line, line directive if required
+     */
+    inline void new_line(SourceLocation location) {
+        write('\n');
+        if(line_directives) {
+            write_line_directive(location);
+            write('\n');
+        }
+    }
+
+    /**
+     * helper method
+     */
+    inline void new_line_and_indent(SourceLocation location) {
+        new_line(location);
+        indent();
+    }
+
+    /**
+     * helper method
+     */
+    inline void new_line(ASTNode* node) {
+        new_line(node->encoded_location());
+    }
+    /**
+     * helper method
+     */
+    inline void new_line(Value* value) {
+        new_line(value->encoded_location());
+    }
+    /**
+     * helper method
+     */
+    inline void new_line(const TypeLoc& type) {
+        new_line(type.encoded_location());
+    }
+    /**
+     * helper method
+     */
+    inline void new_line_and_indent(ASTNode* node) {
+        new_line_and_indent(node->encoded_location());
+    }
+    /**
+     * helper method
+     */
+    inline void new_line_and_indent(Value* value) {
+        new_line_and_indent(value->encoded_location());
+    }
+    /**
+     * helper method
+     */
+    inline void new_line_and_indent(const TypeLoc& type) {
+        new_line_and_indent(type.encoded_location());
+    }
 
     /**
      * write a new line and indent to the indentation level
      */
+    [[deprecated]]
     inline void new_line() {
         write('\n');
     }
@@ -238,6 +303,7 @@ public:
     /**
      * creates a new line and indents to current indentation level
      */
+    [[deprecated]]
     inline void new_line_and_indent() {
         new_line();
         indent();
@@ -254,6 +320,11 @@ public:
      * accept any node to this visitor and receive a string instead
      */
     std::string string_accept(Value* any);
+
+    /**
+     * write a number
+     */
+    void write(unsigned int num);
 
     /**
      * used to write a string to a stream
@@ -279,6 +350,30 @@ public:
      * write this string view to stream
      */
     void write(const chem::string_view& str);
+
+    /**
+     * write the view encoded
+     */
+    void write_str_value(const chem::string_view& view);
+
+    /**
+     * this writes a line directive
+     */
+    void write_line_directive(unsigned int lineNumber, const chem::string_view& file_path) {
+        write("#line ");
+        write(lineNumber);
+        write(' ');
+        write_str_value(file_path);
+    }
+
+    /**
+     * writes the line directive for given source location
+     */
+    void write_line_directive(SourceLocation location) {
+        auto loc_pos = loc_man.getLocationPos(location);
+        auto filePath = loc_man.getPathForFileId(loc_pos.fileId);
+        write_line_directive(loc_pos.start.line, chem::string_view(filePath));
+    }
 
     /**
      * write a debug comment

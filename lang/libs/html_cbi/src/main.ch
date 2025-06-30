@@ -4,9 +4,12 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
     printf("wow create macro value\n");
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
-        const value = builder.make_int_value(10, loc);
+        var root = parseHtmlRoot(parser, builder);
+        printf("parsed to html root\n")
+        fflush(null)
+        const value = builder.make_sym_res_value(symResValueReplacement, root, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
-            parser.error("expected a rbrace");
+            parser.error("expected a rbrace for ending the html macro");
         }
         return value;
     } else {
@@ -17,6 +20,21 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
 
 func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data : **mut void) {
 
+}
+
+func symResValueReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut Value {
+    printf("running html symResValueReplacement\n");
+    fflush(null)
+    const loc = intrinsics::get_raw_location();
+    const root = data as *mut HtmlRoot;
+    var block_val = builder.make_block_value(root.parent, loc)
+    var scope_nodes = block_val.get_body()
+    var str = std::string();
+    convertHtmlRoot(resolver, builder, root, scope_nodes, str);
+    const view = builder.allocate_view(str.to_view())
+    const strValue = builder.make_string_value(view, loc)
+    block_val.setCalculatedValue(strValue)
+    return block_val;
 }
 
 func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {

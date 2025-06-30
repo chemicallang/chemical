@@ -102,6 +102,8 @@ extern "C" {
 
     std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv);
 
+    void BlockValuesetCalculatedValue(BlockValue* bv, Value* value);
+
     void UnionDefinitionadd_member(UnionDef* definition, BaseDefMember* member);
 
     void UnionDefinitionadd_function(UnionDef* definition, ASTAllocator* astAllocator, FunctionDeclaration* decl);

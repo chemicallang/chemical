@@ -696,6 +696,10 @@ std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv) {
     return &bv->scope.nodes;
 }
 
+void BlockValuesetCalculatedValue(BlockValue* bv, Value* value) {
+    bv->calculated_value = value;
+}
+
 void UnionDefinitionadd_member(UnionDef* definition, BaseDefMember* member) {
     definition->insert_variable(member);
 }

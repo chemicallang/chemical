@@ -5600,6 +5600,10 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
     new_line_and_indent();
     scope_no_parens(*this, blockVal->scope);
     new_line_and_indent();
+    if(blockVal->calculated_value) {
+        visit(blockVal->calculated_value);
+        write("; ");
+    }
     write("})");
 }
 

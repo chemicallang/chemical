@@ -42,6 +42,12 @@ public:
     bool ignore_errors = false;
 
     /**
+     * this is turned on when user supplies '-g' in the command line
+     * so we should put debug info
+     */
+    bool debug_info = false;
+
+    /**
      * the target triple, which codegen is for
      */
     std::string target_triple;

@@ -76,7 +76,8 @@ public:
     DebugInfoBuilder(
             LocationManager& loc_man,
             llvm::DIBuilder* builder,
-            Codegen& gen
+            Codegen& gen,
+            bool isEnabled
     );
 
     /**

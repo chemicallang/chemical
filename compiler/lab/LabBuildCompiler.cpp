@@ -1090,7 +1090,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info);
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
@@ -1294,7 +1294,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
         code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
     }
-    Codegen gen(code_gen_options, global, mangler, options->target_triple, options->exe_path, options->is64Bit, *file_allocator);
+    Codegen gen(code_gen_options, global, mangler, options->target_triple, options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;
@@ -1454,7 +1454,7 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
         flags.emplace_back("-no-pie");
     }
 #endif
-    if(is_debug(options->outMode)) {
+    if(options->debug_info) {
         flags.emplace_back("-g");
         // TODO so on windows -gdward-4 is being used as .pdb and .ilk are being generated which aren't supported by gdb
 //        flags.emplace_back("-gdwarf-4");
@@ -2274,7 +2274,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // compiler interfaces the lab files imports
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man);
+    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context

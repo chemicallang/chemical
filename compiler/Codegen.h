@@ -249,6 +249,7 @@ public:
             std::string target_triple,
             std::string curr_exe_path,
             bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen,
+            bool debug_info,
             ASTAllocator& allocator
     );
 

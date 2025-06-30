@@ -173,6 +173,19 @@ struct EarlyReturnConstructor {
     }
 }
 
+struct DefValueTest {
+    var a : int
+    var b : int
+    var c : int = 30
+}
+
+func create_def_value_test() : DefValueTest {
+    return DefValueTest {
+        a : 10,
+        b : 20
+    }
+}
+
 func test_no_type_structs() {
     test("can return created struct values without types", () => {
         var pair = create_pair_no_type();
@@ -219,6 +232,10 @@ func test_no_type_structs() {
 func test_structs() {
     test_no_type_structs();
     test_structs_aliases();
+    test("default values work, when returning from function", () => {
+        var d = create_def_value_test();
+        return d.c == 30;
+    })
     test("can return a newly created struct", () => {
         var pair = create_pair();
         return pair.a == 33 && pair.b == 55;

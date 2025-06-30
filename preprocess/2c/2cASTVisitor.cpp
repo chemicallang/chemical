@@ -3434,19 +3434,40 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
         }
         if(pass_structs_to_initialize) {
             auto size = struct_val->values.size();
-            unsigned i = 0;
+            bool has_value_before = false;
             for(const auto& mem : struct_val->values) {
+                if(has_value_before) {
+                    write(';');
+                    new_line_and_indent();
+                } else  {
+                    has_value_before = true;
+                }
                 auto child_member = struct_val->child_member(mem.first);
                 write(struct_passed_param_name);
                 write("->");
                 write(mem.first);
                 write(" = ");
                 accept_mutating_value(child_member ? child_member->known_type() : nullptr, mem.second.value, false);
-                if(i != size - 1){
+            }
+            const auto container = struct_val->variables();
+            for(const auto mem : container->variables()) {
+                if(has_value_before) {
                     write(';');
                     new_line_and_indent();
+                    has_value_before = false;
                 }
-                i++;
+                const auto defValue = mem->default_value();
+                if(defValue) {
+                    auto found = struct_val->values.find(mem->name);
+                    if(found == struct_val->values.end()) {
+                        has_value_before = true;
+                        write(struct_passed_param_name);
+                        write("->");
+                        write(mem->name);
+                        write(" = ");
+                        accept_mutating_value(mem->known_type(), defValue, false);
+                    }
+                }
             }
         } else {
             struct_initialize_inside_braces(*this, (StructValue*) val);

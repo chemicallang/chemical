@@ -138,7 +138,7 @@ ToCAstVisitor::ToCAstVisitor(
     ASTAllocator& allocator,
     LocationManager& manager
 ) : comptime_scope(scope), mangler(mangler), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
-    tld(*this, declarer.get()), ASTDiagnoser(manager)
+    tld(*this, declarer.get()), loc_man(manager), ASTDiagnoser(manager)
 {
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
     after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
@@ -3289,6 +3289,10 @@ std::string ToCAstVisitor::get_local_temp_var_name() {
     return name;
 }
 
+void ToCAstVisitor::write(unsigned int num) {
+    *output << num;
+}
+
 void ToCAstVisitor::write(std::string& value) {
     output->write(value.c_str(), (std::streamsize) value.size());
 }
@@ -3307,6 +3311,12 @@ void ToCAstVisitor::write(std::string_view& str) {
 
 void ToCAstVisitor::write(const chem::string_view& str) {
     output->write(str.data(), (std::streamsize) str.size());
+}
+
+void ToCAstVisitor::write_str_value(const chem::string_view& view) {
+    write('"');
+    write_encoded(*this, view);
+    write('"');
 }
 
 std::string ToCAstVisitor::string_accept(Value* any) {

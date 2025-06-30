@@ -989,11 +989,11 @@ unsigned int AccessChain::store_in_array(
     return Value::store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type);
 };
 
-void gen_BlockValue_scope(Codegen& gen, BlockValue* blockVal) {
-    const auto lastNode = blockVal->scope.nodes.back();
-    blockVal->scope.nodes.pop_back();
+inline void gen_BlockValue_scope(Codegen& gen, BlockValue* blockVal) {
+    if(blockVal->has_code_gen_scope) {
+        return;
+    }
     blockVal->scope.code_gen(gen);
-    blockVal->scope.nodes.push_back(lastNode);
 }
 
 llvm::AllocaInst* BlockValue::llvm_allocate(

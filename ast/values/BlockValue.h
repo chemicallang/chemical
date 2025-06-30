@@ -13,6 +13,13 @@ public:
      */
     Value* calculated_value = nullptr;
 
+#ifdef COMPILER_BUILD
+    /**
+     * tracks to only output code for scope once
+     */
+    bool has_code_gen_scope = false;
+#endif
+
     /**
      * constructor
      */

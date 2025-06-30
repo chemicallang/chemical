@@ -254,6 +254,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_Namespaceget_children", (void*) Namespaceget_body },
         { "compiler_UnsafeBlockget_children", (void*) UnsafeBlockget_body },
         { "compiler_BlockValueget_body", (void*) BlockValueget_body },
+        { "compiler_BlockValuesetCalculatedValue", (void*) BlockValuesetCalculatedValue },
         { "compiler_UnionDefinitionadd_member", (void*) UnionDefinitionadd_member },
         { "compiler_UnionDefinitionadd_function", (void*) UnionDefinitionadd_function },
         { "compiler_VariantDefinitionadd_member", (void*) VariantDefinitionadd_member },

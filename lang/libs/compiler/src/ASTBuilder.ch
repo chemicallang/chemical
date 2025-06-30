@@ -155,6 +155,8 @@ public struct BlockValue : Value {
 
     func get_body(&self) : *mut VecRef<ASTNode>;
 
+    func setCalculatedValue(&self, value : *mut Value)
+
 }
 
 public struct UBigIntValue : Value {}

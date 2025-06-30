@@ -56,12 +56,13 @@ inline llvm::StringRef to_ref(const chem::string_view& view) {
 DebugInfoBuilder::DebugInfoBuilder(
     LocationManager& loc_man,
     llvm::DIBuilder* builder,
-    Codegen& gen
+    Codegen& gen,
+    bool isEnabled
 )  : loc_man(loc_man), builder(builder), gen(gen) {
     const auto m = gen.mode;
     const auto is_d = is_debug(m);
     isOptimized = !is_d;
-    isEnabled = is_d && m != OutputMode::DebugQuick;
+    isEnabled = isEnabled;
     if(isEnabled) {
         diScopes.reserve(20);
         cachedTypes.reserve(60);

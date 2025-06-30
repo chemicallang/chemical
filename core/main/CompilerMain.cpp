@@ -225,6 +225,7 @@ const auto print_ast_desc = "print representation of the ast";
 const auto print_cst_desc = "print representation of the cst";
 const auto print_ig_desc = "print representation of the import graph";
 const auto verbose_desc = "verbose enables complete logging";
+const auto debug_info_desc = "should debug information be emitted";
 const auto ignore_errors_desc = "ignore certain errors during compilation";
 const auto lto_desc = "enable link time optimization";
 const auto assertions_desc = "enable assertions for checking of generated code";
@@ -451,6 +452,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
             CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
             CmdOption("verbose", "v", CmdOptionType::NoValue, verbose_desc),
+            CmdOption("", "g", CmdOptionType::NoValue, debug_info_desc),
             CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue, ignore_errors_desc),
             CmdOption("lto", CmdOptionType::NoValue, lto_desc),
             CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
@@ -565,6 +567,7 @@ int compiler_main(int argc, char *argv[]) {
         opts->print_cst = options.has_value("print-cst", "pr-cst");
         opts->print_ig = options.has_value("print-ig", "pr-ig");
         opts->verbose = verbose;
+        opts->debug_info = options.has_value("", "g");
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
 #endif
@@ -674,6 +677,10 @@ int compiler_main(int argc, char *argv[]) {
 
         // Prepare compiler options
         prepare_options(&compiler_opts);
+        compiler_opts.outMode = mode;
+        if(mode == OutputMode::DebugComplete) {
+            compiler_opts.debug_info = true;
+        }
 
         // build cbi modules
         build_cbi_modules(compiler, options);
@@ -744,9 +751,11 @@ int compiler_main(int argc, char *argv[]) {
     // set default compiler options
     // we disable cache (because its command line invocation)
     compiler_opts.is_caching_enabled = false;
-    compiler_opts.outMode = mode;
-
     prepare_options(&compiler_opts);
+    compiler_opts.outMode = mode;
+    if(mode == OutputMode::DebugComplete) {
+        compiler_opts.debug_info = true;
+    }
 
     // build cbi modules
     build_cbi_modules(compiler, options);

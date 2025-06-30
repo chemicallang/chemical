@@ -136,10 +136,12 @@ ToCAstVisitor::ToCAstVisitor(
     NameMangler& mangler,
     std::ostream *output,
     ASTAllocator& allocator,
-    LocationManager& manager
+    LocationManager& manager,
+    bool debug_info
 ) : comptime_scope(scope), mangler(mangler), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
-    tld(*this, declarer.get()), loc_man(manager), ASTDiagnoser(manager)
+    tld(*this, declarer.get()), loc_man(manager), line_directives(debug_info), ASTDiagnoser(manager)
 {
+    // TODO do the same as tld
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
     after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
     destructor = std::make_unique<CDestructionVisitor>(*this);
@@ -1300,7 +1302,7 @@ void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identif
         auto value_kind = value->val_kind();
         if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
             value_alloca(visitor, identifier, type, value);
-            visitor.new_line_and_indent();
+            visitor.new_line_and_indent(value->encoded_location());
             visitor.visit(value);
             return;
         }
@@ -3331,7 +3333,7 @@ std::string ToCAstVisitor::string_accept(Value* any) {
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->is_top_level()) {
         const auto init_type = init->type ? init->type : init->value->create_type(allocator);
-        new_line_and_indent();
+        new_line_and_indent(init->encoded_location());
         const auto is_exported = init->is_exported();
         var_init_top_level(*this, init, init_type, !is_exported, true, false);
         return;
@@ -3899,7 +3901,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     }
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
-    visitor.new_line_and_indent();
+    visitor.new_line_and_indent(decl->encoded_location());
 //    std::string self_pointer_name;
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;
@@ -4064,7 +4066,7 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
     }
     if(decl->condition->kind() == ValueKind::PatternMatchExpr) {
         do_patt_mat_expr(*this, decl->condition->as_pattern_match_expr_unsafe());
-        new_line_and_indent();
+        new_line_and_indent(decl->condition->encoded_location());
     }
     // generating code for normal if statements
     write("if(");
@@ -4109,7 +4111,7 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     auto prev = top_level_node;
     top_level_node = false;
     for(const auto node : scope->nodes) {
-        new_line_and_indent();
+        new_line_and_indent(node->encoded_location());
         before_stmt->visit(node);
         visit(node);
         after_stmt->visit(node);
@@ -5249,7 +5251,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         } else {
             has_value_before = true;
         }
-        new_line_and_indent();
+        new_line_and_indent(value.second.value);
         // we are only getting direct / inherited members, not inherited structs here
         const auto member = val->child_member(value.first);
         write('.');
@@ -5278,7 +5280,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             } else {
                 has_value_before = true;
             }
-            new_line_and_indent();
+            new_line_and_indent(val->encoded_location());
             if(defValue) {
                 write('.');
                 write(var->name);

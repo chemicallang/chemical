@@ -197,7 +197,8 @@ public:
         NameMangler& mangler,
         std::ostream* output,
         ASTAllocator& allocator,
-        LocationManager& manager
+        LocationManager& manager,
+        bool debug_info
     );
 
     /**

@@ -24,7 +24,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
 
         parser.increment();
         const id = parser.getToken();
-        if(id.type != TokenType.Identifier) {
+        if(id.type != TokenType.TagName) {
             parser.error("expected an identifier after '<'");
             return null
         }
@@ -116,7 +116,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             if(fwd.type == TokenType.FwdSlash) {
                 parser.increment();
                 const last_id = parser.getToken();
-                if(last_id.type == TokenType.Identifier) {
+                if(last_id.type == TokenType.TagName) {
                     parser.increment();
                     if(strncmp(last_id.value.data(), id.value.data(), id.value.size()) != 0) {
                         parser.error("expected correct identifier for ending tag");

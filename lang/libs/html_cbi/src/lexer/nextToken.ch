@@ -98,7 +98,9 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
         '>' => {
             if(html.has_lt) {
+                // reset back
                 html.has_lt = false;
+                html.lexed_tag_name = false;
                 return Token {
                     type : TokenType.GreaterThan as int,
                     value : view(">"),
@@ -116,11 +118,21 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             if(html.has_lt) {
                 if(isalpha(c as int)) {
                     str.append(c);
-                    const tag_name = provider.read_tag_name(lexer.str);
-                    return Token {
-                        type : TokenType.Identifier as int,
-                        value : tag_name,
-                        position : position
+                    if(html.lexed_tag_name) {
+                        const tag_name = provider.read_attr_name(lexer.str);
+                        return Token {
+                            type : TokenType.AttrName as int,
+                            value : tag_name,
+                            position : position
+                        }
+                    } else {
+                        html.lexed_tag_name = true;
+                        const tag_name = provider.read_tag_name(lexer.str);
+                        return Token {
+                            type : TokenType.TagName as int,
+                            value : tag_name,
+                            position : position
+                        }
                     }
                 } else {
                     switch(c) {

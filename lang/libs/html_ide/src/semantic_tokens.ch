@@ -1,7 +1,10 @@
 func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
     switch(token.type) {
-        TokenType.Identifier => {
-            analyzer.putToken(token, SemanticTokenTypes.Keyword, 0)
+        TokenType.TagName => {
+            analyzer.putToken(token, SemanticTokenScopes.EntityNameTag, 0)
+        }
+        TokenType.AttrName => {
+            analyzer.putToken(token, SemanticTokenScopes.EntityOtherAttributeNameHtml, 0)
         }
         TokenType.Text => {
             analyzer.putToken(token, SemanticTokenScopes.TextHtmlDerivative, 0)

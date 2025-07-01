@@ -3,7 +3,9 @@ public enum TokenType {
     EndOfFile,
     Unexpected,
 
-    Identifier,
+    TagName,
+    AttrName,
+
     Text,
     Number,
 

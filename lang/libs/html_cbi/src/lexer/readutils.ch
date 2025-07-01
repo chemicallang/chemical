@@ -11,6 +11,18 @@ func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std
     return str.finalize_view();
 }
 
+func (provider : &SourceProvider) read_attr_name(str : &SerialStrAllocator) : std::string_view {
+    while(true) {
+        const c = provider.peek();
+        if(c != -1 && (isalnum(c as int) || c == '_' || c == '-' || c == ':')) {
+            str.append(provider.readCharacter());
+        } else {
+            break;
+        }
+    }
+    return str.finalize_view();
+}
+
 func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::string_view {
     while(true) {
         const c = provider.peek();

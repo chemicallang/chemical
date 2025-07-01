@@ -12,11 +12,6 @@ void EnumMember::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     linker.declare(name, this);
 }
 
-unsigned int EnumMember::get_default_index() {
-    const auto starting_index = parent()->get_default_starting_index();
-    return starting_index + index;
-}
-
 BaseType* EnumMember::known_type() {
     return parent()->known_type();
 };
@@ -36,6 +31,32 @@ void EnumDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_p
     linker.declare_node(name_view(), (ASTNode*) this, specifier(), false);
 }
 
+void configure_members_by_inheritance(EnumDeclaration* current, int start) {
+    // build sorted list of enum members (sorted by the index specified by the user)
+    std::vector<EnumMember*> sorted_members;
+    sorted_members.reserve(current->members.size());
+    for(auto& member : current->members) {
+        sorted_members.emplace_back(member.second);
+    }
+    std::stable_sort(std::begin(sorted_members), std::end(sorted_members), [](EnumMember* a, EnumMember* b) {
+        return a->get_index_dirty() < b->get_index_dirty();
+    });
+    // now that we have a sorted list of members for current enum
+    // we should modify its member index as long as we can predict it
+    auto counter = 0;
+    for(const auto mem : sorted_members) {
+        if(mem->get_index_dirty() == counter) {
+            // this means user didn't modify the index
+            // we should modify it
+            mem->set_index_dirty(start);
+            start++;
+            counter++;
+        } else {
+            return;
+        }
+    }
+}
+
 void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     const auto pure_underlying = underlying_type->pure_type(*linker.ast_allocator);
     const auto k = pure_underlying->kind();
@@ -45,7 +66,7 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
         const auto linked = pure_underlying->get_direct_linked_node();
         if(linked->kind() == ASTNodeKind::EnumDecl) {
             const auto inherited = linked->as_enum_decl_unsafe();
-            default_starting_index = inherited->get_default_starting_index() + inherited->members.size();
+            configure_members_by_inheritance(this, inherited->next_start);
             underlying_integer_type = inherited->underlying_integer_type;
         } else {
             linker.error("given type is not an enum or integer type", encoded_location());

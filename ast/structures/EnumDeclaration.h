@@ -38,11 +38,10 @@ public:
     TypeLoc underlying_type;
 
     /**
-     * by default this index starts at zero, however if enum extends another enum
-     * we set this to the count of members of that enum + default_starting_index of that index
-     * during symbol resolution
+     * this is the index at which any enum that inherits this enum should start
+     * set by the parser
      */
-    unsigned int default_starting_index = 0;
+    int next_start;
 
     // TODO remove this linked_type, we don't want to store stuff, that's not required
     LinkedType linked_type;
@@ -106,18 +105,6 @@ public:
      */
     EnumDeclaration* get_inherited_enum_decl();
 
-    /**
-     * this would give starting index for the members of this enum
-     * please keep in mind, this index doesn't mean the first member will have this value
-     * this is the default index given by us if user doesn't explicitly specify the value for the first member
-     *
-     * this method should only be called after symbol resolution
-     */
-    [[nodiscard]]
-    inline unsigned int get_default_starting_index() const {
-        return default_starting_index;
-    }
-
     EnumDeclaration* copy(ASTAllocator &allocator) override {
         const auto decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(
             located_id,
@@ -129,7 +116,7 @@ public:
         for(auto& member : members) {
             decl->members[member.first] = member.second->copy(allocator);
         }
-        decl->default_starting_index = default_starting_index;
+        decl->next_start = next_start;
         return decl;
     }
 

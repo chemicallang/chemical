@@ -54,6 +54,18 @@ enum MultiNum {
     AnotherSecond = Second
 }
 
+enum StartingValueInEnum {
+    First = 50,
+    Second,
+    Third,
+    Fourth = 10,
+    Fifth,
+    Sixth,
+    NegFirst = -10,
+    NegSecond,
+    NegThird
+}
+
 func take_addr_of_enum_param(check : MultiNum) : MultiNum {
     var addr = &check
     return *addr;
@@ -131,5 +143,14 @@ func test_enum() {
     })
     test("address of enum works in function", () => {
         return take_addr_of_enum_param(MultiNum.Second) == MultiNum.Second
+    })
+    test("starting indexes in enum work - 1", () => {
+        return StartingValueInEnum.First == 50 && StartingValueInEnum.Second == 51;
+    })
+    test("starting indexes in enum work - 2", () => {
+        return StartingValueInEnum.Fourth == 10 && StartingValueInEnum.Fifth == 11;
+    })
+    test("starting indexes in enum work - 3", () => {
+        return StartingValueInEnum.NegFirst == -10 && StartingValueInEnum.NegSecond == -9;
     })
 }

@@ -707,5 +707,6 @@ public enum SemanticTokenScopes {
     WikiwordXi,
     LogInfo,
     LogWarning,
-    LogError
+    LogError,
+    TextHtmlDerivative
 };

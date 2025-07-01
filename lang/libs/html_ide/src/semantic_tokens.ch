@@ -4,7 +4,7 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
             analyzer.putToken(token, SemanticTokenTypes.Keyword, 0)
         }
         TokenType.Text => {
-            analyzer.putToken(token, SemanticTokenTypes.String, 0)
+            analyzer.putToken(token, SemanticTokenScopes.TextHtmlDerivative, 0)
         }
         TokenType.Number => {
             analyzer.putToken(token, SemanticTokenTypes.Number, 0)
@@ -22,16 +22,16 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
             analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
         }
         TokenType.Equal => {
-            analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
+            analyzer.putToken(token, SemanticTokenScopes.PunctuationSeparatorKeyValue, 0)
         }
         TokenType.SingleQuotedValue => {
-            analyzer.putToken(token, SemanticTokenTypes.String, 0)
+            analyzer.putToken(token, SemanticTokenScopes.StringQuotedSingleHtml, 0)
         }
         TokenType.DoubleQuotedValue => {
-            analyzer.putToken(token, SemanticTokenTypes.String, 0)
+            analyzer.putToken(token, SemanticTokenScopes.StringQuotedDoubleHtml, 0)
         }
         TokenType.FwdSlash => {
-            analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
+            analyzer.putToken(token, SemanticTokenScopes.PunctuationDefinitionTagEndHtml, 0)
         }
         TokenType.DeclarationStart => {
             analyzer.putToken(token, SemanticTokenTypes.Operator, 0)

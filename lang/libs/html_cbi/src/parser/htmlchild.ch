@@ -10,7 +10,7 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
 
         parser.increment();
         const next = parser.getToken();
-        if(next.type == TokenType.Identifier) {
+        if(next.type == TokenType.TagName) {
             parser.setToken(current);
             return parseElement(parser, builder);
         } else if(next.type == TokenType.FwdSlash) {

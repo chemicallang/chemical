@@ -10,6 +10,11 @@ struct HtmlLexer {
     var has_lt : bool
 
     /**
+     *  if this is true, lexed identifier is an attribute name
+     */
+    var lexed_tag_name : bool
+
+    /**
      * is inside a comment (it has a comment start)
      */
     var is_comment : bool

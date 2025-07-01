@@ -2,7 +2,7 @@
 func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
 
     const id = parser.getToken();
-    if(id.type != TokenType.Identifier) {
+    if(id.type != TokenType.AttrName) {
         return null;
     }
 

@@ -112,6 +112,7 @@ public func html_initializeLexer(lexer : *mut Lexer) {
     const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;
     new (ptr) HtmlLexer {
         has_lt : false,
+        lexed_tag_name : false,
         is_comment : false,
         other_mode : false,
         chemical_mode : false,

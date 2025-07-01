@@ -10,10 +10,10 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
             analyzer.putToken(token, SemanticTokenTypes.Number, 0)
         }
         TokenType.LessThan => {
-            analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
+            analyzer.putToken(token, SemanticTokenScopes.PunctuationDefinitionTagBeginHtml, 0)
         }
         TokenType.GreaterThan => {
-            analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
+            analyzer.putToken(token, SemanticTokenScopes.PunctuationDefinitionTagEndHtml, 0)
         }
         TokenType.LBrace => {
             analyzer.putToken(token, SemanticTokenTypes.Operator, 0)

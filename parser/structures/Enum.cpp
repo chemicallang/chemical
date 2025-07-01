@@ -54,7 +54,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
             error("expected a '{' for after the enum name");
             return decl;
         }
-        unsigned int index = 0;
+        int index = 0;
         while(true) {
             consumeNewLines();
             auto memberId = consumeIdentifierOrKeyword();
@@ -72,7 +72,15 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
                 if(consumeToken(TokenType::EqualSym)) {
                     const auto expr = parseExpression(allocator, false, false);
                     if(expr) {
-                        member->init_value = expr;
+                        auto num = expr->get_number();
+                        if(num.has_value()) {
+                            // user wants to change the starting index
+                            index = static_cast<int>(num.value());
+                            // update the index in the member
+                            member->set_index_dirty(index);
+                        } else {
+                            member->init_value = expr;
+                        }
                     } else {
                         error("expected a value after '=' operator");
                         return decl;
@@ -89,6 +97,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
                 break;
             }
         };
+        decl->next_start = index;
         if(!consumeToken(TokenType::RBrace)) {
             error("expected a closing bracket '}' in enum block");
             return decl;

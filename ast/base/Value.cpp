@@ -12,6 +12,7 @@
 #include "ast/values/BigIntValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/Int128Value.h"
+#include "ast/values/Negative.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/ShortValue.h"
 #include "ast/values/NullValue.h"
@@ -1004,6 +1005,13 @@ bool Value::link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* exp
 std::optional<uint64_t> Value::get_number() {
     if(is_value_int_n()) {
         return as_int_num_value_unsafe()->get_num_value();
+    } else if(kind() == ValueKind::NegativeValue) {
+        auto value = as_negative_value_unsafe()->value->get_number();
+        if(value.has_value()) {
+            return -value.value();
+        } else {
+            return std::nullopt;
+        }
     } else {
         return std::nullopt;
     }

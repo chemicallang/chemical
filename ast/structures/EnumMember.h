@@ -13,10 +13,10 @@ class EnumMember : public ASTNode {
 private:
 
     /**
-     * this index means index inside the parent enum, it is not the value
-     * for this enum member
+     * this either is the default index we used (from zero to onwards) or user specified
+     * if the enum inherits another enum then this index can change (starts from where base enum left off)
      */
-    unsigned int index;
+    int index;
 
 public:
 
@@ -26,6 +26,9 @@ public:
      * this enum member
      */
     Value* init_value;
+    /**
+     * attributes for the enum member
+     */
     EnumMemberAttributes attrs;
 
     /**
@@ -33,7 +36,7 @@ public:
      */
     constexpr EnumMember(
         chem::string_view name,
-        unsigned int index,
+        int index,
         Value* init_value,
         EnumDeclaration* parent_node,
         SourceLocation location
@@ -77,7 +80,23 @@ public:
      * the default index we'll use for this enum member, if user didn't specify an
      * explicit index for it
      */
-    unsigned int get_default_index();
+    inline int get_default_index() {
+        return index;
+    }
+
+    /**
+     * get the index dirty
+     */
+    inline int get_index_dirty() {
+       return index;
+    }
+
+    /**
+     * update the index, that's it.
+     */
+    inline void set_index_dirty(int new_index) {
+        index = new_index;
+    }
 
 #ifdef COMPILER_BUILD
 

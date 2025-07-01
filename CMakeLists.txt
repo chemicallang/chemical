@@ -610,6 +610,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/model/AnonymousFileData.h
         compiler/cbi/bindings/lsp/LSPHooks.h
         compiler/cbi/bindings/lsp/LSPHooks.cpp
+        server/model/SemanticTokenScopes.h
 )
 
 # lsp framework

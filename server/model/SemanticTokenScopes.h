@@ -711,5 +711,6 @@ enum class SemanticTokenScopes {
     WikiwordXi,
     LogInfo,
     LogWarning,
-    LogError
+    LogError,
+    TextHtmlDerivative
 };

@@ -567,6 +567,8 @@ set(COMMON_SOURCES
         "ast/values/EmbeddedValue.h"
         ast/values/EmbeddedValue.cpp
         ast/statements/EmbeddedNode.h
+        compiler/cbi/bindings/ASTDiagnoserCBI.h
+        compiler/cbi/bindings/ASTDiagnoserCBI.cpp
 )
 
 # Chemical LSP Executable Target

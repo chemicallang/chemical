@@ -153,7 +153,9 @@ extern "C" {
 
     ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTNode* parent_node, uint64_t location);
 
-    VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location);
+    VariableIdentifier* ASTBuildermake_identifier_old(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location);
+
+    VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location);
 
     VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, VariantMember* member, SwitchStatement* stmt, uint64_t location);
 

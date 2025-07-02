@@ -17,6 +17,8 @@ extern "C" {
 
     int ASTNodegetKind(ASTNode* node);
 
+    ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name);
+
     void ASTNodedeclare_top_level(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);
 
     void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);

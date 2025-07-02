@@ -398,8 +398,14 @@ ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTN
     return new (allocator->allocate<ValueNode>()) ValueNode(value, parent_node, location);
 }
 
-VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location) {
+VariableIdentifier* ASTBuildermake_identifier_old(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location) {
     return new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
+}
+
+VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location) {
+    const auto id = new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
+    id->linked = linked;
+    return id;
 }
 
 VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, VariantMember* member, SwitchStatement* stmt, uint64_t location) {
@@ -559,6 +565,10 @@ ASTNode* ValuegetLinkedNode(Value* value) {
 
 int ASTNodegetKind(ASTNode* node) {
     return static_cast<int>(node->kind());
+}
+
+ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name) {
+    return node->child(*name);
 }
 
 void ASTNodedeclare_top_level(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {

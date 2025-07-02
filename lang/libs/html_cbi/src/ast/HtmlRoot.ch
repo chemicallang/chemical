@@ -5,4 +5,6 @@ struct HtmlRoot {
 
     var parent : *mut ASTNode
 
+    var support : SymResSupport
+
 }

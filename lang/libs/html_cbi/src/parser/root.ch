@@ -8,7 +8,8 @@ func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot 
         var root = builder.allocate<HtmlRoot>()
         new (root) HtmlRoot {
             element : rootElement,
-            parent : parser.getParentNode()
+            parent : parser.getParentNode(),
+            support : SymResSupport {}
         }
         return root;
     }

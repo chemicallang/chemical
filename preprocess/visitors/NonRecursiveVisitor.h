@@ -831,6 +831,7 @@ public:
                 return;
             case ValueKind::EmbeddedValue:
                 static_cast<Derived*>(this)->VisitEmbeddedValue((EmbeddedValue*) value);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: value kind in non recursive visitor";

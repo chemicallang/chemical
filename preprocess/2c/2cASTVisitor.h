@@ -296,7 +296,6 @@ public:
     /**
      * write a new line and indent to the indentation level
      */
-    [[deprecated]]
     inline void new_line() {
         write('\n');
     }
@@ -304,7 +303,6 @@ public:
     /**
      * creates a new line and indents to current indentation level
      */
-    [[deprecated]]
     inline void new_line_and_indent() {
         new_line();
         indent();
@@ -611,6 +609,8 @@ public:
     // are handled in switch or related constructs
     void VisitVariantCaseVariable(VariantCaseVariable* node) {}
 
+    void VisitEmbeddedNode(EmbeddedNode* node);
+
     // Values
 
     void VisitCharValue(CharValue* value);
@@ -718,6 +718,8 @@ public:
     void VisitDestructValue(DestructValue* value) {}
 
     void VisitExtractionValue(ExtractionValue* value);
+
+    void VisitEmbeddedValue(EmbeddedValue* value);
 
     // TYPES
 

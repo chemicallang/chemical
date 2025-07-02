@@ -69,6 +69,7 @@ enum class ValueKind : uint8_t {
     WrapValue,
 
     DestructValue,
+    EmbeddedValue,
 
     IntNStart = Char,
     IntNEnd = NumberValue,

@@ -3,20 +3,7 @@
 #pragma once
 
 #include <vector>
-
-class FunctionParam;
-
-class GenericType;
-
-class BaseType;
-
-class ChainValue;
-
-class CapturedVariable;
-
-class BaseDefMember;
-
-class BlockValue;
+#include "ast/base/ast_fwd.h"
 
 class SymbolResolver;
 
@@ -113,5 +100,9 @@ extern "C" {
     void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param);
 
     void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, Value* value);
+
+    void* EmbeddedNodegetDataPtr(EmbeddedNode* node);
+
+    void* EmbeddedValuegetDataPtr(EmbeddedValue* value);
 
 }

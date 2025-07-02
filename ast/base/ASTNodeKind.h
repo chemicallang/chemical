@@ -79,4 +79,6 @@ enum class ASTNodeKind : uint8_t {
     FileScope,
     ModuleScope,
 
+    EmbeddedNode,
+
 };

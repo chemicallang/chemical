@@ -10,6 +10,7 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
+#include "ast/statements/EmbeddedNode.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
 #include "2cBackendContext.h"
@@ -99,6 +100,7 @@
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/ExtractionValue.h"
+#include "ast/values/EmbeddedValue.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/IndexOperator.h"
@@ -5685,6 +5687,24 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
             }
             break;
         }
+    }
+}
+
+void ToCAstVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
+    const auto repl = node->replacement_fn(&allocator, node);
+    if(repl) {
+        visit(repl);
+    } else {
+        error("couldn't replace embedded value", node);
+    }
+}
+
+void ToCAstVisitor::VisitEmbeddedValue(EmbeddedValue* value) {
+    const auto repl = value->replacement_fn(&allocator, value);
+    if(repl) {
+        visit(repl);
+    } else {
+        error("couldn't replace embedded value", value);
     }
 }
 

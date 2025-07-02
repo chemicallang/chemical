@@ -873,6 +873,52 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
     }
 }
 
+llvm::Type* EmbeddedNode::llvm_type(Codegen &gen) {
+    const auto type = create_type(gen.allocator);
+    return type->llvm_type(gen);
+}
+
+llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
+    const auto repl = replacement_fn(gen.allocator, this);
+    if(repl) {
+        return repl->llvm_pointer(gen);
+    } else {
+        gen.error("couldn't replace embedded node", this);
+    }
+}
+
+llvm::Value* EmbeddedNode::llvm_value(Codegen &gen, BaseType *type) {
+    const auto repl = replacement_fn(gen.allocator, this);
+    if(repl) {
+        return repl->llvm_value(gen);
+    } else {
+        gen.error("couldn't replace embedded node", this);
+    }
+}
+
+llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
+    const auto type = create_type(gen.allocator);
+    return type->llvm_type(gen);
+}
+
+llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
+    const auto repl = replacement_fn(gen.allocator, this);
+    if(repl) {
+        return repl->llvm_pointer(gen);
+    } else {
+        gen.error("couldn't replace embedded value", this);
+    }
+}
+
+llvm::Value* EmbeddedValue::llvm_value(Codegen &gen, BaseType *type) {
+    const auto repl = replacement_fn(gen.allocator, this);
+    if(repl) {
+        return repl->llvm_value(gen);
+    } else {
+        gen.error("couldn't replace embedded value", this);
+    }
+}
+
 llvm::Type* SizeOfValue::llvm_type(Codegen &gen) {
     return gen.builder->getInt64Ty();
 }

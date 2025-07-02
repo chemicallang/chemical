@@ -1,13 +1,80 @@
+public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) : bool {
+    // TODO this location should not be used
+    const loc = intrinsics::get_raw_location();
+    const root = node.getDataPtr() as *mut HtmlRoot;
+    sym_res_root(root, resolver, loc)
+}
+
+public func node_replacement_func(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+    printf("running html node_replacement_func\n");
+    fflush(null)
+    const loc = intrinsics::get_raw_location();
+    const root = value.getDataPtr() as *mut HtmlRoot;
+    var scope = builder.make_scope(root.parent, loc);
+    var scope_nodes = scope.getNodes();
+    var converter = ASTConverter {
+        builder : builder,
+        support : &root.support,
+        vec : scope_nodes,
+        parent : root.parent
+        str : std::string()
+    }
+    converter.convertHtmlRoot(root);
+    return scope;
+}
+
+public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+    return null;
+}
+
+public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+    return null;
+}
+
+public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
+    // TODO this location should not be used
+    const loc = intrinsics::get_raw_location();
+    const root = value.getDataPtr() as *mut HtmlRoot;
+    sym_res_root(root, resolver, loc)
+}
+
+public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
+    printf("running html value_replacement_func\n");
+    fflush(null)
+    const loc = intrinsics::get_raw_location();
+    const root = value.getDataPtr() as *mut HtmlRoot;
+    var block_val = builder.make_block_value(root.parent, loc)
+    var scope_nodes = block_val.get_body()
+    var converter = ASTConverter {
+        builder : builder,
+        support : &root.support,
+        vec : scope_nodes,
+        parent : root.parent
+        str : std::string()
+    }
+    converter.convertHtmlRoot(root);
+    const view = builder.allocate_view(converter.str.to_view())
+    const strValue = builder.make_string_value(view, loc)
+    block_val.setCalculatedValue(strValue)
+    return block_val;
+}
+
+public func value_type_creation_func(builder : *ASTBuilder, value : *EmbeddedValue) : *BaseType {
+    const loc = intrinsics::get_raw_location();
+    return builder.make_string_type(loc);
+}
+
 
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     printf("wow create macro value\n");
+    // TODO parser api should allow constructing location from a token
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")
         fflush(null)
-        const value = builder.make_sym_res_value(symResValueReplacement, root, loc);
+        const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }
@@ -16,37 +83,6 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
         parser.error("expected a lbrace");
     }
     return null;
-}
-
-func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data : **mut void) {
-
-}
-
-func symResValueReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut Value {
-    printf("running html symResValueReplacement\n");
-    fflush(null)
-    const loc = intrinsics::get_raw_location();
-    const root = data as *mut HtmlRoot;
-    var block_val = builder.make_block_value(root.parent, loc)
-    var scope_nodes = block_val.get_body()
-    var str = std::string();
-    convertHtmlRoot(resolver, builder, root, scope_nodes, str);
-    const view = builder.allocate_view(str.to_view())
-    const strValue = builder.make_string_value(view, loc)
-    block_val.setCalculatedValue(strValue)
-    return block_val;
-}
-
-func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
-    printf("running html symResNodeReplacement\n");
-    fflush(null)
-    const loc = intrinsics::get_raw_location();
-    const root = data as *mut HtmlRoot;
-    var scope = builder.make_scope(root.parent, loc);
-    var scope_nodes = scope.getNodes();
-    var str = std::string();
-    convertHtmlRoot(resolver, builder, root, scope_nodes, str);
-    return scope;
 }
 
 @no_mangle
@@ -58,7 +94,7 @@ public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder)
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")
         fflush(null)
-        const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
+        const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }

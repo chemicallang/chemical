@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 class ASTNode;
 
 class SymbolResolver;

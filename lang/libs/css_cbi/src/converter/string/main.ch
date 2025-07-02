@@ -7,10 +7,10 @@ func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain
     const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("page"), false, location);
+    var base = builder.make_identifier_old(std::string_view("page"), false, location);
     chain_values.push(base)
     var name : std::string_view = std::string_view("append_css_char")
-    var id = builder.make_identifier(name, false, location);
+    var id = builder.make_identifier_old(name, false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
@@ -26,9 +26,9 @@ func make_append_css_value_chain(builder : *mut ASTBuilder, value : *mut Value, 
     const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("page"), false, location);
+    var base = builder.make_identifier_old(std::string_view("page"), false, location);
     chain_values.push(base)
-    var id = builder.make_identifier(std::string_view("append_css"), false, location);
+    var id = builder.make_identifier_old(std::string_view("append_css"), false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
@@ -45,7 +45,7 @@ func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_
     const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("page"), false, location);
+    var base = builder.make_identifier_old(std::string_view("page"), false, location);
     chain_values.push(base)
     var name : std::string_view
     if(len == 0) {
@@ -53,7 +53,7 @@ func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_
     } else {
         name = std::string_view("append_css")
     }
-    var id = builder.make_identifier(name, false, location);
+    var id = builder.make_identifier_old(name, false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();

@@ -3,14 +3,30 @@ func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
 }
 
-func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain {
+struct ASTConverter {
+
+    var builder : *mut ASTBuilder
+
+    var support : *mut SymResSupport
+
+    var vec : *mut VecRef<ASTNode>
+
+    var parent : *mut ASTNode
+
+    var str : std::string
+
+}
+
+func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut AccessChain {
+    const builder = converter.builder
+    const support = converter.support;
     const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("page"), false, location);
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     chain_values.push(base)
     var name : std::string_view = std::string_view("append_html_char")
-    var id = builder.make_identifier(name, false, location);
+    var id = builder.make_identifier(name, support.appendHtmlCharFn, false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
@@ -22,11 +38,12 @@ func make_char_chain(builder : *mut ASTBuilder, value : char) : *mut AccessChain
     return new_chain;
 }
 
-func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_t) : *mut AccessChain {
+func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : size_t) : *mut AccessChain {
+    const builder = converter.builder
     const location = intrinsics::get_raw_location();
     const chain = builder.make_access_chain(false, location)
     var chain_values = chain.get_values()
-    var base = builder.make_identifier(std::string_view("page"), false, location);
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     chain_values.push(base)
     var name : std::string_view
     if(len == 0) {
@@ -34,7 +51,13 @@ func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_
     } else {
         name = std::string_view("append_html")
     }
-    var id = builder.make_identifier(name, false, location);
+    var node : *mut ASTNode
+    if(len == 0) {
+        node = converter.support.appendHtmlCharPtrFn
+    } else {
+        node = converter.support.appendHtmlFn
+    }
+    var id = builder.make_identifier(name, node, false, location);
     chain_values.push(id)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
@@ -48,47 +71,38 @@ func make_value_chain(builder : *mut ASTBuilder, value : *mut Value, len : size_
     return new_chain;
 }
 
-func make_expr_chain_of(builder : *mut ASTBuilder, value : *mut Value) : *mut AccessChain {
-    return make_value_chain(builder, value, 0);
+func (converter : &mut ASTConverter) make_expr_chain_of(value : *mut Value) : *mut AccessChain {
+    return converter.make_value_chain(value, 0);
 }
 
-func replace_value_in_expr_chain(builder : *mut ASTBuilder, chain : *mut AccessChain, new_value : *mut Value) {
-    const values = chain.get_values();
-    const last = values.get(values.size() - 1)
-    const call = last as *mut FunctionCall
-    const args = call.get_args();
-    args.set(args.size() - 1, new_value)
-}
-
-func make_chain_of(builder : *mut ASTBuilder, str : &mut std::string) : *mut AccessChain {
+func (converter : &mut ASTConverter) make_chain_of(str : &mut std::string) : *mut AccessChain {
     const location = intrinsics::get_raw_location();
+    const builder = converter.builder;
     const value = builder.make_string_value(builder.allocate_view(str.view()), location)
     const size = str.size()
     str.clear();
-    return make_value_chain(builder, value, size);
+    return converter.make_value_chain(value, size);
 }
 
-func put_link_wrap_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, chain : *mut AccessChain) {
-    var wrapped = builder.make_value_wrapper(chain, parent)
-    wrapped.declare_and_link(&wrapped, resolver);
-    vec.push(wrapped);
+func (converter : &mut ASTConverter) put_link_wrap_chain(chain : *mut AccessChain) {
+    var wrapped = converter.builder.make_value_wrapper(chain, converter.parent)
+    converter.vec.push(wrapped);
 }
 
-func put_char_chain(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, value : char) {
-    const chain = make_char_chain(builder, value);
-    put_link_wrap_chain(resolver, builder, vec, parent, chain);
+func (converter : &mut ASTConverter) put_char_chain(value : char) {
+    const chain = converter.make_char_chain(value);
+    converter.put_link_wrap_chain(chain);
 }
 
-func put_chain_in(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
-    const chain = make_chain_of(builder, str);
-    var wrapped = builder.make_value_wrapper(chain, parent)
-    wrapped.declare_and_link(&wrapped, resolver);
-    vec.push(wrapped);
+func (converter : &mut ASTConverter) put_chain_in() {
+    const chain = converter.make_chain_of(converter.str);
+    var wrapped = converter.builder.make_value_wrapper(chain, converter.parent)
+    converter.vec.push(wrapped);
 }
 
-func put_wrapping(builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, value : *mut Value) {
-    const wrapped = builder.make_value_wrapper(value, parent)
-    vec.push(wrapped);
+func (converter : &mut ASTConverter) put_wrapping(value : *mut Value) {
+    const wrapped = converter.builder.make_value_wrapper(value, converter.parent)
+    converter.vec.push(wrapped);
 }
 
 var empty_string_val : *mut StringValue = null
@@ -102,17 +116,10 @@ func get_string_val(builder : *mut ASTBuilder) : *mut StringValue {
     return empty_string_val;
 }
 
-// we link the expression chain with a dummy string value (to already linked value to be linked twice)
-// then we replace the value in expression chain
-func put_wrapped_chemical_value_in(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, value : *mut Value) {
-    // first we link the expression chain with dummy empty string value
-    var chain = make_expr_chain_of(builder, get_string_val(builder));
-    // link the chain
-    chain.link(&chain, null, resolver)
-    // replace the value
-    replace_value_in_expr_chain(builder, chain, value)
-    // then we replace the dummy string value with actual linked value
-    put_wrapping(builder, vec, parent, chain)
+func (converter : &mut ASTConverter) put_wrapped_chemical_value_in(value : *mut Value) {
+    const builder = converter.builder
+    var chain = converter.make_expr_chain_of(value);
+    converter.put_wrapping(chain)
 }
 
 func is_func_call_ret_void(builder : *mut ASTBuilder, call : *mut FunctionCall) : bool {
@@ -125,12 +132,14 @@ func is_func_call_ret_void(builder : *mut ASTBuilder, call : *mut FunctionCall) 
     }
 }
 
-func put_chemical_value_in(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, value_ptr : *mut Value) {
+func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Value) {
+    var str = &converter.str
+    var builder = converter.builder
+    var parent = converter.parent
+    var vec = converter.vec
+
     var value = value_ptr;
-    if(!value.link(&value, null, resolver)) {
-        put_wrapping(builder, vec, parent, value);
-        return;
-    }
+
     const kind = value.getKind();
     if(kind == ValueKind.AccessChain) {
         const chain = value as *mut AccessChain
@@ -141,25 +150,30 @@ func put_chemical_value_in(resolver : *mut SymbolResolver, builder : *mut ASTBui
         const last = values.get(size - 1)
         if(last.getKind() == ValueKind.FunctionCall) {
             if(is_func_call_ret_void(builder, last as *mut FunctionCall)) {
-                put_wrapping(builder, vec, parent, value);
+                converter.put_wrapping(value);
             } else {
-                put_wrapped_chemical_value_in(resolver, builder, vec, parent, value);
+                converter.put_wrapped_chemical_value_in(value);
             }
         } else {
-            put_wrapped_chemical_value_in(resolver, builder, vec, parent, value);
+            converter.put_wrapped_chemical_value_in(value);
         }
     } else if(kind == ValueKind.FunctionCall) {
         if(is_func_call_ret_void(builder, value as *mut FunctionCall)) {
-            put_wrapping(builder, vec, parent, value);
+            converter.put_wrapping(value);
         } else {
-            put_wrapped_chemical_value_in(resolver, builder, vec, parent, value);
+            converter.put_wrapped_chemical_value_in(value);
         }
     } else {
-        put_wrapped_chemical_value_in(resolver, builder, vec, parent, value);
+        converter.put_wrapped_chemical_value_in(value);
     }
 }
 
-func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, attr : *mut HtmlAttribute, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttribute) {
+    var str = &converter.str
+    var builder = converter.builder
+    var parent = converter.parent
+    var vec = converter.vec
+
     str.append(' ')
     str.append_with_len(attr.name.data(), attr.name.size())
     if(attr.value != null) {
@@ -172,35 +186,41 @@ func convertHtmlAttribute(resolver : *mut SymbolResolver, builder : *mut ASTBuil
             AttributeValueKind.Chemical => {
                 str.append('"');
                 if(!str.empty()) {
-                    put_chain_in(resolver, builder, vec, parent, str);
+                    converter.put_chain_in();
                 }
                 const value = attr.value as *mut ChemicalAttributeValue
-                put_chemical_value_in(resolver, builder, vec, parent, value.value)
+                converter.put_chemical_value_in(value.value)
                 str.append('"');
             }
             AttributeValueKind.ChemicalValues => {
                 if(!str.empty()) {
-                    put_chain_in(resolver, builder, vec, parent, str);
+                    converter.put_chain_in();
                 }
-                put_char_chain(resolver, builder, vec, parent, '"');
+                converter.put_char_chain('"');
                 const value = attr.value as *mut ChemicalAttributeValues
                 const size = value.values.size();
                 const last = size - 1;
                 var i : uint = 0;
                 while(i < size) {
-                    put_chemical_value_in(resolver, builder, vec, parent, value.values.get(i))
+                    converter.put_chemical_value_in(value.values.get(i))
                     if(i != last) {
-                        put_char_chain(resolver, builder, vec, parent, ' ');
+                        converter.put_char_chain(' ');
                     }
                     i++;
                 }
-                put_char_chain(resolver, builder, vec, parent, '"');
+                converter.put_char_chain('"');
             }
         }
     }
 }
 
-func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, child : *mut HtmlChild, vec : *mut VecRef<ASTNode>, parent : *mut ASTNode, str : &mut std::string) {
+func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
+
+    var str = &converter.str
+    var builder = converter.builder
+    var parent = converter.parent
+    var vec = converter.vec
+
     switch(child.kind) {
         HtmlChildKind.Text => {
             var text = child as *mut HtmlText
@@ -216,7 +236,7 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
             var attrs = element.attributes.size()
             while(a < attrs) {
                 var attr = element.attributes.get(a)
-                convertHtmlAttribute(resolver, builder, attr, vec, parent, str);
+                converter.convertHtmlAttribute(attr);
                 a++
             }
 
@@ -231,7 +251,7 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
             var s = element.children.size();
             while(i < s) {
                 var nested_child = element.children.get(i)
-                convertHtmlChild(resolver, builder, nested_child, vec, parent, str)
+                converter.convertHtmlChild(nested_child)
                 i++;
             }
 
@@ -249,17 +269,17 @@ func convertHtmlChild(resolver : *mut SymbolResolver, builder : *mut ASTBuilder,
         }
         HtmlChildKind.ChemicalValue => {
             if(!str.empty()) {
-                put_chain_in(resolver, builder, vec, parent, str);
+                converter.put_chain_in();
             }
             const chem_child = child as *mut HtmlChemValueChild
-            put_chemical_value_in(resolver, builder, vec, parent, chem_child.value)
+            converter.put_chemical_value_in(chem_child.value)
         }
     }
 }
 
-func convertHtmlRoot(resolver : *mut SymbolResolver, builder : *mut ASTBuilder, root : *mut HtmlRoot, vec : *mut VecRef<ASTNode>, str : &mut std::string) {
-    convertHtmlChild(resolver, builder, root.element, vec, root.parent, str);
-    if(!str.empty()) {
-        put_chain_in(resolver, builder, vec, root.parent, str);
+func (converter : &mut ASTConverter) convertHtmlRoot(root : *mut HtmlRoot) {
+    converter.convertHtmlChild(root.element);
+    if(!converter.str.empty()) {
+        converter.put_chain_in();
     }
 }

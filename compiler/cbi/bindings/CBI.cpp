@@ -9,8 +9,11 @@
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
 #include "SerialStrAllocatorCBI.h"
+#include "SymbolResolverCBI.h"
 #include "LexerCBI.h"
 #include "ParserCBI.h"
+#include "ASTDiagnoserCBI.h"
+
 #ifdef LSP_BUILD
 #include "compiler/cbi/bindings/lsp/LSPHooks.h"
 #endif
@@ -117,6 +120,8 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
         { "compiler_ASTBuilderstore_cleanup", (void*) ASTBuilderstore_cleanup },
         { "compiler_ASTBuildercreateType", (void*) ASTBuildercreateType },
+        { "compiler_ASTBuildermake_embedded_node", (void*) ASTBuildermake_embedded_node },
+        { "compiler_ASTBuildermake_embedded_value", (void*) ASTBuildermake_embedded_value },
         { "compiler_ASTBuildermake_sym_res_node", (void*) ASTBuildermake_sym_res_node },
         { "compiler_ASTBuildermake_sym_res_value", (void*) ASTBuildermake_sym_res_value },
         { "compiler_ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },
@@ -182,6 +187,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuildermake_ushort_value", (void*) ASTBuildermake_ushort_value },
         { "compiler_ASTBuildermake_block_value", (void*) ASTBuildermake_block_value },
         { "compiler_ASTBuildermake_value_node", (void*) ASTBuildermake_value_node },
+        { "compiler_ASTBuildermake_identifier_old", (void*) ASTBuildermake_identifier_old },
         { "compiler_ASTBuildermake_identifier", (void*) ASTBuildermake_identifier },
         { "compiler_ASTBuildermake_variant_case", (void*) ASTBuildermake_variant_case },
         { "compiler_ASTBuildermake_variant_case_variable", (void*) ASTBuildermake_variant_case_variable },
@@ -218,6 +224,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_Valuelink", (void*) Valuelink },
         { "compiler_ValuegetLinkedNode", (void*) ValuegetLinkedNode },
         { "compiler_ASTNodegetKind", (void*) ASTNodegetKind },
+        { "compiler_ASTNodechild", (void*) ASTNodechild },
         { "compiler_ASTNodedeclare_top_level", (void*) ASTNodedeclare_top_level },
         { "compiler_ASTNodedeclare_and_link", (void*) ASTNodedeclare_and_link },
         { "compiler_BaseTypegetKind", (void*) BaseTypegetKind },
@@ -260,6 +267,16 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_VariantDefinitionadd_member", (void*) VariantDefinitionadd_member },
         { "compiler_VariantMemberadd_param", (void*) VariantMemberadd_param },
         { "compiler_InitBlockadd_initializer", (void*) InitBlockadd_initializer },
+        { "compiler_EmbeddedNodegetDataPtr", (void*) EmbeddedNodegetDataPtr },
+        { "compiler_EmbeddedValuegetDataPtr", (void*) EmbeddedValuegetDataPtr },
+};
+
+const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
+        {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
+};
+
+const std::pair<chem::string_view, void*> ASTDiagnoserSymMap[] = {
+        {"compiler_ASTDiagnosererror", (void*) ASTDiagnosererror},
 };
 
 #ifdef LSP_BUILD
@@ -282,8 +299,8 @@ void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std:
     interface_maps.emplace("BuildContext", BuildContextSymMap);
     interface_maps.emplace("ASTBuilder", ASTBuilderSymMap);
     interface_maps.emplace("PtrVec", PtrVecSymMap);
-    // couldn't create a constant empty array
-    interface_maps["SymbolResolver"] = {};
+    interface_maps.emplace("SymbolResolver", SymbolResolverSymMap);
+    interface_maps.emplace("ASTDiagnoser", ASTDiagnoserSymMap);
 #ifdef LSP_BUILD
     interface_maps.emplace("SemanticTokensAnalyzer", SemanticTokensAnalyzerMap);
 #endif

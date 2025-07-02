@@ -56,6 +56,7 @@
 #include "ast/values/ValueNode.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/ExtractionValue.h"
+#include "ast/values/EmbeddedValue.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/Unreachable.h"
 #include "ast/statements/Return.h"
@@ -66,6 +67,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/statements/ProvideStmt.h"
+#include "ast/statements/EmbeddedNode.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/values/StructValue.h"
 #include "ast/structures/StructDefinition.h"
@@ -874,23 +876,13 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
 }
 
 llvm::Type* EmbeddedNode::llvm_type(Codegen &gen) {
-    const auto type = create_type(gen.allocator);
-    return type->llvm_type(gen);
+    return known_type()->llvm_type(gen);
 }
 
 llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
-    const auto repl = replacement_fn(gen.allocator, this);
+    const auto repl = replacement_fn(&gen.allocator, this);
     if(repl) {
         return repl->llvm_pointer(gen);
-    } else {
-        gen.error("couldn't replace embedded node", this);
-    }
-}
-
-llvm::Value* EmbeddedNode::llvm_value(Codegen &gen, BaseType *type) {
-    const auto repl = replacement_fn(gen.allocator, this);
-    if(repl) {
-        return repl->llvm_value(gen);
     } else {
         gen.error("couldn't replace embedded node", this);
     }
@@ -902,7 +894,7 @@ llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
-    const auto repl = replacement_fn(gen.allocator, this);
+    const auto repl = replacement_fn(&gen.allocator, this);
     if(repl) {
         return repl->llvm_pointer(gen);
     } else {
@@ -911,7 +903,7 @@ llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* EmbeddedValue::llvm_value(Codegen &gen, BaseType *type) {
-    const auto repl = replacement_fn(gen.allocator, this);
+    const auto repl = replacement_fn(&gen.allocator, this);
     if(repl) {
         return repl->llvm_value(gen);
     } else {

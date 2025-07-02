@@ -110,6 +110,7 @@ BaseType* Parser::parseLinkedOrGenericType(ASTAllocator& allocator) {
 BaseType* Parser::parseArrayAndPointerTypesAfterTypeId(ASTAllocator& allocator, BaseType* typeId, SourceLocation location) {
     while(true) {
         if(consumeToken(TokenType::LBracket)) {
+            warning("deprecated syntax, brackets should be before type");
             // optional array size
             auto expr = parseExpression(allocator);
             if(!consumeToken(TokenType::RBracket)) {
@@ -394,6 +395,18 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             return parseUnionTypeLoc(allocator);
         case TokenType::LParen:
             return parseLambdaTypeLoc(allocator, false);
+        case TokenType::LBracket:{
+            auto& t = *token;
+            token++;
+            // optional array size
+            auto expr = parseExpression(allocator);
+            if(!consumeToken(TokenType::RBracket)) {
+                unexpected_error("expected ']' for array type");
+                return {nullptr, ZERO_LOC};
+            }
+            auto childType = parseTypeLoc(allocator);
+            return {new (allocator.allocate<ArrayType>()) ArrayType(childType, expr), loc_single(&t)};
+        }
         case TokenType::MultiplySym: {
             const auto ptrToken = token;
             token++;

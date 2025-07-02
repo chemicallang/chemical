@@ -1,17 +1,67 @@
+public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) : bool {
+    // TODO this location should not be used
+    const loc = intrinsics::get_raw_location();
+    const root = node.getDataPtr() as *mut CSSOM;
+    sym_res_root(root, resolver, loc)
+}
 
-func symResValueReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut Value {
-    printf("running css symResValueReplacement\n");
+public func node_replacement_func(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+    printf("running html node_replacement_func\n");
     fflush(null)
     const loc = intrinsics::get_raw_location();
-    const root = data as *mut CSSOM;
-    var scope = builder.make_block_value(root.parent, loc);
-    var scope_nodes = scope.get_body();
-    var str = std::string();
-    convertCSSOM(resolver, builder, root, scope_nodes, str);
-    const classNameVal = builder.make_string_value(root.className, loc)
-    const node = builder.make_value_wrapper(classNameVal, root.parent)
-    scope_nodes.push(node)
+    const root = value.getDataPtr() as *mut CSSOM;
+    var scope = builder.make_scope(root.parent, loc);
+    var scope_nodes = scope.getNodes();
+    var converter = ASTConverter {
+        builder : builder,
+        support : &root.support,
+        vec : scope_nodes,
+        parent : root.parent
+        str : std::string()
+    }
+    converter.convertCSSOM(root);
     return scope;
+}
+
+public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+    return null;
+}
+
+public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+    return null;
+}
+
+public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
+    // TODO this location should not be used
+    const loc = intrinsics::get_raw_location();
+    const root = value.getDataPtr() as *mut CSSOM;
+    sym_res_root(root, resolver, loc)
+}
+
+public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
+    printf("running html value_replacement_func\n");
+    fflush(null)
+    const loc = intrinsics::get_raw_location();
+    const root = value.getDataPtr() as *mut CSSOM;
+    var block_val = builder.make_block_value(root.parent, loc)
+    var scope_nodes = block_val.get_body()
+    var converter = ASTConverter {
+        builder : builder,
+        support : &root.support,
+        vec : scope_nodes,
+        parent : root.parent
+        str : std::string()
+    }
+    converter.convertCSSOM(root);
+    const view = builder.allocate_view(converter.str.to_view())
+    const classNameVal = builder.make_string_value(root.className, loc)
+    block_val.setCalculatedValue(classNameVal)
+    return block_val;
+}
+
+public func value_type_creation_func(builder : *ASTBuilder, value : *EmbeddedValue) : *BaseType {
+    const loc = intrinsics::get_raw_location();
+    return builder.make_string_type(loc);
 }
 
 @no_mangle
@@ -23,7 +73,7 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
         var root = parseCSSOM(parser, builder);
         printf("parsed to css om\n")
         fflush(null)
-        const value = builder.make_sym_res_value(symResValueReplacement, root, loc);
+        const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }
@@ -32,22 +82,6 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
         parser.error("expected a lbrace");
         return null;
     }
-}
-
-func symResNodeDeclaration(allocator : *mut ASTBuilder, resolver : *mut SymbolResolver, data : **mut void) {
-
-}
-
-func symResNodeReplacement(builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) : *mut ASTNode {
-    printf("running css symResNodeReplacement\n");
-    fflush(null)
-    const loc = intrinsics::get_raw_location();
-    const root = data as *mut CSSOM;
-    var scope = builder.make_scope(root.parent, loc);
-    var scope_nodes = scope.getNodes();
-    var str = std::string();
-    convertCSSOM(resolver, builder, root, scope_nodes, str);
-    return scope;
 }
 
 @no_mangle
@@ -59,7 +93,7 @@ public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) 
         var root = parseCSSOM(parser, builder);
         printf("parsed to css om\n")
         fflush(null)
-        const node = builder.make_sym_res_node(symResNodeDeclaration, symResNodeReplacement, root, root.parent, loc);
+        const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }

@@ -18,4 +18,6 @@ struct CSSOM {
 
     var global : GlobalBlock
 
+    var support : SymResSupport
+
 }

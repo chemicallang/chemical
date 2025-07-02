@@ -564,6 +564,9 @@ set(COMMON_SOURCES
         ast/values/ExtractionValue.h
         ast/values/ExtractionValue.cpp
         server/cbi/hooks.h
+        "ast/values/EmbeddedValue.h"
+        ast/values/EmbeddedValue.cpp
+        ast/statements/EmbeddedNode.h
 )
 
 # Chemical LSP Executable Target

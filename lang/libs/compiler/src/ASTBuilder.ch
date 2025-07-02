@@ -175,6 +175,12 @@ public struct ValueNode : ASTNode {}
 
 public struct VariableIdentifier : Value {}
 
+public struct EmbeddedValue : Value {
+
+    func getDataPtr(&self) : *void
+
+}
+
 // The ASTNodes
 
 public struct StructMemberInitializer : ASTNode {}
@@ -331,6 +337,12 @@ public struct VariantMember : ASTNode {
 
 }
 
+public struct EmbeddedNode : ASTNode {
+
+    func getDataPtr(&self) : *void
+
+}
+
 public struct VariantMemberParam : ASTNode {}
 
 public struct SymResNode : ASTNode {}
@@ -342,6 +354,20 @@ public type SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mu
 public type SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
 
 public type SymResValueReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
+
+public type EmbeddedNodeSymbolResolveFunc = (resolver : *mut SymbolResolver, value : *mut EmbeddedNode) => bool;
+
+public type EmbeddedNodeReplacementFunc = (builder : *ASTBuilder, value : *mut EmbeddedNode) => *ASTNode
+
+public type EmbeddedNodeKnownTypeFunc = (value : *EmbeddedNode) => *BaseType
+
+public type EmbeddedNodeChildResolutionFunc = (value : *EmbeddedNode, name : &std::string_view) => *ASTNode
+
+public type EmbeddedValueSymbolResolveFunc = (resolver : *SymbolResolver, value : *EmbeddedValue) => bool
+
+public type EmbeddedValueReplacementFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *Value
+
+public type EmbeddedValueTypeCreationFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *BaseType
 
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {
@@ -359,6 +385,10 @@ public struct ASTBuilder : BatchAllocator {
     func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : *void, parent_node : *ASTNode, location : ubigint) : *mut SymResNode
 
     func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : *void, location : ubigint) : *mut SymResValue;
+
+    func make_embedded_node(&self, data_ptr : *void, sym_res_fn : EmbeddedNodeSymbolResolveFunc, repl_fn : EmbeddedNodeReplacementFunc, known_type_fn : EmbeddedNodeKnownTypeFunc, child_res_fn : EmbeddedNodeChildResolutionFunc, parent_node : *ASTNode, location : ubigint) : *EmbeddedNode
+
+    func make_embedded_value(&self, data_ptr : *void, sym_res_fn : EmbeddedValueSymbolResolveFunc, repl_fn: EmbeddedValueReplacementFunc, type_cr_fn : EmbeddedValueTypeCreationFunc, location : ubigint) : *EmbeddedValue
 
     func make_any_type(&self, location : ubigint) : *mut AnyType
 

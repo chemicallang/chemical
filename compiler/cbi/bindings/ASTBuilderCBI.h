@@ -6,120 +6,10 @@
 #include "std/chem_string_view.h"
 #include "ast/utils/Operation.h"
 #include "ast/base/AccessSpecifier.h"
-
-class Value;
-
-class BaseType;
-
-class ASTNode;
-
-class ChainValue;
+#include "ast/base/ast_fwd.h"
 
 class BatchAllocator;
 class ASTAllocator;
-
-class AnyType;
-class ArrayType;
-class BigIntType;
-class BoolType;
-class BoolType;
-class DoubleType;
-class DynamicType;
-class FloatType;
-class FunctionType;
-class FunctionTypeBody;
-class GenericType;
-class Int128Type;
-class IntType;
-class IntNType;
-class LinkedType;
-class LinkedValueType;
-class LiteralType;
-class LongType;
-class PointerType;
-class ReferenceType;
-class ShortType;
-class StringType;
-class UBigIntType;
-class UCharType;
-class UInt128Type;
-class UIntType;
-class ULongType;
-class UShortType;
-class VoidType;
-class AccessChain;
-class AddrOfValue;
-class ArrayValue;
-class BigIntValue;
-class BoolValue;
-class CastedValue;
-class CharValue;
-class DereferenceValue;
-class DoubleValue;
-class Expression;
-class FloatValue;
-class FunctionCall;
-class IndexOperator;
-class Int128Value;
-class IntValue;
-class IsValue;
-class LambdaFunction;
-class LongValue;
-class NegativeValue;
-class NotValue;
-class NullValue;
-class NumberValue;
-class ShortValue;
-class SizeOfValue;
-class StringValue;
-class StructMemberInitializer;
-class StructValue;
-class UBigIntValue;
-class UCharValue;
-class UInt128Value;
-class UIntValue;
-class ULongValue;
-class UShortValue;
-class ValueNode;
-class VariableIdentifier;
-class VariantCase;
-class VariantCaseVariable;
-class AssignStatement;
-class BreakStatement;
-class ContinueStatement;
-class DestructStmt;
-class SwitchStatement;
-class LoopASTNode;
-class ReturnStatement;
-class TypealiasStatement;
-class UsingStmt;
-class VarInitStatement;
-class Scope;
-class ValueWrapperNode;
-class DoWhileLoop;
-class EnumDeclaration;
-class EnumMember;
-class ForLoop;
-class FunctionDeclaration;
-class FunctionParam;
-class CapturedVariable;
-class GenericTypeParameter;
-class IfStatement;
-class ImplDefinition;
-class BlockValue;
-class InitBlock;
-class InterfaceDefinition;
-class Namespace;
-class StructDefinition;
-class StructMember;
-class UnionDef;
-class UnsafeBlock;
-class WhileLoop;
-class VariantDefinition;
-class VariantMember;
-class VariantMemberParam;
-class SymResNode;
-class SymResValue;
 
 extern "C" {
 
@@ -132,6 +22,10 @@ extern "C" {
     SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location);
 
     SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn, void* data_ptr, uint64_t location);
+
+    EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location);
+
+    EmbeddedValue* ASTBuildermake_embedded_value(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* type_cr_fn, uint64_t location);
 
     AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location);
 

@@ -186,6 +186,9 @@ public:
     inline void VisitVariantCaseVariable(VariantCaseVariable* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitEmbeddedNode(EmbeddedNode* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
 
     // ---------- Values ----------
 
@@ -386,6 +389,10 @@ public:
     }
 
     inline void VisitExtractionValue(ExtractionValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
+    inline void VisitEmbeddedValue(EmbeddedValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
@@ -647,6 +654,9 @@ public:
             case ASTNodeKind::UnionType:
                 static_cast<Derived*>(this)->VisitUnionType((UnionType*) node);
                 return;
+            case ASTNodeKind::EmbeddedNode:
+                static_cast<Derived*>(this)->VisitEmbeddedNode((EmbeddedNode*) node);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: node kind in non recursive visitor";
@@ -819,6 +829,8 @@ public:
             case ValueKind::ExtractionValue:
                 static_cast<Derived*>(this)->VisitExtractionValue((ExtractionValue*) value);
                 return;
+            case ValueKind::EmbeddedValue:
+                static_cast<Derived*>(this)->VisitEmbeddedValue((EmbeddedValue*) value);
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: value kind in non recursive visitor";

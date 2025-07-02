@@ -57,6 +57,7 @@
 #include "ast/values/UShortValue.h"
 #include "ast/values/BigIntValue.h"
 #include "ast/values/UBigIntValue.h"
+#include "ast/values/EmbeddedValue.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/UnnamedUnion.h"
@@ -90,6 +91,7 @@
 #include "ast/statements/SymResNode.h"
 #include "ast/values/SymResValue.h"
 #include "std/chem_string.h"
+#include "ast/statements/EmbeddedNode.h"
 
 constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
 #ifdef LSP_BUILD
@@ -117,6 +119,28 @@ SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, 
 
 SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn, void* data_ptr, uint64_t location) {
     return new (allocator->allocate<SymResValue>()) SymResValue(allocator, (SymResValueReplacementFn) repl_fn, data_ptr, location);
+}
+
+EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location) {
+    return new (allocator->allocate<EmbeddedNode>()) EmbeddedNode(
+            data_ptr,
+            (EmbeddedNodeSymbolResolveFunc*) sym_res_fn,
+            (EmbeddedNodeReplacementFunc*) repl_fn,
+            (EmbeddedNodeKnownTypeFunc*) known_type_fn,
+            (EmbeddedNodeChildResolutionFunc*) child_res_fn,
+            parent_node,
+            location
+    );
+}
+
+EmbeddedValue* ASTBuildermake_embedded_value(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* type_cr_fn, uint64_t location) {
+    return new (allocator->allocate<EmbeddedValue>()) EmbeddedValue(
+            data_ptr,
+            (EmbeddedValueSymbolResolveFunc*) sym_res_fn,
+            (EmbeddedValueReplacementFunc*) repl_fn,
+            (EmbeddedValueTypeCreationFunc*) type_cr_fn,
+            location
+    );
 }
 
 AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location) {
@@ -718,4 +742,12 @@ void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param) {
 
 void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, Value* value) {
     block->initializers[*name] = { value };
+}
+
+void* EmbeddedNodegetDataPtr(EmbeddedNode* node) {
+    return node->data_ptr;
+}
+
+void* EmbeddedValuegetDataPtr(EmbeddedValue* value) {
+    return value->data_ptr;
 }

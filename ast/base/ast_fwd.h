@@ -82,6 +82,20 @@ class WhileLoop;
 
 class InitBlock;
 
+class EnumMember;
+
+class VariantCaseVariable;
+
+class CapturedVariable;
+
+class LoopASTNode;
+
+class ChainValue;
+
+class IntNType;
+
+class BaseDefMember;
+
 class AccessChain;
 
 class StructMember;
@@ -105,6 +119,8 @@ class SwitchStatement;
 class VariantDefinition;
 
 class TryCatch;
+
+class EmbeddedNode;
 
 // Values Begin
 
@@ -173,6 +189,8 @@ class PointerValue;
 class DestructValue;
 
 class ExtractionValue;
+
+class EmbeddedValue;
 
 class AddrOfValue;
 

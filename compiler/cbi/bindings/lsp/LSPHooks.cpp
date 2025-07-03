@@ -9,14 +9,6 @@ void SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* toke
     analyzer->put_auto(token);
 }
 
-Token** SemanticTokensAnalyzergetCurrentTokenPtr(SemanticTokensAnalyzer* analyzer) {
-    return &analyzer->current_token;
-}
-
-Token* SemanticTokensAnalyzergetEndToken(SemanticTokensAnalyzer* analyzer) {
-    return analyzer->end_token;
-}
-
 void SemanticTokensAnalyzerput(
         SemanticTokensAnalyzer* analyzer,
         uint32_t lineNumber,

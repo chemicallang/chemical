@@ -282,8 +282,6 @@ const std::pair<chem::string_view, void*> ASTDiagnoserSymMap[] = {
 #ifdef LSP_BUILD
 const std::pair<chem::string_view, void*> LSPAnalyzersMap[] = {
         {"ide_SemanticTokensAnalyzerputAuto", (void*) SemanticTokensAnalyzerputAuto},
-        {"ide_SemanticTokensAnalyzergetCurrentTokenPtr", (void*) SemanticTokensAnalyzergetCurrentTokenPtr},
-        {"ide_SemanticTokensAnalyzergetEndToken", (void*) SemanticTokensAnalyzergetEndToken},
         {"ide_SemanticTokensAnalyzerput", (void*) SemanticTokensAnalyzerput},
         {"ide_SemanticTokensAnalyzerputToken", (void*) SemanticTokensAnalyzerputToken},
         {"ide_FoldingRangeAnalyzerput", (void*) FoldingRangeAnalyzerput},

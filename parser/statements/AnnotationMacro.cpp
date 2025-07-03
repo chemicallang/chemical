@@ -309,7 +309,11 @@ Value* Parser::parseMacroValue(ASTAllocator& allocator) {
         auto found = binder->findHook(view, CBIFunctionType::ParseMacroValue);
         if(found) {
             token++;
-            return (EmbeddedParseMacroValueFn (found))(this, &allocator);
+            const auto parsedValue = (EmbeddedParseMacroValueFn (found))(this, &allocator);
+#ifdef LSP_BUILD
+            t.linked = parsedValue;
+#endif
+            return parsedValue;
         } else {
             error() << "couldn't find macro parser for '" << t.value << "'";
         }
@@ -324,7 +328,11 @@ ASTNode* Parser::parseMacroNode(ASTAllocator& allocator) {
         auto found = binder->findHook(view, CBIFunctionType::ParseMacroNode);
         if(found) {
             token++;
-            return (EmbeddedParseMacroNodeFn (found))(this, &allocator);
+            const auto parsedNode = (EmbeddedParseMacroNodeFn (found))(this, &allocator);
+#ifdef LSP_BUILD
+            t.linked = parsedNode;
+#endif
+            return parsedNode;
         } else {
             error() << "couldn't find macro parser for '" << t.value << "'";
         }

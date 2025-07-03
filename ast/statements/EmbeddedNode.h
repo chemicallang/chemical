@@ -14,6 +14,8 @@ typedef BaseType*(EmbeddedNodeKnownTypeFunc)(EmbeddedNode* value);
 
 typedef ASTNode*(EmbeddedNodeChildResolutionFunc)(EmbeddedNode* value, chem::string_view* name);
 
+typedef void(EmbeddedNodeTraversalFunc)(EmbeddedNode* node, void* data, bool(*traverse)(void* data, ASTAny* item));
+
 class EmbeddedNode : public ASTNode {
 public:
 
@@ -43,6 +45,11 @@ public:
     EmbeddedNodeChildResolutionFunc* child_res_fn;
 
     /**
+     * the traversal function is used to traverse the embedded node
+     */
+    EmbeddedNodeTraversalFunc* traversal_fn;
+
+    /**
      * constructor
      */
     EmbeddedNode(
@@ -51,10 +58,11 @@ public:
             EmbeddedNodeReplacementFunc* replacement_fn,
             EmbeddedNodeKnownTypeFunc* known_type_fn,
             EmbeddedNodeChildResolutionFunc* child_res_fn,
+            EmbeddedNodeTraversalFunc* traversal_fn,
             ASTNode* parent_node,
             SourceLocation loc
     ) : ASTNode(ASTNodeKind::EmbeddedNode, parent_node, loc), data_ptr(data_ptr), sym_res_fn(sym_res_fn), replacement_fn(replacement_fn),
-        known_type_fn(known_type_fn), child_res_fn(child_res_fn)
+        known_type_fn(known_type_fn), child_res_fn(child_res_fn), traversal_fn(traversal_fn)
     {
 
     }
@@ -69,6 +77,7 @@ public:
                 replacement_fn,
                 known_type_fn,
                 child_res_fn,
+                traversal_fn,
                 parent(),
                 encoded_location()
         );

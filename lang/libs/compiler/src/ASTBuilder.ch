@@ -353,11 +353,15 @@ public type EmbeddedNodeKnownTypeFunc = (value : *EmbeddedNode) => *BaseType
 
 public type EmbeddedNodeChildResolutionFunc = (value : *EmbeddedNode, name : &std::string_view) => *ASTNode
 
+public type EmbeddedNodeTraversalFunc = (node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) => void
+
 public type EmbeddedValueSymbolResolveFunc = (resolver : *SymbolResolver, value : *EmbeddedValue) => bool
 
 public type EmbeddedValueReplacementFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *Value
 
 public type EmbeddedValueTypeCreationFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *BaseType
+
+public type EmbeddedValueTraversalFunc = (value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) => void
 
 @compiler.interface
 public struct ASTBuilder : BatchAllocator {
@@ -368,9 +372,25 @@ public struct ASTBuilder : BatchAllocator {
 
     func createType(&self, value : *mut Value) : *mut BaseType
 
-    func make_embedded_node(&self, data_ptr : *void, sym_res_fn : EmbeddedNodeSymbolResolveFunc, repl_fn : EmbeddedNodeReplacementFunc, known_type_fn : EmbeddedNodeKnownTypeFunc, child_res_fn : EmbeddedNodeChildResolutionFunc, parent_node : *ASTNode, location : ubigint) : *EmbeddedNode
+    func make_embedded_node(&self,
+        data_ptr : *void,
+        sym_res_fn : EmbeddedNodeSymbolResolveFunc,
+        repl_fn : EmbeddedNodeReplacementFunc,
+        known_type_fn : EmbeddedNodeKnownTypeFunc,
+        child_res_fn : EmbeddedNodeChildResolutionFunc,
+        traversal_fn : EmbeddedNodeTraversalFunc,
+        parent_node : *ASTNode,
+        location : ubigint
+    ) : *EmbeddedNode
 
-    func make_embedded_value(&self, data_ptr : *void, sym_res_fn : EmbeddedValueSymbolResolveFunc, repl_fn: EmbeddedValueReplacementFunc, type_cr_fn : EmbeddedValueTypeCreationFunc, location : ubigint) : *EmbeddedValue
+    func make_embedded_value(&self,
+        data_ptr : *void,
+        sym_res_fn : EmbeddedValueSymbolResolveFunc,
+        repl_fn: EmbeddedValueReplacementFunc,
+        type_cr_fn : EmbeddedValueTypeCreationFunc,
+        traversal_fn : EmbeddedValueTraversalFunc,
+        location : ubigint
+    ) : *EmbeddedValue
 
     func make_any_type(&self, location : ubigint) : *mut AnyType
 

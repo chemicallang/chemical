@@ -12,6 +12,8 @@ typedef Value*(EmbeddedValueReplacementFunc)(ASTAllocator* allocator, EmbeddedVa
 
 typedef BaseType*(EmbeddedValueTypeCreationFunc)(ASTAllocator *allocator, EmbeddedValue* value);
 
+typedef void(EmbeddedValueTraversalFunc)(EmbeddedValue* value, void* data, bool(*traverse)(void* data, ASTAny* item));
+
 class EmbeddedValue : public Value {
 public:
 
@@ -36,6 +38,11 @@ public:
     EmbeddedValueTypeCreationFunc* type_creation_fn;
 
     /**
+     * traversal function allows us to traverse this embedded value
+     */
+    EmbeddedValueTraversalFunc* traversal_fn;
+
+    /**
      * constructor
      */
     EmbeddedValue(
@@ -43,9 +50,10 @@ public:
         EmbeddedValueSymbolResolveFunc* sym_res_fn,
         EmbeddedValueReplacementFunc* replacement_fn,
         EmbeddedValueTypeCreationFunc* type_creation_fn,
+        EmbeddedValueTraversalFunc* traversal_fn,
         SourceLocation loc
     ) : Value(ValueKind::EmbeddedValue, loc), data_ptr(data_ptr), sym_res_fn(sym_res_fn), replacement_fn(replacement_fn),
-        type_creation_fn(type_creation_fn)
+        type_creation_fn(type_creation_fn), traversal_fn(traversal_fn)
     {
 
     }
@@ -59,6 +67,7 @@ public:
                sym_res_fn,
                replacement_fn,
                type_creation_fn,
+               traversal_fn,
                encoded_location()
         );
     }

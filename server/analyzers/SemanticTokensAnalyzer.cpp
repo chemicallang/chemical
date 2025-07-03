@@ -219,6 +219,8 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
 }
 
 void SemanticTokensAnalyzer::analyze(std::vector<Token>& lexedTokens) {
+    // for each token we have 5 integers to hold
+    tokens.reserve(lexedTokens.size() * 5);
     current_token = lexedTokens.data();
     const auto endToken = current_token + lexedTokens.size();
     end_token = endToken;

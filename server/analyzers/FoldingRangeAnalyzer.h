@@ -7,20 +7,12 @@
 #pragma once
 
 #include "lsp/types.h"
-#include "preprocess/visitors/RecursiveVisitor.h"
 #include "ast/base/ASTNode.h"
 #include "core/diag/Position.h"
-#include "FoldingRangeAnalyzerApi.h"
+#include "lexer/Token.h"
 
-class LocationManager;
-
-class FoldingRangeAnalyzer : public RecursiveVisitor<FoldingRangeAnalyzer> {
+class FoldingRangeAnalyzer {
 public:
-
-    /**
-     * location manager is used to decode loations
-     */
-    LocationManager& loc_man;
 
     /**
      * all the folding ranges found
@@ -31,33 +23,19 @@ public:
      * constructor
      * @param tokens
      */
-    FoldingRangeAnalyzer(LocationManager& loc_man) : loc_man(loc_man) {
+    FoldingRangeAnalyzer() {
 
     }
 
     /**
-     * will analyze the given nodes of the current document
-     * @param nodes
+     * tokens can be analyzed to provide folding ranges
      */
-    void analyze(std::vector<ASTNode*>& nodes) {
-        for(auto node : nodes) {
-            visit(node);
-        }
-    }
+    void analyze(std::vector<Token>& tokens);
 
     /**
      * will add a folding range from start to end token
      */
     void folding_range(const Position& start, const Position& end, bool comment = false);
-
-    /**
-     * create a folding range for the given source location
-     */
-    void folding_range(SourceLocation location, bool comment = false);
-
-    // Visitor functions
-
-    void VisitScope(Scope* node);
 
 
 };

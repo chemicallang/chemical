@@ -8,7 +8,7 @@
 #include "stream/SourceProvider.h"
 #include <filesystem>
 #include <sstream>
-#include "server/analyzers/FoldingRangeAnalyzerApi.h"
+#include "server/analyzers/FoldingRangeAnalyzer.h"
 #include "server/analyzers/CompletionItemAnalyzer.h"
 #include "server/analyzers/GotoDefAnalyzer.h"
 #include "server/analyzers/HoverAnalyzer.h"
@@ -296,17 +296,25 @@ ASTUnit* get_cached_unit(WorkspaceManager& manager, ModuleData* modData, const s
 }
 
 std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::string_view& path) {
-    const auto abs_path = canonical(path);
+    auto abs_path = canonical(path);
     auto abs_path_view = chem::string_view(abs_path);
     const auto modData = getModuleData(abs_path_view);
     const auto mod = modData ? modData->getModule() : nullptr;
     process_file_on_request(abs_path, modData);
     const auto unit = get_cached_unit(*this, modData, abs_path);
-    if(unit) {
-        return folding_analyze(loc_man, unit->scope.body.nodes);
+    LexResult* lexResult = nullptr;
+    // check if tokens exist in cache (parsed after changed contents request of file)
+    auto cachedTokens = tokenCache.get(abs_path);
+    if(cachedTokens != nullptr) {
+        lexResult = cachedTokens->get();
+    }
+    // TODO anonymous files tokens should also be stored for this operation
+    if(lexResult) {
+        FoldingRangeAnalyzer analyzer;
+        analyzer.analyze(lexResult->tokens);
+        return std::move(analyzer.ranges);
     } else {
-        auto shared_unit = get_decl_ast(abs_path);
-        return folding_analyze(loc_man, shared_unit->unit.scope.body.nodes);
+        return {};
     }
 }
 

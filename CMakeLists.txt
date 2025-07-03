@@ -598,7 +598,6 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/SignatureHelpAnalyzer.cpp
         server/analyzers/CaretPositionAnalyzer.h
         server/analyzers/CaretPositionAnalyzer.cpp
-        server/analyzers/FoldingRangeAnalyzerApi.h
         server/analyzers/InlayHintAnalyzerApi.h
         server/build/ContextSerialization.h
         server/build/ContextSerialization.cpp

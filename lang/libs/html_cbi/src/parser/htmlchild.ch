@@ -13,13 +13,14 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         if(next.type == TokenType.TagName) {
             parser.setToken(current);
             return parseElement(parser, builder);
-        } else if(next.type == TokenType.FwdSlash) {
-            parser.setToken(current);
-            return null;
         } else {
             parser.error("unknown symbol, expected text or element");
             return null;
         }
+
+    } else if(current.type == TokenType.TagEnd) {
+
+        return null;
 
     } else if(current.type == TokenType.LBrace) {
 

@@ -110,28 +110,24 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         fflush(null)
 
         const last_lt = parser.getToken();
-        if(last_lt.type == TokenType.LessThan) {
-            parser.increment();
-            const fwd = parser.getToken();
-            if(fwd.type == TokenType.FwdSlash) {
+        if(last_lt.type == TokenType.TagEnd) {
+            parser.increment()
+            const last_id = parser.getToken();
+            if(last_id.type == TokenType.TagName) {
                 parser.increment();
-                const last_id = parser.getToken();
-                if(last_id.type == TokenType.TagName) {
+                if(strncmp(last_id.value.data(), id.value.data(), id.value.size()) != 0) {
+                    parser.error("expected correct identifier for ending tag");
+                }
+                const last_gt = parser.getToken();
+                if(last_gt.type == TokenType.GreaterThan) {
                     parser.increment();
-                    if(strncmp(last_id.value.data(), id.value.data(), id.value.size()) != 0) {
-                        parser.error("expected correct identifier for ending tag");
-                    }
-                    const last_gt = parser.getToken();
-                    if(last_gt.type == TokenType.GreaterThan) {
-                        parser.increment();
-                    } else {
-                        parser.error("expected '>' after the ending tag");
-                    }
                 } else {
-                    parser.error("expected identifier after the '</'");
+                    parser.error("expected '>' after the ending tag");
                 }
             } else {
-                parser.error("expected a '</' for ending the element");
+                printf("expected id, got: %d, %s\n", last_id.type, last_id.value.data());
+                fflush(null)
+                parser.error("expected identifier after the '</'");
             }
         } else {
             parser.error("expected a '</' for ending the element");

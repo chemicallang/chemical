@@ -84,9 +84,6 @@ public:
     inline void VisitDoWhileLoopStmt(DoWhileLoop* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    inline void VisitSymResNode(SymResNode* node) {
-        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
-    }
     inline void VisitForLoopStmt(ForLoop* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -340,10 +337,6 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
-    inline void VisitSymResValue(SymResValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
     inline void VisitUnsafeValue(UnsafeValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -545,9 +538,6 @@ public:
                 return;
             case ASTNodeKind::DoWhileLoopStmt:
                 static_cast<Derived*>(this)->VisitDoWhileLoopStmt((DoWhileLoop*) node);
-                return;
-            case ASTNodeKind::SymResNode:
-                static_cast<Derived*>(this)->VisitSymResNode((SymResNode*) node);
                 return;
             case ASTNodeKind::ForLoopStmt:
                 static_cast<Derived*>(this)->VisitForLoopStmt((ForLoop*) node);
@@ -790,9 +780,6 @@ public:
             case ValueKind::SizeOfValue:
                 static_cast<Derived*>(this)->VisitSizeOfValue((SizeOfValue*) value);
                 return;
-            case ValueKind::SymResValue:
-                static_cast<Derived*>(this)->VisitSymResValue((SymResValue*) value);
-                return;
             case ValueKind::UnsafeValue:
                 static_cast<Derived*>(this)->VisitUnsafeValue((UnsafeValue*) value);
                 return;
@@ -977,9 +964,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(DoWhileLoop* node) {
         static_cast<Derived*>(this)->VisitDoWhileLoopStmt(node);
-    }
-    inline void VisitByPtrTypeNoNullCheck(SymResNode* node) {
-        static_cast<Derived*>(this)->VisitSymResNode(node);
     }
     inline void VisitByPtrTypeNoNullCheck(ForLoop* node) {
         static_cast<Derived*>(this)->VisitForLoopStmt(node);
@@ -1172,9 +1156,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(SizeOfValue* value) {
         static_cast<Derived*>(this)->VisitSizeOfValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(SymResValue* value) {
-        static_cast<Derived*>(this)->VisitSymResValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(UnsafeValue* value) {
         static_cast<Derived*>(this)->VisitUnsafeValue(value);

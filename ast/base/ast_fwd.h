@@ -64,8 +64,6 @@ class IfStatement;
 
 class ImplDefinition;
 
-class SymResNode;
-
 class InterfaceDefinition;
 
 class Scope;
@@ -177,8 +175,6 @@ class AccessChain;
 class CastedValue;
 
 class IsValue;
-
-class SymResValue;
 
 class UnsafeValue;
 

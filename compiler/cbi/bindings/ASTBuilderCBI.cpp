@@ -88,8 +88,6 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnsafeBlock.h"
-#include "ast/statements/SymResNode.h"
-#include "ast/values/SymResValue.h"
 #include "std/chem_string.h"
 #include "ast/statements/EmbeddedNode.h"
 
@@ -111,14 +109,6 @@ void ASTBuilderstore_cleanup(ASTAllocator* allocator, void* obj, void* cleanup_f
 
 BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value) {
     return value->create_type(*allocator);
-}
-
-SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<SymResNode>()) SymResNode(allocator, (SymResNodeDeclarationFn) decl_fn, (SymResNodeReplacementFn) repl_fn, data_ptr, parent_node, location);
-}
-
-SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn, void* data_ptr, uint64_t location) {
-    return new (allocator->allocate<SymResValue>()) SymResValue(allocator, (SymResValueReplacementFn) repl_fn, data_ptr, location);
 }
 
 EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location) {

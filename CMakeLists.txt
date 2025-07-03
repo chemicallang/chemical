@@ -474,8 +474,6 @@ set(COMMON_SOURCES
         ast/values/NewValue.cpp
         compiler/cbi/bindings/ParserCBI.cpp
         ast/statements/ValueWrapperNode.h
-        ast/values/SymResValue.h
-        ast/statements/SymResNode.h
         compiler/cbi/bindings/SymbolResolverCBI.h
         compiler/cbi/bindings/SymbolResolverCBI.cpp
         ast/values/IncDecValue.h

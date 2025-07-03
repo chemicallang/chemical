@@ -18,21 +18,24 @@ void FoldingRangeAnalyzer::folding_range(const Position& start, const Position& 
     });
 }
 
-void FoldingRangeAnalyzer::folding_range(SourceLocation loc, bool comment) {
-    if(loc.isValid()) {
-        const auto location = loc_man.getLocationPos(loc);
-        folding_range(location.start, location.end, false);
+void FoldingRangeAnalyzer::analyze(std::vector<Token>& tokens) {
+    ranges.reserve(120);
+    std::vector<Position> bracesStack;
+    bracesStack.reserve(20);
+    for(auto& token : tokens) {
+        switch(token.type) {
+            case TokenType::LBrace:
+                bracesStack.emplace_back(token.position);
+                break;
+            case TokenType::RBrace:
+                if(!bracesStack.empty()) {
+                    const auto opening = bracesStack.back();
+                    bracesStack.pop_back();
+                    folding_range(opening, token.position, false);
+                }
+                break;
+            default:
+                break;
+        }
     }
-}
-
-void FoldingRangeAnalyzer::VisitScope(Scope* scope) {
-    folding_range(scope->encoded_location());
-}
-
-std::vector<lsp::FoldingRange> folding_analyze(LocationManager& locMan, std::vector<ASTNode*>& nodes) {
-    FoldingRangeAnalyzer analyzer(locMan);
-    for(const auto node : nodes) {
-        analyzer.visit(node);
-    }
-    return std::move(analyzer.ranges);
 }

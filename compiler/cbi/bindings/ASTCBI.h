@@ -9,11 +9,15 @@ class SymbolResolver;
 
 extern "C" {
 
+    uint64_t ValuegetEncodedLocation(Value* value);
+
     int ValuegetKind(Value* value);
 
     bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver);
 
     ASTNode* ValuegetLinkedNode(Value* value);
+
+    uint64_t ASTNodegetEncodedLocation(ASTNode* node);
 
     int ASTNodegetKind(ASTNode* node);
 

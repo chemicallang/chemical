@@ -1,6 +1,5 @@
 public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) : bool {
-    // TODO this location should not be used
-    const loc = intrinsics::get_raw_location();
+    const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
 }
@@ -37,8 +36,7 @@ public func node_traversal_func(node : *EmbeddedNode, data : *void, traverse : (
 }
 
 public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
-    // TODO this location should not be used
-    const loc = intrinsics::get_raw_location();
+    const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
 }

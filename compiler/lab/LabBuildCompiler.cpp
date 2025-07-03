@@ -1054,7 +1054,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     for(auto& index : cbiJob->indexes) {
         auto err = binder.index_function(index, state);
         if(err != nullptr) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << err << " indexing cbi function '" << index.fn_name << "' with key '" << index.key << '\'' << std::endl;
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << err << " when indexing cbi function '" << index.fn_name << "' with key '" << index.key << '\'' << std::endl;
             return 1;
         }
     }

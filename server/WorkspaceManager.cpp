@@ -310,7 +310,7 @@ std::vector<lsp::FoldingRange> WorkspaceManager::get_folding_range(const std::st
     }
     // TODO anonymous files tokens should also be stored for this operation
     if(lexResult) {
-        FoldingRangeAnalyzer analyzer;
+        FoldingRangeAnalyzer analyzer(binder);
         analyzer.analyze(lexResult->tokens);
         return std::move(analyzer.ranges);
     } else {

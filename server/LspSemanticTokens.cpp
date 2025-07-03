@@ -185,12 +185,11 @@ ModuleData* WorkspaceManager::getModuleData(LabModule* module) {
     }
 }
 
-void parseModuleWithDeps(
+void parseModuleThreadSafe(
         int id,
         WorkspaceManager& manager,
         LabModule* module,
-        ModuleData* modData,
-        std::vector<std::future<void>>& futures
+        ModuleData* modData
 ) {
 
     // fast path, if already prepared file units, then we do not need to do it
@@ -206,23 +205,6 @@ void parseModuleWithDeps(
         return;
     }
 
-    // launch all modules concurrently and recursively
-    // because in parsing, no module is dependent on another module
-    for(const auto dep : module->dependencies) {
-
-        // getting the module data for dependency module
-        const auto depModData = manager.getModuleData(dep);
-
-        // we are preparing dependencies of this module as well (once)
-        modData->dependencies.emplace_back(depModData);
-
-        // launching dependencies recursively with the same function
-        futures.emplace_back(
-                manager.pool.push(parseModuleWithDeps, std::ref(manager), dep, depModData, std::ref(futures))
-        );
-
-    }
-
     // actually parsing the module
     parseModule(manager, module, modData);
 
@@ -232,8 +214,46 @@ void parseModuleWithDeps(
 
 }
 
+void parseModuleWithDeps(
+        WorkspaceManager& manager,
+        LabModule* module,
+        ModuleData* modData,
+        std::vector<std::future<void>>& futures
+) {
+
+    // fast path, if already prepared file units, then we do not need to do it
+    if(modData->prepared_file_units) {
+        return;
+    }
+
+    // launch all modules concurrently and recursively
+    // because in parsing, no module is dependent on another module
+    for(const auto dep : module->dependencies) {
+
+        // getting the module data for dependency module
+        const auto depModData = manager.getModuleData(dep);
+
+        // we are preparing dependencies of this module as well (once)
+        if(!modData->determined_dependencies) {
+            modData->dependencies.emplace_back(depModData);
+        }
+
+        // launch this dependency's dependencies
+        parseModuleWithDeps(manager, dep, depModData, futures);
+
+    }
+
+    // set: we have determined the dependencies of this module
+    modData->determined_dependencies = true;
+
+    // launching dependencies recursively with the same function
+    futures.emplace_back(
+            manager.pool.push(parseModuleThreadSafe, std::ref(manager), module, modData)
+    );
+
+}
+
 void parseModuleWithDepsWait(
-        int id,
         WorkspaceManager& manager,
         LabModule* module,
         ModuleData* modData
@@ -241,7 +261,7 @@ void parseModuleWithDepsWait(
     std::vector<std::future<void>> futures;
     // parse
     parseModuleWithDeps(
-        id,  manager, module, modData, futures
+        manager, module, modData, futures
     );
     // wait
     for(auto& future : futures) {
@@ -624,7 +644,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
         // trigger parse of module with dependencies
         // and wait for everything to be parsed
-        parseModuleWithDepsWait(0, *this, mod, modData);
+        parseModuleWithDepsWait(*this, mod, modData);
 
         // symbol resolve (declare + link signature) of dependencies (recursively) (NOT current module)
         // symbol resolve dependencies concurrently

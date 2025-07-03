@@ -1132,4 +1132,9 @@ public:
         return ((PatternMatchExpr*) this);
     }
 
+    inline EmbeddedValue* as_embedded_value_unsafe() {
+        CHECK_CAST(ValueKind::EmbeddedValue);
+        return ((EmbeddedValue*) this);
+    }
+
 };

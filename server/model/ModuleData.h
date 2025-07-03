@@ -68,6 +68,11 @@ public:
     bool prepared_file_units = false;
 
     /**
+     * have we determined dependencies of this module
+     */
+    bool determined_dependencies = false;
+
+    /**
      * a module to be symbol resolved, it must not have dirty files
      * and must be symbol resolved completely at least once
      */

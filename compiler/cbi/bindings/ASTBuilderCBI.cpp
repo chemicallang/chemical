@@ -111,24 +111,26 @@ BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value) {
     return value->create_type(*allocator);
 }
 
-EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location) {
+EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, void* traversal_fn, ASTNode* parent_node, uint64_t location) {
     return new (allocator->allocate<EmbeddedNode>()) EmbeddedNode(
             data_ptr,
             (EmbeddedNodeSymbolResolveFunc*) sym_res_fn,
             (EmbeddedNodeReplacementFunc*) repl_fn,
             (EmbeddedNodeKnownTypeFunc*) known_type_fn,
             (EmbeddedNodeChildResolutionFunc*) child_res_fn,
+            (EmbeddedNodeTraversalFunc*) traversal_fn,
             parent_node,
             location
     );
 }
 
-EmbeddedValue* ASTBuildermake_embedded_value(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* type_cr_fn, uint64_t location) {
+EmbeddedValue* ASTBuildermake_embedded_value(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* type_cr_fn, void* traversal_fn, uint64_t location) {
     return new (allocator->allocate<EmbeddedValue>()) EmbeddedValue(
             data_ptr,
             (EmbeddedValueSymbolResolveFunc*) sym_res_fn,
             (EmbeddedValueReplacementFunc*) repl_fn,
             (EmbeddedValueTypeCreationFunc*) type_cr_fn,
+            (EmbeddedValueTraversalFunc*) traversal_fn,
             location
     );
 }

@@ -31,6 +31,11 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
     return null;
 }
 
+public func node_traversal_func(node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
+    const root = node.getDataPtr() as *mut HtmlRoot;
+    traverse_root(root, data, traverse)
+}
+
 public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
     // TODO this location should not be used
     const loc = intrinsics::get_raw_location();
@@ -64,6 +69,10 @@ public func value_type_creation_func(builder : *ASTBuilder, value : *EmbeddedVal
     return builder.make_string_type(loc);
 }
 
+public func value_traversal_func(value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
+    const root = value.getDataPtr() as *mut HtmlRoot;
+    traverse_root(root, data, traverse)
+}
 
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
@@ -74,7 +83,7 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")
         fflush(null)
-        const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, loc);
+        const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, value_traversal_func, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }
@@ -94,7 +103,7 @@ public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder)
         var root = parseHtmlRoot(parser, builder);
         printf("parsed to html root\n")
         fflush(null)
-        const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, root.parent, loc);
+        const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, node_traversal_func, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }

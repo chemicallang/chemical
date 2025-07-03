@@ -29,6 +29,7 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/Namespace.h"
 #include "ast/statements/DestructStmt.h"
+#include "ast/statements/EmbeddedNode.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ForLoop.h"
@@ -110,6 +111,7 @@
 //#include "ast/values/UInt128Value.h"
 //#include "ast/values/UIntValue.h"
 //#include "ast/values/ULongValue.h"
+#include "ast/values/EmbeddedValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/PatternMatchExpr.h"
@@ -501,6 +503,31 @@ public:
 
     void VisitAliasStmt(AliasStmt* node) {
         visit_it(node->value);
+    }
+
+    static bool embedded_traverse(void* data, ASTAny* item) {
+        const auto visitor = static_cast<RecursiveVisitor<Derived>*>(data);
+        switch(item->any_kind()) {
+            case ASTAnyKind::Value:
+                visitor->VisitValueNoNullCheck(static_cast<Value*>(item));
+                return true;
+            case ASTAnyKind::Type:
+                visitor->VisitTypeNoNullCheck(static_cast<BaseType*>(item));
+                return true;
+            case ASTAnyKind::Node:
+                visitor->VisitNodeNoNullCheck(static_cast<ASTNode*>(item));
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    inline void VisitEmbeddedNode(EmbeddedNode* node) {
+        node->traversal_fn(node, this, embedded_traverse);
+    }
+
+    inline void VisitEmbeddedValue(EmbeddedValue* value) {
+        value->traversal_fn(value, this, embedded_traverse);
     }
 
 };

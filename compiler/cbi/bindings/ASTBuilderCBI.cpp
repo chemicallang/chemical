@@ -545,6 +545,10 @@ int ValuegetKind(Value* value) {
     return static_cast<int>(value->val_kind());
 }
 
+uint64_t ValuegetEncodedLocation(Value* value) {
+    return value->encoded_location().encoded;
+}
+
 bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver) {
     return value->link(*resolver, *ptr_ref, expected_type);
 }
@@ -554,6 +558,10 @@ ASTNode* ValuegetLinkedNode(Value* value) {
 }
 
 // ASTNode methods
+
+uint64_t ASTNodegetEncodedLocation(ASTNode* node) {
+    return node->encoded_location().encoded;
+}
 
 int ASTNodegetKind(ASTNode* node) {
     return static_cast<int>(node->kind());

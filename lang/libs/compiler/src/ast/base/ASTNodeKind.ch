@@ -18,7 +18,6 @@ public enum ASTNodeKind {
     ComptimeBlock,
     WhileLoopStmt,
     DoWhileLoopStmt,
-    SymResNode,
     ForLoopStmt,
     IfStmt,
     TryStmt,
@@ -65,5 +64,7 @@ public enum ASTNodeKind {
 
     FileScope,
     ModuleScope,
+
+    EmbeddedNode
 
 }

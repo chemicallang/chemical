@@ -46,7 +46,6 @@ public enum ValueKind {
     NotValue,
     NullValue,
     SizeOfValue,
-    SymResValue,
     UnsafeValue,
     ComptimeValue,
     AlignOfValue,
@@ -60,5 +59,6 @@ public enum ValueKind {
     WrapValue,
 
     DestructValue,
+    EmbeddedValue,
 
 }

@@ -345,16 +345,6 @@ public struct EmbeddedNode : ASTNode {
 
 public struct VariantMemberParam : ASTNode {}
 
-public struct SymResNode : ASTNode {}
-
-public struct SymResValue : Value {}
-
-public type SymResNodeDeclarationFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data_ptr : **mut void) => void;
-
-public type SymResNodeReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut ASTNode
-
-public type SymResValueReplacementFn = (builder : *mut ASTBuilder, resolver : *mut SymbolResolver, data : *mut void) => *mut Value
-
 public type EmbeddedNodeSymbolResolveFunc = (resolver : *mut SymbolResolver, value : *mut EmbeddedNode) => bool;
 
 public type EmbeddedNodeReplacementFunc = (builder : *ASTBuilder, value : *mut EmbeddedNode) => *ASTNode
@@ -377,14 +367,6 @@ public struct ASTBuilder : BatchAllocator {
     func store_cleanup(&self, obj : *void, cleanup_fn : (obj : *void) => void);
 
     func createType(&self, value : *mut Value) : *mut BaseType
-
-    // the decl_fn is only called if the node is a top level node and not inside a function
-    // to track, allocate the root node and set the data_ptr to it, otherwise set it to null
-    // in the repl_fn check if it is not set, allocate it if not, also declare will only declare now as a nested level node
-    // since the top level nodes can be accessed via nodes above it, this is required
-    func make_sym_res_node(&self, decl_fn : SymResNodeDeclarationFn, repl_fn : SymResNodeReplacementFn, data_ptr : *void, parent_node : *ASTNode, location : ubigint) : *mut SymResNode
-
-    func make_sym_res_value(&self, repl_fn : SymResValueReplacementFn, data_ptr : *void, location : ubigint) : *mut SymResValue;
 
     func make_embedded_node(&self, data_ptr : *void, sym_res_fn : EmbeddedNodeSymbolResolveFunc, repl_fn : EmbeddedNodeReplacementFunc, known_type_fn : EmbeddedNodeKnownTypeFunc, child_res_fn : EmbeddedNodeChildResolutionFunc, parent_node : *ASTNode, location : ubigint) : *EmbeddedNode
 

@@ -533,9 +533,6 @@ public:
 
     void VisitDoWhileLoopStmt(DoWhileLoop* node);
 
-    // TODO throw error when found, suppose to replaced
-    void VisitSymResNode(SymResNode* node) {}
-
     void VisitForLoopStmt(ForLoop* node);
 
     void VisitIfStmt(IfStatement* node);
@@ -686,9 +683,6 @@ public:
     void VisitNullValue(NullValue* value);
 
     void VisitSizeOfValue(SizeOfValue* value);
-
-    // TODO throw error as this gets replaced
-    void VisitSymResValue(SymResValue* value) {}
 
     // TODO handle unsafe value
     void VisitUnsafeValue(UnsafeValue* value) {}

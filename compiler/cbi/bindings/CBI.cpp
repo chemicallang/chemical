@@ -122,8 +122,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuildercreateType", (void*) ASTBuildercreateType },
         { "compiler_ASTBuildermake_embedded_node", (void*) ASTBuildermake_embedded_node },
         { "compiler_ASTBuildermake_embedded_value", (void*) ASTBuildermake_embedded_value },
-        { "compiler_ASTBuildermake_sym_res_node", (void*) ASTBuildermake_sym_res_node },
-        { "compiler_ASTBuildermake_sym_res_value", (void*) ASTBuildermake_sym_res_value },
         { "compiler_ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },
         { "compiler_ASTBuildermake_array_type", (void*) ASTBuildermake_array_type },
         { "compiler_ASTBuildermake_bigint_type", (void*) ASTBuildermake_bigint_type },

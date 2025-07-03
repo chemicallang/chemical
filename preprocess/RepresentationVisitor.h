@@ -167,9 +167,6 @@ public:
 
     void VisitDoWhileLoopStmt(DoWhileLoop* node);
 
-    // TODO error out when present because it's supposed to be removed during symbol resolution
-    void VisitSymResNode(SymResNode* node) {}
-
     void VisitForLoopStmt(ForLoop* node);
 
     void VisitIfStmt(IfStatement* node);
@@ -322,9 +319,6 @@ public:
     void VisitNullValue(NullValue* value);
 
     void VisitSizeOfValue(SizeOfValue* value);
-
-    // TODO error out when present not supposed to be present
-    void VisitSymResValue(SymResValue* value) {}
 
     // TODO handle unsafe value
     void VisitUnsafeValue(UnsafeValue* value) {}

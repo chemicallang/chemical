@@ -19,10 +19,6 @@ extern "C" {
 
     BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value);
 
-    SymResNode* ASTBuildermake_sym_res_node(ASTAllocator* allocator, void* decl_fn, void* repl_fn, void* data_ptr, ASTNode* parent_node, uint64_t location);
-
-    SymResValue* ASTBuildermake_sym_res_value(ASTAllocator* allocator, void* repl_fn, void* data_ptr, uint64_t location);
-
     EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location);
 
     EmbeddedValue* ASTBuildermake_embedded_value(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* type_cr_fn, uint64_t location);

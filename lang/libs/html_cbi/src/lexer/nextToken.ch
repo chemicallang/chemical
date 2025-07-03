@@ -8,7 +8,8 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     printf("reading character : %d\n", c);
     switch(c) {
         '<' => {
-            if(provider.peek() == '!') {
+            const p = provider.peek()
+            if(p == '!') {
                 provider.readCharacter();
                 const next = provider.peek()
                 if(next == '-') {
@@ -37,6 +38,14 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         value : view("expected directive or comment"),
                         position : position
                     }
+                }
+            } else if(p == '/') {
+                html.has_lt = true;
+                provider.readCharacter();
+                return Token {
+                    type : TokenType.TagEnd as int,
+                    value : view("</"),
+                    position : position
                 }
             } else {
                 html.has_lt = true;

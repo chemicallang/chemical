@@ -12,6 +12,9 @@ public enum TokenType {
     LessThan,
     GreaterThan,
 
+    // </
+    TagEnd,
+
     LBrace,
     RBrace,
 
@@ -21,8 +24,10 @@ public enum TokenType {
 
     FwdSlash,
 
-    DeclarationStart, // <!DOC
-    CommentStart, // <!--
+    // <!DOC
+    DeclarationStart,
+    // <!--
+    CommentStart,
     CommentText,
 
 

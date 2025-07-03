@@ -18,6 +18,9 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
         TokenType.GreaterThan => {
             analyzer.putToken(token, SemanticTokenScopes.PunctuationDefinitionTagEndHtml, 0)
         }
+        TokenType.TagEnd => {
+            analyzer.putToken(token, SemanticTokenScopes.PunctuationDefinitionTagEndHtml, 0)
+        }
         TokenType.LBrace => {
             analyzer.putToken(token, SemanticTokenTypes.Operator, 0)
         }

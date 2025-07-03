@@ -13,10 +13,6 @@ extern "C" {
 
     void SemanticTokensAnalyzerputAuto(SemanticTokensAnalyzer* analyzer, Token* token);
 
-    Token** SemanticTokensAnalyzergetCurrentTokenPtr(SemanticTokensAnalyzer* analyzer);
-
-    Token* SemanticTokensAnalyzergetEndToken(SemanticTokensAnalyzer* analyzer);
-
     void SemanticTokensAnalyzerput(
             SemanticTokensAnalyzer* analyzer,
             uint32_t lineNumber,

@@ -185,7 +185,7 @@ void SemanticTokensAnalyzer::put_auto(Token* token) {
                 const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
                 const auto hook = binder.findHook(view, CBIFunctionType::SemanticTokensPut);
                 if(hook) {
-                    ((EmbeddedSemanticTokensPut) hook)(this);
+                    current_token = ((EmbeddedSemanticTokensPut) hook)(this, &t, end_token);
                 } else {
                     put(token, TokenType(Macro));
                 }

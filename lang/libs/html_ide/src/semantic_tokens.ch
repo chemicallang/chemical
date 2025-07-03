@@ -52,33 +52,33 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
 }
 
 @no_mangle
-public func html_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer) {
+public func html_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *Token, end : *Token) : *Token {
 
-    var currPtr = analyzer.getCurrentTokenPtr();
-    const endToken = analyzer.getEndToken();
-    var curr = *currPtr
+    var current = start
 
     // put and skip the macro token
-    analyzer.putToken(curr, SemanticTokenTypes.Macro, 0)
-    curr = curr + 1;
+    analyzer.putToken(current, SemanticTokenTypes.Macro, 0)
+    current++
 
     var opened_braces = 0;
 
-    while(curr != endToken) {
+    while(current != end) {
 
-        putToken(analyzer, curr)
+        putToken(analyzer, current)
 
-        if(curr.type == TokenType.LBrace) {
+        if(current.type == TokenType.LBrace) {
             opened_braces++;
-        } else if(curr.type == TokenType.RBrace) {
+        } else if(current.type == TokenType.RBrace) {
             opened_braces--;
             if(opened_braces == 0) {
-                return;
+                return current;
             }
         }
 
-        curr = curr + 1;
-        *currPtr = curr;
+        current++;
+
     }
+
+    return current;
 
 }

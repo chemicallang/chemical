@@ -11,8 +11,17 @@
 #include "core/diag/Position.h"
 #include "lexer/Token.h"
 
+class CompilerBinder;
+
 class FoldingRangeAnalyzer {
 public:
+
+    CompilerBinder& binder;
+
+    /**
+     * positions where a starting brace exists
+     */
+    std::vector<Position> bracesStack;
 
     /**
      * all the folding ranges found
@@ -23,9 +32,11 @@ public:
      * constructor
      * @param tokens
      */
-    FoldingRangeAnalyzer() {
+    FoldingRangeAnalyzer(CompilerBinder& binder) : binder(binder) {
 
     }
+
+    void analyze(Token* start, Token* end);
 
     /**
      * tokens can be analyzed to provide folding ranges

@@ -5,6 +5,8 @@
 #include <cstdint>
 
 class SemanticTokensAnalyzer;
+class FoldingRangeAnalyzer;
+class Position;
 struct Token;
 
 extern "C" {
@@ -30,5 +32,18 @@ extern "C" {
             uint32_t tokenType,
             uint32_t tokenModifiers
     );
+
+    void FoldingRangeAnalyzerput(
+        FoldingRangeAnalyzer* analyzer,
+        Position* start,
+        Position* end,
+        bool comment
+    );
+
+    void FoldingRangeAnalyzerstackPush(FoldingRangeAnalyzer* analyzer, Position* position);
+
+    bool FoldingRangeAnalyzerstackEmpty(FoldingRangeAnalyzer* analyzer);
+
+    void FoldingRangeAnalyzerstackPop(Position* outPos, FoldingRangeAnalyzer* analyzer);
 
 }

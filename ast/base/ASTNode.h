@@ -1246,4 +1246,13 @@ public:
         return (PatternMatchIdentifier*) this;
     }
 
+    /**
+     * return as embedded node
+     */
+    inline EmbeddedNode* as_embedded_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::EmbeddedNode);
+        return (EmbeddedNode*) this;
+    }
+
+
 };

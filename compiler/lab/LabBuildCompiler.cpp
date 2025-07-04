@@ -1059,6 +1059,8 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
         }
     }
 
+    return 0;
+
 }
 
 int LabBuildCompiler::process_job_tcc(LabJob* job) {

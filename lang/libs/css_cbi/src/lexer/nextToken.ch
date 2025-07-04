@@ -8,6 +8,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     printf("reading character : %d\n", c);
     fflush(null)
     switch(c) {
+        -1 => {
+            return Token {
+                type : TokenType.EndOfFile as int,
+                value : view(""),
+                position : position
+            }
+        }
         ':' => {
             return Token {
                 type : TokenType.Colon as int,

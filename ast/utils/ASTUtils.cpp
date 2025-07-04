@@ -260,7 +260,7 @@ std::pair<int16_t, bool> register_generic_usage(
     const auto initial = (BaseType**) astAllocator.allocate_released_size(sizeof(void*) * generic_list.size(), alignof(void*));
     auto vec = initial;
     for(auto& type : generic_list) {
-        *vec = const_cast<BaseType*>(type.getType());
+        *vec = const_cast<BaseType*>(type.getType()->copy(astAllocator));
         vec++;
     }
     auto generic_list_allocated = std::span<BaseType*>(initial, generic_list.size());

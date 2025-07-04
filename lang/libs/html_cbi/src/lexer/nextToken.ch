@@ -7,6 +7,13 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     const c = provider.readCharacter();
     printf("reading character : %d\n", c);
     switch(c) {
+        -1 => {
+            return Token {
+                type : TokenType.EndOfFile as int,
+                value : view(""),
+                position : position
+            }
+        }
         '<' => {
             const p = provider.peek()
             if(p == '!') {

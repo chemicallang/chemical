@@ -5,7 +5,7 @@ public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut
 }
 
 public func node_replacement_func(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
-    printf("running html node_replacement_func\n");
+    printf("running css node_replacement_func\n");
     fflush(null)
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;
@@ -42,7 +42,7 @@ public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *Embed
 }
 
 public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
-    printf("running html value_replacement_func\n");
+    printf("running css value_replacement_func\n");
     fflush(null)
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;

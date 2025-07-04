@@ -2407,7 +2407,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     _file_allocator.clear();
 
     // get the build method
-    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+    auto build = (LabModule*(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
     if(!build) {
         std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
         return 1;
@@ -2419,9 +2419,17 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     context.storage.clear();
 
     // call the root build.lab build's function
-    build(&context);
+    const auto main_module = build(&context);
 
-    int job_result = 0;
+    // lets compile any cbi jobs user may have specified
+    for(auto& job : context.executables) {
+        if(job->type == LabJobType::CBI) {
+            const auto job_result = do_job(job.get());
+            if(job_result != 0) {
+                return job_result;
+            }
+        }
+    }
 
     // lets create a single job
     LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
@@ -2445,14 +2453,11 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     }
 
     // just put all the modules as this job's dependency
-    // TODO: we should only put the modules that this mod file imported
-    for(auto& mod : context.storage.get_modules()) {
-        final_job.dependencies.emplace_back(mod.get());
-    }
+    final_job.dependencies.emplace_back(main_module);
 
     current_job = &final_job;
 
-    job_result = do_job(&final_job);
+    const auto job_result = do_job(&final_job);
     if(job_result == 1) {
         std::cerr << rang::fg::red << "[lab] " << "error emitting executable, returned status code 1" << rang::fg::reset << std::endl;
     }

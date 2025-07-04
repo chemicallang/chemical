@@ -228,6 +228,7 @@ void VariantDefinition::link_signature(SymbolResolver &linker) {
     auto& diagnoser = linker;
     link_signature_no_gen(linker);
     generate_functions(allocator, diagnoser);
+    ensure_inherited_visibility(linker, specifier());
 }
 
 void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {

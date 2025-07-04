@@ -162,6 +162,8 @@ public:
 
     void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
+    void link_signature(SymbolResolver &linker) override;
+
     int vtable_function_index(FunctionDeclaration* decl);
 
     uint64_t byte_size(bool is64Bit) final;

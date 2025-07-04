@@ -8,9 +8,9 @@ public struct vector<T> {
 
     @constructor
     func make() {
-        data_ptr = malloc(sizeof(T) * 2) as *mut T
+        data_ptr = null
         data_size = 0
-        data_cap = 2
+        data_cap = 0
     }
 
     @constructor
@@ -30,16 +30,24 @@ public struct vector<T> {
                 // Handle allocation failure
                 // fprintf(stderr, "Failed to resize vector\n");
                 printf("failed to resize vector to a capacity of %d\n", new_cap);
+                fflush(null)
                 // exit(1);
             }
+        }
+    }
+
+    func ensure_capacity_for_one_more(&mut self) {
+        if (data_cap == 0) {
+            resize(2)
+        } else {
+            resize(data_cap * 2)
         }
     }
 
     func push(&mut self, value : T) {
         const s = data_size;
         if (s >= data_cap) {
-            // Double the capacity if needed
-            resize(data_cap * 2);
+            ensure_capacity_for_one_more()
         }
         memcpy(&data_ptr[s], &value, sizeof(T))
         intrinsics::forget(value)

@@ -60,6 +60,9 @@ public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
 @extern
 public func memset(dest : *mut void, ch : int, count : size_t) : *mut void
 
+@extern
+public func fflush(stream : *mut FILE) : int
+
 /**
 public func exit(code : int)
 public func quick_exit(code : int)

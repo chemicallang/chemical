@@ -131,7 +131,7 @@ ASTNode* parseNestedLevelMemberStatementTokens(Parser& parser, ASTAllocator& fn_
         case TokenType::AliasKw:
             return (ASTNode*) parser.parseAliasStatement(allocator, specifier);
         case TokenType::HashMacro:
-            return parser.parseMacroNode(allocator);
+            return parser.parseMacroNode(allocator, CBIFunctionType::ParseMacroMemberNode);
         case TokenType::ComptimeKw:
             return (ASTNode*) parser.parseComptimeBlock(allocator);
         case TokenType::IfKw:

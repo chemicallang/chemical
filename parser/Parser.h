@@ -23,6 +23,7 @@
 #include "ast/base/LocatedIdentifier.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "ast/base/TypeLoc.h"
+#include "compiler/cbi/model/CBIFunctionType.h"
 
 class CompilerBinder;
 
@@ -856,7 +857,7 @@ public:
     /**
      * parses a macro value node
      */
-    ASTNode* parseMacroNode(ASTAllocator& allocator);
+    ASTNode* parseMacroNode(ASTAllocator& allocator, CBIFunctionType type);
 
     /**
      * parses a number value

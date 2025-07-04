@@ -63,6 +63,8 @@ public enum CBIFunctionType {
     InitializeLexer,
     ParseMacroValue,
     ParseMacroNode,
+    ParseMacroTopLevelNode,
+    ParseMacroMemberNode,
     SemanticTokensPut,
     FoldingRangesPut
 }

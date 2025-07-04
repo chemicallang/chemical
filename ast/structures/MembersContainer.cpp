@@ -178,6 +178,17 @@ BaseDefMember* VariablesContainer::largest_member() {
     return member;
 }
 
+void VariablesContainer::ensure_inherited_visibility(ASTDiagnoser& diagnoser, AccessSpecifier at_least_spec) {
+    for(auto& inh : inherited) {
+        const auto linked = inh.type->get_direct_linked_node();
+        if(linked) {
+            if(linked->specifier() < at_least_spec) {
+                diagnoser.error(inh.type.encoded_location()) << "must refer to a node with at least '" << to_string(at_least_spec) << "' access specifier";
+            }
+        }
+    }
+}
+
 uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
     size_t offset = 0;
     size_t maxAlignment = 1;

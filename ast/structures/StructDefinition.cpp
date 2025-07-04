@@ -295,6 +295,7 @@ void StructDefinition::link_signature(SymbolResolver &linker) {
     auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     link_signature_no_gen(linker);
     generate_functions(allocator, linker);
+    ensure_inherited_visibility(linker, specifier());
 }
 
 void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {

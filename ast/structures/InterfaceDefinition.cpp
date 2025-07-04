@@ -203,3 +203,9 @@ void InterfaceDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& no
     take_members_from_parsed_nodes(linker);
     linker.declare_node(name_view(), this, specifier(), false);
 }
+
+void InterfaceDefinition::link_signature(SymbolResolver &linker) {
+    MembersContainer::link_signature(linker);
+    ensure_inherited_visibility(linker, specifier());
+}
+

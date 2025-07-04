@@ -9,6 +9,8 @@
 #include <string>
 #include <memory>
 
+class ASTDiagnoser;
+
 class VariablesContainer {
 protected:
 
@@ -105,6 +107,12 @@ public:
     BaseDefMember *child_member(const chem::string_view& name);
 
     BaseDefMember* largest_member();
+
+    /**
+     * ensure the inherited variables refer to structs / interfaces / unions that
+     * are at least this spec
+     */
+    void ensure_inherited_visibility(ASTDiagnoser& diagnoser, AccessSpecifier at_least_spec);
 
     /**
      * this will remove all the variables and their indexes

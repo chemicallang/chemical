@@ -2,6 +2,8 @@
 
 // Nodes
 
+class ASTAny;
+
 class ASTNode;
 
 class BaseType;

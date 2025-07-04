@@ -218,6 +218,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuildermake_variant_def", (void*) ASTBuildermake_variant_def },
         { "compiler_ASTBuildermake_variant_member", (void*) ASTBuildermake_variant_member },
         { "compiler_ASTBuildermake_variant_member_param", (void*) ASTBuildermake_variant_member_param },
+        { "compiler_ASTAnygetAnyKind", (void*) ASTAnygetAnyKind },
         { "compiler_ValuegetEncodedLocation", (void*) ValuegetEncodedLocation },
         { "compiler_ValuegetKind", (void*) ValuegetKind },
         { "compiler_Valuelink", (void*) Valuelink },

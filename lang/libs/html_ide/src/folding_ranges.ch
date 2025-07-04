@@ -1,5 +1,5 @@
 @no_mangle
-public func html_foldingRangesPut(analyzer : &FoldingRangeAnalyzer, start : *Token, end : *Token, dataPtr : *void) : *Token {
+public func html_foldingRangesPut(analyzer : &FoldingRangeAnalyzer, start : *Token, end : *Token) : *Token {
 
     var current = start
 

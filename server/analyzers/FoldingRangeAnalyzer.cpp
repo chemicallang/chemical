@@ -24,30 +24,6 @@ void FoldingRangeAnalyzer::folding_range(const Position& start, const Position& 
     });
 }
 
-void* getDataPtr(Token& token) {
-    const auto linked = token.linked;
-    switch(linked->any_kind()) {
-        case ASTAnyKind::Value: {
-            const auto value = (Value*) linked;
-            if(value->kind() == ValueKind::EmbeddedValue) {
-                return value->as_embedded_value_unsafe()->data_ptr;
-            } else {
-                return nullptr;
-            }
-        }
-        case ASTAnyKind::Node: {
-            const auto node = (ASTNode*) linked;
-            if (node->kind() == ASTNodeKind::EmbeddedNode) {
-                return node->as_embedded_node_unsafe()->data_ptr;
-            } else {
-                return nullptr;
-            }
-        }
-        default:
-            return nullptr;
-    }
-}
-
 void FoldingRangeAnalyzer::analyze(Token* current, Token* end) {
     while(current != end) {
         auto& token = *current;
@@ -67,7 +43,7 @@ void FoldingRangeAnalyzer::analyze(Token* current, Token* end) {
                 auto view = chem::string_view(t.data() + 1, t.size() - 1);
                 const auto hook = binder.findHook(view, CBIFunctionType::FoldingRangesPut);
                 if (hook) {
-                    current = ((EmbeddedFoldingRangesPut) hook)(this, current, end, getDataPtr(token));
+                    current = ((EmbeddedFoldingRangesPut) hook)(this, current, end);
                 }
                 break;
             }

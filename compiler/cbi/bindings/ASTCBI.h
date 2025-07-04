@@ -9,6 +9,8 @@ class SymbolResolver;
 
 extern "C" {
 
+    int ASTAnygetAnyKind(ASTAny* any);
+
     uint64_t ValuegetEncodedLocation(Value* value);
 
     int ValuegetKind(Value* value);

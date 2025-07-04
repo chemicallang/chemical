@@ -539,7 +539,11 @@ VariantMemberParam* ASTBuildermake_variant_member_param(ASTAllocator* allocator,
 
 // ------------------------------AST Methods begin here-----------------------------------------------
 
-// Value mtehods
+// Value methods
+
+int ASTAnygetAnyKind(ASTAny* any) {
+    return static_cast<int>(any->any_kind());
+}
 
 int ValuegetKind(Value* value) {
     return static_cast<int>(value->val_kind());

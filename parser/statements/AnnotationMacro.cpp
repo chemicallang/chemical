@@ -321,11 +321,11 @@ Value* Parser::parseMacroValue(ASTAllocator& allocator) {
     return nullptr;
 }
 
-ASTNode* Parser::parseMacroNode(ASTAllocator& allocator) {
+ASTNode* Parser::parseMacroNode(ASTAllocator& allocator, CBIFunctionType type) {
     auto& t = *token;
     if(t.type == TokenType::HashMacro) {
         const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
-        auto found = binder->findHook(view, CBIFunctionType::ParseMacroNode);
+        auto found = binder->findHook(view, type);
         if(found) {
             token++;
             const auto parsedNode = (EmbeddedParseMacroNodeFn (found))(this, &allocator);

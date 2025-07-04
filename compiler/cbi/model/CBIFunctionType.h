@@ -4,14 +4,18 @@
 
 enum class CBIFunctionType : int {
 
-    InitializeLexer = 0,
+    InitializeLexer,
 
-    ParseMacroValue = 1,
+    ParseMacroValue,
 
-    ParseMacroNode = 2,
+    ParseMacroNode,
 
-    SemanticTokensPut = 3,
+    ParseMacroTopLevelNode,
 
-    FoldingRangesPut = 4
+    ParseMacroMemberNode,
+
+    SemanticTokensPut,
+
+    FoldingRangesPut
 
 };

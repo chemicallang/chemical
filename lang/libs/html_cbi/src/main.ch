@@ -1,4 +1,4 @@
-public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) : bool {
+public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
@@ -108,6 +108,7 @@ public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder)
         return node;
     } else {
         parser.error("expected a lbrace");
+        return null;
     }
 }
 

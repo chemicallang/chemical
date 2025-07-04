@@ -15,4 +15,4 @@ typedef Token*(*EmbeddedSemanticTokensPut)(SemanticTokensAnalyzer* analyzer, Tok
 /**
  * folding range analyzer is passed to folding ranges put
  */
-typedef Token*(*EmbeddedFoldingRangesPut)(FoldingRangeAnalyzer* analyzer, Token* start, Token* end, void* dataPtr);
+typedef Token*(*EmbeddedFoldingRangesPut)(FoldingRangeAnalyzer* analyzer, Token* start, Token* end);

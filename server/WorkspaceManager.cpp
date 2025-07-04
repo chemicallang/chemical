@@ -99,9 +99,9 @@ void WorkspaceManager::post_build_lab() {
         switch_main_job(context.executables.front().get());
     }
 
+    // index all files from all modules
+    // (so we can determine the module for a given file in IDE)
     index_module_files();
-
-    // before we get compiling, the modules
 
     // compile cbi jobs and have their tcc state ready for invocation
     // the tcc state will end up inside the compiler binder
@@ -144,7 +144,12 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
     // setup stuff
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
     LabBuildCompiler compiler(loc_man, binder, &options);
-    compiler.container = global_container;
+    // this check for has_container protects us from disposing a container created
+    // inside do_job (just a safety guard, although global_container should always be present)
+    const auto has_container = global_container != nullptr;
+    if(has_container) {
+        compiler.container = global_container;
+    }
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -158,7 +163,16 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
     compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
 
     // do the job, the tcc state will automatically end up in compiler binder
-    return compiler.do_job(job);
+    const auto jobRes = compiler.do_job(job);
+
+    if(has_container) {
+        // we take container back, since compiler always disposes container
+        // however we must reuse container, container is very large in terms of memory
+        compiler.container = nullptr;
+    }
+
+    // return the job result
+    return jobRes;
 
 }
 
@@ -174,13 +188,17 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     create_dir(compiler_build_dir);
     create_dir(build_dir);
 
-    LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
     CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
-    LabBuildCompiler compiler(loc_man, binder, &options);
     auto& storage = modStorage;
-    ImportPathHandler pathHandler(compiler_exe_path);
-    auto context_ptr = new LabBuildContext(compiler, pathHandler, storage, binder, lab_path);
+
+    // creating the compiler (static function, cannot reuse global contaienr)
+    LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
+    LabBuildCompiler compiler(loc_man, binder, &options);
+
+    // creating context, this allows separation, we don't want to reuse
+    // we do not want to share data between labs because lab files are very flexible
+    auto context_ptr = new LabBuildContext(compiler, compiler.path_handler, storage, binder, lab_path);
     std::unique_ptr<LabBuildContext> context(context_ptr);
 
     // allocating ast allocators

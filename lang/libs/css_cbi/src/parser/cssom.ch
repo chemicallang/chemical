@@ -6,7 +6,8 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
         has_dynamic_values : false,
         declarations : std::vector<*mut CSSDeclaration>(),
         className : std::string_view(),
-        global : GlobalBlock()
+        global : GlobalBlock(),
+        support : SymResSupport()
     }
     var cssParser = CSSParser();
     while(true) {

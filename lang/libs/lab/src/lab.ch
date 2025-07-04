@@ -286,35 +286,25 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
     }
 }
 
+public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : &std::string_view, type : CBIFunctionType) {
+    var fn_name = job.name.copy()
+    fn_name.append_with_len(name.data(), name.size())
+    ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), type)
+}
+
 // add the given cbi to a cbi job
 public func (ctx : &BuildContext) add_cbi_type(job : *mut LabJobCBI, type : CBIType) : bool {
     switch(type) {
         CBIType.MacroLexer => {
-            var fn_name = job.name.copy()
-            var view = std::string_view("_initializeLexer")
-            fn_name.append_with_len(view.data(), view.size())
-            ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), CBIFunctionType.InitializeLexer)
+            ctx.index_def_cbi_fn(job, std::string_view("_initializeLexer"), CBIFunctionType.InitializeLexer);
         }
         CBIType.MacroParser => {
-            var fn_name = job.name.copy()
-            var view = std::string_view("_parseMacroValue")
-            fn_name.append_with_len(view.data(), view.size())
-            ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), CBIFunctionType.ParseMacroValue)
-            var fn_name2 = job.name.copy()
-            var view2 = std::string_view("_parseMacroNode")
-            fn_name2.append_with_len(view2.data(), view2.size())
-            ctx.index_cbi_fn(job, job.name.to_view(), fn_name2.to_view(), CBIFunctionType.ParseMacroNode)
+            ctx.index_def_cbi_fn(job, std::string_view("_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+            ctx.index_def_cbi_fn(job, std::string_view("_parseMacroNode"), CBIFunctionType.ParseMacroNode);
         }
         CBIType.IDESupport => {
-            var fn_name = job.name.copy()
-            var view = std::string_view("_semanticTokensPut")
-            fn_name.append_with_len(view.data(), view.size())
-            ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), CBIFunctionType.SemanticTokensPut)
-
-            var fn_name2 = job.name.copy()
-            var view2 = std::string_view("_foldingRangesPut")
-            fn_name2.append_with_len(view2.data(), view2.size())
-            ctx.index_cbi_fn(job, job.name.to_view(), fn_name2.to_view(), CBIFunctionType.FoldingRangesPut)
+            ctx.index_def_cbi_fn(job, std::string_view("_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+            ctx.index_def_cbi_fn(job, std::string_view("_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
         }
     }
     return true;

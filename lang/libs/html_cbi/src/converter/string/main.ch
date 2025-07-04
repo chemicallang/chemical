@@ -278,8 +278,10 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
 }
 
 func (converter : &mut ASTConverter) convertHtmlRoot(root : *mut HtmlRoot) {
-    converter.convertHtmlChild(root.element);
-    if(!converter.str.empty()) {
-        converter.put_chain_in();
+    if(root.element != null) {
+        converter.convertHtmlChild(root.element);
+        if(!converter.str.empty()) {
+            converter.put_chain_in();
+        }
     }
 }

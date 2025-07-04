@@ -56,7 +56,9 @@ func sym_res_root(
     support.appendHtmlCharPtrFn = appendHtmlCharPtrFn
     support.appendHtmlFn = appendHtmlFn
 
-    sym_res_element(root.element, resolver, loc)
+    if(root.element != null) {
+        sym_res_element(root.element, resolver, loc)
+    }
 
     return true;
 

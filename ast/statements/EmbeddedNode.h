@@ -6,7 +6,7 @@
 
 class EmbeddedNode;
 
-typedef bool(EmbeddedNodeSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedNode* value);
+typedef void(EmbeddedNodeSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedNode* value);
 
 typedef ASTNode*(EmbeddedNodeReplacementFunc)(ASTAllocator* allocator, EmbeddedNode* value);
 

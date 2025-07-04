@@ -1,4 +1,4 @@
-public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) : bool {
+public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = node.getEncodedLocation()
     const root = node.getDataPtr() as *mut CSSOM;
     sym_res_root(root, resolver, loc)

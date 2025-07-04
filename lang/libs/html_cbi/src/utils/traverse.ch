@@ -18,5 +18,7 @@ func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *
 }
 
 func traverse_root(root : *mut HtmlRoot, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-    traverse_element(root.element, data, traverse);
+    if(root.element != null) {
+        traverse_element(root.element, data, traverse);
+    }
 }

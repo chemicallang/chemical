@@ -3,9 +3,6 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
 
     const current = parser.getToken();
 
-    printf("parsing element child at %d, %d\n", current.position.line, current.position.character)
-    fflush(null)
-
     if(current.type == TokenType.LessThan) {
 
         parser.increment();
@@ -23,9 +20,6 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         return null;
 
     } else if(current.type == TokenType.LBrace) {
-
-        printf("parsing chemical value in text\n", current.value.data())
-        fflush(null)
 
         parser.increment();
 
@@ -55,9 +49,6 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
 
         return value_child;
     } else if(current.type == TokenType.Text) {
-
-        printf("parsing text with value %s\n", current.value.data())
-        fflush(null)
 
         parser.increment();
 

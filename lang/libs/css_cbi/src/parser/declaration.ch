@@ -78,9 +78,6 @@ func (cssParser : &mut CSSParser) parseValue(
 
 func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CSSDeclaration {
 
-    printf("css parsing a declaration\n");
-    fflush(null)
-
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {
         parser.increment();
@@ -110,9 +107,6 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
         parser.error("expected colon after the css property name");
     }
 
-    printf("css parsing value\n");
-    fflush(null)
-
     cssParser.parseValue(parser, builder, decl.value, token.value);
 
     const sc = parser.getToken();
@@ -121,9 +115,6 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
     } else {
         parser.error("expected a semicolon after the property's value");
     }
-
-    printf("parsed a declaration with key '%s'\n", token.value.data());
-    fflush(null)
 
     return decl;
 

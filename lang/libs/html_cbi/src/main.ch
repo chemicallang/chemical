@@ -5,8 +5,6 @@ public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut
 }
 
 public func node_replacement_func(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
-    printf("running html node_replacement_func\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var scope = builder.make_scope(root.parent, loc);
@@ -42,8 +40,6 @@ public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *Embed
 }
 
 public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
-    printf("running html value_replacement_func\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var block_val = builder.make_block_value(root.parent, loc)
@@ -79,8 +75,6 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
-        printf("parsed to html root\n")
-        fflush(null)
         const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, value_traversal_func, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
@@ -94,13 +88,9 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
 
 @no_mangle
 public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    printf("running html_parseMacroNode\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
-        printf("parsed to html root\n")
-        fflush(null)
         const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, node_traversal_func, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
@@ -146,7 +136,6 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
     }
     const t = getNextToken2(html, lexer);
-    printf("I created token : '%s' with type %d\n", t.value.data(), t.type);
     return t;
 }
 

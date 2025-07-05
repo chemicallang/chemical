@@ -5,8 +5,6 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     // the position of the current symbol
     const position = provider.getPosition();
     const c = provider.readCharacter();
-    printf("reading character : %d\n", c);
-    fflush(null)
     switch(c) {
         -1 => {
             return Token {

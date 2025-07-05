@@ -5,8 +5,6 @@ public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut
 }
 
 public func node_replacement_func(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
-    printf("running css node_replacement_func\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;
     var scope = builder.make_scope(root.parent, loc);
@@ -19,8 +17,6 @@ public func node_replacement_func(builder : *mut ASTBuilder, value : *mut Embedd
         str : std::string()
     }
     converter.convertCSSOM(root);
-    printf("css convertCSSOM succeeded\n");
-    fflush(null)
     return scope;
 }
 
@@ -44,8 +40,6 @@ public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *Embed
 }
 
 public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
-    printf("running css value_replacement_func\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;
     var block_val = builder.make_block_value(root.parent, loc)
@@ -76,13 +70,9 @@ public func value_traversal_func(value : *EmbeddedValue, data : *void, traverse 
 
 @no_mangle
 public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    printf("running css_parseMacroValue\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
-        printf("parsed to css om\n")
-        fflush(null)
         const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, value_traversal_func, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
@@ -96,13 +86,9 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
 
 @no_mangle
 public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    printf("running css_parseMacroNode\n");
-    fflush(null)
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
-        printf("parsed to css om\n")
-        fflush(null)
         const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, node_traversal_func, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
@@ -135,7 +121,6 @@ public func getNextToken(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         }
     }
     const t = getNextToken2(css, lexer);
-    printf("I created token : '%s' with type %d\n", t.value.data(), t.type);
     return t;
 }
 

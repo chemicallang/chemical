@@ -1,8 +1,5 @@
 func (cssParser : &mut CSSParser) parseAtRule(om : &mut CSSOM, parser : *mut Parser, builder : *mut ASTBuilder) : bool {
 
-    printf("css parsing an at rule\n");
-    fflush(null)
-
     const token = parser.getToken();
     if(token.type == TokenType.At) {
         parser.increment();

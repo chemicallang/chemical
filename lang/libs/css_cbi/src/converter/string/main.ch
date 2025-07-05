@@ -181,8 +181,6 @@ func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Valu
         const chain = value as *mut AccessChain
         const values = chain.get_values();
         const size = values.size();
-        printf("received size of access chain %d\n", size)
-        fflush(null)
         const last = values.get(size - 1)
         if(last.getKind() == ValueKind.FunctionCall) {
             if(is_func_call_ret_void(builder, last as *mut FunctionCall)) {
@@ -954,9 +952,6 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
     writeValue(decl.value, str)
 
     str.append(';')
-
-    printf("written a declaration with key '%s'\n", propertyName)
-    fflush(null)
 
 }
 

@@ -371,7 +371,7 @@ public:
     void write_line_directive(SourceLocation location) {
         auto loc_pos = loc_man.getLocationPos(location);
         auto filePath = loc_man.getPathForFileId(loc_pos.fileId);
-        write_line_directive(loc_pos.start.line, chem::string_view(filePath));
+        write_line_directive(loc_pos.start.line + 1, chem::string_view(filePath));
     }
 
     /**

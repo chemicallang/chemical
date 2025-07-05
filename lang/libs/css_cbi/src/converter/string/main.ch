@@ -939,15 +939,9 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
     const builder = converter.builder
     const str = &converter.str;
 
-    printf("here i go 6\n");
-    fflush(null)
-
     const propertyName = decl.property.name.data()
     str.append_with_len(propertyName, decl.property.name.size())
     str.append(':')
-
-    printf("here i go 7\n");
-    fflush(null)
 
     // if(!str.empty()) {
     //     put_chain_in(resolver, builder, vec, parent, str);
@@ -957,13 +951,7 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
 
     // put_char_chain(resolver, builder, vec, parent, '\"');
 
-    printf("here i go 8\n");
-    fflush(null)
-
     writeValue(decl.value, str)
-
-    printf("here i go 9\n");
-    fflush(null)
 
     str.append(';')
 
@@ -1032,14 +1020,10 @@ func (converter : &mut ASTConverter) str_ref() : &mut std::string {
 }
 
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
-    printf("here i go 1\n");
-    fflush(null)
     const builder = converter.builder
     const str = converter.str_ref()
     var size = om.declarations.size()
     if(size > 0) {
-        printf("here i go 2\n");
-        fflush(null)
         if(om.has_dynamic_values) {
             const hash = generate_random_32bit();
             var className : char[10] = [];
@@ -1054,18 +1038,12 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
             // const dataPtr = total.data() + 1
             // om.className = std::string_view(dataPtr, 7)
         }
-        printf("here i go 3\n");
-        fflush(null)
         var i : uint = 0
         while(i < size) {
-            printf("here i go 4\n");
-            fflush(null)
             var decl = om.declarations.get(i)
             converter.convertDeclaration(decl)
             i++;
         }
-        printf("here i go 5\n");
-        fflush(null)
         if(str.empty()) {
             converter.put_char_chain('}')
         } else {

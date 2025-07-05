@@ -18,8 +18,6 @@ void register_crash_handler(void);
 }
 #endif
 
-#endif
-
 #if defined(_WIN32)
 
 #include <windows.h>
@@ -188,3 +186,5 @@ void register_crash_handler(void) {
 void register_crash_handler(void) {
     fprintf(stderr, "Crash handler not supported on this platform.\n");
 }
+
+#endif

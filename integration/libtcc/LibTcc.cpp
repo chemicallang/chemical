@@ -180,8 +180,6 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
 
 }
 
-// jmp_buf TCC_CALL_JMP_BUF;
-
 void prepare_tcc_state_for_jit(TCCState* s) {
     tcc_undefine_symbol(s, "malloc");
     tcc_undefine_symbol(s, "realloc");
@@ -193,8 +191,6 @@ void prepare_tcc_state_for_jit(TCCState* s) {
     tcc_add_symbol(s, "free", (void*) free);
     tcc_add_symbol(s, "memcpy", (void*) memcpy);
     tcc_add_symbol(s, "memmove", (void*) memmove);
-    // TODO: this doesn't seem to work
-    // setjmp((_JBTYPE*) _tcc_setjmp(s, TCC_CALL_JMP_BUF, nullptr, (void*) longjmp));
 }
 
 TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {

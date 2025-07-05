@@ -1006,7 +1006,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     auto& cbiData = binder.data[cbiName];
     auto& outModDependencies = dependencies;
 
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, is_debug(options->outMode));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
@@ -1957,7 +1957,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         // also not a single file in the build.lab has changed and its object file also exists
         // which means we can safely link the previous object files again
 
-        const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+        const auto state = setup_tcc_state(options->exe_path.data(), "", true, is_debug(options->outMode));
         if(state == nullptr) {
             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
             std::cerr << "couldn't create tcc state for jit of cached build.lab object file" << std::endl;
@@ -2137,7 +2137,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // creating a new tcc state
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, is_debug(options->outMode));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "couldn't create tcc state for 'build.lab' file at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         return nullptr;

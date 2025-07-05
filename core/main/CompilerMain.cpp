@@ -415,8 +415,7 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
 
 int compiler_main(int argc, char *argv[]) {
 
-    // this only works in production
-    // because in debug mode, the debugger handles the exception
+    // this only works if invoked without a debugger
     register_crash_handler();
 
 // enable this code if debugging heap allocations is required

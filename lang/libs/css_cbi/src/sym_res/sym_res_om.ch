@@ -9,7 +9,7 @@ func sym_res_decl(
 }
 
 func sym_res_multi_decls(
-    vec : std::vector<*mut CSSDeclaration>,
+    vec : &std::vector<*mut CSSDeclaration>,
     resolver : *mut SymbolResolver,
     loc : ubigint
 ) {

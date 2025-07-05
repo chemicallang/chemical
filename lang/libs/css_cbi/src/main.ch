@@ -19,6 +19,8 @@ public func node_replacement_func(builder : *mut ASTBuilder, value : *mut Embedd
         str : std::string()
     }
     converter.convertCSSOM(root);
+    printf("css convertCSSOM succeeded\n");
+    fflush(null)
     return scope;
 }
 

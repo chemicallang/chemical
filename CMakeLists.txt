@@ -567,6 +567,8 @@ set(COMMON_SOURCES
         ast/statements/EmbeddedNode.h
         compiler/cbi/bindings/ASTDiagnoserCBI.h
         compiler/cbi/bindings/ASTDiagnoserCBI.cpp
+        core/main/CrashHandling.h
+        core/main/b_stacktrace.h
 )
 
 # Chemical LSP Executable Target

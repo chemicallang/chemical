@@ -82,6 +82,8 @@ bool tcc_set_output_for_extension(TCCState* s, const std::string& outputFileName
 
 int backtrace_handler(void *udata, void *pc, const char *file, int line, const char *func, const char *msg) {
 
+    if(!file && !func && !msg) return 0;
+
     if (msg) {
         // msg is only given on the first
         std::cerr << "\n=== RUNTIME CRASH ===\n";

@@ -64,12 +64,10 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
         '}' => {
             if(html.lb_count == 1) {
-                printf("exiting, didn't expect an rb\n");
                 html.reset();
                 lexer.unsetUserLexer();
             } else {
                 html.lb_count--;
-                printf("lb_count decreased to %d\n", html.lb_count);
             }
             return Token {
                 type : TokenType.RBrace as int,
@@ -80,12 +78,10 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         '{' => {
             // here always lb_count > 0
             if(html.lb_count == 1) {
-                printf("turning on chemical mode\n");
                 html.other_mode = true;
                 html.chemical_mode = true;
             }
             html.lb_count++;
-            printf("lb_count increased to %d\n", html.lb_count);
             return Token {
                 type : TokenType.LBrace as int,
                 value : view("{"),
@@ -194,7 +190,6 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     }
                 }
             } else {
-                printf("starting text with character : %d\n", c);
                 str.append(c);
                 var text = provider.read_text(lexer.str)
                 if(text.size() != 0) {

@@ -417,7 +417,7 @@ int compiler_main(int argc, char *argv[]) {
 
     // this only works in production
     // because in debug mode, the debugger handles the exception
-    register_crash_handlers();
+    register_crash_handler();
 
 // enable this code if debugging heap allocations is required
 //#ifdef _WIN32

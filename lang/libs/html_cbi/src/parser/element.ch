@@ -29,10 +29,6 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
 
         const isSelfClosing = isTagNameSelfClosing(id.value.data());
 
-        if(isSelfClosing) {
-            printf("THE Tag %s is self closing\n", id.value.data())
-        }
-
         var element : *mut HtmlElement = builder.allocate<HtmlElement>();
         new (element) HtmlElement {
             HtmlChild : HtmlChild {
@@ -77,8 +73,6 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
             if(child != null) {
                 element.children.push(child)
             } else {
-                printf("received element child is null\n");
-                fflush(null)
                 break;
             }
         }

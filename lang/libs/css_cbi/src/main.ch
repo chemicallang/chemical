@@ -106,17 +106,13 @@ public func getNextToken(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             var nested = lexer.getEmbeddedToken();
             if(nested.type == ChemicalTokenType.LBrace) {
                 css.lb_count++;
-                printf("lb_count increases to %d in chemical mode\n", css.lb_count);
             } else if(nested.type == ChemicalTokenType.RBrace) {
                 css.lb_count--;
-                printf("lb_count decreased to %d in chemical mode\n", css.lb_count);
                 if(css.lb_count == 1) {
                     css.other_mode = false;
                     css.chemical_mode = false;
-                    printf("since lb_count decreased to 1, we're switching to css mode\n");
                 }
             }
-            printf("in chemical mode, created token '%s'\n", nested.value.data());
             return nested;
         }
     }

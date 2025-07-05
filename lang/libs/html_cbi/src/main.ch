@@ -70,7 +70,6 @@ public func value_traversal_func(value : *EmbeddedValue, data : *void, traverse 
 
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    printf("wow create macro value\n");
     // TODO parser api should allow constructing location from a token
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
@@ -108,17 +107,13 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             var nested = lexer.getEmbeddedToken();
             if(nested.type == ChemicalTokenType.LBrace) {
                 html.lb_count++;
-                printf("lb_count increases to %d in chemical mode\n", html.lb_count);
             } else if(nested.type == ChemicalTokenType.RBrace) {
                 html.lb_count--;
-                printf("lb_count decreased to %d in chemical mode\n", html.lb_count);
                 if(html.lb_count == 1) {
                     html.other_mode = false;
                     html.chemical_mode = false;
-                    printf("since lb_count decreased to 1, we're switching to html mode\n");
                 }
             }
-            printf("in chemical mode, created token '%s'\n", nested.value.data());
             return nested;
         }
     }

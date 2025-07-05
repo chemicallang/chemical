@@ -2737,19 +2737,14 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     unsigned i = 0;
     auto write_self_param_now = [decl, tld, param, &i, overrides, overridden]() {
         if(param && should_void_pointer_to_self(param->type, param->name, 0, overrides)) {
-            if(overridden) {
-                tld->write("struct ");
-                node_name(tld->visitor, overridden);
-                tld->write('*');
-                tld->space();
-            } else {
+            if(!overridden) {
                 tld->write("void* ");
+                tld->write(param->name);
+                if(decl->params.size() > 1) {
+                    tld->write(", ");
+                }
+                i = 1;
             }
-            tld->write(param->name);
-            if(decl->params.size() > 1) {
-                tld->write(", ");
-            }
-            i = 1;
         }
     };
     const auto func_parent = decl->parent();
@@ -3910,23 +3905,15 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     const auto interface = def && overrides ? def->get_overriding_interface(decl) : nullptr;
     auto write_self_param_now = [decl, &visitor, param, &i, overrides, def, interface]() {
         if(param && should_void_pointer_to_self(param->type, param->name, 0, overrides)) {
-//            self_pointer_name = "__ch_self_pointer_329283";
-//            visitor->write("void* ");
             if(interface && interface->is_static()) {
                 visitor.write("void* ");
                 visitor.write(static_interface_passed_param_name);
-            } else {
-                visitor.write("struct ");
-                node_name(visitor, def);
-                visitor.write('*');
-                visitor.space();
-                visitor.write(param->name);
+                if(decl->params.size() > 1) {
+                    visitor.write(", ");
+                }
+                i = 1;
             }
 //            visitor->write(self_pointer_name);
-            if(decl->params.size() > 1) {
-                visitor.write(", ");
-            }
-            i = 1;
         }
     };
     const auto decl_ret_func = decl->returnType->as_function_type();

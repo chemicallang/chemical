@@ -10,6 +10,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "rang.hpp"
 #include "compiler/typeverify/TypeVerifyAPI.h"
+#include "DeclareTopLevel.h"
 
 SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
@@ -215,7 +216,8 @@ SymbolRange SymbolResolver::tld_declare_file(
     declared_files.emplace(chem::string_view(abs_path), scope);
     auto& linker = *this;
     const auto start = stored_file_symbols.size();
-    scope.tld_declare(linker);
+    TopLevelDeclSymDeclare declarer(*this);
+    declarer.VisitScope(&scope);
     const auto end = stored_file_symbols.size();
     return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
@@ -263,7 +265,8 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     declared_files.emplace(chem::string_view(abs_path), scope);
     auto& linker = *this;
     const auto start = stored_file_symbols.size();
-    scope.tld_declare(linker);
+    TopLevelDeclSymDeclare declarer(*this);
+    declarer.VisitScope(&scope);
     const auto end = stored_file_symbols.size();
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
     enable_file_symbols(range);

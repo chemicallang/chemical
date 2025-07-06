@@ -60,8 +60,6 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     ASTNode* child(const chem::string_view &name) override;
 
     ~ImportStatement() final {

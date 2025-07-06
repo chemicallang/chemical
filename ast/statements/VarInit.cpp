@@ -256,10 +256,6 @@ ASTNode *VarInitStatement::child(const chem::string_view &name) {
     return nullptr;
 }
 
-void VarInitStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare_node(id_view(), this, specifier(), true);
-}
-
 void VarInitStatement::link_signature(SymbolResolver &linker) {
     const auto type_resolved = !type || type.link(linker);
     const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());

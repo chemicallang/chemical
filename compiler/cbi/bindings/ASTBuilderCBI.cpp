@@ -575,10 +575,6 @@ ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name) {
     return node->child(*name);
 }
 
-void ASTNodedeclare_top_level(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {
-    node->declare_top_level(*resolver, *ptr_ref);
-}
-
 void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {
     node->declare_and_link(*resolver, *ptr_ref);
 }
@@ -657,10 +653,6 @@ std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {
 
 void Scopelink_sequentially(Scope* scope, SymbolResolver* resolver) {
     scope->link_sequentially(*resolver);
-}
-
-void Scopelink_asynchronously(Scope* scope, SymbolResolver* resolver) {
-    scope->link_asynchronously(*resolver);
 }
 
 std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop) {

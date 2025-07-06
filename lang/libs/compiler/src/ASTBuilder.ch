@@ -217,8 +217,6 @@ public struct Scope : ASTNode {
 
     func link_sequentially(&self, resolver : *mut SymbolResolver)
 
-    func link_asynchronously(&self, resolver : *mut SymbolResolver)
-
 }
 
 public struct LoopASTNode : ASTNode {

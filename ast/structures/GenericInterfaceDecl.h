@@ -78,8 +78,6 @@ public:
         return master_impl->known_type();
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) override;
-
     void link_signature(SymbolResolver &linker) override;
 
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;

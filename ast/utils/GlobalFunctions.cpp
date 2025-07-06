@@ -41,6 +41,8 @@
 #include "ast/types/ReferenceType.h"
 #include "core/source/LocationManager.h"
 #include "ast/base/TypeBuilder.h"
+#include "compiler/symres/DeclareTopLevel.h"
+
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
 #endif
@@ -1987,8 +1989,12 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.intrinsics_namespace.memNamespace.extended.clear();
     container.intrinsics_namespace.ptrNamespace.extended.clear();
 
+    // declare the nodes inside the symbol resolver
+    TopLevelDeclSymDeclare declarer(resolver);
+
     // this would re-insert the children into extended map of namespaces
-    container.intrinsics_namespace.declare_top_level(resolver, (ASTNode*&) container.intrinsics_namespace);
+    // TODO: do not visit the namespace for this
+    declarer.visit(&container.intrinsics_namespace);
 
     // TODO these symbols will be removed when module ends
     // TODO use exported declare or rename function to convey meaning better
@@ -2009,12 +2015,16 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     const auto container_ptr = new GlobalContainer(typeCache);
     auto& container = *container_ptr;
 
-    container.intrinsics_namespace.declare_top_level(resolver, (ASTNode*&) container.intrinsics_namespace);
-    container.defined.declare_top_level(resolver, (ASTNode*&) container.defined);
+    // declare the nodes inside the symbol resolver
+    TopLevelDeclSymDeclare declarer(resolver);
+
+    // namespaces
+    declarer.visit(&container.intrinsics_namespace);
+    declarer.visit(&container.defined);
 
     // definitions using defThing
-    container.defThing.decl.declare_top_level(resolver, (ASTNode*&) container.defThing.decl);
-    container.defThing.defStmt.declare_top_level(resolver, (ASTNode*&) container.defThing.defStmt);
+    declarer.visit(&container.defThing.decl);
+    declarer.visit(&container.defThing.defStmt);
 
     create_target_data_in_def(*this, container.defThing);
 

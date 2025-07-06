@@ -23,6 +23,7 @@
 #include "ast/structures/If.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "compiler/symres/DeclareTopLevel.h"
 #include <iostream>
 
 #ifdef COMPILER_BUILD
@@ -369,8 +370,10 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
         }
     }
     // declare all the functions
+    TopLevelDeclSymDeclare declarer(linker);
+
     for(auto& func : functions()) {
-        func->declare_top_level(linker, (ASTNode*&) func);
+        declarer.visit(func);
     }
     for (auto& func: functions()) {
         func->declare_and_link(linker, (ASTNode*&) func);
@@ -870,7 +873,8 @@ void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vecto
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::AliasStmt:{
-                node->as_alias_stmt_unsafe()->declare_top_level(linker);
+                TopLevelDeclSymDeclare declarer(linker);
+                declarer.visit(node);
                 break;
             }
             case ASTNodeKind::IfStmt: {

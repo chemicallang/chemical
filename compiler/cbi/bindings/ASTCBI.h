@@ -25,8 +25,6 @@ extern "C" {
 
     ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name);
 
-    void ASTNodedeclare_top_level(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);
-
     void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);
 
     int BaseTypegetKind(BaseType* type);
@@ -62,8 +60,6 @@ extern "C" {
     std::vector<ASTNode*>* ScopegetNodes(Scope* scope);
 
     void Scopelink_sequentially(Scope* scope, SymbolResolver* resolver);
-
-    void Scopelink_asynchronously(Scope* scope, SymbolResolver* resolver);
 
     std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop);
 

@@ -126,6 +126,9 @@ public:
     inline void VisitGenericVariantDecl(GenericVariantDecl* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitGenericImplDecl(GenericImplDecl* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitMultiFunctionNode(MultiFunctionNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -580,6 +583,9 @@ public:
                 return;
             case ASTNodeKind::GenericVariantDecl:
                 static_cast<Derived*>(this)->VisitGenericVariantDecl((GenericVariantDecl*) node);
+                return;
+            case ASTNodeKind::GenericImplDecl:
+                static_cast<Derived*>(this)->VisitGenericImplDecl((GenericImplDecl*) node);
                 return;
             case ASTNodeKind::MultiFunctionNode:
                 static_cast<Derived*>(this)->VisitMultiFunctionNode((MultiFunctionNode*) node);

@@ -128,8 +128,6 @@ public:
 
     void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     inline void link_signature_no_gen(SymbolResolver &linker) {
         MembersContainer::link_signature(linker);
     }

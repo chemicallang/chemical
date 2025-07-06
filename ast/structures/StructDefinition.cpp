@@ -261,10 +261,6 @@ llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 #endif
 
-void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare(name, this);
-}
-
 void StructMember::link_signature(SymbolResolver &linker) {
     type.link(linker);
     if(defValue) {
@@ -281,14 +277,6 @@ ASTNode *StructMember::child(const chem::string_view &childName) {
     auto linked = type->linked_node();
     if (!linked) return nullptr;
     return linked->child(childName);
-}
-
-void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    // no variables or functions exist in containers because user maybe using
-    // compile time ifs, so we take out members after linking compile time ifs
-    // and put them into their containers (without linking here)
-    take_members_from_parsed_nodes(linker);
-    linker.declare_node(name_view(), this, specifier(), true);
 }
 
 void StructDefinition::link_signature(SymbolResolver &linker) {

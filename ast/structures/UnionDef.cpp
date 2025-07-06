@@ -113,11 +113,6 @@ BaseType* UnionDef::known_type() {
     return &linked_type;
 }
 
-void UnionDef::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    take_members_from_parsed_nodes(linker);
-    linker.declare_node(name_view(), this, specifier(), true);
-}
-
 void UnionDef::link_signature(SymbolResolver &linker) {
     MembersContainer::link_signature(linker);
     ensure_inherited_visibility(linker, specifier());

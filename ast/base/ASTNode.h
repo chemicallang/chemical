@@ -148,15 +148,6 @@ public:
     bool is_top_level();
 
     /**
-     * declare something on the scope map
-     * that must be retained in nested level scopes
-     * for example top level functions can be called within functions
-     */
-    virtual void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-        // does nothing by default
-    }
-
-    /**
      * link signature is called in between declare_top_level and declare_and_link calls
      * we link the signature in between, this function is currently only relevant to functions
      * and probably will be needed by other declarations in the future

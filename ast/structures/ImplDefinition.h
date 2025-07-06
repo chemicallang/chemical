@@ -72,8 +72,6 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     void link_signature_no_scope(SymbolResolver &linker);
 
     void link_signature(SymbolResolver& linker) final;

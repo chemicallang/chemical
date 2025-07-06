@@ -3,6 +3,7 @@
 #include "Namespace.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
+#include "compiler/symres/DeclareTopLevel.h"
 
 void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id) {
     auto found = extended.find(node_id);
@@ -26,45 +27,6 @@ void Namespace::put_in_extended(std::unordered_map<chem::string_view, ASTNode*>&
     }
 }
 
-void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto previous = linker.find(name());
-    if(previous) {
-        root = previous->as_namespace();
-        if(root) {
-            // namespace attributes are propagated to all namespaces with same name ?
-            // TODO propagate namespace attributes
-            // attrs = root->attrs;
-            if(specifier() < root->specifier()) {
-                linker.error(this) << "access specifier of this namespace must be at least '" << to_string(root->specifier()) << "' to match previous";
-                return;
-            }
-            linker.scope_start();
-            root->declare_extended_in_linker(linker);
-            for(auto& node : nodes) {
-                node->declare_top_level(linker, node);
-            }
-            // TODO we must check for duplicate symbols being declared in root_extended
-            put_in_extended(root->extended);
-            linker.scope_end();
-        } else {
-            linker.dup_sym_error(name(), previous, this);
-        }
-    } else {
-        linker.declare_node(name(), this, specifier(), false);
-        linker.scope_start();
-        // declare top level all nodes inside the namespace
-        for(auto& node : nodes) {
-            node->declare_top_level(linker, node);
-        }
-        // we do not check for duplicate symbols here, because nodes are being declared first time
-        MapSymbolDeclarer declarer(extended);
-        for(const auto node : nodes) {
-            ::declare_node(declarer, node, AccessSpecifier::Private);
-        }
-        linker.scope_end();
-    }
-}
-
 void Namespace::link_signature(SymbolResolver &linker) {
     linker.scope_start();
     if(root) {
@@ -83,8 +45,9 @@ void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(root) {
         root->declare_extended_in_linker(linker);
     } else {
+        TopLevelDeclSymDeclare declarer(linker);
         for(auto& node : nodes) {
-            node->declare_top_level(linker, node);
+            declarer.visit(node);
         }
     }
     for(auto& node : nodes) {

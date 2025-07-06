@@ -199,11 +199,6 @@ throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size cal
     return 0;
 }
 
-void InterfaceDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    take_members_from_parsed_nodes(linker);
-    linker.declare_node(name_view(), this, specifier(), false);
-}
-
 void InterfaceDefinition::link_signature(SymbolResolver &linker) {
     MembersContainer::link_signature(linker);
     ensure_inherited_visibility(linker, specifier());

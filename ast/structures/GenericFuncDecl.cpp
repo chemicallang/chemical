@@ -13,12 +13,6 @@
 #include "ast/types/LinkedType.h"
 #include "ast/values/FunctionCall.h"
 
-void GenericFuncDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
-    if(!master_impl->isExtensionFn()) {
-        linker.declare(master_impl->name_view(), this);
-    }
-}
-
 void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
 
     // copying parameters

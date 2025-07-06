@@ -90,7 +90,6 @@ func add(a: int, b: int): int {
 | Memory Management & Safety    | 🔄 Partial     |
 | Advanced Build System Support | 🔄 Planned     |
 | Comptime Features             | 🔄 Planned     |
-| Advanced Multi-threading      | 🔄 Planned     |
 | Compiler Plugins              | 🔄 Planned     |
 | Mobile & Web Support          | 🔄 Planned     |
 

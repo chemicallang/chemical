@@ -5,6 +5,12 @@ public enum TokenType {
     Unexpected,
     // identifier
     Identifier,
+    // the class name selector present in global block, begins with '.'
+    ClassName,
+    // the id selector present in global block, begins with '#'
+    Id,
+    // property name is an identifier that appears in declaration
+    PropertyName,
     // negative / positive, floating or non floating number
     Number,
     // comment begins double forward slash

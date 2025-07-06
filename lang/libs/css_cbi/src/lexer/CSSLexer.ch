@@ -1,3 +1,10 @@
+enum CSSLexerWhere {
+    GlobalBlock,    ///< inside an `@global { … }` block
+    Selector,       ///< reading selector text
+    Declaration,    ///< inside `{ … }` after a selector (handling both prop‑names and values)
+    Value           ///< after `:` and before `;` or `}` (just for clarity, you could even merge this back)
+}
+
 /**
  * the lexer state is represented by this struct, which is created in initializeLexer function
  * this lexer must be able to encode itself into a 16 bit (short) integer
@@ -21,10 +28,16 @@ struct CSSLexer {
      */
     var lb_count : uchar
 
+    /**
+     * this is state of the lexer which provides us position of the lexer
+     */
+    var where : CSSLexerWhere
+
 }
 
 func (lexer : &mut CSSLexer) reset() {
     lexer.other_mode = false;
     lexer.chemical_mode = false;
     lexer.lb_count = 0;
+    lexer.where = CSSLexerWhere.Declaration
 }

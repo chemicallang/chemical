@@ -14,6 +14,9 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         ':' => {
+            if(css.where == CSSLexerWhere.Declaration) {
+                css.where = CSSLexerWhere.Value
+            }
             return Token {
                 type : TokenType.Colon as int,
                 value : view(":"),
@@ -21,6 +24,9 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         ';' => {
+            if(css.where == CSSLexerWhere.Value) {
+                css.where = CSSLexerWhere.Declaration
+            }
             return Token {
                 type : TokenType.Semicolon as int,
                 value : view(";"),
@@ -59,12 +65,20 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '.' => {
-            str.append('.')
-            provider.read_digits(lexer.str)
-            return Token {
-                type : TokenType.Number as int,
-                value : str.finalize_view(),
-                position : position
+            if(css.where == CSSLexerWhere.GlobalBlock || css.where == CSSLexerWhere.Selector) {
+                return Token {
+                    type : TokenType.ClassName as int,
+                    value : provider.read_css_id(lexer.str),
+                    position : position
+                }
+            } else {
+                str.append('.')
+                provider.read_digits(lexer.str)
+                return Token {
+                    type : TokenType.Number as int,
+                    value : str.finalize_view(),
+                    position : position
+                }
             }
         }
         '(' => {
@@ -105,11 +119,19 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '#' => {
-            str.append('#');
-            return Token {
-                type : TokenType.HexColor as int,
-                value : provider.read_alpha_num(*str),
-                position : position
+            if(css.where == CSSLexerWhere.GlobalBlock || css.where == CSSLexerWhere.Selector) {
+                return Token {
+                    type : TokenType.Id as int,
+                    value : provider.read_css_id(lexer.str),
+                    position : position
+                }
+            } else {
+                str.append('#');
+                return Token {
+                    type : TokenType.HexColor as int,
+                    value : provider.read_alpha_num(*str),
+                    position : position
+                }
             }
         }
         '%' => {
@@ -313,10 +335,18 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             } else {
                 str.append(c);
                 var text = provider.read_css_id(lexer.str)
-                return Token {
-                    type : TokenType.Identifier as int,
-                    value : text,
-                    position : position
+                if(css.where == CSSLexerWhere.Declaration) {
+                    return Token {
+                        type : TokenType.PropertyName as int,
+                        value : text,
+                        position : position
+                    }
+                } else {
+                    return Token {
+                        type : TokenType.Identifier as int,
+                        value : text,
+                        position : position
+                    }
                 }
             }
         }

@@ -6,10 +6,6 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
 
-void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare_node(name_view(), this, specifier(), false);
-}
-
 void TypealiasStatement::link_signature(SymbolResolver &linker) {
     actual_type.link(linker);
 }

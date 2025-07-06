@@ -1075,13 +1075,6 @@ void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& 
     check_self_other_params(diagnoser, this, def);
 }
 
-void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    // extension functions do not declare themselves
-    if(!isExtensionFn()) {
-        linker.declare_function(name_view(), this, specifier());
-    }
-}
-
 bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     // extension functions declare themselves inside the container
     auto& receiver = *params[0];

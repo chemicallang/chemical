@@ -27,16 +27,6 @@ void UsingStmt::declare_symbols(SymbolResolver &linker) {
     }
 }
 
-void UsingStmt::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(is_propagate()) {
-        if(!chain->link(linker, nullptr, nullptr, true, false)) {
-            attrs.failed_chain_link = true;
-            return;
-        }
-        declare_symbols(linker);
-    }
-}
-
 void UsingStmt::link_signature(SymbolResolver &linker) {
     if(!is_propagate()) {
         if(!chain->link(linker, nullptr, nullptr, true, false)) {

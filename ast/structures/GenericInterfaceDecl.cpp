@@ -6,11 +6,6 @@
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 
-void GenericInterfaceDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
-    master_impl->take_members_from_parsed_nodes(linker);
-    linker.declare(master_impl->name_view(), this);
-}
-
 void GenericInterfaceDecl::finalize_signature(ASTAllocator& allocator, InterfaceDefinition* inst) {
 
     // copying the inherited types

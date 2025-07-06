@@ -66,11 +66,7 @@ public:
 
     bool link_conditions_no_patt_match_expr(SymbolResolver &linker);
 
-protected:
-
     Scope* link_evaluated_scope(SymbolResolver& linker);
-
-public:
 
     /**
      * std::nullopt means the if statement couldn't be evaluated at comptile time
@@ -101,8 +97,6 @@ public:
         }
         return link_evaluated_scope(linker);
     }
-
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
     void link_signature(SymbolResolver &linker) override;
 

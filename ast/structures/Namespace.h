@@ -37,12 +37,6 @@ struct NamespaceDeclAttributes {
 };
 
 class Namespace : public ASTNode {
-private:
-
-    void declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id);
-
-    void declare_extended_in_linker(SymbolResolver& linker);
-
 public:
 
     LocatedIdentifier identifier;
@@ -139,7 +133,9 @@ public:
         }
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
+    void declare_node(SymbolResolver& linker, ASTNode* node, const chem::string_view& node_id);
+
+    void declare_extended_in_linker(SymbolResolver& linker);
 
     void link_signature(SymbolResolver &linker) override;
 

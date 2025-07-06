@@ -630,8 +630,6 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
-
     /**
      * this function expects that this function is an extension function
      * extension functions have first parameter which is a reference to the container

@@ -218,11 +218,6 @@ ASTNode* VariantDefinition::child(const chem::string_view &child_name) {
     return ExtendableMembersContainerNode::child(child_name);
 }
 
-void VariantDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    take_members_from_parsed_nodes(linker);
-    linker.declare_node(name_view(), this, specifier(), true);
-}
-
 void VariantDefinition::link_signature(SymbolResolver &linker) {
     auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     auto& diagnoser = linker;

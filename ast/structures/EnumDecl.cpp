@@ -26,11 +26,6 @@ ASTNode *EnumDeclaration::child(const chem::string_view &name) {
     }
 }
 
-void EnumDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    underlying_type.link(linker);
-    linker.declare_node(name_view(), (ASTNode*) this, specifier(), false);
-}
-
 void configure_members_by_inheritance(EnumDeclaration* current, int start) {
     // build sorted list of enum members (sorted by the index specified by the user)
     std::vector<EnumMember*> sorted_members;

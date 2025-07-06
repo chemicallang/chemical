@@ -231,8 +231,6 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     void link_signature_no_gen(SymbolResolver &linker) {
         MembersContainer::link_signature(linker);
     }

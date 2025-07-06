@@ -88,11 +88,6 @@ public:
     }
 
     /**
-     * top level nodes declaration function
-     */
-    void tld_declare(SymbolResolver &linker);
-
-    /**
      * links the signatures of all nodes
      */
     void link_signature(SymbolResolver& linker) final;
@@ -101,13 +96,6 @@ public:
      * links everything in this scope
      */
     void declare_and_link(SymbolResolver &linker);
-
-    /**
-     * declares top level nodes
-     */
-    inline void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        tld_declare(linker);
-    }
 
     /**
      * links nodes
@@ -124,22 +112,6 @@ public:
      * i++; <--- i is declared above (if it's below it shouldn't be referencable)
      */
     void link_sequentially(SymbolResolver &linker);
-
-    /**
-     * when nodes are to be declared and used asynchronously, so node can be referenced
-     * before it is declared, this method should be called
-     * for example, this code, function can be referenced before it's declared
-     * func sum_twice() = sum() * 2;
-     * func sum(); <--- sum is declared below (or after) sum_twice however still referencable
-     */
-    void link_asynchronously(SymbolResolver &linker) {
-        // declare all the top level symbols
-        tld_declare(linker);
-        // link the signatures of functions and structs
-        link_signature(linker);
-        // link the bodies
-        declare_and_link(linker);
-    }
 
     /**
      * module has translated, this scope is a top level scope

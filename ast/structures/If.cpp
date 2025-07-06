@@ -290,15 +290,6 @@ Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
     return nullptr;
 }
 
-void IfStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(is_top_level()) {
-        auto scope = link_evaluated_scope(linker);
-        if(scope) {
-            scope->declare_top_level(linker, (ASTNode*&) computed_scope.value());
-        }
-    }
-}
-
 void IfStatement::link_signature(SymbolResolver &linker) {
     if(is_top_level()) {
         auto scope = get_evaluated_scope_by_linking(linker);

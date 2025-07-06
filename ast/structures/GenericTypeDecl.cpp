@@ -5,10 +5,6 @@
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/utils/GenericUtils.h"
 
-void GenericTypeDecl::declare_top_level(SymbolResolver &linker, ASTNode *&node_ptr) {
-    linker.declare(master_impl->name_view(), this);
-}
-
 void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasStatement* inst) {
     inst->actual_type = inst->actual_type.copy(allocator);
 }

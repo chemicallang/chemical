@@ -160,8 +160,6 @@ public:
 
     void register_impl(ImplDefinition* definition);
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     void link_signature(SymbolResolver &linker) override;
 
     int vtable_function_index(FunctionDeclaration* decl);

@@ -949,7 +949,7 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
 
     // put_char_chain(resolver, builder, vec, parent, '\"');
 
-    writeValue(decl.value, str)
+    writeValue(decl.value, *str)
 
     str.append(';')
 
@@ -1016,7 +1016,7 @@ func (converter : &mut ASTConverter) str_ref() : &mut std::string {
 
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const builder = converter.builder
-    const str = converter.str_ref()
+    const str = &converter.str
     var size = om.declarations.size()
     if(size > 0) {
         if(om.has_dynamic_values) {
@@ -1046,7 +1046,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
             if(!om.has_dynamic_values) {
                 // calculate the hash before making any changes
                 const hash = fnv1a_hash_32(str.data());
-                const totalView = allocate_view_with_classname(builder, str, hash)
+                const totalView = allocate_view_with_classname(builder, *str, hash)
                 om.className = std::string_view(totalView.data() + 1, 7u)
                 converter.put_append_css_value_chain(totalView, hash)
             } else {

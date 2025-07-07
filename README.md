@@ -35,6 +35,9 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 Resembles Go, TypeScript, and C++, with powerful extensions:
 
 ```chemical
+// Semicolons are optional
+// Supports structs, interfaces, implementations, lambdas, switch, pointers
+
 var x: int = 5
 
 for (var i = 0; i < 5; i++) {
@@ -47,9 +50,6 @@ for (var i = 0; i < 5; i++) {
 func add(a: int, b: int): int {
   return a + b
 }
-
-// Semicolons are optional
-// Supports structs, interfaces, implementations, lambdas, switch, pointers
 ```
 
 ---

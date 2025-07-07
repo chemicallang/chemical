@@ -79,7 +79,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
         case TokenType::ComptimeKw:
             return (ASTNode*) parseComptimeBlock(allocator);
         case TokenType::AliasKw:
-            return (ASTNode*) parseAliasStatement(allocator, AccessSpecifier::Internal);
+            error("alias statement not supported as a top level declaration");
+            return nullptr;
         case TokenType::EnumKw:
             return (ASTNode*) parseEnumStructureTokens(allocator, AccessSpecifier::Internal);
         case TokenType::StructKw:

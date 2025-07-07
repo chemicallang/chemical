@@ -76,7 +76,7 @@ jobs:
         shell: pwsh
         run: |
           mkdir out\release
-          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_OBJECT_PATH_MAX=512
 
       # Build the compiler target
       - name: Build Chemical LLVM Based Compiler (Windows)

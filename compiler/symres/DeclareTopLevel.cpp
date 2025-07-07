@@ -140,7 +140,6 @@ void TopLevelDeclSymDeclare::VisitVarInitStmt(VarInitStatement* node) {
 }
 
 void TopLevelDeclSymDeclare::VisitEnumDecl(EnumDeclaration* node) {
-    node->underlying_type.link(linker);
     linker.declare_node(node->name_view(), node, node->specifier(), false);
 }
 

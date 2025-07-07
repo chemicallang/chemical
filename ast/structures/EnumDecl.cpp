@@ -26,6 +26,10 @@ ASTNode *EnumDeclaration::child(const chem::string_view &name) {
     }
 }
 
+void EnumDeclaration::link_signature(SymbolResolver &linker) {
+    underlying_type.link(linker);
+}
+
 void configure_members_by_inheritance(EnumDeclaration* current, int start) {
     // build sorted list of enum members (sorted by the index specified by the user)
     std::vector<EnumMember*> sorted_members;

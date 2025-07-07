@@ -26,17 +26,6 @@
 #include "utils/PathUtils.h"
 #include "DeclareTopLevel.h"
 
-void TopLevelDeclSymDeclare::VisitUsingStmt(UsingStmt* node) {
-    if (node->is_propagate()) {
-        if (!node->chain->link(linker, nullptr, nullptr, true, false)) {
-            node->attrs.failed_chain_link = true;
-
-            return;
-        }
-        node->declare_symbols(linker);
-    }
-}
-
 void TopLevelDeclSymDeclare::VisitAliasStmt(AliasStmt* stmt) {
     const auto value = stmt->value;
 

@@ -197,14 +197,6 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the function implicit");
             }
         }},
-        { "propagate", [](Parser* parser, ASTNode* node) -> void {
-            const auto stmt = node->as_using_stmt();
-            if(stmt) {
-                stmt->set_propagate(true);
-            } else {
-                parser->error("couldn't make the using statement propagate");
-            }
-        }},
         { "direct_init", [](Parser* parser, ASTNode* node) -> void {
             const auto def = node->as_struct_def();
             if(def) {

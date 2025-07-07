@@ -61,6 +61,7 @@ jobs:
         run: .\build.bat native-windows-gnu native
         if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
 
+      # Save the out-win folder as cache
       - name: Save cache for chemical-bootstrap/out-win
         if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
         id: bootstrap-cache-save
@@ -307,6 +308,7 @@ jobs:
           ./build native-linux-gnu native
         if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
 
+      # saves the out folder in cache
       - name: Save cache for chemical-bootstrap/out
         if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
         id: bootstrap-cache-save

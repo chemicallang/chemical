@@ -1006,7 +1006,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     auto& cbiData = binder.data[cbiName];
     auto& outModDependencies = dependencies;
 
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, is_debug(options->outMode));
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;

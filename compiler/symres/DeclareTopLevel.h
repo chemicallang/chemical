@@ -16,8 +16,6 @@ public:
 
     }
 
-    void VisitUsingStmt(UsingStmt* node);
-
     void VisitAliasStmt(AliasStmt* node);
 
     void VisitImportStmt(ImportStatement* node);

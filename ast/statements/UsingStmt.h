@@ -13,11 +13,6 @@ struct UsingStmtAttributes {
     bool is_namespace;
 
     /**
-     * should the symbols be propagated to other files
-     */
-    bool propagate = false;
-
-    /**
      * did the chain failed linking
      */
     bool failed_chain_link = false;
@@ -40,7 +35,7 @@ public:
             bool is_namespace,
             SourceLocation location
     ) : ASTNode(ASTNodeKind::UsingStmt, parent_node, location), chain(chain),
-        attrs(is_namespace, false, false)
+        attrs(is_namespace, false)
     {
 
     }
@@ -62,14 +57,6 @@ public:
 
     inline void set_is_namespace(bool value) {
         attrs.is_namespace = value;
-    }
-
-    inline bool is_propagate() {
-        return attrs.propagate;
-    }
-
-    inline void set_propagate(bool value) {
-        attrs.propagate = value;
     }
 
     inline bool is_failed_chain_link() {

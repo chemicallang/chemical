@@ -47,9 +47,10 @@ jobs:
           $sha = (git rev-parse HEAD).Trim()
           echo "sha=$sha" >> $env:GITHUB_OUTPUT
 
-      # Setup Cache for out-win folder
-      - uses: actions/cache@v4
-        id: bootstrap-cache
+      # ←— split cache into restore + save
+      - name: Restore cache for chemical-bootstrap/out-win
+        id: bootstrap-cache-restore
+        uses: actions/cache/restore@v4
         with:
           path: ./chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
@@ -58,9 +59,17 @@ jobs:
       - name: Build chemical-bootstrap (Windows)
         working-directory: chemical-bootstrap
         run: .\build.bat native-windows-gnu native
-        if: steps.bootstrap-cache.outputs.cache-hit != 'true'
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
 
-      # Configure the chemical project executables via CMake
+      - name: Save cache for chemical-bootstrap/out-win
+        if: always()
+        id: bootstrap-cache-save
+        uses: actions/cache/save@v4
+        with:
+          path: chemical-bootstrap/out-win/
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
+
+      # … the rest of your Windows steps unchanged …
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
         shell: pwsh
@@ -282,11 +291,12 @@ jobs:
           SHA=$(git rev-parse HEAD | xargs)
           echo "sha=$SHA" >> $GITHUB_OUTPUT
 
-      # Setup Cache for out folder
-      - uses: actions/cache@v4
-        id: bootstrap-cache
+      # ←— split cache into restore + save
+      - name: Restore cache for chemical-bootstrap/out
+        id: bootstrap-cache-restore
+        uses: actions/cache/restore@v4
         with:
-          path: ./chemical-bootstrap/out/
+          path: chemical-bootstrap/out/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
       # Build the chemical-bootstrap project (Linux) (only if not cached)
@@ -295,9 +305,17 @@ jobs:
         run: |
           chmod +x build
           ./build native-linux-gnu native
-        if: steps.bootstrap-cache.outputs.cache-hit != 'true'
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
 
-      # Configure the chemical project executables via CMake using RelWithDebInfo
+      - name: Save cache for chemical-bootstrap/out
+        if: always()
+        id: bootstrap-cache-save
+        uses: actions/cache/save@v4
+        with:
+          path: chemical-bootstrap/out/
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
+
+      # … the rest of your Linux steps unchanged …
       - name: Configure Chemical Project (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |

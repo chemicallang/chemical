@@ -41,6 +41,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
+#include <iostream>
 
 #if !defined(DEBUG) && defined(COMPILER_BUILD)
 #include "compiler/Codegen.h"

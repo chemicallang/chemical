@@ -201,22 +201,6 @@ void TopLevelDeclSymDeclare::VisitIfStmt(IfStatement* node) {
 
 void TopLevelDeclSymDeclare::VisitImplDecl(ImplDefinition* node) {
     node->take_members_from_parsed_nodes(linker);
-    node->interface_type.link(linker);
-    if (node->struct_type) {
-        node->struct_type.link(linker);
-    }
-    const auto linked = node->interface_type->linked_node();
-    if (linked) {
-        const auto interface_def = linked->as_interface_def();
-        if (interface_def) {
-            if (interface_def->is_static() && interface_def->has_implementation()) {
-                linker.error("static interface must have only a single implementation", node->encoded_location());
-            }
-            interface_def->register_impl(node);
-        } else {
-            linker.error("expected type to be an interface", node->encoded_location());
-        }
-    }
 }
 
 void TopLevelDeclSymDeclare::VisitInterfaceDecl(InterfaceDefinition* node) {

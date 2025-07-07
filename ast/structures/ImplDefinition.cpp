@@ -63,7 +63,26 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
 }
 
 void ImplDefinition::link_signature_no_scope(SymbolResolver &linker) {
-    const auto linked_node = interface_type->linked_node();
+
+    // linking interface and struct type
+    interface_type.link(linker);
+    if (struct_type) {
+        struct_type.link(linker);
+    }
+    const auto inter_linked = interface_type->linked_node();
+    if (inter_linked) {
+        const auto interface_def = inter_linked->as_interface_def();
+        if (interface_def) {
+            if (interface_def->is_static() && interface_def->has_implementation()) {
+                linker.error("static interface must have only a single implementation", encoded_location());
+            }
+            interface_def->register_impl(this);
+        } else {
+            linker.error("expected type to be an interface", encoded_location());
+        }
+    }
+
+    const auto linked_node = interface_type->get_direct_linked_node();
     if(!linked_node) {
         return;
     }

@@ -78,7 +78,7 @@ jobs:
           mkdir out\release
           cmake -S . -B out\build\x64-release -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
-      # Build the compiler target
+      # Build the llvm compiler target
       - name: Build Chemical LLVM Based Compiler (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |

@@ -28,6 +28,8 @@ public:
         );
     }
 
+    void link_signature(SymbolResolver &linker) override;
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) final {

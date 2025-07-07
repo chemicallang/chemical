@@ -104,7 +104,7 @@ These features should give you an idea about features we have worked on
 - Native lambdas (with capture)
 - Macros & annotations
 - Implicit & explicit casting
-- Extension functions
+- Extension functions (like Kotlin)
 - Raw pointers & memory control
 - Full constructors & destructors
 - Explicit copying (`.copy()` required)

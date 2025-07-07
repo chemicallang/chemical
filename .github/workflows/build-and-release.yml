@@ -62,7 +62,7 @@ jobs:
         if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
 
       - name: Save cache for chemical-bootstrap/out-win
-        if: always()
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
         id: bootstrap-cache-save
         uses: actions/cache/save@v4
         with:
@@ -308,7 +308,7 @@ jobs:
         if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
 
       - name: Save cache for chemical-bootstrap/out
-        if: always()
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
         id: bootstrap-cache-save
         uses: actions/cache/save@v4
         with:

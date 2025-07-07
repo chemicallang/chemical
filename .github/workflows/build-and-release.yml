@@ -47,7 +47,7 @@ jobs:
           $sha = (git rev-parse HEAD).Trim()
           echo "sha=$sha" >> $env:GITHUB_OUTPUT
 
-      # ←— split cache into restore + save
+      # split cache into restore + save
       - name: Restore cache for chemical-bootstrap/out-win
         id: bootstrap-cache-restore
         uses: actions/cache/restore@v4
@@ -291,7 +291,7 @@ jobs:
           SHA=$(git rev-parse HEAD | xargs)
           echo "sha=$SHA" >> $GITHUB_OUTPUT
 
-      # ←— split cache into restore + save
+      # split cache into restore + save
       - name: Restore cache for chemical-bootstrap/out
         id: bootstrap-cache-restore
         uses: actions/cache/restore@v4

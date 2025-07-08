@@ -46,7 +46,42 @@ void sym_res_vars_signature(SymbolResolver& resolver, VariablesContainer* contai
     visitor.LinkVariables(container);
 }
 
+void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
+    const auto decl = linker.find(value->value);
+    if(decl) {
+        value->linked = decl;
+        // to ensure function decl is informed about usage
+        value->process_linked(&linker);
+    } else if(value->linked == nullptr) {
+        linker.error(value) << "unresolved variable identifier, '" << value->value << "' not found";
+    }
+}
+
+void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
+    // can assume that after parsing every linked type is named
+    // because it is, we only create pure linked types after symbol resolution
+    const auto named = (NamedLinkedType*) type;
+    const auto decl = linker.find(named->debug_link_name());
+    if(decl) {
+        type->linked = decl;
+    } else if(type->linked == nullptr) {
+        linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
+    }
+}
+
+void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
+    // save the type into a temporary before visiting children
+    auto loc = type_location;
+    // must be visited first, so child generic types are instantiated and ready
+    RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
+    // we must instantiate generic declarations and link with those
+    if(type->referenced != nullptr) {
+        type->instantiate(linker.genericInstantiator, loc);
+    }
+}
+
 void TopLevelLinkSignature::VisitUsingStmt(UsingStmt* node) {
+    //     RecursiveVisitor<TopLevelLinkSignature>::VisitUsingStmt(node);
     if(!node->chain->link(linker, nullptr, nullptr, true, false)) {
         node->attrs.failed_chain_link = true;
         return;
@@ -354,7 +389,7 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     // finalizing signature of instantiations that occurred before link_signature
     auto& allocator = *linker.ast_allocator;
     for(const auto inst : node->instantiations) {
-        node->finalize_signature(allocator, inst);
+        GenericImplDecl::finalize_signature(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete

@@ -12,11 +12,52 @@ public:
     SymbolResolver& linker;
 
     /**
+     * this is set before visiting any type
+     */
+    SourceLocation type_location = 0;
+
+    /**
      * constructor
      */
     TopLevelLinkSignature(SymbolResolver& linker) : linker(linker) {
 
     }
+
+    template<typename T>
+    inline void visit(T* ptr) {
+        VisitByPtrTypeNoNullCheck(ptr);
+    }
+    inline void visit(ASTNode* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(BaseDefMember* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(Value* value) {
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(ChainValue* value) {
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(BaseType*& type_ref) {
+        VisitTypeNoNullCheck(type_ref);
+    }
+    inline void visit(TypeLoc& type) {
+        type_location = type.encoded_location();
+        VisitTypeNoNullCheck(const_cast<BaseType*>(type.getType()));
+    }
+    inline void visit(LinkedType*& type_ref) {
+        visit((BaseType*&) type_ref);
+    }
+    inline void visit(Scope& scope) {
+        VisitScope(&scope);
+    }
+
+    void VisitVariableIdentifier(VariableIdentifier* value);
+
+    void VisitLinkedType(LinkedType* type);
+
+    void VisitGenericType(GenericType* type);
 
     void LinkVariablesNoScope(VariablesContainer* container);
 

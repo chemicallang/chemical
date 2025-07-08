@@ -383,7 +383,8 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             token++;
             const auto parent = find_container_parent(parent_node);
             if(parent) {
-               return {new (allocator.allocate<LinkedType>()) LinkedType((ASTNode*) parent), loc_single(self_tok)};
+                const auto ty = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Self"), (ASTNode*) parent);
+                return { ty, loc_single(self_tok)};
             } else {
                 error("couldn't find the parent container");
                 return {nullptr, ZERO_LOC};

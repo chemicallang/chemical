@@ -69,6 +69,63 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
     }
 }
 
+void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
+    // an access chain during link signature is being used
+    // this must be for example in using statement using ns::something::some
+    // or it could be top level function call in var statement var x = ns::some()
+
+#ifdef DEBUG
+    if(value->values.empty()) {
+        linker.error(value) << "empty access chain detected";
+        return;
+    }
+#endif
+
+    // take the first value
+    auto& first = value->values[0];
+
+    // only supporting identifiers at the moment
+    // so we don't have to call linked_node on first value
+    if(first->kind() != ValueKind::Identifier) {
+        linker.error(first) << "only identifiers are supported in top level access chains at the moment";
+        return;
+    }
+
+    // visit the first element normally
+    visit(first);
+
+    // no need to traverse further, if only single element
+    if(value->values.size() == 1) {
+        return;
+    }
+
+    // a variable for traversal
+    const auto first_id = first->as_identifier_unsafe();
+    auto parent = first_id->linked;
+    if(parent == nullptr) {
+        linker.error(first_id) << "unresolved identifier, '" << first_id->value << "' not found";
+        return;
+    }
+
+    // access chain contains multiple values
+    // its guaranteed that values in access chain, after the first value are identifiers
+    unsigned i = 1;
+    const auto size = value->values.size();
+    while(i < size) {
+        const auto child = value->values[i]->as_identifier_unsafe();
+        const auto child_linked = parent->child(child->value);
+        if(child_linked) {
+            child->linked = child_linked;
+            parent = child_linked;
+        } else {
+            linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
+            break;
+        }
+        i++;
+    }
+
+}
+
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     // save the type into a temporary before visiting children
     auto loc = type_location;
@@ -81,11 +138,11 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
 }
 
 void TopLevelLinkSignature::VisitUsingStmt(UsingStmt* node) {
-    //     RecursiveVisitor<TopLevelLinkSignature>::VisitUsingStmt(node);
-    if(!node->chain->link(linker, nullptr, nullptr, true, false)) {
-        node->attrs.failed_chain_link = true;
-        return;
-    }
+    RecursiveVisitor<TopLevelLinkSignature>::VisitUsingStmt(node);
+//    if(!node->chain->link(linker, nullptr, nullptr, true, false)) {
+//        node->attrs.failed_chain_link = true;
+//        return;
+//    }
     node->declare_symbols(linker);
 }
 

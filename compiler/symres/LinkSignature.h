@@ -59,6 +59,8 @@ public:
 
     void VisitGenericType(GenericType* type);
 
+    void VisitAccessChain(AccessChain* value);
+
     void LinkVariablesNoScope(VariablesContainer* container);
 
     void LinkMembersContainerNoScope(MembersContainer* container);

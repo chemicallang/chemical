@@ -70,13 +70,20 @@ jobs:
           path: chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
+      # Enable long paths (otherwise paths get truncated on windows)
+      - name: Enable Win32 Long Paths
+        shell: pwsh
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            /v LongPathsEnabled /t REG_DWORD /d 1 /f
+
       # … the rest of your Windows steps unchanged …
       - name: Configure Chemical Project (Windows)
         working-directory: chemical-bootstrap/chemical
         shell: pwsh
         run: |
           mkdir out\release
-          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON -DCMAKE_CXX_USE_RESPONSE_FILE_FOR_OBJECTS=ON -DCMAKE_CXX_USE_RESPONSE_FILE_FOR_LIBRARIES=ON -DCMAKE_CXX_RESPONSE_FILE_LINK_FLAG="@"
+          cmake -S . -B out\build\x64-release -G Ninja
 
       # Build the llvm compiler target
       - name: Build Chemical LLVM Based Compiler (Windows)

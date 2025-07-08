@@ -162,6 +162,19 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     }
 }
 
+void TopLevelLinkSignature::VisitArrayType(ArrayType* type) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitArrayType(type);
+    // array types require calculating array size from given expression
+    const auto arr_size_val = type->array_size_value;
+    if(arr_size_val == nullptr) return;
+    const auto evaluated = arr_size_val->evaluated_value(linker.comptime_scope);
+    if(evaluated == nullptr) return;
+    const auto number = evaluated->get_the_number();
+    if(number.has_value()) {
+        type->set_array_size(number.value());
+    }
+}
+
 void TopLevelLinkSignature::VisitUsingStmt(UsingStmt* node) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitUsingStmt(node);
     node->declare_symbols(linker);
@@ -582,13 +595,6 @@ void TopLevelLinkSignature::VisitScope(Scope* node) {
     }
 }
 
-void TopLevelLinkSignature::VisitStructMember(StructMember* node) {
-    node->type.link(linker);
-    if(node->defValue) {
-        node->defValue->link(linker, node->defValue);
-    }
-}
-
 void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
     node->take_variables_from_parsed_nodes(linker);
     LinkVariables(node);
@@ -623,11 +629,4 @@ void TopLevelLinkSignature::VisitVariantMember(VariantMember* node) {
 void TopLevelLinkSignature::VisitUnnamedUnion(UnnamedUnion* node) {
     node->take_variables_from_parsed_nodes(linker);
     LinkVariables(node);
-}
-
-void TopLevelLinkSignature::VisitVariantMemberParam(VariantMemberParam* node) {
-    node->type.link(linker);
-    if(node->def_value) {
-        node->def_value->link(linker, node->def_value);
-    }
 }

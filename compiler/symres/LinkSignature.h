@@ -70,6 +70,8 @@ public:
 
     void VisitGenericType(GenericType* type);
 
+    void VisitArrayType(ArrayType* type);
+
     void VisitAccessChain(AccessChain* value);
 
     void LinkVariablesNoScope(VariablesContainer* container);
@@ -121,8 +123,6 @@ public:
 
     void VisitScope(Scope* node);
 
-    void VisitStructMember(StructMember* node);
-
     void VisitUnnamedStruct(UnnamedStruct* node);
 
     void VisitStructDecl(StructDefinition* node);
@@ -134,7 +134,5 @@ public:
     void VisitVariantMember(VariantMember* node);
 
     void VisitUnnamedUnion(UnnamedUnion* node);
-
-    void VisitVariantMemberParam(VariantMemberParam* node);
 
 };

@@ -12,7 +12,7 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
-//#include "ast/statements/MacroValueStatement.h"
+#include "ast/statements/UsingStmt.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/Break.h"
@@ -317,6 +317,10 @@ public:
 
     void VisitTypealiasStmt(TypealiasStatement* node) {
         visit_it(node->actual_type);
+    }
+
+    void VisitUsingStmt(UsingStmt* node) {
+        visit_it(node->chain);
     }
 
     void VisitDeleteStmt(DestructStmt *stmt) {

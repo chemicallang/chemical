@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 class ASTDiagnoser;
+class GenericInstantiatorAPI;
 
 class GenericType : public BaseType {
 public:
@@ -28,6 +29,14 @@ public:
     GenericType(LinkedType* referenced, std::vector<TypeLoc> types) : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)) {
 
     }
+
+    /**
+     * instantiates the generic declaration associated with this type
+     * and saves it into linked pointer
+     * should only be called if referenced type and subtypes were resolved successfully
+     * @return true if instantiated, false if error occurred
+     */
+    bool instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc);
 
     /**
      * link func

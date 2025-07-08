@@ -244,11 +244,21 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
     }
 }
 
+void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
+    if(param->at_least_type) {
+        visit(param->at_least_type);
+    }
+    linker.declare(param->identifier, param);
+    if(param->def_type) {
+        visit(param->def_type);
+    }
+}
+
 void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     VisitTypealiasStmt(node->master_impl);
     linker.scope_end();
@@ -267,8 +277,8 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     auto& generic_params = node->generic_params;
     // symbol resolve the master declaration
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     // we don't put the master implementation (into extendable container)
     // because the receiver could be generic
@@ -306,8 +316,8 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
 void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
     linker.scope_end();
@@ -339,8 +349,8 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
     linker.scope_end();
@@ -366,8 +376,8 @@ void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
 void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
     linker.scope_end();
@@ -393,8 +403,8 @@ void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node
 void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
     linker.scope_end();
@@ -426,8 +436,8 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        link_param(param);
     }
     LinkMembersContainerNoScope(node->master_impl);
     linker.scope_end();

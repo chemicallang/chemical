@@ -23,6 +23,8 @@ public:
 
     }
 
+    void link_param(GenericTypeParameter* param);
+
     // TODO: we don't want to override this
     // function types require that signature resolved is set to true
     // which by default is false

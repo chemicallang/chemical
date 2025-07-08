@@ -38,6 +38,13 @@ jobs:
         with:
           arch: x86_64
 
+      # Enable long paths (otherwise paths get truncated)
+      - name: Enable Win32 Long Paths
+        shell: pwsh
+        run: |
+          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            /v LongPathsEnabled /t REG_DWORD /d 1 /f
+
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
@@ -69,13 +76,6 @@ jobs:
         with:
           path: chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
-
-      # Enable long paths (otherwise paths get truncated)
-      - name: Enable Win32 Long Paths
-        shell: pwsh
-        run: |
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" `
-            /v LongPathsEnabled /t REG_DWORD /d 1 /f
 
       # … the rest of your Windows steps unchanged …
       - name: Configure Chemical Project (Windows)

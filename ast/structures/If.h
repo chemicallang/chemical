@@ -98,8 +98,6 @@ public:
         return link_evaluated_scope(linker);
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     void declare_and_link(SymbolResolver &linker, Value** value_ptr);
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {

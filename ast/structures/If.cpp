@@ -290,15 +290,6 @@ Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
     return nullptr;
 }
 
-void IfStatement::link_signature(SymbolResolver &linker) {
-    if(is_top_level()) {
-        auto scope = get_evaluated_scope_by_linking(linker);
-        if(scope) {
-            scope->link_signature(linker);
-        }
-    }
-}
-
 void link_body(
     Scope& body,
     Value*& conditionExpr,

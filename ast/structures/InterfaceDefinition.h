@@ -160,8 +160,6 @@ public:
 
     void register_impl(ImplDefinition* definition);
 
-    void link_signature(SymbolResolver &linker) override;
-
     int vtable_function_index(FunctionDeclaration* decl);
 
     uint64_t byte_size(bool is64Bit) final;

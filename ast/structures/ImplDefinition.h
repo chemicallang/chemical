@@ -72,10 +72,6 @@ public:
 
 #endif
 
-    void link_signature_no_scope(SymbolResolver &linker);
-
-    void link_signature(SymbolResolver& linker) final;
-
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
 };

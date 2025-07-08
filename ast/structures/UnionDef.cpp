@@ -113,16 +113,6 @@ BaseType* UnionDef::known_type() {
     return &linked_type;
 }
 
-void UnionDef::link_signature(SymbolResolver &linker) {
-    MembersContainer::link_signature(linker);
-    ensure_inherited_visibility(linker, specifier());
-}
-
 void UnionDef::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     MembersContainer::declare_and_link(linker, node_ptr);
-}
-
-void UnnamedUnion::link_signature(SymbolResolver &linker) {
-    take_variables_from_parsed_nodes(linker);
-    VariablesContainer::link_variables_signature(linker);
 }

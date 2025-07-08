@@ -1135,41 +1135,6 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
     return true;
 }
 
-void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
-    bool resolved = true;
-    for(auto param : params) {
-        if(!param->link_param_type(linker)) {
-            resolved = false;
-        } else if(param->defValue && !param->defValue->link(linker, param->defValue, param->type)) {
-            resolved = false;
-        }
-    }
-    if(!returnType.link(linker)) {
-        resolved = false;
-    }
-    if(resolved) {
-        FunctionType::data.signature_resolved = true;
-    } else {
-        linker.error("couldn't resolve signature of the function", (ASTNode*) this);
-    }
-}
-
-void FunctionDeclaration::link_signature_no_scope(SymbolResolver& linker) {
-    link_signature_no_ext_scope(linker);
-    if(isExtensionFn()) {
-        put_as_extension_function(linker.allocator, linker);
-    }
-}
-
-void FunctionDeclaration::link_signature(SymbolResolver &linker)  {
-    linker.scope_start();
-    link_signature_no_ext_scope(linker);
-    if(isExtensionFn()) {
-        put_as_extension_function(linker.allocator, linker);
-    }
-    linker.scope_end();
-}
-
 bool FunctionDeclaration::ensure_has_init_block() {
     if(!body.has_value() || body->nodes.empty()) return false;
     auto& first = body->nodes.front();

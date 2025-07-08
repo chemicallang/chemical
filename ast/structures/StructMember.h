@@ -81,8 +81,6 @@ public:
         return is_const();
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     ASTNode *child(const chem::string_view &name) final;
 
     Value *holding_value() final {

@@ -570,6 +570,9 @@ set(COMMON_SOURCES
         core/main/CrashHandling.h
         compiler/symres/DeclareTopLevel.cpp
         compiler/symres/DeclareTopLevel.h
+        compiler/symres/LinkSignature.h
+        compiler/symres/LinkSignature.cpp
+        compiler/symres/LinkSignatureAPI.h
 )
 
 # Chemical LSP Executable Target

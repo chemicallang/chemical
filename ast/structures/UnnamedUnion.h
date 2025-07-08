@@ -45,8 +45,6 @@ public:
         return unnamed;
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     ASTNode *child(const chem::string_view &name) final {
         return VariablesContainer::child_def_member(name);
     }

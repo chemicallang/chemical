@@ -184,8 +184,6 @@ public:
         }
     }
 
-    void link_variables_signature(SymbolResolver& linker);
-
     void declare_and_link_variables(SymbolResolver &linker);
 
     /**

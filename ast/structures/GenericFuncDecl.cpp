@@ -39,45 +39,6 @@ void GenericFuncDecl::finalize_body(ASTAllocator& allocator, FunctionDeclaration
 
 }
 
-void GenericFuncDecl::link_signature(SymbolResolver &linker) {
-    // symbol resolve the master declaration
-    linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
-    }
-    // we don't put the master implementation (into extendable container)
-    // because the receiver could be generic
-    master_impl->link_signature_no_scope(linker);
-    // we set it has usage, so every shallow copy or instantiation has usage
-    // since we create instantiation only when calls are detected, so no declaration will be created
-    // when there's no usage
-    master_impl->set_has_usage(true);
-    linker.scope_end();
-    signature_linked = true;
-    // finalizing the signature of every function that was instantiated before link_signature
-    auto& allocator = *linker.ast_allocator;;
-    for(const auto inst : instantiations) {
-        finalize_signature(allocator, inst);
-    }
-    auto resolved_sig = master_impl->data.signature_resolved;
-    // since these instantiations were created before link signature
-    // we must set the resolved_signature to true, which is false before link signature
-    for(const auto inst : instantiations) {
-        inst->data.signature_resolved = resolved_sig;
-    }
-    // finalize the signatures of all instantiations
-    // this basically visits the instantiations signature and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(this, instantiations);
-    // now that we have completely finalized the signature of instantiations
-    // we will put all the functions if they are extension functions
-    // they will go into their appropriate structs
-//    if(master_impl->isExtensionFn()) {
-//        for(const auto inst : instantiations) {
-//            inst->put_as_extension_function(linker.allocator, linker);
-//        }
-//    }
-}
-
 void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     // symbol resolve the master declaration
     linker.scope_start();

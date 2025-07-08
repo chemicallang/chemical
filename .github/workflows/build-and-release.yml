@@ -70,7 +70,7 @@ jobs:
           path: chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
-      # Enable long paths (otherwise paths get truncated on windows)
+      # Enable long paths (otherwise paths get truncated)
       - name: Enable Win32 Long Paths
         shell: pwsh
         run: |

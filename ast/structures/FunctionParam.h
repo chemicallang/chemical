@@ -115,7 +115,15 @@ public:
     [[nodiscard]]
     FunctionParam *copy(ASTAllocator& allocator) const;
 
-    bool link_param_type(SymbolResolver &linker);
+    bool link_implicit_param(SymbolResolver& linker);
+
+    bool link_param_type(SymbolResolver &linker) {
+        if(is_implicit()) {
+            return link_implicit_param(linker);
+        } else {
+            return type.link(linker);
+        }
+    }
 
 #ifdef COMPILER_BUILD
 

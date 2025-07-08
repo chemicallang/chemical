@@ -9,16 +9,38 @@
 #include "ast/base/LocatedIdentifier.h"
 #include "std/chem_string_view.h"
 
+struct LinkedTypeAttrs {
+
+    bool is_named = false;
+
+    bool is_value = false;
+
+};
+
 class LinkedType : public BaseType {
 public:
 
-    // TODO deleting this variable causes a huge bug
-    // function parameters start becoming inaccessible
-    // chem::string_view cannot_delete_variable;
     ASTNode *linked;
+    LinkedTypeAttrs attrs;
 
     constexpr LinkedType(ASTNode* linked) : BaseType(BaseTypeKind::Linked), linked(linked) {
 
+    }
+
+    constexpr LinkedType(
+            ASTNode* linked,
+            bool is_named,
+            bool is_value
+    ) : BaseType(BaseTypeKind::Linked), linked(linked), attrs(is_named, is_value) {
+
+    }
+
+    inline bool is_value() {
+        return attrs.is_value;
+    }
+
+    inline bool is_named() {
+        return attrs.is_named;
     }
 
     uint64_t byte_size(bool is64Bit) final;
@@ -70,14 +92,14 @@ public:
 
     constexpr NamedLinkedType(
         chem::string_view type
-    ) : LinkedType((ASTNode*) nullptr), link_name(type) {
+    ) : LinkedType(nullptr, true, false), link_name(type) {
 
     }
 
     constexpr NamedLinkedType(
         chem::string_view type,
         ASTNode* linked
-    ) : LinkedType(linked), link_name(type) {
+    ) : LinkedType(linked, true, false), link_name(type) {
 
     }
 

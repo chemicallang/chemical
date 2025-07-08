@@ -27,6 +27,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/VariantMemberParam.h"
+#include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
 
 //void sym_res_signature(SymbolResolver& resolver, const std::span<ASTNode*>& nodes) {
@@ -57,15 +58,39 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
     }
 }
 
+ASTNode* get_chain_linked(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::AccessChain:
+            return get_chain_linked(value->as_access_chain_unsafe()->values.back());
+        case ValueKind::Identifier:
+            return value->as_identifier_unsafe()->linked;
+        default:
+            return nullptr;
+    }
+}
+
 void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
     // can assume that after parsing every linked type is named
     // because it is, we only create pure linked types after symbol resolution
-    const auto named = (NamedLinkedType*) type;
-    const auto decl = linker.find(named->debug_link_name());
-    if(decl) {
-        type->linked = decl;
-    } else if(type->linked == nullptr) {
-        linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
+    if(type->is_value()) {
+        const auto linked_type = (LinkedValueType*) type;
+        // only identifiers would be allowed in this value referencing type
+        visit(linked_type->value);
+        // now lets check the last item in the value (considering it an access chain)
+        const auto linked = get_chain_linked(linked_type->value);
+        if(linked) {
+            type->linked = linked;
+        } else {
+            linker.error(type_location) << "unresolved type not found";
+        }
+    } else if(type->is_named()){
+        const auto named = (NamedLinkedType*) type;
+        const auto decl = linker.find(named->debug_link_name());
+        if(decl) {
+            type->linked = decl;
+        } else if(type->linked == nullptr) {
+            linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
+        }
     }
 }
 
@@ -219,7 +244,25 @@ void FunctionDeclaration::link_signature_no_scope(SymbolResolver& linker) {
 
 void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
     linker.scope_start();
-    node->link_signature_no_ext_scope(linker);
+
+    // visiting the signature of the function
+    for(auto param : node->params) {
+        if(param->is_implicit()) {
+            // implicit parameters are handled there
+            param->link_implicit_param(linker);
+        } else {
+            visit(param->type);
+        }
+        if(param->defValue) {
+            visit(param->defValue);
+        }
+    }
+    visit(node->returnType);
+
+    // TODO: we can't tell if signature resolved perfectly
+    // TODO: eliminate this flag
+    node->data.signature_resolved = true;
+
     if(node->isExtensionFn()) {
         node->put_as_extension_function(linker.allocator, linker);
     }

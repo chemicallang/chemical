@@ -1448,10 +1448,7 @@ int link_objects(
         // set output
 #if defined(_WIN32)
         linkables.emplace_back("/OUT:"+bin_out);
-#elif defined(__APPLE__)
-        linkables.emplace_back("-o");
-        linkables.emplace_back("./"+bin_out);
-#elif defined(__linux__)
+#else
         linkables.emplace_back("-o");
         linkables.emplace_back("./"+bin_out);
 #endif
@@ -1461,10 +1458,8 @@ int link_objects(
 #if defined(_WIN32)
             linkables.emplace_back("-defaultlib:libcmt");
 #elif defined(__APPLE__)
-            // TODO test linking with libc on apple
             linkables.emplace_back("-lc");
 #elif defined(__linux__)
-            // TODO test linking with libc on linux
             linkables.emplace_back("-lc");
 #endif
         }
@@ -1494,12 +1489,14 @@ int link_objects(
     if(bin_out.ends_with(".dll")) {
             clang_flags.emplace_back("-shared");
     }
-#elif defined(__linux__)
-        if(bin_out.ends_with(".so")) {
+#elif defined(__APPLE__)
+    if(bin_out.ends_with(".dylib")) {
             clang_flags.emplace_back("-shared");
     }
-#else
-#error "Unknown OS"
+#elif defined(__linux__)
+    if(bin_out.ends_with(".so")) {
+            clang_flags.emplace_back("-shared");
+    }
 #endif
         clang_flags.emplace_back("-o");
         clang_flags.emplace_back(bin_out);

@@ -62,41 +62,6 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
     return 0;
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    const auto linked_node = interface_type->linked_node();
-    if(!linked_node) {
-        return;
-    }
-    const auto linked = linked_node->as_interface_def();
-    if(!linked) {
-        return;
-    }
-    linker.scope_start();
-    const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
-    const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
-    if(!overrides_interface) {
-        for (const auto func: linked->functions()) {
-            switch(func->kind()) {
-                case ASTNodeKind::FunctionDecl:
-                    linker.declare(func->as_function_unsafe()->name_view(), func);
-                    break;
-                case ASTNodeKind::GenericFuncDecl:
-                    linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-    // redeclare everything inside struct
-    if(struct_linked) {
-        struct_linked->redeclare_inherited_members(linker);
-        struct_linked->redeclare_variables_and_functions(linker);
-    }
-    MembersContainer::declare_and_link_no_scope(linker);
-    linker.scope_end();
-}
-
 void InterfaceDefinition::register_impl(ImplDefinition* definition) {
     const auto struct_linked = definition->struct_type ? definition->struct_type->linked_struct_def() : nullptr;
     if(struct_linked) {

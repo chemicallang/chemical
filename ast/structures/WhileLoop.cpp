@@ -36,13 +36,6 @@ void WhileLoop::code_gen(Codegen &gen) {
 
 #endif
 
-void WhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.scope_start();
-    condition->link(linker, condition);
-    body.link_sequentially(linker);
-    linker.scope_end();
-}
-
 void WhileLoop::stopInterpretation() {
     stoppedInterpretation = true;
 }

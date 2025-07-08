@@ -986,10 +986,6 @@ bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
     }
 }
 
-void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare(name, this);
-}
-
 ASTNode *FunctionParam::child(const chem::string_view &name) {
     const auto linked_node = type->linked_node();
     return linked_node ? linked_node->child(name) : nullptr;
@@ -997,16 +993,6 @@ ASTNode *FunctionParam::child(const chem::string_view &name) {
 
 void GenericTypeParameter::declare_only(SymbolResolver& linker) {
     linker.declare(identifier, this);
-}
-
-void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(at_least_type) {
-        at_least_type.link(linker);
-    }
-    declare_only(linker);
-    if(def_type) {
-        def_type.link(linker);
-    }
 }
 
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
@@ -1143,28 +1129,6 @@ void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {
     }
 }
 
-void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(body.has_value()) {
-        // if has body declare params
-        linker.scope_start();
-        auto prev_func_type = linker.current_func_type;
-        linker.current_func_type = this;
-        for (auto& param : params) {
-            param->declare_and_link(linker, (ASTNode*&) param);
-        }
-        if(FunctionType::data.signature_resolved) {
-            if(is_comptime()) {
-                linker.comptime_context = true;
-            }
-            body->link_sequentially(linker);
-            linker.comptime_context = false;
-        }
-        linker.scope_end();
-        linker.current_func_type = prev_func_type;
-    }
-
-}
-
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
     ASTAllocator& func_allocator,
@@ -1245,14 +1209,4 @@ BaseType* CapturedVariable::known_type() {
     } else {
         return val_type;
     }
-}
-
-bool CapturedVariable::declare_and_link(SymbolResolver& linker) {
-    const auto found = linker.find(name);
-    const auto has = found != nullptr;
-    if(has) {
-        linked = found;
-    }
-    linker.declare(name, this);
-    return has;
 }

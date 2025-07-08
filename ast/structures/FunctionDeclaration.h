@@ -637,13 +637,6 @@ public:
      */
     bool put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    /**
-     * link signature without any scope creation, or extension function
-     */
-    void link_signature_no_ext_scope(SymbolResolver& linker);
-
-    void link_signature_no_scope(SymbolResolver& linker);
-
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     /**

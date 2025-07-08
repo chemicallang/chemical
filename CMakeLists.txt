@@ -648,8 +648,8 @@ set(COMPILER_SOURCES
         preprocess/2c/SubVisitor.h
         compiler/backend/include/LLVMArrayDestructor.h
         compiler/CodegenOptions.h
-        compiler/backend/bindings/LLVMGen.h
-        compiler/backend/bindings/LLVMGen.cpp
+        compiler/backend/LLVMGen.h
+        compiler/backend/LLVMGen.cpp
 )
 
 # add Compiler executable

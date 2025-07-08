@@ -20,7 +20,7 @@
 #include "backend/DebugInfoBuilder.h"
 #include "compiler/backend/include/LLVMArrayDestructor.h"
 #include "CodegenOptions.h"
-#include "compiler/backend/bindings/LLVMGen.h"
+#include "compiler/backend/LLVMGen.h"
 
 class ASTAllocator;
 

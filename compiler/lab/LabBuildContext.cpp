@@ -221,10 +221,10 @@ LabJob* LabBuildContext::build_dynamic_lib(
     auto output_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
 #ifdef _WIN32
         output_path += ".dll";
-#elif __linux__
-        output_path += ".so";
+#elif defined(__APPLE__)
+        output_path += ".dylib";
 #else
-        #error "Unknown operating system"
+        output_path += ".so";
 #endif
     exe->abs_path.append(output_path);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);

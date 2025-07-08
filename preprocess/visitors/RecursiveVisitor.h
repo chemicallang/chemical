@@ -13,6 +13,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/statements/UsingStmt.h"
+#include "ast/structures/EnumDeclaration.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/Break.h"
@@ -233,6 +234,10 @@ public:
         if(param->defValue) {
             visit_it(param->defValue);
         }
+    }
+
+    void VisitEnumDecl(EnumDeclaration* node) {
+        visit_it(node->underlying_type);
     }
 
     void VisitVariables(const std::vector<BaseDefMember*>& variables) {

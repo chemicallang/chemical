@@ -139,10 +139,6 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
 
 void TopLevelLinkSignature::VisitUsingStmt(UsingStmt* node) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitUsingStmt(node);
-//    if(!node->chain->link(linker, nullptr, nullptr, true, false)) {
-//        node->attrs.failed_chain_link = true;
-//        return;
-//    }
     node->declare_symbols(linker);
 }
 
@@ -157,49 +153,42 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
             return;
         }
     }
-    if (value->link(linker, stmt->value, nullptr)) {
-        const auto node = value->linked_node();
-        if (!node) {
-            linker.error(stmt) << "cannot alias incompatible value";
-            return;
-        }
-        if (stmt->specifier >= node->specifier()) {
-            linker.error(stmt) << "cannot alias a node to a higher specifier";
-            return;
-        }
-        // declares the node without runtime
-        linker.declare_node(stmt->alias_name, node, stmt->specifier, false);
-    }
-}
 
-void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* node) {
-    node->actual_type.link(linker);
+    // TODO: this value can fail resolution, however we proceed as if it doesn't
+    // we shouldn't use alias statement
+    visit(stmt->value);
+
+    // TODO: linked_node shouldn't be called in link_signature
+    const auto node = value->linked_node();
+    if (!node) {
+        linker.error(stmt) << "cannot alias incompatible value";
+        return;
+    }
+    if (stmt->specifier >= node->specifier()) {
+        linker.error(stmt) << "cannot alias a node to a higher specifier";
+        return;
+    }
+
+    // declares the node without runtime
+    linker.declare_node(stmt->alias_name, node, stmt->specifier, false);
+
 }
 
 void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
     const auto value = node->value;
     const auto type = node->type.getType();
-    const auto type_resolved = !node->type || node->type.link(linker);
-    const auto value_resolved = !value || value->link(linker, node->value, node->type_ptr_fast());
-    if(!type_resolved || !value_resolved) {
-        node->attrs.signature_resolved = false;
-    } else {
-        if(type && value) {
-            const auto as_array = value->as_array_value();
-            if(type->kind() == BaseTypeKind::Array && as_array) {
-                const auto arr_type = ((ArrayType*) type);
-                if(arr_type->has_no_array_size()) {
-                    arr_type->set_array_size(as_array->array_size());
-                } else if(!as_array->has_explicit_size()) {
-                    as_array->set_array_size(arr_type->get_array_size());
-                }
+    if(type && value) {
+        const auto as_array = value->as_array_value();
+        if(type->kind() == BaseTypeKind::Array && as_array) {
+            const auto arr_type = ((ArrayType*) type);
+            if(arr_type->has_no_array_size()) {
+                arr_type->set_array_size(as_array->array_size());
+            } else if(!as_array->has_explicit_size()) {
+                as_array->set_array_size(arr_type->get_array_size());
             }
         }
     }
-}
-
-void TopLevelLinkSignature::VisitEnumDecl(EnumDeclaration* node) {
-    node->underlying_type.link(linker);
 }
 
 void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
@@ -245,7 +234,7 @@ void TopLevelLinkSignature::LinkVariablesNoScope(VariablesContainer* container) 
 
 void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* container) {
     for(auto& inherits : container->inherited) {
-        inherits.type.link(linker);
+        visit(inherits.type);
     }
     for (const auto var: container->variables()) {
         visit(var);

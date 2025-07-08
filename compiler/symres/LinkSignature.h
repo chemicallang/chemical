@@ -23,6 +23,15 @@ public:
 
     }
 
+    // TODO: we don't want to override this
+    // function types require that signature resolved is set to true
+    // which by default is false
+    void VisitFunctionType(FunctionType* type) {
+        RecursiveVisitor<TopLevelLinkSignature>::VisitFunctionType(type);
+        // TODO: remove this method
+        type->data.signature_resolved = true;
+    }
+
     template<typename T>
     inline void visit(T* ptr) {
         VisitByPtrTypeNoNullCheck(ptr);
@@ -81,11 +90,8 @@ public:
 
     void VisitAliasStmt(AliasStmt* node);
 
-    void VisitTypealiasStmt(TypealiasStatement* node);
-
     void VisitVarInitStmt(VarInitStatement* node);
 
-    void VisitEnumDecl(EnumDeclaration* node);
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 

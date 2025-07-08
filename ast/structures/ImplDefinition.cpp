@@ -62,56 +62,6 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
     return 0;
 }
 
-void ImplDefinition::link_signature_no_scope(SymbolResolver &linker) {
-
-    // linking interface and struct type
-    interface_type.link(linker);
-    if (struct_type) {
-        struct_type.link(linker);
-    }
-    const auto inter_linked = interface_type->linked_node();
-    if (inter_linked) {
-        const auto interface_def = inter_linked->as_interface_def();
-        if (interface_def) {
-            if (interface_def->is_static() && interface_def->has_implementation()) {
-                linker.error("static interface must have only a single implementation", encoded_location());
-            }
-            interface_def->register_impl(this);
-        } else {
-            linker.error("expected type to be an interface", encoded_location());
-        }
-    }
-
-    const auto linked_node = interface_type->get_direct_linked_node();
-    if(!linked_node) {
-        return;
-    }
-    const auto linked = linked_node->as_interface_def();
-    if(!linked) {
-        linker.error(interface_type.encoded_location()) << "couldn't find interface by this name for implementation";
-        return;
-    }
-    for(auto& func : master_functions()) {
-        if(!func->is_override()) {
-            func->set_override(true);
-        }
-    }
-    linker.scope_start();
-    const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
-    MembersContainer::link_signature_no_scope(linker);
-    linker.scope_end();
-    if(struct_linked) {
-        // adding all methods of this implementation to struct
-        struct_linked->adopt(this);
-    }
-}
-
-void ImplDefinition::link_signature(SymbolResolver& linker) {
-    linker.scope_start();
-    link_signature_no_scope(linker);
-    linker.scope_end();
-}
-
 void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     const auto linked_node = interface_type->linked_node();
     if(!linked_node) {

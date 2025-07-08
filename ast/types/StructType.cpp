@@ -3,6 +3,7 @@
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/StructDefinition.h"
 #include "compiler/SymbolResolver.h"
+#include "compiler/symres/LinkSignatureAPI.h"
 
 bool StructType::equals(StructType *type) {
     auto& elem_types = variables();
@@ -34,7 +35,7 @@ bool StructType::satisfies(BaseType *type) {
 
 bool StructType::link(SymbolResolver &linker, SourceLocation loc) {
     take_variables_from_parsed_nodes(linker);
-    VariablesContainer::link_variables_signature(linker);
+    sym_res_vars_signature(linker, this);
     if(!name.empty()) {
         linker.declare(name, this);
     }

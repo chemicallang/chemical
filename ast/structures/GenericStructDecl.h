@@ -79,8 +79,6 @@ public:
         return master_impl->known_type();
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
     /**

@@ -31,32 +31,6 @@ void GenericInterfaceDecl::finalize_body(ASTAllocator& allocator, InterfaceDefin
 
 }
 
-void GenericInterfaceDecl::link_signature(SymbolResolver &linker) {
-    linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
-    }
-    master_impl->link_signature(linker);
-    linker.scope_end();
-    signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_signature(allocator, inst);
-    }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(this, instantiations);
-    // since these instantiations were created before link_signature
-    // the functions have signature_resolved set to false, we must fix that
-    for(const auto inst : instantiations) {
-        for(const auto func : inst->master_functions()) {
-            // TODO set it to true, if its actually resolved
-            func->FunctionType::data.signature_resolved = true;
-        }
-    }
-}
-
 void GenericInterfaceDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     linker.scope_start();
     for(auto& param : generic_params) {

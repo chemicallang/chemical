@@ -91,12 +91,6 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
     nodes = std::move(public_nodes);
 }
 
-void Scope::link_signature(SymbolResolver& linker)  {
-    for (const auto node : nodes) {
-        node->link_signature(linker);
-    }
-}
-
 void Scope::declare_and_link(SymbolResolver &linker) {
     for (auto &node: nodes) {
         node->declare_and_link(linker, node);

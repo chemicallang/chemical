@@ -74,8 +74,6 @@ public:
         return true;
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     ASTNode *child(const chem::string_view &name) final;
 
     ASTNode *child(unsigned int index);

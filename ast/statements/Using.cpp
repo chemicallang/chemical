@@ -27,14 +27,6 @@ void UsingStmt::declare_symbols(SymbolResolver &linker) {
     }
 }
 
-void UsingStmt::link_signature(SymbolResolver &linker) {
-    if(!chain->link(linker, nullptr, nullptr, true, false)) {
-        attrs.failed_chain_link = true;
-        return;
-    }
-    declare_symbols(linker);
-}
-
 void UsingStmt::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
     if(!is_failed_chain_link()) {
         // we need to declare symbols once again, because all files in a module link signature

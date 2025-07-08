@@ -9,24 +9,6 @@ void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasState
     inst->actual_type = inst->actual_type.copy(allocator);
 }
 
-void GenericTypeDecl::link_signature(SymbolResolver &linker) {
-    linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
-    }
-    master_impl->link_signature(linker);
-    linker.scope_end();
-    signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
-    auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_signature(allocator, inst);
-    }
-    // finalize the body of all instantiations
-    // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeSignature(this, instantiations);
-}
-
 TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
 
     auto& container = instantiator.getContainer();

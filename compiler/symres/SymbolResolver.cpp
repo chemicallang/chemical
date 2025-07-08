@@ -11,6 +11,7 @@
 #include "rang.hpp"
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "DeclareTopLevel.h"
+#include "LinkSignatureAPI.h"
 
 SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
@@ -234,7 +235,8 @@ void SymbolResolver::link_signature_file(
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
-    scope.link_signature(*this);
+    // symbol resolve the scope
+    sym_res_signature(*this, &scope);
     file_scope_end(scope_index);
     linking_signature = prev_link_sig;
     // when linking signature is done, we should type verify only the top level var init decls
@@ -272,7 +274,7 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     enable_file_symbols(range);
     const auto prev_link_sig = linking_signature;
     linking_signature = true;
-    scope.link_signature(*this);
+    sym_res_signature(*this, &scope);
     linking_signature = prev_link_sig;
     scope.declare_and_link(*this);
     file_scope_end(scope_index);

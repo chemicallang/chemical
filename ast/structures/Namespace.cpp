@@ -27,19 +27,6 @@ void Namespace::put_in_extended(std::unordered_map<chem::string_view, ASTNode*>&
     }
 }
 
-void Namespace::link_signature(SymbolResolver &linker) {
-    linker.scope_start();
-    if(root) {
-        root->declare_extended_in_linker(linker);
-    } else {
-        declare_extended_in_linker(linker);
-    }
-    for(const auto node : nodes) {
-        node->link_signature(linker);
-    }
-    linker.scope_end();
-}
-
 void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     if(root) {

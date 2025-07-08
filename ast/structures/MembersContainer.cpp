@@ -325,24 +325,6 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
     }
 }
 
-void MembersContainer::link_signature_no_scope(SymbolResolver &linker) {
-    for(auto& inherits : inherited) {
-        inherits.type.link(linker);
-    }
-    for (const auto var: variables()) {
-        var->link_signature(linker);
-    }
-    for(auto& func : functions()) {
-        func->link_signature(linker);
-    }
-}
-
-void MembersContainer::link_signature(SymbolResolver &linker) {
-    linker.scope_start();
-    link_signature_no_scope(linker);
-    linker.scope_end();
-}
-
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
         const auto def = inherits.type->get_members_container();
@@ -888,12 +870,6 @@ void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vecto
             default:
                 break;
         }
-    }
-}
-
-void VariablesContainer::link_variables_signature(SymbolResolver& linker) {
-    for(const auto variable : variables()) {
-        variable->link_signature(linker);
     }
 }
 

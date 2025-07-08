@@ -199,8 +199,3 @@ throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size cal
     return 0;
 }
 
-void InterfaceDefinition::link_signature(SymbolResolver &linker) {
-    MembersContainer::link_signature(linker);
-    ensure_inherited_visibility(linker, specifier());
-}
-

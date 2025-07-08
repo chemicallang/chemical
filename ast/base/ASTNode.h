@@ -148,17 +148,6 @@ public:
     bool is_top_level();
 
     /**
-     * link signature is called in between declare_top_level and declare_and_link calls
-     * we link the signature in between, this function is currently only relevant to functions
-     * and probably will be needed by other declarations in the future
-     * because when declare_and_link is called, function bodies can contain calls
-     * to functions that are below it, whose signature hasn't been resolved which causes bugs
-     */
-    virtual void link_signature(SymbolResolver &linker) {
-        // does nothing by default
-    }
-
-    /**
      * declares something on the scope map
      * or find something on the map to link yourself with it
      */

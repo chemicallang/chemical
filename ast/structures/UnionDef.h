@@ -127,8 +127,6 @@ public:
 
     BaseType* known_type() final;
 
-    void link_signature(SymbolResolver &linker) override;
-
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
 
 #ifdef COMPILER_BUILD

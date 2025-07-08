@@ -46,8 +46,6 @@ public:
         return master_impl->known_type();
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     /**
      * register generic args
      */

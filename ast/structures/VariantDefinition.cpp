@@ -218,14 +218,6 @@ ASTNode* VariantDefinition::child(const chem::string_view &child_name) {
     return ExtendableMembersContainerNode::child(child_name);
 }
 
-void VariantDefinition::link_signature(SymbolResolver &linker) {
-    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
-    auto& diagnoser = linker;
-    link_signature_no_gen(linker);
-    generate_functions(allocator, diagnoser);
-    ensure_inherited_visibility(linker, specifier());
-}
-
 void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_destructor = false;
     for(auto& func : non_gen_range()) {
@@ -267,12 +259,6 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
     return large->byte_size(is64Bit) + type_size;
 }
 
-void VariantMember::link_signature(SymbolResolver &linker) {
-    for(auto& value : values) {
-        value.second->link_signature(linker);
-    }
-}
-
 ASTNode *VariantMember::child(const chem::string_view &name) {
     auto found = values.find(name);
     if(found != values.end()) {
@@ -311,13 +297,6 @@ bool VariantMember::requires_copy_fn() {
 
 BaseType* VariantMember::known_type() {
     return parent()->known_type();
-}
-
-void VariantMemberParam::link_signature(SymbolResolver &linker) {
-    type.link(linker);
-    if(def_value) {
-        def_value->link(linker, def_value);
-    }
 }
 
 ASTNode* VariantMemberParam::child(const chem::string_view &varName) {

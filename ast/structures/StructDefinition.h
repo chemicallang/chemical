@@ -231,12 +231,6 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    void link_signature_no_gen(SymbolResolver &linker) {
-        MembersContainer::link_signature(linker);
-    }
-
-    void link_signature(SymbolResolver &linker) override;
-
     /**
      * generates any default constructors / destructors required
      * should be called after link signature

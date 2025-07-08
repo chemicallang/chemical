@@ -128,12 +128,6 @@ public:
 
     void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    inline void link_signature_no_gen(SymbolResolver &linker) {
-        MembersContainer::link_signature(linker);
-    }
-
-    void link_signature(SymbolResolver &linker) override;
-
     inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
         MembersContainer::declare_and_link(linker, node_ptr);
     }

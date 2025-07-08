@@ -41,8 +41,6 @@ public:
         return unnamed;
     }
 
-    void link_signature(SymbolResolver &linker) override;
-
     bool requires_copy_fn() {
         for(const auto var : variables()) {
             if(var->known_type()->requires_copy_fn()) {

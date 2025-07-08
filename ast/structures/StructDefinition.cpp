@@ -261,29 +261,10 @@ llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 #endif
 
-void StructMember::link_signature(SymbolResolver &linker) {
-    type.link(linker);
-    if(defValue) {
-        defValue->link(linker, defValue);
-    }
-}
-
-void UnnamedStruct::link_signature(SymbolResolver &linker) {
-    take_variables_from_parsed_nodes(linker);
-    VariablesContainer::link_variables_signature(linker);
-}
-
 ASTNode *StructMember::child(const chem::string_view &childName) {
     auto linked = type->linked_node();
     if (!linked) return nullptr;
     return linked->child(childName);
-}
-
-void StructDefinition::link_signature(SymbolResolver &linker) {
-    auto& allocator = specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
-    link_signature_no_gen(linker);
-    generate_functions(allocator, linker);
-    ensure_inherited_visibility(linker, specifier());
 }
 
 void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {

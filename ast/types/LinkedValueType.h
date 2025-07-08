@@ -13,14 +13,19 @@ public:
     /**
      * constructor
      */
-    constexpr LinkedValueType(Value* value) : value(value), LinkedType((ASTNode*) nullptr) {
+    constexpr LinkedValueType(
+            Value* value
+    ) : value(value), LinkedType(nullptr, false, true) {
 
     }
 
     /**
      * constructor
      */
-    constexpr LinkedValueType(Value* value, ASTNode* linked) : value(value), LinkedType(linked) {
+    constexpr LinkedValueType(
+            Value* value,
+            ASTNode* linked
+    ) : LinkedType(linked, false, true), value(value) {
 
     }
 

@@ -112,7 +112,3 @@ llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
 BaseType* UnionDef::known_type() {
     return &linked_type;
 }
-
-void UnionDef::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    MembersContainer::declare_and_link(linker, node_ptr);
-}

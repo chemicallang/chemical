@@ -27,22 +27,6 @@ void Namespace::put_in_extended(std::unordered_map<chem::string_view, ASTNode*>&
     }
 }
 
-void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.scope_start();
-    if(root) {
-        root->declare_extended_in_linker(linker);
-    } else {
-        TopLevelDeclSymDeclare declarer(linker);
-        for(auto& node : nodes) {
-            declarer.visit(node);
-        }
-    }
-    for(auto& node : nodes) {
-        node->declare_and_link(linker, node);
-    }
-    linker.scope_end();
-}
-
 ASTNode *Namespace::child(const chem::string_view &child_name) {
     auto node = extended.find(child_name);
     if(node != extended.end()) {

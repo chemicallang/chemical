@@ -23,10 +23,3 @@ void TryCatch::code_gen(Codegen &gen) {
 }
 
 #endif
-
-void TryCatch::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    tryCall->link(linker, (Value*&) tryCall);
-    if(catchScope.has_value()) {
-        catchScope->link_sequentially(linker);
-    }
-}

@@ -573,6 +573,8 @@ set(COMMON_SOURCES
         compiler/symres/LinkSignature.h
         compiler/symres/LinkSignature.cpp
         compiler/symres/LinkSignatureAPI.h
+        compiler/symres/SymResLinkBody.h
+        compiler/symres/SymResLinkBody.cpp
 )
 
 # Chemical LSP Executable Target

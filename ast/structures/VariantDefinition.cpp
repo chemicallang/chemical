@@ -309,17 +309,6 @@ bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
     return true;
 }
 
-void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    const auto member = member_param->parent();
-    auto node = member->values.find(name);
-    if(node == member->values.end()) {
-        linker.error(this) << "variant case member variable not found in switch statement, name '" << name << "' not found";
-        return;
-    }
-    member_param = node->second;
-    linker.declare(name, this);
-}
-
 BaseType* VariantCaseVariable::known_type() {
     return member_param->type;
 }

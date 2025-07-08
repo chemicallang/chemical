@@ -26,12 +26,3 @@ void UsingStmt::declare_symbols(SymbolResolver &linker) {
         linker.declare(name_view, linked);
     }
 }
-
-void UsingStmt::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
-    if(!is_failed_chain_link()) {
-        // we need to declare symbols once again, because all files in a module link signature
-        // and then declare_and_link of all files is called, so after link_signature of each
-        // file, symbols are dropped
-        declare_symbols(linker);
-    }
-}

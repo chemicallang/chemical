@@ -6,13 +6,6 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
 
-void TypealiasStatement::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
-    if(!is_top_level()) {
-        linker.declare_node(name_view(), this, specifier(), false);
-        actual_type.link(linker);
-    }
-}
-
 ASTNode* TypealiasStatement::child(const chem::string_view &name) {
     const auto linked = actual_type->linked_node();
     return linked ? linked->child(name) : nullptr;

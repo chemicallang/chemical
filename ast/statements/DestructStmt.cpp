@@ -6,26 +6,6 @@
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
 
-void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(array_value) {
-        array_value->link(linker, array_value);
-    }
-    if(!identifier->link(linker, identifier)) {
-        return;
-    }
-    auto type = identifier->get_canonical_type(linker.allocator);
-    if(!type->is_pointer()) {
-        linker.error("destruct cannot be called on a value that isn't a pointer", this);
-        return;
-    }
-    auto found = linker.find("free");
-    if(!found || !found->as_function()) {
-        linker.error("'free' function should be declared before using destruct so calls can be made to it", this);
-        return;
-    }
-    free_func_linked = found->as_function();
-}
-
 DestructData DestructStmt::get_data(ASTAllocator& allocator) {
 
     DestructData data {nullptr, nullptr,  0 };

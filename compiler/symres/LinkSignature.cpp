@@ -229,32 +229,6 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
     }
 }
 
-void FunctionDeclaration::link_signature_no_ext_scope(SymbolResolver &linker) {
-    bool resolved = true;
-    for(auto param : params) {
-        if(!param->link_param_type(linker)) {
-            resolved = false;
-        } else if(param->defValue && !param->defValue->link(linker, param->defValue, param->type)) {
-            resolved = false;
-        }
-    }
-    if(!returnType.link(linker)) {
-        resolved = false;
-    }
-    if(resolved) {
-        FunctionType::data.signature_resolved = true;
-    } else {
-        linker.error("couldn't resolve signature of the function", (ASTNode*) this);
-    }
-}
-
-void FunctionDeclaration::link_signature_no_scope(SymbolResolver& linker) {
-    link_signature_no_ext_scope(linker);
-    if(isExtensionFn()) {
-        put_as_extension_function(linker.allocator, linker);
-    }
-}
-
 void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
     linker.scope_start();
 
@@ -338,7 +312,7 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     }
     // we don't put the master implementation (into extendable container)
     // because the receiver could be generic
-    node->master_impl->link_signature_no_scope(linker);
+    visit(node->master_impl);
     // we set it has usage, so every shallow copy or instantiation has usage
     // since we create instantiation only when calls are detected, so no declaration will be created
     // when there's no usage

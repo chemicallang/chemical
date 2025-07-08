@@ -515,10 +515,12 @@ void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
 void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     linker.scope_start();
     // linking interface and struct type
-    node->interface_type.link(linker);
+    visit(node->interface_type);
     if (node->struct_type) {
-        node->struct_type.link(linker);
+        visit(node->struct_type);
     }
+    // TODO: linked_node calling is not allowed in link_signature
+    // this code should be moved to type checking pass
     const auto inter_linked = node->interface_type->linked_node();
     if (inter_linked) {
         const auto interface_def = inter_linked->as_interface_def();

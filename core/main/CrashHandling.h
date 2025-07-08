@@ -183,8 +183,8 @@ void register_crash_handler(void) {
 #else
 
 /* For unsupported platforms, provide a stub implementation. */
-void register_crash_handler(void) {
-    fprintf(stderr, "Crash handler not supported on this platform.\n");
+inline void register_crash_handler(void) {
+
 }
 
 #endif

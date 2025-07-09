@@ -38,13 +38,6 @@ jobs:
         with:
           arch: x86_64
 
-      # Enable long paths (otherwise paths get truncated)
-      - name: Enable Win32 Long Paths
-        shell: pwsh
-        run: |
-          reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" `
-            /v LongPathsEnabled /t REG_DWORD /d 1 /f
-
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
@@ -77,18 +70,13 @@ jobs:
           path: chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
-      # … the rest of your Windows steps unchanged …
-      - name: Configure Chemical Project (Windows)
-        working-directory: chemical-bootstrap/chemical
+      - name: Map workspace to X and build there
         shell: pwsh
         run: |
-          mkdir out\release
-          cmake -S . -B out\build\x64-release -G Ninja
-
-      # Build the llvm compiler target
-      - name: Build Chemical LLVM Based Compiler (Windows)
-        working-directory: chemical-bootstrap/chemical
-        run: |
+          subst X: $PWD
+          cd X:\chemical-bootstrap\chemical
+          mkdir out\build
+          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
           cmake --build out\build\x64-release --config RelWithDebInfo --target Compiler
 
       # Build the tcc compiler target

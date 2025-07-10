@@ -14,6 +14,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/statements/Break.h"
 #include "compiler/SymbolResolver.h"
+#include "compiler/symres/SymResLinkBodyAPI.h"
 
 // deduplicate the nodes, so nodes with same id appearing later will override the nodes appearing before them
 void top_level_dedupe(std::vector<ASTNode*>& nodes) {
@@ -92,9 +93,7 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
 }
 
 inline void link_seq(SymbolResolver& linker, Scope* scope) {
-    for(auto& node : scope->nodes) {
-        node->declare_and_link(linker, node);
-    }
+    sym_res_link_body(linker, scope);
 }
 
 void Scope::link_sequentially(SymbolResolver &linker) {
@@ -115,11 +114,6 @@ void Scope::link_sequentially(SymbolResolver &linker) {
 
 void Scope::stopInterpretOnce() {
     stoppedInterpretOnce = true;
-}
-
-bool LoopBlock::link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) {
-    body.link_sequentially(linker);
-    return true;
 }
 
 Value* get_first_broken(Scope* body) {

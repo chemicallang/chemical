@@ -222,7 +222,8 @@ uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
     return size;
 }
 
-void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
+void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
+    const auto container = this;
     for(const auto var : container->variables()) {
         linker.declare(var->name, var);
     }
@@ -241,7 +242,7 @@ void declare_inherited_members(MembersContainer* container, SymbolResolver& link
     for(auto& inherits : container->inherited) {
         const auto def = inherits.type->linked_node()->as_members_container();
         if(def) {
-            declare_inherited_members(def, linker);
+            def->declare_inherited_members(linker);
         }
     }
 }
@@ -250,7 +251,7 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
         const auto def = inherits.type->linked_node()->as_members_container();
         if(def) {
-            declare_inherited_members(def, linker);
+            def->declare_inherited_members(linker);
         }
     }
 }
@@ -325,48 +326,48 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
     }
 }
 
-void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
-    for(auto& inherits : inherited) {
-        const auto def = inherits.type->get_members_container();
-        if(def) {
-            declare_inherited_members(def, linker);
-        }
-    }
-    // this will only declare aliases
-    declare_parsed_nodes(linker);
-    // declare all the variables manually
-    for (const auto var : variables()) {
-        if(var->name.empty()) {
-#ifdef DEBUG
-            switch(var->kind()) {
-                case ASTNodeKind::UnnamedStruct:
-                case ASTNodeKind::UnnamedUnion:
-                    break;
-                default:
-                    throw std::runtime_error("why does this variable has empty name");
-            }
-#endif
-            continue;
-        } else {
-            linker.declare(var->name, var);
-        }
-    }
-    // declare all the functions
-    TopLevelDeclSymDeclare declarer(linker);
-
-    for(auto& func : functions()) {
-        declarer.visit(func);
-    }
-    for (auto& func: functions()) {
-        func->declare_and_link(linker, (ASTNode*&) func);
-    }
-}
-
-void MembersContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.scope_start();
-    declare_and_link_no_scope(linker);
-    linker.scope_end();
-}
+//void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
+//    for(auto& inherits : inherited) {
+//        const auto def = inherits.type->get_members_container();
+//        if(def) {
+//            declare_inherited_members(def, linker);
+//        }
+//    }
+//    // this will only declare aliases
+//    declare_parsed_nodes(linker);
+//    // declare all the variables manually
+//    for (const auto var : variables()) {
+//        if(var->name.empty()) {
+//#ifdef DEBUG
+//            switch(var->kind()) {
+//                case ASTNodeKind::UnnamedStruct:
+//                case ASTNodeKind::UnnamedUnion:
+//                    break;
+//                default:
+//                    throw std::runtime_error("why does this variable has empty name");
+//            }
+//#endif
+//            continue;
+//        } else {
+//            linker.declare(var->name, var);
+//        }
+//    }
+//    // declare all the functions
+//    TopLevelDeclSymDeclare declarer(linker);
+//
+//    for(auto& func : functions()) {
+//        declarer.visit(func);
+//    }
+//    for (auto& func: functions()) {
+//        func->declare_and_link(linker, (ASTNode*&) func);
+//    }
+//}
+//
+//void MembersContainer::declare_and_link(SymbolResolver &linker) {
+//    linker.scope_start();
+//    declare_and_link_no_scope(linker);
+//    linker.scope_end();
+//}
 
 void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* definition) {
     for(auto& inherits : inherited) {
@@ -870,12 +871,6 @@ void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vecto
             default:
                 break;
         }
-    }
-}
-
-void VariablesContainer::declare_and_link_variables(SymbolResolver &linker) {
-    for (auto& variable : variables()) {
-        variable->declare_and_link(linker, (ASTNode*&) variable);
     }
 }
 

@@ -32,12 +32,3 @@ bool StructType::satisfies(BaseType *type) {
             return false;
     }
 }
-
-bool StructType::link(SymbolResolver &linker, SourceLocation loc) {
-    take_variables_from_parsed_nodes(linker);
-    sym_res_vars_signature(linker, this);
-    if(!name.empty()) {
-        linker.declare(name, this);
-    }
-    return true;
-}

@@ -237,11 +237,6 @@ public:
      */
     void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        MembersContainer::declare_and_link(linker, node_ptr);
-        register_use_to_inherited_interfaces(this);
-    }
-
     ASTNode *child(const chem::string_view &name) final;
 
     BaseType* known_type() final;

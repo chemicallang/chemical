@@ -148,14 +148,6 @@ public:
     bool is_top_level();
 
     /**
-     * declares something on the scope map
-     * or find something on the map to link yourself with it
-     */
-    virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-        // does nothing by default
-    }
-
-    /**
      * create a deep copy of the node
      */
     virtual ASTNode* copy(ASTAllocator& allocator) {

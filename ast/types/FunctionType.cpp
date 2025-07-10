@@ -218,22 +218,6 @@ FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
     return func_type;
 }
 
-bool FunctionType::link(SymbolResolver &linker, SourceLocation loc) {
-    bool resolved = true;
-    for (auto &param: params) {
-        if(!param->link_param_type(linker)) {
-            resolved = false;
-        }
-    }
-    if(!returnType.link(linker)) {
-        resolved = false;
-    }
-    if(resolved) {
-        data.signature_resolved = true;
-    }
-    return resolved;
-}
-
 // first chain is contained in other chain
 // other chain's value size is bigger or equal to first chain
 bool first_chain_is_contained_in(AccessChain& first, AccessChain& other_ptr) {

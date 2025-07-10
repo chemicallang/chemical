@@ -35,8 +35,6 @@ public:
         return loop;
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;
 #endif

@@ -83,10 +83,6 @@ public:
         );
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override {
-        sym_res_fn(&linker, this);
-    }
-
     BaseType* known_type() override {
         return known_type_fn(this);
     }

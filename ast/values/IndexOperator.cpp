@@ -82,16 +82,6 @@ BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
     return current_type;
 }
 
-bool IndexOperator::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    const auto linked = parent_val->link(linker, (Value*&) parent_val, nullptr);
-    for(auto& value : values) {
-        if(!value->link(linker, value)) {
-            return false;
-        }
-    }
-    return linked;
-}
-
 ASTNode *IndexOperator::linked_node() {
     const auto value_type = known_type();
     return value_type ? value_type->linked_node() : nullptr;

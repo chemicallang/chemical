@@ -142,13 +142,11 @@ public:
         }
     }
 
-    void declare_and_link_no_scope(SymbolResolver &linker);
+    void declare_inherited_members(SymbolResolver& linker);
 
     void redeclare_inherited_members(SymbolResolver &linker);
 
     void redeclare_variables_and_functions(SymbolResolver &linker);
-
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
 
     /**
      * this would register the definition to all interfaces inherited

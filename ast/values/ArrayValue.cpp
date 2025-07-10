@@ -174,55 +174,6 @@ ASTNode *ArrayValue::linked_node() {
     }
 }
 
-bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    auto& elemType = known_elem_type();
-    if(elemType) {
-        elemType.link(linker);
-    }
-    if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
-        const auto arr_type = (ArrayType*) expected_type;
-        elemType = arr_type->elem_type.copy(*linker.ast_allocator);
-    }
-    if(elemType) {
-        const auto def = elemType->linked_struct_def();
-        if(def) {
-            unsigned i = 0;
-            while (i < values.size()) {
-                auto& val_ptr = values[i];
-                const auto value = val_ptr;
-                value->link(linker, val_ptr, elemType);
-                const auto implicit = def->implicit_constructor_func(linker.allocator, value);
-                if(implicit) {
-                    link_with_implicit_constructor(implicit, linker, value);
-                } else if(!linker.linking_signature && !elemType->satisfies(linker.allocator, value, false)) {
-                    linker.unsatisfied_type_err(value, elemType);
-                }
-                i++;
-            }
-            return true;
-        }
-    }
-    auto& current_func_type = *linker.current_func_type;
-    auto& known_elem_type = elemType;
-    unsigned i = 0;
-    for(auto& value : values) {
-        const auto link_res = value->link(linker, value, nullptr);
-        if(link_res && i == 0 && !known_elem_type) {
-            known_elem_type = TypeLoc(value->known_type(), known_elem_type.getLocation());
-        }
-        if(known_elem_type) {
-            if(!linker.linking_signature) {
-                current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
-                if(!known_elem_type->satisfies(linker.allocator, value, false)) {
-                    linker.unsatisfied_type_err(value, known_elem_type);
-                }
-            }
-        }
-        i++;
-    }
-    return true;
-}
-
 //void ArrayValue::relink_after_generic(SymbolResolver &linker, BaseType *expected_type) {
 //    if(!created_type->elem_type && expected_type && expected_type->kind() == BaseTypeKind::Array) {
 //        const auto known_elem_type = ((ArrayType*) expected_type)->elem_type->pure_type(linker.allocator);

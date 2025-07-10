@@ -184,8 +184,6 @@ public:
         }
     }
 
-    void declare_and_link_variables(SymbolResolver &linker);
-
     /**
      * when child is located up somewhere in inheritance tree, we build the path to it
      * the last index in the path is of the child, all the indexes before are indexes to

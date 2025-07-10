@@ -8,13 +8,6 @@
 #include "compiler/SymbolResolver.h"
 #include <iostream>
 
-bool DereferenceValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    if(linker.safe_context) {
-        linker.warn("dereferencing a pointer in safe context is prohibited", this);
-    }
-    return value->link(linker, value);
-}
-
 BaseType* DereferenceValue::create_type(ASTAllocator& allocator) {
     auto addr = value->create_type(allocator);
     const auto addr_kind = addr->kind();

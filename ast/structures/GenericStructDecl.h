@@ -79,8 +79,6 @@ public:
         return master_impl->known_type();
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
-
     /**
      * register generic args
      */

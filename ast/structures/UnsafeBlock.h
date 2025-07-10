@@ -19,8 +19,6 @@ public:
 
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     UnsafeBlock* copy(ASTAllocator &allocator) override {
         const auto blk = new (allocator.allocate<UnsafeBlock>()) UnsafeBlock(
             parent(), encoded_location()

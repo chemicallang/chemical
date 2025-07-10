@@ -88,18 +88,6 @@ public:
     }
 
     /**
-     * links everything in this scope
-     */
-    void declare_and_link(SymbolResolver &linker);
-
-    /**
-     * links nodes
-     */
-    inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        declare_and_link(linker);
-    }
-
-    /**
      * when nodes are to be declared and used sequentially, so node can be referenced
      * after it is declared, this method should be called
      * for example, this code, i should be declared first then incremented

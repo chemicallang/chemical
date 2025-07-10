@@ -65,8 +65,6 @@ public:
 
     void declare_symbols(SymbolResolver &linker);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) final {

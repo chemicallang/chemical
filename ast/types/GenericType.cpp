@@ -16,17 +16,6 @@ uint64_t GenericType::byte_size(bool is64Bit) {
     return referenced->byte_size(is64Bit);
 }
 
-bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
-    const auto res = referenced->link(linker, loc);
-    if(!res) return false;
-    for(auto& type : types) {
-        if(!type.link(linker)) {
-            return false;
-        }
-    }
-    return instantiate(linker.genericInstantiator, loc);
-}
-
 bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc) {
     auto& diagnoser = instantiatorApi.getDiagnoser();
     const auto linked = referenced->linked;

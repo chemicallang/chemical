@@ -39,15 +39,74 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/VoidType.h"
+#include "ast/values/NullValue.h"
+#include "ast/values/StringValue.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "DeclareTopLevel.h"
 #include "ast/utils/ASTUtils.h"
+#include "SymResLinkBody.h"
+#include "SymResLinkBodyAPI.h"
+#include "LinkSignatureAPI.h"
 
-void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
+    SymResLinkBody linker(resolver);
+    linker.VisitScope(scope);
+}
+
+void sym_res_link_node_deprecated(SymbolResolver& resolver, ASTNode* node) {
+    SymResLinkBody linker(resolver);
+    linker.visit(node);
+}
+
+void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
+    for(auto& inherits : container->inherited) {
+        const auto def = inherits.type->get_members_container();
+        if(def) {
+            def->declare_inherited_members(linker);
+        }
+    }
+    // this will only declare aliases
+    container->declare_parsed_nodes(linker);
+    // declare all the variables manually
+    for (const auto var : container->variables()) {
+        if(var->name.empty()) {
+#ifdef DEBUG
+            switch(var->kind()) {
+                case ASTNodeKind::UnnamedStruct:
+                case ASTNodeKind::UnnamedUnion:
+                    break;
+                default:
+                    throw std::runtime_error("why does this variable has empty name");
+            }
+#endif
+            continue;
+        } else {
+            linker.declare(var->name, var);
+        }
+    }
+    // declare all the functions
+    TopLevelDeclSymDeclare declarer(linker);
+
+    for(auto& func : container->functions()) {
+        declarer.visit(func);
+    }
+    for (const auto func: container->functions()) {
+        visit(func);
+    }
+}
+
+//void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
+//    chain->link(linker, nullptr, nullptr, false, false);
+//}
+
+void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
+    auto& lhs = assign->lhs;
+    auto& value = assign->value;
     if(lhs->link_assign(linker, lhs, nullptr)) {
         BaseType* lhsType = lhs->create_type(linker.allocator);
         if(value->link(linker, value, lhsType)) {
-            switch(assOp){
+            switch(assign->assOp){
                 case Operation::Assignment:
                     if (!lhsType->satisfies(linker.allocator, value, true)) {
                         linker.unsatisfied_type_err(value, lhsType);
@@ -89,22 +148,24 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
     }
 }
 
-void UsingStmt::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
-    if(!is_failed_chain_link()) {
+void SymResLinkBody::VisitUsingStmt(UsingStmt* node) {
+    if(!node->is_failed_chain_link()) {
         // we need to declare symbols once again, because all files in a module link signature
         // and then declare_and_link of all files is called, so after link_signature of each
         // file, symbols are dropped
-        declare_symbols(linker);
+        node->declare_symbols(linker);
     }
 }
 
-void BreakStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(value) {
-        value->link(linker, value);
+void SymResLinkBody::VisitBreakStmt(BreakStatement* node) {
+    if(node->value) {
+        node->value->link(linker, node->value);
     }
 }
 
-void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
+    auto& array_value = node->array_value;
+    auto& identifier = node->identifier;
     if(array_value) {
         array_value->link(linker, array_value);
     }
@@ -113,26 +174,28 @@ void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
     }
     auto type = identifier->get_canonical_type(linker.allocator);
     if(!type->is_pointer()) {
-        linker.error("destruct cannot be called on a value that isn't a pointer", this);
+        linker.error("destruct cannot be called on a value that isn't a pointer", node);
         return;
     }
     auto found = linker.find("free");
     if(!found || !found->as_function()) {
-        linker.error("'free' function should be declared before using destruct so calls can be made to it", this);
+        linker.error("'free' function should be declared before using destruct so calls can be made to it", node);
         return;
     }
-    free_func_linked = found->as_function();
+    node->free_func_linked = found->as_function();
 }
 
-void ProvideStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {
+    auto& value = node->value;
     if(value->link(linker, value, nullptr)) {
-        put_in(linker.implicit_args, value, &linker, [](ProvideStmt* stmt, void* data) {
+        node->put_in(linker.implicit_args, value, &linker, [](ProvideStmt* stmt, void* data) {
             stmt->body.link_sequentially((*(SymbolResolver*) data));
         });
     }
 }
 
-void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
+    auto& value = node->value;
     if (value) {
         const auto func_type = linker.current_func_type;
         if(!value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr)) {
@@ -177,7 +240,8 @@ VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt
     return nullptr;
 }
 
-VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, FunctionCall* call) {
+VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, VariantDefinition* def, FunctionCall* call) {
+    auto& resolver = linker.linker;
     auto& astAlloc = *resolver.ast_allocator;
     if(call->parent_val->kind() == ValueKind::Identifier) {
         const auto first_id = call->parent_val->as_identifier_unsafe();
@@ -192,7 +256,7 @@ VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt
 
                         auto variable = new(astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, 0);
                         varCase->identifier_list.emplace_back(variable);
-                        variable->declare_and_link(resolver, (ASTNode*&) (variable));
+                        linker.visit(variable);
 
                     } else {
                         resolver.error("couldn't find variant member parameter with that name", value);
@@ -210,24 +274,29 @@ VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt
     return nullptr;
 }
 
-bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
+void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
+
+    auto& expression = stmt->expression;
+    auto& scopes = stmt->scopes;
+    auto& cases = stmt->cases;
+
     VariantDefinition* variant_def = nullptr;
     bool result = true;
     if(expression->link(linker, expression)) {
-        variant_def = getVarDefFromExpr();
-        if (value_ptr && variant_def && (scopes.size() < variant_def->variables().size() && !has_default_case())) {
-            linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
-            return false;
+        variant_def = stmt->getVarDefFromExpr();
+        if (variant_def && (scopes.size() < variant_def->variables().size() && !stmt->has_default_case())) {
+            linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) stmt);
+            return;
         }
     } else {
         result = false;
     }
 
-    if(result && value_ptr) {
-        auto val_node = get_value_node();
+    if(result && stmt->is_value) {
+        auto val_node = stmt->get_value_node();
         if(!val_node) {
-            linker.error("expected a single value node for the value", (ASTNode*) this);
-            return false;
+            linker.error("expected a single value node for the value", (ASTNode*) stmt);
+            return;
         }
     }
 
@@ -247,14 +316,14 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
                     const auto case_kind = switch_case.first->val_kind();
                     switch(case_kind) {
                         case ValueKind::Identifier: {
-                            const auto varCase = create_variant_case(linker, this, variant_def, switch_case.first->as_identifier_unsafe());
+                            const auto varCase = create_variant_case(linker, stmt, variant_def, switch_case.first->as_identifier_unsafe());
                             if (varCase) {
                                 switch_case.first = varCase;
                             }
                             continue;
                         }
                         case ValueKind::FunctionCall: {
-                            const auto varCase = create_variant_case(linker, this, variant_def, switch_case.first->as_func_call_unsafe());
+                            const auto varCase = create_variant_case(*this, stmt, variant_def, switch_case.first->as_func_call_unsafe());
                             if (varCase) {
                                 switch_case.first = varCase;
                             }
@@ -265,12 +334,12 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
                             if(chain && chain->values.size() == 1) {
                                 const auto kind = chain->values.back()->val_kind();
                                 if(kind == ValueKind::FunctionCall) {
-                                    const auto varCase = create_variant_case(linker, this, variant_def, chain->values.back()->as_func_call_unsafe());
+                                    const auto varCase = create_variant_case(*this, stmt, variant_def, chain->values.back()->as_func_call_unsafe());
                                     if(varCase) {
                                         switch_case.first = varCase;
                                     }
                                 } else if(kind == ValueKind::Identifier) {
-                                    const auto varCase = create_variant_case(linker, this, variant_def, chain->values.back()->as_identifier_unsafe());
+                                    const auto varCase = create_variant_case(linker, stmt, variant_def, chain->values.back()->as_identifier_unsafe());
                                     if(varCase) {
                                         switch_case.first = varCase;
                                     }
@@ -303,31 +372,39 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         curr_func->restore_moved_chains(moved_chains);
     }
 
-    return result;
 }
 
-void TypealiasStatement::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
-    if(!is_top_level()) {
-        linker.declare_node(name_view(), this, specifier(), false);
-        actual_type.link(linker);
+bool SwitchStatement::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    SymResLinkBody temp_linker(linker);
+    temp_linker.visit(this);
+    return true;
+}
+
+void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
+    if(!node->is_top_level()) {
+        linker.declare_node(node->name_view(), node, node->specifier(), false);
+        node->actual_type.link(linker);
     }
 }
 
-void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(is_top_level()) {
+void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
+    auto& type = node->type;
+    auto& value = node->value;
+    auto& attrs = node->attrs;
+    if(node->is_top_level()) {
         if(attrs.signature_resolved && !type && value) {
             type = {value->create_type(*linker.ast_allocator), type.getLocation()};
         }
     } else {
         const auto type_resolved = !type || type.link(linker);
-        const auto value_resolved = !value || value->link(linker, value, type_ptr_fast());
+        const auto value_resolved = !value || value->link(linker, value, node->type_ptr_fast());
         if (!type_resolved || !value_resolved) {
             attrs.signature_resolved = false;
         }
-        linker.declare(id_view(), this);
+        linker.declare(node->id_view(), node);
         if (attrs.signature_resolved) {
             if(value) {
-                linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);
+                linker.current_func_type->mark_moved_value(linker.allocator, value, node->known_type(), linker, type != nullptr);
             }
             if(type && value) {
                 const auto as_array = value->as_array_value();
@@ -350,22 +427,22 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
     }
 }
 
-void ComptimeBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    body.link_sequentially(linker);
+void SymResLinkBody::VisitComptimeBlock(ComptimeBlock* node) {
+    node->body.link_sequentially(linker);
 }
 
-void DoWhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitDoWhileLoopStmt(DoWhileLoop* node) {
     linker.scope_start();
-    body.link_sequentially(linker);
-    condition->link(linker, condition);
+    node->body.link_sequentially(linker);
+    node->condition->link(linker, node->condition);
     linker.scope_end();
 }
 
-void EnumMember::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
-    if(init_value) {
-        init_value->link(linker, init_value, nullptr);
+void SymResLinkBody::VisitEnumMember(EnumMember* node) {
+    if(node->init_value) {
+        node->init_value->link(linker, node->init_value, nullptr);
     }
-    linker.declare(name, this);
+    linker.declare(node->name, node);
 }
 
 void configure_members_by_inheritance(EnumDeclaration* current, int start) {
@@ -394,7 +471,10 @@ void configure_members_by_inheritance(EnumDeclaration* current, int start) {
     }
 }
 
-void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitEnumDecl(EnumDeclaration* node) {
+    auto& members = node->members;
+    auto& underlying_type = node->underlying_type;
+    auto& underlying_integer_type = node->underlying_integer_type;
     const auto pure_underlying = underlying_type->pure_type(*linker.ast_allocator);
     const auto k = pure_underlying->kind();
     if(k == BaseTypeKind::IntN) {
@@ -403,10 +483,10 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
         const auto linked = pure_underlying->get_direct_linked_node();
         if(linked->kind() == ASTNodeKind::EnumDecl) {
             const auto inherited = linked->as_enum_decl_unsafe();
-            configure_members_by_inheritance(this, inherited->next_start);
+            configure_members_by_inheritance(node, inherited->next_start);
             underlying_integer_type = inherited->underlying_integer_type;
         } else {
-            linker.error("given type is not an enum or integer type", encoded_location());
+            linker.error("given type is not an enum or integer type", node->encoded_location());
             underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType();
         }
     }
@@ -426,43 +506,43 @@ void EnumDeclaration::declare_and_link(SymbolResolver &linker, ASTNode *&node_pt
     linker.scope_end();
 }
 
-void ForLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitForLoopStmt(ForLoop* node) {
     linker.scope_start();
-    initializer->declare_and_link(linker, (ASTNode*&) initializer);
-    conditionExpr->link(linker, conditionExpr);
-    incrementerExpr->declare_and_link(linker, incrementerExpr);
-    body.link_sequentially(linker);
+    visit(node->initializer);
+    node->conditionExpr->link(linker, node->conditionExpr);
+    visit(node->incrementerExpr);
+    node->body.link_sequentially(linker);
     linker.scope_end();
 }
 
-void FunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    linker.declare(name, this);
+void SymResLinkBody::VisitFunctionParam(FunctionParam* node) {
+    linker.declare(node->name, node);
 }
 
-void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(at_least_type) {
-        at_least_type.link(linker);
+void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
+    if(node->at_least_type) {
+        node->at_least_type.link(linker);
     }
-    declare_only(linker);
-    if(def_type) {
-        def_type.link(linker);
+    node->declare_only(linker);
+    if(node->def_type) {
+        node->def_type.link(linker);
     }
 }
 
-void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    if(body.has_value()) {
+void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
+    if(node->body.has_value()) {
         // if has body declare params
         linker.scope_start();
         auto prev_func_type = linker.current_func_type;
-        linker.current_func_type = this;
-        for (auto& param : params) {
-            param->declare_and_link(linker, (ASTNode*&) param);
+        linker.current_func_type = node;
+        for (const auto param : node->params) {
+            visit(param);
         }
-        if(FunctionType::data.signature_resolved) {
-            if(is_comptime()) {
+        if(node->FunctionType::data.signature_resolved) {
+            if(node->is_comptime()) {
                 linker.comptime_context = true;
             }
-            body->link_sequentially(linker);
+            node->body->link_sequentially(linker);
             linker.comptime_context = false;
         }
         linker.scope_end();
@@ -471,146 +551,158 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& nod
 
 }
 
-bool CapturedVariable::declare_and_link(SymbolResolver& linker) {
-    const auto found = linker.find(name);
-    const auto has = found != nullptr;
-    if(has) {
-        linked = found;
-    }
-    linker.declare(name, this);
-    return has;
+void SymResLinkBody::VisitInterfaceDecl(InterfaceDefinition* node) {
+    LinkMembersContainer(node);
 }
 
-void GenericFuncDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitStructDecl(StructDefinition* node) {
+    LinkMembersContainer(node);
+    node->register_use_to_inherited_interfaces(node);
+}
+
+void SymResLinkBody::VisitVariantDecl(VariantDefinition* node) {
+    LinkMembersContainer(node);
+}
+
+void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
+    const auto found = linker.find(node->name);
+    if(found != nullptr) {
+        node->linked = found;
+    }
+    linker.declare(node->name, node);
+}
+
+void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
     // symbol resolve the master declaration
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : node->generic_params) {
+        visit(param);
     }
     const auto prev_gen_context = linker.generic_context;
     linker.generic_context = true;
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    body_linked = true;
+    node->body_linked = true;
     // finalizing the body of every function that was instantiated before declare_and_link
     auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_body(allocator, inst);
+    for(const auto inst : node->instantiations) {
+        node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeBody(this, instantiations);
+    linker.genericInstantiator.FinalizeBody(node, node->instantiations);
 }
 
-void GenericImplDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
+    auto& generic_params = node->generic_params;
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : generic_params) {
+        visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     const auto prev_gen_context = linker.generic_context;
     linker.generic_context = true;
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    body_linked = true;
+    node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
     auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_body(allocator, inst);
+    for(const auto inst : node->instantiations) {
+        node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeBody(this, instantiations);
+    linker.genericInstantiator.FinalizeBody(node, node->instantiations);
 }
 
-void GenericInterfaceDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : node->generic_params) {
+        visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     const auto prev_gen_context = linker.generic_context;
     linker.generic_context = true;
-    master_impl->declare_and_link_no_scope(linker);
+    visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    body_linked = true;
+    node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
     auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_body(allocator, inst);
+    for(const auto inst : node->instantiations) {
+        node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeBody(this, instantiations);
+    linker.genericInstantiator.FinalizeBody(node, node->instantiations);
 }
 
-void GenericStructDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitGenericStructDecl(GenericStructDecl* node) {
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : node->generic_params) {
+        visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     const auto prev_gen_context = linker.generic_context;
     linker.generic_context = true;
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    body_linked = true;
+    node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
     auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_body(allocator, inst);
+    for(const auto inst : node->instantiations) {
+        node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeBody(this, instantiations);
+    linker.genericInstantiator.FinalizeBody(node, node->instantiations);
 }
 
-void GenericUnionDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitGenericUnionDecl(GenericUnionDecl* node) {
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : node->generic_params) {
+        visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     const auto prev_gen_context = linker.generic_context;
     linker.generic_context = true;
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    body_linked = true;
+    node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
     auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_body(allocator, inst);
+    for(const auto inst : node->instantiations) {
+        node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeBody(this, instantiations);
+    linker.genericInstantiator.FinalizeBody(node, node->instantiations);
 }
 
-void GenericVariantDecl::declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) {
+void SymResLinkBody::VisitGenericVariantDecl(GenericVariantDecl* node) {
     linker.scope_start();
-    for(auto& param : generic_params) {
-        param->declare_and_link(linker, (ASTNode*&) param);
+    for(const auto param : node->generic_params) {
+        visit(param);
     }
     // declare and link, but don't generate any default constructors / destructors / such things
     const auto prev_gen_context = linker.generic_context;
     linker.generic_context = true;
-    master_impl->declare_and_link(linker, (ASTNode*&) master_impl);
+    visit(node->master_impl);
     linker.generic_context = prev_gen_context;
     linker.scope_end();
-    body_linked = true;
+    node->body_linked = true;
     // finalizing body of instantiations that occurred before declare_and_link
     auto& allocator = *linker.ast_allocator;
-    for(const auto inst : instantiations) {
-        finalize_body(allocator, inst);
+    for(const auto inst : node->instantiations) {
+        node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    linker.genericInstantiator.FinalizeBody(this, instantiations);
+    linker.genericInstantiator.FinalizeBody(node, node->instantiations);
 }
 
 void link_body(
@@ -630,38 +722,38 @@ void link_body(
     linker.scope_end();
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
+void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 
-    if(is_top_level()) {
-        auto scope = get_evaluated_scope_by_linking(linker);
+    if(node->is_top_level()) {
+        auto scope = node->get_evaluated_scope_by_linking(linker);
         if(scope) {
-            scope->declare_and_link(linker);
+            visit(scope);
         }
         return;
     }
 
-    link_conditions_no_patt_match_expr(linker);
+    node->link_conditions_no_patt_match_expr(linker);
 
-    if(is_computable || compile_time_computable()) {
-        is_computable = true;
-        if(computed_scope.has_value()) {
-            auto scope = computed_scope.value();
+    if(node->is_computable || node->compile_time_computable()) {
+        node->is_computable = true;
+        if(node->computed_scope.has_value()) {
+            auto scope = node->computed_scope.value();
             if(scope) {
-                scope->declare_and_link(linker, (ASTNode*&) computed_scope.value());
+                visit(scope);
             }
             return;
         }
         if(!linker.comptime_context) {
-            auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
+            auto condition_val = node->resolved_condition ? node->get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
             if (condition_val.has_value()) {
-                auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
-                computed_scope = eval;
+                auto eval = node->get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+                node->computed_scope = eval;
                 if (eval) {
-                    eval->declare_and_link(linker, (ASTNode*&) computed_scope.value());
+                    visit(eval);
                 }
                 return;
             } else {
-                is_computable = false;
+                node->is_computable = false;
             }
         }
     }
@@ -676,15 +768,15 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     std::vector<AccessChain*> moved_chains;
 
     // link the body
-    link_body(ifBody, condition, linker, moved_ids, moved_chains);
+    link_body(node->ifBody, node->condition, linker, moved_ids, moved_chains);
     // link the else ifs
-    for(auto& elseIf : elseIfs) {
+    for(auto& elseIf : node->elseIfs) {
         link_body(elseIf.second, elseIf.first, linker, moved_ids, moved_chains);
     }
     // link the else body
-    if(elseBody.has_value()) {
+    if(node->elseBody.has_value()) {
         linker.scope_start();
-        linker.link_body_seq_backing_moves(elseBody.value(), moved_ids, moved_chains);
+        linker.link_body_seq_backing_moves(node->elseBody.value(), moved_ids, moved_chains);
         linker.scope_end();
     }
 
@@ -692,8 +784,15 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     curr_func->restore_moved_chains(moved_chains);
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    const auto linked_node = interface_type->linked_node();
+bool IfStatement::link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) {
+    // TODO: remove this instance
+    SymResLinkBody temp_linker(linker);
+    temp_linker.visit(this);
+    return true;
+}
+
+void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
+    const auto linked_node = node->interface_type->linked_node();
     if(!linked_node) {
         return;
     }
@@ -702,7 +801,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
         return;
     }
     linker.scope_start();
-    const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
+    const auto struct_linked = node->struct_type ? node->struct_type->linked_struct_def() : nullptr;
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (const auto func: linked->functions()) {
@@ -723,43 +822,43 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
         struct_linked->redeclare_inherited_members(linker);
         struct_linked->redeclare_variables_and_functions(linker);
     }
-    MembersContainer::declare_and_link_no_scope(linker);
+    LinkMembersContainerNoScope(node);
     linker.scope_end();
 }
 
-void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
     linker.scope_start();
-    if(root) {
-        root->declare_extended_in_linker(linker);
+    if(node->root) {
+        node->root->declare_extended_in_linker(linker);
     } else {
         TopLevelDeclSymDeclare declarer(linker);
-        for(auto& node : nodes) {
-            declarer.visit(node);
+        for(auto& child : node->nodes) {
+            declarer.visit(child);
         }
     }
-    for(auto& node : nodes) {
-        node->declare_and_link(linker, node);
+    for(const auto child : node->nodes) {
+        visit(child);
     }
     linker.scope_end();
 }
 
-void Scope::declare_and_link(SymbolResolver &linker) {
-    for (auto &node: nodes) {
-        node->declare_and_link(linker, node);
+void SymResLinkBody::VisitScope(Scope* node) {
+    for (const auto child: node->nodes) {
+        visit(child);
     }
 }
 
-void LoopBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    body.link_sequentially(linker);
+void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
+    node->body.link_sequentially(linker);
 }
 
-void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    auto mems_container = getContainer();
+void SymResLinkBody::VisitInitBlock(InitBlock* node) {
+    auto mems_container = node->getContainer();
     if(!mems_container) {
-        linker.error("unexpected init block", this);
+        linker.error("unexpected init block", node);
         return;
     }
-    for(auto& in : initializers) {
+    for(auto& in : node->initializers) {
         in.second.value->link(linker, in.second.value, nullptr);
     }
 //    // now taking out initializers
@@ -837,54 +936,695 @@ void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
 //            linker.error("call to unknown node in init block", (ASTNode*) chain);
 //        }
 //    }
-    diagnose_missing_members_for_init(linker);
+    node->diagnose_missing_members_for_init(linker);
 }
 
-void TryCatch::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    tryCall->link(linker, (Value*&) tryCall);
-    if(catchScope.has_value()) {
-        catchScope->link_sequentially(linker);
-    }
+// void TryCatch::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+//    // Try catch not supported !
+//    tryCall->link(linker, (Value*&) tryCall);
+//    if(catchScope.has_value()) {
+//        catchScope->link_sequentially(linker);
+//    }
+// }
+
+void SymResLinkBody::VisitUnionDecl(UnionDef* node) {
+    LinkMembersContainer(node);
 }
 
-void UnionDef::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    MembersContainer::declare_and_link(linker, node_ptr);
-}
-
-void UnsafeBlock::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitUnsafeBlock(UnsafeBlock* node) {
     auto prev = linker.safe_context;
     linker.safe_context = false;
-    scope.link_sequentially(linker);
+    node->scope.link_sequentially(linker);
     linker.safe_context = prev;
 }
 
-void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    const auto member = member_param->parent();
-    auto node = member->values.find(name);
-    if(node == member->values.end()) {
-        linker.error(this) << "variant case member variable not found in switch statement, name '" << name << "' not found";
+void SymResLinkBody::VisitVariantCaseVariable(VariantCaseVariable* node) {
+    const auto member = node->member_param->parent();
+    auto child = member->values.find(node->name);
+    if(child == member->values.end()) {
+        linker.error(node) << "variant case member variable not found in switch statement, name '" << node->name << "' not found";
         return;
     }
-    member_param = node->second;
-    linker.declare(name, this);
+    node->member_param = child->second;
+    linker.declare(node->name, node);
 }
 
-void WhileLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitWhileLoopStmt(WhileLoop* node) {
     linker.scope_start();
-    condition->link(linker, condition);
-    body.link_sequentially(linker);
+    node->condition->link(linker, node->condition);
+    node->body.link_sequentially(linker);
     linker.scope_end();
 }
 
-void ValueNode::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    value->link(linker, value);
+void SymResLinkBody::VisitValueNode(ValueNode* node) {
+    node->value->link(linker, node->value);
 }
 
-void MultiFunctionNode::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void SymResLinkBody::VisitMultiFunctionNode(MultiFunctionNode* node) {
 
     // link all the functions
-    for(auto& func : functions) {
-        func->declare_and_link(linker, (ASTNode*&) func);
+    for(const auto func : node->functions) {
+        visit(func);
     }
 
+}
+
+void SymResLinkBody::VisitValueWrapper(ValueWrapperNode* node) {
+    node->value->link(linker, node->value);
+}
+
+void SymResLinkBody::VisitEmbeddedNode(EmbeddedNode* node) {
+    node->sym_res_fn(&linker, node);
+}
+
+// --------------- Values and Types BEGIN HERE -----------------
+// -------------------------------------------------------------
+// -------------------------------------------------------------
+
+
+inline bool link_val(SymbolResolver &linker, Value* value, Value** value_ptr, BaseType* expected_type, bool assign) {
+    if(assign && value->kind() == ValueKind::Identifier) {
+        return value->as_identifier_unsafe()->link_assign(linker, *value_ptr, expected_type);
+    } else {
+        return value->link(linker, *value_ptr, expected_type);
+    }
+}
+
+bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, bool check_validity, bool assign) {
+
+    if(!link_val(linker, values[0], value_ptr, values.size() == 1 ? expected_type : nullptr, assign)) {
+        return false;
+    }
+
+    // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
+    auto linked = values[0]->linked_node();
+    if(linked) {
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
+            if (!linker.current_func_type) {
+                linker.error(values[0]) << "unresolved identifier with struct member / function, with name '" << values[0]->representation() << '\'';
+                return false;
+            }
+            auto self_param = linker.current_func_type->get_self_param();
+            if (!self_param) {
+                auto decl = linker.current_func_type->as_function();
+                if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
+                    linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
+                    return false;
+                }
+            }
+        }
+    }
+
+    if(values.size() == 1) {
+        return true;
+    }
+
+    const auto values_size = values.size();
+    if (values_size > 1) {
+        const auto last = values_size - 1;
+        unsigned i = 1;
+        while (i < values_size) {
+            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == last ? expected_type : nullptr)) {
+                return false;
+            }
+            i++;
+        }
+    }
+
+    if(check_validity && linker.current_func_type) {
+        // check chain for validity, if it's moved or members have been moved
+        linker.current_func_type->check_chain(this, assign, linker);
+    }
+
+    return true;
+}
+
+bool LoopBlock::link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) {
+    body.link_sequentially(linker);
+    return true;
+}
+
+bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    return true;
+}
+
+bool ArrayType::link(SymbolResolver &linker, SourceLocation loc) {
+    const auto type_linked = elem_type.link(linker);
+    if(!type_linked) return false;
+    if(array_size_value) {
+        if(array_size_value->link(linker, array_size_value)) {
+            const auto evaluated = array_size_value->evaluated_value(linker.comptime_scope);
+            const auto number = evaluated->get_the_number();
+            if(number.has_value()) {
+                array_size = number.value();
+                return true;
+            }
+        }
+        return false;
+    }
+    return true;
+}
+
+bool DynamicType::link(SymbolResolver &linker, SourceLocation loc) {
+    return referenced->link(linker, loc);
+}
+
+bool FunctionType::link(SymbolResolver &linker, SourceLocation loc) {
+    bool resolved = true;
+    for (auto &param: params) {
+        if(!param->link_param_type(linker)) {
+            resolved = false;
+        }
+    }
+    if(!returnType.link(linker)) {
+        resolved = false;
+    }
+    if(resolved) {
+        data.signature_resolved = true;
+    }
+    return resolved;
+}
+
+bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
+    const auto res = referenced->link(linker, loc);
+    if(!res) return false;
+    for(auto& type : types) {
+        if(!type.link(linker)) {
+            return false;
+        }
+    }
+    return instantiate(linker.genericInstantiator, loc);
+}
+
+bool NamedLinkedType::link(SymbolResolver &linker, SourceLocation loc) {
+    const auto found = linker.find(link_name);
+    if(found) {
+        linked = found;
+    } else if(linked == nullptr) {
+        linker.error(loc) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
+        return false;
+    }
+    return true;
+}
+
+bool PointerType::link(SymbolResolver &linker, SourceLocation loc) {
+    return type->link(linker, loc);
+}
+
+bool StructType::link(SymbolResolver &linker, SourceLocation loc) {
+    take_variables_from_parsed_nodes(linker);
+    sym_res_vars_signature(linker, this);
+    if(!name.empty()) {
+        linker.declare(name, this);
+    }
+    return true;
+}
+
+bool UnionType::link(SymbolResolver &linker, SourceLocation loc) {
+    take_variables_from_parsed_nodes(linker);
+    sym_res_vars_signature(linker, this);
+    if(!name.empty()) {
+        linker.declare(name, this);
+    }
+    return true;
+}
+
+bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    auto res = value->link(linker, value);
+    if(res) {
+
+        // reporting parameters that their address has been taken
+        // which allows them to generate a variable and store themselves onto it
+        // if they are of integer types
+        // before the taking of address, the variables act immutable
+        const auto linked = value->linked_node();
+        if(linked) {
+            switch (linked->kind()) {
+                case ASTNodeKind::FunctionParam:
+                    linked->as_func_param_unsafe()->set_has_address_taken(true);
+                    break;
+                default:
+                    break;
+            }
+        }
+        if(!linker.linking_signature) {
+            // TODO we must perform mutability checks during link signature
+            is_value_mutable = value->check_is_mutable(linker.allocator, true);
+        }
+    }
+    return res;
+}
+
+bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    auto& elemType = known_elem_type();
+    if(elemType) {
+        elemType.link(linker);
+    }
+    if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
+        const auto arr_type = (ArrayType*) expected_type;
+        elemType = arr_type->elem_type.copy(*linker.ast_allocator);
+    }
+    if(elemType) {
+        const auto def = elemType->linked_struct_def();
+        if(def) {
+            unsigned i = 0;
+            while (i < values.size()) {
+                auto& val_ptr = values[i];
+                const auto value = val_ptr;
+                value->link(linker, val_ptr, elemType);
+                const auto implicit = def->implicit_constructor_func(linker.allocator, value);
+                if(implicit) {
+                    link_with_implicit_constructor(implicit, linker, value);
+                } else if(!linker.linking_signature && !elemType->satisfies(linker.allocator, value, false)) {
+                    linker.unsatisfied_type_err(value, elemType);
+                }
+                i++;
+            }
+            return true;
+        }
+    }
+    auto& current_func_type = *linker.current_func_type;
+    auto& known_elem_type = elemType;
+    unsigned i = 0;
+    for(auto& value : values) {
+        const auto link_res = value->link(linker, value, nullptr);
+        if(link_res && i == 0 && !known_elem_type) {
+            known_elem_type = TypeLoc(value->known_type(), known_elem_type.getLocation());
+        }
+        if(known_elem_type) {
+            if(!linker.linking_signature) {
+                current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
+                if(!known_elem_type->satisfies(linker.allocator, value, false)) {
+                    linker.unsatisfied_type_err(value, known_elem_type);
+                }
+            }
+        }
+        i++;
+    }
+    return true;
+}
+
+bool BlockValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
+    if(scope.nodes.empty()) {
+        linker.error("empty block value not allowed", this);
+        return false;
+    } else {
+        scope.link_sequentially(linker);
+    }
+    const auto lastNode = scope.nodes.back();
+    const auto lastKind = lastNode->kind();
+    if(lastKind != ASTNodeKind::ValueWrapper) {
+        linker.error("block doesn't contain a value wrapper as last node", this);
+        return false;
+    }
+    const auto lastValNode = lastNode->as_value_wrapper_unsafe();
+    calculated_value = lastValNode->value;
+    // TODO return appropriate result by getting it from scope
+    return true;
+}
+
+bool CastedValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
+    if(type.link(linker)) {
+        if(value->link(linker, value, type)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DereferenceValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    if(linker.safe_context) {
+        linker.warn("dereferencing a pointer in safe context is prohibited", this);
+    }
+    return value->link(linker, value);
+}
+
+bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    auto f = firstValue->link(linker, firstValue);
+    auto s = secondValue->link(linker, secondValue);
+    auto result = f && s;
+    // ast allocator is being used
+    // it's unknown when this expression should be disposed
+    // file level / module level allocator should be used, when this expression belongs to a function
+    // or decl that is private or internal, however that is hard to determine
+    if(!linker.linking_signature) {
+        // TODO this created_type should always be created, however this creates an error
+        created_type = create_type(*linker.ast_allocator);
+    }
+    return result;
+}
+
+bool IndexOperator::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    const auto linked = parent_val->link(linker, (Value*&) parent_val, nullptr);
+    for(auto& value : values) {
+        if(!value->link(linker, value)) {
+            return false;
+        }
+    }
+    return linked;
+}
+
+
+bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    const auto a = value->link(linker, value);
+    const auto b = type.link(linker);
+    return a && b;
+}
+
+BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
+    for(const auto node : nodes) {
+        if(node->as_return() != nullptr) {
+            auto returnStmt = node->as_return();
+            if(returnStmt->value) {
+                const auto created = returnStmt->value->create_type(allocator);
+                if(created) {
+                    return created;
+                }
+            } else {
+                return new (allocator.allocate<VoidType>()) VoidType();
+            }
+        } else {
+            const auto loop_ast = node->as_loop_ast();
+            if(loop_ast) {
+                auto found = find_return_type(allocator, node->as_loop_ast()->body.nodes);
+                if (found != nullptr) {
+                    return found;
+                }
+            }
+        }
+    }
+    return new (allocator.allocate<VoidType>()) VoidType();
+}
+
+bool link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
+    // TODO rely on visiting the variables, and remove this
+    SymResLinkBody temp_linker(linker);
+    for(const auto cap : fn->captureList) {
+        temp_linker.visit(cap);
+    }
+    bool result = true;
+    for (auto& param : fn->params) {
+        if(link_param_types) {
+            if(!param->link_param_type(linker)) {
+                result = false;
+            }
+        }
+        temp_linker.visit(param);
+    }
+    return result;
+}
+
+bool link_full(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
+    linker.scope_start();
+    const auto result = link_params_and_caps(fn, linker, link_param_types);
+    fn->scope.link_sequentially(linker);
+    linker.scope_end();
+    return result;
+}
+
+bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
+
+    auto func_type = expected_type ? expected_type->canonical()->get_function_type() : nullptr;
+
+    if(!func_type) {
+
+#ifdef DEBUG
+        linker.info("deducing lambda function type by visiting body", (Value*) this);
+#endif
+
+        // linking params and their types
+        auto result = link_full(this, linker, true);
+
+        // finding return type
+        auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
+
+        returnType = {found_return_type, get_location()};
+
+        if(result) {
+            data.signature_resolved = true;
+        }
+
+    } else {
+
+        if(!params.empty()) {
+            auto& param = params[0];
+            if((param->name == "self" || param->name == "this") && (!param->type || param->type->kind() == BaseTypeKind::Void)) {
+                param->type = func_type->params[0]->type;
+            }
+        }
+
+        link(linker, func_type);
+        if(link_full(this, linker, false)) {
+            data.signature_resolved = true;
+        }
+
+    }
+
+    if(!captureList.empty()) {
+
+        if(prev_func_type) {
+            for (const auto captured: captureList) {
+                if (captured->capture_by_ref) {
+                    continue;
+                }
+                // we have to allocate an identifier to mark it moved
+                // maybe design for this should change a little
+                // TODO: this identifier doesn't allow us to check if value has been moved prior
+                // because is_moved is used to check
+                const auto identifier = new(linker.ast_allocator->allocate<VariableIdentifier>()) VariableIdentifier(
+                        captured->name, captured->encoded_location(), false
+                );
+                identifier->linked = captured->linked;
+                // we must move the identifiers in capture list
+                prev_func_type->mark_moved_value(linker.allocator, identifier, captured->linked->known_type(), linker, false);
+            }
+        }
+
+        setIsCapturing(true);
+
+    }
+
+    linker.current_func_type = prev_func_type;
+
+    return true;
+
+}
+
+void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymbolResolver& resolver, Value* debug_value) {
+    if(to_params.size() > from_params.size()) {
+        resolver.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " however given " << std::to_string(to_params.size());
+        return;
+    }
+    auto total = from_params.size();
+    auto start = 0;
+    while(start < total) {
+        const auto from_param = from_params[start];
+        if(start >= to_params.size()) {
+            to_params.emplace_back(nullptr);
+        }
+        const auto to_param = to_params[start];
+        if(!to_param || !to_param->type || to_param->is_implicit() || from_param->is_implicit()) {
+            const auto copied = from_param->copy(*resolver.ast_allocator);
+            // change the name to what user wants
+            if(to_param) {
+                copied->name = to_param->name;
+            }
+            to_params[start] = copied;
+        } else {
+            // link the given parameter
+            to_param->link_param_type(resolver);
+            // check it's type is same as the from parameter
+            if(!to_param->type->is_same(from_param->type)) {
+                resolver.error(debug_value) << "Lambda function param at index " << std::to_string(start) << " with type " << from_param->type->representation() << ", redeclared with type " << to_param->type->representation();
+            }
+        }
+        start++;
+    }
+}
+
+bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
+    copy_func_params_types(func_type->params, params, linker, this);
+    if(!returnType) {
+        returnType = func_type->returnType.copy(*linker.ast_allocator);
+    } else if(!returnType->is_same(func_type->returnType)) {
+        linker.error((Value*) this) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
+    }
+    setIsCapturing(func_type->isCapturing());
+    return true;
+}
+
+bool NegativeValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    return value->link(linker, value);
+}
+
+bool NewTypedValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
+    return type.link(linker);
+}
+
+bool NewValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
+    return value->link(linker, value, nullptr);
+}
+
+bool PlacementNewValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
+    const auto a = pointer->link(linker, pointer, nullptr);
+    const auto b = value->link(linker, value, nullptr);
+    return a && b;
+}
+
+bool NotValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    return value->link(linker, value);
+}
+
+bool NullValue::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
+    if(expected_type) {
+        const auto kind = expected_type->kind();
+        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
+            expected = expected_type->copy(*linker.ast_allocator);
+        }
+    }
+    return true;
+}
+
+bool PatternMatchExpr::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
+    if(!expression->link(linker, expression, nullptr)) {
+        return false;
+    }
+    const auto child_member = find_member_from_expr(linker.allocator, linker);
+    if(!child_member) {
+        return false;
+    }
+    // set the member, so we don't need to resolve it again
+    member = child_member;
+    auto& params = child_member->values;
+    if(elseExpression.kind == PatternElseExprKind::DefValue && param_names.size() != 1) {
+        linker.error("must destructure one member for default value to work", this);
+        return false;
+    }
+    for(const auto nameId : param_names) {
+        auto found = params.find(nameId->identifier);
+        if(found == params.end()) {
+            linker.error("couldn't find parameter in variant member", nameId);
+        } else {
+            nameId->member_param = found->second;
+            // we declare this id, so anyone can link with it
+            linker.declare(nameId->identifier, nameId);
+        }
+    }
+    auto& elseVal = elseExpression.value;
+    if (elseVal && !elseVal->link(linker, elseVal, nullptr)) {
+        return false;
+    }
+}
+
+bool SizeOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    for_type.link(linker);
+    return true;
+}
+
+bool AlignOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    for_type.link(linker);
+    return true;
+}
+
+
+bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {
+    if(type && type->kind() == BaseTypeKind::Array) {
+        is_array = true;
+        auto arrayType = (ArrayType*) (type);
+        if(arrayType->get_array_size() > value.size()) {
+            length = (unsigned int) arrayType->get_array_size();
+        } else if(arrayType->has_no_array_size()) {
+            length = value.size() + 1; // adding 1 for the last /0
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("unknown");
+#endif
+        }
+    }
+    return true;
+}
+
+bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
+    if(refType) {
+        if(!refType.link(linker)) {
+            return false;
+        }
+    } else {
+        if(!expected_type) {
+            linker.error("unnamed struct value cannot link without a type", this);
+            refType = { new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, encoded_location()), encoded_location()};
+            return false;
+        }
+        refType = {expected_type, refType.getLocation()};
+    }
+    if(!resolve_container(linker.genericInstantiator)) {
+        return false;
+    }
+    diagnose_missing_members_for_init(linker);
+    if(!allows_direct_init()) {
+        linker.error(this) << "struct value with a constructor cannot be initialized, name '" << definition->name_view() << "' has a constructor";
+    }
+    auto refTypeKind = refType->kind();
+    if(refTypeKind == BaseTypeKind::Generic) {
+        for (auto& arg: generic_list()) {
+            arg.link(linker);
+        }
+    }
+    auto& current_func_type = *linker.current_func_type;
+    // linking values
+    for (auto &val: values) {
+        auto& val_ptr = val.second.value;
+        const auto value = val_ptr;
+        auto child_node = container->child_member_or_inherited_struct(val.first);
+        if(!child_node) {
+            linker.error(this) << "unresolved child '" << val.first << "' in struct declaration";
+            continue;
+        }
+        auto child_type = child_node->known_type();
+        const auto val_linked = val_ptr->link(linker, val_ptr, child_type);
+        const auto member = container->direct_variable(val.first);
+        if(val_linked && member) {
+            const auto mem_type = member->known_type();
+            if(!linker.linking_signature) {
+                current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
+            }
+            auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
+            if(implicit) {
+                link_with_implicit_constructor(implicit, linker, val_ptr);
+            } else if(!linker.linking_signature && !mem_type->satisfies(linker.allocator, value, false)) {
+                linker.unsatisfied_type_err(value, mem_type);
+            }
+        }
+    }
+    return true;
+}
+
+bool VariableIdentifier::link(SymbolResolver &linker, bool check_access, Value** ptr_ref) {
+    linked = linker.find(value);
+    if(linked) {
+        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
+            if(ptr_ref) {
+                auto& allocator = *linker.ast_allocator;
+                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked);
+                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, encoded_location());
+                return true;
+            } else {
+                linker.error(this) << "cannot replace identifier '" << value << "' that references a generic type parameter";
+            }
+        } else {
+            if (check_access && linker.current_func_type) {
+                // check for validity if accessible or assignable (because moved)
+                linker.current_func_type->check_id(this, linker);
+            }
+            process_linked(&linker);
+        }
+        return true;
+    } else {
+        linker.error(this) << "unresolved variable identifier '" << value << "' not found";
+    }
+    return false;
 }

@@ -43,8 +43,6 @@ public:
     void code_gen(Codegen &gen) final;
 #endif
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     void stopInterpretation() final;
 
 };

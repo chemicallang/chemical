@@ -3,10 +3,6 @@
 #include "DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-bool DynamicType::link(SymbolResolver &linker, SourceLocation loc) {
-    return referenced->link(linker, loc);
-}
-
 bool DynamicType::satisfies(BaseType *type) {
     const auto type_kind = type->kind();
     if(type_kind == BaseTypeKind::Dynamic) {

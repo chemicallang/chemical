@@ -38,8 +38,6 @@ public:
 
     ExtendableMembersContainerNode* getContainer();
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD

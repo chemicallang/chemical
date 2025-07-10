@@ -137,8 +137,6 @@ public:
 
     void declare_extended_in_linker(SymbolResolver& linker);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     ASTNode *child(const chem::string_view &name) final;
 
 #ifdef COMPILER_BUILD

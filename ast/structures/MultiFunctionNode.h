@@ -43,8 +43,6 @@ public:
 
     FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
 };
 
 OverridableFuncHandlingResult handle_name_overload_function(

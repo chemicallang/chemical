@@ -60,8 +60,6 @@ public:
         return master_impl->name_view();
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
-
     BaseType* known_type() override {
         return master_impl->known_type();
     }

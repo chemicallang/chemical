@@ -11,23 +11,6 @@ BaseType* StringValue::create_type(ASTAllocator& allocator) {
     return new (allocator.allocate<StringType>()) StringType();
 }
 
-bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {
-    if(type && type->kind() == BaseTypeKind::Array) {
-        is_array = true;
-        auto arrayType = (ArrayType*) (type);
-        if(arrayType->get_array_size() > value.size()) {
-            length = (unsigned int) arrayType->get_array_size();
-        } else if(arrayType->has_no_array_size()) {
-            length = value.size() + 1; // adding 1 for the last /0
-        } else {
-#ifdef DEBUG
-        throw std::runtime_error("unknown");
-#endif
-        }
-    }
-    return true;
-}
-
 Value *StringValue::index(InterpretScope &scope, int i) {
 #ifdef DEBUG
     if (i < 0 || i >= value.size()) {

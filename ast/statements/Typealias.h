@@ -142,8 +142,6 @@ public:
 
     BaseType* known_type() final;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
-
     ASTNode* child(const chem::string_view &name) override;
 
 #ifdef COMPILER_BUILD

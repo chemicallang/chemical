@@ -20,8 +20,6 @@ public:
 
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     ComptimeBlock* copy(ASTAllocator &allocator) override {
         const auto blk = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock(
             parent(),

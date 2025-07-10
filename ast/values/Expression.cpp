@@ -100,21 +100,6 @@ ASTNode* Expression::linked_node() {
     return created_type ? created_type->linked_node() : nullptr;
 }
 
-bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    auto f = firstValue->link(linker, firstValue);
-    auto s = secondValue->link(linker, secondValue);
-    auto result = f && s;
-    // ast allocator is being used
-    // it's unknown when this expression should be disposed
-    // file level / module level allocator should be used, when this expression belongs to a function
-    // or decl that is private or internal, however that is hard to determine
-    if(!linker.linking_signature) {
-        // TODO this created_type should always be created, however this creates an error
-        created_type = create_type(*linker.ast_allocator);
-    }
-    return result;
-}
-
 bool Expression::primitive() {
     return false;
 }

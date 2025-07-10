@@ -10,10 +10,6 @@ uint64_t NegativeValue::byte_size(bool is64Bit) {
     return value->byte_size(is64Bit);
 }
 
-bool NegativeValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    return value->link(linker, value);
-}
-
 BaseType* NegativeValue::create_type(ASTAllocator& allocator) {
     const auto result = value->create_type(allocator);
     const auto can = result->canonical();

@@ -40,8 +40,6 @@ public:
 
     void declare_only(SymbolResolver& linker);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     void set_active_type(BaseType* type) {
         active_type = type;
     }

@@ -28,64 +28,6 @@ void AccessChain::relink_parent() {
     }
 }
 
-inline bool link_val(SymbolResolver &linker, Value* value, Value** value_ptr, BaseType* expected_type, bool assign) {
-    if(assign && value->kind() == ValueKind::Identifier) {
-        return value->as_identifier_unsafe()->link_assign(linker, *value_ptr, expected_type);
-    } else {
-        return value->link(linker, *value_ptr, expected_type);
-    }
-}
-
-bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** value_ptr, bool check_validity, bool assign) {
-
-    if(!link_val(linker, values[0], value_ptr, values.size() == 1 ? expected_type : nullptr, assign)) {
-        return false;
-    }
-
-    // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
-    auto linked = values[0]->linked_node();
-    if(linked) {
-        const auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
-            if (!linker.current_func_type) {
-                linker.error(values[0]) << "unresolved identifier with struct member / function, with name '" << values[0]->representation() << '\'';
-                return false;
-            }
-            auto self_param = linker.current_func_type->get_self_param();
-            if (!self_param) {
-                auto decl = linker.current_func_type->as_function();
-                if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
-                    linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
-                    return false;
-                }
-            }
-        }
-    }
-
-    if(values.size() == 1) {
-        return true;
-    }
-
-    const auto values_size = values.size();
-    if (values_size > 1) {
-        const auto last = values_size - 1;
-        unsigned i = 1;
-        while (i < values_size) {
-            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == last ? expected_type : nullptr)) {
-                return false;
-            }
-            i++;
-        }
-    }
-
-    if(check_validity && linker.current_func_type) {
-        // check chain for validity, if it's moved or members have been moved
-        linker.current_func_type->check_chain(this, assign, linker);
-    }
-
-    return true;
-}
-
 BaseType* AccessChain::create_type(ASTAllocator& allocator) {
     return values[values.size() - 1]->create_type(allocator);
 }

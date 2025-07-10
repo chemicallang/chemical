@@ -98,16 +98,7 @@ public:
         return link_evaluated_scope(linker);
     }
 
-    void declare_and_link(SymbolResolver &linker, Value** value_ptr);
-
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        declare_and_link(linker, nullptr);
-    }
-
-    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) final {
-        declare_and_link(linker, &value_ptr);
-        return true;
-    }
+    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) final;
 
     std::optional<bool> get_condition_const(InterpretScope& scope);
 

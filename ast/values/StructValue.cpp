@@ -412,61 +412,6 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseTy
     return true;
 }
 
-bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
-    if(refType) {
-        if(!refType.link(linker)) {
-            return false;
-        }
-    } else {
-        if(!expected_type) {
-            linker.error("unnamed struct value cannot link without a type", this);
-            refType = { new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, encoded_location()), encoded_location()};
-            return false;
-        }
-        refType = {expected_type, refType.getLocation()};
-    }
-    if(!resolve_container(linker.genericInstantiator)) {
-        return false;
-    }
-    diagnose_missing_members_for_init(linker);
-    if(!allows_direct_init()) {
-        linker.error(this) << "struct value with a constructor cannot be initialized, name '" << definition->name_view() << "' has a constructor";
-    }
-    auto refTypeKind = refType->kind();
-    if(refTypeKind == BaseTypeKind::Generic) {
-        for (auto& arg: generic_list()) {
-            arg.link(linker);
-        }
-    }
-    auto& current_func_type = *linker.current_func_type;
-    // linking values
-    for (auto &val: values) {
-        auto& val_ptr = val.second.value;
-        const auto value = val_ptr;
-        auto child_node = container->child_member_or_inherited_struct(val.first);
-        if(!child_node) {
-            linker.error(this) << "unresolved child '" << val.first << "' in struct declaration";
-            continue;
-        }
-        auto child_type = child_node->known_type();
-        const auto val_linked = val_ptr->link(linker, val_ptr, child_type);
-        const auto member = container->direct_variable(val.first);
-        if(val_linked && member) {
-            const auto mem_type = member->known_type();
-            if(!linker.linking_signature) {
-                current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
-            }
-            auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
-            if(implicit) {
-                link_with_implicit_constructor(implicit, linker, val_ptr);
-            } else if(!linker.linking_signature && !mem_type->satisfies(linker.allocator, value, false)) {
-                linker.unsatisfied_type_err(value, mem_type);
-            }
-        }
-    }
-    return true;
-}
-
 ASTNode *StructValue::linked_node() {
     if(definition) {
         return definition;

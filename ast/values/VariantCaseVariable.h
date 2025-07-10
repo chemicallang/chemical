@@ -25,8 +25,6 @@ public:
 
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     inline ASTNode* parent_node() {
         return ASTNode::parent();
     }

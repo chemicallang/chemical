@@ -128,10 +128,6 @@ public:
 
     void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        MembersContainer::declare_and_link(linker, node_ptr);
-    }
-
     BaseType* known_type() final;
 
     ASTNode* child(const chem::string_view &child_name) final;

@@ -637,8 +637,6 @@ public:
      */
     bool put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
-
     /**
      * ensure that function body has an init block (required in constructors)
      * @return true if has init block, otherwise false

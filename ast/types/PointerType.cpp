@@ -12,10 +12,6 @@
 
 const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, ZERO_LOC);
 
-bool PointerType::link(SymbolResolver &linker, SourceLocation loc) {
-    return type->link(linker, loc);
-}
-
 ASTNode *PointerType::linked_node() {
     return type->linked_node();
 }

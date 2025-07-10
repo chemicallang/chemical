@@ -25,17 +25,15 @@ struct EnumDeclAttributes {
 };
 
 class EnumDeclaration : public ExtendableNode {
-private:
-
-    // this is calculated during symbol resolution
-    IntNType* underlying_integer_type;
-
 public:
 
     EnumDeclAttributes attrs;
     LocatedIdentifier located_id; ///< The name of the enum.
     std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
     TypeLoc underlying_type;
+
+    // this is calculated during symbol resolution
+    IntNType* underlying_integer_type;
 
     /**
      * this is the index at which any enum that inherits this enum should start
@@ -119,8 +117,6 @@ public:
         decl->next_start = next_start;
         return decl;
     }
-
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) override;
 
     BaseType* known_type() final;
 

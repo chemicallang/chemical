@@ -305,10 +305,6 @@ ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
     return linked_node->child(varName);
 }
 
-bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    return true;
-}
-
 BaseType* VariantCaseVariable::known_type() {
     return member_param->type;
 }

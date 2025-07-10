@@ -24,10 +24,6 @@ public:
         );
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override {
-        value->link(linker, value);
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override {

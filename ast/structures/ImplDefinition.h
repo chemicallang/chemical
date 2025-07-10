@@ -72,6 +72,4 @@ public:
 
 #endif
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
 };

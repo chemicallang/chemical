@@ -8,12 +8,6 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/NullValue.h"
 
-bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    const auto a = value->link(linker, value);
-    const auto b = type.link(linker);
-    return a && b;
-}
-
 Value* IsValue::evaluated_value(InterpretScope &scope) {
     const auto result = get_comp_time_result();
     if(result.has_value()) {

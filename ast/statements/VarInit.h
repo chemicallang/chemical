@@ -296,8 +296,6 @@ public:
 
     ASTNode *child(const chem::string_view &name) final;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     inline BaseType* known_type_SymRes(ASTAllocator& allocator) {
         return get_or_create_type(allocator);
     }

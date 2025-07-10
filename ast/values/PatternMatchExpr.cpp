@@ -192,37 +192,6 @@ VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, 
     }
 }
 
-bool PatternMatchExpr::link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) {
-    if(!expression->link(linker, expression, nullptr)) {
-        return false;
-    }
-    const auto child_member = find_member_from_expr(linker.allocator, linker);
-    if(!child_member) {
-        return false;
-    }
-    // set the member, so we don't need to resolve it again
-    member = child_member;
-    auto& params = child_member->values;
-    if(elseExpression.kind == PatternElseExprKind::DefValue && param_names.size() != 1) {
-        linker.error("must destructure one member for default value to work", this);
-        return false;
-    }
-    for(const auto nameId : param_names) {
-        auto found = params.find(nameId->identifier);
-        if(found == params.end()) {
-            linker.error("couldn't find parameter in variant member", nameId);
-        } else {
-            nameId->member_param = found->second;
-            // we declare this id, so anyone can link with it
-            linker.declare(nameId->identifier, nameId);
-        }
-    }
-    auto& elseVal = elseExpression.value;
-    if (elseVal && !elseVal->link(linker, elseVal, nullptr)) {
-        return false;
-    }
-}
-
 BaseType* PatternMatchExpr::create_type(ASTAllocator &allocator) {
     return new (allocator.allocate<VoidType>()) VoidType();
 }

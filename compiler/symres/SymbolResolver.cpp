@@ -12,6 +12,7 @@
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "DeclareTopLevel.h"
 #include "LinkSignatureAPI.h"
+#include "SymResLinkBodyAPI.h"
 
 SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
@@ -256,7 +257,7 @@ void SymbolResolver::link_file(
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
     const auto scope_index = file_scope_start();
     enable_file_symbols(range);
-    nodes_scope.declare_and_link(*this);
+    sym_res_link_body(*this, &nodes_scope);
     file_scope_end(scope_index);
 }
 
@@ -276,7 +277,7 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     linking_signature = true;
     sym_res_signature(*this, &scope);
     linking_signature = prev_link_sig;
-    scope.declare_and_link(*this);
+    sym_res_link_body(*this, &scope);
     file_scope_end(scope_index);
 }
 

@@ -89,6 +89,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "std/chem_string.h"
+#include "compiler/symres/SymResLinkBodyAPI.h"
 #include "ast/statements/EmbeddedNode.h"
 
 constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLocation location) {
@@ -576,7 +577,7 @@ ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name) {
 }
 
 void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {
-    node->declare_and_link(*resolver, *ptr_ref);
+    sym_res_link_node_deprecated(*resolver, *ptr_ref);
 }
 
 // BaseType methods

@@ -7,15 +7,6 @@
 #include "ast/values/PointerValue.h"
 #include "ast/types/PointerType.h"
 
-bool CastedValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
-    if(type.link(linker)) {
-        if(value->link(linker, value, type)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 ASTNode *CastedValue::linked_node() {
     return value->linked_node();
 }

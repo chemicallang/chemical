@@ -29,12 +29,6 @@ public:
 
     }
 
-    bool declare_and_link(SymbolResolver& linker);
-
-    inline void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        declare_and_link(linker);
-    }
-
     ASTNode *child(const chem::string_view &name) final {
         return linked->child(name);
     }

@@ -28,8 +28,6 @@ public:
 
     }
 
-        void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final;
-
     bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) final;
 
     Value* get_first_broken();

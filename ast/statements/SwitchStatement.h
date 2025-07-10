@@ -30,15 +30,7 @@ public:
 
     SwitchStatement* copy(ASTAllocator &allocator) override;
 
-    bool declare_and_link(SymbolResolver &linker, Value** value_ptr);
-
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) final {
-        declare_and_link(linker, nullptr);
-    }
-
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final {
-        return declare_and_link(linker, &value_ptr);
-    }
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) final;
 
     Value* get_value_node();
 

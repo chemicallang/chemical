@@ -135,14 +135,3 @@ bool LinkedType::satisfies(ASTAllocator &allocator, Value *value, bool assignmen
     }
     return satisfies(valueType);
 }
-
-bool NamedLinkedType::link(SymbolResolver &linker, SourceLocation loc) {
-    const auto found = linker.find(link_name);
-    if(found) {
-        linked = found;
-    } else if(linked == nullptr) {
-        linker.error(loc) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
-        return false;
-    }
-    return true;
-}

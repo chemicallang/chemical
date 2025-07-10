@@ -74,8 +74,6 @@ public:
         attrs.deprecated = value;
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode *&node_ptr) final;
-
     /**
      * the default index we'll use for this enum member, if user didn't specify an
      * explicit index for it

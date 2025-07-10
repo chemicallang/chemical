@@ -6,10 +6,6 @@
 #include "BoolValue.h"
 #include "NullValue.h"
 
-bool NotValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
-    return value->link(linker, value);
-}
-
 bool NotValue::primitive() {
     return false;
 }

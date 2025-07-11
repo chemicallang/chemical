@@ -135,7 +135,7 @@ public:
      * can basically replace itself in the pointer, some compile time values like sizeof
      * replace themselves at resolution phase
      */
-    virtual bool link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr) {
+    virtual bool link(SymbolResolver& linker, BaseType* expected_type = nullptr) {
         return true;
     }
 

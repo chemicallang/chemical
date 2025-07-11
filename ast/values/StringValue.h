@@ -32,7 +32,7 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     BaseType* known_type() final {
         return (BaseType*) &StringType::instance;

@@ -47,8 +47,8 @@ public:
 
     bool link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final {
-        if(!parent_val->link(linker, (Value*&) parent_val, nullptr)) {
+    bool link(SymbolResolver& linker, BaseType* expected_type) final {
+        if(!parent_val->link(linker, nullptr)) {
             return false;
         }
         return link_without_parent(linker, expected_type, true);

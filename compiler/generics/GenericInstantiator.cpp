@@ -3,6 +3,7 @@
 #include "GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/values/TypeInsideValue.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
@@ -322,6 +323,31 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             visit(type->referenced);
             break;
     }
+}
+
+// suppose user writes T is long <-- we replace T with TypeInsideValue
+void replace_is_value_value(IsValue* container, Value* value, ASTAllocator& allocator) {
+    switch(value->kind()) {
+        case ValueKind::Identifier:
+            if(value->kind() == ValueKind::Identifier && value->as_identifier_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
+                const auto linked_type = value->as_identifier_unsafe()->linked->as_generic_type_param_unsafe()->known_type();
+                const auto replacement = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, value->encoded_location());
+                container->value = replacement;
+            }
+            return;
+        case ValueKind::AccessChain:
+            if(value->as_access_chain_unsafe()->values.size() == 1) {
+                replace_is_value_value(container, value->as_access_chain_unsafe()->values[0], allocator);
+            }
+        default:
+            return;
+    }
+
+}
+
+void GenericInstantiator::VisitIsValue(IsValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitIsValue(value);
+    replace_is_value_value(value, value->value, getAllocator());
 }
 
 void GenericInstantiator::Clear() {

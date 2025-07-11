@@ -23,7 +23,7 @@ public:
         SourceLocation location
     ) : Value(ValueKind::NotValue, location), value(value) {}
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     bool primitive() final;
 

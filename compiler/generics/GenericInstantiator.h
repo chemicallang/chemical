@@ -138,6 +138,8 @@ public:
 
     void VisitFunctionCall(FunctionCall *call);
 
+    void VisitIsValue(IsValue* value);
+
     void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 
     void FinalizeSignature(TypealiasStatement* decl);

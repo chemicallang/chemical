@@ -27,8 +27,8 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type) override {
-        return value->link(linker, value, expected_type);
+    bool link(SymbolResolver &linker, BaseType *expected_type) override {
+        return value->link(linker, expected_type);
     }
 
     Value* evaluate(ASTAllocator& allocator, GlobalInterpretScope* comptime_scope) {

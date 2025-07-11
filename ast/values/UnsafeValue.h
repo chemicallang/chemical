@@ -7,6 +7,7 @@
 
 /**
  * unsafe values replace themselves during symbol resolution
+ * TODO: not yet ready
  */
 class UnsafeValue : public Value {
 public:
@@ -31,12 +32,11 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override {
+    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) override {
         const auto prev = linker.safe_context;
         linker.safe_context = false;
-        const auto linked = value->link(linker, value, expected_type);
+        const auto linked = value->link(linker, expected_type);
         linker.safe_context = prev;
-        value_ptr = value;
         return linked;
     }
 

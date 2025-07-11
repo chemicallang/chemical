@@ -873,7 +873,7 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
                 auto& value = *value_ptr;
                 const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
                 const auto expected_type = param ? param->type : nullptr;
-                if (value.link(linker, value_ptr, expected_type)) {
+                if (value.link(linker, expected_type)) {
                     properly_linked[i] = true;
                     if(!linker.linking_signature) {
                         current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
@@ -915,7 +915,7 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         auto& value = *value_ptr;
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
-        if (value.link(linker, value_ptr, expected_type)) {
+        if (value.link(linker, expected_type)) {
             properly_linked[i] = true;
             if(!linker.linking_signature) {
                 current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);

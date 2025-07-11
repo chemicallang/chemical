@@ -77,17 +77,16 @@ public:
     bool link(
         SymbolResolver &linker,
         BaseType *type,
-        Value** value_ptr,
         bool check_validity,
         bool assign
     );
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) final {
-        return link(linker, type, &value_ptr, true, false);
+    bool link(SymbolResolver& linker, BaseType* type) final {
+        return link(linker, type, true, false);
     }
 
-    inline bool link_assign(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) {
-        return link(linker, expected_type, &value_ptr, true, true);
+    inline bool link_assign(SymbolResolver &linker, BaseType *expected_type = nullptr) {
+        return link(linker, expected_type, true, true);
     }
 
     /**

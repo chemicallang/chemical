@@ -98,7 +98,7 @@ public:
         return link_evaluated_scope(linker);
     }
 
-    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) final;
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     std::optional<bool> get_condition_const(InterpretScope& scope);
 

@@ -95,7 +95,7 @@ public:
      */
     bool has_destructor_for_capture();
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 

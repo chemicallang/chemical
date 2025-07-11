@@ -555,7 +555,7 @@ uint64_t ValuegetEncodedLocation(Value* value) {
 }
 
 bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver) {
-    return value->link(*resolver, *ptr_ref, expected_type);
+    return value->link(*resolver, expected_type);
 }
 
 ASTNode* ValuegetLinkedNode(Value* value) {

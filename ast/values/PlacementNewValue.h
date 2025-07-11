@@ -24,7 +24,7 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) override;
 
     PlacementNewValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(

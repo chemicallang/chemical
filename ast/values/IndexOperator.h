@@ -28,7 +28,7 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) final;
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     ASTNode *linked_node() final;
 

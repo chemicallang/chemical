@@ -239,11 +239,11 @@ bool IfStatement::compile_time_computable() {
 }
 
 bool IfStatement::link_conditions(SymbolResolver &linker) {
-    if(!condition->link(linker, condition)) {
+    if(!condition->link(linker)) {
         return false;
     }
     for (auto& cond: elseIfs) {
-        if(!cond.first->link(linker, cond.first)) {
+        if(!cond.first->link(linker)) {
             return false;
         }
     }
@@ -251,11 +251,11 @@ bool IfStatement::link_conditions(SymbolResolver &linker) {
 }
 
 bool IfStatement::link_conditions_no_patt_match_expr(SymbolResolver &linker) {
-    if(condition->kind() != ValueKind::PatternMatchExpr && !condition->link(linker, condition)) {
+    if(condition->kind() != ValueKind::PatternMatchExpr && !condition->link(linker)) {
         return false;
     }
     for (auto& cond: elseIfs) {
-        if(cond.first->kind() != ValueKind::PatternMatchExpr && !cond.first->link(linker, cond.first)) {
+        if(cond.first->kind() != ValueKind::PatternMatchExpr && !cond.first->link(linker)) {
             return false;
         }
     }

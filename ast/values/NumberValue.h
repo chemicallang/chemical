@@ -34,7 +34,7 @@ public:
         SourceLocation location
     ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}
 
-    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) final {
+    bool link(SymbolResolver& linker, BaseType* expected_type) final {
         return true;
     }
 

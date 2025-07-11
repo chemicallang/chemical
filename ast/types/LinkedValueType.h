@@ -37,7 +37,7 @@ public:
     }
 
     bool link(SymbolResolver &linker, SourceLocation loc) final {
-        if(!value->link(linker, value)) {
+        if(!value->link(linker)) {
             return false;
         }
         linked = value->linked_node();

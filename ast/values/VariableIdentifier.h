@@ -57,15 +57,7 @@ public:
 
     void process_linked(ASTDiagnoser* linker);
 
-    bool link(SymbolResolver &linker, bool check_access);
-
-    bool link(SymbolResolver& linker, BaseType* expected_type) final {
-        return link(linker, true);
-    }
-
-    inline bool link_assign(SymbolResolver &linker, BaseType *expected_type = nullptr) {
-        return link(linker, false);
-    }
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     ASTNode *linked_node() final;
 

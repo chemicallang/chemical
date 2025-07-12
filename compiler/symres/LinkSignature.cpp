@@ -30,13 +30,6 @@
 #include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
 
-//void sym_res_signature(SymbolResolver& resolver, const std::span<ASTNode*>& nodes) {
-//    TopLevelLinkSignature visitor(resolver);
-//    for(const auto node : nodes) {
-//        visitor.visit(node);
-//    }
-//}
-
 void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
     TopLevelLinkSignature visitor(resolver);
     visitor.visit(scope);

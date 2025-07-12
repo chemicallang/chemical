@@ -43,6 +43,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/NumberValue.h"
+#include "ast/types/LinkedValueType.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "DeclareTopLevel.h"
 #include "ast/utils/ASTUtils.h"
@@ -97,56 +98,156 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
     }
 }
 
-//void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
-//    chain->link(linker, nullptr, nullptr, false, false);
-//}
+void link_assignable(SymResLinkBody& symRes, Value* lhs, BaseType* expected_type) {
+    switch(lhs->kind()) {
+        case ValueKind::Identifier:
+            symRes.expected_type = expected_type;
+            symRes.VisitVariableIdentifier(lhs->as_identifier_unsafe(), false);
+            break;
+        case ValueKind::AccessChain:
+            symRes.expected_type = expected_type;
+            symRes.VisitAccessChain(lhs->as_access_chain_unsafe(), true, true);
+            break;
+        default:
+            lhs->link(symRes.linker, expected_type);
+    }
+}
+
+inline bool link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_type, bool assign) {
+    if(assign && value->kind() == ValueKind::Identifier) {
+        symRes.expected_type = expected_type;
+        symRes.VisitVariableIdentifier(value->as_identifier_unsafe(), false);
+    } else {
+        return value->link(symRes.linker, expected_type);
+    }
+}
+
+void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, bool assignment) {
+    // load the expected type beforehand
+    const auto exp_type = expected_type;
+    auto& values = chain->values;
+
+    if(!link_val(*this, values[0], values.size() == 1 ? exp_type : nullptr, assignment)) {
+        return;
+    }
+
+    // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
+    auto linked = values[0]->linked_node();
+    if(linked) {
+        const auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
+            if (!linker.current_func_type) {
+                linker.error(values[0]) << "unresolved identifier with struct member / function, with name '" << values[0]->representation() << '\'';
+                return;
+            }
+            auto self_param = linker.current_func_type->get_self_param();
+            if (!self_param) {
+                auto decl = linker.current_func_type->as_function();
+                if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
+                    linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
+                    return;
+                }
+            }
+        }
+    }
+
+    if(values.size() == 1) {
+        return;
+    }
+
+    const auto values_size = values.size();
+    if (values_size > 1) {
+        const auto last = values_size - 1;
+        unsigned i = 1;
+        while (i < values_size) {
+            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == last ? exp_type : nullptr)) {
+                return;
+            }
+            i++;
+        }
+    }
+
+    if(check_validity && linker.current_func_type) {
+        // check chain for validity, if it's moved or members have been moved
+        linker.current_func_type->check_chain(chain, assignment, linker);
+    }
+}
+
+void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
+    auto& value = identifier->value;
+    identifier->linked = linker.find(value);
+    if(identifier->linked) {
+//        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
+//            if(ptr_ref) {
+//                auto& allocator = *linker.ast_allocator;
+//                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked);
+//                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, encoded_location());
+//                return true;
+//            } else {
+//                linker.error(this) << "cannot replace identifier '" << value << "' that references a generic type parameter";
+//            }
+//        } else {
+        if (check_access && linker.current_func_type) {
+            // check for validity if accessible or assignable (because moved)
+            linker.current_func_type->check_id(identifier, linker);
+        }
+        identifier->process_linked(&linker);
+//        }
+        return;
+    } else {
+        linker.error(identifier) << "unresolved variable identifier '" << value << "' not found";
+    }
+    return;
+}
 
 void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     auto& lhs = assign->lhs;
     auto& value = assign->value;
-    if(lhs->link_assign(linker, lhs, nullptr)) {
-        BaseType* lhsType = lhs->create_type(linker.allocator);
-        if(value->link(linker, lhsType)) {
-            switch(assign->assOp){
-                case Operation::Assignment:
-                    if (!lhsType->satisfies(linker.allocator, value, true)) {
+
+    link_assignable(*this, lhs, nullptr);
+
+    BaseType* lhsType = lhs->create_type(linker.allocator);
+    if(value->link(linker, lhsType)) {
+        switch(assign->assOp){
+            case Operation::Assignment:
+                if (!lhsType->satisfies(linker.allocator, value, true)) {
+                    linker.unsatisfied_type_err(value, lhsType);
+                }
+                break;
+            case Operation::Addition:
+            case Operation::Subtraction:
+                if(lhsType->kind() == BaseTypeKind::Pointer) {
+                    const auto rhsType = value->create_type(linker.allocator)->canonical();
+                    if(rhsType->kind() != BaseTypeKind::IntN) {
                         linker.unsatisfied_type_err(value, lhsType);
                     }
-                    break;
-                case Operation::Addition:
-                case Operation::Subtraction:
-                    if(lhsType->kind() == BaseTypeKind::Pointer) {
-                        const auto rhsType = value->create_type(linker.allocator)->canonical();
-                        if(rhsType->kind() != BaseTypeKind::IntN) {
-                            linker.unsatisfied_type_err(value, lhsType);
-                        }
-                    } else if (!lhsType->satisfies(linker.allocator, value, true)) {
-                        linker.unsatisfied_type_err(value, lhsType);
-                    }
-                    break;
-                default:
-                    break;
-            }
+                } else if (!lhsType->satisfies(linker.allocator, value, true)) {
+                    linker.unsatisfied_type_err(value, lhsType);
+                }
+                break;
+            default:
+                break;
         }
-        auto id = lhs->as_identifier();
-        if(id) {
-            auto linked = id->linked_node();
-            auto linked_kind = linked->kind();
-            if(linked_kind == ASTNodeKind::VarInitStmt) {
-                auto init = linked->as_var_init_unsafe();
-                init->set_has_assignment();
-            } else if(linked_kind == ASTNodeKind::FunctionParam) {
-                auto param = linked->as_func_param_unsafe();
-                param->set_has_assignment();
-            }
-        }
-        if(!lhs->check_is_mutable(linker.allocator, true)) {
-            linker.error("cannot assign to a non mutable value", lhs);
-        }
-        auto& func_type = *linker.current_func_type;
-        func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
-        func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
     }
+    auto id = lhs->as_identifier();
+    if(id) {
+        auto linked = id->linked_node();
+        auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::VarInitStmt) {
+            auto init = linked->as_var_init_unsafe();
+            init->set_has_assignment();
+        } else if(linked_kind == ASTNodeKind::FunctionParam) {
+            auto param = linked->as_func_param_unsafe();
+            param->set_has_assignment();
+        }
+    }
+    if(!lhs->check_is_mutable(linker.allocator, true)) {
+        linker.error("cannot assign to a non mutable value", lhs);
+    }
+    auto& func_type = *linker.current_func_type;
+    func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
+    func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
+
 }
 
 void SymResLinkBody::VisitUsingStmt(UsingStmt* node) {
@@ -377,7 +478,7 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
 
 bool SwitchStatement::link(SymbolResolver& linker, BaseType* expected_type) {
     SymResLinkBody temp_linker(linker);
-    temp_linker.visit(this);
+    temp_linker.visit(this, expected_type);
     return true;
 }
 
@@ -389,6 +490,13 @@ void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
 }
 
 void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
+    if(node->type) {
+        node->type.link(linker);
+    }
+    if(node->value) {
+        // TODO: if type didn't link successfully we need to NOT use it
+        node->value->link(linker, node->type_ptr_fast());
+    }
     auto& type = node->type;
     auto& value = node->value;
     auto& attrs = node->attrs;
@@ -786,9 +894,8 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 }
 
 bool IfStatement::link(SymbolResolver& linker, BaseType* expected_type) {
-    // TODO: remove this instance
     SymResLinkBody temp_linker(linker);
-    temp_linker.visit(this);
+    temp_linker.visit(this, expected_type);
     return true;
 }
 
@@ -1003,178 +1110,240 @@ void SymResLinkBody::VisitEmbeddedNode(EmbeddedNode* node) {
 // -------------------------------------------------------------
 
 
-inline bool link_val(SymbolResolver &linker, Value* value, BaseType* expected_type, bool assign) {
-    if(assign && value->kind() == ValueKind::Identifier) {
-        return value->as_identifier_unsafe()->link_assign(linker, expected_type);
-    } else {
-        return value->link(linker, expected_type);
-    }
+void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
+
+    VisitAccessChain(chain, true, false);
+
 }
 
 bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, bool check_validity, bool assign) {
-
-    if(!link_val(linker, values[0], values.size() == 1 ? expected_type : nullptr, assign)) {
-        return false;
-    }
-
-    // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
-    auto linked = values[0]->linked_node();
-    if(linked) {
-        const auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
-            if (!linker.current_func_type) {
-                linker.error(values[0]) << "unresolved identifier with struct member / function, with name '" << values[0]->representation() << '\'';
-                return false;
-            }
-            auto self_param = linker.current_func_type->get_self_param();
-            if (!self_param) {
-                auto decl = linker.current_func_type->as_function();
-                if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
-                    linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
-                    return false;
-                }
-            }
-        }
-    }
-
-    if(values.size() == 1) {
-        return true;
-    }
-
-    const auto values_size = values.size();
-    if (values_size > 1) {
-        const auto last = values_size - 1;
-        unsigned i = 1;
-        while (i < values_size) {
-            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == last ? expected_type : nullptr)) {
-                return false;
-            }
-            i++;
-        }
-    }
-
-    if(check_validity && linker.current_func_type) {
-        // check chain for validity, if it's moved or members have been moved
-        linker.current_func_type->check_chain(this, assign, linker);
-    }
-
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
+}
+
+void SymResLinkBody::VisitFunctionCall(FunctionCall* value) {
+    // load the expected type beforehand
+    const auto exp_type = expected_type;
+    const auto parent_val = value->parent_val;
+    if(!parent_val->link(linker, nullptr)) {
+        return;
+    }
+    value->link_without_parent(linker, exp_type, true);
 }
 
 bool FunctionCall::link(SymbolResolver& linker, BaseType* expected_type) {
-    if(!parent_val->link(linker, nullptr)) {
-        return false;
-    }
-    return link_without_parent(linker, expected_type, true);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitNumberValue(NumberValue* value) {
+    // DOES NOTHING AT THE MOMENT
 }
 
 bool NumberValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
+}
+
+void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
+    value->sym_res_fn(&linker, value);
 }
 
 bool EmbeddedValue::link(SymbolResolver &linker, BaseType *expected_type) {
-    return sym_res_fn(&linker, this);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
+    value->value->link(linker, expected_type);
 }
 
 bool ComptimeValue::link(SymbolResolver &linker, BaseType *expected_type) {
-    return value->link(linker, expected_type);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
+    value->value->link(linker, expected_type);
 }
 
 bool IncDecValue::link(SymbolResolver &linker, BaseType *expected_type) {
-    return value->link(linker, expected_type);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }
 
 bool LoopBlock::link(SymbolResolver& linker, BaseType* expected_type) {
-    body.link_sequentially(linker);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
+}
+
+void SymResLinkBody::VisitVariantCase(VariantCase* value) {
+    // DOES NOTHING AT THE MOMENT
 }
 
 bool VariantCase::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
+}
+
+void SymResLinkBody::VisitArrayType(ArrayType* arrType) {
+    auto& elem_type = arrType->elem_type;
+    const auto type_linked = elem_type.link(linker);
+    if(!type_linked) return;
+    if(arrType->array_size_value) {
+        if(arrType->array_size_value->link(linker)) {
+            const auto evaluated = arrType->array_size_value->evaluated_value(linker.comptime_scope);
+            const auto number = evaluated->get_the_number();
+            if(number.has_value()) {
+                arrType->set_array_size(number.value());
+                return;
+            }
+        }
+        return;
+    }
 }
 
 bool ArrayType::link(SymbolResolver &linker, SourceLocation loc) {
-    const auto type_linked = elem_type.link(linker);
-    if(!type_linked) return false;
-    if(array_size_value) {
-        if(array_size_value->link(linker)) {
-            const auto evaluated = array_size_value->evaluated_value(linker.comptime_scope);
-            const auto number = evaluated->get_the_number();
-            if(number.has_value()) {
-                array_size = number.value();
-                return true;
-            }
-        }
-        return false;
-    }
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
     return true;
 }
 
-bool DynamicType::link(SymbolResolver &linker, SourceLocation loc) {
-    return referenced->link(linker, loc);
+void SymResLinkBody::VisitDynamicType(DynamicType* type) {
+    type->referenced->link(linker, type_location);
 }
 
-bool FunctionType::link(SymbolResolver &linker, SourceLocation loc) {
+bool DynamicType::link(SymbolResolver &linker, SourceLocation loc) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
+void SymResLinkBody::VisitFunctionType(FunctionType* type) {
     bool resolved = true;
-    for (auto &param: params) {
+    for (auto &param : type->params) {
         if(!param->link_param_type(linker)) {
             resolved = false;
         }
     }
-    if(!returnType.link(linker)) {
+    if(!type->returnType.link(linker)) {
         resolved = false;
     }
     if(resolved) {
-        data.signature_resolved = true;
+        type->data.signature_resolved = true;
     }
-    return resolved;
+}
+
+bool FunctionType::link(SymbolResolver &linker, SourceLocation loc) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
+void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
+    const auto res = gen_type->referenced->link(linker, type_location);
+    if(!res) return;
+    for(auto& type : gen_type->types) {
+        if(!type.link(linker)) {
+            return;
+        }
+    }
+    gen_type->instantiate(linker.genericInstantiator, type_location);
 }
 
 bool GenericType::link(SymbolResolver &linker, SourceLocation loc) {
-    const auto res = referenced->link(linker, loc);
-    if(!res) return false;
-    for(auto& type : types) {
-        if(!type.link(linker)) {
-            return false;
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
+void SymResLinkBody::VisitLinkedType(LinkedType* type) {
+    if(type->attrs.is_named) {
+        const auto namedType = (NamedLinkedType*) type;
+        auto link_name = namedType->debug_link_name();
+        const auto found = linker.find(link_name);
+        if(found) {
+            type->linked = found;
+        } else if(type->linked == nullptr) {
+            linker.error(type_location) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
+            return;
         }
+        return;
+    } else if(type->attrs.is_value) {
+        const auto value_type = (LinkedValueType*) type;
+        const auto value = value_type->value;
+        if(!value->link(linker)) {
+            return;
+        }
+        // TODO: do not use linked node here
+        const auto linked = value->linked_node();
+        if(linked) {
+            type->linked = linked;
+        }
+        return;
     }
-    return instantiate(linker.genericInstantiator, loc);
 }
 
 bool NamedLinkedType::link(SymbolResolver &linker, SourceLocation loc) {
-    const auto found = linker.find(link_name);
-    if(found) {
-        linked = found;
-    } else if(linked == nullptr) {
-        linker.error(loc) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
-        return false;
-    }
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
     return true;
+}
+
+bool LinkedValueType::link(SymbolResolver &linker, SourceLocation loc) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
+void SymResLinkBody::VisitPointerType(PointerType* type) {
+    type->type->link(linker, type_location);
 }
 
 bool PointerType::link(SymbolResolver &linker, SourceLocation loc) {
-    return type->link(linker, loc);
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
+void SymResLinkBody::VisitStructType(StructType* type) {
+    type->take_variables_from_parsed_nodes(linker);
+    sym_res_vars_signature(linker, type);
+    if(!type->name.empty()) {
+        linker.declare(type->name, type);
+    }
 }
 
 bool StructType::link(SymbolResolver &linker, SourceLocation loc) {
-    take_variables_from_parsed_nodes(linker);
-    sym_res_vars_signature(linker, this);
-    if(!name.empty()) {
-        linker.declare(name, this);
-    }
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
     return true;
+}
+
+void SymResLinkBody::VisitUnionType(UnionType* type) {
+    type->take_variables_from_parsed_nodes(linker);
+    sym_res_vars_signature(linker, type);
+    if(!type->name.empty()) {
+        linker.declare(type->name, type);
+    }
 }
 
 bool UnionType::link(SymbolResolver &linker, SourceLocation loc) {
-    take_variables_from_parsed_nodes(linker);
-    sym_res_vars_signature(linker, this);
-    if(!name.empty()) {
-        linker.declare(name, this);
-    }
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
     return true;
 }
 
-bool AddrOfValue::link(SymbolResolver& linker, BaseType* expected_type) {
+void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
+    const auto value = addrOfValue->value;
     auto res = value->link(linker);
     if(res) {
 
@@ -1192,21 +1361,30 @@ bool AddrOfValue::link(SymbolResolver& linker, BaseType* expected_type) {
                     break;
             }
         }
+        // TODO: remove this if link signature is not calling link function
         if(!linker.linking_signature) {
             // TODO we must perform mutability checks during link signature
-            is_value_mutable = value->check_is_mutable(linker.allocator, true);
+            addrOfValue->is_value_mutable = value->check_is_mutable(linker.allocator, true);
         }
     }
-    return res;
 }
 
-bool ArrayValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    auto& elemType = known_elem_type();
+bool AddrOfValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
+    // load the expected type before visiting sub values
+    const auto exp_type = expected_type;
+    auto& values = arrValue->values;
+    auto& elemType = arrValue->known_elem_type();
     if(elemType) {
         elemType.link(linker);
     }
-    if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
-        const auto arr_type = (ArrayType*) expected_type;
+    if(exp_type && exp_type->kind() == BaseTypeKind::Array) {
+        const auto arr_type = (ArrayType*) exp_type;
         elemType = arr_type->elem_type.copy(*linker.ast_allocator);
     }
     if(elemType) {
@@ -1225,7 +1403,7 @@ bool ArrayValue::link(SymbolResolver& linker, BaseType* expected_type) {
                 }
                 i++;
             }
-            return true;
+            return;
         }
     }
     auto& current_func_type = *linker.current_func_type;
@@ -1246,74 +1424,116 @@ bool ArrayValue::link(SymbolResolver& linker, BaseType* expected_type) {
         }
         i++;
     }
+}
+
+bool ArrayValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
 }
 
-bool BlockValue::link(SymbolResolver &linker, BaseType *expected_type) {
+void SymResLinkBody::VisitBlockValue(BlockValue* bValue) {
+    auto& scope = bValue->scope;
     if(scope.nodes.empty()) {
-        linker.error("empty block value not allowed", this);
-        return false;
+        linker.error("empty block value not allowed", type_location);
+        return;
     } else {
         scope.link_sequentially(linker);
     }
     const auto lastNode = scope.nodes.back();
     const auto lastKind = lastNode->kind();
     if(lastKind != ASTNodeKind::ValueWrapper) {
-        linker.error("block doesn't contain a value wrapper as last node", this);
-        return false;
+        linker.error("block doesn't contain a value wrapper as last node", type_location);
+        return;
     }
     const auto lastValNode = lastNode->as_value_wrapper_unsafe();
-    calculated_value = lastValNode->value;
-    // TODO return appropriate result by getting it from scope
+    bValue->calculated_value = lastValNode->value;
+    return;
+}
+
+bool BlockValue::link(SymbolResolver &linker, BaseType *expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
 }
 
-bool CastedValue::link(SymbolResolver &linker, BaseType* expected_type) {
+void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
+    auto& type = cValue->type;
+    const auto value = cValue->value;
     if(type.link(linker)) {
         if(value->link(linker, type)) {
-            return true;
+            return;
         }
     }
-    return false;
+    return;
+}
+
+bool CastedValue::link(SymbolResolver &linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
+    if(linker.safe_context) {
+        linker.warn("dereferencing a pointer in safe context is prohibited", value);
+    }
+    value->value->link(linker);
 }
 
 bool DereferenceValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    if(linker.safe_context) {
-        linker.warn("dereferencing a pointer in safe context is prohibited", this);
-    }
-    return value->link(linker);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }
 
-bool Expression::link(SymbolResolver& linker, BaseType* expected_type) {
-    auto f = firstValue->link(linker);
-    auto s = secondValue->link(linker);
-    auto result = f && s;
+void SymResLinkBody::VisitExpression(Expression* value) {
+    value->firstValue->link(linker);
+    value->secondValue->link(linker);
     // ast allocator is being used
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function
     // or decl that is private or internal, however that is hard to determine
+    // TODO: remove this check
     if(!linker.linking_signature) {
         // TODO this created_type should always be created, however this creates an error
-        created_type = create_type(*linker.ast_allocator);
+        value->created_type = value->create_type(*linker.ast_allocator);
     }
-    return result;
+}
+
+bool Expression::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
+    auto& values = indexOp->values;
+    const auto linked = indexOp->parent_val->link(linker, nullptr);
+    for(auto& value : values) {
+        if(!value->link(linker)) {
+            return;
+        }
+    }
 }
 
 bool IndexOperator::link(SymbolResolver& linker, BaseType* expected_type) {
-    const auto linked = parent_val->link(linker, nullptr);
-    for(auto& value : values) {
-        if(!value->link(linker)) {
-            return false;
-        }
-    }
-    return linked;
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }
 
+void SymResLinkBody::VisitIsValue(IsValue* isValue) {
+    const auto value = isValue->value;
+    auto& type = isValue->type;
+    value->link(linker);
+    type.link(linker);
+}
 
 bool IsValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    const auto a = value->link(linker);
-    const auto b = type.link(linker);
-    return a && b;
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }
 
 BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
@@ -1367,26 +1587,32 @@ bool link_full(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types
     return result;
 }
 
-bool LambdaFunction::link(SymbolResolver& linker, BaseType* expected_type) {
+void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
+
+    auto& scope = lambVal->scope;
+    auto& returnType = lambVal->returnType;
+    auto& data = lambVal->data;
+    auto& params = lambVal->params;
+    auto& captureList = lambVal->captureList;
 
     auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = this;
+    linker.current_func_type = lambVal;
 
     auto func_type = expected_type ? expected_type->canonical()->get_function_type() : nullptr;
 
     if(!func_type) {
 
 #ifdef DEBUG
-        linker.info("deducing lambda function type by visiting body", (Value*) this);
+        linker.info("deducing lambda function type by visiting body", (Value*) lambVal);
 #endif
 
         // linking params and their types
-        auto result = link_full(this, linker, true);
+        auto result = link_full(lambVal, linker, true);
 
         // finding return type
         auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
 
-        returnType = {found_return_type, get_location()};
+        returnType = {found_return_type, lambVal->get_location()};
 
         if(result) {
             data.signature_resolved = true;
@@ -1401,8 +1627,8 @@ bool LambdaFunction::link(SymbolResolver& linker, BaseType* expected_type) {
             }
         }
 
-        link(linker, func_type);
-        if(link_full(this, linker, false)) {
+        lambVal->link(linker, func_type);
+        if(link_full(lambVal, linker, false)) {
             data.signature_resolved = true;
         }
 
@@ -1428,14 +1654,21 @@ bool LambdaFunction::link(SymbolResolver& linker, BaseType* expected_type) {
             }
         }
 
-        setIsCapturing(true);
+        lambVal->setIsCapturing(true);
 
     }
 
     linker.current_func_type = prev_func_type;
 
-    return true;
+    return;
 
+}
+
+
+bool LambdaFunction::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }
 
 void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymbolResolver& resolver, Value* debug_value) {
@@ -1481,8 +1714,14 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     return true;
 }
 
+void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
+    negValue->value->link(linker);
+}
+
 bool NegativeValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    return value->link(linker);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }
 
 bool NewTypedValue::link(SymbolResolver &linker, BaseType *expected_type) {
@@ -1493,40 +1732,59 @@ bool NewValue::link(SymbolResolver &linker, BaseType *expected_type) {
     return value->link(linker, nullptr);
 }
 
+void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
+    value->pointer->link(linker, nullptr);
+    value->value->link(linker, nullptr);
+}
+
 bool PlacementNewValue::link(SymbolResolver &linker, BaseType *expected_type) {
-    const auto a = pointer->link(linker, nullptr);
-    const auto b = value->link(linker, nullptr);
-    return a && b;
-}
-
-bool NotValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    return value->link(linker);
-}
-
-bool NullValue::link(SymbolResolver &linker, BaseType *expected_type) {
-    if(expected_type) {
-        const auto kind = expected_type->kind();
-        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
-            expected = expected_type->copy(*linker.ast_allocator);
-        }
-    }
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
 }
 
-bool PatternMatchExpr::link(SymbolResolver &linker, BaseType *expected_type) {
-    if(!expression->link(linker, nullptr)) {
-        return false;
+void SymResLinkBody::VisitNotValue(NotValue* value) {
+    value->value->link(linker);
+}
+
+bool NotValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitNullValue(NullValue* value) {
+    if(expected_type) {
+        const auto kind = expected_type->kind();
+        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
+            value->expected = expected_type->copy(*linker.ast_allocator);
+        }
     }
-    const auto child_member = find_member_from_expr(linker.allocator, linker);
+}
+
+bool NullValue::link(SymbolResolver &linker, BaseType *expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
+    const auto expression = expr->expression;
+    auto& elseExpression = expr->elseExpression;
+    auto& param_names = expr->param_names;
+    if(!expression->link(linker, nullptr)) {
+        return;
+    }
+    const auto child_member = expr->find_member_from_expr(linker.allocator, linker);
     if(!child_member) {
-        return false;
+        return;
     }
     // set the member, so we don't need to resolve it again
-    member = child_member;
+    expr->member = child_member;
     auto& params = child_member->values;
     if(elseExpression.kind == PatternElseExprKind::DefValue && param_names.size() != 1) {
-        linker.error("must destructure one member for default value to work", this);
-        return false;
+        linker.error("must destructure one member for default value to work", expr);
+        return;
     }
     for(const auto nameId : param_names) {
         auto found = params.find(nameId->identifier);
@@ -1540,77 +1798,100 @@ bool PatternMatchExpr::link(SymbolResolver &linker, BaseType *expected_type) {
     }
     auto& elseVal = elseExpression.value;
     if (elseVal && !elseVal->link(linker, nullptr)) {
-        return false;
+        return;
     }
 }
 
-bool SizeOfValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    for_type.link(linker);
+bool PatternMatchExpr::link(SymbolResolver &linker, BaseType *expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
+}
+
+void SymResLinkBody::VisitSizeOfValue(SizeOfValue* value) {
+    value->for_type.link(linker);
+}
+
+bool SizeOfValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
+}
+
+void SymResLinkBody::VisitAlignOfValue(AlignOfValue* value) {
+    value->for_type.link(linker);
 }
 
 bool AlignOfValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    for_type.link(linker);
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
 }
 
-
-bool StringValue::link(SymbolResolver& linker, BaseType* type) {
+void SymResLinkBody::VisitStringValue(StringValue* strValue) {
+    const auto type = expected_type;
     if(type && type->kind() == BaseTypeKind::Array) {
-        is_array = true;
+        strValue->is_array = true;
         auto arrayType = (ArrayType*) (type);
-        if(arrayType->get_array_size() > value.size()) {
-            length = (unsigned int) arrayType->get_array_size();
+        if(arrayType->get_array_size() > strValue->value.size()) {
+            strValue->length = (unsigned int) arrayType->get_array_size();
         } else if(arrayType->has_no_array_size()) {
-            length = value.size() + 1; // adding 1 for the last /0
+            strValue->length = strValue->value.size() + 1; // adding 1 for the last /0
         } else {
 #ifdef DEBUG
             throw std::runtime_error("unknown");
 #endif
         }
     }
+}
+
+bool StringValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
 }
 
-bool StructValue::link(SymbolResolver& linker, BaseType* expected_type) {
-    if(refType) {
-        if(!refType.link(linker)) {
-            return false;
+void SymResLinkBody::VisitStructValue(StructValue* structValue) {
+    // load the expected type before hand
+    const auto exp_type = expected_type;
+    if(structValue->refType) {
+        if(!structValue->refType.link(linker)) {
+            return;
         }
     } else {
-        if(!expected_type) {
-            linker.error("unnamed struct value cannot link without a type", this);
-            refType = { new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, encoded_location()), encoded_location()};
-            return false;
+        if(!exp_type) {
+            linker.error("unnamed struct value cannot link without a type", structValue);
+            structValue->refType = { new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()), structValue->encoded_location()};
+            return;
         }
-        refType = {expected_type, refType.getLocation()};
+        structValue->refType = {exp_type, structValue->refType.getLocation()};
     }
-    if(!resolve_container(linker.genericInstantiator)) {
-        return false;
+    if(!structValue->resolve_container(linker.genericInstantiator)) {
+        return;
     }
-    diagnose_missing_members_for_init(linker);
-    if(!allows_direct_init()) {
-        linker.error(this) << "struct value with a constructor cannot be initialized, name '" << definition->name_view() << "' has a constructor";
+    structValue->diagnose_missing_members_for_init(linker);
+    if(!structValue->allows_direct_init()) {
+        linker.error(structValue) << "struct value with a constructor cannot be initialized, name '" << structValue->linked_extendable()->name_view() << "' has a constructor";
     }
-    auto refTypeKind = refType->kind();
+    auto refTypeKind = structValue->refType->kind();
     if(refTypeKind == BaseTypeKind::Generic) {
-        for (auto& arg: generic_list()) {
+        for (auto& arg: structValue->generic_list()) {
             arg.link(linker);
         }
     }
     auto& current_func_type = *linker.current_func_type;
     // linking values
-    for (auto &val: values) {
+    for (auto &val: structValue->values) {
         auto& val_ptr = val.second.value;
         const auto value = val_ptr;
-        auto child_node = container->child_member_or_inherited_struct(val.first);
+        auto child_node = structValue->variables()->child_member_or_inherited_struct(val.first);
         if(!child_node) {
-            linker.error(this) << "unresolved child '" << val.first << "' in struct declaration";
+            linker.error(structValue) << "unresolved child '" << val.first << "' in struct declaration";
             continue;
         }
         auto child_type = child_node->known_type();
         const auto val_linked = val_ptr->link(linker, child_type);
-        const auto member = container->direct_variable(val.first);
+        const auto member = structValue->variables()->direct_variable(val.first);
         if(val_linked && member) {
             const auto mem_type = member->known_type();
             if(!linker.linking_signature) {
@@ -1624,31 +1905,22 @@ bool StructValue::link(SymbolResolver& linker, BaseType* expected_type) {
             }
         }
     }
+}
+
+bool StructValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
     return true;
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, bool check_access) {
-    linked = linker.find(value);
-    if(linked) {
-//        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
-//            if(ptr_ref) {
-//                auto& allocator = *linker.ast_allocator;
-//                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked);
-//                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, encoded_location());
-//                return true;
-//            } else {
-//                linker.error(this) << "cannot replace identifier '" << value << "' that references a generic type parameter";
-//            }
-//        } else {
-            if (check_access && linker.current_func_type) {
-                // check for validity if accessible or assignable (because moved)
-                linker.current_func_type->check_id(this, linker);
-            }
-            process_linked(&linker);
-//        }
-        return true;
-    } else {
-        linker.error(this) << "unresolved variable identifier '" << value << "' not found";
-    }
-    return false;
+void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* value) {
+    // by default access is checked
+    // TODO: make this method inline
+    VisitVariableIdentifier(value, true);
+}
+
+bool VariableIdentifier::link(SymbolResolver &linker, BaseType* expected_type) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, expected_type);
+    return true;
 }

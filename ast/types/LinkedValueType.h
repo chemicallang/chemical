@@ -36,15 +36,6 @@ public:
         );
     }
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final {
-        if(!value->link(linker)) {
-            return false;
-        }
-        linked = value->linked_node();
-        if(!linked) {
-            return false;
-        }
-        return true;
-    }
+    bool link(SymbolResolver &linker, SourceLocation loc) final;
 
 };

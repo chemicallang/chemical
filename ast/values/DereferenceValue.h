@@ -56,6 +56,4 @@ public:
 
 #endif
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
 };

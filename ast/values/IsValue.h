@@ -52,8 +52,6 @@ public:
         return new (allocator.allocate<BoolType>()) BoolType();
     }
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
 #ifdef COMPILER_BUILD

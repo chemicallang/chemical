@@ -136,13 +136,6 @@ public:
     BaseType* getLoadableReferredType();
 
     /**
-     * a type, or a referenced type, can link itself with its definition
-     */
-    virtual bool link(SymbolResolver &linker, SourceLocation loc) {
-        return true;
-    }
-
-    /**
      * just return the linked node
      */
     virtual ASTNode *linked_node() {

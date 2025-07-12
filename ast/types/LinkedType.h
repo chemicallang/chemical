@@ -104,11 +104,6 @@ public:
     }
 
     /**
-     * the link method
-     */
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
-    /**
      * avoid using it, however this could provide debugging capabilities if you know linked type is a named linked type
      */
     inline chem::string_view debug_link_name() {

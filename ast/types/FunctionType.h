@@ -221,8 +221,6 @@ public:
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const final;
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
 #ifdef COMPILER_BUILD
 
     virtual std::vector<llvm::Type *> param_types(Codegen &gen);

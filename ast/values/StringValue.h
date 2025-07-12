@@ -32,8 +32,6 @@ public:
 
     }
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     BaseType* known_type() final {
         return (BaseType*) &StringType::instance;
     }

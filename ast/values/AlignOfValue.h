@@ -26,8 +26,6 @@ public:
         return new (allocator.allocate<UBigIntType>()) UBigIntType();
     }
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     AlignOfValue* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<AlignOfValue>()) AlignOfValue(for_type.copy(allocator), encoded_location());
     }

@@ -105,8 +105,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     [[nodiscard]]
     BaseType* element_type(ASTAllocator& allocator) const;
 

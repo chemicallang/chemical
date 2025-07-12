@@ -55,8 +55,6 @@ public:
 
     bool satisfies(BaseType *type) final;
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
     [[nodiscard]]
     BaseType* create_child_type(ASTAllocator& allocator) const final {
         return elem_type->copy(allocator);

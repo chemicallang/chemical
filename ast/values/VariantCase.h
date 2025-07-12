@@ -23,9 +23,6 @@ public:
 
     }
 
-
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     Value* copy(ASTAllocator &allocator) override {
         const auto varCase = new (allocator.allocate<VariantCase>()) VariantCase(
             member,

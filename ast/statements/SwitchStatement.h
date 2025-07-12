@@ -30,8 +30,6 @@ public:
 
     SwitchStatement* copy(ASTAllocator &allocator) override;
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     Value* get_value_node();
 
     BaseType* create_type(ASTAllocator& allocator) final;

@@ -238,30 +238,6 @@ bool IfStatement::compile_time_computable() {
     return true;
 }
 
-bool IfStatement::link_conditions(SymbolResolver &linker) {
-    if(!condition->link(linker)) {
-        return false;
-    }
-    for (auto& cond: elseIfs) {
-        if(!cond.first->link(linker)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool IfStatement::link_conditions_no_patt_match_expr(SymbolResolver &linker) {
-    if(condition->kind() != ValueKind::PatternMatchExpr && !condition->link(linker)) {
-        return false;
-    }
-    for (auto& cond: elseIfs) {
-        if(cond.first->kind() != ValueKind::PatternMatchExpr && !cond.first->link(linker)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 std::optional<Scope*> IfStatement::resolve_evaluated_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser) {
     auto condition_val = resolved_condition ? get_condition_const(comptime_scope) : std::optional(false);
     if(condition_val.has_value()) {

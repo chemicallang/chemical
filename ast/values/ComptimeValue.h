@@ -27,8 +27,6 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, BaseType *expected_type) override;
-
     Value* evaluate(ASTAllocator& allocator, GlobalInterpretScope* comptime_scope) {
         InterpretScope scope(nullptr, allocator, comptime_scope);
         // replacing

@@ -27,8 +27,6 @@ public:
         return new (allocator.allocate<UBigIntType>()) UBigIntType();
     }
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     SizeOfValue* copy(ASTAllocator& allocator) final {

@@ -25,8 +25,6 @@ public:
 
     BaseType* create_type(ASTAllocator &allocator) override;
 
-    bool link(SymbolResolver &linker, BaseType *expected_type) override;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     IncDecValue* copy(ASTAllocator &allocator) final {

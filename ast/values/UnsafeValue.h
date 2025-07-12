@@ -32,12 +32,4 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) override {
-        const auto prev = linker.safe_context;
-        linker.safe_context = false;
-        const auto linked = value->link(linker, expected_type);
-        linker.safe_context = prev;
-        return linked;
-    }
-
 };

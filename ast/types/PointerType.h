@@ -52,8 +52,6 @@ public:
         return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), is_mutable);
     }
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
     ASTNode *linked_node() final;
 
     /**

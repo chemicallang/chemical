@@ -36,6 +36,4 @@ public:
         );
     }
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
 };

@@ -27,8 +27,6 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) override;
-
     BaseType* create_type(ASTAllocator &allocator) override;
 
     BaseType* known_type() override;

@@ -47,8 +47,6 @@ public:
 
     bool link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     /**
      * get function type from parent type
      */

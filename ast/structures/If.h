@@ -64,8 +64,6 @@ public:
 
     bool link_conditions(SymbolResolver &linker);
 
-    bool link_conditions_no_patt_match_expr(SymbolResolver &linker);
-
     Scope* link_evaluated_scope(SymbolResolver& linker);
 
     /**
@@ -97,8 +95,6 @@ public:
         }
         return link_evaluated_scope(linker);
     }
-
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     std::optional<bool> get_condition_const(InterpretScope& scope);
 

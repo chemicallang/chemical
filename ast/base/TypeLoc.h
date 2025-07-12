@@ -77,11 +77,4 @@ public:
         return { type_->copy(allocator), loc_ };
     }
 
-    /**
-     * helper link method that sends the location
-     */
-    inline bool link(SymbolResolver& linker) {
-        return const_cast<BaseType*>(type_)->link(linker, loc_);
-    }
-
 };

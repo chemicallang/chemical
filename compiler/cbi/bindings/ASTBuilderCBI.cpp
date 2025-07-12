@@ -555,7 +555,8 @@ uint64_t ValuegetEncodedLocation(Value* value) {
 }
 
 bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver) {
-    return value->link(*resolver, expected_type);
+    sym_res_link_value_deprecated(*resolver, value, expected_type);
+    return true;
 }
 
 ASTNode* ValuegetLinkedNode(Value* value) {
@@ -577,7 +578,7 @@ ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name) {
 }
 
 void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver) {
-    sym_res_link_node_deprecated(*resolver, *ptr_ref);
+    sym_res_link_node_deprecated(*resolver, node);
 }
 
 // BaseType methods
@@ -588,7 +589,8 @@ int BaseTypegetKind(BaseType* type) {
 
 bool BaseTypelink(BaseType* type, BaseType** ptr_ref, SymbolResolver* resolver) {
     // TODO this should be fixed, get the location from the user
-    return type->link(*resolver, ZERO_LOC);
+    sym_res_link_type_deprecated(*resolver, type, ZERO_LOC);
+    return true;
 }
 
 ASTNode* BaseTypegetLinkedNode(BaseType* type) {

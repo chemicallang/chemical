@@ -75,9 +75,7 @@ public:
     /**
      * link
      */
-    bool link(SymbolResolver &linker, BaseType *expected_type) override {
-          return sym_res_fn(&linker, this);
-    }
+    bool link(SymbolResolver &linker, BaseType *expected_type) override;
 
     /**
      * create the type

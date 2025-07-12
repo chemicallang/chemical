@@ -34,9 +34,7 @@ public:
         SourceLocation location
     ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final {
-        return true;
-    }
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     unsigned int get_num_bits(bool is64Bit) final  {
         if(value > INT_MAX) {

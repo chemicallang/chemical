@@ -47,12 +47,7 @@ public:
 
     bool link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final {
-        if(!parent_val->link(linker, nullptr)) {
-            return false;
-        }
-        return link_without_parent(linker, expected_type, true);
-    }
+    bool link(SymbolResolver& linker, BaseType* expected_type) final;
 
     /**
      * get function type from parent type

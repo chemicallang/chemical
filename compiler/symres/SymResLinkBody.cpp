@@ -1314,6 +1314,31 @@ bool PointerType::link(SymbolResolver &linker, SourceLocation loc) {
     return true;
 }
 
+void SymResLinkBody::VisitReferenceType(ReferenceType* type) {
+    type->type->link(linker, type_location);
+}
+
+bool ReferenceType::link(SymbolResolver &linker, SourceLocation loc) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
+void SymResLinkBody::VisitCapturingFunctionType(CapturingFunctionType* type) {
+    if(!type->func_type.link(linker)) {
+        return;
+    }
+    if(!type->instance_type.link(linker)) {
+        return;
+    }
+}
+
+bool CapturingFunctionType::link(SymbolResolver &linker, SourceLocation loc) {
+    SymResLinkBody temp(linker);
+    temp.visit(this, loc);
+    return true;
+}
+
 void SymResLinkBody::VisitStructType(StructType* type) {
     type->take_variables_from_parsed_nodes(linker);
     sym_res_vars_signature(linker, type);

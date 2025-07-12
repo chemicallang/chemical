@@ -205,12 +205,6 @@ void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& r
     FunctionCall imp_call(&id, ZERO_LOC);
     imp_call.values.emplace_back(value);
     imp_call.link_without_parent(resolver, nullptr, false);
-    const auto replaced = imp_call.values[0];
-#ifdef DEBUG
-    if(replaced != value) {
-        throw std::runtime_error("implicit constructor value has been replaced, when it shouldn't have been");
-    }
-#endif
 }
 
 int16_t get_iteration_for(

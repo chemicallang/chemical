@@ -991,17 +991,6 @@ int Value::get_the_int() {
     }
 }
 
-bool Value::link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
-    switch(kind()) {
-        case ValueKind::AccessChain:
-            return as_access_chain_unsafe()->link_assign(linker, expected_type);
-        case ValueKind::Identifier:
-            return as_identifier_unsafe()->link_assign(linker, expected_type);
-        default:
-            return link(linker, expected_type);
-    }
-}
-
 std::optional<uint64_t> Value::get_number() {
     if(is_value_int_n()) {
         return as_int_num_value_unsafe()->get_num_value();

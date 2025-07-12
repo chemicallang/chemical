@@ -4,10 +4,15 @@
 
 #include "preprocess/visitors/RecursiveVisitor.h"
 
-class SymResLinkBody : public RecursiveVisitor<SymResLinkBody> {
+class SymResLinkBody : public NonRecursiveVisitor<SymResLinkBody> {
 public:
 
     SymbolResolver& linker;
+
+    /**
+     * expected type used by values to coerce
+     */
+    BaseType* expected_type = nullptr;
 
     /**
      * this is set before visiting type
@@ -40,6 +45,11 @@ public:
         VisitNodeNoNullCheck(node);
     }
     inline void visit(Value* value) {
+        expected_type = nullptr;
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(Value* value, BaseType* exp_type) {
+        expected_type = exp_type;
         VisitValueNoNullCheck(value);
     }
     inline void visit(ChainValue* value) {
@@ -47,6 +57,10 @@ public:
     }
     inline void visit(BaseType*& type_ref) {
         VisitTypeNoNullCheck(type_ref);
+    }
+    inline void visit(BaseType* type, SourceLocation location) {
+        type_location = location;
+        VisitTypeNoNullCheck(type);
     }
     inline void visit(TypeLoc& type) {
         type_location = type.encoded_location();
@@ -59,7 +73,13 @@ public:
         VisitScope(&scope);
     }
 
-//    void VisitAccessChain(AccessChain *chain);
+    // Special Visitor Methods
+
+    void VisitAccessChain(AccessChain* chain, bool check_validity, bool assignment);
+
+    void VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access);
+
+    // Visitor Methods
 
     void VisitAssignmentStmt(AssignStatement *assign);
 
@@ -142,5 +162,77 @@ public:
     void VisitValueWrapper(ValueWrapperNode* node);
 
     void VisitEmbeddedNode(EmbeddedNode* node);
+
+    // ------------------------------------
+    // ----------- Values -----------------
+    // ------------------------------------
+
+    void VisitAccessChain(AccessChain *chain);
+
+    void VisitFunctionCall(FunctionCall* value);
+
+    void VisitNumberValue(NumberValue* value);
+
+    void VisitEmbeddedValue(EmbeddedValue* value);
+
+    void VisitComptimeValue(ComptimeValue* value);
+
+    void VisitIncDecValue(IncDecValue* value);
+
+    void VisitVariantCase(VariantCase* value);
+
+    void VisitArrayType(ArrayType* type);
+
+    void VisitDynamicType(DynamicType* type);
+
+    void VisitFunctionType(FunctionType* type);
+
+    void VisitGenericType(GenericType* type);
+
+    void VisitLinkedType(LinkedType* type);
+
+    void VisitPointerType(PointerType* type);
+
+    void VisitStructType(StructType* type);
+
+    void VisitUnionType(UnionType* type);
+
+    void VisitAddrOfValue(AddrOfValue* value);
+
+    void VisitArrayValue(ArrayValue* value);
+
+    void VisitBlockValue(BlockValue* value);
+
+    void VisitCastedValue(CastedValue* value);
+
+    void VisitDereferenceValue(DereferenceValue* value);
+
+    void VisitExpression(Expression* value);
+
+    void VisitIndexOperator(IndexOperator* value);
+
+    void VisitIsValue(IsValue* value);
+
+    void VisitLambdaFunction(LambdaFunction* value);
+
+    void VisitNegativeValue(NegativeValue* value);
+
+    void VisitPlacementNewValue(PlacementNewValue* value);
+
+    void VisitNotValue(NotValue* value);
+
+    void VisitNullValue(NullValue* value);
+
+    void VisitPatternMatchExpr(PatternMatchExpr* value);
+
+    void VisitSizeOfValue(SizeOfValue* value);
+
+    void VisitAlignOfValue(AlignOfValue* value);
+
+    void VisitStringValue(StringValue* value);
+
+    void VisitStructValue(StructValue* value);
+
+    void VisitVariableIdentifier(VariableIdentifier* value);
 
 };

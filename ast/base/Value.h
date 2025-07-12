@@ -140,19 +140,6 @@ public:
     }
 
     /**
-     * every access chain or identifier x, x.y is used to access elements, however
-     * when used in lhs of a assignment statement, it is being used to assign, this distinction is required
-     * in some cases, for example when accessing something, we may be accessing a moved variable,
-     * however when assigning something, it may have been moved but we allow it because assignment will make it
-     * unmoved
-     * for example assume 'x' is moved now if we use it in rhs
-     * var y = x <-- error 'x' is moved already, but if we use it in lhs
-     * x = something_else <-- no error because x is being unmoved !
-     * this is called by lhs value of assignment statement to link itself, no other place !
-     */
-    bool link_assign(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr);
-
-    /**
      * it must return the node that will be used to find the next node in the access chain
      * this node is extracted from the node that was linked to in link method
      * @return return node that signifies the fragment in the access chain

@@ -42,6 +42,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
+#include "ast/values/NumberValue.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "DeclareTopLevel.h"
 #include "ast/utils/ASTUtils.h"
@@ -1058,6 +1059,29 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, bool che
     }
 
     return true;
+}
+
+bool FunctionCall::link(SymbolResolver& linker, BaseType* expected_type) {
+    if(!parent_val->link(linker, nullptr)) {
+        return false;
+    }
+    return link_without_parent(linker, expected_type, true);
+}
+
+bool NumberValue::link(SymbolResolver& linker, BaseType* expected_type) {
+    return true;
+}
+
+bool EmbeddedValue::link(SymbolResolver &linker, BaseType *expected_type) {
+    return sym_res_fn(&linker, this);
+}
+
+bool ComptimeValue::link(SymbolResolver &linker, BaseType *expected_type) {
+    return value->link(linker, expected_type);
+}
+
+bool IncDecValue::link(SymbolResolver &linker, BaseType *expected_type) {
+    return value->link(linker, expected_type);
 }
 
 bool LoopBlock::link(SymbolResolver& linker, BaseType* expected_type) {

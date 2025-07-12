@@ -193,6 +193,10 @@ public:
 
     void VisitPointerType(PointerType* type);
 
+    void VisitReferenceType(ReferenceType* type);
+
+    void VisitCapturingFunctionType(CapturingFunctionType* type);
+
     void VisitStructType(StructType* type);
 
     void VisitUnionType(UnionType* type);

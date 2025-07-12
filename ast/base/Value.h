@@ -129,17 +129,6 @@ public:
     bool isValueRValue(ASTAllocator& allocator);
 
     /**
-     * this function is called to allow variable identifiers to link with a node on the map
-     * that will help it provide information, to allow it to generate code, or interpret
-     * The reason it takes a reference to Value* is because the current value
-     * can basically replace itself in the pointer, some compile time values like sizeof
-     * replace themselves at resolution phase
-     */
-    virtual bool link(SymbolResolver& linker, BaseType* expected_type = nullptr) {
-        return true;
-    }
-
-    /**
      * it must return the node that will be used to find the next node in the access chain
      * this node is extracted from the node that was linked to in link method
      * @return return node that signifies the fragment in the access chain

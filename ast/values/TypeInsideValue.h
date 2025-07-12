@@ -28,10 +28,6 @@ public:
         );
     }
 
-    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) final {
-        return type->link(linker, encoded_location());
-    }
-
     BaseType* known_type() override {
         return type;
     }

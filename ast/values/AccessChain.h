@@ -68,27 +68,6 @@ public:
         attrs.is_moved = is_moved;
     }
 
-
-    /**
-     * simply links the access chain, the end_offset is used to control linking last values of the chain
-     * if end_offset is 1, the last value won't be linked, if it's 2, two last values won't be linked
-     * end_offset may not be taken into account, if chain has a single value or two must link values
-     */
-    bool link(
-        SymbolResolver &linker,
-        BaseType *type,
-        bool check_validity,
-        bool assign
-    );
-
-    bool link(SymbolResolver& linker, BaseType* type) final {
-        return link(linker, type, true, false);
-    }
-
-    inline bool link_assign(SymbolResolver &linker, BaseType *expected_type = nullptr) {
-        return link(linker, expected_type, true, true);
-    }
-
     /**
      * will call relink_parent on values starting from second value
      */

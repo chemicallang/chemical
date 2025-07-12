@@ -35,8 +35,6 @@ public:
 
     bool satisfies(BaseType *type) final;
 
-    bool link(SymbolResolver &linker, SourceLocation loc) override;
-
     ASTNode* child(const chem::string_view &childName) override {
         return VariablesContainer::direct_child(childName);
     }

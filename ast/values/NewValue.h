@@ -33,8 +33,6 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) override;
-
     NewValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<NewValue>()) NewValue(value->copy(allocator), encoded_location(), ptr_type);
     }

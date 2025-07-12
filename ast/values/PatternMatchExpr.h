@@ -136,8 +136,6 @@ public:
 
     }
 
-    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) override;
-
     BaseType* create_type(ASTAllocator &allocator) override;
 
     VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);

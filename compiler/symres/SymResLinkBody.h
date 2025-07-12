@@ -221,6 +221,14 @@ public:
 
     void VisitNegativeValue(NegativeValue* value);
 
+    void VisitUnsafeValue(UnsafeValue* value);
+
+    void VisitTypeInsideValue(TypeInsideValue* value);
+
+    void VisitNewValue(NewValue* value);
+
+    void VisitNewTypedValue(NewTypedValue* value);
+
     void VisitPlacementNewValue(PlacementNewValue* value);
 
     void VisitNotValue(NotValue* value);

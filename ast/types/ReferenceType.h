@@ -48,8 +48,6 @@ public:
         return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), is_mutable);
     }
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
     ASTNode *linked_node() final {
         return type->linked_node();
     }

@@ -62,8 +62,6 @@ public:
         return resolve_container(instantiator, refType);
     }
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
     Value *call_member(

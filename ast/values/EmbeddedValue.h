@@ -73,11 +73,6 @@ public:
     }
 
     /**
-     * link
-     */
-    bool link(SymbolResolver &linker, BaseType *expected_type) override;
-
-    /**
      * create the type
      */
     BaseType* create_type(ASTAllocator &allocator) override {

@@ -38,11 +38,6 @@ public:
      */
     bool instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc);
 
-    /**
-     * link func
-     */
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
     ASTNode *linked_node() final;
 
     bool is_same(BaseType *other) final {

@@ -31,8 +31,6 @@ public:
         return referenced->linked_node();
     }
 
-    bool link(SymbolResolver &linker, SourceLocation loc) final;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen& gen) final;

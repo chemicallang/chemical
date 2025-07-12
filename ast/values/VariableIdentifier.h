@@ -57,8 +57,6 @@ public:
 
     void process_linked(ASTDiagnoser* linker);
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     ASTNode *linked_node() final;
 
     bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);

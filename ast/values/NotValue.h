@@ -23,8 +23,6 @@ public:
         SourceLocation location
     ) : Value(ValueKind::NotValue, location), value(value) {}
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
     bool primitive() final;
 
     bool compile_time_computable() override {

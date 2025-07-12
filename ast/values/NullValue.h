@@ -51,8 +51,6 @@ public:
 
 #endif
 
-    bool link(SymbolResolver &linker, BaseType *expected_type = nullptr) final;
-
     BaseType* create_type(ASTAllocator &allocator) final;
 
     BaseType* known_type() final;

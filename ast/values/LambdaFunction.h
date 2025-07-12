@@ -95,10 +95,6 @@ public:
      */
     bool has_destructor_for_capture();
 
-    bool link(SymbolResolver& linker, BaseType* expected_type) final;
-
-    bool link(SymbolResolver &linker, FunctionType* func_type);
-
     Value* copy(ASTAllocator &allocator) override {
         // TODO: this can fail
         return this;

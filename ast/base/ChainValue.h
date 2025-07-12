@@ -15,7 +15,6 @@ public:
      * usages of the base class method, so we don't have to type Value:: everywhere
      */
     using Value::create_type;
-    using Value::link;
 
     /**
      * constructor

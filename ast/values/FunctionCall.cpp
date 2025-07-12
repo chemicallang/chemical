@@ -26,6 +26,7 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "compiler/symres/SymResLinkBodyAPI.h"
 
 #ifdef COMPILER_BUILD
 
@@ -873,13 +874,10 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
                 auto& value = *value_ptr;
                 const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
                 const auto expected_type = param ? param->type : nullptr;
-                if (value.link(linker, expected_type)) {
-                    properly_linked[i] = true;
-                    if(!linker.linking_signature) {
-                        current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
-                    }
-                } else {
-                    properly_linked[i] = false;
+                sym_res_link_value_deprecated(linker, &value, expected_type);
+                properly_linked[i] = true;
+                if(!linker.linking_signature) {
+                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
                 }
                 i++;
             }
@@ -915,13 +913,10 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         auto& value = *value_ptr;
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
-        if (value.link(linker, expected_type)) {
-            properly_linked[i] = true;
-            if(!linker.linking_signature) {
-                current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
-            }
-        } else {
-            properly_linked[i] = false;
+        sym_res_link_value_deprecated(linker, &value, expected_type);
+        properly_linked[i] = true;
+        if(!linker.linking_signature) {
+            current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         }
         i++;
     }
@@ -967,9 +962,7 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::v
 
 bool FunctionCall::link_gen_args(SymbolResolver &linker) {
     for(auto& type : generic_list) {
-        if(!type.link(linker)) {
-            return false;
-        }
+        sym_res_link_type_deprecated(linker, const_cast<BaseType*>(type.getType()), type.getLocation());
     }
     return true;
 }

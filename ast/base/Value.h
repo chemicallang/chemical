@@ -48,6 +48,11 @@ private:
     ValueKind const _kind;
 
     /**
+     * the type of the value is calculated during symbol resolution
+     */
+    BaseType* _type;
+
+    /**
      * encoded source location
      */
     SourceLocation _location;
@@ -62,7 +67,18 @@ public:
     /**
      * default constructor
      */
-    inline explicit constexpr Value(ValueKind k, SourceLocation loc) noexcept : _kind(k), _location(loc) {
+    inline explicit constexpr Value(ValueKind k, SourceLocation loc) noexcept : _kind(k), _location(loc), _type(nullptr) {
+
+    };
+
+    /**
+     * default constructor
+     */
+    inline explicit constexpr Value(
+            ValueKind k,
+            BaseType* type,
+            SourceLocation loc
+    ) noexcept : _kind(k), _type(nullptr), _location(loc) {
 
     };
 
@@ -81,6 +97,13 @@ public:
      */
     ASTAnyKind any_kind() final {
         return ASTAnyKind::Value;
+    }
+
+    /**
+     * get the type for this value
+     */
+    inline BaseType* getType() const noexcept {
+        return _type;
     }
 
     /**
@@ -136,6 +159,11 @@ public:
     virtual ASTNode* linked_node() {
         return nullptr;
     }
+
+    /**
+     * last identifier of this chain value
+     */
+    VariableIdentifier* get_last_id();
 
     /**
      * get byte size of this value

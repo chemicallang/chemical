@@ -2,5 +2,4 @@
 
 
 #include "ProvideStmt.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/base/Value.h"

@@ -86,17 +86,6 @@ public:
             BaseType* expected_type
     );
 
-    /**
-     * a call notifies a function, during symbol resolution that it exists
-     * when this happens, generics are checked, proper types are registered in generic
-     * @return iteration that corresponds to this call
-     */
-    FunctionDeclaration* instantiate_call(
-        SymbolResolver& resolver,
-        FunctionCall* call,
-        BaseType* expected_type
-    );
-
 #ifdef COMPILER_BUILD
 
     void code_gen_declare(Codegen &gen) override;

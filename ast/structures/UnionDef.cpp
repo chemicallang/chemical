@@ -3,7 +3,6 @@
 #include "UnnamedUnion.h"
 #include "UnionDef.h"
 #include "FunctionDeclaration.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/types/LinkedType.h"
 #include "ast/base/ChainValue.h"
 

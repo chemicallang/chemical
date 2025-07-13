@@ -222,58 +222,6 @@ uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
     return size;
 }
 
-void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
-    const auto container = this;
-    for(const auto var : container->variables()) {
-        linker.declare(var->name, var);
-    }
-    for (const auto func: container->functions()) {
-        switch(func->kind()) {
-            case ASTNodeKind::FunctionDecl:
-                linker.declare(func->as_function_unsafe()->name_view(), func);
-                break;
-            case ASTNodeKind::GenericFuncDecl:
-                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
-                break;
-            default:
-                break;
-        }
-    }
-    for(auto& inherits : container->inherited) {
-        const auto def = inherits.type->linked_node()->as_members_container();
-        if(def) {
-            def->declare_inherited_members(linker);
-        }
-    }
-}
-
-void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
-    for(auto& inherits : inherited) {
-        const auto def = inherits.type->linked_node()->as_members_container();
-        if(def) {
-            def->declare_inherited_members(linker);
-        }
-    }
-}
-
-void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
-    for (const auto var: variables()) {
-        linker.declare(var->name, var);
-    }
-    for(const auto func : functions()) {
-        switch(func->kind()) {
-            case ASTNodeKind::FunctionDecl:
-                linker.declare(func->as_function_unsafe()->name_view(), func);
-                break;
-            case ASTNodeKind::GenericFuncDecl:
-                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 unsigned int MembersContainer::init_values_req_size() {
     unsigned int i = 0;
     for(auto& inherit : inherited) {

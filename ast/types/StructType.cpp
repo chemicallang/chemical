@@ -2,7 +2,6 @@
 
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/StructDefinition.h"
-#include "compiler/SymbolResolver.h"
 #include "compiler/symres/LinkSignatureAPI.h"
 
 bool StructType::equals(StructType *type) {

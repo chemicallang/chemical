@@ -2,7 +2,6 @@
 
 #include "VariableIdentifier.h"
 #include <memory>
-#include "compiler/SymbolResolver.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
@@ -40,26 +39,6 @@ void VariableIdentifier::process_linked(ASTDiagnoser* linker) {
 
 ASTNode* VariableIdentifier::linked_node() {
     return linked;
-}
-
-bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
-    auto linked_node = parent->linked_node();
-    if(linked_node) {
-        linked = linked_node->child(value);
-        if(linked) {
-            process_linked(diagnoser);
-            return true;
-        } else if(diagnoser) {
-            diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
-        }
-    } else if (diagnoser){
-        diagnoser->error(this) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
-    }
-    return false;
-}
-
-bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-    return find_link_in_parent(parent, &resolver);
 }
 
 bool VariableIdentifier::compile_time_computable() {

@@ -3,7 +3,6 @@
 #include "VariantDefinition.h"
 #include "VariantMember.h"
 #include "ast/types/LinkedType.h"
-#include "compiler/SymbolResolver.h"
 #include "compiler/mangler/NameMangler.h"
 #include "ast/base/ChainValue.h"
 #include "ast/values/VariantCase.h"

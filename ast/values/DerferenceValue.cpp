@@ -5,7 +5,6 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/PointerValue.h"
 #include "ast/base/InterpretScope.h"
-#include "compiler/SymbolResolver.h"
 #include <iostream>
 
 BaseType* DereferenceValue::create_type(ASTAllocator& allocator) {

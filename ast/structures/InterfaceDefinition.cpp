@@ -3,7 +3,6 @@
 #include "InterfaceDefinition.h"
 #include "StructDefinition.h"
 #include "StructMember.h"
-#include "compiler/SymbolResolver.h"
 #include "compiler/mangler/NameMangler.h"
 #include "ast/types/LinkedType.h"
 #include <sstream>

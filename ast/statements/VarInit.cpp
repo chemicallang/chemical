@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "VarInit.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/values/StringValue.h"

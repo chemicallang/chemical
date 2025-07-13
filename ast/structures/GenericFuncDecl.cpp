@@ -2,7 +2,6 @@
 #include "ast/utils/ASTUtils.h"
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -12,6 +11,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/types/LinkedType.h"
 #include "ast/values/FunctionCall.h"
+#include "compiler/ASTDiagnoser.h"
 
 void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
 
@@ -37,14 +37,6 @@ void GenericFuncDecl::finalize_body(ASTAllocator& allocator, FunctionDeclaration
         }
     }
 
-}
-
-FunctionDeclaration* GenericFuncDecl::instantiate_call(
-        SymbolResolver& resolver,
-        FunctionCall* call,
-        BaseType* expected_type
-) {
-    return instantiate_call(resolver.genericInstantiator, call, expected_type);
 }
 
 FunctionDeclaration* GenericFuncDecl::instantiate_call(

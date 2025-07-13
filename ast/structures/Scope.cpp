@@ -13,8 +13,7 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/base/BaseType.h"
 #include "ast/statements/Break.h"
-#include "compiler/SymbolResolver.h"
-#include "compiler/symres/SymResLinkBodyAPI.h"
+#include "compiler/ASTDiagnoser.h"
 
 // deduplicate the nodes, so nodes with same id appearing later will override the nodes appearing before them
 void top_level_dedupe(std::vector<ASTNode*>& nodes) {
@@ -90,26 +89,6 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
         }
     }
     nodes = std::move(public_nodes);
-}
-
-inline void link_seq(SymbolResolver& linker, Scope* scope) {
-    sym_res_link_body(linker, scope);
-}
-
-void Scope::link_sequentially(SymbolResolver &linker) {
-    if(nodes.empty()) return;
-    const auto curr_func = linker.current_func_type;
-    if(curr_func) {
-        const auto moved_ids_begin = curr_func->moved_identifiers.size();
-        const auto moved_chains_begin = curr_func->moved_chains.size();
-        link_seq(linker, this);
-        if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
-            curr_func->erase_moved_ids_after(moved_ids_begin);
-            curr_func->erase_moved_chains_after(moved_chains_begin);
-        }
-    } else {
-        link_seq(linker, this);
-    }
 }
 
 void Scope::stopInterpretOnce() {

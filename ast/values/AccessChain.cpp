@@ -3,7 +3,6 @@
 #include "AccessChain.h"
 #include "VariableIdentifier.h"
 #include "FunctionCall.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/BaseType.h"
 #include "ast/utils/ASTUtils.h"

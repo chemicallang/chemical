@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "Namespace.h"
-#include "compiler/SymbolResolver.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
 #include "compiler/symres/DeclareTopLevel.h"
 

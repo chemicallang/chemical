@@ -6,7 +6,6 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/BigIntValue.h"
@@ -1142,6 +1141,17 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
         }
     }
     return false;
+}
+
+VariableIdentifier* ChainValue::get_last_id() {
+    switch(kind()) {
+        case ValueKind::AccessChain:
+            return as_access_chain_unsafe()->values.back()->as_identifier();
+        case ValueKind::Identifier:
+            return as_identifier_unsafe();
+        default:
+            return nullptr;
+    }
 }
 
 void Value::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {

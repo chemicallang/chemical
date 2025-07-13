@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "MultiFunctionNode.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/structures/FunctionDeclaration.h"
 
 FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, std::vector<Value*>& args) {

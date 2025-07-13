@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "DestructStmt.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"

@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "ForLoop.h"
-#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 

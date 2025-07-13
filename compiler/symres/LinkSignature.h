@@ -78,17 +78,9 @@ public:
 
     void LinkMembersContainerNoScope(MembersContainer* container);
 
-    void LinkVariables(VariablesContainer* container) {
-        linker.scope_start();
-        LinkVariablesNoScope(container);
-        linker.scope_end();
-    }
+    void LinkVariables(VariablesContainer* container);
 
-    void LinkMembersContainer(MembersContainer* container) {
-        linker.scope_start();
-        LinkMembersContainerNoScope(container);
-        linker.scope_end();
-    }
+    void LinkMembersContainer(MembersContainer* container);
 
     void VisitUsingStmt(UsingStmt* node);
 

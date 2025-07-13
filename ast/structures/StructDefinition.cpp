@@ -5,7 +5,6 @@
 #include "FunctionDeclaration.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/StructType.h"
-#include "compiler/SymbolResolver.h"
 #include "InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"

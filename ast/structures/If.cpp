@@ -2,9 +2,9 @@
 
 #include "If.h"
 #include "ast/base/BaseType.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/types/FunctionType.h"
 #include "ast/base/InterpretScope.h"
+#include "compiler/ASTDiagnoser.h"
 
 #ifdef COMPILER_BUILD
 
@@ -248,22 +248,6 @@ std::optional<Scope*> IfStatement::resolve_evaluated_scope(InterpretScope& compt
         is_computable = false;
         return std::nullopt;
     }
-}
-
-Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
-    is_computable = true;
-    if(!link_conditions(linker)) {
-        resolved_condition = false;
-    }
-    auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
-    if(condition_val.has_value()) {
-        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
-        computed_scope = eval;
-        return eval;
-    } else {
-        is_computable = false;
-    }
-    return nullptr;
 }
 
 Value* IfStatement::get_value_node() {

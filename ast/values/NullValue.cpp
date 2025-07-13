@@ -4,7 +4,6 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/NullPtrType.h"
-#include "compiler/SymbolResolver.h"
 
 BaseType* NullValue::create_type(ASTAllocator &allocator) {
     return new (allocator.allocate<NullPtrType>()) NullPtrType();

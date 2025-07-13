@@ -50,6 +50,7 @@
 #include "SymResLinkBody.h"
 #include "SymResLinkBodyAPI.h"
 #include "LinkSignatureAPI.h"
+#include "ast/utils/GenericUtils.h"
 
 void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     SymResLinkBody linker(resolver);
@@ -69,6 +70,58 @@ void sym_res_link_value_deprecated(SymbolResolver& resolver, Value* value, BaseT
 void sym_res_link_type_deprecated(SymbolResolver& resolver, BaseType* type, SourceLocation loc) {
     SymResLinkBody linker(resolver);
     linker.visit(type, loc);
+}
+
+void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
+    const auto container = this;
+    for(const auto var : container->variables()) {
+        linker.declare(var->name, var);
+    }
+    for (const auto func: container->functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                linker.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
+    }
+    for(auto& inherits : container->inherited) {
+        const auto def = inherits.type->linked_node()->as_members_container();
+        if(def) {
+            def->declare_inherited_members(linker);
+        }
+    }
+}
+
+void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
+    for(auto& inherits : inherited) {
+        const auto def = inherits.type->linked_node()->as_members_container();
+        if(def) {
+            def->declare_inherited_members(linker);
+        }
+    }
+}
+
+void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
+    for (const auto var: variables()) {
+        linker.declare(var->name, var);
+    }
+    for(const auto func : functions()) {
+        switch(func->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                linker.declare(func->as_function_unsafe()->name_view(), func);
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
@@ -257,6 +310,28 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
     func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
 
+}
+
+void UsingStmt::declare_symbols(SymbolResolver &linker) {
+    auto linked = chain->linked_node();
+    if(!linked) {
+        linker.error("couldn't find linked node", this);
+        return;
+    }
+    if(is_namespace()) {
+        auto ns = linked->as_namespace();
+        if(ns) {
+            for(auto& node_pair : ns->extended) {
+                const auto node = node_pair.second;
+                linker.declare(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
+            }
+        } else {
+            linker.error("expected value to be a namespace, however it isn't", this);
+        }
+    } else {
+        const auto& name_view = linked->get_located_id()->identifier;
+        linker.declare(name_view, linked);
+    }
 }
 
 void SymResLinkBody::VisitUsingStmt(UsingStmt* node) {
@@ -640,9 +715,73 @@ void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
     if(node->at_least_type) {
         visit(node->at_least_type);
     }
-    node->declare_only(linker);
+    linker.declare(node->identifier, node);
     if(node->def_type) {
         visit(node->def_type);
+    }
+}
+
+bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
+    if(name == "self" || name == "other") { // name and other means pointers to parent node
+        const auto ptr_type = ((ReferenceType*) type.getType());
+        auto& linked_type_ref = ptr_type->type;
+        const auto linked_type = ((LinkedType*) linked_type_ref);
+        auto parent_node = parent();
+        auto parent_kind = parent_node->kind();
+        ASTNode* parent;
+        if(parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
+            const auto p = parent_node->parent();
+            if(p) {
+                parent_node = p;
+                parent_kind = p->kind();
+            }
+        }
+        switch(parent_kind) {
+            case ASTNodeKind::ImplDecl:
+                parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
+                break;
+            case ASTNodeKind::StructDecl: {
+                const auto def = parent_node->as_struct_def_unsafe();
+                parent = def->generic_parent ? (ASTNode*) def->generic_parent : parent_node;
+                break;
+            }
+            case ASTNodeKind::VariantDecl:
+            case ASTNodeKind::UnionDecl:
+            case ASTNodeKind::InterfaceDecl:
+                parent = parent_node;
+                break;
+            default:
+                parent = nullptr;
+                break;
+        }
+        if(!parent) {
+            linker.error("couldn't get self / other implicit parameter type", this);
+            return false;
+        }
+        linked_type->linked = parent;
+        return true;
+    } else {
+        auto found = linker.find(name);
+        if(found) {
+            const auto ptr_type = ((ReferenceType*) type.getType());
+            const auto linked_type = ((LinkedType*) ptr_type->type);
+            const auto found_kind = found->kind();
+            if(found_kind == ASTNodeKind::TypealiasStmt) {
+                const auto retrieved = ((TypealiasStatement*) found)->actual_type;
+                type = { retrieved, type.encoded_location() };
+                const auto direct = retrieved->get_direct_linked_node();
+                if(direct && ASTNode::isStoredStructType(direct->kind())) {
+                    linker.error("struct like types must be passed as references using implicit parameters with typealias, please add '&' to make it a reference", this);
+                    return false;
+                }
+            } else {
+                linked_type->linked = found;
+            }
+        } else {
+            linker.error("couldn't get implicit parameter type", this);
+            return false;
+        }
+        return true;
     }
 }
 
@@ -864,6 +1003,22 @@ void link_conditions_no_patt_match_expr(IfStatement* stmt, SymResLinkBody &symRe
     }
 }
 
+Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
+    is_computable = true;
+    if(!link_conditions(linker)) {
+        resolved_condition = false;
+    }
+    auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
+    if(condition_val.has_value()) {
+        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+        computed_scope = eval;
+        return eval;
+    } else {
+        is_computable = false;
+    }
+    return nullptr;
+}
+
 void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 
     if(node->is_top_level()) {
@@ -975,6 +1130,26 @@ void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
         visit(child);
     }
     linker.scope_end();
+}
+
+inline void link_seq(SymbolResolver& linker, Scope* scope) {
+    sym_res_link_body(linker, scope);
+}
+
+void Scope::link_sequentially(SymbolResolver &linker) {
+    if(nodes.empty()) return;
+    const auto curr_func = linker.current_func_type;
+    if(curr_func) {
+        const auto moved_ids_begin = curr_func->moved_identifiers.size();
+        const auto moved_chains_begin = curr_func->moved_chains.size();
+        link_seq(linker, this);
+        if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
+            curr_func->erase_moved_ids_after(moved_ids_begin);
+            curr_func->erase_moved_chains_after(moved_chains_begin);
+        }
+    } else {
+        link_seq(linker, this);
+    }
 }
 
 void SymResLinkBody::VisitScope(Scope* node) {
@@ -1141,6 +1316,249 @@ void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
 
     VisitAccessChain(chain, true, false);
 
+}
+
+void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& properly_linked) {
+    auto& current_func = *linker.current_func_type;
+    const auto parent = parent_val->linked_node();
+    if(parent) {
+        const auto variant_mem = parent->as_variant_member();
+        if (variant_mem) {
+            unsigned i = 0;
+            const auto values_size = values.size();
+            const auto total_params = variant_mem->values.size();
+            while (i < values_size) {
+                auto& value_ptr = values[i];
+                auto& value = *value_ptr;
+                const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
+                const auto expected_type = param ? param->type : nullptr;
+                sym_res_link_value_deprecated(linker, &value, expected_type);
+                properly_linked[i] = true;
+                if(!linker.linking_signature) {
+                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                }
+                i++;
+            }
+
+            // checking arguments exist for all variant call parameters
+            const auto func_param_size = variant_mem->values.size();
+            while (i < func_param_size) {
+                auto param = (variant_mem->values.begin() + 1)->second;
+                if (param) {
+                    linker.error(this) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
+                } else {
+#ifdef DEBUG
+                    throw std::runtime_error("couldn't get param");
+#endif
+                }
+                i++;
+            }
+
+            return;
+        }
+    }
+
+    auto func_type = function_type(linker.allocator);
+    if (func_type && !func_type->data.signature_resolved) {
+        linker.error("calling a function whose signature couldn't be resolved", this);
+        return;
+    }
+
+    unsigned i = 0;
+    const auto values_size = values.size();
+    while (i < values_size) {
+        auto& value_ptr = values[i];
+        auto& value = *value_ptr;
+        const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
+        const auto expected_type = param ? param->type : nullptr;
+        sym_res_link_value_deprecated(linker, &value, expected_type);
+        properly_linked[i] = true;
+        if(!linker.linking_signature) {
+            current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+        }
+        i++;
+    }
+
+    // checking arguments exist for all function call values
+    if(func_type) {
+        const auto func_param_size = func_type->expectedArgsSize();
+        while (i < func_param_size) {
+            auto param = func_type->func_param_for_arg_at(i);
+            if (param) {
+                if (param->defValue == nullptr && !func_type->isInVarArgs(i)) {
+                    linker.error(this) << "function parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
+                }
+            } else {
+#ifdef DEBUG
+                throw std::runtime_error("couldn't get param");
+#endif
+            }
+            i++;
+        }
+    }
+
+}
+
+void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked){
+    auto func_type = function_type(linker.allocator);
+    if(!func_type || !func_type->data.signature_resolved) return;
+    unsigned i = 0;
+    while(i < values.size()) {
+        const auto param = func_type->func_param_for_arg_at(i);
+        if (param && properly_linked[i]) {
+            const auto value = values[i];
+            auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, value);
+            if (implicit_constructor) {
+                link_with_implicit_constructor(implicit_constructor, linker, value);
+            } else if(!linker.linking_signature && !param->type->satisfies(linker.allocator, value, false)) {
+                linker.unsatisfied_type_err(value, param->type);
+            }
+        }
+        i++;
+    }
+}
+
+bool FunctionCall::link_gen_args(SymbolResolver &linker) {
+    for(auto& type : generic_list) {
+        sym_res_link_type_deprecated(linker, const_cast<BaseType*>(type.getType()), type.getLocation());
+    }
+    return true;
+}
+
+bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+
+    GenericFuncDecl* gen_decl = nullptr;
+    GenericVariantDecl* gen_var_decl = nullptr;
+
+    // relinking generic decl
+    const auto parent_id = parent_val->get_last_id();
+    if(parent_id) {
+
+        const auto k = parent_id->linked->kind();
+
+        if(k == ASTNodeKind::GenericFuncDecl) {
+
+            gen_decl = parent_id->linked->as_gen_func_decl_unsafe();
+
+            // TODO we link with the master implementation currently, however we require to instantiate a new implementation
+            parent_id->linked = gen_decl->master_impl;
+
+        } else if(k == ASTNodeKind::VariantMember) {
+
+            const auto mem = parent_id->linked->as_variant_member_unsafe();
+            const auto mem_gen = mem->parent()->generic_parent;
+            if(mem_gen != nullptr) {
+                gen_var_decl = mem_gen->as_gen_variant_decl_unsafe();
+                // we do not relink, because it's already linked with master implementation's variant member
+                // parent_id->linked = gen_decl->master_impl;
+            }
+
+        }
+
+    }
+
+    const auto linked = parent_val->linked_node();
+    // enum member being used as a no value
+    const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
+    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+    // TODO
+//    if(func_decl) {
+//        if(func_decl->is_unsafe() && resolver.safe_context) {
+//            resolver.error("unsafe function with name should be called in an unsafe block", this);
+//        }
+//        const auto self_param = func_decl->get_self_param();
+//        if(self_param) {
+//            if(grandpa) {
+//                if(self_param->type->is_mutable(BaseTypeKind::Reference)) {
+//                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver, false)) {
+//                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+//                    }
+//                }
+//            } else {
+//                const auto arg_self = resolver.current_func_type->get_self_param();
+//                if(!arg_self) {
+//                    resolver.error("cannot call function without an implicit self arg which is not present", this);
+//                } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
+//                    resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
+//                }
+//            }
+//        }
+//    }
+
+    relink_multi_func(resolver.allocator, &resolver);
+    const auto gen_args_linked = link_gen_args(resolver);
+
+    // this contains which args linked successfully
+    std::vector<bool> properly_linked_args(values.size());
+    // link the values, based on which constructor is determined
+    link_values(resolver, properly_linked_args);
+
+    if(!gen_args_linked) {
+        // link_constructor may try to register a generic instantiation
+        // if generic args aren't linked, we don't want to do that
+        return false;
+    }
+
+    link_constructor(resolver.allocator, resolver.genericInstantiator);
+
+    if(linked_kind != ASTNodeKind::VariantMember) {
+        // if its not a variant, it should give us a function type to be valid
+        const auto func_type = function_type(resolver.allocator);
+        if(!func_type) {
+            resolver.error(this) << "cannot call a non function type";
+            return false;
+        }
+    }
+
+    if(gen_decl || gen_var_decl) {
+        goto instantiate_block;
+    }
+
+    ending_block:
+    if(link_implicit_constructor) {
+        link_args_implicit_constructor(resolver, properly_linked_args);
+    }
+    return true;
+    instantiate_block:
+    const auto func_type = resolver.current_func_type;
+    const auto curr_func = func_type->as_function();
+    // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
+    // we also don't want to instantiate this call, if the generic list is not completely specialized
+    if ((curr_func && curr_func->generic_parent != nullptr) || !are_all_specialized(generic_list)) {
+        // since current function has a generic parent (it is generic), we do not want to instantiate this call here
+        // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
+        // changing back to generic decl, since instantiator needs access to it
+        parent_id->linked = gen_decl;
+        return true;
+    }
+    if(gen_decl) {
+        auto new_link = gen_decl->instantiate_call(resolver.genericInstantiator, this, expected_type);
+        // instantiate call can return null, when the inferred types aren found to be not specialized
+        if (!new_link) {
+            parent_id->linked = gen_decl;
+            return true;
+        }
+        parent_id->linked = new_link;
+    } else if(gen_var_decl) {
+        auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, this, expected_type);
+        if(!new_link) {
+            // no re-linkage required, because it's already linked with master implementation
+            return true;
+        }
+        const auto var_id = get_parent_from(parent_val);
+        if(var_id) {
+            // every variable is like this MyVariant.Member() <-- get parent from parent is MyVariant
+            var_id->as_identifier()->linked = new_link;
+        }
+        const auto mem = parent_id->linked->as_variant_member_unsafe();
+        const auto new_mem = new_link->direct_child(mem->name)->as_variant_member_unsafe();
+        parent_id->linked = new_mem;
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("no condition satisfied in function call");
+#endif
+    }
+    goto ending_block;
 }
 
 void SymResLinkBody::VisitFunctionCall(FunctionCall* value) {
@@ -1732,6 +2150,27 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             }
         }
     }
+}
+
+bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
+    auto linked_node = parent->linked_node();
+    if(linked_node) {
+        linked = linked_node->child(value);
+        if(linked) {
+            process_linked(diagnoser);
+            return true;
+        } else if(diagnoser) {
+            diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
+        }
+    } else if (diagnoser){
+        diagnoser->error(this) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
+    }
+    return false;
+}
+
+// TODO: inline this method
+bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
+    return find_link_in_parent(parent, &resolver);
 }
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* value) {

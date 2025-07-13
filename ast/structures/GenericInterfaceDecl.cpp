@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "GenericInterfaceDecl.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"

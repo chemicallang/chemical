@@ -53,14 +53,8 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
 }
 
 ASTNode* get_chain_linked(Value* value) {
-    switch(value->kind()) {
-        case ValueKind::AccessChain:
-            return get_chain_linked(value->as_access_chain_unsafe()->values.back());
-        case ValueKind::Identifier:
-            return value->as_identifier_unsafe()->linked;
-        default:
-            return nullptr;
-    }
+    const auto id = value->get_last_id();
+    return id ? id->linked : nullptr;
 }
 
 void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {

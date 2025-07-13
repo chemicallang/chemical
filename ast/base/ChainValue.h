@@ -38,11 +38,6 @@ public:
         return is_equal(other, val_kind(), other->val_kind());
     }
 
-    /**
-     * last identifier of this chain value
-     */
-    VariableIdentifier* get_last_id();
-
 #ifdef COMPILER_BUILD
 
     /**

@@ -5,7 +5,6 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
 #include "ast/utils/ASTUtils.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/values/FunctionCall.h"
 
 #ifdef COMPILER_BUILD

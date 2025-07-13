@@ -2,7 +2,6 @@
 
 
 #include "GenericType.h"
-#include "compiler/SymbolResolver.h"
 #include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"

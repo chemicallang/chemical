@@ -29,6 +29,7 @@
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
+#include "compiler/SymbolResolver.h"
 
 void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
     TopLevelLinkSignature visitor(resolver);
@@ -265,6 +266,18 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
     for(auto& func : container->functions()) {
         visit(func);
     }
+}
+
+void TopLevelLinkSignature::LinkVariables(VariablesContainer* container) {
+    linker.scope_start();
+    LinkVariablesNoScope(container);
+    linker.scope_end();
+}
+
+void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container) {
+    linker.scope_start();
+    LinkMembersContainerNoScope(container);
+    linker.scope_end();
 }
 
 void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {

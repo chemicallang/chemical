@@ -2,7 +2,6 @@
 
 #include "Import.h"
 #include <filesystem>
-#include "compiler/SymbolResolver.h"
 #include "preprocess/ImportPathHandler.h"
 #include "ast/structures/ModuleScope.h"
 #include "ast/base/LocatedIdentifier.h"

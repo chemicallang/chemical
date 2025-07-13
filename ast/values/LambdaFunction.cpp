@@ -8,7 +8,6 @@
 #include "ast/types/FunctionType.h"
 #include "ast/statements/Return.h"
 #include "ast/structures/CapturedVariable.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/types/VoidType.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/VariableIdentifier.h"

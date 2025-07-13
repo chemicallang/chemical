@@ -14,7 +14,6 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/base/InterpretScope.h"
-#include "compiler/SymbolResolver.h"
 
 inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();

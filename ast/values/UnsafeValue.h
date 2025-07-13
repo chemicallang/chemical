@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "compiler/SymbolResolver.h"
 
 /**
  * unsafe values replace themselves during symbol resolution

@@ -3,7 +3,6 @@
 #include "SizeOfValue.h"
 #include "AlignOfValue.h"
 #include "ast/base/BaseType.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ULongValue.h"
 

@@ -8,7 +8,6 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/values/VariableIdentifier.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/values/VariantCase.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/IntNType.h"

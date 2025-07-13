@@ -2,7 +2,6 @@
 
 #include "ImplDefinition.h"
 #include "StructMember.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD

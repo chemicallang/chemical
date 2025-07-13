@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/base/InterpretScope.h"
 
 /**

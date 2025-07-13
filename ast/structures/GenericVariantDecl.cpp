@@ -1,12 +1,12 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "GenericVariantDecl.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/GenericType.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "compiler/ASTDiagnoser.h"
 
 void GenericVariantDecl::finalize_signature(ASTAllocator& allocator, VariantDefinition* inst) {
 

@@ -11,7 +11,6 @@
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/UnionDef.h"
 #include "compiler/mangler/NameMangler.h"
-#include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
@@ -31,7 +30,7 @@
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
-#include "ast/utils/ASTUtils.h"
+#include "compiler/ASTDiagnoser.h"
 #include <sstream>
 #include <iostream>
 
@@ -922,77 +921,9 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     return param;
 }
 
-bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
-    if(name == "self" || name == "other") { // name and other means pointers to parent node
-        const auto ptr_type = ((ReferenceType*) type.getType());
-        auto& linked_type_ref = ptr_type->type;
-        const auto linked_type = ((LinkedType*) linked_type_ref);
-        auto parent_node = parent();
-        auto parent_kind = parent_node->kind();
-        ASTNode* parent;
-        if(parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
-            const auto p = parent_node->parent();
-            if(p) {
-                parent_node = p;
-                parent_kind = p->kind();
-            }
-        }
-        switch(parent_kind) {
-            case ASTNodeKind::ImplDecl:
-                parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
-                break;
-            case ASTNodeKind::StructDecl: {
-                const auto def = parent_node->as_struct_def_unsafe();
-                parent = def->generic_parent ? (ASTNode*) def->generic_parent : parent_node;
-                break;
-            }
-            case ASTNodeKind::VariantDecl:
-            case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::InterfaceDecl:
-                parent = parent_node;
-                break;
-            default:
-                parent = nullptr;
-                break;
-        }
-        if(!parent) {
-            linker.error("couldn't get self / other implicit parameter type", this);
-            return false;
-        }
-        linked_type->linked = parent;
-        return true;
-    } else {
-        auto found = linker.find(name);
-        if(found) {
-            const auto ptr_type = ((ReferenceType*) type.getType());
-            const auto linked_type = ((LinkedType*) ptr_type->type);
-            const auto found_kind = found->kind();
-            if(found_kind == ASTNodeKind::TypealiasStmt) {
-                const auto retrieved = ((TypealiasStatement*) found)->actual_type;
-                type = { retrieved, type.encoded_location() };
-                const auto direct = retrieved->get_direct_linked_node();
-                if(direct && ASTNode::isStoredStructType(direct->kind())) {
-                    linker.error("struct like types must be passed as references using implicit parameters with typealias, please add '&' to make it a reference", this);
-                    return false;
-                }
-            } else {
-                linked_type->linked = found;
-            }
-        } else {
-            linker.error("couldn't get implicit parameter type", this);
-            return false;
-        }
-        return true;
-    }
-}
-
-ASTNode *FunctionParam::child(const chem::string_view &name) {
+ASTNode *FunctionParam::child(const chem::string_view &childName) {
     const auto linked_node = type->linked_node();
-    return linked_node ? linked_node->child(name) : nullptr;
-}
-
-void GenericTypeParameter::declare_only(SymbolResolver& linker) {
-    linker.declare(identifier, this);
+    return linked_node ? linked_node->child(childName) : nullptr;
 }
 
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {

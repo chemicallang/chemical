@@ -3,7 +3,6 @@
 #include "LinkedType.h"
 #include "ast/statements/Typealias.h"
 #include "StructType.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/statements/VarInit.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/VariantMember.h"

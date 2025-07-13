@@ -38,8 +38,6 @@ public:
 
     }
 
-    void declare_only(SymbolResolver& linker);
-
     void set_active_type(BaseType* type) {
         active_type = type;
     }

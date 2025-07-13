@@ -9,7 +9,6 @@
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/values/VariableIdentifier.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericUnionDecl.h"

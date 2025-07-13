@@ -1,10 +1,10 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "GenericStructDecl.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "compiler/ASTDiagnoser.h"
 
 void GenericStructDecl::finalize_signature(ASTAllocator& allocator, StructDefinition* inst) {
 

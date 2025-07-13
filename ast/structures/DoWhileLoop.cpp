@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "DoWhileLoop.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD

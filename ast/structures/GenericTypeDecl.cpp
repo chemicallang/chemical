@@ -1,9 +1,9 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "GenericTypeDecl.h"
-#include "compiler/SymbolResolver.h"
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/utils/GenericUtils.h"
+#include "compiler/ASTDiagnoser.h"
 
 void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasStatement* inst) {
     inst->actual_type = inst->actual_type.copy(allocator);

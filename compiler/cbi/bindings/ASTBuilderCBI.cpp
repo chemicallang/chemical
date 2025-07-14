@@ -2,6 +2,8 @@
 
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
+#include "compiler/cbi/model/ASTBuilder.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/types/AnyType.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
@@ -100,20 +102,20 @@ constexpr LocatedIdentifier LOC_ID(const chem::string_view& identifier, SourceLo
 #endif
 }
 
-void* ASTBuilderallocate_with_cleanup(ASTAllocator* allocator, std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
-    return (void*) allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
+void* ASTBuilderallocate_with_cleanup(ASTBuilder* builder, std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
+    return (void*) builder->allocator->allocate_with_cleanup(obj_size, alignment, cleanup_fn);
 }
 
-void ASTBuilderstore_cleanup(ASTAllocator* allocator, void* obj, void* cleanup_fn) {
-    allocator->store_cleanup_fn(obj, cleanup_fn);
+void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn) {
+    builder->allocator->store_cleanup_fn(obj, cleanup_fn);
 }
 
-BaseType* ASTBuildercreateType(ASTAllocator* allocator, Value* value) {
-    return value->create_type(*allocator);
+BaseType* ASTBuildercreateType(ASTBuilder* builder, Value* value) {
+    return value->create_type(*builder->allocator);
 }
 
-EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, void* traversal_fn, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<EmbeddedNode>()) EmbeddedNode(
+EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, void* traversal_fn, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<EmbeddedNode>()) EmbeddedNode(
             data_ptr,
             (EmbeddedNodeSymbolResolveFunc*) sym_res_fn,
             (EmbeddedNodeReplacementFunc*) repl_fn,
@@ -125,417 +127,417 @@ EmbeddedNode* ASTBuildermake_embedded_node(ASTAllocator* allocator, void* data_p
     );
 }
 
-EmbeddedValue* ASTBuildermake_embedded_value(ASTAllocator* allocator, void* data_ptr, void* sym_res_fn, void* repl_fn, void* type_cr_fn, void* traversal_fn, uint64_t location) {
-    return new (allocator->allocate<EmbeddedValue>()) EmbeddedValue(
+EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, void* data_ptr, BaseType* type, void* sym_res_fn, void* repl_fn, void* traversal_fn, uint64_t location) {
+    return new (builder->allocate<EmbeddedValue>()) EmbeddedValue(
             data_ptr,
+            type,
             (EmbeddedValueSymbolResolveFunc*) sym_res_fn,
             (EmbeddedValueReplacementFunc*) repl_fn,
-            (EmbeddedValueTypeCreationFunc*) type_cr_fn,
             (EmbeddedValueTraversalFunc*) traversal_fn,
             location
     );
 }
 
-AnyType* ASTBuildermake_any_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<AnyType>()) AnyType();
+AnyType* ASTBuildermake_any_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<AnyType>()) AnyType();
 }
 
-ArrayType* ASTBuildermake_array_type(ASTAllocator* allocator, BaseType* elem_type, int array_size, uint64_t location) {
-    return new (allocator->allocate<ArrayType>()) ArrayType({elem_type, location}, array_size);
+ArrayType* ASTBuildermake_array_type(ASTBuilder* builder, BaseType* elem_type, int array_size, uint64_t location) {
+    return new (builder->allocate<ArrayType>()) ArrayType({elem_type, location}, array_size);
 }
 
-BigIntType* ASTBuildermake_bigint_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<BigIntType>()) BigIntType();
+BigIntType* ASTBuildermake_bigint_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<BigIntType>()) BigIntType();
 }
 
-BoolType* ASTBuildermake_bool_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<BoolType>()) BoolType();
+BoolType* ASTBuildermake_bool_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<BoolType>()) BoolType();
 }
 
-BoolType* ASTBuildermake_char_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<BoolType>()) BoolType();
+BoolType* ASTBuildermake_char_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<BoolType>()) BoolType();
 }
 
-DoubleType* ASTBuildermake_double_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<DoubleType>()) DoubleType();
+DoubleType* ASTBuildermake_double_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<DoubleType>()) DoubleType();
 }
 
-DynamicType* ASTBuildermake_dynamic_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<DynamicType>()) DynamicType(child_type);
+DynamicType* ASTBuildermake_dynamic_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
+    return new (builder->allocate<DynamicType>()) DynamicType(child_type);
 }
 
-FloatType* ASTBuildermake_float_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<FloatType>()) FloatType();
+FloatType* ASTBuildermake_float_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<FloatType>()) FloatType();
 }
 
-FunctionType* ASTBuildermake_func_type(ASTAllocator* allocator, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, uint64_t location) {
+FunctionType* ASTBuildermake_func_type(ASTBuilder* builder, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, uint64_t location) {
     // TODO function type doesn't take a parent_node
-    return new (allocator->allocate<FunctionType>()) FunctionType({returnType, location}, isVariadic, isCapturing, location);
+    return new (builder->allocate<FunctionType>()) FunctionType({returnType, location}, isVariadic, isCapturing, location);
 }
 
-GenericType* ASTBuildermake_generic_type(ASTAllocator* allocator, LinkedType* linkedType) {
-    return new (allocator->allocate<GenericType>()) GenericType(linkedType);
+GenericType* ASTBuildermake_generic_type(ASTBuilder* builder, LinkedType* linkedType) {
+    return new (builder->allocate<GenericType>()) GenericType(linkedType);
 }
 
-Int128Type* ASTBuildermake_int128_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<Int128Type>()) Int128Type();
+Int128Type* ASTBuildermake_int128_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<Int128Type>()) Int128Type();
 }
 
-IntType* ASTBuildermake_int_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<IntType>()) IntType();
+IntType* ASTBuildermake_int_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<IntType>()) IntType();
 }
 
-LinkedType* ASTBuildermake_linked_type(ASTAllocator* allocator, chem::string_view* type, ASTNode* linked, uint64_t location) {
-    return new (allocator->allocate<LinkedType>()) LinkedType(linked);
+LinkedType* ASTBuildermake_linked_type(ASTBuilder* builder, chem::string_view* type, ASTNode* linked, uint64_t location) {
+    return new (builder->allocate<LinkedType>()) LinkedType(linked);
 }
 
-LinkedValueType* ASTBuildermake_linked_value_type(ASTAllocator* allocator, Value* value, uint64_t location) {
-    return new (allocator->allocate<LinkedValueType>()) LinkedValueType(value);
+LinkedValueType* ASTBuildermake_linked_value_type(ASTBuilder* builder, Value* value, uint64_t location) {
+    return new (builder->allocate<LinkedValueType>()) LinkedValueType(value);
 }
 
-LiteralType* ASTBuildermake_literal_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<LiteralType>()) LiteralType(child_type);
+LiteralType* ASTBuildermake_literal_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
+    return new (builder->allocate<LiteralType>()) LiteralType(child_type);
 }
 
-LongType* ASTBuildermake_long_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<LongType>()) LongType();
+LongType* ASTBuildermake_long_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<LongType>()) LongType();
 }
 
-PointerType* ASTBuildermake_ptr_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<PointerType>()) PointerType(child_type, false);
+PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
+    return new (builder->allocate<PointerType>()) PointerType(child_type, false);
 }
 
-ReferenceType* ASTBuildermake_reference_type(ASTAllocator* allocator, BaseType* child_type, uint64_t location) {
-    return new (allocator->allocate<ReferenceType>()) ReferenceType(child_type, false);
+ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
+    return new (builder->allocate<ReferenceType>()) ReferenceType(child_type, false);
 }
 
-ShortType* ASTBuildermake_short_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<ShortType>()) ShortType();
+ShortType* ASTBuildermake_short_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<ShortType>()) ShortType();
 }
 
-StringType* ASTBuildermake_string_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<StringType>()) StringType();
+StringType* ASTBuildermake_string_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<StringType>()) StringType();
 }
 
-UBigIntType* ASTBuildermake_ubigint_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UBigIntType>()) UBigIntType();
+UBigIntType* ASTBuildermake_ubigint_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<UBigIntType>()) UBigIntType();
 }
 
-UCharType* ASTBuildermake_uchar_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UCharType>()) UCharType();
+UCharType* ASTBuildermake_uchar_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<UCharType>()) UCharType();
 }
 
-UInt128Type* ASTBuildermake_uint128_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UInt128Type>()) UInt128Type();
+UInt128Type* ASTBuildermake_uint128_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<UInt128Type>()) UInt128Type();
 }
 
-UIntType* ASTBuildermake_uint_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UIntType>()) UIntType();
+UIntType* ASTBuildermake_uint_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<UIntType>()) UIntType();
 }
 
-ULongType* ASTBuildermake_ulong_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<ULongType>()) ULongType();
+ULongType* ASTBuildermake_ulong_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<ULongType>()) ULongType();
 }
 
-UShortType* ASTBuildermake_ushort_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<UShortType>()) UShortType();
+UShortType* ASTBuildermake_ushort_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<UShortType>()) UShortType();
 }
 
-VoidType* ASTBuildermake_void_type(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<VoidType>()) VoidType();
+VoidType* ASTBuildermake_void_type(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<VoidType>()) VoidType();
 }
 
-AccessChain* ASTBuildermake_access_chain(ASTAllocator* allocator, bool is_node, uint64_t location) {
-    return new (allocator->allocate<AccessChain>()) AccessChain(is_node, location);
+AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, bool is_node, uint64_t location) {
+    return new (builder->allocate<AccessChain>()) AccessChain(is_node, location);
 }
 
-ValueWrapperNode* ASTBuildermake_value_wrapper(ASTAllocator* allocator, Value* value, ASTNode* parent_node) {
-    return new (allocator->allocate<ValueWrapperNode>()) ValueWrapperNode(value, parent_node);
+ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value, ASTNode* parent_node) {
+    return new (builder->allocate<ValueWrapperNode>()) ValueWrapperNode(value, parent_node);
 }
 
-AddrOfValue* ASTBuildermake_addr_of_value(ASTAllocator* allocator, Value* value, uint64_t location) {
-    return new (allocator->allocate<AddrOfValue>()) AddrOfValue(value, location);
+AddrOfValue* ASTBuildermake_addr_of_value(ASTBuilder* builder, Value* value, uint64_t location) {
+    return new (builder->allocate<AddrOfValue>()) AddrOfValue(value, location);
 }
 
-ArrayValue* ASTBuildermake_array_value(ASTAllocator* allocator, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<ArrayValue>()) ArrayValue({type, location}, location, *allocator);
+ArrayValue* ASTBuildermake_array_value(ASTBuilder* builder, BaseType* type, uint64_t location) {
+    return new (builder->allocate<ArrayValue>()) ArrayValue({type, location}, location, *builder->allocator);
 }
 
-BigIntValue* ASTBuildermake_bigint_value(ASTAllocator* allocator, long long value, uint64_t location) {
-    return new (allocator->allocate<BigIntValue>()) BigIntValue(value, location);
+BigIntValue* ASTBuildermake_bigint_value(ASTBuilder* builder, long long value, uint64_t location) {
+    return new (builder->allocate<BigIntValue>()) BigIntValue(value, builder->typeBuilder.getBigIntType(), location);
 }
 
-BoolValue* ASTBuildermake_bool_value(ASTAllocator* allocator, bool value, uint64_t location) {
-    return new (allocator->allocate<BoolValue>()) BoolValue(value, location);
+BoolValue* ASTBuildermake_bool_value(ASTBuilder* builder, bool value, uint64_t location) {
+    return new (builder->allocate<BoolValue>()) BoolValue(value, builder->typeBuilder.getBoolType(), location);
 }
 
-CastedValue* ASTBuildermake_casted_value(ASTAllocator* allocator, Value* value, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<CastedValue>()) CastedValue(value, {type, location}, location);
+CastedValue* ASTBuildermake_casted_value(ASTBuilder* builder, Value* value, BaseType* type, uint64_t location) {
+    return new (builder->allocate<CastedValue>()) CastedValue(value, {type, location}, location);
 }
 
-CharValue* ASTBuildermake_char_value(ASTAllocator* allocator, char value, uint64_t location) {
-    return new (allocator->allocate<CharValue>()) CharValue(value, location);
+CharValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location) {
+    return new (builder->allocate<CharValue>()) CharValue(value, builder->typeBuilder.getCharType(), location);
 }
 
-DereferenceValue* ASTBuildermake_dereference_value(ASTAllocator* allocator, Value* value, uint64_t location) {
-    return new (allocator->allocate<DereferenceValue>()) DereferenceValue(value, location);
+DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, uint64_t location) {
+    return new (builder->allocate<DereferenceValue>()) DereferenceValue(value, location);
 }
 
-DoubleValue* ASTBuildermake_double_value(ASTAllocator* allocator, double value, uint64_t location) {
-    return new (allocator->allocate<DoubleValue>()) DoubleValue(value, location);
+DoubleValue* ASTBuildermake_double_value(ASTBuilder* builder, double value, uint64_t location) {
+    return new (builder->allocate<DoubleValue>()) DoubleValue(value, builder->typeBuilder.getDoubleType(), location);
 }
 
-Expression* ASTBuildermake_expression_value(ASTAllocator* allocator, Value* first, Value* second, Operation op, uint64_t location) {
-    return new (allocator->allocate<Expression>()) Expression(first, second, op, location);
+Expression* ASTBuildermake_expression_value(ASTBuilder* builder, Value* first, Value* second, Operation op, uint64_t location) {
+    return new (builder->allocate<Expression>()) Expression(first, second, op, location);
 }
 
-FloatValue* ASTBuildermake_float_value(ASTAllocator* allocator, float value, uint64_t location) {
-    return new (allocator->allocate<FloatValue>()) FloatValue(value, location);
+FloatValue* ASTBuildermake_float_value(ASTBuilder* builder, float value, uint64_t location) {
+    return new (builder->allocate<FloatValue>()) FloatValue(value, builder->typeBuilder.getFloatType(), location);
 }
 
-FunctionCall* ASTBuildermake_function_call_value(ASTAllocator* allocator, ChainValue* parent_val, uint64_t location) {
-    return new (allocator->allocate<FunctionCall>()) FunctionCall(parent_val, location);
+FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location) {
+    return new (builder->allocate<FunctionCall>()) FunctionCall(parent_val, location);
 }
 
-IndexOperator* ASTBuildermake_index_op_value(ASTAllocator* allocator, ChainValue* parent_val, uint64_t location) {
-    return new (allocator->allocate<IndexOperator>()) IndexOperator(parent_val, location);
+IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location) {
+    return new (builder->allocate<IndexOperator>()) IndexOperator(parent_val, location);
 }
 
-Int128Value* ASTBuildermake_int128_value(ASTAllocator* allocator, uint64_t mag, bool is_neg, uint64_t location) {
-    return new (allocator->allocate<Int128Value>()) Int128Value(mag, is_neg, location);
+Int128Value* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location) {
+    return new (builder->allocate<Int128Value>()) Int128Value(mag, is_neg, builder->typeBuilder.getInt128Type(), location);
 }
 
-IntValue* ASTBuildermake_int_value(ASTAllocator* allocator, int value, uint64_t location) {
-    return new (allocator->allocate<IntValue>()) IntValue(value, location);
+IntValue* ASTBuildermake_int_value(ASTBuilder* builder, int value, uint64_t location) {
+    return new (builder->allocate<IntValue>()) IntValue(value, builder->typeBuilder.getIntType(), location);
 }
 
-IsValue* ASTBuildermake_is_value(ASTAllocator* allocator, Value* value, BaseType* type, bool is_negating, uint64_t location) {
-    return new (allocator->allocate<IsValue>()) IsValue(value, {type, location}, is_negating, location);
+IsValue* ASTBuildermake_is_value(ASTBuilder* builder, Value* value, BaseType* type, bool is_negating, uint64_t location) {
+    return new (builder->allocate<IsValue>()) IsValue(value, {type, location}, is_negating, builder->typeBuilder.getBoolType(), location);
 }
 
-LambdaFunction* ASTBuildermake_lambda_function(ASTAllocator* allocator, Value* value, BaseType* type, bool isVariadic, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<LambdaFunction>()) LambdaFunction(isVariadic, parent_node, location);
+LambdaFunction* ASTBuildermake_lambda_function(ASTBuilder* builder, Value* value, BaseType* type, bool isVariadic, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<LambdaFunction>()) LambdaFunction(isVariadic, parent_node, location);
 }
 
-CapturedVariable* ASTBuildermake_captured_variable(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool capture_by_ref, bool mutable_ref, long value, uint64_t location) {
+CapturedVariable* ASTBuildermake_captured_variable(ASTBuilder* builder, chem::string_view* name, unsigned int index, bool capture_by_ref, bool mutable_ref, long value, uint64_t location) {
     // TODO passing nullptr as parent in captured variable
-    return new (allocator->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, mutable_ref, nullptr, location);
+    return new (builder->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, mutable_ref, nullptr, location);
 }
 
-LongValue* ASTBuildermake_long_value(ASTAllocator* allocator, long value, uint64_t location) {
-    return new (allocator->allocate<LongValue>()) LongValue(value, location);
+LongValue* ASTBuildermake_long_value(ASTBuilder* builder, long value, uint64_t location) {
+    return new (builder->allocate<LongValue>()) LongValue(value, builder->typeBuilder.getLongType(), location);
 }
 
-NegativeValue* ASTBuildermake_negative_value(ASTAllocator* allocator, Value* value, uint64_t location) {
-    return new (allocator->allocate<NegativeValue>()) NegativeValue(value, location);
+NegativeValue* ASTBuildermake_negative_value(ASTBuilder* builder, Value* value, uint64_t location) {
+    return new (builder->allocate<NegativeValue>()) NegativeValue(value, location);
 }
 
-NotValue* ASTBuildermake_not_value(ASTAllocator* allocator, Value* value, uint64_t location) {
-    return new (allocator->allocate<NotValue>()) NotValue(value, location);
+NotValue* ASTBuildermake_not_value(ASTBuilder* builder, Value* value, uint64_t location) {
+    return new (builder->allocate<NotValue>()) NotValue(value, location);
 }
 
-NullValue* ASTBuildermake_null_value(ASTAllocator* allocator, uint64_t location) {
-    return new (allocator->allocate<NullValue>()) NullValue(location);
+NullValue* ASTBuildermake_null_value(ASTBuilder* builder, uint64_t location) {
+    return new (builder->allocate<NullValue>()) NullValue(location);
 }
 
-NumberValue* ASTBuildermake_number_value(ASTAllocator* allocator, uint64_t value, uint64_t location) {
-    return new (allocator->allocate<NumberValue>()) NumberValue(value, location);
+NumberValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location) {
+    return new (builder->allocate<NumberValue>()) NumberValue(value, location);
 }
 
-ShortValue* ASTBuildermake_short_value(ASTAllocator* allocator, short value, uint64_t location) {
-    return new (allocator->allocate<ShortValue>()) ShortValue(value, location);
+ShortValue* ASTBuildermake_short_value(ASTBuilder* builder, short value, uint64_t location) {
+    return new (builder->allocate<ShortValue>()) ShortValue(value, builder->typeBuilder.getShortType(), location);
 }
 
-SizeOfValue* ASTBuildermake_sizeof_value(ASTAllocator* allocator, BaseType* type, uint64_t location) {
-    return new (allocator->allocate<SizeOfValue>()) SizeOfValue({type, location}, location);
+SizeOfValue* ASTBuildermake_sizeof_value(ASTBuilder* builder, BaseType* type, uint64_t location) {
+    return new (builder->allocate<SizeOfValue>()) SizeOfValue({type, location}, builder->typeBuilder.getUBigIntType(), location);
 }
 
-StringValue* ASTBuildermake_string_value(ASTAllocator* allocator, chem::string_view* value, uint64_t location) {
-    return new (allocator->allocate<StringValue>()) StringValue(*value, location);
+StringValue* ASTBuildermake_string_value(ASTBuilder* builder, chem::string_view* value, uint64_t location) {
+    return new (builder->allocate<StringValue>()) StringValue(*value, builder->typeBuilder.getStringType(), location);
 }
 
-StructValue* ASTBuildermake_struct_value(ASTAllocator* allocator, BaseType* ref, ASTNode* parent_node, uint64_t location) {
+StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, BaseType* ref, ASTNode* parent_node, uint64_t location) {
     // TODO do not take parent_node as parameter
-    return new (allocator->allocate<StructValue>()) StructValue({ref, location}, location);
+    return new (builder->allocate<StructValue>()) StructValue({ref, location}, location);
 }
 
-UBigIntValue* ASTBuildermake_ubigint_value(ASTAllocator* allocator, unsigned long long value, uint64_t location) {
-    return new (allocator->allocate<UBigIntValue>()) UBigIntValue(value, location);
+UBigIntValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location) {
+    return new (builder->allocate<UBigIntValue>()) UBigIntValue(value, builder->typeBuilder.getUBigIntType(), location);
 }
 
-UCharValue* ASTBuildermake_uchar_value(ASTAllocator* allocator, unsigned char value, uint64_t location) {
-    return new (allocator->allocate<UCharValue>()) UCharValue(value, location);
+UCharValue* ASTBuildermake_uchar_value(ASTBuilder* builder, unsigned char value, uint64_t location) {
+    return new (builder->allocate<UCharValue>()) UCharValue(value, builder->typeBuilder.getUCharType(), location);
 }
 
-UInt128Value* ASTBuildermake_uint128_value(ASTAllocator* allocator, uint64_t low, uint64_t high, uint64_t location) {
-    return new (allocator->allocate<UInt128Value>()) UInt128Value(low, high, location);
+UInt128Value* ASTBuildermake_uint128_value(ASTBuilder* builder, uint64_t low, uint64_t high, uint64_t location) {
+    return new (builder->allocate<UInt128Value>()) UInt128Value(low, high, builder->typeBuilder.getUInt128Type(), location);
 }
 
-UIntValue* ASTBuildermake_uint_value(ASTAllocator* allocator, unsigned int value, uint64_t location) {
-    return new (allocator->allocate<UIntValue>()) UIntValue(value, location);
+UIntValue* ASTBuildermake_uint_value(ASTBuilder* builder, unsigned int value, uint64_t location) {
+    return new (builder->allocate<UIntValue>()) UIntValue(value, builder->typeBuilder.getUIntType(), location);
 }
 
-ULongValue* ASTBuildermake_ulong_value(ASTAllocator* allocator, unsigned long value, uint64_t location) {
-    return new (allocator->allocate<ULongValue>()) ULongValue(value, location);
+ULongValue* ASTBuildermake_ulong_value(ASTBuilder* builder, unsigned long value, uint64_t location) {
+    return new (builder->allocate<ULongValue>()) ULongValue(value, builder->typeBuilder.getULongType(), location);
 }
 
-UShortValue* ASTBuildermake_ushort_value(ASTAllocator* allocator, unsigned short value, uint64_t location) {
-    return new (allocator->allocate<UShortValue>()) UShortValue(value, location);
+UShortValue* ASTBuildermake_ushort_value(ASTBuilder* builder, unsigned short value, uint64_t location) {
+    return new (builder->allocate<UShortValue>()) UShortValue(value, builder->typeBuilder.getUShortType(), location);
 }
 
-BlockValue* ASTBuildermake_block_value(ASTAllocator* allocator, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<BlockValue>()) BlockValue(parent_node, location);
+BlockValue* ASTBuildermake_block_value(ASTBuilder* builder, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<BlockValue>()) BlockValue(parent_node, location);
 }
 
-ValueNode* ASTBuildermake_value_node(ASTAllocator* allocator, Value* value, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ValueNode>()) ValueNode(value, parent_node, location);
+ValueNode* ASTBuildermake_value_node(ASTBuilder* builder, Value* value, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<ValueNode>()) ValueNode(value, parent_node, location);
 }
 
-VariableIdentifier* ASTBuildermake_identifier_old(ASTAllocator* allocator, chem::string_view* value, bool is_ns, uint64_t location) {
-    return new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
+VariableIdentifier* ASTBuildermake_identifier_old(ASTBuilder* builder, chem::string_view* value, bool is_ns, uint64_t location) {
+    return new (builder->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
 }
 
-VariableIdentifier* ASTBuildermake_identifier(ASTAllocator* allocator, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location) {
-    const auto id = new (allocator->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
+VariableIdentifier* ASTBuildermake_identifier(ASTBuilder* builder, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location) {
+    const auto id = new (builder->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
     id->linked = linked;
     return id;
 }
 
-VariantCase* ASTBuildermake_variant_case(ASTAllocator* allocator, VariantMember* member, SwitchStatement* stmt, uint64_t location) {
-    return new (allocator->allocate<VariantCase>()) VariantCase(member, stmt, location);
+VariantCase* ASTBuildermake_variant_case(ASTBuilder* builder, VariantMember* member, SwitchStatement* stmt, uint64_t location) {
+    return new (builder->allocate<VariantCase>()) VariantCase(member, stmt, location);
 }
 
-VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTAllocator* allocator, chem::string_view* name, VariantMemberParam* param, SwitchStatement* switch_stmt, uint64_t location) {
-    return new (allocator->allocate<VariantCaseVariable>()) VariantCaseVariable(*name, param, switch_stmt, location);
+VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTBuilder* builder, chem::string_view* name, VariantMemberParam* param, SwitchStatement* switch_stmt, uint64_t location) {
+    return new (builder->allocate<VariantCaseVariable>()) VariantCaseVariable(*name, param, switch_stmt, location);
 }
 
-AssignStatement* ASTBuildermake_assignment_stmt(ASTAllocator* allocator, Value* lhs, Value* rhs, Operation op, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<AssignStatement>()) AssignStatement(lhs, rhs, op, parent_node, location);
+AssignStatement* ASTBuildermake_assignment_stmt(ASTBuilder* builder, Value* lhs, Value* rhs, Operation op, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<AssignStatement>()) AssignStatement(lhs, rhs, op, parent_node, location);
 }
 
-BreakStatement* ASTBuildermake_break_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
+BreakStatement* ASTBuildermake_break_stmt(ASTBuilder* builder, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
     // TODO do not take loop_node
-    return new (allocator->allocate<BreakStatement>()) BreakStatement(parent_node, location);
+    return new (builder->allocate<BreakStatement>()) BreakStatement(parent_node, location);
 }
 
-ContinueStatement* ASTBuildermake_continue_stmt(ASTAllocator* allocator, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
+ContinueStatement* ASTBuildermake_continue_stmt(ASTBuilder* builder, LoopASTNode* loop_node, ASTNode* parent_node, uint64_t location) {
     // TODO do not take loop_node
-    return new (allocator->allocate<ContinueStatement>()) ContinueStatement(parent_node, location);
+    return new (builder->allocate<ContinueStatement>()) ContinueStatement(parent_node, location);
 }
 
-DestructStmt* ASTBuildermake_destruct_stmt(ASTAllocator* allocator, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<DestructStmt>()) DestructStmt(array_value, ptr_value, is_array, parent_node, location);
+DestructStmt* ASTBuildermake_destruct_stmt(ASTBuilder* builder, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<DestructStmt>()) DestructStmt(array_value, ptr_value, is_array, parent_node, location);
 }
 
-ReturnStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ReturnStatement>()) ReturnStatement(value, parent_node, location);
+ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<ReturnStatement>()) ReturnStatement(value, parent_node, location);
 }
 
 // TODO switch statement when multiple cases have been handled
-//SwitchStatement* ASTBuildermake_return_stmt(ASTAllocator* allocator, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location) {
-//    return new (allocator->allocate<SwitchStatement>()) SwitchStatement(value, decl, parent_node, location);
+//SwitchStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location) {
+//    return new (builder->allocate<SwitchStatement>()) SwitchStatement(value, decl, parent_node, location);
 //}
 
-//ThrowStatement* ASTBuildermake_throw_stmt(ASTAllocator* allocator, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location) {
-//    return new (allocator->allocate<ThrowStatement>()) ThrowStatement(value, decl, parent_node, location);
+//ThrowStatement* ASTBuildermake_throw_stmt(ASTBuilder* builder, Value* value, FunctionType* decl, ASTNode* parent_node, uint64_t location) {
+//    return new (builder->allocate<ThrowStatement>()) ThrowStatement(value, decl, parent_node, location);
 //}
 
-TypealiasStatement* ASTBuildermake_typealias_stmt(ASTAllocator* allocator, chem::string_view* identifier, uint64_t id_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(*identifier, id_loc), { actual_type, id_loc }, parent_node, location, specifier);
+TypealiasStatement* ASTBuildermake_typealias_stmt(ASTBuilder* builder, chem::string_view* identifier, uint64_t id_loc, BaseType* actual_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<TypealiasStatement>()) TypealiasStatement(LOC_ID(*identifier, id_loc), { actual_type, id_loc }, parent_node, location, specifier);
 }
 
-UsingStmt* ASTBuildermake_using_stmt(ASTAllocator* allocator, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location) {
-    return new (allocator->allocate<UsingStmt>()) UsingStmt(chain, parent_node, is_namespace, location);
+UsingStmt* ASTBuildermake_using_stmt(ASTBuilder* builder, AccessChain* chain, ASTNode* parent_node, bool is_namespace, uint64_t location) {
+    return new (builder->allocate<UsingStmt>()) UsingStmt(chain, parent_node, is_namespace, location);
 }
 
-VarInitStatement* ASTBuildermake_varinit_stmt(ASTAllocator* allocator, bool is_const, bool is_reference, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<VarInitStatement>()) VarInitStatement(is_const, is_reference, LOC_ID(*identifier, id_loc), {type, location}, value, parent_node, location, specifier);
+VarInitStatement* ASTBuildermake_varinit_stmt(ASTBuilder* builder, bool is_const, bool is_reference, chem::string_view* identifier, uint64_t id_loc, BaseType* type, Value* value, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<VarInitStatement>()) VarInitStatement(is_const, is_reference, LOC_ID(*identifier, id_loc), {type, location}, value, parent_node, location, specifier);
 }
 
 // TODO scope needs a children method to get the nodes PtrVec
-Scope* ASTBuildermake_scope(ASTAllocator* allocator, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<Scope>()) Scope(parent_node, location);
+Scope* ASTBuildermake_scope(ASTBuilder* builder, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<Scope>()) Scope(parent_node, location);
 }
 
-DoWhileLoop* ASTBuildermake_do_while_loop(ASTAllocator* allocator, Value* condition, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<DoWhileLoop>()) DoWhileLoop(condition, parent_node, location);
+DoWhileLoop* ASTBuildermake_do_while_loop(ASTBuilder* builder, Value* condition, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<DoWhileLoop>()) DoWhileLoop(condition, parent_node, location);
 }
 
-EnumDeclaration* ASTBuildermake_enum_decl(ASTAllocator* allocator, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(*name, name_loc), {underlying_type, location}, parent_node, location, specifier);
+EnumDeclaration* ASTBuildermake_enum_decl(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, IntNType* underlying_type, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<EnumDeclaration>()) EnumDeclaration(LOC_ID(*name, name_loc), {underlying_type, location}, parent_node, location, specifier);
 }
 
-EnumMember* ASTBuildermake_enum_member(ASTAllocator* allocator, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location) {
-    return new (allocator->allocate<EnumMember>()) EnumMember(name->data(), index, init_value, parent_node, location);
+EnumMember* ASTBuildermake_enum_member(ASTBuilder* builder, chem::string_view* name, unsigned int index, Value* init_value, EnumDeclaration* parent_node, uint64_t location) {
+    return new (builder->allocate<EnumMember>()) EnumMember(name->data(), index, init_value, parent_node, location);
 }
 
-ForLoop* ASTBuildermake_for_loop(ASTAllocator* allocator, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, parent_node, location);
+ForLoop* ASTBuildermake_for_loop(ASTBuilder* builder, VarInitStatement* initializer, Value* conditionExpr, ASTNode* incrementerExpr, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<ForLoop>()) ForLoop(initializer, conditionExpr, incrementerExpr, parent_node, location);
 }
 
-FunctionDeclaration* ASTBuildermake_function(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), {returnType, location}, isVariadic, parent_node, location);
+FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, BaseType* returnType, bool isVariadic, bool hasBody, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(LOC_ID(*name, name_location), {returnType, location}, isVariadic, parent_node, location);
 }
 
-FunctionParam* ASTBuildermake_function_param(ASTAllocator* allocator, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
+FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, FunctionType* decl, uint64_t location) {
     // TODO casting function type as parent node, this is wrong
-    return new (allocator->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, (ASTNode*) decl, location);
+    return new (builder->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, (ASTNode*) decl, location);
 }
 
-GenericTypeParameter* ASTBuildermake_generic_param(ASTAllocator* allocator, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
-    return new (allocator->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, {at_least_type, location}, {def_type, location}, parent_node, index, location);
+GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
+    return new (builder->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, {at_least_type, location}, {def_type, location}, parent_node, index, location);
 }
 
-IfStatement* ASTBuildermake_if_stmt(ASTAllocator* allocator, Value* condition, bool is_value, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<IfStatement>()) IfStatement(condition, parent_node, is_value, location);
+IfStatement* ASTBuildermake_if_stmt(ASTBuilder* builder, Value* condition, bool is_value, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<IfStatement>()) IfStatement(condition, parent_node, is_value, location);
 }
 
-ImplDefinition* ASTBuildermake_impl_def(ASTAllocator* allocator, BaseType* interface_type, BaseType* struct_type, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<ImplDefinition>()) ImplDefinition({interface_type, location}, {struct_type, location}, parent_node, location);
+ImplDefinition* ASTBuildermake_impl_def(ASTBuilder* builder, BaseType* interface_type, BaseType* struct_type, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<ImplDefinition>()) ImplDefinition({interface_type, location}, {struct_type, location}, parent_node, location);
 }
 
-InitBlock* ASTBuildermake_init_block(ASTAllocator* allocator, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<InitBlock>()) InitBlock(parent_node, location);
+InitBlock* ASTBuildermake_init_block(ASTBuilder* builder, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<InitBlock>()) InitBlock(parent_node, location);
 }
 
-InterfaceDefinition* ASTBuildermake_interface_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
+InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
-Namespace* ASTBuildermake_namespace(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<Namespace>()) Namespace(LOC_ID(*name, name_location), parent_node, location, specifier);
+Namespace* ASTBuildermake_namespace(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<Namespace>()) Namespace(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
-StructDefinition* ASTBuildermake_struct_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructDefinition>()) StructDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
+StructDefinition* ASTBuildermake_struct_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<StructDefinition>()) StructDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
-StructMember* ASTBuildermake_struct_member(ASTAllocator* allocator, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<StructMember>()) StructMember(*name, {type, location}, defValue, parent_node, location, isConst, specifier);
+StructMember* ASTBuildermake_struct_member(ASTBuilder* builder, chem::string_view* name, BaseType* type, Value* defValue, bool isConst, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<StructMember>()) StructMember(*name, {type, location}, defValue, parent_node, location, isConst, specifier);
 }
 
-UnionDef* ASTBuildermake_union_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
-    return new (allocator->allocate<UnionDef>()) UnionDef(LOC_ID(*name, name_location), parent_node, location, specifier);
+UnionDef* ASTBuildermake_union_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<UnionDef>()) UnionDef(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
 
-UnsafeBlock* ASTBuildermake_unsafe_block(ASTAllocator* allocator, ASTNode* node, uint64_t location) {
-    return new (allocator->allocate<UnsafeBlock>()) UnsafeBlock(node, location);
+UnsafeBlock* ASTBuildermake_unsafe_block(ASTBuilder* builder, ASTNode* node, uint64_t location) {
+    return new (builder->allocate<UnsafeBlock>()) UnsafeBlock(node, location);
 }
 
-WhileLoop* ASTBuildermake_while_loop(ASTAllocator* allocator, Value* condition, ASTNode* node, uint64_t location) {
-    return new (allocator->allocate<WhileLoop>()) WhileLoop(condition, node, location);
+WhileLoop* ASTBuildermake_while_loop(ASTBuilder* builder, Value* condition, ASTNode* node, uint64_t location) {
+    return new (builder->allocate<WhileLoop>()) WhileLoop(condition, node, location);
 }
 
-VariantDefinition* ASTBuildermake_variant_def(ASTAllocator* allocator, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* node, uint64_t location) {
-    return new (allocator->allocate<VariantDefinition>()) VariantDefinition(LOC_ID(*name, name_location), node, location, specifier);
+VariantDefinition* ASTBuildermake_variant_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* node, uint64_t location) {
+    return new (builder->allocate<VariantDefinition>()) VariantDefinition(LOC_ID(*name, name_location), node, location, specifier);
 }
 
-VariantMember* ASTBuildermake_variant_member(ASTAllocator* allocator, chem::string_view* name, VariantDefinition* parent_node, uint64_t location) {
-    return new (allocator->allocate<VariantMember>()) VariantMember(*name, parent_node, location);
+VariantMember* ASTBuildermake_variant_member(ASTBuilder* builder, chem::string_view* name, VariantDefinition* parent_node, uint64_t location) {
+    return new (builder->allocate<VariantMember>()) VariantMember(*name, parent_node, location);
 }
 
-VariantMemberParam* ASTBuildermake_variant_member_param(ASTAllocator* allocator, chem::string_view* name, unsigned int index, bool is_const, BaseType* type, Value* defValue, VariantMember* parent_node, uint64_t location) {
-    return new (allocator->allocate<VariantMemberParam>()) VariantMemberParam(*name, index, is_const, {type, location}, defValue, parent_node, location);
+VariantMemberParam* ASTBuildermake_variant_member_param(ASTBuilder* builder, chem::string_view* name, unsigned int index, bool is_const, BaseType* type, Value* defValue, VariantMember* parent_node, uint64_t location) {
+    return new (builder->allocate<VariantMemberParam>()) VariantMemberParam(*name, index, is_const, {type, location}, defValue, parent_node, location);
 }
 
 // ------------------------------AST Methods begin here-----------------------------------------------
@@ -730,7 +732,7 @@ std::vector<ASTNode*>* BlockValueget_body(BlockValue* bv) {
 }
 
 void BlockValuesetCalculatedValue(BlockValue* bv, Value* value) {
-    bv->calculated_value = value;
+    bv->setCalculatedValue(value);
 }
 
 void UnionDefinitionadd_member(UnionDef* definition, BaseDefMember* member) {

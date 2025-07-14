@@ -2,11 +2,13 @@
 
 #include "IncDecValue.h"
 #include "ast/base/InterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/ShortValue.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include "ast/types/ReferenceType.h"
 
 Value* IncDecValue::evaluated_value(InterpretScope &scope) {
-    const auto val = new (scope.allocate<ShortValue>()) ShortValue(1, encoded_location());
+    const auto val = new (scope.allocate<ShortValue>()) ShortValue(1, scope.global->typeBuilder.getShortType(), encoded_location());
     value->set_value(scope, val, increment ? Operation::Addition : Operation::Subtraction, encoded_location());
     // TODO support post and pre properly
     return value->evaluated_value(scope);

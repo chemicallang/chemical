@@ -58,11 +58,6 @@ public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue
     return block_val;
 }
 
-public func value_type_creation_func(builder : *ASTBuilder, value : *EmbeddedValue) : *BaseType {
-    const loc = intrinsics::get_raw_location();
-    return builder.make_string_type(loc);
-}
-
 public func value_traversal_func(value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
     const root = value.getDataPtr() as *mut CSSOM;
     traverse_cssom(root, data, traverse)
@@ -73,7 +68,8 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
-        const value = builder.make_embedded_value(root, value_symbol_resolve_func, value_replacement_func, value_type_creation_func, value_traversal_func, loc);
+        const type = builder.make_string_type(loc)
+        const value = builder.make_embedded_value(root, type, value_symbol_resolve_func, value_replacement_func, value_traversal_func, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }

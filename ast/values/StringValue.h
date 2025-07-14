@@ -27,9 +27,14 @@ public:
      */
     constexpr StringValue(
         chem::string_view value,
+        StringType* strType,
         SourceLocation location
-    ) : Value(ValueKind::String, location), length(value.size()), value(value) {
+    ) : Value(ValueKind::String, strType, location), length(value.size()), value(value) {
 
+    }
+
+    inline StringType* getType() const noexcept {
+        return (StringType*) Value::getType();
     }
 
     BaseType* known_type() final {
@@ -55,7 +60,7 @@ public:
 #endif
 
     StringValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<StringValue>()) StringValue(value, encoded_location());
+        return new (allocator.allocate<StringValue>()) StringValue(value, getType(), encoded_location());
     }
 
     BaseType* create_type(ASTAllocator& allocator) final;

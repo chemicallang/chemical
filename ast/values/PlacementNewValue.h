@@ -10,7 +10,6 @@ public:
 
     Value* pointer;
     Value* value;
-    // TODO remove this
     PointerType ptr_type;
 
     /**
@@ -24,9 +23,21 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    inline constexpr PlacementNewValue(
+            Value* pointer,
+            Value* value,
+            BaseType* type,
+            SourceLocation location
+    ) : Value(ValueKind::PlacementNewValue, type, location), pointer(pointer), value(value), ptr_type(nullptr, false) {
+
+    }
+
     PlacementNewValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(
-            pointer->copy(allocator), value->copy(allocator), encoded_location()
+            pointer->copy(allocator), value->copy(allocator), getType(), encoded_location()
         );
     }
 

@@ -8,12 +8,11 @@
 
 #include <memory>
 #include "ast/base/Value.h"
+#include "ast/types/NullPtrType.h"
 
 // representation is null
 class NullValue : public Value {
 public:
-
-    BaseType* expected = nullptr;
 
     /**
      * constructor
@@ -23,12 +22,15 @@ public:
     }
 
     inline NullValue(
-        BaseType* expected,
+        NullPtrType* nullType,
         SourceLocation location
-    ) : Value(ValueKind::NullValue, location), expected(expected) {
+    ) : Value(ValueKind::NullValue, nullType, location) {
 
     }
 
+    inline NullPtrType* getType() const noexcept {
+        return (NullPtrType*) Value::getType();
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
@@ -40,7 +42,7 @@ public:
     }
 
     NullValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NullValue>()) NullValue(expected, encoded_location());
+        return new (allocator.allocate<NullValue>()) NullValue(getType(), encoded_location());
     }
 
 #ifdef COMPILER_BUILD
@@ -51,8 +53,12 @@ public:
 
 #endif
 
-    BaseType* create_type(ASTAllocator &allocator) final;
+    BaseType* create_type(ASTAllocator &allocator) final {
+        return new (allocator.allocate<NullPtrType>()) NullPtrType();
+    }
 
-    BaseType* known_type() final;
+    BaseType* known_type() final {
+        return (NullPtrType*) &NullPtrType::instance;
+    }
 
 };

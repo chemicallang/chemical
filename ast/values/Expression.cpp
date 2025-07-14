@@ -24,28 +24,28 @@ inline BaseType* canonicalize_enum(BaseType* type) {
     return type->canonicalize_enum();
 }
 
-void Expression::replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType) {
+void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         if(Value::isNumberValue(firstValue->val_kind())) {
             auto value = ((IntNumValue*)firstValue)->get_num_value();
-            firstValue = ((IntNType*) secondType)->create(allocator, value, firstValue->encoded_location());
+            firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
         } else if(Value::isNumberValue(secondValue->val_kind())){
             auto value = ((IntNumValue*)secondValue)->get_num_value();
-            secondValue = ((IntNType*) firstType)->create(allocator, value, secondValue->encoded_location());
+            secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
         }
     }
     const auto first = getEnumDecl(firstType);
     if(first) {
         const auto second = secondValue->as_number_value();
         if(second) {
-            secondValue = first->get_underlying_integer_type()->create(allocator, second->value, secondValue->encoded_location());
+            secondValue = first->get_underlying_integer_type()->create(allocator, typeBuilder, second->value, secondValue->encoded_location());
         }
     } else {
         const auto second = getEnumDecl(secondType);
         if(second) {
             const auto firstVal = firstValue->as_number_value();
             if(firstVal) {
-                firstValue = second->get_underlying_integer_type()->create(allocator, firstVal->value, firstValue->encoded_location());
+                firstValue = second->get_underlying_integer_type()->create(allocator, typeBuilder, firstVal->value, firstValue->encoded_location());
             }
         }
     }
@@ -88,15 +88,15 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
 }
 
 BaseType* Expression::known_type() {
-    return created_type;
+    return getType();
 }
 
 uint64_t Expression::byte_size(bool is64Bit) {
-    return created_type->byte_size(is64Bit);
+    return getType()->byte_size(is64Bit);
 }
 
 ASTNode* Expression::linked_node() {
-    return created_type ? created_type->linked_node() : nullptr;
+    return getType() ? getType()->linked_node() : nullptr;
 }
 
 bool Expression::primitive() {
@@ -119,7 +119,7 @@ Expression *Expression::copy(ASTAllocator& allocator) {
         secondValue->copy(allocator),
         operation,
         encoded_location(),
-        created_type
+        getType()
     );
 }
 

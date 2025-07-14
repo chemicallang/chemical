@@ -6,9 +6,11 @@
 
 class EmbeddedNode;
 
+class ASTBuilder;
+
 typedef void(EmbeddedNodeSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedNode* value);
 
-typedef ASTNode*(EmbeddedNodeReplacementFunc)(ASTAllocator* allocator, EmbeddedNode* value);
+typedef ASTNode*(EmbeddedNodeReplacementFunc)(ASTBuilder* builder, EmbeddedNode* value);
 
 typedef BaseType*(EmbeddedNodeKnownTypeFunc)(EmbeddedNode* value);
 

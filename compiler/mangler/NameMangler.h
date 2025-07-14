@@ -41,7 +41,12 @@ public:
     bool mangle(std::ostream& stream, ASTNode* node);
 
     /**
-     * this will write the parent chain for the given function
+     * this will use the specified parent and mangle it as the parent of the given function
+     */
+    void mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl, ASTNode* parent);
+
+    /**
+     * this will get the parent automatically
      */
     void mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl);
 

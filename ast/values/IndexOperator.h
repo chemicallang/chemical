@@ -26,6 +26,17 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr IndexOperator(
+            ChainValue* parent,
+            BaseType* type,
+            SourceLocation location
+    ) : ChainValue(ValueKind::IndexOperator, type, location), parent_val(parent) {
+
+    }
+
     Value* evaluated_value(InterpretScope &scope) override;
 
     ASTNode *linked_node() final;

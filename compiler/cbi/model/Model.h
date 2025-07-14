@@ -14,6 +14,8 @@ class ASTNode;
 
 class ASTAllocator;
 
+class ASTBuilder;
+
 /**
  * the function that is called to initialize lexer for the user lexer
  */
@@ -45,10 +47,10 @@ struct UserLexerGetNextToken {
  * this function is called by parser on a macro as value ex: var x = #html {}
  * the macro is a value, so a value must be returned from this function
  */
-typedef Value*(*EmbeddedParseMacroValueFn)(Parser* parser, ASTAllocator* allocator);
+typedef Value*(*EmbeddedParseMacroValueFn)(Parser* parser, ASTBuilder* builder);
 
 /**
  * this function is called by parser on a macro as node ex: #html {}
  * the macro is a node, so a node must be returned from this function
  */
-typedef ASTNode*(*EmbeddedParseMacroNodeFn)(Parser* parser, ASTAllocator* allocator);
+typedef ASTNode*(*EmbeddedParseMacroNodeFn)(Parser* parser, ASTBuilder* builder);

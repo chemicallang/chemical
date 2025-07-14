@@ -21,9 +21,14 @@ public:
      * constructor
      */
     constexpr DoubleValue(
-        double value,
-        SourceLocation location
-    ) : Value(ValueKind::Double, location), value(value) {}
+            double value,
+            DoubleType* doubleTy,
+            SourceLocation location
+    ) : Value(ValueKind::Double, doubleTy, location), value(value) {}
+
+    inline DoubleType* getType() noexcept {
+        return (DoubleType*) Value::getType();
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 8;
@@ -46,7 +51,7 @@ public:
     }
 
     DoubleValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, encoded_location());
+        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, getType(), encoded_location());
     }
 
 };

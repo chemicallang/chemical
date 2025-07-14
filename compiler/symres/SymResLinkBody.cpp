@@ -1578,11 +1578,11 @@ void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
 }
 
 void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
-    visit(value->value, expected_type);
+    visit(value->getValue(), expected_type);
 }
 
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
-    visit(value->value, expected_type);
+    visit(value->getValue(), expected_type);
 }
 
 void SymResLinkBody::VisitVariantCase(VariantCase* value) {
@@ -1778,7 +1778,7 @@ void SymResLinkBody::VisitBlockValue(BlockValue* bValue) {
         return;
     }
     const auto lastValNode = lastNode->as_value_wrapper_unsafe();
-    bValue->calculated_value = lastValNode->value;
+    bValue->setCalculatedValue(lastValNode->value);
     return;
 }
 
@@ -1793,7 +1793,7 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(linker.safe_context) {
         linker.warn("dereferencing a pointer in safe context is prohibited", value);
     }
-    visit(value->value);
+    visit(value->getValue());
 }
 
 void SymResLinkBody::VisitExpression(Expression* value) {
@@ -1806,7 +1806,7 @@ void SymResLinkBody::VisitExpression(Expression* value) {
     // TODO: remove this check
     if(!linker.linking_signature) {
         // TODO this created_type should always be created, however this creates an error
-        value->created_type = value->create_type(*linker.ast_allocator);
+        value->setType(value->create_type(*linker.ast_allocator));
     }
 }
 
@@ -2000,13 +2000,13 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 }
 
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
-    visit(negValue->value);
+    visit(negValue->getValue());
 }
 
 void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
     const auto prev = linker.safe_context;
     linker.safe_context = false;
-    visit(value->value, expected_type);
+    visit(value->getValue(), expected_type);
     linker.safe_context = prev;
 }
 
@@ -2028,16 +2028,18 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 }
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {
-    visit(value->value);
+    visit(value->getValue());
 }
 
 void SymResLinkBody::VisitNullValue(NullValue* value) {
-    if(expected_type) {
-        const auto kind = expected_type->kind();
-        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
-            value->expected = expected_type->copy(*linker.ast_allocator);
-        }
-    }
+    // TODO: check if we need to do this, I don't think so
+    // because null pointer type handles it
+//    if(expected_type) {
+//        const auto kind = expected_type->kind();
+//        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
+//            value->expected = expected_type->copy(*linker.ast_allocator);
+//        }
+//    }
 }
 
 void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {

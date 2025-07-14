@@ -58,7 +58,7 @@ LocatedIdentifier ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier
 }
 
 VarInitStatement* default_build_lab_build_flag(ASTAllocator& allocator, TypeBuilder& builder, ASTNode* parent) {
-    const auto buildFlagValue = new (allocator.allocate<BoolValue>()) BoolValue(true, ZERO_LOC);
+    const auto buildFlagValue = new (allocator.allocate<BoolValue>()) BoolValue(true, builder.getBoolType(), ZERO_LOC);
     const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_should_build")), {builder.getBoolType(), ZERO_LOC}, buildFlagValue, parent, ZERO_LOC);
     return stmt;
 }
@@ -93,30 +93,30 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
 
     // lets do function body
     decl->body.emplace(decl, ZERO_LOC);
-    const auto ctxId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("ctx"), ZERO_LOC, false);
-    const auto defGetId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("default_get"), ZERO_LOC, false);
+    const auto ctxId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("ctx"), ptrBuildCtx, ZERO_LOC, false);
+    const auto defGetId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("default_get"), nullptr, ZERO_LOC, false);
     const auto callParentChain = new (allocator.allocate<AccessChain>()) AccessChain({ ctxId, defGetId }, false, ZERO_LOC);
     const auto funcCall = new (allocator.allocate<FunctionCall>()) FunctionCall(callParentChain, ZERO_LOC);
 
     // build flag id argument
-    const auto buildFlagId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(buildFlagName, ZERO_LOC, false);
-    const auto buildFlagIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFlagId }, false, ZERO_LOC);
+    const auto buildFlagId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(buildFlagName, nullptr, ZERO_LOC, false);
+    const auto buildFlagIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFlagId }, false, nullptr, ZERO_LOC);
     const auto buildFlagPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(buildFlagIdWrap, ZERO_LOC);
 
     // cached ptr id argument
-    const auto cachedPtrId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(cachedPtrName, ZERO_LOC, false);
-    const auto cachedPtrIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ cachedPtrId }, false, ZERO_LOC);
+    const auto cachedPtrId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(cachedPtrName, nullptr, ZERO_LOC, false);
+    const auto cachedPtrIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ cachedPtrId }, false, nullptr, ZERO_LOC);
     const auto cachedPtrPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(cachedPtrIdWrap, ZERO_LOC);
 
     // lets do default get function call arguments
-    const auto buildFuncId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), ZERO_LOC, false);
-    const auto buildFuncIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFuncId }, false, ZERO_LOC);
+    const auto buildFuncId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), nullptr, ZERO_LOC, false);
+    const auto buildFuncIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFuncId }, false, nullptr, ZERO_LOC);
 
     // putting arguments
     funcCall->values = { buildFlagPtr, cachedPtrPtr, buildFuncIdWrap };
 
     // just wrapping the function call in a chain before return
-    const auto funcCallWrap = new (allocator.allocate<AccessChain>()) AccessChain({ funcCall }, false, ZERO_LOC);
+    const auto funcCallWrap = new (allocator.allocate<AccessChain>()) AccessChain({ funcCall }, false, nullptr, ZERO_LOC);
     const auto retStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(funcCallWrap, decl, ZERO_LOC);
     decl->body.value().nodes.emplace_back(retStmt);
 

@@ -21,10 +21,15 @@ public:
      * constructor
      */
     constexpr CharValue(
-        char value,
-        SourceLocation location
-    ) : IntNumValue(ValueKind::Char, location), value(value) {
+            char value,
+            CharType* charType,
+            SourceLocation location
+    ) : IntNumValue(ValueKind::Char, charType, location), value(value) {
 
+    }
+
+    CharType* getType() {
+        return (CharType*) IntNumValue::getType();
     }
 
     unsigned int get_num_bits(bool is64Bit) final {
@@ -54,7 +59,7 @@ public:
     }
 
     CharValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharValue>()) CharValue(value, encoded_location());
+        return new (allocator.allocate<CharValue>()) CharValue(value, getType(), encoded_location());
     }
 
 #ifdef COMPILER_BUILD

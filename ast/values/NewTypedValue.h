@@ -13,8 +13,10 @@
 class NewTypedValue : public Value {
 public:
 
+    // TODO remove this, we can store the user given type inside pointer type
+    // write inline function to retrieve the type from pointer type
+    // currently pointer type doesn't contain have location of a child type
     TypeLoc type;
-    // TODO remove this
     PointerType ptr_type;
 
     /**
@@ -23,7 +25,7 @@ public:
     inline constexpr NewTypedValue(
         TypeLoc type,
         SourceLocation location
-    ) : Value(ValueKind::NewTypedValue, location), type(type), ptr_type(nullptr, false) {
+    ) : Value(ValueKind::NewTypedValue, &ptr_type, location), type(type), ptr_type(type, false) {
 
     }
 

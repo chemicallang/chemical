@@ -41,6 +41,17 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr VariableIdentifier(
+            chem::string_view value,
+            BaseType* type,
+            SourceLocation location,
+            bool is_ns = false
+    ) : ChainValue(ValueKind::Identifier, type, location), value(value), is_ns(is_ns) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) final;
 

@@ -24,6 +24,13 @@ public:
     }
 
     /**
+     * constructor
+     */
+    inline constexpr ChainValue(ValueKind k, BaseType* type, SourceLocation loc) noexcept : Value(k, type, loc) {
+
+    }
+
+    /**
      * will check contents, are they of the same kind
      * this method means are both chain values functionally equal
      * they don't mean to check if they have same names, but if both were exchanged

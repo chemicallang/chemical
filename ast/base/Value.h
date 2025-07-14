@@ -14,6 +14,8 @@
 
 class SymbolResolver;
 
+class TypeBuilder;
+
 #ifdef COMPILER_BUILD
 class Codegen;
 #include "compiler/llvmfwd.h"
@@ -78,7 +80,7 @@ public:
             ValueKind k,
             BaseType* type,
             SourceLocation loc
-    ) noexcept : _kind(k), _type(nullptr), _location(loc) {
+    ) noexcept : _kind(k), _type(type), _location(loc) {
 
     };
 
@@ -107,6 +109,14 @@ public:
     }
 
     /**
+     * you must be sure that type is retained for lifetime of this value
+     * this changes the type of the value
+     */
+    inline void setType(BaseType* type) noexcept {
+        _type = type;
+    }
+
+    /**
      * get the kind of this value
      */
     inline ValueKind kind() const noexcept {
@@ -127,6 +137,9 @@ public:
         return _location;
     }
 
+    /**
+     * change the encoded location of this value
+     */
     inline void set_encoded_location(SourceLocation loc) noexcept {
         _location = loc;
     }

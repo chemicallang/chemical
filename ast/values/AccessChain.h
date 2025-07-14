@@ -45,10 +45,33 @@ public:
      * constructor
      */
     constexpr AccessChain(
+            bool is_node,
+            BaseType* chain_type,
+            SourceLocation location
+    ) : ChainValue(ValueKind::AccessChain, chain_type, location), attrs(is_node, false) {
+
+    }
+
+    /**
+     * constructor
+     */
+    constexpr AccessChain(
         std::vector<ChainValue*> values,
         bool is_node,
         SourceLocation location
     ) : ChainValue(ValueKind::AccessChain, location), values(std::move(values)), attrs(is_node, false) {
+
+    }
+
+    /**
+     * constructor
+     */
+    constexpr AccessChain(
+            std::vector<ChainValue*> values,
+            bool is_node,
+            BaseType* chain_type,
+            SourceLocation location
+    ) : ChainValue(ValueKind::AccessChain, chain_type, location), values(std::move(values)), attrs(is_node, false) {
 
     }
 

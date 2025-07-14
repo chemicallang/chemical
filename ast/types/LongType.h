@@ -33,7 +33,7 @@ public:
         return is64Bit ? 8 : 4;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
+    Value *create(ASTAllocator& allocator, TypeBuilder& typeBuilder, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     LongType *copy(ASTAllocator& allocator) const final {

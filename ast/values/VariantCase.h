@@ -23,10 +23,23 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr VariantCase(
+            VariantMember* member,
+            SwitchStatement* statement,
+            BaseType* type,
+            SourceLocation location
+    ) : Value(ValueKind::VariantCase, type, location), member(member), switch_statement(statement) {
+
+    }
+
     Value* copy(ASTAllocator &allocator) override {
         const auto varCase = new (allocator.allocate<VariantCase>()) VariantCase(
             member,
             switch_statement,
+            getType(),
             encoded_location()
         );
         varCase->identifier_list = identifier_list;

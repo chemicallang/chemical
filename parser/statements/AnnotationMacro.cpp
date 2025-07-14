@@ -13,6 +13,7 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/UsingStmt.h"
+#include "compiler/cbi/model/ASTBuilder.h"
 
 bool make_node_no_mangle(ASTNode* node) {
     switch(node->kind()) {
@@ -301,7 +302,8 @@ Value* Parser::parseMacroValue(ASTAllocator& allocator) {
         auto found = binder->findHook(view, CBIFunctionType::ParseMacroValue);
         if(found) {
             token++;
-            const auto parsedValue = (EmbeddedParseMacroValueFn (found))(this, &allocator);
+            ASTBuilder builder(&allocator, typeBuilder);
+            const auto parsedValue = (EmbeddedParseMacroValueFn (found))(this, &builder);
 #ifdef LSP_BUILD
             t.linked = parsedValue;
 #endif
@@ -320,7 +322,8 @@ ASTNode* Parser::parseMacroNode(ASTAllocator& allocator, CBIFunctionType type) {
         auto found = binder->findHook(view, type);
         if(found) {
             token++;
-            const auto parsedNode = (EmbeddedParseMacroNodeFn (found))(this, &allocator);
+            ASTBuilder builder(&allocator, typeBuilder);
+            const auto parsedNode = (EmbeddedParseMacroNodeFn (found))(this, &builder);
 #ifdef LSP_BUILD
             t.linked = parsedNode;
 #endif

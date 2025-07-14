@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/VariableIdentifier.h"
@@ -31,12 +32,12 @@ Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStru
         case TokenType::TrueKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<BoolValue>()) BoolValue(true, loc_single(t));
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), loc_single(t));
         }
         case TokenType::FalseKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), loc_single(t));
         }
         default:
             return parseAccessChain(allocator, parseStruct);
@@ -143,12 +144,12 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
         case TokenType::TrueKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<BoolValue>()) BoolValue(true, loc_single(t));
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), loc_single(t));
         }
         case TokenType::FalseKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), loc_single(t));
         }
         case TokenType::UnsafeKw: {
             token++;

@@ -9,6 +9,13 @@
  * TODO: not yet ready
  */
 class UnsafeValue : public Value {
+private:
+
+    /**
+     * the actual value
+     */
+    Value* value;
+
 public:
 
     /**
@@ -17,18 +24,28 @@ public:
     ASTAllocator* allocator;
 
     /**
-     * the actual value
-     */
-    Value* value;
-
-    /**
      * constructor
      */
     inline constexpr UnsafeValue(
         ASTAllocator* allocator,
         Value* value
-    ) : Value(ValueKind::UnsafeValue, value->encoded_location()), allocator(allocator), value(value) {
+    ) : Value(ValueKind::UnsafeValue, value->getType(), value->encoded_location()), allocator(allocator), value(value) {
 
+    }
+
+    inline Value* getValue() {
+        return value;
+    }
+
+    void setValue(Value* newValue) {
+        value = newValue;
+        setType(newValue->getType());
+    }
+
+    Value* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<UnsafeValue>()) UnsafeValue(
+            &allocator, value->copy(allocator)
+        );
     }
 
 };

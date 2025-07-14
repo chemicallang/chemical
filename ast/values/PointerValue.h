@@ -13,8 +13,6 @@ public:
 
     // the underlying pointer to data
     void* data;
-    // the type of data
-    BaseType* type;
     // the amount (bytes) pointer can go behind
     size_t behind;
     // the amount (bytes) pointer can go ahead according to the type
@@ -29,7 +27,7 @@ public:
         size_t behind,
         size_t ahead,
         SourceLocation location
-    ) : Value(ValueKind::PointerValue, location), data(data), type(type), behind(behind), ahead(ahead) {
+    ) : Value(ValueKind::PointerValue, type, location), data(data), behind(behind), ahead(ahead) {
 
     }
 
@@ -42,14 +40,14 @@ public:
         InterpretScope& scope,
         StringValue* value,
         BaseType* type
-    ) : Value(ValueKind::PointerValue, value->encoded_location()), type(type), data((void*) value->value.data()), behind(0) {
+    ) : Value(ValueKind::PointerValue, type, value->encoded_location()), data((void*) value->value.data()), behind(0) {
         // total bytes ahead = total characters, since 1 char = 1 byte
         ahead = value->value.size();
     }
 
     PointerValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<PointerValue>()) PointerValue(
-            data, type, behind, ahead, encoded_location()
+            data, getType(), behind, ahead, encoded_location()
         );
     }
 

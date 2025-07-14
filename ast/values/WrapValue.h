@@ -18,7 +18,7 @@
 class WrapValue : public Value {
 public:
     Value* underlying;
-    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue, ZERO_LOC), underlying(underlying) {
+    explicit WrapValue(Value* underlying) : Value(ValueKind::WrapValue, underlying->getType(), ZERO_LOC), underlying(underlying) {
 
     }
     Value *copy(ASTAllocator& allocator) final {

@@ -168,7 +168,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
     } else if(lhs->as_deref_value()) {
         if(!definition->destructor_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
-            const auto deref_type = deref->value->create_type(gen.allocator);
+            const auto deref_type = deref->getValue()->create_type(gen.allocator);
             if (deref_type->pure_type(gen.allocator)->is_pointer()) {
                 auto allocated = deref->llvm_pointer(gen);
                 initialize_alloca(allocated, gen, nullptr);
@@ -495,6 +495,7 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
             refType.copy(scope.allocator),
             definition,
             container,
+            getType(),
             encoded_location()
     );
     declare_default_values(struct_value->values, scope);
@@ -526,6 +527,7 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
         refType.copy(allocator),
         definition,
         container,
+        getType(),
         encoded_location()
     );
     struct_value->values.reserve(values.size());

@@ -2,6 +2,7 @@
 
 #include "ParserCBI.h"
 #include "parser/Parser.h"
+#include "compiler/cbi/model/ASTBuilder.h"
 
 Token** ParsergetTokenPtr(Parser* parser) {
     return &parser->token;
@@ -27,8 +28,8 @@ void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser) {
     *view = chem::string_view(parser->stored_file_path.data(), parser->stored_file_path.size());
 }
 
-Value* ParserparseExpression(Parser* parser, ASTAllocator* allocator, bool parseStruct, bool parseLambda) {
-    return parser->parseExpression(*allocator, parseStruct, parseLambda);
+Value* ParserparseExpression(Parser* parser, ASTBuilder* builder, bool parseStruct, bool parseLambda) {
+    return parser->parseExpression(*builder->allocator, parseStruct, parseLambda);
 }
 
 void Parsererror_at(Parser* parser, chem::string_view* view, Token* token) {

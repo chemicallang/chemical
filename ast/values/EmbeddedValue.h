@@ -3,14 +3,15 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 
 class EmbeddedValue;
 
+class ASTBuilder;
+
 typedef bool(EmbeddedValueSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedValue* value);
 
-typedef Value*(EmbeddedValueReplacementFunc)(ASTAllocator* allocator, EmbeddedValue* value);
-
-typedef BaseType*(EmbeddedValueTypeCreationFunc)(ASTAllocator *allocator, EmbeddedValue* value);
+typedef Value*(EmbeddedValueReplacementFunc)(ASTBuilder* builder, EmbeddedValue* value);
 
 typedef void(EmbeddedValueTraversalFunc)(EmbeddedValue* value, void* data, bool(*traverse)(void* data, ASTAny* item));
 
@@ -33,11 +34,6 @@ public:
     EmbeddedValueReplacementFunc* replacement_fn;
 
     /**
-     * type creation function is used to create a type for this value
-     */
-    EmbeddedValueTypeCreationFunc* type_creation_fn;
-
-    /**
      * traversal function allows us to traverse this embedded value
      */
     EmbeddedValueTraversalFunc* traversal_fn;
@@ -47,13 +43,13 @@ public:
      */
     EmbeddedValue(
         void* data_ptr,
+        BaseType* type,
         EmbeddedValueSymbolResolveFunc* sym_res_fn,
         EmbeddedValueReplacementFunc* replacement_fn,
-        EmbeddedValueTypeCreationFunc* type_creation_fn,
         EmbeddedValueTraversalFunc* traversal_fn,
         SourceLocation loc
-    ) : Value(ValueKind::EmbeddedValue, loc), data_ptr(data_ptr), sym_res_fn(sym_res_fn), replacement_fn(replacement_fn),
-        type_creation_fn(type_creation_fn), traversal_fn(traversal_fn)
+    ) : Value(ValueKind::EmbeddedValue, type, loc), data_ptr(data_ptr), sym_res_fn(sym_res_fn),
+        replacement_fn(replacement_fn), traversal_fn(traversal_fn)
     {
 
     }
@@ -64,9 +60,9 @@ public:
     Value* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<EmbeddedValue>()) EmbeddedValue(
                data_ptr,
+               getType()->copy(allocator),
                sym_res_fn,
                replacement_fn,
-               type_creation_fn,
                traversal_fn,
                encoded_location()
         );
@@ -76,7 +72,7 @@ public:
      * create the type
      */
     BaseType* create_type(ASTAllocator &allocator) override {
-        return type_creation_fn(&allocator, this);
+        return getType()->copy(allocator);
     }
 
 #ifdef COMPILER_BUILD

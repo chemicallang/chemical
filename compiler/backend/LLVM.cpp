@@ -7,6 +7,7 @@
 #include <llvm/TargetParser/Triple.h>
 #include "ast/base/ASTNode.h"
 #include "ast/types/AnyType.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/GenericType.h"
@@ -87,6 +88,7 @@
 #include "compiler/lab/TargetData.h"
 #include "ast/values/NewValue.h"
 #include "ast/types/NullPtrType.h"
+#include "compiler/cbi/model/ASTBuilder.h"
 
 // -------------------- Types
 
@@ -539,7 +541,7 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     // TODO there's probably a better way of doing this
     auto prev_firstValue = firstValue;
     auto prev_secondValue = secondValue;
-    replace_number_values(gen.allocator, first_pure, second_pure);
+    replace_number_values(gen.allocator, gen.comptime_scope.typeBuilder, first_pure, second_pure);
     // shrink_literal_values(gen.allocator, first_pure, second_pure);
     // promote_literal_values(gen.allocator, first_pure, second_pure);
     firstType = firstValue->create_type(gen.allocator);
@@ -589,7 +591,7 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     auto type = value->create_type(gen.allocator)->pure_type(gen.allocator);
-    const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, encoded_location());
+    const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, gen.comptime_scope.typeBuilder.getShortType(), encoded_location());
     auto value_pointer = value->llvm_pointer(gen);
     // TODO loading the value after pointer, value is not being loaded using the pointer we have
     auto value_loaded = value->llvm_value(gen);
@@ -880,7 +882,8 @@ llvm::Type* EmbeddedNode::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
-    const auto repl = replacement_fn(&gen.allocator, this);
+    ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
+    const auto repl = replacement_fn(&builder, this);
     if(repl) {
         return repl->llvm_pointer(gen);
     } else {
@@ -894,7 +897,8 @@ llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
-    const auto repl = replacement_fn(&gen.allocator, this);
+    ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
+    const auto repl = replacement_fn(&builder, this);
     if(repl) {
         return repl->llvm_pointer(gen);
     } else {
@@ -903,7 +907,8 @@ llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* EmbeddedValue::llvm_value(Codegen &gen, BaseType *type) {
-    const auto repl = replacement_fn(&gen.allocator, this);
+    ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
+    const auto repl = replacement_fn(&builder, this);
     if(repl) {
         return repl->llvm_value(gen);
     } else {
@@ -1796,7 +1801,7 @@ llvm::Value *EnumMember::llvm_load(Codegen& gen, SourceLocation location) {
     if(init_value) {
         return init_value->llvm_value(gen, nullptr);
     } else {
-        return parent()->get_underlying_integer_type()->create(gen.allocator, get_default_index(), location)->llvm_value(gen);
+        return parent()->get_underlying_integer_type()->create(gen.allocator, gen.comptime_scope.typeBuilder, get_default_index(), location)->llvm_value(gen);
     }
 }
 

@@ -44,8 +44,9 @@ public:
         TypeLoc refType,
         ExtendableMembersContainerNode *definition,
         VariablesContainer* container,
+        BaseType* type,
         SourceLocation location
-    ) : Value(ValueKind::StructValue, location), refType(refType), definition(definition), container(container)
+    ) : Value(ValueKind::StructValue, type, location), refType(refType), definition(definition), container(container)
     {
 
     }

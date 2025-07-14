@@ -33,7 +33,7 @@ public:
         return 8;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
+    Value *create(ASTAllocator& allocator, TypeBuilder& typeBuilder, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     UBigIntType *copy(ASTAllocator& allocator) const final {

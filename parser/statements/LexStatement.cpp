@@ -12,6 +12,7 @@
 #include "ast/values/CastedValue.h"
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/AliasStmt.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 
@@ -272,12 +273,12 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
         case TokenType::TrueKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<BoolValue>()) BoolValue(true, loc_single(t));
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), loc_single(t));
         }
         case TokenType::FalseKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<BoolValue>()) BoolValue(false, loc_single(t));
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), loc_single(t));
         }
         case TokenType::UnsafeKw: {
             token++;
@@ -400,12 +401,13 @@ bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data)
     data.sources_list.emplace_back();
     auto& source = data.sources_list.back();
 
-    auto sourcePath = parseStringValue(allocator);
-    if(sourcePath == nullptr) {
+    // get the source path
+    auto sourcePath = parseString(allocator);
+    if(sourcePath.has_value()) {
+        source.path = sourcePath.value();
+    } else {
         error("expected a source path");
         return false;
-    } else {
-        source.path = allocate_view(allocator, sourcePath->get_the_string());
     }
 
     if(consumeToken(TokenType::IfKw)) {

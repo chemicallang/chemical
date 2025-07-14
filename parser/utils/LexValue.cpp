@@ -133,14 +133,32 @@ Value* Parser::parseCharValue(ASTAllocator& allocator) {
         }
         return new (allocator.allocate<CharValue>()) CharValue(*escaped.data(), loc_single(t));
 #else
-        return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data()), loc_single(t));
+        return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data()), typeBuilder.getCharType(), loc_single(t));
 #endif
     } else {
         return nullptr;
     }
 }
 
-Value* BasicParser::parseStringValue(ASTAllocator& allocator) {
+std::optional<chem::string_view> BasicParser::parseString(ASTAllocator& allocator) {
+    auto& t = *token;
+    switch(t.type) {
+        case TokenType::String:
+            token++;
+#ifdef LSP_BUILD
+            return escaped_view(allocator, *this, t.value);
+#else
+            return allocate_view(allocator, t.value);
+#endif
+        case TokenType::MultilineString:
+            token++;
+            return allocate_view(allocator, t.value);
+        default:
+            return std::nullopt;
+    }
+}
+
+Value* Parser::parseStringValue(ASTAllocator& allocator) {
     auto& t = *token;
     switch(t.type) {
         case TokenType::String:
@@ -148,11 +166,11 @@ Value* BasicParser::parseStringValue(ASTAllocator& allocator) {
 #ifdef LSP_BUILD
             return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), loc_single(t));
 #else
-            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), loc_single(t));
+            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
 #endif
         case TokenType::MultilineString:
             token++;
-            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), loc_single(t));
+            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
         default:
             return nullptr;
     }
@@ -164,7 +182,7 @@ Value* Parser::parseNumberValue(ASTAllocator& allocator) {
         // every change we make to the token's value, we revert that change back
         // to keep the token value legitimate
         auto& value = token->value;
-        const auto result = convert_number_to_value(allocator, const_cast<char*>(value.data()), value.size(), is64Bit, loc_single(token));
+        const auto result = convert_number_to_value(allocator, typeBuilder, const_cast<char*>(value.data()), value.size(), is64Bit, loc_single(token));
         if(!result.error.empty()) {
             error(chem::string_view(result.error), token->position);
         }
@@ -208,7 +226,7 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
         unexpected_error("expected a ']' for an array");
         return arrayValue;
     }
-    arrayValue->created_type = new (allocator.allocate<ArrayType>()) ArrayType(nullptr, arrayValue->array_size());
+    arrayValue->getType()->set_array_size(arrayValue->array_size());
     return arrayValue;
 }
 
@@ -309,7 +327,7 @@ Value* Parser::parsePostIncDec(ASTAllocator& allocator, Value* value, Token* sta
 Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, Token* start_token, bool is_negating) {
     parser.token++;
     auto type = parser.parseTypeLoc(allocator);
-    auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, is_negating, parser.loc_single(start_token));
+    auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, is_negating, parser.typeBuilder.getBoolType(), parser.loc_single(start_token));
     if (!type) {
         isValue->type = { (BaseType*) parser.typeBuilder.getVoidType(), ZERO_LOC };
         parser.unexpected_error("expected a type after 'is' in expression");
@@ -463,7 +481,7 @@ Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
     auto type = parseTypeLoc(allocator);
     if(type) {
         auto last = token;
-        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, loc(tok, last));
+        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, typeBuilder.getUBigIntType(), loc(tok, last));
         const auto last_type = last->type;
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
@@ -489,7 +507,7 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
     auto type = parseTypeLoc(allocator);
     if(type) {
         auto last = token;
-        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, loc(tok, last));
+        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, typeBuilder.getUBigIntType(), loc(tok, last));
         const auto last_type = last->type;
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
@@ -566,19 +584,19 @@ ValueNode* Parser::parseValueNode(ASTAllocator& allocator) {
 
 const auto unk_bit_width_err = "unknown bit width given for a number";
 
-Value* allocate_number_value(ASTAllocator& alloc, unsigned long long value, SourceLocation location) {
+Value* allocate_number_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, unsigned long long value, SourceLocation location) {
     if(value > INT_MAX) {
         if(value > LONG_MAX) {
-            return new(alloc.allocate<BigIntValue>()) BigIntValue((long long) value, location);
+            return new(alloc.allocate<BigIntValue>()) BigIntValue((long long) value, typeBuilder.getBigIntType(), location);
         } else {
-            return new(alloc.allocate<LongValue>()) LongValue((long) value, location);
+            return new(alloc.allocate<LongValue>()) LongValue((long) value, typeBuilder.getLongType(), location);
         }
     } else {
-        return new (alloc.allocate<IntValue>()) IntValue((int) value, location);
+        return new (alloc.allocate<IntValue>()) IntValue((int) value, typeBuilder.getIntType(), location);
     }
 }
 
-parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location) {
+parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location) {
 
     // considers bitwidths
     // i8, i16, i32, i64, i128
@@ -673,36 +691,36 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
             case 8:
                 if(is_unsigned) {
                     const auto num_value = parse_num(value, suffix_index, strtoul);
-                    return { new (alloc.allocate<UCharValue>()) UCharValue((char) num_value.result, location), num_value.error };
+                    return { new (alloc.allocate<UCharValue>()) UCharValue((char) num_value.result, typeBuilder.getUCharType(), location), num_value.error };
                 } else {
                     const auto num_value = parse_num(value, suffix_index, strtol);
-                    return { new (alloc.allocate<CharValue>()) CharValue((char) num_value.result, location), num_value.error };
+                    return { new (alloc.allocate<CharValue>()) CharValue((char) num_value.result, typeBuilder.getCharType(), location), num_value.error };
                 }
             case 16:
                 if(is_unsigned) {
                     const auto num_val = parse_num(value, suffix_index, strtoul);
-                    return { new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) num_val.result, location), num_val.error };
+                    return { new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) num_val.result, typeBuilder.getUShortType(), location), num_val.error };
                 } else {
                     const auto num_value = parse_num(value, suffix_index, strtol);
-                    return { new (alloc.allocate<ShortValue>()) ShortValue((short) num_value.result, location), num_value.error };
+                    return { new (alloc.allocate<ShortValue>()) ShortValue((short) num_value.result, typeBuilder.getShortType(), location), num_value.error };
                 }
                 break;
             case 32:
                 if(is_unsigned) {
                     const auto num_val = parse_num(value, suffix_index, strtoul);
-                    return { new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, location), num_val.error };
+                    return { new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, typeBuilder.getUIntType(), location), num_val.error };
                 } else {
                     const auto num_val = parse_num(value, suffix_index, strtol);
-                    return { new (alloc.allocate<IntValue>()) IntValue((int) num_val.result, location), num_val.error };
+                    return { new (alloc.allocate<IntValue>()) IntValue((int) num_val.result, typeBuilder.getIntType(), location), num_val.error };
                 }
                 break;
             case 64:
                 if(is_unsigned) {
                     const auto num_val = parse_num(value, suffix_index, strtoull);
-                    return { new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) num_val.result, location), num_val.error };
+                    return { new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) num_val.result, typeBuilder.getUBigIntType(), location), num_val.error };
                 } else {
                     const auto num_val = parse_num(value, suffix_index, strtoll);
-                    return { new (alloc.allocate<BigIntValue>()) BigIntValue((long long) num_val.result, location), num_val.error };
+                    return { new (alloc.allocate<BigIntValue>()) BigIntValue((long long) num_val.result, typeBuilder.getBigIntType(), location), num_val.error };
                 }
                 break;
             case 128:
@@ -713,7 +731,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                     const auto is_negative = value[0] == '-';
                     const auto begin_index = is_negative ? 1 : 0;
                     const auto num_val = parse_num(value + begin_index, suffix_index, strtoull);
-                    return { new (alloc.allocate<Int128Value>()) Int128Value(num_val.result, is_negative, location), num_val.error };
+                    return { new (alloc.allocate<Int128Value>()) Int128Value(num_val.result, is_negative, typeBuilder.getInt128Type(), location), num_val.error };
                 }
                 break;
             default:
@@ -734,7 +752,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                 mut_value[last_char_index] = '\0';
                 const auto num_value = parse_num(value, last_char_index, strtof);
                 mut_value[last_char_index] = last_char;
-                return {new(alloc.allocate<FloatValue>()) FloatValue(num_value.result, location), err.empty() ? num_value.error : err};
+                return {new(alloc.allocate<FloatValue>()) FloatValue(num_value.result, typeBuilder.getFloatType(), location), err.empty() ? num_value.error : err};
             }
         }
         case 'U':
@@ -742,14 +760,14 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
             mut_value[last_char_index] = '\0';
             const auto num_val = parse_num(value, suffix_index, strtoul);
             mut_value[last_char_index] = last_char;
-            return {new(alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, location), num_val.error};
+            return {new(alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, typeBuilder.getUIntType(), location), num_val.error};
         }
         case 'i':
         case 'I': {
             mut_value[last_char_index] = '\0';
             const auto num_val = parse_num(value, suffix_index, strtol);
             mut_value[last_char_index] = last_char;
-            return {new(alloc.allocate<IntValue>()) IntValue((int) num_val.result, location), num_val.error};
+            return {new(alloc.allocate<IntValue>()) IntValue((int) num_val.result, typeBuilder.getIntType(), location), num_val.error};
         }
         case 'l':
         case 'L': {
@@ -760,23 +778,23 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_
                     mut_value[sec_last_index] = '\0';
                     const auto num_value = parse_num(value, last_char_index, strtoul);
                     mut_value[sec_last_index] = sec_last;
-                    return { new (alloc.allocate<ULongValue>()) ULongValue(num_value.result, location), err.empty() ? num_value.error : err };
+                    return { new (alloc.allocate<ULongValue>()) ULongValue(num_value.result, typeBuilder.getULongType(), location), err.empty() ? num_value.error : err };
                 }
             }
             mut_value[last_char_index] = '\0';
             const auto num_value = parse_num(value, last_char_index, strtol);
             mut_value[last_char_index] = last_char;
-            return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, location), err.empty() ? num_value.error : err };
+            return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, typeBuilder.getLongType(), location), err.empty() ? num_value.error : err };
         }
         default:
         final_block: {
             if (std::string_view(value, value_size).find('.') != std::string_view::npos) {
                 // TODO we should judge by the length of the string to give better value (support float128 on large doubles)
                 const auto num_value = parse_num(value, value_size, strtod);
-                return { new(alloc.allocate<DoubleValue>()) DoubleValue(num_value.result, location), err.empty() ? num_value.error : err };
+                return { new(alloc.allocate<DoubleValue>()) DoubleValue(num_value.result, typeBuilder.getDoubleType(), location), err.empty() ? num_value.error : err };
             } else {
                 const auto num_value = parse_num(value, value_size, strtoull);
-                return { allocate_number_value(alloc, num_value.result, location), err.empty() ? num_value.error : err };
+                return { allocate_number_value(alloc, typeBuilder, num_value.result, location), err.empty() ? num_value.error : err };
             }
         }
     }

@@ -11,9 +11,11 @@
 #include "ast/types/PointerType.h"
 
 class DereferenceValue : public Value {
-public:
+private:
 
     Value* value;
+
+public:
 
     /**
      * constructor
@@ -25,6 +27,20 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr DereferenceValue(
+            Value* value,
+            BaseType* type,
+            SourceLocation location
+    ) : Value(ValueKind::DereferenceValue, type, location), value(value) {
+
+    }
+
+    Value* getValue() noexcept {
+        return value;
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return value->byte_size(is64Bit);

@@ -5,9 +5,12 @@
 #include "ast/base/Value.h"
 
 class IncDecValue : public Value {
-public:
+private:
 
     Value* value;
+
+public:
+
     bool increment;
     bool post;
 
@@ -19,8 +22,17 @@ public:
         bool increment,
         bool post,
         SourceLocation location
-    ) : Value(ValueKind::IncDecValue, location), value(value), increment(increment), post(post) {
+    ) : Value(ValueKind::IncDecValue, value->getType(), location), value(value), increment(increment), post(post) {
 
+    }
+
+    inline Value* getValue() const noexcept {
+        return value;
+    }
+
+    inline void setValue(Value* newValue) noexcept {
+        value = newValue;
+        setType(newValue->getType());
     }
 
     BaseType* create_type(ASTAllocator &allocator) override;

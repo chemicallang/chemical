@@ -15,9 +15,14 @@ public:
      */
     constexpr LongValue(
         long value,
+        LongType* longType,
         SourceLocation location
-    ) : IntNumValue(ValueKind::Long, location), value(value) {
+    ) : IntNumValue(ValueKind::Long, longType, location), value(value) {
 
+    }
+
+    LongType* getType() const noexcept {
+        return (LongType*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -29,7 +34,7 @@ public:
     }
 
     LongValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<LongValue>()) LongValue(value, encoded_location());
+        return new (allocator.allocate<LongValue>()) LongValue(value, getType(), encoded_location());
     }
 
     [[nodiscard]]

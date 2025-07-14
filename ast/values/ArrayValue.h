@@ -16,8 +16,8 @@ class ArrayValue : public Value {
 public:
 
     std::vector<Value*> values;
+    // TODO: remove sizes from here
     std::vector<unsigned int> sizes;
-    ArrayType* created_type;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -27,12 +27,35 @@ public:
     /**
      * constructor
      */
-    constexpr ArrayValue(
+    ArrayValue(
             TypeLoc elem_type,
             SourceLocation location,
             ASTAllocator& allocator
-    ) : Value(ValueKind::ArrayValue, location) {
-        created_type = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, array_size());
+    ) : Value(
+            ValueKind::ArrayValue,
+            new (allocator.allocate<ArrayType>()) ArrayType(elem_type, static_cast<uint64_t>(0)),
+            location
+    ) {
+    }
+
+    /**
+     * constructor
+     */
+    ArrayValue(
+            SourceLocation location,
+            ArrayType* type
+    ) : Value(
+            ValueKind::ArrayValue,
+            type,
+            location
+    ) {
+    }
+
+    /**
+     * get the type of this array value
+     */
+    inline ArrayType* getType() const noexcept {
+        return (ArrayType*) Value::getType();
     }
 
     TypeLoc& known_elem_type() const;
@@ -60,7 +83,7 @@ public:
         } else {
             sizes[0] = siz;
         }
-        created_type->set_array_size(siz);
+        getType()->set_array_size(siz);
     }
 
 #ifdef COMPILER_BUILD
@@ -113,12 +136,7 @@ public:
     BaseType* known_type() final;
 
     ArrayValue *copy(ASTAllocator& allocator) final {
-        TypeLoc copied_elem_type(nullptr);
-        const auto elemType = known_elem_type();
-        if (elemType) {
-            copied_elem_type = elemType.copy(allocator);
-        }
-        const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(copied_elem_type, encoded_location(), allocator);;
+        const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(encoded_location(), (ArrayType*) getType()->copy(allocator));
         auto& copied_values = arrVal->values;
         copied_values.reserve(values.size());
         for (const auto &value: values) {

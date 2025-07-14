@@ -124,56 +124,66 @@ bool NameMangler::mangle_non_func(std::ostream& stream, ASTNode* node) {
     }
 }
 
+void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl, ASTNode* parent) {
+    switch(parent->kind()) {
+        case ASTNodeKind::InterfaceDecl: {
+            const auto interface = parent->as_interface_def_unsafe();
+            if(interface->is_static()) {
+                mangle_non_func(stream, interface);
+            } else {
+                ExtendableMembersContainerNode* container = (interface->active_user && decl->has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
+                mangle_non_func(stream, container);
+            };
+            break;
+        }
+        case ASTNodeKind::StructDecl:{
+            const auto def = parent->as_struct_def_unsafe();
+            const auto interface = def->get_overriding_interface(decl);
+            if(interface && interface->is_static()) {
+                mangle_non_func(stream, interface);
+            } else {
+                ExtendableMembersContainerNode* container = decl->has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
+                mangle_non_func(stream, container);
+            }
+            break;
+        }
+        case ASTNodeKind::ImplDecl: {
+            const auto def = parent->as_impl_def_unsafe();
+            if(decl->has_self_param() && def->struct_type) {
+                const auto struct_def = def->struct_type->linked_struct_def();
+                mangle_non_func(stream, struct_def);
+            } else {
+                const auto& interface = def->interface_type->linked_interface_def();
+                mangle_non_func(stream, interface);
+            }
+            break;
+        }
+        case ASTNodeKind::FileScope: {
+            write_file_scope(stream, decl, parent->as_file_scope_unsafe());
+            break;
+        }
+        default:
+            mangle_non_func(stream, parent);
+            break;
+    }
+}
+
 void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl) {
     const auto parent = decl->parent();
     if(parent) {
-        switch(parent->kind()) {
-            case ASTNodeKind::InterfaceDecl: {
-                const auto interface = decl->parent()->as_interface_def_unsafe();
-                if(interface->is_static()) {
-                    mangle_non_func(stream, interface);
-                } else {
-                    ExtendableMembersContainerNode* container = (interface->active_user && decl->has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
-                    mangle_non_func(stream, container);
-                };
-                break;
-            }
-            case ASTNodeKind::StructDecl:{
-                const auto def = decl->parent()->as_struct_def_unsafe();
-                const auto interface = def->get_overriding_interface(decl);
-                if(interface && interface->is_static()) {
-                    mangle_non_func(stream, interface);
-                } else {
-                    ExtendableMembersContainerNode* container = decl->has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
-                    mangle_non_func(stream, container);
-                }
-                break;
-            }
-            case ASTNodeKind::ImplDecl: {
-                const auto def = decl->parent()->as_impl_def_unsafe();
-                if(decl->has_self_param() && def->struct_type) {
-                    const auto struct_def = def->struct_type->linked_struct_def();
-                    mangle_non_func(stream, struct_def);
-                } else {
-                    const auto& interface = def->interface_type->linked_interface_def();
-                    mangle_non_func(stream, interface);
-                }
-                break;
-            }
-            case ASTNodeKind::FileScope: {
-                write_file_scope(stream, decl, parent->as_file_scope_unsafe());
-                break;
-            }
-            default:
-                mangle_non_func(stream, decl->parent());
-                break;
-        }
+        mangle_func_parent(stream, decl, parent);
     }
 }
 
 void NameMangler::mangle(std::ostream& stream, FunctionDeclaration* decl) {
     if(!decl->is_no_mangle()) {
         mangle_func_parent(stream, decl);
+        if(decl->isExtensionFn()) {
+            const auto declParent = decl->params[0]->type->linked_node();
+            if(declParent) {
+                mangle_func_parent(stream, decl, declParent);
+            }
+        }
     }
     mangle_no_parent(stream, decl);
 }

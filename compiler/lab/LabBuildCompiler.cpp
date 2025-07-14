@@ -1288,7 +1288,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
-    CTranslator cTranslator(job_alloc, options->is64Bit);
+    CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
     ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
@@ -1524,7 +1524,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
             }
         }
         // the c translator we will use
-        CTranslator cTranslator(*mod_allocator, options->is64Bit);
+        CTranslator cTranslator(*mod_allocator, type_builder, options->is64Bit);
         // we will only do a single invocation
         cTranslator.check_decls_across_invocations = false;
         cTranslator.translate(args, options->get_resources_path().c_str());

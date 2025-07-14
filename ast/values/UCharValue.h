@@ -15,9 +15,14 @@ public:
      */
     constexpr UCharValue(
         unsigned char value,
+        UCharType* ucharType,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UChar, location), value(value) {
+    ) : IntNumValue(ValueKind::UChar, ucharType, location), value(value) {
 
+    }
+
+    inline UCharType* getType() const noexcept {
+        return (UCharType*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -29,7 +34,7 @@ public:
     }
 
     UCharValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UCharValue>()) UCharValue(value, encoded_location());
+        return new (allocator.allocate<UCharValue>()) UCharValue(value, getType(), encoded_location());
     }
 
     [[nodiscard]]

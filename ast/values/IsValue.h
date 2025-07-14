@@ -24,17 +24,22 @@ public:
             Value* value,
             TypeLoc type,
             bool is_negating,
+            BoolType* boolType,
             SourceLocation location
-    ) : Value(ValueKind::IsValue, location), value(value), type(type), is_negating(is_negating) {
+    ) : Value(ValueKind::IsValue, boolType, location), value(value), type(type), is_negating(is_negating) {
 
     }
 
+    BoolType* getType() const noexcept {
+        return (BoolType*) Value::getType();
+    }
 
     IsValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<IsValue>()) IsValue(
                 value->copy(allocator),
                 type.copy(allocator),
                 is_negating,
+                getType(),
                 encoded_location()
         );
     }

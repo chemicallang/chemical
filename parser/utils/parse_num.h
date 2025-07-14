@@ -63,7 +63,8 @@ inline parse_num_result<T> parse_num(const char* _Ptr, std::size_t num_size, T(*
 
 class Value;
 class ASTAllocator;
+class TypeBuilder;
 
-Value* allocate_number_value(ASTAllocator& alloc, unsigned long long value, SourceLocation location);
+Value* allocate_number_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, unsigned long long value, SourceLocation location);
 
-parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location);
+parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location);

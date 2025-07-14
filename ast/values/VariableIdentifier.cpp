@@ -130,7 +130,7 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
 
 VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
     const auto view = allocator.allocate_str(value.data(), value.size());
-    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(view, value.size()), encoded_location());
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(view, value.size()), getType(), encoded_location(), is_ns);
     id->linked = linked;
     return id;
 }

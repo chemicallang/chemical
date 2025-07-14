@@ -32,6 +32,7 @@ private:
     ULongType* uLongType;
     UShortType* uShortType;
     VoidType* voidType;
+    NullPtrType* nullPtrType;
 
     PointerType* ptrToVoid;
 
@@ -188,6 +189,13 @@ public:
      */
     VoidType* getVoidType() {
         return voidType;
+    }
+
+    /**
+     * get NullPtrType
+     */
+    NullPtrType* getNullPtrType() {
+        return nullPtrType;
     }
 
     /**

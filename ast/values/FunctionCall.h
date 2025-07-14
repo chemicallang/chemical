@@ -33,6 +33,17 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr FunctionCall(
+            ChainValue* parent,
+            BaseType* type,
+            SourceLocation location
+    ) : ChainValue(ValueKind::FunctionCall, type, location), parent_val(parent) {
+
+    }
+
     FunctionCall(FunctionCall &&other) = delete;
 
     uint64_t byte_size(bool is64Bit) final;

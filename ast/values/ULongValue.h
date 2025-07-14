@@ -15,9 +15,14 @@ public:
      */
     constexpr ULongValue(
         unsigned long value,
+        ULongType* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt, location), value(value){
+    ) : IntNumValue(ValueKind::UInt, type, location), value(value){
 
+    }
+
+    ULongType* getType() const noexcept {
+        return (ULongType*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -29,7 +34,7 @@ public:
     }
 
     ULongValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ULongValue>()) ULongValue(value, encoded_location());
+        return new (allocator.allocate<ULongValue>()) ULongValue(value, getType(), encoded_location());
     }
 
     [[nodiscard]]

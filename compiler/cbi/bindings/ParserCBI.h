@@ -2,6 +2,8 @@
 
 #pragma once
 
+class ASTBuilder;
+
 class ASTAllocator;
 
 class Parser;
@@ -34,7 +36,7 @@ extern "C" {
 
     void ParsergetCurrentFilePath(chem::string_view* view, Parser* parser);
 
-    Value* ParserparseExpression(Parser* parser, ASTAllocator* allocator,  bool parseStruct, bool parseLambda);
+    Value* ParserparseExpression(Parser* parser, ASTBuilder* builder,  bool parseStruct, bool parseLambda);
 
     void Parsererror_at(Parser* parser, chem::string_view* view, Token* token);
 

@@ -14,19 +14,23 @@ public:
      * constructor
      */
     constexpr BigIntValue(
-        long long value,
-        SourceLocation location
-    ) : IntNumValue(ValueKind::BigInt, location), value(value) {
+            long long value,
+            BigIntType* type,
+            SourceLocation location
+    ) : IntNumValue(ValueKind::BigInt, type, location), value(value) {
 
     }
 
+    BigIntType* getType() {
+        return (BigIntType*) IntNumValue::getType();
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 8;
     }
 
     BigIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, encoded_location());
+        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, getType(), encoded_location());
     }
 
     BaseType* known_type() final {

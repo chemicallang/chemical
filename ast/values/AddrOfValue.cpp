@@ -21,10 +21,3 @@ BaseType* AddrOfValue::create_type(ASTAllocator& allocator) {
     }
     return new (allocator.allocate<PointerType>()) PointerType(elem_type, is_value_mutable);
 }
-
-AddrOfValue *AddrOfValue::copy(ASTAllocator& allocator) {
-    return new (allocator.allocate<AddrOfValue>()) AddrOfValue(
-            value->copy(allocator),
-            encoded_location()
-    );
-}

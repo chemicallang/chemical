@@ -9,7 +9,6 @@ class NewValue : public Value {
 public:
 
     Value* value;
-    // TODO remove this
     PointerType ptr_type;
 
     /**
@@ -18,7 +17,7 @@ public:
     constexpr NewValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(nullptr, false) {
+    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(value->getType(), false) {
 
     }
 
@@ -34,7 +33,11 @@ public:
     }
 
     NewValue* copy(ASTAllocator &allocator) override {
-        return new (allocator.allocate<NewValue>()) NewValue(value->copy(allocator), encoded_location(), ptr_type);
+        return new (allocator.allocate<NewValue>()) NewValue(
+                value->copy(allocator),
+                encoded_location(),
+                ptr_type
+        );
     }
 
     BaseType* create_type(ASTAllocator &allocator) override;

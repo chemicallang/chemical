@@ -2,6 +2,8 @@
 
 #include "DereferenceValue.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/PointerValue.h"
 #include "ast/base/InterpretScope.h"
@@ -26,7 +28,7 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     switch(k) {
         case ValueKind::String:{
             const auto val = eval->as_string_unsafe();
-            return new (scope.allocate<CharValue>()) CharValue(val->value[0], encoded_location());
+            return new (scope.allocate<CharValue>()) CharValue(val->value[0], scope.global->typeBuilder.getCharType(), encoded_location());
         }
         case ValueKind::PointerValue: {
             const auto val = (PointerValue*) eval;
@@ -52,6 +54,7 @@ BaseType* DereferenceValue::known_type() {
 DereferenceValue *DereferenceValue::copy(ASTAllocator& allocator) {
     return new DereferenceValue(
             value->copy(allocator),
+            getType(),
             encoded_location()
     );
 }

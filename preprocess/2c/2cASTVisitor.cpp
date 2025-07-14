@@ -7,6 +7,7 @@
 #include <ranges>
 #include <iostream>
 #include "compiler/mangler/NameMangler.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
@@ -132,6 +133,7 @@
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
 #include "ast/structures/InitBlock.h"
+#include "compiler/cbi/model/ASTBuilder.h"
 
 ToCAstVisitor::ToCAstVisitor(
     GlobalInterpretScope& scope,
@@ -1767,7 +1769,7 @@ public:
     void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, MembersContainer* linked, FunctionDeclaration* destructor);
 
     void destruct_arr(const chem::string_view& self_name, int array_size, MembersContainer* linked, FunctionDeclaration* destructor) {
-        IntValue siz(array_size, ZERO_LOC);
+        IntValue siz(array_size, visitor.comptime_scope.typeBuilder.getIntType(), ZERO_LOC);
         destruct_arr_ptr(self_name, &siz, linked, destructor);
     }
 
@@ -4268,7 +4270,7 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     nested_value = true;
     auto self_name = string_accept(stmt->identifier);
     nested_value = prev_nested;
-    UBigIntValue siz_val(data.array_size, ZERO_LOC);
+    UBigIntValue siz_val(data.array_size, comptime_scope.typeBuilder.getUBigIntType(), ZERO_LOC);
 
     if(stmt->is_array) {
         destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
@@ -4380,20 +4382,20 @@ void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
     if(!value->post) {
         write(value->increment ? "++" : "--");
     }
-    const auto type = value->value->create_type(allocator);
+    const auto type = value->getValue()->create_type(allocator);
     if(type && type->pure_type(allocator)->getLoadableReferredType() != nullptr) {
         if(value->post) {
             write('(');
         }
         write('*');
-        visit(value->value);
+        visit(value->getValue());
         if(value->post) {
             write(')');
             write(value->increment ? "++" : "--");
         }
         return;
     }
-    visit(value->value);
+    visit(value->getValue());
     if(value->post) {
         write(value->increment ? "++" : "--");
     }
@@ -5581,7 +5583,7 @@ void ToCAstVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {
 void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
 //    const auto known = casted->value->known_type();
     write('*');
-    visit(casted->value);
+    visit(casted->getValue());
 }
 
 void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
@@ -5601,8 +5603,8 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
     new_line_and_indent();
     scope_no_parens(*this, blockVal->scope);
     new_line_and_indent();
-    if(blockVal->calculated_value) {
-        visit(blockVal->calculated_value);
+    if(blockVal->getCalculatedValue()) {
+        visit(blockVal->getCalculatedValue());
         write("; ");
     }
     write("})");
@@ -5610,12 +5612,12 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
 
 void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {
     write('-');
-    visit(negValue->value);
+    visit(negValue->getValue());
 }
 
 void ToCAstVisitor::VisitNotValue(NotValue *notValue) {
     write('!');
-    visit(notValue->value);
+    visit(notValue->getValue());
 }
 
 void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
@@ -5627,7 +5629,9 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
     const auto src = value->value;
     auto& aliases = declarer->aliases;
     auto found = declarer->aliases.find(src);
-    if(found == aliases.end()) return;
+    if(found == aliases.end()) {
+        return;
+    }
 
     switch(value->extractionKind) {
         case ExtractionKind::LambdaFnPtr:
@@ -5678,7 +5682,8 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
 }
 
 void ToCAstVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
-    const auto repl = node->replacement_fn(&allocator, node);
+    ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
+    const auto repl = node->replacement_fn(&builder, node);
     if(repl) {
         visit(repl);
     } else {
@@ -5687,7 +5692,8 @@ void ToCAstVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
 }
 
 void ToCAstVisitor::VisitEmbeddedValue(EmbeddedValue* value) {
-    const auto repl = value->replacement_fn(&allocator, value);
+    ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
+    const auto repl = value->replacement_fn(&builder, value);
     if(repl) {
         visit(repl);
     } else {

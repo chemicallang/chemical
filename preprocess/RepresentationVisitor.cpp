@@ -698,7 +698,7 @@ void RepresentationVisitor::VisitAddrOfValue(AddrOfValue *casted) {
 
 void RepresentationVisitor::VisitDereferenceValue(DereferenceValue *casted) {
     write('*');
-    visit(casted->value);
+    visit(casted->getValue());
 }
 
 void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {
@@ -727,12 +727,12 @@ void RepresentationVisitor::VisitIndexOperator(IndexOperator *op) {
 
 void RepresentationVisitor::VisitNegativeValue(NegativeValue *negValue) {
     write('-');
-    visit(negValue->value);
+    visit(negValue->getValue());
 }
 
 void RepresentationVisitor::VisitNotValue(NotValue *notValue) {
     write('!');
-    visit(notValue->value);
+    visit(notValue->getValue());
 }
 
 void RepresentationVisitor::VisitNullValue(NullValue *nullValue) {

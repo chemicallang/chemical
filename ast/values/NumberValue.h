@@ -34,6 +34,19 @@ public:
         SourceLocation location
     ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}
 
+    /**
+     * constructor
+     */
+    constexpr NumberValue(
+            uint64_t value,
+            IntNType* type,
+            SourceLocation location
+    ) : IntNumValue(ValueKind::NumberValue, location), value(value) {}
+
+    IntNType* getType() const noexcept {
+        return (IntNType*) Value::getType();
+    }
+
     unsigned int get_num_bits(bool is64Bit) final  {
         if(value > INT_MAX) {
             return 64;
@@ -48,7 +61,7 @@ public:
     }
 
     NumberValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NumberValue>()) NumberValue(value, encoded_location());
+        return new (allocator.allocate<NumberValue>()) NumberValue(value, getType(), encoded_location());
     }
 
     bool is_unsigned() final {

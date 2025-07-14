@@ -3,6 +3,8 @@
 #include "IndexOperator.h"
 #include "ast/values/AccessChain.h"
 #include "ast/base/ASTNode.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/VoidType.h"
@@ -97,7 +99,7 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
     switch(value->val_kind()) {
         case ValueKind::String: {
             const auto str = value->as_string_unsafe();
-            return new (scope.allocate<CharValue>()) CharValue(str->value[index.value()], location);
+            return new (scope.allocate<CharValue>()) CharValue(str->value[index.value()], scope.global->typeBuilder.getCharType(), location);
         }
         case ValueKind::ArrayValue: {
             const auto arr = value->as_array_value_unsafe();
@@ -143,7 +145,7 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
 }
 
 IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
-    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), encoded_location());
+    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), getType(), encoded_location());
     for(const auto value : values) {
         op->values.emplace_back(value->copy(allocator));
     }

@@ -30,7 +30,7 @@ public:
         return false;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
+    Value *create(ASTAllocator& allocator, TypeBuilder& typeBuilder, uint64_t value, SourceLocation loc) final;
 
     BigIntType *copy(ASTAllocator& allocator) const final {
         return new (allocator.allocate<BigIntType>()) BigIntType();

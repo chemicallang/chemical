@@ -15,9 +15,14 @@ public:
      */
     constexpr UBigIntValue(
         unsigned long long value,
+        UBigIntType* ubigType,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UBigInt, location), value(value) {
+    ) : IntNumValue(ValueKind::UBigInt, ubigType, location), value(value) {
 
+    }
+
+    inline UBigIntType* getType() const noexcept {
+        return (UBigIntType*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -29,7 +34,7 @@ public:
     }
 
     UBigIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, encoded_location());
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, getType(), encoded_location());
     }
 
     [[nodiscard]]

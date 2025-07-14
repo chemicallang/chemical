@@ -15,9 +15,14 @@ public:
      */
     constexpr UIntValue(
         unsigned int value,
+        UIntType* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt, location), value(value) {
+    ) : IntNumValue(ValueKind::UInt, type, location), value(value) {
 
+    }
+
+    UIntType* getType() const noexcept {
+        return (UIntType*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -29,7 +34,7 @@ public:
     }
 
     UIntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UIntValue>()) UIntValue(value, encoded_location());
+        return new (allocator.allocate<UIntValue>()) UIntValue(value, getType(), encoded_location());
     }
 
     [[nodiscard]]

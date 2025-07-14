@@ -33,7 +33,7 @@ public:
         return 16;
     }
 
-    Value *create(ASTAllocator& allocator, uint64_t value, SourceLocation loc) final;
+    Value *create(ASTAllocator& allocator, TypeBuilder& typeBuilder, uint64_t value, SourceLocation loc) final;
 
     [[nodiscard]]
     Int128Type *copy(ASTAllocator& allocator) const final {

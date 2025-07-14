@@ -17,7 +17,6 @@ public:
     Value* firstValue; ///< The first value in the expression.
     Value* secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
-    BaseType* created_type = nullptr;
 
     /**
      * constructor
@@ -27,9 +26,9 @@ public:
             Value* secondValue,
             Operation operation,
             SourceLocation location,
-            BaseType* created_type = nullptr
-    ) : Value(ValueKind::Expression, location), firstValue(firstValue), secondValue(secondValue),
-        operation(operation), created_type(created_type) {
+            BaseType* type = nullptr
+    ) : Value(ValueKind::Expression, type, location), firstValue(firstValue), secondValue(secondValue),
+        operation(operation) {
 
     }
 
@@ -51,7 +50,7 @@ public:
      * @param firstType type of the first value
      * @param secondType type of the second value
      */
-    void replace_number_values(ASTAllocator& allocator, BaseType* firstType, BaseType* secondType);
+    void replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType);
 
     uint64_t byte_size(bool is64Bit) final;
 

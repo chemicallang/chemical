@@ -18,9 +18,14 @@ public:
     constexpr UInt128Value(
         uint64_t low,
         uint64_t high,
+        UInt128Type* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt128, location), low(low), high(high) {
+    ) : IntNumValue(ValueKind::UInt128, type, location), low(low), high(high) {
 
+    }
+
+    UInt128Type* getType() const noexcept {
+        return (UInt128Type*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -32,7 +37,7 @@ public:
     }
 
     UInt128Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, encoded_location());
+        return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, getType(), encoded_location());
     }
 
     [[nodiscard]]

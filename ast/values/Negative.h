@@ -11,9 +11,11 @@
 
 // A value that's preceded by a negative operator -value
 class NegativeValue : public Value {
-public:
+private:
 
     Value* value;
+
+public:
 
     /**
      * constructor
@@ -21,8 +23,17 @@ public:
     constexpr NegativeValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NegativeValue, location), value(value) {
+    ) : Value(ValueKind::NegativeValue, value->getType(), location), value(value) {
 
+    }
+
+    inline Value* getValue() const noexcept {
+        return value;
+    }
+
+    void setValue(Value* newValue) {
+        value = newValue;
+        setType(newValue->getType());
     }
 
     BaseType* known_type() final;

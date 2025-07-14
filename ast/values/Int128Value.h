@@ -18,9 +18,14 @@ public:
     constexpr Int128Value(
         uint64_t magnitude,
         bool is_negative,
+        Int128Type* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::Int128, location), magnitude(magnitude), is_negative(is_negative) {
+    ) : IntNumValue(ValueKind::Int128, type, location), magnitude(magnitude), is_negative(is_negative) {
 
+    }
+
+    Int128Type* getType() const noexcept {
+        return (Int128Type*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -32,7 +37,7 @@ public:
     }
 
     Int128Value *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<Int128Value>()) Int128Value(magnitude, is_negative, encoded_location());
+        return new (allocator.allocate<Int128Value>()) Int128Value(magnitude, is_negative, getType(), encoded_location());
     }
 
     [[nodiscard]]

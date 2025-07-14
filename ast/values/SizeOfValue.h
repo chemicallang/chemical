@@ -18,9 +18,14 @@ public:
      */
     constexpr SizeOfValue(
         TypeLoc for_type,
+        UBigIntType* type,
         SourceLocation location
-    ) : Value(ValueKind::SizeOfValue, location), for_type(for_type) {
+    ) : Value(ValueKind::SizeOfValue, type, location), for_type(for_type) {
 
+    }
+
+    inline UBigIntType* getType() const noexcept {
+        return (UBigIntType*) Value::getType();
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
@@ -30,7 +35,9 @@ public:
     Value* evaluated_value(InterpretScope &scope) override;
 
     SizeOfValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type.copy(allocator), encoded_location());
+        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(
+                for_type.copy(allocator), getType(), encoded_location()
+        );
     }
 
 #ifdef COMPILER_BUILD

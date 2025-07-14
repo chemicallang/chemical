@@ -193,9 +193,9 @@ public:
     void parseModuleFile(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
-     * parses a single string value using the given allocator
+     * parse a string
      */
-    Value* parseStringValue(ASTAllocator& allocator);
+    std::optional<chem::string_view> parseString(ASTAllocator& allocator);
 
     /**
      * parses import statement after the import keyword
@@ -429,6 +429,11 @@ public:
      * parses a variable otherwise returns nullptr
      */
     VariableIdentifier* parseVariableIdentifier(ASTAllocator& allocator);
+
+    /**
+     * parses a single string value using the given allocator
+     */
+    Value* parseStringValue(ASTAllocator& allocator);
 
     /**
      * parse generic argument list

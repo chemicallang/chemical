@@ -23,9 +23,13 @@ public:
      */
     constexpr IntValue(
         int value,
+        IntType* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::Int, location), value(value) {}
+    ) : IntNumValue(ValueKind::Int, type, location), value(value) {}
 
+    IntType* getType() const noexcept {
+        return (IntType*) Value::getType();
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return 4;
@@ -41,7 +45,7 @@ public:
     }
 
     IntValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntValue>()) IntValue(value, encoded_location());
+        return new (allocator.allocate<IntValue>()) IntValue(value, getType(), encoded_location());
     }
 
     bool is_unsigned() final {

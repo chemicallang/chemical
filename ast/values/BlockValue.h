@@ -4,14 +4,15 @@
 #include "ast/structures/Scope.h"
 
 class BlockValue : public Value {
-public:
-
-    Scope scope;
 
     /**
      * this is calculated during symbol resolution
      */
     Value* calculated_value = nullptr;
+
+public:
+
+    Scope scope;
 
 #ifdef COMPILER_BUILD
     /**
@@ -23,24 +24,38 @@ public:
     /**
      * constructor
      */
-    constexpr BlockValue(ASTNode* parent_node, SourceLocation location) : Value(ValueKind::BlockValue, location), scope(parent_node, location) {
+    constexpr BlockValue(
+            ASTNode* parent_node,
+            SourceLocation location
+    ) : Value(ValueKind::BlockValue, location), scope(parent_node, location) {
 
     }
 
     /**
      * constructor
      */
-    BlockValue(Scope scope) : Value(ValueKind::BlockValue, scope.encoded_location()), scope(std::move(scope)) {
+    BlockValue(Scope scope, BaseType* type) : Value(ValueKind::BlockValue, type, scope.encoded_location()), scope(std::move(scope)) {
 
     }
 
     BaseType* create_type(ASTAllocator &allocator);
 
+    inline Value* getCalculatedValue() {
+        return calculated_value;
+    }
+
+    void setCalculatedValue(Value* value) {
+        calculated_value = value;
+        if(value) {
+            setType(value->getType());
+        }
+    }
+
     Value* copy(ASTAllocator &allocator) override {
 #ifdef DEBUG
        throw std::runtime_error("block value cannot be copied");
 #endif
-        const auto blockVal = new (allocator.allocate<BlockValue>()) BlockValue(scope.shallow_copy());
+        const auto blockVal = new (allocator.allocate<BlockValue>()) BlockValue(scope.shallow_copy(), getType());
         blockVal->calculated_value = calculated_value;
         return blockVal;
     }

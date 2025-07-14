@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "ChainValue.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/StructValue.h"
 #include "ast/statements/Assignment.h"
 #include "ast/values/ArrayValue.h"
@@ -754,11 +755,11 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
             return true;
         }
         case ValueKind::DereferenceValue: {
-            return as_dereference_value_unsafe()->value->check_is_mutable(allocator, false);
+            return as_dereference_value_unsafe()->getValue()->check_is_mutable(allocator, false);
         }
         case ValueKind::Expression: {
             const auto expr = as_expression_unsafe();
-            return expr->created_type->is_mutable();
+            return expr->getType()->is_mutable();
         }
         default:
             return false;
@@ -867,37 +868,37 @@ Value* Value::find_in(InterpretScope& scope, Value* parent) {
     return nullptr;
 }
 
-IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
+IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, TypeBuilder& typeBuilder, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
     switch(bitWidth) {
         case 8:
             if(is_signed) {
-                return new (alloc.allocate<CharValue>()) CharValue((char) value, location);
+                return new (alloc.allocate<CharValue>()) CharValue((char) value, typeBuilder.getCharType(), location);
             } else {
-                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, location);
+                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, typeBuilder.getUCharType(), location);
             }
         case 16:
             if(is_signed) {
-                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, location);
+                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, typeBuilder.getShortType(), location);
             } else {
-                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, location);
+                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, typeBuilder.getUShortType(), location);
             }
         case 32:
             if(is_signed) {
-                return new (alloc.allocate<IntValue>()) IntValue((int) value, location);
+                return new (alloc.allocate<IntValue>()) IntValue((int) value, typeBuilder.getIntType(), location);
             } else {
-                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, location);
+                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, typeBuilder.getUIntType(), location);
             }
         case 64:
             if(is_signed) {
-                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, location);
+                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, typeBuilder.getBigIntType(), location);
             } else {
-                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, location);
+                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, typeBuilder.getUBigIntType(), location);
             }
         case 128:
             if(is_signed) {
-                return new (alloc.allocate<Int128Value>()) Int128Value(value, false, location);
+                return new (alloc.allocate<Int128Value>()) Int128Value(value, false, typeBuilder.getInt128Type(), location);
             } else {
-                return new (alloc.allocate<UInt128Value>()) UInt128Value(value, false, location);
+                return new (alloc.allocate<UInt128Value>()) UInt128Value(value, false, typeBuilder.getUInt128Type(), location);
             }
         default:
 #ifdef DEBUG
@@ -994,7 +995,7 @@ std::optional<uint64_t> Value::get_number() {
     if(is_value_int_n()) {
         return as_int_num_value_unsafe()->get_num_value();
     } else if(kind() == ValueKind::NegativeValue) {
-        auto value = as_negative_value_unsafe()->value->get_number();
+        auto value = as_negative_value_unsafe()->getValue()->get_number();
         if(value.has_value()) {
             return -value.value();
         } else {

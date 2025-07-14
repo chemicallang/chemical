@@ -10,20 +10,31 @@
  * the contained value
  */
 class ComptimeValue : public Value {
-public:
+private:
 
     /**
      * the actual value
      */
     Value* value;
 
+public:
+
     /**
      * constructor
      */
     inline ComptimeValue(
         Value* value
-    ) : Value(ValueKind::ComptimeValue, value->encoded_location()), value(value) {
+    ) : Value(ValueKind::ComptimeValue, value->getType(), value->encoded_location()), value(value) {
 
+    }
+
+    inline Value* getValue() noexcept {
+        return value;
+    }
+
+    void setValue(Value* newValue) {
+        value = newValue;
+        setType(newValue->getType());
     }
 
     Value* evaluate(ASTAllocator& allocator, GlobalInterpretScope* comptime_scope) {

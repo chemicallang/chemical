@@ -2,6 +2,8 @@
 
 #include "ast/base/BaseType.h"
 #include "ast/base/InterpretScope.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "NotValue.h"
 #include "BoolValue.h"
 #include "NullValue.h"
@@ -17,7 +19,7 @@ BaseType* NotValue::create_type(ASTAllocator &allocator) {
 Value* NotValue::evaluated_value(InterpretScope &scope) {
     const auto val = value->evaluated_value(scope);
     if(val->val_kind() == ValueKind::Bool) {
-        return new (scope.allocate<BoolValue>()) BoolValue(!val->as_bool_unsafe()->value, encoded_location());
+        return new (scope.allocate<BoolValue>()) BoolValue(!val->as_bool_unsafe()->value, scope.global->typeBuilder.getBoolType(), encoded_location());
     } else {
         scope.error("couldn't evaluate as value didn't return a boolean value", this);
         return new (scope.allocate<NullValue>()) NullValue(encoded_location());

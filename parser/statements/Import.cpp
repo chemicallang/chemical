@@ -20,9 +20,9 @@ inline bool consumeDotOrDCol(BasicParser& parser) {
 
 bool parseImportFromPart(BasicParser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
     if (parser.consumeToken(TokenType::FromKw)) {
-        auto str2 = parser.parseStringValue(allocator);
-        if(str2) {
-            stmt->filePath = str2->get_the_string();
+        auto str2 = parser.parseString(allocator);
+        if(str2.has_value()) {
+            stmt->filePath = str2.value();
             return true;
         } else {
             parser.unexpected_error("expected path after 'from' in import statement");
@@ -35,9 +35,9 @@ bool parseImportFromPart(BasicParser& parser, ASTAllocator& allocator, ImportSta
 
 ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out) {
     auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", parent_node, loc_single(token));
-    auto str = parseStringValue(allocator);
-    if (str) {
-        stmt->filePath = str->get_the_string();
+    auto str = parseString(allocator);
+    if (str.has_value()) {
+        stmt->filePath = str.value();
         if(consumeToken(TokenType::AsKw)) {
             auto id = consumeIdentifierOrKeyword();
             if(id) {

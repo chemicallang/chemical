@@ -3,15 +3,18 @@
 #include "IsValue.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/InterpretScope.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/TypeInsideValue.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/NullValue.h"
 
 Value* IsValue::evaluated_value(InterpretScope &scope) {
+    auto& typeBuilder = scope.global->typeBuilder;
     const auto result = get_comp_time_result();
     if(result.has_value()) {
-        return new (scope.allocate<BoolValue>()) BoolValue(result.value(), encoded_location());
+        return new (scope.allocate<BoolValue>()) BoolValue(result.value(), typeBuilder.getBoolType(), encoded_location());
     } else {
         return new (scope.allocate<NullValue>()) NullValue(encoded_location());
     }

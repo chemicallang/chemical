@@ -22,7 +22,7 @@ public:
         Value* value,
         TypeLoc type,
         SourceLocation location
-    ) : Value(ValueKind::CastedValue, location), value(value), type(type) {
+    ) : Value(ValueKind::CastedValue, const_cast<BaseType*>(type.getType()), location), value(value), type(type) {
 
     }
 

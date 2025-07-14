@@ -22,9 +22,14 @@ public:
      */
     constexpr FloatValue(
         float value,
+        FloatType* flType,
         SourceLocation location
-    ) : Value(ValueKind::Float, location), value(value) {
+    ) : Value(ValueKind::Float, flType, location), value(value) {
 
+    }
+
+    FloatType* getType() {
+        return (FloatType*) Value::getType();
     }
 
     BaseType* known_type() final {
@@ -48,7 +53,7 @@ public:
     }
 
     FloatValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<FloatValue>()) FloatValue(value, encoded_location());
+        return new (allocator.allocate<FloatValue>()) FloatValue(value, getType(), encoded_location());
     }
 
 };

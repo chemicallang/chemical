@@ -357,12 +357,12 @@ public type EmbeddedValueSymbolResolveFunc = (resolver : *SymbolResolver, value 
 
 public type EmbeddedValueReplacementFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *Value
 
-public type EmbeddedValueTypeCreationFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *BaseType
-
 public type EmbeddedValueTraversalFunc = (value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) => void
 
 @compiler.interface
-public struct ASTBuilder : BatchAllocator {
+public struct ASTBuilder {
+
+    var allocator : *mut BatchAllocator
 
     func allocate_with_cleanup(&self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void;
 
@@ -383,9 +383,9 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_embedded_value(&self,
         data_ptr : *void,
+        type : *mut BaseType,
         sym_res_fn : EmbeddedValueSymbolResolveFunc,
         repl_fn: EmbeddedValueReplacementFunc,
-        type_cr_fn : EmbeddedValueTypeCreationFunc,
         traversal_fn : EmbeddedValueTraversalFunc,
         location : ubigint
     ) : *EmbeddedValue
@@ -586,6 +586,24 @@ public struct ASTBuilder : BatchAllocator {
 
     func make_variant_member_param(&self, name : &string_view, index : uint, is_const : bool, type : *BaseType, defValue : *Value, parent_node : *VariantMember, location : ubigint) : *mut VariantMemberParam
 
+}
+
+public func (builder : &mut ASTBuilder) allocate_size(obj_size : size_t, alignment : size_t) : *mut char {
+    return builder.allocator.allocate_size(obj_size, alignment);
+}
+
+// adds +1 to size to accomodate for the last null terminator \0 in string
+// allocates string with size
+public func (builder : &mut ASTBuilder) allocate_str_size(size : size_t) : *mut char {
+    return builder.allocator.allocate_str_size(size);
+}
+
+public func (builder : &mut ASTBuilder) allocate_str(data : *char, size : size_t) : *mut char {
+    return builder.allocator.allocate_str(data, size);
+}
+
+public func (builder : &mut ASTBuilder) allocate_view(view : &std::string_view) : std::string_view {
+    return builder.allocator.allocate_view(view);
 }
 
 @comptime

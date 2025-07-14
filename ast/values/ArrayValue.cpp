@@ -162,7 +162,7 @@ bool ArrayValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 #endif
 
 TypeLoc& ArrayValue::known_elem_type() const {
-    return ((ArrayType*) created_type)->elem_type;
+    return getType()->elem_type;
 }
 
 ASTNode *ArrayValue::linked_node() {
@@ -215,5 +215,5 @@ BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
 }
 
 BaseType* ArrayValue::known_type() {
-    return created_type;
+    return getType();
 }

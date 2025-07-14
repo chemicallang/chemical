@@ -4,6 +4,8 @@
 
 #include "ast/base/Value.h"
 
+class TypeBuilder;
+
 double get_double_value(Value* value, ValueKind k);
 
 Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceLocation location);
@@ -23,6 +25,7 @@ public:
      */
     static IntNumValue* create_number(
             ASTAllocator& alloc,
+            TypeBuilder& typeBuilder,
             unsigned int bitWidth,
             bool is_signed,
             uint64_t value,
@@ -33,6 +36,13 @@ public:
      * constructor
      */
     inline constexpr IntNumValue(ValueKind k, SourceLocation loc) noexcept : Value(k, loc) {
+
+    }
+
+    /**
+     * constructor
+     */
+    inline constexpr IntNumValue(ValueKind k, BaseType* type, SourceLocation loc) noexcept : Value(k, type, loc) {
 
     }
 

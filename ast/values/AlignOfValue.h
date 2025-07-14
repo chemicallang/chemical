@@ -16,10 +16,15 @@ public:
      * constructor
      */
     constexpr AlignOfValue(
-        TypeLoc for_type,
-        SourceLocation location
-    ) : Value(ValueKind::AlignOfValue, location), for_type(for_type) {
+            TypeLoc for_type,
+            UBigIntType* type,
+            SourceLocation location
+    ) : Value(ValueKind::AlignOfValue, type, location), for_type(for_type) {
 
+    }
+
+    UBigIntType* getType() {
+        return (UBigIntType*) Value::getType();
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
@@ -27,7 +32,11 @@ public:
     }
 
     AlignOfValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<AlignOfValue>()) AlignOfValue(for_type.copy(allocator), encoded_location());
+        return new (allocator.allocate<AlignOfValue>()) AlignOfValue(
+                for_type.copy(allocator),
+                getType(),
+                encoded_location()
+        );
     }
 
     Value* evaluated_value(InterpretScope &scope) override;

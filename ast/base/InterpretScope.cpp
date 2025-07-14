@@ -6,6 +6,7 @@
 
 #include "InterpretScope.h"
 #include "GlobalInterpretScope.h"
+#include "ast/base/TypeBuilder.h"
 #include "Value.h"
 #include <iostream>
 #include "ast/structures/Scope.h"
@@ -157,7 +158,7 @@ inline bool is_int_n(ValueKind k) {
 }
 
 inline BoolValue* pack_bool(InterpretScope& scope, bool value, SourceLocation location) {
-    return new (scope.allocate<BoolValue>()) BoolValue(value, location);
+    return new (scope.allocate<BoolValue>()) BoolValue(value, scope.global->typeBuilder.getBoolType(), location);
 }
 
 Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue) {
@@ -166,7 +167,7 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
     const auto sKind = sEvl->val_kind();
     if(fKind == ValueKind::Bool && sKind == ValueKind::Bool) {
         const auto result = operate(operation, fEvl->get_the_bool(), sEvl->get_the_bool());
-        return new (scope.allocate<BoolValue>()) BoolValue(result, location);
+        return pack_bool(scope, result, location);
     } else if(is_int_n(fKind) && is_int_n(sKind)) {
         // both values are int num values
         const auto first = (IntNumValue*) fEvl;
@@ -193,12 +194,12 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         const auto strVal = fEvl->as_string_unsafe();
         const auto numVal = (IntNumValue*) sEvl;
         const auto num = numVal->get_num_value();
-        return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), location);
+        return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), scope.global->typeBuilder.getStringType(), location);
     } else if ((sKind == ValueKind::String && is_int_n(fKind))) {
         const auto strVal = sEvl->as_string_unsafe();
         const auto numVal = (IntNumValue*) fEvl;
         const auto num = numVal->get_num_value();
-        return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), location);
+        return new (scope.allocate<StringValue>()) StringValue(chem::string_view(strVal->value.data() + num, strVal->value.size() - num), scope.global->typeBuilder.getStringType(), location);
     } else if((fKind == ValueKind::PointerValue && is_int_n(sKind))) {
         const auto ptrVal = (PointerValue*) fEvl;
         switch(operation) {

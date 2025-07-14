@@ -11,9 +11,11 @@
 
 // A value that's preceded by a not operator !value
 class NotValue : public Value {
-public:
+private:
 
     Value* value;
+
+public:
 
     /**
      * constructor
@@ -21,7 +23,20 @@ public:
     constexpr NotValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NotValue, location), value(value) {}
+    ) : Value(ValueKind::NotValue, value->getType(), location), value(value) {}
+
+    /**
+     * constructor
+     */
+    constexpr NotValue(
+            Value* value,
+            BaseType* type,
+            SourceLocation location
+    ) : Value(ValueKind::NotValue, type, location), value(value) {}
+
+    Value* getValue() const noexcept {
+        return value;
+    }
 
     bool primitive() final;
 
@@ -36,7 +51,7 @@ public:
 #endif
 
     NotValue* copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), encoded_location());
+        return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), getType(), encoded_location());
     }
 
     BaseType* create_type(ASTAllocator &allocator) final;

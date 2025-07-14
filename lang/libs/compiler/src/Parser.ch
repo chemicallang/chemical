@@ -5,11 +5,13 @@ public struct Parser {
     func getTokenPtr(&self) : *mut *mut Token
 
     // nodes are retained across multiple modules
-    func getGlobalBuilder(&self) : *mut ASTBuilder
+    // TODO: deprecated, as ASTBuilder requires wrapping ast allocator
+    // func getGlobalBuilder(&self) : *mut ASTBuilder
 
     // nodes are not retained after generating this module's code
     // only nodes 'internal' to module (not public) should go into this
-    func getModuleBuilder(&self) : *mut ASTBuilder
+    // TODO: deprecated, as ASTBuilder requires wrapping ast allocator
+    // func getModuleBuilder(&self) : *mut ASTBuilder
 
     func getIs64Bit(&self) : bool
 

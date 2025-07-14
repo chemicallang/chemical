@@ -42,6 +42,18 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    constexpr LambdaFunction(
+            bool isVariadic,
+            ASTNode* parent_node,
+            BaseType* type,
+            SourceLocation location
+    ) : Value(ValueKind::LambdaFunc, type, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
+
+    }
+
     ASTNode* get_parent() final {
         return scope.parent();
     }
@@ -95,8 +107,17 @@ public:
      */
     bool has_destructor_for_capture();
 
+    /**
+     * copy copies the entire lambda
+     */
     Value* copy(ASTAllocator &allocator) override {
-        // TODO: this can fail
+        // TODO:
+//        const auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(
+//            isVariadic(), scope.parent(), getType(), encoded_location()
+//        );
+//        scope.copy_into(lambda->scope, allocator, scope.parent());
+//        FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
+//        return lambda;
         return this;
     }
 

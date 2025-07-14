@@ -414,7 +414,7 @@ struct future_ptr_union {
 };
 
 #ifdef DEBUG
-#define DEBUG_FUTURE false
+#define DEBUG_FUTURE true
 #endif
 
 bool ASTProcessor::import_chemical_files_direct(
@@ -454,7 +454,7 @@ bool ASTProcessor::import_chemical_files_direct(
         *static_cast<ASTFileMetaData*>(out_file) = fileData;
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        futures.emplace_back(chem_file_concur_importer_direct(0, this, out_file, fileData, use_job_allocator));
+        futures.emplace_back(chem_file_concur_importer_direct(0, this, out_file, fileData, false));
 #else
         futures.emplace_back(
                 nullptr,

@@ -16,6 +16,8 @@
 
 class CTranslator;
 
+class TypeBuilder;
+
 /**
  * when provided a clang builtin type pointer
  * it'll make a chemical type
@@ -44,6 +46,11 @@ public:
      * the reference to allocator
      */
     ASTAllocator& allocator;
+
+    /**
+     * the type builder is used to allocate types
+     */
+    TypeBuilder& typeBuilder;
 
     /**
      * a single invocation is expected,
@@ -129,7 +136,7 @@ public:
     /**
      * constructor
      */
-    CTranslator(ASTAllocator& allocator, bool is64Bit);
+    CTranslator(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool is64Bit);
 
     /**
      * initializes type makers

@@ -18,15 +18,19 @@ public:
      * constructor
      */
     constexpr BoolValue(
-        bool value,
-        SourceLocation location
-    ) : Value(ValueKind::Bool, location), value(value) {
+            bool value,
+            BoolType* boolTy,
+            SourceLocation location
+    ) : Value(ValueKind::Bool, boolTy, location), value(value) {
 
     }
 
+    BoolType* getType() {
+        return (BoolType*) Value::getType();
+    }
 
     BoolValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolValue>()) BoolValue(value, encoded_location());
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, getType(), encoded_location());
     }
 
     uint64_t byte_size(bool is64Bit) final {

@@ -10,6 +10,7 @@
 #include <clang/AST/RecordLayout.h>
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
+#include "ast/base/TypeBuilder.h"
 #include <iostream>
 #include <memory>
 #include "ast/structures/FunctionParam.h"
@@ -341,8 +342,8 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     return nullptr;
 }
 
-inline Value* convert_to_number(ASTAllocator& alloc, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
-    return IntNumValue::create_number(alloc, bitWidth, is_signed, value, location);
+inline Value* convert_to_number(ASTAllocator& alloc, TypeBuilder& typeBuilder, bool is64Bit, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
+    return IntNumValue::create_number(alloc, typeBuilder, bitWidth, is_signed, value, location);
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
@@ -369,7 +370,7 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
             const auto& init_val = mem->getInitVal();
             auto bitWidth = init_val.getBitWidth();
             auto value = init_val.getLimitedValue();
-            mem_value = convert_to_number(allocator, is64Bit, bitWidth, init_val.isSigned(), value, ZERO_LOC);
+            mem_value = convert_to_number(allocator, typeBuilder, is64Bit, bitWidth, init_val.isSigned(), value, ZERO_LOC);
         }
         const auto name = allocate_view(allocator, mem->getName());
         enum_decl->members[name] = new (allocator.allocate<EnumMember>()) EnumMember(name, index, mem_value, enum_decl, ZERO_LOC);
@@ -506,7 +507,7 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
         auto value = intLiteral->getValue();
         const auto bitWidth = value.getBitWidth();
         auto real_val = value.getLimitedValue();
-        return convert_to_number(allocator, is64Bit, bitWidth, is_signed, real_val, ZERO_LOC);
+        return convert_to_number(allocator, typeBuilder, is64Bit, bitWidth, is_signed, real_val, ZERO_LOC);
     } else if (auto* floatLiteral = llvm::dyn_cast<clang::FloatingLiteral>(expr)) {
         // Handle floating-point literals
         llvm::APFloat value = floatLiteral->getValue();
@@ -514,20 +515,20 @@ Value* CTranslator::make_expr(clang::Expr* expr) {
         if (builtinType->getKind() == clang::BuiltinType::Float) {
             // Single precision (float)
             auto floatValue = value.convertToFloat();
-            return new (allocator.allocate<FloatValue>()) FloatValue(floatValue, ZERO_LOC);
+            return new (allocator.allocate<FloatValue>()) FloatValue(floatValue, typeBuilder.getFloatType(), ZERO_LOC);
         } else {
             // Double precision
             auto doubleValue = value.convertToDouble();
-            return new (allocator.allocate<DoubleValue>()) DoubleValue(doubleValue, ZERO_LOC);
+            return new (allocator.allocate<DoubleValue>()) DoubleValue(doubleValue, typeBuilder.getDoubleType(), ZERO_LOC);
         }
     } else if (auto* boolLiteral = llvm::dyn_cast<clang::CXXBoolLiteralExpr>(expr)) {
         bool value = boolLiteral->getValue();
-        return new (allocator.allocate<BoolValue>()) BoolValue(value, ZERO_LOC);
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
     } else if (auto* declRef = llvm::dyn_cast<clang::DeclRefExpr>(expr)) {
         clang::ValueDecl* decl = declRef->getDecl();
         auto found = declarations.find(decl);
         if(found != declarations.end()) {
-            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, decl->getName()), ZERO_LOC, false);
+            const auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, decl->getName()), found->second->known_type(), ZERO_LOC, false);
             id->linked = found->second;
             return id;
         } else {
@@ -1219,8 +1220,9 @@ void convertToCharPointers(const std::vector<std::string> &args, const char ***b
 
 CTranslator::CTranslator(
     ASTAllocator& allocator,
+    TypeBuilder& typeBuilder,
     bool is64Bit
-) : allocator(allocator), is64Bit(is64Bit),
+) : allocator(allocator), typeBuilder(typeBuilder), is64Bit(is64Bit),
     diags_engine(clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions))
 {
     init_type_makers();
@@ -1261,7 +1263,7 @@ clang::ASTUnit* CTranslator::get_unit(
     return get_unit(args, args + 2, resources_path);
 }
 
-Value* convert_token_to_value(ASTAllocator& allocator, const clang::Token& token, bool is64Bit) {
+Value* convert_token_to_value(ASTAllocator& allocator, TypeBuilder& typeBuilder, const clang::Token& token, bool is64Bit) {
     switch(token.getKind()) {
         case clang::tok::numeric_constant:{
             const auto data = token.getLiteralData();
@@ -1270,7 +1272,7 @@ Value* convert_token_to_value(ASTAllocator& allocator, const clang::Token& token
             // also convert_number_to_value doesn't change the string but still requires a mutable one because
             // string can contain suffixes like ui32 and it must ignore them, so it put's \0 before those suffixes
             std::string string(data, token.getLength());
-            const auto result = convert_number_to_value(allocator, const_cast<char*>(string.c_str()), string.size(), is64Bit, ZERO_LOC);
+            const auto result = convert_number_to_value(allocator, typeBuilder, const_cast<char*>(string.c_str()), string.size(), is64Bit, ZERO_LOC);
             return result.error.empty() ? result.result : nullptr;
         }
         default:
@@ -1282,7 +1284,7 @@ Value* convert_to_value(CTranslator& translator, clang::MacroInfo* info) {
     auto tokens = info->tokens();
     const auto tokens_size = tokens.size();
     if(tokens_size == 1) {
-        return convert_token_to_value(translator.allocator, tokens.front(), translator.is64Bit);
+        return convert_token_to_value(translator.allocator, translator.typeBuilder, tokens.front(), translator.is64Bit);
     } else {
         // TODO
     }

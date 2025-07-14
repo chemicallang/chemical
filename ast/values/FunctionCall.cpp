@@ -1134,7 +1134,7 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
 }
 
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
-    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), encoded_location());
+    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), getType(), encoded_location());
     for(const auto value : values) {
         call->values.emplace_back(value->copy(allocator));
     }

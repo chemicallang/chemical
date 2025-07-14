@@ -136,13 +136,27 @@ public:
 
     }
 
+    /**
+     * constructor
+     */
+    PatternMatchExpr(
+            bool is_const,
+            chem::string_view member_name,
+            BaseType* type,
+            SourceLocation location
+    ) : Value(ValueKind::PatternMatchExpr, type, location), is_const(is_const), member_name(member_name),
+        expression(nullptr)
+    {
+
+    }
+
     BaseType* create_type(ASTAllocator &allocator) override;
 
     VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     Value* copy(ASTAllocator &allocator) override {
         const auto copied = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
-            is_const, member_name, encoded_location()
+            is_const, member_name, getType(), encoded_location()
         );
         for(const auto name : param_names) {
             const auto id = name->copy(allocator);

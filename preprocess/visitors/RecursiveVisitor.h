@@ -137,6 +137,10 @@ public:
         static_cast<Derived*>(this)->visit(member);
     }
 
+    inline void visit_it(Value* value) {
+        static_cast<Derived*>(this)->visit(value);
+    }
+
     template<typename T>
     inline void visit_it(T*& thing) {
         static_cast<Derived*>(this)->visit(thing);
@@ -171,15 +175,15 @@ public:
     }
 
     void VisitNegativeValue(NegativeValue* value) {
-        visit_it(value->value);
+        visit_it(value->getValue());
     }
 
     void VisitNotValue(NotValue* value) {
-        visit_it(value->value);
+        visit_it(value->getValue());
     }
 
     void VisitIncDecValue(IncDecValue* value) {
-        visit_it(value->value);
+        visit_it(value->getValue());
     }
 
     void VisitCastedValue(CastedValue *casted) {
@@ -375,7 +379,7 @@ public:
     }
 
     void VisitComptimeValue(ComptimeValue* value) {
-        visit_it(value->value);
+        visit_it(value->getValue());
     }
 
     void VisitNewTypedValue(NewTypedValue* value) {
@@ -383,7 +387,7 @@ public:
     }
 
     void VisitUnsafeValue(UnsafeValue* value) {
-        visit_it(value->value);
+        visit_it(value->getValue());
     }
 
     void VisitVariantCase(VariantCase* value) {
@@ -434,7 +438,7 @@ public:
     }
 
     inline void VisitDereferenceValue(DereferenceValue* value) {
-        visit_it(value->value);
+        visit_it(value->getValue());
     }
 
     void VisitPlacementNewValue(PlacementNewValue *value) {

@@ -15,9 +15,14 @@ public:
      */
     constexpr UShortValue(
         unsigned short value,
+        UShortType* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UShort, location), value(value) {
+    ) : IntNumValue(ValueKind::UShort, type, location), value(value) {
 
+    }
+
+    UShortType* getType() const noexcept {
+        return (UShortType*) IntNumValue::getType();
     }
 
     BaseType* known_type() final {
@@ -29,7 +34,7 @@ public:
     }
 
     UShortValue *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<UShortValue>()) UShortValue(value, encoded_location());
+        return new (allocator.allocate<UShortValue>()) UShortValue(value, getType(), encoded_location());
     }
 
     [[nodiscard]]

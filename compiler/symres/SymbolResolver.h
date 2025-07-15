@@ -156,6 +156,12 @@ private:
 public:
 
     /**
+     * initialized in constructor, everything that is unresolved
+     * is linked with this declaration to avoid null pointer access
+     */
+    UnresolvedDecl* unresolved_decl;
+
+    /**
      * a reference to global interpret scope is required
      * which helps to resolve conditions inside compile time if statements
      * to link code
@@ -235,13 +241,6 @@ public:
      * of doing this
      */
     bool generic_context = false;
-
-    /**
-     * this is made true, when linking signature of a file, during link signature, values
-     * shouldn't be moved, create_type shouldn't be called on values because they may haven't
-     * been linked yet
-     */
-    bool linking_signature = false;
 
     /**
      * current function type, for which code is being linked

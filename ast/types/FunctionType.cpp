@@ -6,6 +6,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/GenericStructDecl.h"
@@ -75,6 +76,26 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
 };
 
 #endif
+
+bool CapturingFunctionType::satisfies(BaseType *type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Function:
+            return func_type->satisfies(type->as_function_type_unsafe());
+        case BaseTypeKind::CapturingFunction:
+            return func_type->satisfies(type->as_capturing_func_type_unsafe()->func_type);
+        default:
+            return false;
+    }
+}
+
+bool FunctionType::satisfies(BaseType *type) {
+    switch(type->kind()) {
+        case BaseTypeKind::NullPtr:
+            return true;
+        default:
+            return is_same(type);
+    }
+}
 
 bool FunctionType::isInVarArgs(unsigned index) const {
     return isVariadic() && index >= (params.size() - 1);

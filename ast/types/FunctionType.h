@@ -214,9 +214,7 @@ public:
         return other->kind() == kind() && equal_type(static_cast<FunctionType *>(other));
     }
 
-    bool satisfies(BaseType *type) override {
-        return type->kind() == BaseTypeKind::NullPtr || is_same(type);
-    }
+    bool satisfies(BaseType *type) override;
 
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const final;

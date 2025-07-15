@@ -80,4 +80,6 @@ enum class ASTNodeKind : uint8_t {
 
     EmbeddedNode,
 
+    UnresolvedDecl,
+
 };

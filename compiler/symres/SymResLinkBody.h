@@ -233,8 +233,6 @@ public:
 
     void VisitNotValue(NotValue* value);
 
-    void VisitNullValue(NullValue* value);
-
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 
     void VisitSizeOfValue(SizeOfValue* value);

@@ -76,6 +76,8 @@ class ModuleScope;
 
 class LoopBlock;
 
+class UnresolvedDecl;
+
 class StructDefinition;
 
 class WhileLoop;

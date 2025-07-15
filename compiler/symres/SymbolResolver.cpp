@@ -13,6 +13,8 @@
 #include "DeclareTopLevel.h"
 #include "LinkSignatureAPI.h"
 #include "SymResLinkBodyAPI.h"
+#include "ast/statements/UnresolvedDecl.h"
+#include "ast/base/TypeBuilder.h"
 
 SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
@@ -27,6 +29,11 @@ SymbolResolver::SymbolResolver(
 {
     global_scope_start();
     stored_file_symbols.reserve(128);
+    unresolved_decl = new (astAllocator->allocate<UnresolvedDecl>()) UnresolvedDecl(
+            nullptr,
+            comptime_scope.typeBuilder.getVoidType(),
+            ZERO_LOC
+    );
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
@@ -229,8 +236,6 @@ void SymbolResolver::link_signature_file(
         unsigned int fileId,
         const SymbolRange& range
 ) {
-    const auto prev_link_sig = linking_signature;
-    linking_signature = true;
     instContainer.current_file_id = fileId;
     // we create a scope_index, this scope is strictly for private entries
     // when this scope drops, every private symbol and non closed scope will automatically be dropped
@@ -239,7 +244,6 @@ void SymbolResolver::link_signature_file(
     // symbol resolve the scope
     sym_res_signature(*this, &scope);
     file_scope_end(scope_index);
-    linking_signature = prev_link_sig;
     // when linking signature is done, we should type verify only the top level var init decls
     if(!has_errors) {
         // we only do this if there are no errors (everything symbol resolved properly)
@@ -273,10 +277,7 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     const auto end = stored_file_symbols.size();
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
     enable_file_symbols(range);
-    const auto prev_link_sig = linking_signature;
-    linking_signature = true;
     sym_res_signature(*this, &scope);
-    linking_signature = prev_link_sig;
     sym_res_link_body(*this, &scope);
     file_scope_end(scope_index);
 }

@@ -7,6 +7,7 @@
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/statements/UnresolvedDecl.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/ComptimeBlock.h"
@@ -185,6 +186,27 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
     }
 }
 
+bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResolver& resolver) {
+    auto& value = id->value;
+    auto linked_node = parent->linked_node();
+    if(linked_node) {
+        const auto child = linked_node->child(value);
+        if(child) {
+            id->linked = child;
+            id->setType(child->known_type());
+            id->process_linked(&resolver);
+            return true;
+        } else {
+            id->linked = resolver.unresolved_decl;
+            resolver.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
+        }
+    } else {
+        id->linked = resolver.unresolved_decl;
+        resolver.error(id) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
+    }
+    return false;
+}
+
 void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, bool assignment) {
     // load the expected type beforehand
     const auto exp_type = expected_type;
@@ -221,9 +243,7 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
         const auto last = values_size - 1;
         unsigned i = 1;
         while (i < values_size) {
-            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], linker, i == last ? exp_type : nullptr)) {
-                return;
-            }
+            find_link_in_parent(values[i]->as_identifier_unsafe(), values[i - 1], linker);
             i++;
         }
     }
@@ -236,26 +256,20 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
     auto& value = identifier->value;
-    identifier->linked = linker.find(value);
-    if(identifier->linked) {
-//        if(linked->kind() == ASTNodeKind::GenericTypeParam) {
-//            if(ptr_ref) {
-//                auto& allocator = *linker.ast_allocator;
-//                const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked);
-//                *ptr_ref = new (allocator.allocate<TypeInsideValue>()) TypeInsideValue(linked_type, encoded_location());
-//                return true;
-//            } else {
-//                linker.error(this) << "cannot replace identifier '" << value << "' that references a generic type parameter";
-//            }
-//        } else {
+    const auto linked = linker.find(value);
+    if(linked) {
+        identifier->linked = linked;
+        identifier->setType(linked->known_type());
         if (check_access && linker.current_func_type) {
             // check for validity if accessible or assignable (because moved)
             linker.current_func_type->check_id(identifier, linker);
         }
         identifier->process_linked(&linker);
-//        }
         return;
     } else {
+        // since we couldn't find a linked declaration, we will
+        // link this identifier with unresolved declaration
+        identifier->linked = linker.unresolved_decl;
         linker.error(identifier) << "unresolved variable identifier '" << value << "' not found";
     }
 }
@@ -363,12 +377,6 @@ void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
         linker.error("destruct cannot be called on a value that isn't a pointer", node);
         return;
     }
-    auto found = linker.find("free");
-    if(!found || !found->as_function()) {
-        linker.error("'free' function should be declared before using destruct so calls can be made to it", node);
-        return;
-    }
-    node->free_func_linked = found->as_function();
 }
 
 void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {
@@ -1334,9 +1342,7 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
                 const auto expected_type = param ? param->type : nullptr;
                 sym_res_link_value_deprecated(linker, &value, expected_type);
                 properly_linked[i] = true;
-                if(!linker.linking_signature) {
-                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
-                }
+                current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
                 i++;
             }
 
@@ -1373,9 +1379,7 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         const auto expected_type = param ? param->type : nullptr;
         sym_res_link_value_deprecated(linker, &value, expected_type);
         properly_linked[i] = true;
-        if(!linker.linking_signature) {
-            current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
-        }
+        current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         i++;
     }
 
@@ -1410,7 +1414,7 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::v
             auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, value);
             if (implicit_constructor) {
                 link_with_implicit_constructor(implicit_constructor, linker, value);
-            } else if(!linker.linking_signature && !param->type->satisfies(linker.allocator, value, false)) {
+            } else if(!param->type->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, param->type);
             }
         }
@@ -1641,6 +1645,7 @@ void SymResLinkBody::VisitLinkedType(LinkedType* type) {
         if(found) {
             type->linked = found;
         } else if(type->linked == nullptr) {
+            type->linked = linker.unresolved_decl;
             linker.error(type_location) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
             return;
         }
@@ -1653,6 +1658,8 @@ void SymResLinkBody::VisitLinkedType(LinkedType* type) {
         const auto linked = value->linked_node();
         if(linked) {
             type->linked = linked;
+        } else {
+            type->linked = linker.unresolved_decl;
         }
         return;
     }
@@ -1705,11 +1712,7 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
                 break;
         }
     }
-    // TODO: remove this if link signature is not calling link function
-    if(!linker.linking_signature) {
-        // TODO we must perform mutability checks during link signature
-        addrOfValue->is_value_mutable = value->check_is_mutable(linker.allocator, true);
-    }
+    addrOfValue->is_value_mutable = value->check_is_mutable(linker.allocator, true);
 }
 
 void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
@@ -1735,7 +1738,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
                 const auto implicit = def->implicit_constructor_func(linker.allocator, value);
                 if(implicit) {
                     link_with_implicit_constructor(implicit, linker, value);
-                } else if(!linker.linking_signature && !elemType->satisfies(linker.allocator, value, false)) {
+                } else if(!elemType->satisfies(linker.allocator, value, false)) {
                     linker.unsatisfied_type_err(value, elemType);
                 }
                 i++;
@@ -1752,11 +1755,9 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
             known_elem_type = TypeLoc(value->known_type(), known_elem_type.getLocation());
         }
         if(known_elem_type) {
-            if(!linker.linking_signature) {
-                current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
-                if(!known_elem_type->satisfies(linker.allocator, value, false)) {
-                    linker.unsatisfied_type_err(value, known_elem_type);
-                }
+            current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
+            if(!known_elem_type->satisfies(linker.allocator, value, false)) {
+                linker.unsatisfied_type_err(value, known_elem_type);
             }
         }
         i++;
@@ -1803,11 +1804,7 @@ void SymResLinkBody::VisitExpression(Expression* value) {
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function
     // or decl that is private or internal, however that is hard to determine
-    // TODO: remove this check
-    if(!linker.linking_signature) {
-        // TODO this created_type should always be created, however this creates an error
-        value->setType(value->create_type(*linker.ast_allocator));
-    }
+    value->setType(value->create_type(*linker.ast_allocator));
 }
 
 void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
@@ -1994,8 +1991,6 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     linker.current_func_type = prev_func_type;
 
-    return;
-
 }
 
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
@@ -2028,17 +2023,6 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
-}
-
-void SymResLinkBody::VisitNullValue(NullValue* value) {
-    // TODO: check if we need to do this, I don't think so
-    // because null pointer type handles it
-//    if(expected_type) {
-//        const auto kind = expected_type->kind();
-//        if(kind == BaseTypeKind::Function || kind == BaseTypeKind::Pointer) {
-//            value->expected = expected_type->copy(*linker.ast_allocator);
-//        }
-//    }
 }
 
 void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
@@ -2140,13 +2124,11 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         const auto member = structValue->variables()->direct_variable(val.first);
         if(member) {
             const auto mem_type = member->known_type();
-            if(!linker.linking_signature) {
-                current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
-            }
+            current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
             auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
             if(implicit) {
                 link_with_implicit_constructor(implicit, linker, val_ptr);
-            } else if(!linker.linking_signature && !mem_type->satisfies(linker.allocator, value, false)) {
+            } else if(!mem_type->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, mem_type);
             }
         }
@@ -2156,8 +2138,10 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
 bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
     auto linked_node = parent->linked_node();
     if(linked_node) {
-        linked = linked_node->child(value);
-        if(linked) {
+        const auto child = linked_node->child(value);
+        if(child) {
+            linked = child;
+            setType(child->known_type());
             process_linked(diagnoser);
             return true;
         } else if(diagnoser) {

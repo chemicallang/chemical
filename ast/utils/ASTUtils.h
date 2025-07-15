@@ -33,8 +33,3 @@ void infer_generic_args(
     ASTDiagnoser& diagnoser,
     BaseType* expected_type
 );
-
-/**
- * when the given value for the given expected type, has a constructor
- */
-void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value);

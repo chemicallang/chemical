@@ -48,16 +48,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
-    void link_values(SymbolResolver &linker, std::vector<bool>& properly_linked);
-
-    /**
-     * if an arg has implicit constructor, we call that implicit constructor instead of
-     * just passing that value
-     */
-    void link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked);
-
-    bool link_gen_args(SymbolResolver &linker);
-
     /**
      * get function type from parent type
      */
@@ -90,12 +80,6 @@ public:
     void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi);
 
     bool instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type);
-
-    bool link_without_parent(
-            SymbolResolver &resolver,
-            BaseType *expected_type,
-            bool link_implicit_constructor
-    );
 
     bool primitive() final;
 

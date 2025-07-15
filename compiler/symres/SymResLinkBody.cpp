@@ -40,6 +40,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/ArrayType.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
@@ -235,18 +236,20 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     }
 
     if(values.size() == 1) {
+        chain->setType(values[0]->getType());
         return;
     }
 
     const auto values_size = values.size();
-    if (values_size > 1) {
-        const auto last = values_size - 1;
-        unsigned i = 1;
-        while (i < values_size) {
-            find_link_in_parent(values[i]->as_identifier_unsafe(), values[i - 1], linker);
-            i++;
-        }
+    const auto last = values_size - 1;
+    unsigned i = 1;
+    while (i < values_size) {
+        find_link_in_parent(values[i]->as_identifier_unsafe(), values[i - 1], linker);
+        i++;
     }
+
+    // the last item holds the type for this access chain
+    chain->setType(values[last]->getType());
 
     if(check_validity && linker.current_func_type) {
         // check chain for validity, if it's moved or members have been moved
@@ -280,7 +283,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     link_assignable(*this, lhs, nullptr);
 
-    BaseType* lhsType = lhs->create_type(linker.allocator);
+    BaseType* lhsType = lhs->getType();
 
     visit(value, lhsType);
 
@@ -387,6 +390,17 @@ void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {
     });
 }
 
+bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseType* expected_type, bool link_implicit_constructor);
+
+void link_with_implicit_constructor(SymResLinkBody& visitor, FunctionDeclaration* decl, Value* value) {
+    VariableIdentifier id(decl->name_view(), ZERO_LOC);
+    id.linked = decl;
+    id.setType(decl->known_type());
+    FunctionCall imp_call(&id, ZERO_LOC);
+    imp_call.values.emplace_back(value);
+    link_call_without_parent(visitor, &imp_call, nullptr, false);
+}
+
 void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
     auto& value = node->value;
     if (value) {
@@ -407,8 +421,8 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
                 // this check means current function's parent (if it's inside a struct) is not the same parent as the implicit constructor parent
                 // meaning implicit constructor and the function that's going to use the implicit constructor can't be inside same container
                 (func && func->parent() != implicit->parent())
-                    ) {
-                link_with_implicit_constructor(implicit, linker, value);
+            ) {
+                link_with_implicit_constructor(*this, implicit, value);
                 return;
             }
             if(!func_type->returnType->satisfies(linker.allocator, value, false)) {
@@ -1326,7 +1340,12 @@ void SymResLinkBody::VisitAccessChain(AccessChain *chain) {
 
 }
 
-void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& properly_linked) {
+void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
+
+    const auto parent_val = call->parent_val;
+    auto& values = call->values;
+    auto& linker = visitor.linker;
+
     auto& current_func = *linker.current_func_type;
     const auto parent = parent_val->linked_node();
     if(parent) {
@@ -1341,7 +1360,6 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
                 const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
                 const auto expected_type = param ? param->type : nullptr;
                 sym_res_link_value_deprecated(linker, &value, expected_type);
-                properly_linked[i] = true;
                 current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
                 i++;
             }
@@ -1351,7 +1369,7 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
             while (i < func_param_size) {
                 auto param = (variant_mem->values.begin() + 1)->second;
                 if (param) {
-                    linker.error(this) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
+                    linker.error(call) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
                 } else {
 #ifdef DEBUG
                     throw std::runtime_error("couldn't get param");
@@ -1364,9 +1382,9 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         }
     }
 
-    auto func_type = function_type(linker.allocator);
+    auto func_type = call->function_type(linker.allocator);
     if (func_type && !func_type->data.signature_resolved) {
-        linker.error("calling a function whose signature couldn't be resolved", this);
+        linker.error("calling a function whose signature couldn't be resolved", call);
         return;
     }
 
@@ -1378,7 +1396,6 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
         sym_res_link_value_deprecated(linker, &value, expected_type);
-        properly_linked[i] = true;
         current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         i++;
     }
@@ -1390,7 +1407,7 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
             auto param = func_type->func_param_for_arg_at(i);
             if (param) {
                 if (param->defValue == nullptr && !func_type->isInVarArgs(i)) {
-                    linker.error(this) << "function parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
+                    linker.error(call) << "function parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
                 }
             } else {
 #ifdef DEBUG
@@ -1403,17 +1420,18 @@ void FunctionCall::link_values(SymbolResolver &linker, std::vector<bool>& proper
 
 }
 
-void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::vector<bool>& properly_linked){
-    auto func_type = function_type(linker.allocator);
+void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* call){
+    auto& linker = visitor.linker;
+    auto func_type = call->function_type(linker.allocator);
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
-    while(i < values.size()) {
+    while(i < call->values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
-        if (param && properly_linked[i]) {
-            const auto value = values[i];
+        if (param) {
+            const auto value = call->values[i];
             auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, value);
             if (implicit_constructor) {
-                link_with_implicit_constructor(implicit_constructor, linker, value);
+                link_with_implicit_constructor(visitor, implicit_constructor, value);
             } else if(!param->type->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, param->type);
             }
@@ -1422,17 +1440,31 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker, std::v
     }
 }
 
-bool FunctionCall::link_gen_args(SymbolResolver &linker) {
-    for(auto& type : generic_list) {
+bool link_call_gen_args(SymResLinkBody& visitor, FunctionCall* call) {
+    auto& linker = visitor.linker;
+    for(auto& type : call->generic_list) {
         sym_res_link_type_deprecated(linker, const_cast<BaseType*>(type.getType()), type.getLocation());
     }
     return true;
 }
 
-bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
+// can call a normal function
+// can call a generic function (after instantiation, we can determine the type)
+// can call a stored function pointer
+// can call a capturing lambda function
+// can call a struct which has a constructor
+// can call a generic struct which has a constructor
+// can call a variant member of a variant
+// can call a variant member to instantiate a generic variant
+
+bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseType* expected_type, bool link_implicit_constructor) {
+
+    auto& resolver = visitor.linker;
 
     GenericFuncDecl* gen_decl = nullptr;
     GenericVariantDecl* gen_var_decl = nullptr;
+
+    const auto parent_val = call->parent_val;
 
     // relinking generic decl
     const auto parent_id = parent_val->get_last_id();
@@ -1444,7 +1476,7 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
 
             gen_decl = parent_id->linked->as_gen_func_decl_unsafe();
 
-            // TODO we link with the master implementation currently, however we require to instantiate a new implementation
+            // we link with the master implementation currently, we still need to instantiate a new implementation
             parent_id->linked = gen_decl->master_impl;
 
         } else if(k == ASTNodeKind::VariantMember) {
@@ -1489,13 +1521,11 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
 //        }
 //    }
 
-    relink_multi_func(resolver.allocator, &resolver);
-    const auto gen_args_linked = link_gen_args(resolver);
+    call->relink_multi_func(resolver.allocator, &resolver);
+    const auto gen_args_linked = link_call_gen_args(visitor, call);
 
-    // this contains which args linked successfully
-    std::vector<bool> properly_linked_args(values.size());
     // link the values, based on which constructor is determined
-    link_values(resolver, properly_linked_args);
+    link_call_values(visitor, call);
 
     if(!gen_args_linked) {
         // link_constructor may try to register a generic instantiation
@@ -1503,24 +1533,37 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         return false;
     }
 
-    link_constructor(resolver.allocator, resolver.genericInstantiator);
+    // determine constructor being called
+    // after this call, parent id should NOT be linked with a struct / generic struct / variant
+    call->link_constructor(resolver.allocator, resolver.genericInstantiator);
 
+    // check if variant member is not being called
+    // then we must get a function type
     if(linked_kind != ASTNodeKind::VariantMember) {
         // if its not a variant, it should give us a function type to be valid
-        const auto func_type = function_type(resolver.allocator);
+        const auto func_type = call->function_type(resolver.allocator);
         if(!func_type) {
-            resolver.error(this) << "cannot call a non function type";
+            resolver.error(call) << "cannot call a non function type";
             return false;
         }
+        // we have determined the return type of this function
+        call->setType(func_type->returnType);
     }
 
     if(gen_decl || gen_var_decl) {
+        // this will handle the generics
         goto instantiate_block;
+    }
+
+    if(linked_kind == ASTNodeKind::VariantMember) {
+        // this must be non generic variant member call
+        // generics are handle in instantiate_block
+        call->setType(linked->as_variant_member_unsafe()->parent()->known_type());
     }
 
     ending_block:
     if(link_implicit_constructor) {
-        link_args_implicit_constructor(resolver, properly_linked_args);
+        link_call_args_implicit_constructor(visitor, call);
     }
     return true;
     instantiate_block:
@@ -1528,7 +1571,7 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
     const auto curr_func = func_type->as_function();
     // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
     // we also don't want to instantiate this call, if the generic list is not completely specialized
-    if ((curr_func && curr_func->generic_parent != nullptr) || !are_all_specialized(generic_list)) {
+    if ((curr_func && curr_func->generic_parent != nullptr) || !are_all_specialized(call->generic_list)) {
         // since current function has a generic parent (it is generic), we do not want to instantiate this call here
         // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
         // changing back to generic decl, since instantiator needs access to it
@@ -1536,15 +1579,20 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         return true;
     }
     if(gen_decl) {
-        auto new_link = gen_decl->instantiate_call(resolver.genericInstantiator, this, expected_type);
+        auto new_link = gen_decl->instantiate_call(resolver.genericInstantiator, call, expected_type);
         // instantiate call can return null, when the inferred types aren found to be not specialized
         if (!new_link) {
             parent_id->linked = gen_decl;
             return true;
         }
+
+        // update linkage of parent identifier
         parent_id->linked = new_link;
+        // instantiated function's return type is the call's type
+        call->setType(new_link->returnType);
+
     } else if(gen_var_decl) {
-        auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, this, expected_type);
+        auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, call, expected_type);
         if(!new_link) {
             // no re-linkage required, because it's already linked with master implementation
             return true;
@@ -1556,7 +1604,12 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
         }
         const auto mem = parent_id->linked->as_variant_member_unsafe();
         const auto new_mem = new_link->direct_child(mem->name)->as_variant_member_unsafe();
+
+        // update linkage of parent identifier
         parent_id->linked = new_mem;
+        // set the type to be variant definition for current type
+        call->setType(new_link->known_type());
+
     } else {
 #ifdef DEBUG
         throw std::runtime_error("no condition satisfied in function call");
@@ -1565,12 +1618,12 @@ bool FunctionCall::link_without_parent(SymbolResolver& resolver, BaseType* expec
     goto ending_block;
 }
 
-void SymResLinkBody::VisitFunctionCall(FunctionCall* value) {
+void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     // load the expected type beforehand
     const auto exp_type = expected_type;
-    const auto parent_val = value->parent_val;
+    const auto parent_val = call->parent_val;
     visit(parent_val, nullptr);
-    value->link_without_parent(linker, exp_type, true);
+    link_call_without_parent(*this, call, exp_type, true);
 }
 
 void SymResLinkBody::VisitNumberValue(NumberValue* value) {
@@ -1712,6 +1765,11 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
                 break;
         }
     }
+
+    // lets determine the type of this value
+    const auto ptrType = new (linker.ast_allocator->allocate<PointerType>()) PointerType(value->getType(), true);
+    addrOfValue->setType(ptrType);
+
     addrOfValue->is_value_mutable = value->check_is_mutable(linker.allocator, true);
 }
 
@@ -1737,7 +1795,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
                 visit(value, elemType);
                 const auto implicit = def->implicit_constructor_func(linker.allocator, value);
                 if(implicit) {
-                    link_with_implicit_constructor(implicit, linker, value);
+                    link_with_implicit_constructor(*this, implicit, value);
                 } else if(!elemType->satisfies(linker.allocator, value, false)) {
                     linker.unsatisfied_type_err(value, elemType);
                 }
@@ -1790,11 +1848,31 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     visit(value, type);
 }
 
+BaseType* determine_deref_type(TypeBuilder& typeBuilder, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Pointer:
+            return type->as_pointer_type_unsafe()->type;
+        case BaseTypeKind::String:
+            return typeBuilder.getCharType();
+        default:
+            return nullptr;
+    }
+}
+
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(linker.safe_context) {
-        linker.warn("dereferencing a pointer in safe context is prohibited", value);
+        linker.warn("de-referencing a pointer in safe context is prohibited", value);
     }
     visit(value->getValue());
+    // determining the type for this dereference value
+    auto& typeBuilder = linker.comptime_scope.typeBuilder;
+    const auto determined = determine_deref_type(typeBuilder, value->getValue()->getType());
+    if(determined) {
+        value->setType(determined);
+    } else {
+        linker.error("couldn't determine type for de-referencing", value);
+        value->setType(typeBuilder.getVoidType());
+    }
 }
 
 void SymResLinkBody::VisitExpression(Expression* value) {
@@ -1807,12 +1885,43 @@ void SymResLinkBody::VisitExpression(Expression* value) {
     value->setType(value->create_type(*linker.ast_allocator));
 }
 
+BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Array:
+            return type->as_array_type_unsafe()->elem_type;
+        case BaseTypeKind::Pointer:
+            return type->as_pointer_type_unsafe()->type;
+        case BaseTypeKind::Reference:
+            return type->as_reference_type_unsafe()->type;
+        case BaseTypeKind::String:
+            return typeBuilder.getCharType();
+        default:
+            return nullptr;
+    }
+}
+
 void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
-    auto& values = indexOp->values;
+
+    // visiting stuff
     visit(indexOp->parent_val);
+    auto& values = indexOp->values;
     for(auto& value : values) {
         visit(value);
     }
+
+    // determining the type for this index operator
+    auto& typeBuilder = linker.comptime_scope.typeBuilder;
+    auto current_type = indexOp->parent_val->getType();
+    for(auto& value : values) {
+        const auto childType = get_child_type(typeBuilder, current_type);
+        if(childType) {
+            current_type = childType;
+        } else {
+            current_type = typeBuilder.getVoidType();
+        }
+    }
+    indexOp->setType(current_type);
+
 }
 
 void SymResLinkBody::VisitIsValue(IsValue* isValue) {
@@ -2127,7 +2236,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
             auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
             if(implicit) {
-                link_with_implicit_constructor(implicit, linker, val_ptr);
+                link_with_implicit_constructor(*this, implicit, val_ptr);
             } else if(!mem_type->satisfies(linker.allocator, value, false)) {
                 linker.unsatisfied_type_err(value, mem_type);
             }

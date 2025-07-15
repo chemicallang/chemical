@@ -1850,25 +1850,24 @@ BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes
     return new (allocator.allocate<VoidType>()) VoidType();
 }
 
-bool link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
-    // TODO rely on visiting the variables, and remove this
-    SymResLinkBody temp_linker(linker);
+bool link_params_and_caps(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_types) {
     for(const auto cap : fn->captureList) {
-        temp_linker.visit(cap);
+        visitor.visit(cap);
     }
     bool result = true;
     for (auto& param : fn->params) {
         if(link_param_types) {
-            link_param(temp_linker, param);
+            link_param(visitor, param);
         }
-        temp_linker.visit(param);
+        visitor.visit(param);
     }
     return result;
 }
 
-bool link_full(LambdaFunction* fn, SymbolResolver &linker, bool link_param_types) {
+bool link_full(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_types) {
+    auto& linker = visitor.linker;
     linker.scope_start();
-    const auto result = link_params_and_caps(fn, linker, link_param_types);
+    const auto result = link_params_and_caps(fn, visitor, link_param_types);
     fn->scope.link_sequentially(linker);
     linker.scope_end();
     return result;
@@ -1941,7 +1940,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 #endif
 
         // linking params and their types
-        auto result = link_full(lambVal, linker, true);
+        auto result = link_full(lambVal, *this, true);
 
         // finding return type
         auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
@@ -1963,7 +1962,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
         link_lambda(lambVal, *this, func_type);
 
-        if(link_full(lambVal, linker, false)) {
+        if(link_full(lambVal, *this, false)) {
             data.signature_resolved = true;
         }
 

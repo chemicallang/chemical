@@ -39,6 +39,8 @@ public:
             instance_type->is_same(type->as_capturing_func_type_unsafe()->instance_type);
     }
 
+    bool satisfies(BaseType *type) override;
+
     uint64_t byte_size(bool is64Bit) override {
         return instance_type->byte_size(is64Bit);
     }

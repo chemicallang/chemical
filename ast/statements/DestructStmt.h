@@ -28,10 +28,6 @@ public:
      * array value is the one in brackets like destruct[array_value] ptr;
      */
     Value* array_value;
-    /**
-     * free function is linked
-     */
-    FunctionDeclaration* free_func_linked = nullptr;
 
     /**
      * constructor

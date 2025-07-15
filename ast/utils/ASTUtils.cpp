@@ -199,14 +199,6 @@ void infer_generic_args(
 
 }
 
-void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {
-    VariableIdentifier id(decl->name_view(), ZERO_LOC);
-    id.linked = decl;
-    FunctionCall imp_call(&id, ZERO_LOC);
-    imp_call.values.emplace_back(value);
-    imp_call.link_without_parent(resolver, nullptr, false);
-}
-
 int16_t get_iteration_for(
         const std::span<std::span<BaseType*>>& instantiations,
         std::vector<TypeLoc>& generic_list

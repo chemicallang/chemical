@@ -283,7 +283,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     link_assignable(*this, lhs, nullptr);
 
-    BaseType* lhsType = lhs->getType();
+    const auto lhsType = lhs->getType();
 
     visit(value, lhsType);
 
@@ -296,7 +296,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
         case Operation::Addition:
         case Operation::Subtraction:
             if(lhsType->kind() == BaseTypeKind::Pointer) {
-                const auto rhsType = value->create_type(linker.allocator)->canonical();
+                const auto rhsType = value->getType()->canonical();
                 if(rhsType->kind() != BaseTypeKind::IntN) {
                     linker.unsatisfied_type_err(value, lhsType);
                 }
@@ -1875,6 +1875,42 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     }
 }
 
+BaseType* create_expression_type(Expression* expr, TypeBuilder& typeBuilder) {
+    if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
+        return typeBuilder.getBoolType();
+    }
+    auto firstType = expr->firstValue->getType();
+    auto secondType = expr->secondValue->getType();
+    if(firstType == nullptr || secondType == nullptr) {
+        return nullptr;
+    }
+    const auto first = firstType->canonical()->canonicalize_enum();
+    const auto second = secondType->canonical()->canonicalize_enum();
+    const auto first_kind = first->kind();
+    const auto second_kind = second->kind();
+    // operation between integer and float/double results in float/double
+    if(first_kind == BaseTypeKind::IntN && (second_kind == BaseTypeKind::Float || second_kind == BaseTypeKind::Double)) {
+        return second;
+    } else if(second_kind == BaseTypeKind::IntN && (first_kind == BaseTypeKind::Float || first_kind == BaseTypeKind::Double)) {
+        return first;
+    }
+    // operation between two integers of different int n types results in int n type of higher bit width
+    if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
+        const auto first_intN = first->as_intn_type_unsafe();
+        const auto second_intN = second->as_intn_type_unsafe();
+        return first_intN->greater_than_in_bits(second_intN) ? first : second;
+    }
+    // addition or subtraction of integer value into a pointer
+    if((expr->operation == Operation::Addition || expr->operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
+        return first;
+    }
+    // subtracting a pointer results in a long type
+    if(expr->operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
+        return typeBuilder.getLongType();
+    }
+    return first;
+}
+
 void SymResLinkBody::VisitExpression(Expression* value) {
     visit(value->firstValue);
     visit(value->secondValue);
@@ -1882,7 +1918,7 @@ void SymResLinkBody::VisitExpression(Expression* value) {
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function
     // or decl that is private or internal, however that is hard to determine
-    value->setType(value->create_type(*linker.ast_allocator));
+    value->setType(create_expression_type(value, linker.comptime_scope.typeBuilder));
 }
 
 BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
@@ -1931,29 +1967,26 @@ void SymResLinkBody::VisitIsValue(IsValue* isValue) {
     visit(type);
 }
 
-BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
+BaseType* find_return_type(std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
-        if(node->as_return() != nullptr) {
-            auto returnStmt = node->as_return();
+        if(node->kind() == ASTNodeKind::ReturnStmt) {
+            auto returnStmt = node->as_return_unsafe();
             if(returnStmt->value) {
-                const auto created = returnStmt->value->create_type(allocator);
-                if(created) {
-                    return created;
-                }
+                return returnStmt->value->getType();
             } else {
-                return new (allocator.allocate<VoidType>()) VoidType();
+                return nullptr;
             }
         } else {
             const auto loop_ast = node->as_loop_ast();
             if(loop_ast) {
-                auto found = find_return_type(allocator, node->as_loop_ast()->body.nodes);
+                auto found = find_return_type(node->as_loop_ast()->body.nodes);
                 if (found != nullptr) {
                     return found;
                 }
             }
         }
     }
-    return new (allocator.allocate<VoidType>()) VoidType();
+    return nullptr;
 }
 
 bool link_params_and_caps(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_types) {
@@ -2049,9 +2082,10 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
         auto result = link_full(lambVal, *this, true);
 
         // finding return type
-        auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
+        auto retType = find_return_type(scope.nodes);
 
-        returnType = {found_return_type, lambVal->get_location()};
+        auto& typeBuilder = linker.comptime_scope.typeBuilder;
+        returnType = {retType ? retType : typeBuilder.getVoidType(), lambVal->get_location()};
 
         if(result) {
             data.signature_resolved = true;

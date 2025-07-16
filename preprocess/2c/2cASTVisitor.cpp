@@ -4007,7 +4007,7 @@ void ToCAstVisitor::VisitGenericFuncDecl(GenericFuncDecl* node) {
 
 void do_patt_mat_expr(ToCAstVisitor& visitor, PatternMatchExpr* value) {
     const auto elseKind = value->elseExpression.kind;
-    const auto type = value->expression->create_type(visitor.allocator);
+    const auto type = value->expression->getType();
     visitor.visit(type);
     visitor.write('*');
     auto varName = visitor.get_local_temp_var_name();

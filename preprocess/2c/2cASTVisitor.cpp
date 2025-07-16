@@ -1814,7 +1814,7 @@ void destruct_assign_lhs(ToCAstVisitor& visitor, Value* lhs, FunctionDeclaration
 }
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
-    auto type = assign->lhs->create_type(visitor.allocator)->pure_type(visitor.allocator);
+    auto type = assign->lhs->getType()->canonical();
     // assignment to a reference, automatic dereferencing
     if(type->kind() == BaseTypeKind::Reference) {
         visitor.write('*');

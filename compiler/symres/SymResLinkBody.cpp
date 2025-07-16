@@ -1201,6 +1201,16 @@ void SymResLinkBody::VisitScope(Scope* node) {
 
 void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
     node->body.link_sequentially(linker);
+    // determining the type of loop block
+    if(node->is_value) {
+        const auto first = node->get_first_broken();
+        if(first) {
+            node->setType(first->getType());
+        } else {
+            node->setType(linker.comptime_scope.typeBuilder.getVoidType());
+        }
+    }
+
 }
 
 void SymResLinkBody::VisitInitBlock(InitBlock* node) {

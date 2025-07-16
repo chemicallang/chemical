@@ -61,6 +61,7 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
     const auto node = table.resolve(id->value);
     if(node) {
         id->linked = node;
+        id->setType(node->known_type());
         return true;
     } else {
         return false;

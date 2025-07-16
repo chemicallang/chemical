@@ -13,7 +13,7 @@ class CastedValue : public Value {
 public:
 
     Value* value;
-    TypeLoc type;
+    SourceLocation type_location;
 
     /**
      * constructor
@@ -22,7 +22,7 @@ public:
         Value* value,
         TypeLoc type,
         SourceLocation location
-    ) : Value(ValueKind::CastedValue, const_cast<BaseType*>(type.getType()), location), value(value), type(type) {
+    ) : Value(ValueKind::CastedValue, const_cast<BaseType*>(type.getType()), location), value(value), type_location(type.getLocation()) {
 
     }
 
@@ -30,7 +30,7 @@ public:
     CastedValue* copy(ASTAllocator& allocator) final {
         return new CastedValue(
                 value->copy(allocator),
-                type.copy(allocator),
+                { getType()->copy(allocator), type_location },
                 encoded_location()
         );
     }
@@ -38,11 +38,11 @@ public:
     Value* evaluated_value(InterpretScope &scope) final;
 
     BaseType* known_type() final {
-        return type;
+        return getType();
     }
 
     BaseType* create_type(ASTAllocator &allocator) final {
-        return type->copy(allocator);
+        return getType()->copy(allocator);
     }
 
     ASTNode *linked_node() final;

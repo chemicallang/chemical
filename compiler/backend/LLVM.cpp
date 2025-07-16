@@ -612,7 +612,7 @@ llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
 }
 
 llvm::Type *CastedValue::llvm_type(Codegen &gen) {
-    return type->llvm_type(gen);
+    return getType()->llvm_type(gen);
 }
 
 llvm::Value* CastedValue::llvm_pointer(Codegen &gen) {
@@ -623,7 +623,8 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
     const auto value_type_real = value->create_type(gen.allocator);
     const auto value_type = value_type_real->pure_type(gen.allocator);
-    const auto pure_type = type->pure_type(gen.allocator);
+    const auto type = getType();
+    const auto pure_type = getType()->pure_type(gen.allocator);
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type;
         auto to_num_type = (IntNType*) pure_type;
@@ -639,7 +640,7 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
             return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
         }
     } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {
-        if(((IntNType*) type.getType())->is_unsigned()) {
+        if(((IntNType*) type)->is_unsigned()) {
             return gen.builder->CreateFPToUI(llvm_val, type->llvm_type(gen));
         } else {
             return gen.builder->CreateFPToSI(llvm_val, type->llvm_type(gen));
@@ -778,7 +779,7 @@ llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
 }
 
 bool CastedValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    return type->linked_node()->add_child_index(gen, indexes, name);
+    return getType()->linked_node()->add_child_index(gen, indexes, name);
 }
 
 llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {

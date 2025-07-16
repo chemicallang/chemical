@@ -18,7 +18,7 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
     if(!eval) {
         return nullptr;
     }
-    const auto pure = type->pure_type(scope.allocator);
+    const auto pure = getType()->pure_type(scope.allocator);
     const auto pure_kind = pure->kind();
     switch(pure_kind) {
         case BaseTypeKind::IntN: {

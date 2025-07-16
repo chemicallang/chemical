@@ -687,7 +687,7 @@ void RepresentationVisitor::VisitCastedValue(CastedValue *casted) {
     write('(');
     visit(casted->value);
     write(" as ");
-    visit(casted->type);
+    visit(casted->getType());
     write(')');
 }
 

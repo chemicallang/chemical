@@ -205,8 +205,6 @@ public:
 
     void VisitArrayValue(ArrayValue* value);
 
-    void VisitBlockValue(BlockValue* value);
-
     void VisitCastedValue(CastedValue* value);
 
     void VisitDereferenceValue(DereferenceValue* value);

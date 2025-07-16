@@ -5476,7 +5476,7 @@ void ToCAstVisitor::VisitComptimeValue(ComptimeValue* value) {
 void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
     write('(');
     write('(');
-    visit(casted->type);
+    visit(casted->getType());
     write(')');
     write(' ');
     auto prev_nested = nested_value;

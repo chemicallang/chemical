@@ -59,6 +59,5 @@ public:
 #endif
 
     BaseType* create_type(ASTAllocator &allocator) final;
-//    std::unique_ptr<BaseType> create_type() final;
 
 };

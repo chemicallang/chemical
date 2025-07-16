@@ -38,19 +38,7 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
-
-    }
-
-    /**
-     * constructor
-     */
-    constexpr LambdaFunction(
-            bool isVariadic,
-            ASTNode* parent_node,
-            BaseType* type,
-            SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, type, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
+    ) : Value(ValueKind::LambdaFunc, this, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
 
     }
 

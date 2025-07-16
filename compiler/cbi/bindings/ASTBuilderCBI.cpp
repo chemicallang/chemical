@@ -404,7 +404,7 @@ VariableIdentifier* ASTBuildermake_identifier(ASTBuilder* builder, chem::string_
 }
 
 VariantCase* ASTBuildermake_variant_case(ASTBuilder* builder, VariantMember* member, SwitchStatement* stmt, uint64_t location) {
-    return new (builder->allocate<VariantCase>()) VariantCase(member, stmt, location);
+    return new (builder->allocate<VariantCase>()) VariantCase(member, stmt, builder->typeBuilder.getVoidType(), location);
 }
 
 VariantCaseVariable* ASTBuildermake_variant_case_variable(ASTBuilder* builder, chem::string_view* name, VariantMemberParam* param, SwitchStatement* switch_stmt, uint64_t location) {

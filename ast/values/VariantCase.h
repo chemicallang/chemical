@@ -18,20 +18,9 @@ public:
     constexpr VariantCase(
             VariantMember* member,
             SwitchStatement* statement,
+            VoidType* voidTy,
             SourceLocation location
     ) : Value(ValueKind::VariantCase, location), member(member), switch_statement(statement) {
-
-    }
-
-    /**
-     * constructor
-     */
-    constexpr VariantCase(
-            VariantMember* member,
-            SwitchStatement* statement,
-            BaseType* type,
-            SourceLocation location
-    ) : Value(ValueKind::VariantCase, type, location), member(member), switch_statement(statement) {
 
     }
 
@@ -39,7 +28,7 @@ public:
         const auto varCase = new (allocator.allocate<VariantCase>()) VariantCase(
             member,
             switch_statement,
-            getType(),
+            (VoidType*) getType(),
             encoded_location()
         );
         varCase->identifier_list = identifier_list;

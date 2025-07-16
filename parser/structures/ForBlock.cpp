@@ -164,7 +164,7 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
 
     token++;
 
-    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock(parent_node, loc_single(tok));
+    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock(is_value, parent_node, loc_single(tok));
 
     // { statement(s) } with continue & break support
     auto block = parseBraceBlock("loop", loopBlock, allocator);

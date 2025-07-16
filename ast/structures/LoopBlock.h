@@ -16,15 +16,19 @@
 class LoopBlock : public LoopASTNode, public Value {
 public:
 
+    bool is_value;
     Value* first_broken = nullptr;
 
     /**
      * constructor
      */
     constexpr LoopBlock(
+            bool is_value,
             ASTNode* parent_node,
             SourceLocation location
-    ) : LoopASTNode(ASTNodeKind::LoopBlock, parent_node, location), Value(ValueKind::LoopValue, location) {
+    ) : LoopASTNode(ASTNodeKind::LoopBlock, parent_node, location),
+        Value(ValueKind::LoopValue, location), is_value(is_value)
+    {
 
     }
 

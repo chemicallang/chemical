@@ -14,13 +14,6 @@
 class NullValue : public Value {
 public:
 
-    /**
-     * constructor
-     */
-    inline explicit constexpr NullValue(SourceLocation location) : Value(ValueKind::NullValue, location) {
-
-    }
-
     inline NullValue(
         NullPtrType* nullType,
         SourceLocation location

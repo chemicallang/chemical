@@ -16,7 +16,7 @@ Value* IsValue::evaluated_value(InterpretScope &scope) {
     if(result.has_value()) {
         return new (scope.allocate<BoolValue>()) BoolValue(result.value(), typeBuilder.getBoolType(), encoded_location());
     } else {
-        return new (scope.allocate<NullValue>()) NullValue(encoded_location());
+        return new (scope.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), encoded_location());
     }
 }
 

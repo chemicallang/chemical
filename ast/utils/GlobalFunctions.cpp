@@ -212,7 +212,7 @@ namespace InterpretVector {
             return static_cast<InterpretVectorVal*>(parent_val)->values[number.value()]->scope_value(*call_scope);
         } else {
             call_scope->error("vector::get only supports integer value as an index", call);
-            return new (call_scope->allocate<NullValue>()) NullValue(call->encoded_location());
+            return new (call_scope->allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), call->encoded_location());
         }
 
     }
@@ -1002,7 +1002,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), nullVal(ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
+    ), nullVal(cache.getNullPtrType(), ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
                                                                             valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
@@ -1029,7 +1029,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), nullVal(ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
+    ), nullVal(cache.getNullPtrType(), ZERO_LOC), ptrType(cache.getAnyType(), ZERO_LOC),
                                                                                valueParam("value", { &ptrType, ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
@@ -1394,7 +1394,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("call requires a single argument", call);
-            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+            return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), ZERO_LOC);
         }
         const auto arg = call->values.front()->evaluated_value(*call_scope);
         const auto extractionKind = ExtractionKind::LambdaFnPtr;
@@ -1428,7 +1428,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("call requires a single argument", call);
-            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+            return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), ZERO_LOC);
         }
         const auto arg = call->values.front()->evaluated_value(*call_scope);
         const auto extractionKind = ExtractionKind::LambdaCapturedPtr;
@@ -1463,7 +1463,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("call requires a single argument", call);
-            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+            return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), ZERO_LOC);
         }
         const auto arg = call->values.front()->evaluated_value(*call_scope);
         const auto extractionKind = ExtractionKind::LambdaCapturedDestructor;
@@ -1497,7 +1497,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("call requires a single argument", call);
-            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+            return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), ZERO_LOC);
         }
         const auto arg = call->values.front()->evaluated_value(*call_scope);
         const auto extractionKind = ExtractionKind::SizeOfLambdaCaptured;
@@ -1532,7 +1532,7 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("call requires a single argument", call);
-            return new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+            return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), ZERO_LOC);
         }
         const auto arg = call->values.front()->evaluated_value(*call_scope);
         const auto extractionKind = ExtractionKind::AlignOfLambdaCaptured;

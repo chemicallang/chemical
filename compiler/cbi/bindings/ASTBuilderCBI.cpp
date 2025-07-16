@@ -337,7 +337,7 @@ NotValue* ASTBuildermake_not_value(ASTBuilder* builder, Value* value, uint64_t l
 }
 
 NullValue* ASTBuildermake_null_value(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<NullValue>()) NullValue(location);
+    return new (builder->allocate<NullValue>()) NullValue(builder->typeBuilder.getNullPtrType(), location);
 }
 
 NumberValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location) {

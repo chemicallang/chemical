@@ -22,7 +22,7 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
         return new (scope.allocate<BoolValue>()) BoolValue(!val->as_bool_unsafe()->value, scope.global->typeBuilder.getBoolType(), encoded_location());
     } else {
         scope.error("couldn't evaluate as value didn't return a boolean value", this);
-        return new (scope.allocate<NullValue>()) NullValue(encoded_location());
+        return new (scope.allocate<NullValue>()) NullValue(scope.global->typeBuilder.getNullPtrType(), encoded_location());
     };
 }
 

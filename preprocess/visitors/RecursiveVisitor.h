@@ -188,7 +188,11 @@ public:
 
     void VisitCastedValue(CastedValue *casted) {
         visit_it(casted->value);
-        visit_it(casted->type);
+        auto typeLoc = TypeLoc(casted->getType(), casted->type_location);
+        visit_it(typeLoc);
+        if(typeLoc.getType() != casted->getType()) {
+            casted->setType(const_cast<BaseType*>(typeLoc.getType()));
+        }
     }
 
     void VisitValueNode(ValueNode *node) {

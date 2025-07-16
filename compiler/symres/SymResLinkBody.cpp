@@ -1842,34 +1842,11 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
     }
 }
 
-void SymResLinkBody::VisitBlockValue(BlockValue* bValue) {
-    // TODO: block value cannot be written in chemical
-    // block value is only created by macros
-    // block value whenever created should be fully symbol resolved
-//    auto& scope = bValue->scope;
-//    if(scope.nodes.empty()) {
-//        linker.error("empty block value not allowed", type_location);
-//        return;
-//    } else {
-//        scope.link_sequentially(linker);
-//    }
-//    const auto lastNode = scope.nodes.back();
-//    const auto lastKind = lastNode->kind();
-//    if(lastKind != ASTNodeKind::ValueWrapper) {
-//        linker.error("block doesn't contain a value wrapper as last node", type_location);
-//        return;
-//    }
-//    const auto lastValNode = lastNode->as_value_wrapper_unsafe();
-//    bValue->setCalculatedValue(lastValNode->value);
-//    return;
-}
-
 void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
-    // TODO: casted value's type should be stored in the base type pointer
-    // TODO: we should only store location for the type
-    auto& type = cValue->type;
+    const auto type = cValue->getType();
     const auto value = cValue->value;
-    visit(type);
+    auto typeLoc = TypeLoc(type, cValue->type_location);
+    visit(typeLoc);
     visit(value, type);
 }
 

@@ -188,7 +188,7 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return pack_bool(scope, fKind != sKind, location);
                 break;
             default:
-                return new (scope.allocate<NullValue>()) NullValue(location);
+                return new (scope.allocate<NullValue>()) NullValue(global->typeBuilder.getNullPtrType(), location);
         }
     } else if((fKind == ValueKind::String && is_int_n(sKind))) {
         const auto strVal = fEvl->as_string_unsafe();

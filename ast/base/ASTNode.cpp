@@ -69,7 +69,7 @@ VarInitStatement* default_build_lab_cached_ptr(ASTAllocator& allocator, TypeBuil
     const auto modNmdType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Module"));
     const auto ptrModNmdType = new (allocator.allocate<PointerType>()) PointerType(modNmdType, true);
 
-    const auto buildPtrValue = new (allocator.allocate<NullValue>()) NullValue(ZERO_LOC);
+    const auto buildPtrValue = new (allocator.allocate<NullValue>()) NullValue(builder.getNullPtrType(), ZERO_LOC);
     const auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, false, LocatedIdentifier(chem::string_view("__chx_cached_build")), {ptrModNmdType, ZERO_LOC}, buildPtrValue, parent, ZERO_LOC);
     return stmt;
 }

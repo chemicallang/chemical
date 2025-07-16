@@ -27,7 +27,7 @@ Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStru
         case TokenType::NullKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<NullValue>()) NullValue(loc_single(t));
+            return new(allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc_single(t));
         }
         case TokenType::TrueKw: {
             const auto t = token;
@@ -139,7 +139,7 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
         case TokenType::NullKw: {
             const auto t = token;
             token++;
-            return new(allocator.allocate<NullValue>()) NullValue(loc_single(t));
+            return new(allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc_single(t));
         }
         case TokenType::TrueKw: {
             const auto t = token;

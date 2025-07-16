@@ -5721,7 +5721,7 @@ void ToCAstVisitor::VisitValueNode(ValueNode *node) {
 }
 
 void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
-    const auto val_type = node->value->create_type(allocator);
+    const auto val_type = node->value->getType();
     if(val_type->isStructLikeType()) {
         const auto destr = val_type->get_destructor();
         if (destr != nullptr) {

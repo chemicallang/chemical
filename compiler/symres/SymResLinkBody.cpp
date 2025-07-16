@@ -1541,7 +1541,8 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     // then we must get a function type
     if(linked_kind != ASTNodeKind::VariantMember) {
         // if its not a variant, it should give us a function type to be valid
-        const auto func_type = call->function_type(resolver.allocator);
+        // TODO: every function call type is being created using ast allocator
+        const auto func_type = call->function_type(*resolver.ast_allocator);
         if(!func_type) {
             resolver.error(call) << "cannot call a non function type";
             return false;

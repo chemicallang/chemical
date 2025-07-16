@@ -579,6 +579,15 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
         curr_func->restore_moved_chains(moved_chains);
     }
 
+    // setting types for the given switch
+    if(stmt->is_value) {
+        const auto node = stmt->get_value_node();
+        if(node) {
+            stmt->setType(node->getType());
+        }
+    }
+
+
 }
 
 void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
@@ -1101,6 +1110,16 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 
     curr_func->restore_moved_ids(moved_ids);
     curr_func->restore_moved_chains(moved_chains);
+
+    // we never reach this point if the statement is compile time
+    // maybe type emplacement should also take place above
+    if(node->is_value) {
+        auto last_val = node->get_value_node();
+        if(last_val) {
+            node->setType(last_val->getType());
+        }
+    }
+
 }
 
 void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {

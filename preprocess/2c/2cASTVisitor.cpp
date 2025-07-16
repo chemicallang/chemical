@@ -3515,7 +3515,7 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
     } else if(val && BaseType::isPrimitiveType(return_type->pure_type(allocator)->kind()) && !destructor->destruct_jobs.empty()) {
         saved_into_temp_var = get_local_temp_var_name();
         write("const ");
-        auto type = val->create_type(allocator);
+        auto type = val->getType();
         visit(type);
         space();
         write(saved_into_temp_var);

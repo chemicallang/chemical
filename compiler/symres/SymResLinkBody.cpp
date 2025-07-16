@@ -437,7 +437,7 @@ VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt
     const auto child = def->child(id->value);
     if(child) {
         if(child->kind() == ASTNodeKind::VariantMember) {
-            return new (allocator.allocate<VariantCase>()) VariantCase(child->as_variant_member_unsafe(), stmt, id->encoded_location());
+            return new (allocator.allocate<VariantCase>()) VariantCase(child->as_variant_member_unsafe(), stmt, resolver.comptime_scope.typeBuilder.getVoidType(), id->encoded_location());
         } else {
             resolver.error(id) << "couldn't find variant member with name '" << id->value << "'";
         }
@@ -1636,10 +1636,30 @@ void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
 
 void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
     visit(value->getValue(), expected_type);
+    // type determined during symbol resolution needs to be set
+    value->setType(value->getValue()->getType());
+}
+
+BaseType* determine_inc_dec_type(IncDecValue* value) {
+    const auto type = value->getValue()->getType();
+    const auto pure = type->canonical();
+    if(pure->kind() == BaseTypeKind::Reference) {
+        const auto ref = pure->as_reference_type_unsafe();
+        const auto ref_type = ref->type->canonical();
+        if(BaseType::isLoadableReferencee(ref_type->kind())) {
+            return ref_type;
+        } else {
+            return ref;
+        }
+    } else {
+        return type;
+    }
 }
 
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     visit(value->getValue(), expected_type);
+    // type determined at symbol resolution must be set
+    value->setType(determine_inc_dec_type(value));
 }
 
 void SymResLinkBody::VisitVariantCase(VariantCase* value) {
@@ -1823,25 +1843,30 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
 }
 
 void SymResLinkBody::VisitBlockValue(BlockValue* bValue) {
-    auto& scope = bValue->scope;
-    if(scope.nodes.empty()) {
-        linker.error("empty block value not allowed", type_location);
-        return;
-    } else {
-        scope.link_sequentially(linker);
-    }
-    const auto lastNode = scope.nodes.back();
-    const auto lastKind = lastNode->kind();
-    if(lastKind != ASTNodeKind::ValueWrapper) {
-        linker.error("block doesn't contain a value wrapper as last node", type_location);
-        return;
-    }
-    const auto lastValNode = lastNode->as_value_wrapper_unsafe();
-    bValue->setCalculatedValue(lastValNode->value);
-    return;
+    // TODO: block value cannot be written in chemical
+    // block value is only created by macros
+    // block value whenever created should be fully symbol resolved
+//    auto& scope = bValue->scope;
+//    if(scope.nodes.empty()) {
+//        linker.error("empty block value not allowed", type_location);
+//        return;
+//    } else {
+//        scope.link_sequentially(linker);
+//    }
+//    const auto lastNode = scope.nodes.back();
+//    const auto lastKind = lastNode->kind();
+//    if(lastKind != ASTNodeKind::ValueWrapper) {
+//        linker.error("block doesn't contain a value wrapper as last node", type_location);
+//        return;
+//    }
+//    const auto lastValNode = lastNode->as_value_wrapper_unsafe();
+//    bValue->setCalculatedValue(lastValNode->value);
+//    return;
 }
 
 void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
+    // TODO: casted value's type should be stored in the base type pointer
+    // TODO: we should only store location for the type
     auto& type = cValue->type;
     const auto value = cValue->value;
     visit(type);
@@ -2136,8 +2161,35 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
 }
 
+BaseType* to_signed(TypeBuilder& typeBuilder, IntNType* type) {
+    switch(type->IntNKind()) {
+        case IntNTypeKind::UChar:
+            return typeBuilder.getCharType();
+        case IntNTypeKind::UShort:
+            return (BaseType*) typeBuilder.getShortType();
+        case IntNTypeKind::UInt:
+            return typeBuilder.getIntType();
+        case IntNTypeKind::ULong:
+            return typeBuilder.getLongType();
+        case IntNTypeKind::UBigInt:
+            return (BaseType*) typeBuilder.getBigIntType();
+        case IntNTypeKind::UInt128:
+            return (BaseType*) typeBuilder.getInt128Type();
+        default:
+            return type;
+    }
+}
+
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
     visit(negValue->getValue());
+    // determine type for negative value
+    const auto type = negValue->getValue()->getType();
+    const auto can = type->canonical();
+    negValue->setType(
+            can->kind() == BaseTypeKind::IntN ? (
+                to_signed(linker.comptime_scope.typeBuilder, can->as_intn_type_unsafe())
+            ) : type
+    );
 }
 
 void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
@@ -2145,13 +2197,18 @@ void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
     linker.safe_context = false;
     visit(value->getValue(), expected_type);
     linker.safe_context = prev;
+    value->setType(value->getValue()->getType());
 }
 
 void SymResLinkBody::VisitNewValue(NewValue* value) {
     visit(value->value);
+    // type determined at symbol resolution must be set
+    value->ptr_type.type = value->value->getType();
 }
 
 void SymResLinkBody::VisitTypeInsideValue(TypeInsideValue* value) {
+    // TODO: we do not need to visit type inside value
+    // because its created on demand by the generic instantiator
     visit(value->type, value->encoded_location());
 }
 
@@ -2162,13 +2219,22 @@ void SymResLinkBody::VisitNewTypedValue(NewTypedValue* value) {
 void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
     visit(value->pointer);
     visit(value->value);
+    // type of the value determined at symbol resolution must be set
+    value->ptr_type.type = value->value->getType();
 }
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
+    // determine the type of not value
+    value->setType(value->getValue()->getType());
 }
 
 void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
+    // TODO: maybe pattern match expression should be a node
+    // currently we emplace a void type
+    // as expression is only used as a statement
+    expr->setType(linker.comptime_scope.typeBuilder.getVoidType());
+    // linking pattern match expression
     const auto expression = expr->expression;
     auto& elseExpression = expr->elseExpression;
     auto& param_names = expr->param_names;
@@ -2239,6 +2305,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         }
         structValue->refType = {exp_type, structValue->refType.getLocation()};
     }
+    structValue->setType(structValue->refType);
     if(!structValue->resolve_container(linker.genericInstantiator)) {
         return;
     }

@@ -19,26 +19,19 @@ public:
         Value* pointer,
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::PlacementNewValue, location), pointer(pointer), value(value), ptr_type(nullptr, false) {
-
-    }
-
-    /**
-     * constructor
-     */
-    inline constexpr PlacementNewValue(
-            Value* pointer,
-            Value* value,
-            BaseType* type,
-            SourceLocation location
-    ) : Value(ValueKind::PlacementNewValue, type, location), pointer(pointer), value(value), ptr_type(nullptr, false) {
+    ) : Value(ValueKind::PlacementNewValue, &ptr_type, location), pointer(pointer), value(value), ptr_type(nullptr, true) {
 
     }
 
     PlacementNewValue* copy(ASTAllocator &allocator) override {
-        return new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(
-            pointer->copy(allocator), value->copy(allocator), getType(), encoded_location()
+        const auto pNew = new (allocator.allocate<PlacementNewValue>()) PlacementNewValue(
+            pointer->copy(allocator), value->copy(allocator), encoded_location()
         );
+        if(pNew->value) {
+            // need to set this explicitly
+            pNew->ptr_type.type = pNew->value->getType();
+        }
+        return pNew;
     }
 
     BaseType* create_type(ASTAllocator &allocator) override;

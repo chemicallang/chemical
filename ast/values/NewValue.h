@@ -17,26 +17,14 @@ public:
     constexpr NewValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(value->getType(), false) {
-
-    }
-
-    /**
-     * constructor
-     */
-    constexpr NewValue(
-            Value* value,
-            SourceLocation location,
-            const PointerType& ptrType
-    ) : Value(ValueKind::NewValue, location), value(value), ptr_type(ptrType.type, ptrType.is_mutable) {
+    ) : Value(ValueKind::NewValue, &ptr_type, location), value(value), ptr_type(value->getType(), false) {
 
     }
 
     NewValue* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<NewValue>()) NewValue(
                 value->copy(allocator),
-                encoded_location(),
-                ptr_type
+                encoded_location()
         );
     }
 

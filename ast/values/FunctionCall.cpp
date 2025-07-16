@@ -1011,6 +1011,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
         auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
+            parent_id->setType(constructorFunc->known_type());
         } else {
             genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
@@ -1020,6 +1021,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
         auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
+            parent_id->setType(constructorFunc->known_type());
         } else {
             genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }

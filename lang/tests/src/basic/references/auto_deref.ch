@@ -160,7 +160,7 @@ func test_auto_deref() {
         var i = 788
         var ref = give_ref(i)
         var str : char[20] = []
-        snprintf(&str[0], 19, "%d", ref);
+        snprintf(&mut str[0], 19, "%d", ref);
         return strncmp(&str[0], "788", 3) == 0
     })
 }

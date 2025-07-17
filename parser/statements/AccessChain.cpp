@@ -94,9 +94,10 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 AddrOfValue* Parser::parseAddrOfValue(ASTAllocator& allocator) {
     auto token1 = consumeOfType(TokenType::AmpersandSym);
     if (token1) {
+        const auto is_mutable = consumeToken(TokenType::MutKw);
         auto chain = parseAccessChainOrAddrOf(allocator, true);
         if (chain) {
-            return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, loc_single(token1));
+            return new(allocator.allocate<AddrOfValue>()) AddrOfValue(chain, is_mutable, loc_single(token1));
         } else {
             unexpected_error("expected a value after '&' for address of");
             return nullptr;

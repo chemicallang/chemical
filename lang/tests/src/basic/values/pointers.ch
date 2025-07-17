@@ -39,7 +39,7 @@ func send_a_struct_ptr(pathname : a_struct_ptr) : bool {
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
-        var j = &i;
+        var j = &mut i;
         *j = *j + 1;
         return i == 3
     })
@@ -118,12 +118,12 @@ func test_pointer_math() {
     })
     test("can assign to a int pointer returned from function call", () => {
         var i = 20;
-        *ret_ptr_to_int22(&i) = 20;
+        *ret_ptr_to_int22(&mut i) = 20;
         return i == 20;
     })
     test("can assign to a struct pointer returned from a function call", () => {
         var p = PMC22 { a : 43, b : 87 }
-        *ret_ptr_to_struct22(&p) = PMC22 { a : 32, b : 44 }
+        *ret_ptr_to_struct22(&mut p) = PMC22 { a : 32, b : 44 }
         return p.a == 32 && p.b == 44;
     })
     test("expressions can be de-referenced", () => {
@@ -135,7 +135,7 @@ func test_pointer_math() {
     test("taking address of pointer works", () => {
         var ptr = 33
         // TODO taking address directly probably takes address of the expression
-        const thing = *take_addr_of_pointer(&ptr);
+        const thing = *take_addr_of_pointer(&mut ptr);
         return thing == 33
     })
     test("passing a char pointer as typealias succeeds", () => {

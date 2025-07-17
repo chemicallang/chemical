@@ -1817,10 +1817,12 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     }
 
     // lets determine the type of this value
-    const auto ptrType = new (linker.ast_allocator->allocate<PointerType>()) PointerType(value->getType(), true);
+    const auto valueType = value->getType();
+    const auto can = valueType->canonical();
+    const auto elem_type = can->kind() == BaseTypeKind::Reference ? can->as_reference_type_unsafe()->type : valueType;
+    const auto ptrType = new (linker.ast_allocator->allocate<PointerType>()) PointerType(elem_type, addrOfValue->is_mutable);
     addrOfValue->setType(ptrType);
 
-    addrOfValue->is_value_mutable = value->check_is_mutable(linker.allocator, true);
 }
 
 void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {

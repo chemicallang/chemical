@@ -256,7 +256,8 @@ ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value
 }
 
 AddrOfValue* ASTBuildermake_addr_of_value(ASTBuilder* builder, Value* value, uint64_t location) {
-    return new (builder->allocate<AddrOfValue>()) AddrOfValue(value, location);
+    // TODO get if this is a mutable reference
+    return new (builder->allocate<AddrOfValue>()) AddrOfValue(value, true, location);
 }
 
 ArrayValue* ASTBuildermake_array_value(ASTBuilder* builder, BaseType* type, uint64_t location) {

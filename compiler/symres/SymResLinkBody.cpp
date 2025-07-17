@@ -598,13 +598,6 @@ void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
 }
 
 void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
-    if(node->type) {
-        visit(node->type);
-    }
-    if(node->value) {
-        // TODO: if type didn't link successfully we need to NOT use it
-        visit(node->value, node->type_ptr_fast());
-    }
     auto& type = node->type;
     auto& value = node->value;
     auto& attrs = node->attrs;

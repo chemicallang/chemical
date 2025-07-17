@@ -231,11 +231,7 @@ BaseType* VarInitStatement::known_type() {
     if(type) {
         return type;
     }
-    auto known_type = value->known_type();
-    if(known_type) {
-        return known_type;
-    }
-    return nullptr;
+    return value->getType();
 }
 
 ASTNode *VarInitStatement::child(const chem::string_view &name) {

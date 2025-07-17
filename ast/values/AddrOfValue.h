@@ -15,15 +15,16 @@ public:
 
     Value* value;
     PointerType _ptr_type;
-    bool is_value_mutable = false;
+    bool is_mutable = false;
 
     /**
      * constructor
      */
     constexpr AddrOfValue(
         Value* value,
+        bool is_mutable,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, location), value(value), _ptr_type(nullptr, false) {
+    ) : Value(ValueKind::AddrOfValue, location), value(value), is_mutable(is_mutable), _ptr_type(nullptr, false) {
 
     }
 
@@ -32,9 +33,10 @@ public:
      */
     constexpr AddrOfValue(
             Value* value,
+            bool is_mutable,
             BaseType* type,
             SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, type, location), value(value), _ptr_type(nullptr, false) {
+    ) : Value(ValueKind::AddrOfValue, type, location), value(value), is_mutable(is_mutable), _ptr_type(nullptr, false) {
 
     }
 

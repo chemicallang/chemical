@@ -22,7 +22,7 @@ func test_arrays() {
     })
     test("can index on struct inside array indirectly", () => {
         var arr : DataStr1[1] = [];
-        var ptr = &arr[0];
+        var ptr = &mut arr[0];
         ptr.data = 5;
         return ptr.data == 5;
     })

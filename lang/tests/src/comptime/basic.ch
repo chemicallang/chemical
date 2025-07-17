@@ -213,7 +213,7 @@ func test_comptime() {
     })
     test("comptime delegated constructor get's called once", () => {
         var i = 0;
-        var c = CompTimeCounter(&i);
+        var c = CompTimeCounter(&mut i);
         return i == 1;
     })
     test("comptime constructor initialized struct can be returned - 1", () => {

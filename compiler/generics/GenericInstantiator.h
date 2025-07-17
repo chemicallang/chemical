@@ -30,6 +30,11 @@ public:
     SymbolTable table;
 
     /**
+     * a reference to type builder
+     */
+    TypeBuilder& typeBuilder;
+
+    /**
      * this points to the node being instantiated
      * this allows us to check self-referential pointers to generic decls
      */
@@ -47,8 +52,9 @@ public:
     GenericInstantiator(
         InstantiationsContainer& container,
         ASTAllocator& allocator,
-        ASTDiagnoser& diagnoser
-    ) : container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table() {
+        ASTDiagnoser& diagnoser,
+        TypeBuilder& typeBuilder
+    ) : container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder) {
 
     }
 
@@ -115,9 +121,6 @@ public:
 
     void VisitVarInitStmt(VarInitStatement* node) {
         RecursiveVisitor<GenericInstantiator>::VisitVarInitStmt(node);
-        if(!node->type) {
-            node->type = {node->value->create_type(getAllocator()), node->type.getLocation()};
-        }
         table.declare(node->name_view(), node);
     }
 
@@ -126,7 +129,11 @@ public:
         table.declare(node->name_view(), node);
     }
 
+    void VisitIfStmt(IfStatement *stmt);
+
     void VisitSwitchStmt(SwitchStatement* node);
+
+    void VisitLoopBlock(LoopBlock* node);
 
     inline void VisitVariableIdentifier(VariableIdentifier* value) {
         relink_identifier(value);
@@ -139,6 +146,28 @@ public:
     void VisitFunctionCall(FunctionCall *call);
 
     void VisitIsValue(IsValue* value);
+
+    void VisitComptimeValue(ComptimeValue* value);
+
+    void VisitIncDecValue(IncDecValue* value);
+
+    void VisitAddrOfValue(AddrOfValue* value);
+
+    void VisitDereferenceValue(DereferenceValue* value);
+
+    void VisitExpression(Expression *expr);
+
+    void VisitIndexOperator(IndexOperator* value);
+
+    void VisitNegativeValue(NegativeValue* value);
+
+    void VisitUnsafeValue(UnsafeValue* value);
+
+    void VisitNewValue(NewValue *value);
+
+    void VisitPlacementNewValue(PlacementNewValue *value);
+
+    void VisitNotValue(NotValue* value);
 
     void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 

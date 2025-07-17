@@ -1,6 +1,7 @@
 
 #include "GenericInstantiator.h"
 #include "GenInstantiatorAPI.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/values/TypeInsideValue.h"
@@ -49,11 +50,13 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+    GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
     GenericInstantiatorAPI genApi(&instantiator);
     if(!call->instantiate_gen_call(genApi, nullptr)) {
         diagnoser.error("couldn't instantiate call", call);
     }
+    // this determines the type for the function call
+    call->determine_type(getAllocator(), diagnoser);
 }
 
 bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
@@ -87,6 +90,9 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
         // since it's not a identifier, we must visit it
         visit(val);
     }
+
+    // type can change because of generics, so we keep track of it in every value
+    value->setType(value->values.back()->getType());
 
     // NOTE:
     // we do not need to visit values except the first one in access chain
@@ -139,10 +145,22 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+        GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi);
+        val->setType(val->refType);
     }
+}
+
+void GenericInstantiator::VisitIfStmt(IfStatement *stmt) {
+    RecursiveVisitor<GenericInstantiator>::VisitIfStmt(stmt);
+    if(stmt->is_value) {
+        auto last_val = stmt->get_value_node();
+        if(last_val) {
+            stmt->setType(last_val->getType());
+        }
+    }
+
 }
 
 void GenericInstantiator::VisitSwitchStmt(SwitchStatement* stmt) {
@@ -209,6 +227,26 @@ void GenericInstantiator::VisitSwitchStmt(SwitchStatement* stmt) {
         i++;
     }
 
+    // determine new type for this switch value
+    if(stmt->is_value) {
+        const auto node = stmt->get_value_node();
+        if(node) {
+            stmt->setType(node->getType());
+        }
+    }
+
+}
+
+void GenericInstantiator::VisitLoopBlock(LoopBlock* node) {
+    RecursiveVisitor<GenericInstantiator>::VisitLoopBlock(node);
+    if(node->is_value) {
+        const auto first = node->get_first_broken();
+        if(first) {
+            node->setType(first->getType());
+        } else {
+            node->setType((BaseType*) typeBuilder.getVoidType());
+        }
+    }
 }
 
 /**
@@ -257,7 +295,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -271,7 +309,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -285,7 +323,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -300,7 +338,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -314,7 +352,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser);
+            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -349,6 +387,67 @@ void replace_is_value_value(IsValue* container, Value* value, ASTAllocator& allo
 void GenericInstantiator::VisitIsValue(IsValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitIsValue(value);
     replace_is_value_value(value, value->value, getAllocator());
+}
+
+void GenericInstantiator::VisitComptimeValue(ComptimeValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitComptimeValue(value);
+    // type can change due to generics, so we must redetermine it
+    value->setType(value->getValue()->getType());
+}
+
+void GenericInstantiator::VisitIncDecValue(IncDecValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitIncDecValue(value);
+    // type can change due to generics
+    value->setType(value->determine_type());
+}
+
+void GenericInstantiator::VisitAddrOfValue(AddrOfValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitAddrOfValue(value);
+    // type can change, must redetermine it
+    value->determine_type();
+}
+
+void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitDereferenceValue(value);
+    if(!value->determine_type(typeBuilder)) {
+        diagnoser.error("only pointer types can be de-referenced", value);
+    }
+}
+
+void GenericInstantiator::VisitExpression(Expression *expr) {
+    RecursiveVisitor<GenericInstantiator>::VisitExpression(expr);
+    expr->determine_type(typeBuilder);
+}
+
+void GenericInstantiator::VisitIndexOperator(IndexOperator* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitIndexOperator(value);
+    value->determine_type(typeBuilder);
+}
+
+void GenericInstantiator::VisitNegativeValue(NegativeValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitNegativeValue(value);
+    value->determine_type(typeBuilder);
+}
+
+void GenericInstantiator::VisitUnsafeValue(UnsafeValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitUnsafeValue(value);
+    // re-determine type for child value
+    value->setType(value->getValue()->getType());
+}
+
+void GenericInstantiator::VisitNewValue(NewValue *value) {
+    RecursiveVisitor<GenericInstantiator>::VisitNewValue(value);
+    value->ptr_type.type = value->value->getType();
+}
+
+void GenericInstantiator::VisitPlacementNewValue(PlacementNewValue *value) {
+    RecursiveVisitor<GenericInstantiator>::VisitPlacementNewValue(value);
+    value->ptr_type.type = value->value->getType();
+}
+
+void GenericInstantiator::VisitNotValue(NotValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitNotValue(value);
+    value->setType(value->getValue()->getType());
 }
 
 void GenericInstantiator::Clear() {
@@ -1071,8 +1170,9 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, const std::span<Im
 GenericInstantiatorAPI::GenericInstantiatorAPI(
     InstantiationsContainer& container,
     ASTAllocator& astAllocator,
-    ASTDiagnoser& diagnoser
-) : giPtr(new GenericInstantiator(container, astAllocator, diagnoser)) {
+    ASTDiagnoser& diagnoser,
+    TypeBuilder& typeBuilder
+) : giPtr(new GenericInstantiator(container, astAllocator, diagnoser, typeBuilder)) {
 
 }
 

@@ -9,6 +9,21 @@
 #include "ast/base/InterpretScope.h"
 #include <iostream>
 
+bool DereferenceValue::determine_type(TypeBuilder& typeBuilder) {
+    const auto type = value->getType();
+    switch(type->kind()) {
+        case BaseTypeKind::Pointer:
+            setType(type->as_pointer_type_unsafe()->type);
+            return true;
+        case BaseTypeKind::String:
+            setType(typeBuilder.getCharType());
+            return true;
+        default:
+            setType((BaseType*) typeBuilder.getVoidType());
+            return false;
+    }
+}
+
 BaseType* DereferenceValue::create_type(ASTAllocator& allocator) {
     auto addr = value->create_type(allocator);
     const auto addr_kind = addr->kind();

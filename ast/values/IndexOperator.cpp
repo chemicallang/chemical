@@ -7,6 +7,8 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
@@ -69,6 +71,35 @@ llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 }
 
 #endif
+
+// TODO: make this function on BaseType
+BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Array:
+            return type->as_array_type_unsafe()->elem_type;
+        case BaseTypeKind::Pointer:
+            return type->as_pointer_type_unsafe()->type;
+        case BaseTypeKind::Reference:
+            return type->as_reference_type_unsafe()->type;
+        case BaseTypeKind::String:
+            return typeBuilder.getCharType();
+        default:
+            return nullptr;
+    }
+}
+
+void IndexOperator::determine_type(TypeBuilder& typeBuilder) {
+    auto current_type = parent_val->getType();
+    for(auto& value : values) {
+        const auto childType = get_child_type(typeBuilder, current_type);
+        if(childType) {
+            current_type = childType;
+        } else {
+            current_type = typeBuilder.getVoidType();
+        }
+    }
+    setType(current_type);
+}
 
 BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
     int i = (int) values.size();

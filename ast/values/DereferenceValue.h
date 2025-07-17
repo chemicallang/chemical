@@ -46,6 +46,8 @@ public:
         return value->byte_size(is64Bit);
     }
 
+    bool determine_type(TypeBuilder& typeBuilder);
+
     DereferenceValue *copy(ASTAllocator& allocator) final;
 
     BaseType* known_type() final;

@@ -49,6 +49,8 @@ public:
 
     IndexOperator* copy(ASTAllocator& allocator) final;
 
+    void determine_type(TypeBuilder& typeBuilder);
+
     BaseType* create_type(ASTAllocator &allocator) final;
 
     BaseType* known_type() final;

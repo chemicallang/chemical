@@ -24,19 +24,7 @@ public:
         Value* value,
         bool is_mutable,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, location), value(value), is_mutable(is_mutable), _ptr_type(nullptr, false) {
-
-    }
-
-    /**
-     * constructor
-     */
-    constexpr AddrOfValue(
-            Value* value,
-            bool is_mutable,
-            BaseType* type,
-            SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, type, location), value(value), is_mutable(is_mutable), _ptr_type(nullptr, false) {
+    ) : Value(ValueKind::AddrOfValue, &_ptr_type, location), value(value), is_mutable(is_mutable), _ptr_type(value->getType(), false) {
 
     }
 
@@ -48,10 +36,12 @@ public:
     AddrOfValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<AddrOfValue>()) AddrOfValue(
                 value->copy(allocator),
-                getType(),
+                is_mutable,
                 encoded_location()
         );
     }
+
+    void determine_type();
 
     BaseType* create_type(ASTAllocator& allocator) final;
 

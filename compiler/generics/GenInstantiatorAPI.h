@@ -9,6 +9,8 @@ class GenericInstantiator;
 
 class InstantiationsContainer;
 
+class TypeBuilder;
+
 class GenericInstantiatorAPI {
 private:
     /**
@@ -36,7 +38,8 @@ public:
     GenericInstantiatorAPI(
         InstantiationsContainer& container,
         ASTAllocator& astAllocator,
-        ASTDiagnoser& diagnoser
+        ASTDiagnoser& diagnoser,
+        TypeBuilder& typeBuilder
     );
 
     /**

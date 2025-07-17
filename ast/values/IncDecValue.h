@@ -35,6 +35,8 @@ public:
         setType(newValue->getType());
     }
 
+    BaseType* determine_type();
+
     BaseType* create_type(ASTAllocator &allocator) override;
 
     Value* evaluated_value(InterpretScope &scope) override;

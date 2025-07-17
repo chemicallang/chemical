@@ -3,11 +3,42 @@
 #include "Negative.h"
 #include "ast/base/BaseType.h"
 #include "IntNumValue.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/types/IntNType.h"
 
 uint64_t NegativeValue::byte_size(bool is64Bit) {
 // TODO check this out
     return value->byte_size(is64Bit);
+}
+
+//TODO: make this function on IntNType
+BaseType* to_signed(TypeBuilder& typeBuilder, IntNType* type) {
+    switch(type->IntNKind()) {
+        case IntNTypeKind::UChar:
+            return (BaseType*) typeBuilder.getCharType();
+        case IntNTypeKind::UShort:
+            return (BaseType*) typeBuilder.getShortType();
+        case IntNTypeKind::UInt:
+            return (BaseType*) typeBuilder.getIntType();
+        case IntNTypeKind::ULong:
+            return (BaseType*) typeBuilder.getLongType();
+        case IntNTypeKind::UBigInt:
+            return (BaseType*) typeBuilder.getBigIntType();
+        case IntNTypeKind::UInt128:
+            return (BaseType*) typeBuilder.getInt128Type();
+        default:
+            return type;
+    }
+}
+
+void NegativeValue::determine_type(TypeBuilder& typeBuilder) {
+    const auto type = getValue()->getType();
+    const auto can = type->canonical();
+    setType(
+            can->kind() == BaseTypeKind::IntN ? (
+                    to_signed(typeBuilder, can->as_intn_type_unsafe())
+            ) : type
+    );
 }
 
 BaseType* NegativeValue::create_type(ASTAllocator& allocator) {

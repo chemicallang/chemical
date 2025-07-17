@@ -68,6 +68,8 @@ public:
      */
     BaseType* known_type() final;
 
+    void determine_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+
     /**
      * argument type
      */

@@ -2,6 +2,7 @@
 
 #include "Expression.h"
 #include "IntNumValue.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/types/IntNType.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/base/ASTNode.h"
@@ -49,6 +50,46 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
             }
         }
     }
+}
+
+BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder) {
+    if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
+        return typeBuilder.getBoolType();
+    }
+    auto firstType = expr->firstValue->getType();
+    auto secondType = expr->secondValue->getType();
+    if(firstType == nullptr || secondType == nullptr) {
+        return nullptr;
+    }
+    const auto first = firstType->canonical()->canonicalize_enum();
+    const auto second = secondType->canonical()->canonicalize_enum();
+    const auto first_kind = first->kind();
+    const auto second_kind = second->kind();
+    // operation between integer and float/double results in float/double
+    if(first_kind == BaseTypeKind::IntN && (second_kind == BaseTypeKind::Float || second_kind == BaseTypeKind::Double)) {
+        return second;
+    } else if(second_kind == BaseTypeKind::IntN && (first_kind == BaseTypeKind::Float || first_kind == BaseTypeKind::Double)) {
+        return first;
+    }
+    // operation between two integers of different int n types results in int n type of higher bit width
+    if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
+        const auto first_intN = first->as_intn_type_unsafe();
+        const auto second_intN = second->as_intn_type_unsafe();
+        return first_intN->greater_than_in_bits(second_intN) ? first : second;
+    }
+    // addition or subtraction of integer value into a pointer
+    if((expr->operation == Operation::Addition || expr->operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
+        return first;
+    }
+    // subtracting a pointer results in a long type
+    if(expr->operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
+        return typeBuilder.getLongType();
+    }
+    return first;
+}
+
+void Expression::determine_type(TypeBuilder& typeBuilder) {
+    setType(::determine_type(this, typeBuilder));
 }
 
 BaseType* Expression::create_type(ASTAllocator& allocator) {

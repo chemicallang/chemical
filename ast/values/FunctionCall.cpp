@@ -1073,6 +1073,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 return false;
             }
             parent_id->linked = new_link;
+            parent_id->setType(new_link->known_type());
             return true;
         }
         case ASTNodeKind::VariantMember:{
@@ -1090,6 +1091,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 }
                 const auto new_mem = new_link->direct_child(mem->name)->as_variant_member_unsafe();
                 parent_id->linked = new_mem;
+                parent_id->setType(new_mem->known_type());
             } else {
                 return true;
             }
@@ -1178,6 +1180,46 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     if(!func_type) return voidTy(allocator);
     auto pure_type = func_type->returnType->pure_type(allocator);
     return pure_type;
+}
+
+FunctionType* get_func_type(BaseType* parent_type) {
+    const auto can_type = parent_type->canonical();
+    if(can_type->kind() == BaseTypeKind::CapturingFunction) {
+        return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    return can_type->as_function_type();
+}
+
+void FunctionCall::determine_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+    const auto call = this;
+    const auto newLinked = parent_val->linked_node();
+    // enum member being used as a no value
+    const auto newLinkedKind = newLinked ? newLinked->kind() : ASTNodeKind::EnumMember;
+    if(newLinkedKind == ASTNodeKind::FunctionDecl) {
+        const auto func = newLinked->as_function_unsafe();
+        if (func->is_constructor_fn() && func->parent()) {
+            // we do not support constructors in variants
+            const auto struct_def = func->parent()->as_struct_def();
+            if (struct_def && struct_def->generic_parent != nullptr) {
+                call->setType(new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def), call->generic_list));
+            } else {
+                call->setType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def));
+            }
+        } else {
+            call->setType(func->returnType);
+        }
+    } else if(newLinkedKind == ASTNodeKind::VariantMember) {
+        // this must be non generic variant member call
+        // generics are handle in instantiate_block
+        call->setType(newLinked->as_variant_member_unsafe()->known_type());
+    } else {
+        const auto func_type = get_func_type(call->parent_val->getType());
+        if(func_type) {
+            call->setType(func_type->returnType);
+        } else {
+            diagnoser.error(call) << "couldn't determine function type for the given call";
+        }
+    }
 }
 
 BaseType* FunctionCall::known_type() {

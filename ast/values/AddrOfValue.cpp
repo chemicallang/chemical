@@ -12,6 +12,11 @@ BaseType* AddrOfValue::known_type() {
     return &_ptr_type;
 }
 
+void AddrOfValue::determine_type() {
+    const auto valueType = value->getType();
+    const auto can = valueType->canonical();
+    _ptr_type.type = can->kind() == BaseTypeKind::Reference ? can->as_reference_type_unsafe()->type : valueType;
+}
 
 BaseType* AddrOfValue::create_type(ASTAllocator& allocator) {
     auto elem_type = value->create_type(allocator);

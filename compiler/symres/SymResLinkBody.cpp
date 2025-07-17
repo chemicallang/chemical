@@ -636,9 +636,9 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
                     linker.unsatisfied_type_err(value, type);
                 }
             }
-            if(!type && value && !linker.generic_context) {
-                type = {value->create_type(*linker.ast_allocator), type.getLocation()};
-            }
+//            if(!type && value && !linker.generic_context) {
+//                type = {value->create_type(*linker.ast_allocator), type.getLocation()};
+//            }
         }
     }
 }
@@ -1518,7 +1518,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     const auto linked = parent_val->linked_node();
     // enum member being used as a no value
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
+    const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
     // TODO
 //    if(func_decl) {
 //        if(func_decl->is_unsafe() && resolver.safe_context) {
@@ -1564,13 +1564,11 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     if(linked_kind != ASTNodeKind::VariantMember) {
         // if its not a variant, it should give us a function type to be valid
         // TODO: every function call type is being created using ast allocator
-        const auto func_type = call->function_type(*resolver.ast_allocator);
+        const auto func_type = call->function_type(resolver.allocator);
         if(!func_type) {
             resolver.error(call) << "cannot call a non function type";
             return false;
         }
-        // we have determined the return type of this function
-        call->setType(func_type->returnType);
     }
 
     if(gen_decl || gen_var_decl) {
@@ -1578,11 +1576,9 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         goto instantiate_block;
     }
 
-    if(linked_kind == ASTNodeKind::VariantMember) {
-        // this must be non generic variant member call
-        // generics are handle in instantiate_block
-        call->setType(linked->as_variant_member_unsafe()->parent()->known_type());
-    }
+    // here to till ending_block, code runs for non generic things
+    // figuring out the type for function call
+    call->determine_type(*resolver.ast_allocator, resolver);
 
     ending_block:
     if(link_implicit_constructor) {
@@ -1614,6 +1610,18 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         // instantiated function's return type is the call's type
         call->setType(new_link->returnType);
 
+        // if constructor function is being called, we must set the return type
+        // to generic
+        if(linked_kind == ASTNodeKind::FunctionDecl) {
+            auto& allocator = *resolver.ast_allocator;
+            if (func_decl->is_constructor_fn() && func_decl->parent()) {
+                const auto struct_def = func_decl->parent()->as_struct_def();
+                if (struct_def->generic_parent != nullptr) {
+                    call->setType(new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def)));
+                }
+            }
+        }
+
     } else if(gen_var_decl) {
         auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, call, expected_type);
         if(!new_link) {
@@ -1631,7 +1639,10 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         // update linkage of parent identifier
         parent_id->linked = new_mem;
         // set the type to be variant definition for current type
-        call->setType(new_link->known_type());
+        auto& allocator = *resolver.ast_allocator;
+        call->setType(
+                new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(new_mem->parent()), call->generic_list)
+        );
 
     } else {
 #ifdef DEBUG
@@ -1663,26 +1674,10 @@ void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
     value->setType(value->getValue()->getType());
 }
 
-BaseType* determine_inc_dec_type(IncDecValue* value) {
-    const auto type = value->getValue()->getType();
-    const auto pure = type->canonical();
-    if(pure->kind() == BaseTypeKind::Reference) {
-        const auto ref = pure->as_reference_type_unsafe();
-        const auto ref_type = ref->type->canonical();
-        if(BaseType::isLoadableReferencee(ref_type->kind())) {
-            return ref_type;
-        } else {
-            return ref;
-        }
-    } else {
-        return type;
-    }
-}
-
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     visit(value->getValue(), expected_type);
     // type determined at symbol resolution must be set
-    value->setType(determine_inc_dec_type(value));
+    value->setType(value->determine_type());
 }
 
 void SymResLinkBody::VisitVariantCase(VariantCase* value) {
@@ -1810,11 +1805,7 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     }
 
     // lets determine the type of this value
-    const auto valueType = value->getType();
-    const auto can = valueType->canonical();
-    const auto elem_type = can->kind() == BaseTypeKind::Reference ? can->as_reference_type_unsafe()->type : valueType;
-    const auto ptrType = new (linker.ast_allocator->allocate<PointerType>()) PointerType(elem_type, addrOfValue->is_mutable);
-    addrOfValue->setType(ptrType);
+    addrOfValue->determine_type();
 
 }
 
@@ -1875,17 +1866,6 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     visit(value, type);
 }
 
-BaseType* determine_deref_type(TypeBuilder& typeBuilder, BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::Pointer:
-            return type->as_pointer_type_unsafe()->type;
-        case BaseTypeKind::String:
-            return typeBuilder.getCharType();
-        default:
-            return nullptr;
-    }
-}
-
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(linker.safe_context) {
         linker.warn("de-referencing a pointer in safe context is prohibited", value);
@@ -1893,49 +1873,9 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     visit(value->getValue());
     // determining the type for this dereference value
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    const auto determined = determine_deref_type(typeBuilder, value->getValue()->getType());
-    if(determined) {
-        value->setType(determined);
-    } else {
+    if(!value->determine_type(typeBuilder)) {
         linker.error("couldn't determine type for de-referencing", value);
-        value->setType(typeBuilder.getVoidType());
     }
-}
-
-BaseType* create_expression_type(Expression* expr, TypeBuilder& typeBuilder) {
-    if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
-        return typeBuilder.getBoolType();
-    }
-    auto firstType = expr->firstValue->getType();
-    auto secondType = expr->secondValue->getType();
-    if(firstType == nullptr || secondType == nullptr) {
-        return nullptr;
-    }
-    const auto first = firstType->canonical()->canonicalize_enum();
-    const auto second = secondType->canonical()->canonicalize_enum();
-    const auto first_kind = first->kind();
-    const auto second_kind = second->kind();
-    // operation between integer and float/double results in float/double
-    if(first_kind == BaseTypeKind::IntN && (second_kind == BaseTypeKind::Float || second_kind == BaseTypeKind::Double)) {
-        return second;
-    } else if(second_kind == BaseTypeKind::IntN && (first_kind == BaseTypeKind::Float || first_kind == BaseTypeKind::Double)) {
-        return first;
-    }
-    // operation between two integers of different int n types results in int n type of higher bit width
-    if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
-        const auto first_intN = first->as_intn_type_unsafe();
-        const auto second_intN = second->as_intn_type_unsafe();
-        return first_intN->greater_than_in_bits(second_intN) ? first : second;
-    }
-    // addition or subtraction of integer value into a pointer
-    if((expr->operation == Operation::Addition || expr->operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
-        return first;
-    }
-    // subtracting a pointer results in a long type
-    if(expr->operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return typeBuilder.getLongType();
-    }
-    return first;
 }
 
 void SymResLinkBody::VisitExpression(Expression* value) {
@@ -1945,22 +1885,7 @@ void SymResLinkBody::VisitExpression(Expression* value) {
     // it's unknown when this expression should be disposed
     // file level / module level allocator should be used, when this expression belongs to a function
     // or decl that is private or internal, however that is hard to determine
-    value->setType(create_expression_type(value, linker.comptime_scope.typeBuilder));
-}
-
-BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::Array:
-            return type->as_array_type_unsafe()->elem_type;
-        case BaseTypeKind::Pointer:
-            return type->as_pointer_type_unsafe()->type;
-        case BaseTypeKind::Reference:
-            return type->as_reference_type_unsafe()->type;
-        case BaseTypeKind::String:
-            return typeBuilder.getCharType();
-        default:
-            return nullptr;
-    }
+    value->determine_type(linker.comptime_scope.typeBuilder);
 }
 
 void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
@@ -1974,16 +1899,7 @@ void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
 
     // determining the type for this index operator
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    auto current_type = indexOp->parent_val->getType();
-    for(auto& value : values) {
-        const auto childType = get_child_type(typeBuilder, current_type);
-        if(childType) {
-            current_type = childType;
-        } else {
-            current_type = typeBuilder.getVoidType();
-        }
-    }
-    indexOp->setType(current_type);
+    indexOp->determine_type(typeBuilder);
 
 }
 
@@ -2163,35 +2079,10 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
 }
 
-BaseType* to_signed(TypeBuilder& typeBuilder, IntNType* type) {
-    switch(type->IntNKind()) {
-        case IntNTypeKind::UChar:
-            return typeBuilder.getCharType();
-        case IntNTypeKind::UShort:
-            return (BaseType*) typeBuilder.getShortType();
-        case IntNTypeKind::UInt:
-            return typeBuilder.getIntType();
-        case IntNTypeKind::ULong:
-            return typeBuilder.getLongType();
-        case IntNTypeKind::UBigInt:
-            return (BaseType*) typeBuilder.getBigIntType();
-        case IntNTypeKind::UInt128:
-            return (BaseType*) typeBuilder.getInt128Type();
-        default:
-            return type;
-    }
-}
-
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
     visit(negValue->getValue());
     // determine type for negative value
-    const auto type = negValue->getValue()->getType();
-    const auto can = type->canonical();
-    negValue->setType(
-            can->kind() == BaseTypeKind::IntN ? (
-                to_signed(linker.comptime_scope.typeBuilder, can->as_intn_type_unsafe())
-            ) : type
-    );
+    negValue->determine_type(linker.comptime_scope.typeBuilder);
 }
 
 void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {

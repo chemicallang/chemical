@@ -41,7 +41,8 @@ void InlayHintAnalyzer::VisitFunctionCall(FunctionCall *call) {
     if(call->values.empty()) {
         return;
     }
-    const auto func_type = call->function_type(allocator);
+    const auto parent_type = call->parent_val->getType();
+    const auto func_type = parent_type ? parent_type->as_function_type() : nullptr;
     if(func_type) {
         unsigned i = 0;
         for(auto val : call->values) {

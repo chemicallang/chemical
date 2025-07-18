@@ -127,11 +127,11 @@ Value* Parser::parseCharValue(ASTAllocator& allocator) {
 #ifdef LSP_BUILD
         auto escaped = escaped_view(allocator, *this, t.value);
         if(escaped.empty()) {
-            return new (allocator.allocate<CharValue>()) CharValue('\0', loc_single(t));
+            return new (allocator.allocate<CharValue>()) CharValue('\0', typeBuilder.getCharType(), loc_single(t));
         } else if(escaped.size() != 1) {
             error("couldn't handle escape sequence in character value");
         }
-        return new (allocator.allocate<CharValue>()) CharValue(*escaped.data(), loc_single(t));
+        return new (allocator.allocate<CharValue>()) CharValue(*escaped.data(), typeBuilder.getCharType(), loc_single(t));
 #else
         return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data()), typeBuilder.getCharType(), loc_single(t));
 #endif
@@ -164,7 +164,7 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
         case TokenType::String:
             token++;
 #ifdef LSP_BUILD
-            return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), loc_single(t));
+            return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), typeBuilder.getStringType(), loc_single(t));
 #else
             return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
 #endif

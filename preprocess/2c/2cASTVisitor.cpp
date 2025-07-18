@@ -2233,7 +2233,8 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             return;
         } else {
             if(chain->is_moved()) {
-                auto init_type = init->known_type();
+                auto init_type_non_can = init->known_type();
+                const auto init_type = init_type_non_can->canonical();
                 auto linked = init_type->linked_node();
                 if(!linked) {
                     return;

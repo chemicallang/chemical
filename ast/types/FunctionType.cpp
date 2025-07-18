@@ -575,8 +575,9 @@ bool FunctionTypeBody::mark_moved_value(
     if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer || expected_type_kind == BaseTypeKind::String || expected_type_kind == BaseTypeKind::Dynamic) {
         return false;
     }
-    const auto type = value.create_type(allocator);
-    if(!type) return false;
+    const auto createdType = value.create_type(allocator);
+    if(!createdType) return false;
+    const auto type = createdType->canonical();
     const auto linked_node = type->get_direct_linked_node();
     if(!linked_node) {
         return false;

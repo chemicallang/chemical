@@ -76,6 +76,38 @@ public:
 
     void VisitExpression(Expression* value);
 
+    void VisitAddrOfValue(AddrOfValue* value);
+
+    void VisitArrayValue(ArrayValue* value);
+
+    void VisitComptimeValue(ComptimeValue* value);
+
+    void VisitDereferenceValue(DereferenceValue* value);
+
+    void VisitIncDecValue(IncDecValue* value);
+
+    void VisitIndexOperator(IndexOperator* value);
+
+    void VisitIsValue(IsValue* value);
+
+    void VisitLambdaFunction(LambdaFunction* value);
+
+    void VisitNegativeValue(NegativeValue* value);
+
+    void VisitUnsafeValue(UnsafeValue* value);
+
+    void VisitNewValue(NewValue* value);
+
+    void VisitNewTypedValue(NewTypedValue* value);
+
+    void VisitPlacementNewValue(PlacementNewValue* value);
+
+    void VisitNotValue(NotValue* value);
+
+    void VisitPatternMatchExpr(PatternMatchExpr* value);
+
+    void VisitBlockValue(BlockValue* value);
+
     void LinkVariablesNoScope(VariablesContainer* container);
 
     void LinkMembersContainerNoScope(MembersContainer* container);

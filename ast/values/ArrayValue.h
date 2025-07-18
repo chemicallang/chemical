@@ -135,6 +135,8 @@ public:
 
     BaseType* known_type() final;
 
+    void determine_type(ASTAllocator& allocator);
+
     ArrayValue *copy(ASTAllocator& allocator) final {
         const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(encoded_location(), (ArrayType*) getType()->copy(allocator));
         auto& copied_values = arrVal->values;

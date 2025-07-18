@@ -4,6 +4,7 @@
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/AliasStmt.h"
 #include "ast/statements/Typealias.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -148,6 +149,141 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
 void TopLevelLinkSignature::VisitExpression(Expression* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitExpression(value);
     value->determine_type(linker.comptime_scope.typeBuilder);
+    if(!linker.comptime_context) {
+        linker.error("cannot evaluate expression at runtime outside function body", value);
+    }
+}
+
+void TopLevelLinkSignature::VisitAddrOfValue(AddrOfValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitAddrOfValue(value);
+    value->determine_type();
+    if(!linker.comptime_context) {
+        linker.error("cannot take address of value at runtime outside function body", value);
+    }
+}
+
+void TopLevelLinkSignature::VisitArrayValue(ArrayValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitArrayValue(value);
+    value->determine_type(*linker.ast_allocator);
+}
+
+void TopLevelLinkSignature::VisitComptimeValue(ComptimeValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitComptimeValue(value);
+    // type determined during symbol resolution needs to be set
+    value->setType(value->getValue()->getType());
+}
+
+void TopLevelLinkSignature::VisitDereferenceValue(DereferenceValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitDereferenceValue(value);
+    if(linker.comptime_context) {
+        // determining the type for this dereference value
+        auto& typeBuilder = linker.comptime_scope.typeBuilder;
+        if (!value->determine_type(typeBuilder)) {
+            linker.error("couldn't determine type for de-referencing", value);
+        }
+    } else {
+        linker.error("cannot dereference value at runtime outside function body", value);
+    }
+}
+
+void TopLevelLinkSignature::VisitIncDecValue(IncDecValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitIncDecValue(value);
+    value->setType(value->determine_type());
+    if(!linker.comptime_context) {
+        linker.error("cannot increment or decrement value at runtime outside function body", value);
+    }
+}
+
+void TopLevelLinkSignature::VisitIndexOperator(IndexOperator* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitIndexOperator(value);
+    // determining the type for this index operator
+    auto& typeBuilder = linker.comptime_scope.typeBuilder;
+    value->determine_type(typeBuilder);
+    if(!linker.comptime_context) {
+        linker.error("cannot index into a value at runtime outside function body", value);
+    }
+}
+
+void TopLevelLinkSignature::TopLevelLinkSignature::VisitIsValue(IsValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitIsValue(value);
+    if(!linker.comptime_context) {
+        linker.error("cannot determine at runtime outside function body", value);
+    }
+}
+
+void TopLevelLinkSignature::VisitLambdaFunction(LambdaFunction* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitLambdaFunction(value);
+    if(!linker.comptime_context) {
+        // NOTE: this requires resolving lambda type, for which code should be separate
+        // also requires knowing expected type, however values are visited automatically
+        // due to nature of recursive visitor, we cannot send expected types
+        linker.error("lambda functions at top level outside function body aren't supported", value);
+    }
+}
+
+void TopLevelLinkSignature::VisitNegativeValue(NegativeValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitNegativeValue(value);
+    // determine type for negative value
+    value->determine_type(linker.comptime_scope.typeBuilder);
+}
+
+void TopLevelLinkSignature::VisitUnsafeValue(UnsafeValue* value) {
+    const auto prev = linker.safe_context;
+    linker.safe_context = false;
+    RecursiveVisitor<TopLevelLinkSignature>::VisitUnsafeValue(value);
+    linker.safe_context = prev;
+    value->setType(value->getValue()->getType());
+}
+
+const auto RUNTIME_EVAL_ERR = "cannot evaluate at runtime outside function body";
+
+void TopLevelLinkSignature::VisitNewValue(NewValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitNewValue(value);
+    // type determined at symbol resolution must be set
+    value->ptr_type.type = value->value->getType();
+    if(!linker.comptime_context) {
+        linker.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
+void TopLevelLinkSignature::VisitNewTypedValue(NewTypedValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitNewTypedValue(value);
+    if(!linker.comptime_context) {
+        linker.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
+void TopLevelLinkSignature::VisitPlacementNewValue(PlacementNewValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitPlacementNewValue(value);
+    // type of the value determined at symbol resolution must be set
+    value->ptr_type.type = value->value->getType();
+    if(!linker.comptime_context) {
+        linker.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
+void TopLevelLinkSignature::VisitNotValue(NotValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitNotValue(value);
+    // determine the type of not value
+    value->setType(value->getValue()->getType());
+    if(!linker.comptime_context) {
+        linker.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
+void TopLevelLinkSignature::VisitPatternMatchExpr(PatternMatchExpr* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitPatternMatchExpr(value);
+    // TODO: maybe pattern match expression should be a node
+    // currently we emplace a void type
+    // as expression is only used as a statement
+    value->setType((BaseType*) linker.comptime_scope.typeBuilder.getVoidType());
+}
+
+void TopLevelLinkSignature::VisitBlockValue(BlockValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitBlockValue(value);
+    if(!linker.comptime_context) {
+        linker.error(RUNTIME_EVAL_ERR, value);
+    }
 }
 
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
@@ -212,7 +348,13 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
 }
 
 void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
-    RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
+    if(node->is_comptime() && !linker.comptime_context) {
+        linker.comptime_context = true;
+        RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
+        linker.comptime_context = false;
+    } else {
+        RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
+    }
     const auto value = node->value;
     const auto type = node->type.getType();
     if(type && value) {

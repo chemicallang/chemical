@@ -2189,7 +2189,6 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         }
         structValue->refType = {exp_type, structValue->refType.getLocation()};
     }
-    structValue->setType(structValue->refType);
     if(!structValue->resolve_container(linker.genericInstantiator)) {
         return;
     }

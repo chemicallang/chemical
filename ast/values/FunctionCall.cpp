@@ -1045,6 +1045,8 @@ void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiator
             const auto last = parent_chain->values.back()->as_identifier();
             if(last) {
                 link_constructor_id(last, allocator, genApi, this);
+                // if the type has been updated, we should update of chain as well
+                parent_chain->setType(last->getType());
                 return;
             } else {
                 return;

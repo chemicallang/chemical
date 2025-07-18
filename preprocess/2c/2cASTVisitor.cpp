@@ -828,7 +828,7 @@ void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
 }
 
 bool isRef(ToCAstVisitor& visitor, Value* value) {
-    const auto type = value->create_type(visitor.allocator);
+    const auto type = value->getType();
     return type->canonical()->is_reference();
 }
 
@@ -957,7 +957,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
 
         // passing a function call or struct value to a reference, whereas the struct is destructible
         if(param->type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
-            const auto container = val->create_type(visitor.allocator)->get_members_container();
+            const auto container = val->getType()->get_members_container();
             if(container && container->destructor_func() != nullptr) {
                 auto found_ref = visitor.destructible_refs.find(val);
                 if(found_ref != visitor.destructible_refs.end()) {
@@ -1022,7 +1022,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         } else if(is_param_type_ref && !val->is_ptr_or_ref(visitor.allocator)) {
             accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
         }
-        auto base_type = val->create_type(visitor.allocator);
+        auto base_type = val->getType();
         if(isStructLikeTypeDecl || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
             auto allocated = visitor.local_allocated.find(val);
             if(allocated != visitor.local_allocated.end()) {
@@ -1118,7 +1118,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //            return;
 //        }
 //    }
-    auto type = current->create_type(visitor.allocator);
+    auto type = current->getType();
     const auto pure_type = type->pure_type(visitor.allocator);
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::Reference) {
@@ -1477,7 +1477,7 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
             auto param = func_type->func_param_for_arg_at(i);
             // passing a function call or struct value to a reference, whereas the struct is destructible
             if (param->type->kind() == BaseTypeKind::Reference && (arg->kind() == ValueKind::StructValue || arg->is_chain_func_call())) {
-                const auto container = arg->create_type(visitor.allocator)->get_members_container();
+                const auto container = arg->getType()->get_members_container();
                 if (container && container->destructor_func() != nullptr) {
                     // struct has a destructor, we must allocate a reference, so it can set it to us
                     visitor.visit(param->type->as_reference_type_unsafe()->type);
@@ -1551,7 +1551,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                     if(!has_comma_before) {
                         visitor.write(", ");
                     }
-                    auto type = found->second->create_type(visitor.allocator);
+                    auto type = found->second->getType();
                     const auto node = type->get_direct_linked_node();
                     if(node && ASTNode::isStoredStructType(node->kind())) {
                         visitor.write('&');
@@ -1645,7 +1645,7 @@ void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, Funct
 
 void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_view& identifier) {
     if(!value) return;
-    const auto val_type = value->create_type(visitor.allocator);
+    const auto val_type = value->getType();
     if(!val_type->isStructLikeType()) return;
     FunctionCall* call_ptr;
     switch(value->val_kind()) {
@@ -1685,7 +1685,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_vie
 
 void CBeforeStmtVisitor::VisitVarInitStmt(VarInitStatement *init) {
 //    if (!init->type) {
-//        init->type = init->value->create_type(visitor.allocator);
+//        init->type = init->value->getType();
 //    }
     RecursiveValueVisitor::VisitVarInitStmt(init);
 }
@@ -2087,7 +2087,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
 }
 
 void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call) {
-    auto return_type = call->create_type(visitor.allocator);
+    auto return_type = call->getType();
     const auto linked = return_type->get_direct_linked_node();
     if(linked) {
         const auto linked_kind = linked->kind();
@@ -2776,7 +2776,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
-    const auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
+    const auto init_type = init->type ? init->type : init->value->getType();
     early_declare_type(visitor, init_type);
     visitor.new_line_and_indent();
     const auto is_exported = init->is_exported();
@@ -4612,7 +4612,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Ch
                 // saving the accessed thing pointer
                 // the pointer to saved variable so we can access it after destruction
                 const auto temp_saved_var = visitor.get_local_temp_var_name();
-                const auto last_type = values[end - 1]->create_type(visitor.allocator);
+                const auto last_type = values[end - 1]->getType();
                 visitor.visit(last_type);
                 visitor.write(' ');
                 visitor.write_str(temp_saved_var);

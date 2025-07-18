@@ -45,6 +45,7 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
     const auto decl = linker.find(value->value);
     if(decl) {
         value->linked = decl;
+        value->setType(decl->known_type());
         // to ensure function decl is informed about usage
         value->process_linked(&linker);
     } else if(value->linked == nullptr) {
@@ -109,6 +110,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
 
     // no need to traverse further, if only single element
     if(value->values.size() == 1) {
+        value->setType(value->values[0]->getType());
         return;
     }
 
@@ -129,6 +131,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
         const auto child_linked = parent->child(child->value);
         if(child_linked) {
             child->linked = child_linked;
+            child->setType(child_linked->known_type());
             parent = child_linked;
         } else {
             linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
@@ -137,6 +140,14 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
         i++;
     }
 
+    // the last item holds the type for this access chain
+    value->setType(value->values[size - 1]->getType());
+
+}
+
+void TopLevelLinkSignature::VisitExpression(Expression* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitExpression(value);
+    value->determine_type(linker.comptime_scope.typeBuilder);
 }
 
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {

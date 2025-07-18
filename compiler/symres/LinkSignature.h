@@ -74,6 +74,8 @@ public:
 
     void VisitAccessChain(AccessChain* value);
 
+    void VisitExpression(Expression* value);
+
     void LinkVariablesNoScope(VariablesContainer* container);
 
     void LinkMembersContainerNoScope(MembersContainer* container);

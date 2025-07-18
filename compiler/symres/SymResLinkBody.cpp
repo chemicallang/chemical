@@ -598,47 +598,38 @@ void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
 }
 
 void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
+    if(node->is_top_level()) {
+        return;
+    }
     auto& type = node->type;
     auto& value = node->value;
     auto& attrs = node->attrs;
-    if(node->is_top_level()) {
-        if(attrs.signature_resolved && !type && value) {
-            type = {value->create_type(*linker.ast_allocator), type.getLocation()};
-        }
-    } else {
-        if(type) {
-            visit(type);
-        }
+    if(type) {
+        visit(type);
+    }
+    if(value) {
+        visit(value, node->type_ptr_fast());
+    }
+    const auto type_resolved = true;
+    const auto value_resolved = true;
+    linker.declare(node->id_view(), node);
+    if (attrs.signature_resolved) {
         if(value) {
-            visit(value, node->type_ptr_fast());
+            linker.current_func_type->mark_moved_value(linker.allocator, value, node->known_type(), linker, type != nullptr);
         }
-        const auto type_resolved = true;
-        const auto value_resolved = true;
-//        if (!type_resolved || !value_resolved) {
-//            attrs.signature_resolved = false;
-//        }
-        linker.declare(node->id_view(), node);
-        if (attrs.signature_resolved) {
-            if(value) {
-                linker.current_func_type->mark_moved_value(linker.allocator, value, node->known_type(), linker, type != nullptr);
-            }
-            if(type && value) {
-                const auto as_array = value->as_array_value();
-                if(type->kind() == BaseTypeKind::Array && as_array) {
-                    const auto arr_type = ((ArrayType*) type.getType());
-                    if(arr_type->has_no_array_size()) {
-                        arr_type->set_array_size(as_array->array_size());
-                    } else if(!as_array->has_explicit_size()) {
-                        as_array->set_array_size(arr_type->get_array_size());
-                    }
-                }
-                if(!type->satisfies(linker.allocator, value, false)) {
-                    linker.unsatisfied_type_err(value, type);
+        if(type && value) {
+            const auto as_array = value->as_array_value();
+            if(type->kind() == BaseTypeKind::Array && as_array) {
+                const auto arr_type = ((ArrayType*) type.getType());
+                if(arr_type->has_no_array_size()) {
+                    arr_type->set_array_size(as_array->array_size());
+                } else if(!as_array->has_explicit_size()) {
+                    as_array->set_array_size(arr_type->get_array_size());
                 }
             }
-//            if(!type && value && !linker.generic_context) {
-//                type = {value->create_type(*linker.ast_allocator), type.getLocation()};
-//            }
+            if(!type->satisfies(linker.allocator, value, false)) {
+                linker.unsatisfied_type_err(value, type);
+            }
         }
     }
 }

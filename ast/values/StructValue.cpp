@@ -495,7 +495,6 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
             refType.copy(scope.allocator),
             definition,
             container,
-            getType(),
             encoded_location()
     );
     declare_default_values(struct_value->values, scope);
@@ -527,7 +526,6 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
         refType.copy(allocator),
         definition,
         container,
-        getType(),
         encoded_location()
     );
     struct_value->values.reserve(values.size());

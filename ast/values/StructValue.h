@@ -35,7 +35,7 @@ public:
     StructValue(
         TypeLoc refType,
         SourceLocation location
-    ) : Value(ValueKind::StructValue, location), refType(refType), definition(nullptr), container(nullptr)
+    ) : Value(ValueKind::StructValue, refType, location), refType(refType), definition(nullptr), container(nullptr)
     {
 
     }
@@ -44,9 +44,8 @@ public:
         TypeLoc refType,
         ExtendableMembersContainerNode *definition,
         VariablesContainer* container,
-        BaseType* type,
         SourceLocation location
-    ) : Value(ValueKind::StructValue, type, location), refType(refType), definition(definition), container(container)
+    ) : Value(ValueKind::StructValue, refType, location), refType(refType), definition(definition), container(container)
     {
 
     }

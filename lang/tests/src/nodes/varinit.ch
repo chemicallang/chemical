@@ -1,7 +1,7 @@
 @comptime
 const glob_ct_const = 100 + 300
 
-const glob_const = 300 + 500
+const glob_const = 800
 
 func test_var_init() {
     test("can initialize normal variables", () => {

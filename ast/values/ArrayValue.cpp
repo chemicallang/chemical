@@ -217,3 +217,7 @@ BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
 BaseType* ArrayValue::known_type() {
     return getType();
 }
+
+void ArrayValue::determine_type(ASTAllocator& allocator) {
+    getType()->elem_type = { element_type(allocator), encoded_location() };
+}

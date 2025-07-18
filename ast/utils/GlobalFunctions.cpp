@@ -141,10 +141,9 @@ namespace InterpretVector {
     public:
         std::vector<Value*> values;
         explicit InterpretVectorVal(InterpretVectorNode* node) : StructValue(
-            nullptr,
+            { node->known_type(), ZERO_LOC },
             (StructDefinition*) node,
             (StructDefinition*) node,
-            node->known_type(),
             ZERO_LOC
         ) {
 
@@ -1667,15 +1666,12 @@ public:
 class DefValue : public StructValue {
 public:
 
-    LinkedType id;
-
     DefValue(DefDecl *defDecl) : StructValue(
-            {&id, ZERO_LOC},
+            {defDecl->known_type(), ZERO_LOC},
             defDecl,
             defDecl,
-            defDecl->known_type(),
             ZERO_LOC
-    ), id(defDecl) {}
+    ) {}
 
 };
 

@@ -2238,9 +2238,11 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
             process_linked(diagnoser);
             return true;
         } else if(diagnoser) {
+            // TODO link with unresolved declaration
             diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
         }
-    } else if (diagnoser){
+    } else if (diagnoser) {
+        // TODO link with unresolved declaration
         diagnoser->error(this) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
     }
     return false;

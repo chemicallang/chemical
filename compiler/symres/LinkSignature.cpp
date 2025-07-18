@@ -51,6 +51,7 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
         value->process_linked(&linker);
     } else if(value->linked == nullptr) {
         linker.error(value) << "unresolved variable identifier, '" << value->value << "' not found";
+        value->linked = (ASTNode*) linker.unresolved_decl;
     }
 }
 
@@ -71,6 +72,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
         if(linked) {
             type->linked = linked;
         } else {
+            type->linked = (ASTNode*) linker.unresolved_decl;
             linker.error(type_location) << "unresolved type not found";
         }
     } else if(type->is_named()){
@@ -80,6 +82,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
             type->linked = decl;
         } else if(type->linked == nullptr) {
             linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
+            type->linked = (ASTNode*) linker.unresolved_decl;
         }
     }
 }
@@ -119,7 +122,6 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     const auto first_id = first->as_identifier_unsafe();
     auto parent = first_id->linked;
     if(parent == nullptr) {
-        linker.error(first_id) << "unresolved identifier, '" << first_id->value << "' not found";
         return;
     }
 
@@ -135,6 +137,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
             child->setType(child_linked->known_type());
             parent = child_linked;
         } else {
+            child->linked = (ASTNode*) linker.unresolved_decl;
             linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
             break;
         }

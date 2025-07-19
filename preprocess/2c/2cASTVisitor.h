@@ -17,6 +17,7 @@
 
 class GlobalInterpretScope;
 class ASTAllocator;
+class CompilerBinder;
 
 class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;
@@ -44,6 +45,11 @@ public:
      * name mangler that would mangle the names
      */
     NameMangler& mangler;
+
+    /**
+     * required to replace embedded node and embedded values
+     */
+    CompilerBinder& binder;
 
     /**
      * this option is here to support struct initialization in tinyCC compiler
@@ -193,6 +199,7 @@ public:
      * @param path the current file path being processed
      */
     ToCAstVisitor(
+        CompilerBinder& binder,
         GlobalInterpretScope& global,
         NameMangler& mangler,
         std::ostream* output,

@@ -3,9 +3,8 @@
 #include "2cASTVisitor.h"
 #include <memory>
 #include <ostream>
-#include <random>
-#include <ranges>
 #include <iostream>
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/mangler/NameMangler.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
@@ -136,14 +135,15 @@
 #include "compiler/cbi/model/ASTBuilder.h"
 
 ToCAstVisitor::ToCAstVisitor(
+    CompilerBinder& binder,
     GlobalInterpretScope& scope,
     NameMangler& mangler,
     std::ostream *output,
     ASTAllocator& allocator,
     LocationManager& manager,
     bool debug_info
-) : comptime_scope(scope), mangler(mangler), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
-    tld(*this, declarer.get()), loc_man(manager), line_directives(debug_info), ASTDiagnoser(manager)
+) : binder(binder), comptime_scope(scope), mangler(mangler), output(output), allocator(allocator),
+    declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), loc_man(manager), line_directives(debug_info), ASTDiagnoser(manager)
 {
     // TODO do the same as tld
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
@@ -5684,21 +5684,31 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
 
 void ToCAstVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
     ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
-    const auto repl = node->replacement_fn(&builder, node);
+    const auto replacement_fn = binder.findHook(node->name, CBIFunctionType::ReplacementNode);
+    if(!replacement_fn) {
+        error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
+        return;
+    }
+    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, node);
     if(repl) {
         visit(repl);
     } else {
-        error("couldn't replace embedded value", node);
+        error(node) << "couldn't replace embedded node with name '" << node->name << "'";
     }
 }
 
 void ToCAstVisitor::VisitEmbeddedValue(EmbeddedValue* value) {
     ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
-    const auto repl = value->replacement_fn(&builder, value);
+    const auto replacement_fn = binder.findHook(value->name, CBIFunctionType::ReplacementValue);
+    if(!replacement_fn) {
+        error(value) << "couldn't find replacement function for embedded value with name '" << value->name << "'";
+        return;
+    }
+    const auto repl = ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, value);
     if(repl) {
         visit(repl);
     } else {
-        error("couldn't replace embedded value", value);
+        error(value) << "couldn't replace embedded value with name '" << value->name << "'";
     }
 }
 

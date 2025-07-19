@@ -1,10 +1,12 @@
-public func node_symbol_resolve_func(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+@no_mangle
+public func html_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
 }
 
-public func node_replacement_func(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+@no_mangle
+public func html_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var scope = builder.make_scope(root.parent, loc);
@@ -28,18 +30,21 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
     return null;
 }
 
-public func node_traversal_func(node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
+@no_mangle
+public func html_traversalNode(node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
     const root = node.getDataPtr() as *mut HtmlRoot;
     traverse_root(root, data, traverse)
 }
 
-public func value_symbol_resolve_func(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
+@no_mangle
+public func html_symResValue(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
 }
 
-public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
+@no_mangle
+public func html_replacementValue(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var block_val = builder.make_block_value(root.parent, loc)
@@ -58,7 +63,8 @@ public func value_replacement_func(builder : *ASTBuilder, value : *EmbeddedValue
     return block_val;
 }
 
-public func value_traversal_func(value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
+@no_mangle
+public func html_traversalValue(value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
     const root = value.getDataPtr() as *mut HtmlRoot;
     traverse_root(root, data, traverse)
 }
@@ -70,7 +76,7 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
         const type = builder.make_string_type(loc)
-        const value = builder.make_embedded_value(root, type, value_symbol_resolve_func, value_replacement_func, value_traversal_func, loc);
+        const value = builder.make_embedded_value(std::string_view("html"), root, type, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }
@@ -86,7 +92,7 @@ public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder)
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
-        const node = builder.make_embedded_node(root, node_symbol_resolve_func, node_replacement_func, node_known_type_func, node_child_res_func, node_traversal_func, root.parent, loc);
+        const node = builder.make_embedded_node(std::string_view("html"), root, node_known_type_func, node_child_res_func, root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }

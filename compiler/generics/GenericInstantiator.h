@@ -6,6 +6,8 @@
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/generics/InstantiationsContainer.h"
 
+class CompilerBinder;
+
 class GenericInstantiator : public RecursiveVisitor<GenericInstantiator> {
 public:
 
@@ -30,6 +32,11 @@ public:
     SymbolTable table;
 
     /**
+     * the compiler binder is used to to replace nested values in embedded nodes and values
+     */
+    CompilerBinder& binder;
+
+    /**
      * a reference to type builder
      */
     TypeBuilder& typeBuilder;
@@ -50,11 +57,12 @@ public:
      * the allocator must be an ast allocator
      */
     GenericInstantiator(
+        CompilerBinder& binder,
         InstantiationsContainer& container,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder
-    ) : container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder) {
+    ) : binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder) {
 
     }
 
@@ -168,6 +176,10 @@ public:
     void VisitPlacementNewValue(PlacementNewValue *value);
 
     void VisitNotValue(NotValue* value);
+
+    void VisitEmbeddedNode(EmbeddedNode* node);
+
+    void VisitEmbeddedValue(EmbeddedValue* value);
 
     void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 

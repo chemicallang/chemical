@@ -5,18 +5,13 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 
-class EmbeddedValue;
-
-class ASTBuilder;
-
-typedef bool(EmbeddedValueSymbolResolveFunc)(SymbolResolver* resolver, EmbeddedValue* value);
-
-typedef Value*(EmbeddedValueReplacementFunc)(ASTBuilder* builder, EmbeddedValue* value);
-
-typedef void(EmbeddedValueTraversalFunc)(EmbeddedValue* value, void* data, bool(*traverse)(void* data, ASTAny* item));
-
 class EmbeddedValue : public Value {
 public:
+
+    /**
+     * the name corresponds to the hook, for example #html has 'html' as name
+     */
+    chem::string_view name;
 
     /**
      * user can store his ast in this pointer
@@ -24,32 +19,14 @@ public:
     void* data_ptr;
 
     /**
-     * the symbol resolve function is called by the symbol resolver
-     */
-    EmbeddedValueSymbolResolveFunc* sym_res_fn;
-
-    /**
-     * the replacement function is called to replace it as a value by the backend
-     */
-    EmbeddedValueReplacementFunc* replacement_fn;
-
-    /**
-     * traversal function allows us to traverse this embedded value
-     */
-    EmbeddedValueTraversalFunc* traversal_fn;
-
-    /**
      * constructor
      */
     EmbeddedValue(
+        chem::string_view name,
         void* data_ptr,
         BaseType* type,
-        EmbeddedValueSymbolResolveFunc* sym_res_fn,
-        EmbeddedValueReplacementFunc* replacement_fn,
-        EmbeddedValueTraversalFunc* traversal_fn,
         SourceLocation loc
-    ) : Value(ValueKind::EmbeddedValue, type, loc), data_ptr(data_ptr), sym_res_fn(sym_res_fn),
-        replacement_fn(replacement_fn), traversal_fn(traversal_fn)
+    ) : Value(ValueKind::EmbeddedValue, type, loc), name(name), data_ptr(data_ptr)
     {
 
     }
@@ -59,11 +36,9 @@ public:
      */
     Value* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<EmbeddedValue>()) EmbeddedValue(
+               name,
                data_ptr,
                getType()->copy(allocator),
-               sym_res_fn,
-               replacement_fn,
-               traversal_fn,
                encoded_location()
         );
     }

@@ -50,7 +50,7 @@ func sym_res_root(
         return false;
     }
 
-    var support = &root.support
+    var support = &mut root.support
     support.pageNode = page;
     support.appendHtmlCharFn = appendHtmlCharFn
     support.appendHtmlCharPtrFn = appendHtmlCharPtrFn

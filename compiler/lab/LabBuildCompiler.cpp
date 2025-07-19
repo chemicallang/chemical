@@ -1088,11 +1088,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     InstantiationsContainer instContainer;
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info);
+    ToCAstVisitor c_visitor(binder, global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info);
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
@@ -1284,7 +1284,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     InstantiationsContainer instContainer;
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
@@ -2255,7 +2255,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     InstantiationsContainer instContainer;
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver lab_resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(
@@ -2276,7 +2276,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // compiler interfaces the lab files imports
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info);
+    ToCAstVisitor c_visitor(binder, global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context

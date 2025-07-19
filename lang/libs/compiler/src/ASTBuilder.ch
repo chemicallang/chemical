@@ -373,22 +373,18 @@ public struct ASTBuilder {
     func createType(&self, value : *mut Value) : *mut BaseType
 
     func make_embedded_node(&self,
+        name : &std::string_view,
         data_ptr : *void,
-        sym_res_fn : EmbeddedNodeSymbolResolveFunc,
-        repl_fn : EmbeddedNodeReplacementFunc,
         known_type_fn : EmbeddedNodeKnownTypeFunc,
         child_res_fn : EmbeddedNodeChildResolutionFunc,
-        traversal_fn : EmbeddedNodeTraversalFunc,
         parent_node : *ASTNode,
         location : ubigint
     ) : *EmbeddedNode
 
     func make_embedded_value(&self,
+        name : &std::string_view,
         data_ptr : *void,
         type : *mut BaseType,
-        sym_res_fn : EmbeddedValueSymbolResolveFunc,
-        repl_fn: EmbeddedValueReplacementFunc,
-        traversal_fn : EmbeddedValueTraversalFunc,
         location : ubigint
     ) : *EmbeddedValue
 

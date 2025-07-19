@@ -53,18 +53,20 @@ public struct LabJobCBI : LabJob {
 
 }
 
-public enum CBIType {
-    MacroLexer,
-    MacroParser,
-    IDESupport
-}
-
 public enum CBIFunctionType {
     InitializeLexer,
     ParseMacroValue,
     ParseMacroNode,
     ParseMacroTopLevelNode,
     ParseMacroMemberNode,
+    SymResLinkSignatureNode,
+    SymResLinkSignatureValue,
+    SymResNode,
+    SymResValue,
+    ReplacementNode,
+    ReplacementValue,
+    TraversalNode,
+    TraversalValue,
     SemanticTokensPut,
     FoldingRangesPut
 }
@@ -289,27 +291,7 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
 }
 
 public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : &std::string_view, type : CBIFunctionType) {
-    var fn_name = job.name.copy()
-    fn_name.append_with_len(name.data(), name.size())
-    ctx.index_cbi_fn(job, job.name.to_view(), fn_name.to_view(), type)
-}
-
-// add the given cbi to a cbi job
-public func (ctx : &BuildContext) add_cbi_type(job : *mut LabJobCBI, type : CBIType) : bool {
-    switch(type) {
-        CBIType.MacroLexer => {
-            ctx.index_def_cbi_fn(job, std::string_view("_initializeLexer"), CBIFunctionType.InitializeLexer);
-        }
-        CBIType.MacroParser => {
-            ctx.index_def_cbi_fn(job, std::string_view("_parseMacroValue"), CBIFunctionType.ParseMacroValue);
-            ctx.index_def_cbi_fn(job, std::string_view("_parseMacroNode"), CBIFunctionType.ParseMacroNode);
-        }
-        CBIType.IDESupport => {
-            ctx.index_def_cbi_fn(job, std::string_view("_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
-            ctx.index_def_cbi_fn(job, std::string_view("_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
-        }
-    }
-    return true;
+    ctx.index_cbi_fn(job, job.name.to_view(), name, type)
 }
 
 // -----------------------------------------------------

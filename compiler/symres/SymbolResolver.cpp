@@ -17,6 +17,7 @@
 #include "ast/base/TypeBuilder.h"
 
 SymbolResolver::SymbolResolver(
+    CompilerBinder& binder,
     GlobalInterpretScope& global,
     ImportPathHandler& handler,
     InstantiationsContainer& container,
@@ -24,8 +25,9 @@ SymbolResolver::SymbolResolver(
     ASTAllocator& fileAllocator,
     ASTAllocator* modAllocator,
     ASTAllocator* astAllocator
-) : comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit), allocator(fileAllocator),
-    mod_allocator(modAllocator), ast_allocator(astAllocator), genericInstantiator(container, *astAllocator, *this, global.typeBuilder), table(512)
+) : binder(binder), comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit),
+    allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator),
+    genericInstantiator(binder, container, *astAllocator, *this, global.typeBuilder), table(512)
 {
     global_scope_start();
     stored_file_symbols.reserve(128);

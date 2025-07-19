@@ -54,7 +54,7 @@ func sym_res_root(
         return false;
     }
 
-    var support = &om.support
+    var support = &mut om.support
     support.pageNode = page;
     support.appendCssCharFn = appendCssCharFn
     support.appendCssCharPtrFn = appendCssCharPtrFn

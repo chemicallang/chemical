@@ -51,12 +51,20 @@ func build(ctx : *mut BuildContext) : *Module {
 
     var cbiDeps = [ module ]
     var cbi = ctx.build_cbi(std::string_view("css"), cbiDeps)
-    ctx.add_cbi_type(cbi, CBIType.MacroLexer)
-    ctx.add_cbi_type(cbi, CBIType.MacroParser)
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_symResValue"), CBIFunctionType.SymResValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_replacementNode"), CBIFunctionType.ReplacementNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_replacementValue"), CBIFunctionType.ReplacementValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_traversalNode"), CBIFunctionType.TraversalNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("css_traversalValue"), CBIFunctionType.TraversalValue);
 
     if(def.lsp) {
         // this will let the compiler know that methods are present
-        ctx.add_cbi_type(cbi, CBIType.IDESupport)
+        ctx.index_def_cbi_fn(cbi, std::string_view("css_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+        ctx.index_def_cbi_fn(cbi, std::string_view("css_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
     }
 
     return std_module;

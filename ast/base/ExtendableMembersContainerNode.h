@@ -6,7 +6,7 @@
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/GenericFuncDecl.h"
 
-class ExtendableMembersContainerNode : public MembersContainer, public ExtendableBase {
+class ExtendableMembersContainerNode : public MembersContainer {
 public:
 
     using MembersContainer::requires_moving;
@@ -43,22 +43,6 @@ public:
     }
 
     /**
-     * get the member container child or otherwise extendable member container child
-     */
-    ASTNode *child(const chem::string_view &child_name) {
-        auto found = MembersContainer::child(child_name);
-        if(found) return found;
-        return ExtendableBase::extended_child(child_name);
-    }
-
-    /**
-     * returns itself as extendable members container
-     */
-    ExtendableBase *as_extendable_members_container() final {
-        return this;
-    }
-
-    /**
      * returns itself as extendable members container
      */
     ExtendableMembersContainerNode *as_extendable_members_container_node() final {
@@ -67,7 +51,6 @@ public:
 
     inline void shallow_copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
         MembersContainer::shallow_copy_into(other, allocator);
-        other.extension_functions = extension_functions;
     }
 
 #ifdef COMPILER_BUILD
@@ -81,8 +64,8 @@ public:
      */
     void extendable_external_declare(Codegen& gen) {
         external_declare(gen);
-        for(auto& pair : extension_functions) {
-            pair.second->code_gen_external_declare(gen);
+        for(const auto decl : extension_functions) {
+            decl->code_gen_external_declare(gen);
         }
     }
 

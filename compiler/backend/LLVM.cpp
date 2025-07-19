@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "compiler/Codegen.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/llvmimpl.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
@@ -884,11 +885,16 @@ llvm::Type* EmbeddedNode::llvm_type(Codegen &gen) {
 
 llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
     ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
-    const auto repl = replacement_fn(&builder, this);
+    const auto replacement_fn = gen.binder.findHook(name, CBIFunctionType::ReplacementNode);
+    if(!replacement_fn) {
+        gen.error(this) << "couldn't find replacement function for embedded node with name '" << name << "'";
+        return nullptr;
+    }
+    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, this);
     if(repl) {
         return repl->llvm_pointer(gen);
     } else {
-        gen.error("couldn't replace embedded node", this);
+        gen.error(this) << "couldn't replace embedded node with name '" << name << "'";
     }
 }
 
@@ -897,24 +903,30 @@ llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
+Value* replacement_value(EmbeddedValue* value, Codegen& gen) {
     ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
-    const auto repl = replacement_fn(&builder, this);
-    if(repl) {
-        return repl->llvm_pointer(gen);
-    } else {
-        gen.error("couldn't replace embedded value", this);
+    const auto replacement_fn = gen.binder.findHook(value->name, CBIFunctionType::ReplacementValue);
+    if(!replacement_fn) {
+        gen.error(value) << "couldn't find replacement function for embedded value with name '" << value->name << "'";
+        return nullptr;
     }
+    const auto repl = ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, value);
+    if(!repl) {
+        gen.error(value) << "couldn't replace embedded value with name '" << value->name << "'";
+    }
+    return repl;
+}
+
+llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
+    const auto repl = replacement_value(this, gen);
+    if(!repl) return nullptr;
+    repl->llvm_pointer(gen);
 }
 
 llvm::Value* EmbeddedValue::llvm_value(Codegen &gen, BaseType *type) {
-    ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
-    const auto repl = replacement_fn(&builder, this);
-    if(repl) {
-        return repl->llvm_value(gen);
-    } else {
-        gen.error("couldn't replace embedded value", this);
-    }
+    const auto repl = replacement_value(this, gen);
+    if(!repl) return nullptr;
+    return repl->llvm_value(gen);
 }
 
 llvm::Type* SizeOfValue::llvm_type(Codegen &gen) {

@@ -37,6 +37,16 @@ protected:
      */
     std::vector<BaseDefMember*> variables_container;
 
+#ifdef COMPILER_BUILD
+
+    /**
+     * need to keep track of extension functions, because llvm backend
+     * requires to declare the functions, we must know which extension functions are being declared
+     */
+    std::vector<ASTNode*> extension_functions;
+
+#endif
+
 public:
 
     std::vector<InheritedType> inherited;
@@ -222,7 +232,36 @@ public:
         other.inherited = inherited;
         other.variables_container = variables_container;
         other.indexes = indexes;
+#ifdef COMPILER_BUILD
+        other.extension_functions = extension_functions;
+#endif
     }
+
+    /**
+     * add an extension function
+     */
+    inline void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
+        indexes[name] = {(ASTNode*) decl, -1};
+#ifdef COMPILER_BUILD
+        extension_functions.emplace_back((ASTNode*) decl);
+#endif
+    }
+
+    /**
+     * add extension function
+     */
+    inline void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
+        indexes[name] = {(ASTNode*) decl, -1};
+#ifdef COMPILER_BUILD
+        extension_functions.emplace_back((ASTNode*) decl);
+#endif
+    }
+
+    /**
+     * all the methods of this interface will be extended to this
+     * struct / member, so user can call it using dot notation obj.method
+     */
+    void adopt(MembersContainer* definition);
 
 #ifdef COMPILER_BUILD
 

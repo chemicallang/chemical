@@ -749,6 +749,24 @@ bool VariablesContainer::does_override(InterfaceDefinition* interface) {
     return false;
 }
 
+void VariablesContainer::adopt(MembersContainer* definition) {
+    for(auto& inherits : definition->inherited) {
+        adopt((MembersContainer*) inherits.type->linked_node());
+    }
+    for(const auto node : definition->evaluated_nodes()) {
+        switch(node->kind()) {
+            case ASTNodeKind::FunctionDecl:
+                indexes[node->as_function_unsafe()->name_view()] = {node, -1};
+                break;
+            case ASTNodeKind::GenericFuncDecl:
+                indexes[node->as_gen_func_decl_unsafe()->master_impl->name_view()] = {node, -1};
+                break;
+            default:
+                break;
+        }
+    }
+}
+
 bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem::string_view& child_name) {
     const auto child_ind = direct_child_index(child_name);
     if(child_ind != -1) {

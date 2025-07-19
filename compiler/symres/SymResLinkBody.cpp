@@ -52,6 +52,7 @@
 #include "SymResLinkBody.h"
 #include "SymResLinkBodyAPI.h"
 #include "LinkSignatureAPI.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/utils/GenericUtils.h"
 
 void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
@@ -1339,7 +1340,12 @@ void SymResLinkBody::VisitValueWrapper(ValueWrapperNode* node) {
 }
 
 void SymResLinkBody::VisitEmbeddedNode(EmbeddedNode* node) {
-    node->sym_res_fn(&linker, node);
+    auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResNode);
+    if(found) {
+        ((EmbeddedNodeSymbolResolveFunc) found)(&linker, node);
+    } else {
+        linker.error(node) << "couldn't find symbol resolve method for embedded node with name '" << node->name << "'";
+    }
 }
 
 // --------------- Values and Types BEGIN HERE -----------------
@@ -1656,7 +1662,12 @@ void SymResLinkBody::VisitNumberValue(NumberValue* value) {
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
-    value->sym_res_fn(&linker, value);
+    auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResValue);
+    if(found) {
+        ((EmbeddedValueSymbolResolveFunc) found)(&linker, value);
+    } else {
+        linker.error(value) << "couldn't find symbol resolve method for embedded value with name '" << value->name << "'";
+    }
 }
 
 void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {

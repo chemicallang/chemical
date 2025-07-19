@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "LinkSignature.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/AliasStmt.h"
 #include "ast/statements/Typealias.h"
@@ -286,6 +287,28 @@ void TopLevelLinkSignature::VisitBlockValue(BlockValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitBlockValue(value);
     if(!linker.comptime_context) {
         linker.error(RUNTIME_EVAL_ERR, value);
+    }
+}
+
+void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
+    // this traverses any child nodes / values emplacing types
+    RecursiveVisitor<TopLevelLinkSignature>::VisitEmbeddedNode(node);
+    auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResLinkSignatureNode);
+    if(found) {
+        ((EmbeddedNodeSymResLinkSignature) found)(&linker, node);
+    } else {
+        linker.error(node) << "couldn't find link signature method for embedded node with name '" << node->name << "'";
+    }
+}
+
+void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
+    // this traverses any child nodes / values emplacing types
+    RecursiveVisitor<TopLevelLinkSignature>::VisitEmbeddedValue(value);
+    auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResLinkSignatureValue);
+    if(found) {
+        ((EmbeddedValueSymResLinkSignature) found)(&linker, value);
+    } else {
+        linker.error(value) << "couldn't find link signature method for embedded value with name '" << value->name << "'";
     }
 }
 

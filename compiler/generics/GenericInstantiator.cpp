@@ -1,5 +1,6 @@
 
 #include "GenericInstantiator.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 #include "GenInstantiatorAPI.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -50,7 +51,7 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+    GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
     GenericInstantiatorAPI genApi(&instantiator);
     if(!call->instantiate_gen_call(genApi, nullptr)) {
         diagnoser.error("couldn't instantiate call", call);
@@ -145,7 +146,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+        GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi);
         val->setType(val->refType);
@@ -295,7 +296,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -309,7 +310,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -323,7 +324,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -338,7 +339,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -352,7 +353,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -448,6 +449,41 @@ void GenericInstantiator::VisitPlacementNewValue(PlacementNewValue *value) {
 void GenericInstantiator::VisitNotValue(NotValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitNotValue(value);
     value->setType(value->getValue()->getType());
+}
+
+static bool embedded_traverse(void* data, ASTAny* item) {
+    const auto visitor = static_cast<GenericInstantiator*>(data);
+    switch(item->any_kind()) {
+        case ASTAnyKind::Value:
+            visitor->VisitValueNoNullCheck(static_cast<Value*>(item));
+            return true;
+        case ASTAnyKind::Type:
+            visitor->VisitTypeNoNullCheck(static_cast<BaseType*>(item));
+            return true;
+        case ASTAnyKind::Node:
+            visitor->VisitNodeNoNullCheck(static_cast<ASTNode*>(item));
+            return true;
+        default:
+            return false;
+    }
+}
+
+void GenericInstantiator::VisitEmbeddedNode(EmbeddedNode* node) {
+    const auto traversal_fn = binder.findHook(node->name, CBIFunctionType::TraversalNode);
+    if(!traversal_fn) {
+        diagnoser.error(node) << "couldn't find traversal function for node with name '" << node->name << "'";
+        return;
+    }
+    ((EmbeddedNodeTraversalFunc) traversal_fn)(node, this, embedded_traverse);
+}
+
+void GenericInstantiator::VisitEmbeddedValue(EmbeddedValue* value) {
+    const auto traversal_fn = binder.findHook(value->name, CBIFunctionType::TraversalValue);
+    if(!traversal_fn) {
+        diagnoser.error(value) << "couldn't find traversal function for value with name '" << value->name << "'";
+        return;
+    }
+    ((EmbeddedValueTraversalFunc) traversal_fn)(value, this, embedded_traverse);
 }
 
 void GenericInstantiator::Clear() {
@@ -1168,11 +1204,12 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, const std::span<Im
 // Generic Instantiator API
 
 GenericInstantiatorAPI::GenericInstantiatorAPI(
+    CompilerBinder& binder,
     InstantiationsContainer& container,
     ASTAllocator& astAllocator,
     ASTDiagnoser& diagnoser,
     TypeBuilder& typeBuilder
-) : giPtr(new GenericInstantiator(container, astAllocator, diagnoser, typeBuilder)) {
+) : giPtr(new GenericInstantiator(binder, container, astAllocator, diagnoser, typeBuilder)) {
 
 }
 

@@ -32,6 +32,8 @@ class ChainValue;
 
 class VariableIdentifier;
 
+class CompilerBinder;
+
 /**
  * a struct representing a scope, every '{' and '}' opens and closes a scope respectively
  *
@@ -198,6 +200,11 @@ public:
     ASTAllocator& allocator;
 
     /**
+     * the compiler binder is required to symbol resolve embedded nodes and values
+     */
+    CompilerBinder& binder;
+
+    /**
      * this contains the generic instantiations
      */
     InstantiationsContainer& instContainer;
@@ -258,6 +265,7 @@ public:
      * constructor
      */
     SymbolResolver(
+            CompilerBinder& binder,
             GlobalInterpretScope& global,
             ImportPathHandler& handler,
             InstantiationsContainer& container,

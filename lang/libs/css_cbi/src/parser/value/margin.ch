@@ -24,7 +24,7 @@ func (cssParser : &mut CSSParser) parseMargin(
             values : std::vector<CSSValue>()
         }
 
-        multiple.values.push(*value)
+        multiple.values.push(value)
         value.kind = CSSValueKind.Multiple
         value.data = multiple
 

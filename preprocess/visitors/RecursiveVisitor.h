@@ -522,29 +522,4 @@ public:
         visit_it(node->value);
     }
 
-    static bool embedded_traverse(void* data, ASTAny* item) {
-        const auto visitor = static_cast<RecursiveVisitor<Derived>*>(data);
-        switch(item->any_kind()) {
-            case ASTAnyKind::Value:
-                visitor->VisitValueNoNullCheck(static_cast<Value*>(item));
-                return true;
-            case ASTAnyKind::Type:
-                visitor->VisitTypeNoNullCheck(static_cast<BaseType*>(item));
-                return true;
-            case ASTAnyKind::Node:
-                visitor->VisitNodeNoNullCheck(static_cast<ASTNode*>(item));
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    inline void VisitEmbeddedNode(EmbeddedNode* node) {
-        node->traversal_fn(node, this, embedded_traverse);
-    }
-
-    inline void VisitEmbeddedValue(EmbeddedValue* value) {
-        value->traversal_fn(value, this, embedded_traverse);
-    }
-
 };

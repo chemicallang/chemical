@@ -108,6 +108,11 @@ public:
 
     void VisitBlockValue(BlockValue* value);
 
+    void VisitEmbeddedNode(EmbeddedNode* node);
+
+    void VisitEmbeddedValue(EmbeddedValue* value);
+
+
     void LinkVariablesNoScope(VariablesContainer* container);
 
     void LinkMembersContainerNoScope(MembersContainer* container);

@@ -5,6 +5,8 @@
 #include "ast/base/ast_fwd.h"
 #include <span>
 
+class CompilerBinder;
+
 class GenericInstantiator;
 
 class InstantiationsContainer;
@@ -36,6 +38,7 @@ public:
      * the constructor
      */
     GenericInstantiatorAPI(
+        CompilerBinder& binder,
         InstantiationsContainer& container,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser,

@@ -116,26 +116,22 @@ BaseType* ASTBuildercreateType(ASTBuilder* builder, Value* value) {
     return value->create_type(*builder->allocator);
 }
 
-EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, void* data_ptr, void* sym_res_fn, void* repl_fn, void* known_type_fn, void* child_res_fn, void* traversal_fn, ASTNode* parent_node, uint64_t location) {
+EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location) {
     return new (builder->allocate<EmbeddedNode>()) EmbeddedNode(
+            *name,
             data_ptr,
-            (EmbeddedNodeSymbolResolveFunc*) sym_res_fn,
-            (EmbeddedNodeReplacementFunc*) repl_fn,
             (EmbeddedNodeKnownTypeFunc*) known_type_fn,
             (EmbeddedNodeChildResolutionFunc*) child_res_fn,
-            (EmbeddedNodeTraversalFunc*) traversal_fn,
             parent_node,
             location
     );
 }
 
-EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, void* data_ptr, BaseType* type, void* sym_res_fn, void* repl_fn, void* traversal_fn, uint64_t location) {
+EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, uint64_t location) {
     return new (builder->allocate<EmbeddedValue>()) EmbeddedValue(
+            *name,
             data_ptr,
             type,
-            (EmbeddedValueSymbolResolveFunc*) sym_res_fn,
-            (EmbeddedValueReplacementFunc*) repl_fn,
-            (EmbeddedValueTraversalFunc*) traversal_fn,
             location
     );
 }

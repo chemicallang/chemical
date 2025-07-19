@@ -10,11 +10,12 @@
 
 #include "ast/base/Value.h"
 #include "EnumMember.h"
-#include "ast/base/ExtendableAnnotableNode.h"
+#include "ast/base/ASTNode.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/types/LinkedType.h"
 #include "ast/base/TypeLoc.h"
 #include "ast/base/LocatedIdentifier.h"
+#include <unordered_map>
 
 struct EnumDeclAttributes {
 
@@ -24,7 +25,7 @@ struct EnumDeclAttributes {
 
 };
 
-class EnumDeclaration : public ExtendableNode {
+class EnumDeclaration : public ASTNode {
 public:
 
     EnumDeclAttributes attrs;
@@ -56,7 +57,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableNode(ASTNodeKind::EnumDecl, parent_node, location), located_id(name_id),
+    ) : ASTNode(ASTNodeKind::EnumDecl, parent_node, location), located_id(name_id),
         linked_type(this), underlying_type(underlying_type), attrs(specifier, false) {
 
     }

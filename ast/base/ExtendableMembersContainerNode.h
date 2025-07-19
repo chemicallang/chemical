@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "ExtendableBase.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/GenericFuncDecl.h"
 

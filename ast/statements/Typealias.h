@@ -5,7 +5,6 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 #include "ast/base/TypeLoc.h"
-#include "ast/base/ExtendableAnnotableNode.h"
 #include "ast/base/LocatedIdentifier.h"
 
 struct TypealiasDeclAttributes {
@@ -32,7 +31,7 @@ struct TypealiasDeclAttributes {
 
 };
 
-class TypealiasStatement : public ExtendableNode {
+class TypealiasStatement : public ASTNode {
 public:
 
     TypealiasDeclAttributes attrs;
@@ -58,7 +57,7 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : ExtendableNode(ASTNodeKind::TypealiasStmt, parent_node, location), located_id(identifier),
+    ) : ASTNode(ASTNodeKind::TypealiasStmt, parent_node, location), located_id(identifier),
         actual_type(actual_type), attrs(specifier, false, false) {
 
     }

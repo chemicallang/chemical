@@ -33,7 +33,7 @@ extern "C" {
 
     BoolType* ASTBuildermake_bool_type(ASTBuilder* builder, uint64_t location);
 
-    BoolType* ASTBuildermake_char_type(ASTBuilder* builder, uint64_t location);
+    CharType* ASTBuildermake_char_type(ASTBuilder* builder, uint64_t location);
 
     DoubleType* ASTBuildermake_double_type(ASTBuilder* builder, uint64_t location);
 

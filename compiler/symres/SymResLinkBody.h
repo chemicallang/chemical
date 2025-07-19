@@ -241,6 +241,9 @@ public:
 
     void VisitStructValue(StructValue* value);
 
-    void VisitVariableIdentifier(VariableIdentifier* value);
+    inline void VisitVariableIdentifier(VariableIdentifier* value) {
+        // by default access is checked
+        VisitVariableIdentifier(value, true);
+    }
 
 };

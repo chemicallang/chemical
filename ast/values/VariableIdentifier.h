@@ -72,8 +72,6 @@ public:
 
     bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type);
-
     bool primitive() final {
         return false;
     }

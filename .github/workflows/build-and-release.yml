@@ -76,36 +76,26 @@ jobs:
           subst X: $PWD
           cd X:\chemical-bootstrap\chemical
           mkdir out\build
-          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
-          cmake --build out\build\x64-release --config RelWithDebInfo --target Compiler
+          cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
+          cmake --build out\build\x64-release --config Release --target Compiler
 
       # Build the tcc compiler target
       - name: Build Chemical TCC Based Compiler (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out\build\x64-release --config RelWithDebInfo --target TCCCompiler
+          cmake --build out\build\x64-release --config Release --target TCCCompiler
 
       # Build the lsp target
       - name: Build Chemical LSP (Windows)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out\build\x64-release --config RelWithDebInfo --target ChemicalLsp
+          cmake --build out\build\x64-release --config Release --target ChemicalLsp
 
       # Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
         working-directory: chemical-bootstrap/chemical
         # Assuming Git Bash is available on windows-latest (if not, you might need to install/setup MSYS2)
         run: bash release.sh
-
-      # New: Package debug symbols (Windows) – using Bash shell and forward slashes
-      - name: Package debug symbols (Windows)
-        shell: bash
-        continue-on-error: true
-        working-directory: chemical-bootstrap/chemical
-        run: |
-          if ls out/release/*.pdb 1> /dev/null 2>&1; then
-            zip windows-x64-debug.zip out/release/*.pdb
-          fi
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
@@ -158,37 +148,6 @@ jobs:
         with:
           name: windows-x64.zip
           path: chemical-bootstrap/chemical/out/release/windows-x64.zip
-
-      # New: Check and upload debug symbols for Windows
-      - name: Check if windows-x64-debug.zip exists in latest release
-        id: check_windows_x64_debug
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tag = '${{ steps.get_latest_release.outputs.tag }}';
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag: tag
-            });
-            const exists = release.assets.some(asset => asset.name === 'windows-x64-debug.zip');
-            core.setOutput("exists", exists.toString());
-
-      - name: Upload windows-x64-debug.zip to release if not exists
-        if: steps.check_windows_x64_debug.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          files: chemical-bootstrap/chemical/out/release/windows-x64-debug.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Save windows-x64-debug.zip as artifact if already exists
-        if: steps.check_windows_x64_debug.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-x64-debug.zip
-          path: chemical-bootstrap/chemical/out/release/windows-x64-debug.zip
 
       - name: Check if windows-x64-tcc.zip exists in latest release
         id: check_windows_x64_tcc
@@ -317,46 +276,25 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/release
-          cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=Release
 
       # Build the compiler target
       - name: Build Chemical LLVM Based Compiler (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target Compiler
+          cmake --build out/build/x64-release-wsl --config Release --target Compiler
 
       # Build the tcc compiler target
       - name: Build Chemical TCC Based Compiler (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target TCCCompiler
+          cmake --build out/build/x64-release-wsl --config Release --target TCCCompiler
 
       # Build the lsp target
       - name: Build Chemical LSP (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out/build/x64-release-wsl --config RelWithDebInfo --target ChemicalLsp
-
-      # New: Extract and package debug symbols (Linux)
-      - name: Extract and package debug symbols (Linux)
-        continue-on-error: true
-        working-directory: chemical-bootstrap/chemical
-        run: |
-          if [ -d out/release ]; then
-            for file in Compiler TCCCompiler ChemicalLsp; do
-              if [ -f out/release/$file ]; then
-                objcopy --only-keep-debug out/release/$file out/release/$file.debug || true
-                strip --strip-debug --strip-unneeded out/release/$file || true
-                objcopy --add-gnu-debuglink=out/release/$file.debug out/release/$file || true
-              fi
-            done
-            if [ -f out/release/Compiler.debug ] || [ -f out/release/ChemicalLsp.debug ]; then
-              zip linux-x86-64-debug.zip out/release/Compiler.debug out/release/ChemicalLsp.debug || true
-            fi
-            if [ -f out/release/TCCCompiler.debug ]; then
-              zip linux-x86-64-tcc-debug.zip out/release/TCCCompiler.debug || true
-            fi
-          fi
+          cmake --build out/build/x64-release-wsl --config Release --target ChemicalLsp
 
       # Run the release packaging script to create ZIP files (Linux)
       - name: Run release packaging script (Linux)
@@ -476,65 +414,3 @@ jobs:
         with:
           name: linux-x86-64-lsp.zip
           path: chemical-bootstrap/chemical/out/release/linux-x86-64-lsp.zip
-
-      # New: Check and upload debug symbol packages for Linux (Compiler/ChemicalLsp)
-      - name: Check if linux-x86-64-debug.zip exists in latest release
-        id: check_linux_x64_debug
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tag = '${{ steps.get_latest_release.outputs.tag }}';
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: tag
-            });
-            const exists = release.assets.some(asset => asset.name === 'linux-x86-64-debug.zip');
-            core.setOutput("exists", exists.toString());
-
-      - name: Upload linux-x86-64-debug.zip to release if not exists
-        if: steps.check_linux_x64_debug.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          files: chemical-bootstrap/chemical/out/release/linux-x86-64-debug.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Save linux-x86-64-debug.zip as artifact if already exists
-        if: steps.check_linux_x64_debug.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-x86-64-debug.zip
-          path: chemical-bootstrap/chemical/out/release/linux-x86-64-debug.zip
-
-      # New: Check and upload debug symbol package for Linux (TCCCompiler)
-      - name: Check if linux-x86-64-tcc-debug.zip exists in latest release
-        id: check_linux_x64_tcc_debug
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const tag = '${{ steps.get_latest_release.outputs.tag }}';
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: tag
-            });
-            const exists = release.assets.some(asset => asset.name === 'linux-x86-64-tcc-debug.zip');
-            core.setOutput("exists", exists.toString());
-
-      - name: Upload linux-x86-64-tcc-debug.zip to release if not exists
-        if: steps.check_linux_x64_tcc_debug.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.get_latest_release.outputs.tag }}
-          files: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc-debug.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Save linux-x86-64-tcc-debug.zip as artifact if already exists
-        if: steps.check_linux_x64_tcc_debug.outputs.exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-x86-64-tcc-debug.zip
-          path: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc-debug.zip

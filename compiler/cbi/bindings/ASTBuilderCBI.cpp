@@ -111,6 +111,8 @@ void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn) {
 }
 
 BaseType* ASTBuildercreateType(ASTBuilder* builder, Value* value) {
+    // TODO: deprecated method
+    // TODO: use getType instead of createType
     return value->create_type(*builder->allocator);
 }
 
@@ -139,7 +141,7 @@ EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, void* data_ptr
 }
 
 AnyType* ASTBuildermake_any_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<AnyType>()) AnyType();
+    return builder->typeBuilder.getAnyType();
 }
 
 ArrayType* ASTBuildermake_array_type(ASTBuilder* builder, BaseType* elem_type, int array_size, uint64_t location) {
@@ -147,19 +149,19 @@ ArrayType* ASTBuildermake_array_type(ASTBuilder* builder, BaseType* elem_type, i
 }
 
 BigIntType* ASTBuildermake_bigint_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<BigIntType>()) BigIntType();
+    return builder->typeBuilder.getBigIntType();
 }
 
 BoolType* ASTBuildermake_bool_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<BoolType>()) BoolType();
+    return builder->typeBuilder.getBoolType();
 }
 
-BoolType* ASTBuildermake_char_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<BoolType>()) BoolType();
+CharType* ASTBuildermake_char_type(ASTBuilder* builder, uint64_t location) {
+    return builder->typeBuilder.getCharType();
 }
 
 DoubleType* ASTBuildermake_double_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<DoubleType>()) DoubleType();
+    return builder->typeBuilder.getDoubleType();
 }
 
 DynamicType* ASTBuildermake_dynamic_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
@@ -167,7 +169,7 @@ DynamicType* ASTBuildermake_dynamic_type(ASTBuilder* builder, BaseType* child_ty
 }
 
 FloatType* ASTBuildermake_float_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<FloatType>()) FloatType();
+    return builder->typeBuilder.getFloatType();
 }
 
 FunctionType* ASTBuildermake_func_type(ASTBuilder* builder, BaseType* returnType, bool isVariadic, bool isCapturing, ASTNode* parent_node, uint64_t location) {
@@ -180,11 +182,11 @@ GenericType* ASTBuildermake_generic_type(ASTBuilder* builder, LinkedType* linked
 }
 
 Int128Type* ASTBuildermake_int128_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<Int128Type>()) Int128Type();
+    return builder->typeBuilder.getInt128Type();
 }
 
 IntType* ASTBuildermake_int_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<IntType>()) IntType();
+    return builder->typeBuilder.getIntType();
 }
 
 LinkedType* ASTBuildermake_linked_type(ASTBuilder* builder, chem::string_view* type, ASTNode* linked, uint64_t location) {
@@ -200,7 +202,7 @@ LiteralType* ASTBuildermake_literal_type(ASTBuilder* builder, BaseType* child_ty
 }
 
 LongType* ASTBuildermake_long_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<LongType>()) LongType();
+    return builder->typeBuilder.getLongType();
 }
 
 PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, uint64_t location) {
@@ -212,39 +214,39 @@ ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* chil
 }
 
 ShortType* ASTBuildermake_short_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<ShortType>()) ShortType();
+    return builder->typeBuilder.getShortType();
 }
 
 StringType* ASTBuildermake_string_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<StringType>()) StringType();
+    return builder->typeBuilder.getStringType();
 }
 
 UBigIntType* ASTBuildermake_ubigint_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<UBigIntType>()) UBigIntType();
+    return builder->typeBuilder.getUBigIntType();
 }
 
 UCharType* ASTBuildermake_uchar_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<UCharType>()) UCharType();
+    return builder->typeBuilder.getUCharType();
 }
 
 UInt128Type* ASTBuildermake_uint128_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<UInt128Type>()) UInt128Type();
+    return builder->typeBuilder.getUInt128Type();
 }
 
 UIntType* ASTBuildermake_uint_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<UIntType>()) UIntType();
+    return builder->typeBuilder.getUIntType();
 }
 
 ULongType* ASTBuildermake_ulong_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<ULongType>()) ULongType();
+    return builder->typeBuilder.getULongType();
 }
 
 UShortType* ASTBuildermake_ushort_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<UShortType>()) UShortType();
+    return builder->typeBuilder.getUShortType();
 }
 
 VoidType* ASTBuildermake_void_type(ASTBuilder* builder, uint64_t location) {
-    return new (builder->allocate<VoidType>()) VoidType();
+    return builder->typeBuilder.getVoidType();
 }
 
 AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, bool is_node, uint64_t location) {

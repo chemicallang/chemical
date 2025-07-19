@@ -2247,14 +2247,3 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     }
     return false;
 }
-
-// TODO: inline this method
-bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
-    return find_link_in_parent(parent, &resolver);
-}
-
-void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* value) {
-    // by default access is checked
-    // TODO: make this method inline
-    VisitVariableIdentifier(value, true);
-}

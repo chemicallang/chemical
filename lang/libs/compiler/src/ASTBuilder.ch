@@ -35,6 +35,8 @@ public struct Int128Type : BaseType {}
 
 public struct IntType : BaseType {}
 
+public struct CharType : BaseType {}
+
 public struct LinkedType : BaseType {}
 
 public struct LinkedValueType : BaseType {}
@@ -398,7 +400,7 @@ public struct ASTBuilder {
 
     func make_bool_type(&self, location : ubigint) : *mut BoolType
 
-    func make_char_type(&self, location : ubigint) : *mut BoolType
+    func make_char_type(&self, location : ubigint) : *mut CharType
 
     func make_double_type(&self, location : ubigint) : *mut DoubleType
 

@@ -86,6 +86,7 @@
 
 Codegen::Codegen(
         CodegenOptions& options,
+        CompilerBinder& binder,
         GlobalInterpretScope& comptime_scope,
         NameMangler& mangler,
         std::string target_triple,
@@ -93,7 +94,7 @@ Codegen::Codegen(
         bool is_64_bit,
         bool debug_info,
         ASTAllocator& allocator
-) : ASTDiagnoser(comptime_scope.loc_man), options(options), comptime_scope(comptime_scope), allocator(allocator),
+) : ASTDiagnoser(comptime_scope.loc_man), binder(binder), options(options), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple),
     di(comptime_scope.loc_man, nullptr, *this, debug_info), llvm(di), mode(comptime_scope.mode),
     mangler(mangler)

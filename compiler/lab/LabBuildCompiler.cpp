@@ -1296,7 +1296,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
         code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
     }
-    Codegen gen(code_gen_options, global, mangler, options->target_triple, options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
+    Codegen gen(code_gen_options, binder, global, mangler, options->target_triple, options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;

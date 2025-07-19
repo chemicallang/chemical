@@ -1003,7 +1003,7 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         return false;
     }
     const auto linked_kind = linked->kind();
-    auto container = linked->as_extendable_members_container();
+    auto container = linked->as_members_container();
     if (linked_kind == ASTNodeKind::InterfaceDecl) {
         const auto interface = linked->as_interface_def_unsafe();
         if (!interface->is_static() && generic_parent == nullptr) {
@@ -1029,10 +1029,6 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
     }
     if (!container) {
         diagnoser.error(receiver.type.encoded_location()) << "type doesn't support extension functions " << type->representation();
-        return false;
-    }
-    if(container->extension_functions.contains(name_view())) {
-        diagnoser.error(receiver.type.encoded_location()) << "container already contains an extension function by the name '" << name_view() << '\'';
         return false;
     }
     const auto field_func = linked->child(name_view());

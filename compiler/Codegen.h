@@ -24,6 +24,8 @@
 
 class ASTAllocator;
 
+class CompilerBinder;
+
 class GlobalInterpretScope;
 
 class Codegen;
@@ -85,6 +87,11 @@ struct Destructible {
 
 class Codegen : public ASTDiagnoser {
 public:
+
+    /**
+     * used to get the functions invoked for embedded nodes and values
+     */
+    CompilerBinder& binder;
 
     /**
      * global interpret scope, is the scope used for compile time evaluation
@@ -244,6 +251,7 @@ public:
      */
     Codegen(
             CodegenOptions& options,
+            CompilerBinder& binder,
             GlobalInterpretScope& comptime_scope,
             NameMangler& mangler,
             std::string target_triple,

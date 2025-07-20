@@ -1339,7 +1339,30 @@ void SymResLinkBody::VisitValueWrapper(ValueWrapperNode* node) {
     visit(node->value);
 }
 
+bool embedded_traverse(void* data, ASTAny* item) {
+    const auto traverser = static_cast<SymResLinkBody*>(data);
+    switch(item->any_kind()) {
+        case ASTAnyKind::Node:
+            traverser->visit(((ASTNode*) item));
+            break;
+        case ASTAnyKind::Value:
+            traverser->visit(((Value*) item));
+            break;
+        case ASTAnyKind::Type:
+            traverser->visit(((BaseType*) item), ZERO_LOC);
+            break;
+    }
+    return true;
+}
+
 void SymResLinkBody::VisitEmbeddedNode(EmbeddedNode* node) {
+    auto traverser = linker.binder.findHook(node->name, CBIFunctionType::TraversalNode);
+    if(traverser) {
+        // traverse any nested values and set their types
+        ((EmbeddedNodeTraversalFunc) traverser)(node, this, embedded_traverse);
+    } else {
+        linker.error(node) << "couldn't find traversal method of embedded node with name '" << node->name << "' for symbol resolution";
+    }
     auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResNode);
     if(found) {
         ((EmbeddedNodeSymbolResolveFunc) found)(&linker, node);
@@ -1662,6 +1685,13 @@ void SymResLinkBody::VisitNumberValue(NumberValue* value) {
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
+    auto traverser = linker.binder.findHook(value->name, CBIFunctionType::TraversalValue);
+    if(traverser) {
+        // traverse any nested values and set their types
+        ((EmbeddedValueTraversalFunc) traverser)(value, this, embedded_traverse);
+    } else {
+        linker.error(value) << "couldn't find traversal method of embedded value with name '" << value->name << "' for symbol resolution";
+    }
     auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResValue);
     if(found) {
         ((EmbeddedValueSymbolResolveFunc) found)(&linker, value);

@@ -169,6 +169,11 @@ public struct unordered_map<Key, Value> {
         return _size;
     }
 
+    // check if the map is empty
+    func empty(&self) : bool {
+        return _size == 0;
+    }
+
     // Check if the map is empty
     func isEmpty(&self) : bool {
         return _size == 0;

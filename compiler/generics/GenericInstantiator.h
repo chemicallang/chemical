@@ -53,6 +53,12 @@ public:
     ASTNode* current_impl_ptr = nullptr;
 
     /**
+     * this is stored to check which function we are currently in
+     * to check if private members are accessible
+     */
+    FunctionTypeBody* current_func_type = nullptr;
+
+    /**
      * constructor
      * the allocator must be an ast allocator
      */
@@ -135,6 +141,13 @@ public:
     void VisitTypealiasStmt(TypealiasStatement* node) {
         RecursiveVisitor<GenericInstantiator>::VisitTypealiasStmt(node);
         table.declare(node->name_view(), node);
+    }
+
+    void VisitLambdaFunction(LambdaFunction *func) {
+        const auto prev = current_func_type;
+        current_func_type = func;
+        RecursiveVisitor<GenericInstantiator>::VisitLambdaFunction(func);
+        current_func_type = prev;
     }
 
     void VisitIfStmt(IfStatement *stmt);

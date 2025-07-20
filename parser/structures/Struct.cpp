@@ -190,7 +190,7 @@ void Parser::parseContainerMembersInto(VariablesContainer* decl, ASTAllocator& a
                 if(token->type == TokenType::ColonSym) {
                     token++;
                     specifier = get_specifier_from(tokenType);
-                    break;
+                    continue;
                 } else {
                     const auto member = parseAccessSpecifiedMemberStmt(*this, allocator, get_specifier_from(tokenType));
                     if(member) {

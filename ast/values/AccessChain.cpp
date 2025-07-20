@@ -16,14 +16,26 @@ uint64_t AccessChain::byte_size(bool is64Bit) {
 
 void AccessChain::relink_parent() {
     const auto values_size = values.size();
-    if (values_size > 1) {
-        unsigned i = 1;
-        while (i < values_size) {
-            if(!values[i]->as_identifier_unsafe()->find_link_in_parent(values[i - 1], nullptr)) {
-                break;
+    unsigned i = 1;
+    while (i < values_size) {
+        const auto id = values[i]->as_identifier_unsafe();
+        const auto parent = values[i - 1];
+        auto linked_node = parent->linked_node();
+        if(linked_node) {
+            const auto child = linked_node->child(id->value);
+            if(child) {
+                id->linked = child;
+                id->setType(child->known_type());
+                id->process_linked();
+            } else {
+                // TODO link with unresolved declaration
+                // diagnoser->error(id) << "unresolved child '" << id->value << "' in parent '" << parent->representation() << "'";
             }
-            i++;
+        } else {
+            // TODO link with unresolved declaration
+            // diagnoser->error(id) << "unresolved child '" << id->value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
         }
+        i++;
     }
 }
 

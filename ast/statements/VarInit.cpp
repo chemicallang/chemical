@@ -53,6 +53,10 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     }
     const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, gen.mangler.mangle(this));
     global->setDSOLocal(true);
+    if(is_thread_local()) {
+        global->setThreadLocal(true);
+        global->setThreadLocalMode(llvm::GlobalValue::LocalExecTLSModel);
+    }
     llvm_ptr = global;
 }
 

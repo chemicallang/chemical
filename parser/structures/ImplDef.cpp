@@ -72,14 +72,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
 
         auto prev_parent_node = parent_node;
         parent_node = impl;
-        do {
-            consumeNewLines();
-            if(parseContainerMembersInto(impl, allocator, AccessSpecifier::Public)) {
-                consumeToken(TokenType::SemiColonSym);
-            } else {
-                break;
-            }
-        } while(token->type != TokenType::RBrace);
+        parseContainerMembersInto(impl, allocator, AccessSpecifier::Public);
         parent_node = prev_parent_node;
 
         if (!consumeToken(TokenType::RBrace)) {

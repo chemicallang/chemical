@@ -1,29 +1,3 @@
-func sym_res_decl(
-    decl : *mut CSSDeclaration,
-    resolver : *mut SymbolResolver,
-    loc : ubigint
-) {
-
-    // TODO css value kind should be chemical value to proceed
-
-}
-
-func sym_res_multi_decls(
-    vec : &std::vector<*mut CSSDeclaration>,
-    resolver : *mut SymbolResolver,
-    loc : ubigint
-) {
-
-    var i = 0
-    const total = vec.size()
-    while(i < total) {
-        const decl = vec.get(i)
-        sym_res_decl(decl, resolver, loc)
-        i++;
-    }
-
-}
-
 func sym_res_root(
     om : *mut CSSOM,
     resolver : *mut SymbolResolver,
@@ -59,8 +33,6 @@ func sym_res_root(
     support.appendCssCharFn = appendCssCharFn
     support.appendCssCharPtrFn = appendCssCharPtrFn
     support.appendCssFn = appendCssFn
-
-    sym_res_multi_decls(om.declarations, resolver, loc)
 
     return true;
 

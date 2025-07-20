@@ -1,25 +1,3 @@
-func sym_res_element(
-    element : *HtmlElement,
-    resolver : *mut SymbolResolver,
-    loc : ubigint
-) {
-
-    var i = 0;
-    const total = element.children.size()
-    while(i < total) {
-        const child = element.children.get(i)
-        if(child.kind == HtmlChildKind.Element) {
-            const elem = child as *HtmlElement
-            sym_res_element(elem, resolver, loc)
-        } else if(child.kind == HtmlChildKind.ChemicalValue) {
-            const elem = child as *HtmlChemValueChild;
-            elem.value.link(&elem.value, null, resolver)
-        }
-        i++;
-    }
-
-}
-
 func sym_res_root(
     root : *mut HtmlRoot,
     resolver : *mut SymbolResolver,
@@ -55,10 +33,6 @@ func sym_res_root(
     support.appendHtmlCharFn = appendHtmlCharFn
     support.appendHtmlCharPtrFn = appendHtmlCharPtrFn
     support.appendHtmlFn = appendHtmlFn
-
-    if(root.element != null) {
-        sym_res_element(root.element, resolver, loc)
-    }
 
     return true;
 

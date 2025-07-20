@@ -72,6 +72,33 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
     }
 }
 
+void relink_parent(AccessChain* chain, ASTDiagnoser& diagnoser, FunctionTypeBody* curr_func) {
+    const auto values_size = chain->values.size();
+    unsigned i = 1;
+    while (i < values_size) {
+        const auto id = chain->values[i]->as_identifier_unsafe();
+        const auto parent = chain->values[i - 1];
+        auto linked_node = parent->linked_node();
+        if(linked_node) {
+            const auto child = linked_node->child(id->value);
+            if(child) {
+                id->linked = child;
+                id->setType(child->known_type());
+                id->process_linked(&diagnoser, curr_func);
+            } else {
+                // TODO link with unresolved declaration
+                diagnoser.error(id) << "unresolved child '" << id->value << "' in parent '" << parent->representation() << "'";
+                return;
+            }
+        } else {
+            // TODO link with unresolved declaration
+            diagnoser.error(id) << "unresolved child '" << id->value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
+            return;
+        }
+        i++;
+    }
+}
+
 void GenericInstantiator::VisitAccessChain(AccessChain* value) {
 
     // NOTE:
@@ -85,7 +112,7 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
     if(val->kind() == ValueKind::Identifier) {
         if(relink_identifier(val->as_identifier_unsafe())) {
             // since parent has changed, we must relink the chain
-            value->relink_parent();
+            relink_parent(value, diagnoser, current_func_type);
         }
     } else {
         // since it's not a identifier, we must visit it
@@ -601,6 +628,7 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, FunctionDeclaratio
         }
 
         // visit the function body
+        current_func_type = impl;
         visit(impl->body.value());
 
         // end the body scope
@@ -700,6 +728,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, StructDefinition
             }
 
             // visit the body
+            current_func_type = func;
             visit(func->body.value());
 
             // end the body scope
@@ -800,6 +829,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, UnionDef* impl, s
             }
 
             // visit the body
+            current_func_type = func;
             visit(func->body.value());
 
             // end the body scope
@@ -899,6 +929,7 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, InterfaceDefi
             }
 
             // visit the body
+            current_func_type = func;
             visit(func->body.value());
 
             // end the body scope
@@ -998,6 +1029,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, VariantDefiniti
             }
 
             // visit the body
+            current_func_type = func;
             visit(func->body.value());
 
             // end the body scope
@@ -1096,6 +1128,7 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
             }
 
             // visit the body
+            current_func_type = func;
             visit(func->body.value());
 
             // end the body scope

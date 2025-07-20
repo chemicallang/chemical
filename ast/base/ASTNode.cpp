@@ -227,12 +227,12 @@ ASTNode* ASTNode::root_parent() {
     };
 }
 
-ModuleScope* ASTNode::get_mod_scope() {
-    if(kind() == ASTNodeKind::ModuleScope) {
-        return as_module_scope_unsafe();
+ASTNode* ASTNode::get_ancestor_by_kind(ASTNodeKind k) {
+    if(kind() == k) {
+        return this;
     } else {
         const auto p = parent();
-        return p ? p->get_mod_scope() : nullptr;
+        return p ? p->get_ancestor_by_kind(k) : nullptr;
     }
 }
 

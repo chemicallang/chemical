@@ -196,7 +196,7 @@ bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResol
         if(child) {
             id->linked = child;
             id->setType(child->known_type());
-            id->process_linked(&resolver);
+            id->process_linked(&resolver, resolver.current_func_type);
             return true;
         } else {
             id->linked = resolver.unresolved_decl;
@@ -268,7 +268,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
             // check for validity if accessible or assignable (because moved)
             linker.current_func_type->check_id(identifier, linker);
         }
-        identifier->process_linked(&linker);
+        identifier->process_linked(&linker, linker.current_func_type);
         return;
     } else {
         // since we couldn't find a linked declaration, we will
@@ -2267,24 +2267,4 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
             }
         }
     }
-}
-
-bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
-    auto linked_node = parent->linked_node();
-    if(linked_node) {
-        const auto child = linked_node->child(value);
-        if(child) {
-            linked = child;
-            setType(child->known_type());
-            process_linked(diagnoser);
-            return true;
-        } else if(diagnoser) {
-            // TODO link with unresolved declaration
-            diagnoser->error(this) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
-        }
-    } else if (diagnoser) {
-        // TODO link with unresolved declaration
-        diagnoser->error(this) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
-    }
-    return false;
 }

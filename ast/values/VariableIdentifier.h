@@ -66,11 +66,11 @@ public:
 
     void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
 
-    void process_linked(ASTDiagnoser* linker);
+    void process_linked();
+
+    void process_linked(ASTDiagnoser* linker, FunctionTypeBody* curr_func);
 
     ASTNode *linked_node() final;
-
-    bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
     bool primitive() final {
         return false;

@@ -160,11 +160,25 @@ public:
     ASTNode* root_parent();
 
     /**
+     * get by this kind a node that is ancestor of this node
+     */
+    ASTNode* get_ancestor_by_kind(ASTNodeKind k);
+
+    /**
      * get module scope of this node
      * although this function is fast, but multiple calls to it
      * should be avoided for performance
      */
-    ModuleScope* get_mod_scope();
+    inline ModuleScope* get_mod_scope() {
+        return (ModuleScope*) get_ancestor_by_kind(ASTNodeKind::ModuleScope);
+    }
+
+    /**
+     * get file scope of this node
+     */
+    inline FileScope* get_file_scope() {
+        return (FileScope*) get_ancestor_by_kind(ASTNodeKind::FileScope);
+    }
 
     /**
      * get access specifier for this node

@@ -21,19 +21,90 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-void VariableIdentifier::process_linked(ASTDiagnoser* linker) {
-    const auto linkedKind = linked->kind();
-    if(linkedKind == ASTNodeKind::FunctionDecl) {
+void VariableIdentifier::process_linked() {
+    if(linked->kind() == ASTNodeKind::FunctionDecl) {
         // if this is not set, function won't generate code (very important)
         // this doesn't account for recursion though, this identifier maybe present inside with linked function
         linked->as_function_unsafe()->set_has_usage(true);
-    } else if(linkedKind == ASTNodeKind::NamespaceDecl && !is_ns){
-        if(linker) {
-            // TODO enable this, so we can check user uses :: for static access
-//            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
-        } else {
-            // TODO complain that the diagnoser wasn't received
+    }
+}
+
+void VariableIdentifier::process_linked(ASTDiagnoser* diagnoser, FunctionTypeBody* curr_func) {
+    switch(linked->kind()) {
+        case ASTNodeKind::FunctionDecl:{
+            // if this is not set, function won't generate code (very important)
+            // this doesn't account for recursion though, this identifier maybe present inside with linked function
+            const auto func = linked->as_function_unsafe();
+            func->set_has_usage(true);
+            if(!curr_func) {
+                return;
+            }
+            switch(func->specifier()) {
+                case AccessSpecifier::Public:
+                    return;
+                case AccessSpecifier::Private: {
+                    // check both have same parents
+                    const auto parent = func->parent();
+                    const auto curr_parent = curr_func->get_parent();
+                    if(parent != curr_parent) {
+                        diagnoser->error(this) << "cannot access private function '" << value << '\'';
+                    }
+                    return;
+                }
+                case AccessSpecifier::Internal:{
+                    // check in the same module
+                    const auto funcMod = func->get_mod_scope();
+                    const auto currMod = curr_func->get_parent()->get_mod_scope();
+                    if(funcMod != currMod) {
+                        diagnoser->error(this) << "cannot access internal function '" << value << '\'';
+                    }
+                    return;
+                }
+                case AccessSpecifier::Protected:
+                    // TODO:
+                    return;
+            }
+            break;
         }
+        case ASTNodeKind::NamespaceDecl: {
+            // TODO enable this, so we can check user uses :: for static access
+            // linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
+            break;
+        }
+        case ASTNodeKind::StructMember: {
+            const auto mem = linked->as_struct_member_unsafe();
+            if(!curr_func) {
+                return;
+            }
+            switch(mem->specifier()) {
+                case AccessSpecifier::Public:
+                    return;
+                case AccessSpecifier::Private: {
+                    // check have same parents
+                    const auto parent = linked->parent();
+                    const auto curr_parent = curr_func->get_parent();
+                    if(parent != curr_parent) {
+                        diagnoser->error(this) << "cannot access private member '" << value << "'";
+                    }
+                    return;
+                }
+                case AccessSpecifier::Internal:{
+                    // check same modules
+                    const auto module = curr_func->get_parent()->get_mod_scope();
+                    const auto acc_scope = linked->get_mod_scope();
+                    if(module != acc_scope) {
+                        diagnoser->error(this) << "cannot access internal member '" << value << "' outside module";
+                    }
+                    return;
+                }
+                case AccessSpecifier::Protected:
+                    // TODO:
+                    return;
+            }
+            break;
+        }
+        default:
+            return;
     }
 }
 

@@ -214,6 +214,13 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the struct abstract");
             }
         }},
+        { "thread_local", [](Parser* parser, ASTNode* node) -> void {
+            if(node->kind() == ASTNodeKind::VarInitStmt && node->is_top_level()) {
+                node->as_var_init_unsafe()->set_thread_local(true);
+            } else {
+                parser->error("cannot make the declaration thread local");
+            }
+        }},
         { "maxalign", [](Parser* parser, ASTNode* node) -> void {
             // TODO
         }},

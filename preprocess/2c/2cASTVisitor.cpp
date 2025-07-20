@@ -1335,6 +1335,9 @@ void var_init_top_level(ToCAstVisitor& visitor, VarInitStatement* init, BaseType
     if(init->is_comptime()) {
         return;
     }
+    if(init->is_thread_local()) {
+        visitor.write("_Thread_local ");
+    }
     if(is_static) {
         visitor.write("static ");
     } else if(is_extern) {

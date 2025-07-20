@@ -74,6 +74,11 @@ struct VarInitAttributes {
      */
     bool user_gave_type = false;
 
+    /**
+     * is this declaration thread local
+     */
+    bool is_thread_local = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -241,6 +246,14 @@ public:
 
     inline void set_no_mangle(bool no_mangle) {
         attrs.is_no_mangle = no_mangle;
+    }
+
+    inline bool is_thread_local() {
+        return attrs.is_thread_local;
+    }
+
+    inline void set_thread_local(bool local) {
+        attrs.is_thread_local = local;
     }
 
     Value* holding_value() final {

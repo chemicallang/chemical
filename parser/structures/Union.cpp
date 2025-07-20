@@ -23,14 +23,7 @@ UnnamedUnion* Parser::parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier
 
         auto prev_parent_node = parent_node;
         parent_node = decl;
-        do {
-            consumeNewLines();
-            if(parseContainerMembersInto(decl, allocator, AccessSpecifier::Public)) {
-                consumeToken(TokenType::SemiColonSym);
-            } else {
-                break;
-            }
-        } while(token->type != TokenType::RBrace);
+        parseContainerMembersInto(decl, allocator, AccessSpecifier::Public);
         parent_node = prev_parent_node;
 
         if(!consumeToken(TokenType::RBrace)) {
@@ -108,14 +101,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
         auto prev_parent_node = parent_node;
         parent_node = decl;
 
-        do {
-            consumeNewLines();
-            if(parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public)) {
-                consumeToken(TokenType::SemiColonSym);
-            } else {
-                break;
-            }
-        } while(token->type != TokenType::RBrace);
+        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public);
 
         parent_node = prev_parent_node;
 

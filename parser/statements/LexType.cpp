@@ -224,14 +224,7 @@ StructType* Parser::parseStructType(ASTAllocator& allocator) {
 
         token++;
 
-        do {
-            consumeNewLines();
-            if(parseContainerMembersInto(type, allocator, AccessSpecifier::Public)) {
-                consumeToken(TokenType::SemiColonSym);
-            } else {
-                break;
-            }
-        } while(token->type != TokenType::RBrace);
+        parseContainerMembersInto(type, allocator, AccessSpecifier::Public);
 
         if(token->type != TokenType::RBrace) {
             unexpected_error("expected a '}' after the struct type declaration");
@@ -275,14 +268,7 @@ UnionType* Parser::parseUnionType(ASTAllocator& allocator) {
 
         token++;
 
-        do {
-            consumeNewLines();
-            if(parseContainerMembersInto(type, allocator, AccessSpecifier::Public)) {
-                consumeToken(TokenType::SemiColonSym);
-            } else {
-                break;
-            }
-        } while(token->type != TokenType::RBrace);
+        parseContainerMembersInto(type, allocator, AccessSpecifier::Public);
 
         if(token->type != TokenType::RBrace) {
             error("expected a '}' after the union type declaration");

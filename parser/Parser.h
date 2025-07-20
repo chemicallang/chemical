@@ -8,6 +8,7 @@
 
 #include <utility>
 #include <vector>
+#include "ast/base/AccessSpecifier.h"
 #include "stream/SourceProvider.h"
 #include "ast/utils/Operation.h"
 #include "core/diag/Diagnostic.h"
@@ -318,6 +319,12 @@ public:
 };
 
 /**
+ * converts the given token type to access specifier
+ * if not valid, public is returned
+ */
+enum AccessSpecifier get_specifier_from(enum TokenType type);
+
+/**
  * the parser that is used to parse
  */
 class Parser : public BasicParser {
@@ -626,7 +633,7 @@ public:
     /**
      * top level access specified declarations
      */
-    ASTNode* parseTopLevelAccessSpecifiedDecls(ASTAllocator& allocator);
+    ASTNode* parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lexes a single top level statement, top level means in file scope, These include
@@ -792,7 +799,7 @@ public:
     /**
      * parses a single struct member
      */
-    StructMember* parseStructMember(ASTAllocator& allocator);
+    StructMember* parseStructMember(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * parses a single unnamed struct
@@ -802,7 +809,7 @@ public:
     /**
      * parses members of a container, for example (struct / union members) or even compile time if statements
      */
-    bool parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
+    void parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
      * lexes a struct block

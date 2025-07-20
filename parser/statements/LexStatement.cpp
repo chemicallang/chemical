@@ -16,12 +16,21 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 
-ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator) {
-    auto specifier = parseAccessSpecifier();
-    if(!specifier.has_value()) {
-        return nullptr;
+AccessSpecifier get_specifier_from(TokenType type) {
+    switch(type) {
+        case TokenType::PublicKw:
+        default:
+            return AccessSpecifier::Public;
+        case TokenType::InternalKw:
+            return AccessSpecifier::Internal;
+        case TokenType::PrivateKw:
+            return AccessSpecifier::Private;
+        case TokenType::ProtectedKw:
+            return AccessSpecifier::Protected;
     }
-    auto spec = specifier.value();
+}
+
+ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& local_allocator, AccessSpecifier spec) {
     auto& allocator = spec == AccessSpecifier::Public ? global_allocator : local_allocator;
     switch (token->type) {
         case TokenType::FuncKw:
@@ -52,22 +61,15 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecls(ASTAllocator& local_allocator
 }
 
 ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
-    // TODO remove this
-    while(true) {
-        const auto type = token->type;
-        if(type == TokenType::NewLine) {
-            token++;
-        } else {
-            break;
-        }
-    }
-    switch(token->type) {
+    const auto tokenType = token->type;
+    switch(tokenType) {
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::PublicKw:
         case TokenType::PrivateKw:
         case TokenType::InternalKw:
-            return parseTopLevelAccessSpecifiedDecls(allocator);
+            token++;
+            return parseTopLevelAccessSpecifiedDecl(allocator, get_specifier_from(tokenType));
         case TokenType::ConstKw:
         case TokenType::VarKw:
             return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, false);

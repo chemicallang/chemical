@@ -142,6 +142,26 @@ func test_variant_pattern_matching() {
         var Some(value1, value2) = opt else return true;
         return false
     })
+    test("variant pattern matching with multiple values work - 4", () => {
+        var opt = PMMultiOpt.Some(10, 20)
+        var Some{value2} = opt else unreachable
+        return value2 == 20
+    })
+    test("variant pattern matching with multiple values work - 5", () => {
+        var opt = PMMultiOpt.Some(10, 20)
+        var Some{value2} = opt else return false;
+        return value2 == 20
+    })
+    test("variant pattern matching with multiple values work - 6", () => {
+        var opt = PMMultiOpt.Some(10, 20)
+        var Some(value) = opt else unreachable
+        return value == 10
+    })
+    test("variant pattern matching with multiple values work - 7", () => {
+        var opt = PMMultiOpt.Some(10, 20)
+        var Some(value) = opt else return false;
+        return value == 10
+    })
     test("variant pattern matching with if work - 1", () => {
         var s = PMOpt1.Some(78)
         if(var Some(value) = s) {

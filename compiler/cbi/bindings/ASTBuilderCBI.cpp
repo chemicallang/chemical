@@ -618,10 +618,6 @@ std::vector<Value*>* ArrayValueget_values(ArrayValue* value) {
     return &value->values;
 }
 
-void ArrayValueadd_size(ArrayValue* value, unsigned int size) {
-    value->sizes.emplace_back(size);
-}
-
 std::vector<Value*>* FunctionCallget_args(FunctionCall* value) {
     return &value->values;
 }

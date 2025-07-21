@@ -83,8 +83,6 @@ public struct ArrayValue : Value {
 
     func get_values(&self) : *VecRef<Value>;
 
-    func add_size(&self, size : uint);
-
 }
 
 public struct BigIntValue : Value {}

@@ -131,20 +131,8 @@ llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {
     llvm::Type *elementType;
     const auto elemType = known_elem_type();
     if (elemType) {
-        if(sizes.size() <= 1) {
-            // get empty array type from the user
-            elementType = elemType->llvm_type(gen);
-        } else {
-            unsigned int i = sizes.size() - 1;
-            while(i > 0) {
-                if(i == sizes.size() - 1) {
-                    elementType = llvm::ArrayType::get(elemType->llvm_type(gen), sizes[i]);
-                } else {
-                    elementType = llvm::ArrayType::get(elementType, sizes[i]);
-                }
-                i--;
-            }
-        }
+        // get empty array type from the user
+        elementType = elemType->llvm_type(gen);
     } else {
         elementType = values[0]->llvm_type(gen);
     }
@@ -186,20 +174,8 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
     TypeLoc elementType(nullptr);
     const auto known = known_elem_type();
     if (known) {
-        if(sizes.size() <= 1) {
-            // get empty array type from the user
-            elementType = known;
-        } else {
-            unsigned int i = sizes.size() - 1;
-            while(i > 0) {
-                if(i == sizes.size() - 1) {
-                    elementType = {new(allocator.allocate<ArrayType>()) ArrayType(known, sizes[i]), elementType.getLocation()};
-                } else {
-                    elementType = {new(allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i]), elementType.getLocation()};
-                }
-                i--;
-            }
-        }
+        // get empty array type from the user
+        elementType = known;
     } else {
         if(values.empty()) {
             elementType = nullptr;

@@ -16,8 +16,7 @@ class ArrayValue : public Value {
 public:
 
     std::vector<Value*> values;
-    // TODO: remove sizes from here
-    std::vector<unsigned int> sizes;
+    unsigned int explicit_size = 0;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -66,23 +65,19 @@ public:
 
     [[nodiscard]]
     inline unsigned int array_size() const {
-        if (sizes.empty()) {
+        if (explicit_size == 0) {
             return values.size();
         } else {
-            return sizes[0];
+            return explicit_size;
         }
     }
 
     inline bool has_explicit_size() {
-        return !sizes.empty();
+        return explicit_size != 0;
     }
 
     inline void set_array_size(unsigned int siz) {
-        if(sizes.empty()) {
-            sizes.emplace_back(siz);
-        } else {
-            sizes[0] = siz;
-        }
+        explicit_size = siz;
         getType()->set_array_size(siz);
     }
 
@@ -144,7 +139,6 @@ public:
         for (const auto &value: values) {
             copied_values.emplace_back(value->copy(allocator));
         }
-        arrVal->sizes = sizes;
         return arrVal;
     }
 

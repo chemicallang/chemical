@@ -234,7 +234,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_AccessChainget_values", (void*) AccessChainget_values },
         { "compiler_AccessChainas_value", (void*) AccessChainas_value },
         { "compiler_ArrayValueget_values", (void*) ArrayValueget_values },
-        { "compiler_ArrayValueadd_size", (void*) ArrayValueadd_size },
         { "compiler_FunctionCallget_args", (void*) FunctionCallget_args },
         { "compiler_IndexOperatorget_values", (void*) IndexOperatorget_values },
         { "compiler_LambdaFunctionget_params", (void*) LambdaFunctionget_params },

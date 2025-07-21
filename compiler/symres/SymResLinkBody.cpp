@@ -2175,14 +2175,30 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
         linker.error("must destructure one member for default value to work", expr);
         return;
     }
-    for(const auto nameId : param_names) {
-        auto found = params.find(nameId->identifier);
-        if(found == params.end()) {
-            linker.error("couldn't find parameter in variant member", nameId);
-        } else {
-            nameId->member_param = found->second;
-            // we declare this id, so anyone can link with it
-            linker.declare(nameId->identifier, nameId);
+    if(expr->destructure_by_name) {
+        for (const auto nameId: param_names) {
+            auto found = params.find(nameId->identifier);
+            if (found == params.end()) {
+                linker.error("couldn't find parameter in variant member", nameId);
+            } else {
+                nameId->member_param = found->second;
+                // we declare this id, so anyone can link with it
+                linker.declare(nameId->identifier, nameId);
+            }
+        }
+    } else {
+        auto begin = params.begin();
+        auto end = params.end();
+        for (const auto nameId: param_names) {
+            if(begin == end) {
+                linker.error("couldn't resolve the parameter by index", nameId);
+                continue;
+            } else {
+                nameId->member_param = begin->second;
+                // we declare this id, so anyone can link with it
+                linker.declare(nameId->identifier, nameId);
+            }
+            begin++;
         }
     }
     auto& elseVal = elseExpression.value;

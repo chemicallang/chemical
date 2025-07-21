@@ -30,7 +30,9 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
             return std::nullopt;
         }
 
-        if(token->type == TokenType::LParen) {
+        const auto tokType = token->type;
+        const auto lBrace = tokType == TokenType::LBrace;
+        if(lBrace || tokType == TokenType::LParen) {
             token++;
         } else {
             error("expected a left parenthesis for pattern match");
@@ -38,7 +40,7 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         }
 
         // parse pattern match
-        const auto patternMatch = parsePatternMatchExprAfterId(allocator, !isVar, id->value, &t, false);
+        const auto patternMatch = parsePatternMatchExprAfterId(allocator, !isVar, lBrace, id->value, &t, false);
         assert(patternMatch != nullptr);
 
 #ifdef LSP_BUILD

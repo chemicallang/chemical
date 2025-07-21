@@ -22,6 +22,7 @@ VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
 PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
         ASTAllocator& allocator,
         bool is_const,
+        bool is_lbrace,
         chem::string_view name_view,
         Token* start_token,
         bool parseElse
@@ -29,7 +30,7 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
 
     // pattern match expression
     const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
-        is_const, allocate_view(allocator, name_view), loc_single(start_token)
+        is_const, is_lbrace, allocate_view(allocator, name_view), loc_single(start_token)
     );
 
     // lets parse the identifiers
@@ -50,10 +51,18 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
 
     } while(consumeToken(TokenType::CommaSym));
 
-    if(token->type == TokenType::RParen) {
-        token++;
+    if(is_lbrace) {
+        if(token->type == TokenType::RBrace) {
+            token++;
+        } else {
+            error("expected a right brace after identifier list");
+        }
     } else {
-        error("expected a right parenthesis after identifier list");
+        if(token->type == TokenType::RParen) {
+            token++;
+        } else {
+            error("expected a right parenthesis after identifier list");
+        }
     }
 
     if(token->type == TokenType::EqualSym) {
@@ -132,21 +141,25 @@ ASTNode* Parser::parseVarInitializationTokens(
         return nullptr;
     }
 
-    if(matchExpr && token->type == TokenType::LParen) {
-        // this is a destructuring operation
-        token++;
-        const auto patternMatchExpr = parsePatternMatchExprAfterId(allocator, is_const, id->value, &start_tok, true);
-        assert(patternMatchExpr != nullptr);
+    if(matchExpr) {
+        const auto lType = token->type;
+        const auto is_lBrace = lType == TokenType::LBrace;
+        if (is_lBrace || lType == TokenType::LParen) {
+            // this is a destructuring operation
+            token++;
+            const auto patternMatchExpr = parsePatternMatchExprAfterId(allocator, is_const, is_lBrace, id->value, &start_tok, true);
+            assert(patternMatchExpr != nullptr);
 
 #ifdef LSP_BUILD
-        id->linked = patternMatchExpr;
+            id->linked = patternMatchExpr;
 #endif
 
-        const auto wrapperNode = new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(
-                patternMatchExpr, parent_node
-        );
+            const auto wrapperNode = new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(
+                    patternMatchExpr, parent_node
+            );
 
-        return wrapperNode;
+            return wrapperNode;
+        }
     }
 
     auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, is_ref, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);

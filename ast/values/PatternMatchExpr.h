@@ -93,6 +93,11 @@ public:
     bool is_const;
 
     /**
+     * the param names match the member param in the variant
+     */
+    bool destructure_by_name;
+
+    /**
      * the member name inside the variant
      */
     chem::string_view member_name;
@@ -128,10 +133,11 @@ public:
      */
     PatternMatchExpr(
         bool is_const,
+        bool destructure_by_name,
         chem::string_view member_name,
         SourceLocation location
-    ) : Value(ValueKind::PatternMatchExpr, location), is_const(is_const), member_name(member_name),
-        expression(nullptr)
+    ) : Value(ValueKind::PatternMatchExpr, location), is_const(is_const),
+        destructure_by_name(destructure_by_name), member_name(member_name), expression(nullptr)
     {
 
     }

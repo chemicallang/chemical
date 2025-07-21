@@ -515,6 +515,7 @@ public:
     PatternMatchExpr* parsePatternMatchExprAfterId(
             ASTAllocator& allocator,
             bool is_const,
+            bool is_lbrace,
             chem::string_view name_view,
             Token* start_token,
             bool parseElse

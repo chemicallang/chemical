@@ -5395,7 +5395,7 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                         write("->");
                         write(matchExpr->member_name);
                         write('.');
-                        write(id->identifier);
+                        write(id->member_param->name);
                         return;
                     } else {
                         //TODO handle this
@@ -5547,7 +5547,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write("->");
         write(member->name);
         write('.');
-        write(memberId->identifier);
+        write(memberId->member_param->name);
         write(" : ");
         visit(value->elseExpression.value);
         write("; })");

@@ -41,8 +41,6 @@ extern "C" {
 
     std::vector<Value*>* ArrayValueget_values(ArrayValue* value);
 
-    void ArrayValueadd_size(ArrayValue* value, unsigned int size);
-
     std::vector<Value*>* FunctionCallget_args(FunctionCall* value);
 
     std::vector<Value*>* IndexOperatorget_values(IndexOperator* op);

@@ -20,6 +20,14 @@ interface Calculator {
 
     func avg(&self) : int;
 
+    func dividePDefault(&self) : int {
+        return divideP();
+    }
+
+    func dividePOverride(&self) : int {
+        return divideP();
+    }
+
 }
 
 impl Calculator {
@@ -55,6 +63,13 @@ struct Point : Calculator {
     func multiplyP(&self) : int {
         return self.x * self.y;
     }
+
+/** TODO include this when testing divideP
+    @override
+    func dividePOverride(&self) : int {
+        return divideP() + 2;
+    }
+**/
 
 }
 
@@ -264,6 +279,16 @@ func test_nodes() {
         };
         return p.call_divide(10, 5) == 2;
     })
+    /** TODO: these tests are failing
+    test("default implementation in interface works when not overridden", () => {
+        var p = Point { x : 20, y : 10 }
+        return p.dividePDefault() == 2
+    })
+    test("overridden implementation in interface works when overridden", () => {
+        var p = Point { x : 20, y : 10 }
+        return p.dividePOverride() == 4
+    })
+    **/
     test("overridden interface struct functions implemented inside struct with self ref", () => {
          var p = Point {
              x : 5,

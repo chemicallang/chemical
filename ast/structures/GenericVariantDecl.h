@@ -95,10 +95,6 @@ public:
      */
     VariantDefinition* instantiate_call(GenericInstantiatorAPI& instantiator, FunctionCall* call, BaseType* expected_type);
 
-    ASTNode* child(const chem::string_view &name) override {
-        return master_impl->child(name);
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen_declare(Codegen &gen) override;

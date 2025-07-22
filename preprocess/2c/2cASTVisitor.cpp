@@ -2100,7 +2100,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
             queue_destruct(self_name, initializer, variant);
             return;
         }
-        queue_destruct(self_name, initializer, linked->as_extendable_members_container_node());
+        queue_destruct(self_name, initializer, linked->as_extendable_member_container());
     }
 }
 
@@ -2183,7 +2183,7 @@ void CDestructionVisitor::queue_destruct_type(const chem::string_view& self_name
     if(container) {
         const auto destructor_func = container->destructor_func();
         if (destructor_func) {
-            queue_destruct(self_name, initializer, container->as_extendable_members_container_node(), true);
+            queue_destruct(self_name, initializer, container->as_extendable_member_container(), true);
         }
     }
 }
@@ -2242,7 +2242,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
                 if(!linked) {
                     return;
                 }
-                queue_destruct(init->name_view(), init, linked->as_extendable_members_container_node());
+                queue_destruct(init->name_view(), init, linked->as_extendable_member_container());
             }
             return;
         }
@@ -2257,7 +2257,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             visitor.error("couldn't destruct var init", init);
             return;
         }
-        queue_destruct(init->name_view(), init, linked->as_extendable_members_container_node());
+        queue_destruct(init->name_view(), init, linked->as_extendable_member_container());
         return;
     }
     if(init_val_kind == ValueKind::ArrayValue) {
@@ -5339,7 +5339,7 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                     write(self_param->name);
                     write("->");
                 }
-                auto ext_node = func->parent()->as_extendable_members_container_node();
+                auto ext_node = func->parent()->as_extendable_member_container();
                 if(ext_node) {
                     write_path_to_member(*this, ext_node, linked->as_base_def_member());
                 }
@@ -5751,7 +5751,7 @@ void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
             write(" = ");
             visit(node->value);
             write(';');
-            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_members_container_node(), false, false);
+            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
             return;
         }
     }

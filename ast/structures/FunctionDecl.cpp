@@ -921,11 +921,6 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     return param;
 }
 
-ASTNode *FunctionParam::child(const chem::string_view &childName) {
-    const auto linked_node = type->linked_node();
-    return linked_node ? linked_node->child(childName) : nullptr;
-}
-
 void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
@@ -1015,7 +1010,7 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         if(param->at_least_type) {
             const auto at_least_linked = param->at_least_type->get_direct_linked_node();
             if(at_least_linked) {
-                container = at_least_linked->as_extendable_members_container_node();
+                container = at_least_linked->as_members_container();
             }
         }
     } else if(linked_kind == ASTNodeKind::GenericStructDecl) {

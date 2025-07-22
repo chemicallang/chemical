@@ -29,10 +29,6 @@ public:
 
     }
 
-    ASTNode *child(const chem::string_view &name) final {
-        return linked->child(name);
-    }
-
     CapturedVariable* copy(ASTAllocator &allocator) override {
         const auto var = new (allocator.allocate<CapturedVariable>()) CapturedVariable(
             name,

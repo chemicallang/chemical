@@ -5,11 +5,6 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
 
-ASTNode* TypealiasStatement::child(const chem::string_view &name) {
-    const auto linked = actual_type->linked_node();
-    return linked ? linked->child(name) : nullptr;
-}
-
 BaseType* TypealiasStatement::known_type() {
     return actual_type;
 }

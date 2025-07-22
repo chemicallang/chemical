@@ -85,10 +85,6 @@ public:
 
     ImplDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
 
-    ASTNode* child(const chem::string_view &name) override {
-        return master_impl->child(name);
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen_declare(Codegen &gen) override;

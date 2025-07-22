@@ -307,8 +307,6 @@ public:
 
 #endif
 
-    ASTNode *child(const chem::string_view &name) final;
-
     inline BaseType* known_type_SymRes(ASTAllocator& allocator) {
         return get_or_create_type(allocator);
     }

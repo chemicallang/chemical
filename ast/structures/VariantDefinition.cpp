@@ -213,10 +213,6 @@ bool VariantCaseVariable::add_child_index(Codegen& gen, std::vector<llvm::Value 
 
 #endif
 
-ASTNode* VariantDefinition::child(const chem::string_view &child_name) {
-    return ExtendableMembersContainerNode::child(child_name);
-}
-
 void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_destructor = false;
     for(auto& func : non_gen_range()) {
@@ -258,14 +254,6 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
     return large->byte_size(is64Bit) + type_size;
 }
 
-ASTNode *VariantMember::child(const chem::string_view &name) {
-    auto found = values.find(name);
-    if(found != values.end()) {
-        return (ASTNode*) &found->second;
-    }
-    return nullptr;
-}
-
 ASTNode *VariantMember::child(unsigned int index) {
     if(index >= values.size()) return nullptr;
     return (values.begin() + index)->second;
@@ -298,12 +286,6 @@ BaseType* VariantMember::known_type() {
     return parent()->known_type();
 }
 
-ASTNode* VariantMemberParam::child(const chem::string_view &varName) {
-    const auto pure_type = type->canonical();
-    const auto linked_node = pure_type->linked_node();
-    return linked_node->child(varName);
-}
-
 BaseType* VariantCaseVariable::known_type() {
     return member_param->type;
 }
@@ -312,13 +294,4 @@ BaseType* VariantCaseVariable::known_type() {
 bool VariantCaseVariable::is_generic_param() {
     const auto linked = member_param->type->linked_node();
     return linked != nullptr && linked->as_generic_type_param() != nullptr;
-}
-
-ASTNode* VariantCaseVariable::child(const chem::string_view &child_name) {
-    if(is_generic_param()) {
-        const auto result = member_param->child(child_name);
-        return result;
-    } else {
-        return member_param->child(child_name);
-    }
 }

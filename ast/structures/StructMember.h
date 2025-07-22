@@ -81,8 +81,6 @@ public:
         return is_const();
     }
 
-    ASTNode *child(const chem::string_view &name) final;
-
     Value *holding_value() final {
         return defValue ? defValue : nullptr;
     }

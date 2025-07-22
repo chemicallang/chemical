@@ -35,8 +35,6 @@ public:
 
     BaseType* known_type() final;
 
-    ASTNode* child(const chem::string_view &name) final;
-
     bool is_generic_param();
 
     VariantCaseVariable* copy(ASTAllocator &allocator) override {

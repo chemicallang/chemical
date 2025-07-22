@@ -147,10 +147,6 @@ BaseType* PatternMatchIdentifier::known_type() {
     return member_param->type;
 }
 
-ASTNode* PatternMatchIdentifier::child(const chem::string_view &name) {
-    return member_param->child(name);
-}
-
 VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     const auto type = expression->create_type(allocator);
     if(!type) {

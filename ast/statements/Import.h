@@ -60,8 +60,6 @@ public:
 
 #endif
 
-    ASTNode* child(const chem::string_view &name) override;
-
     ~ImportStatement() final {
         delete symbols;
     }

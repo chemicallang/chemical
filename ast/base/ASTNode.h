@@ -30,8 +30,6 @@ class CapturedVariable;
 
 class VariantCaseVariable;
 
-class ExtendableBase;
-
 class ExtendableMembersContainerNode;
 
 class AnnotableNode;
@@ -267,9 +265,7 @@ public:
      * return a child ASTNode* with name
      * called by access chain values like function call, on structs to get member function definitions
      */
-    virtual ASTNode *child(const chem::string_view &name) {
-        return nullptr;
-    }
+    ASTNode *child(const chem::string_view &name);
 
     /**
      * any value held by this node, for example var init statement can hold an initializer
@@ -300,20 +296,6 @@ public:
      * @return id if the node declares a identifier otherwise null pointer
      */
     LocatedIdentifier* get_located_id();
-
-    /**
-     * get the extendable members container, if this node has one
-     */
-    virtual ExtendableBase* as_extendable_members_container() {
-        return nullptr;
-    }
-
-    /**
-     * get as extendable members container node
-     */
-    virtual ExtendableMembersContainerNode* as_extendable_members_container_node() {
-        return nullptr;
-    }
 
     /**
      * return if this is a variables container
@@ -642,6 +624,13 @@ public:
      */
     inline MembersContainer* as_members_container() {
         return isMembersContainer(kind()) ? (MembersContainer*) this : nullptr;
+    }
+
+    /**
+     * get a members container
+     */
+    inline ExtendableMembersContainerNode* as_extendable_member_container() {
+        return isMembersContainer(kind()) ? (ExtendableMembersContainerNode*) this : nullptr;
     }
 
     /**
@@ -1142,6 +1131,14 @@ public:
     inline GenericVariantDecl* as_gen_variant_decl_unsafe() {
         CHECK_CAST(ASTNodeKind::GenericVariantDecl);
         return (GenericVariantDecl*) this;
+    }
+
+    /**
+     * return if this is a generic impl decl
+     */
+    inline GenericImplDecl* as_gen_impl_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::GenericImplDecl);
+        return (GenericImplDecl*) this;
     }
 
     /**

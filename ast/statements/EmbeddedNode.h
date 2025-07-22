@@ -70,10 +70,6 @@ public:
         return known_type_fn(this);
     }
 
-    ASTNode* child(const chem::string_view &child_name) override {
-        return child_res_fn(this, const_cast<chem::string_view*>(&child_name));
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

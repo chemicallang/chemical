@@ -40,8 +40,8 @@ public:
         return new (allocator.allocate<UnionType>()) UnionType(name, parent(), ASTNode::encoded_location());
     }
 
-    ASTNode* child(const chem::string_view &name) override {
-        return VariablesContainer::direct_child(name);
+    VariablesContainer * as_variables_container() override {
+        return this;
     }
 
     ASTNode* linked_node() override {

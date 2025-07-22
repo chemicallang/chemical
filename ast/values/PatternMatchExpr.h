@@ -70,8 +70,6 @@ public:
 
     BaseType* known_type() override;
 
-    ASTNode* child(const chem::string_view &name) override;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

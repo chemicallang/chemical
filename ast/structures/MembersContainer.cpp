@@ -343,7 +343,7 @@ FunctionDeclaration* MembersContainer::inherited_function(const chem::string_vie
 
 FunctionDeclaration *MembersContainer::direct_child_function(const chem::string_view& name) {
     auto func = indexes.find(name);
-    return func != indexes.end() ? func->second.first->as_function() : nullptr;
+    return func != indexes.end() ? func->second->as_function() : nullptr;
 }
 
 FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclaration* function) {
@@ -578,15 +578,13 @@ bool MembersContainer::any_member_has_copy_func() {
 }
 
 void MembersContainer::insert_func(FunctionDeclaration* decl) {
-    const auto index = static_cast<int>(functions_container.size());
     functions_container.emplace_back(decl);
-    indexes[decl->name_view()] = { decl, index };
+    indexes[decl->name_view()] = decl;
 }
 
 void MembersContainer::insert_func(GenericFuncDecl* decl) {
-    const auto index = static_cast<int>(functions_container.size());
     functions_container.emplace_back(decl);
-    indexes[decl->master_impl->name_view()] = { decl, index };
+    indexes[decl->master_impl->name_view()] = decl;
 }
 
 void MembersContainer::insert_functions(const std::initializer_list<FunctionDeclaration*>& decls) {
@@ -660,13 +658,13 @@ bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDec
     if(found == indexes.end()) {
         insert_func(decl);
     } else {
-        auto result = handle_name_overload_function(astAllocator, found->second.first, decl);
+        auto result = handle_name_overload_function(astAllocator, found->second, decl);
         if(result.specifier_mismatch || !result.duplicates.empty()) {
             // TODO handle errors for duplicates and specifier mismatch
             return false;
         } else if(result.new_multi_func_node) {
             // TODO -1 is being stored as index
-            indexes[decl->name_view()] = { result.new_multi_func_node, -1 };
+            indexes[decl->name_view()] = result.new_multi_func_node;
         }
         functions_container.emplace_back(decl);
     }
@@ -730,13 +728,26 @@ std::pair<long, BaseType*> VariablesContainer::variable_type_index(const chem::s
     if(found == indexes.end()) {
         return { -1, nullptr };
     } else {
-        return { found->second.second + parents_size, found->second.first->known_type() };
+        return { direct_mem_index(found->second->as_base_def_member_unsafe()) + parents_size, found->second->known_type() };
     }
 }
 
+long VariablesContainer::direct_mem_index(BaseDefMember* member) {
+    // calculating index of child by looping over direct variables
+    long i = 0;
+    for(const auto var : variables()) {
+        if(var == member) {
+            return i;
+        }
+        i++;
+    }
+    return -1;
+}
+
 long VariablesContainer::direct_child_index(const chem::string_view& varName) {
-    auto found = indexes.find(varName);
-    return found == indexes.end() ? -1 : found->second.second;
+    const auto c = child(varName);
+    if(c == nullptr) return -1;
+    return direct_mem_index(c->as_base_def_member_unsafe());
 }
 
 bool VariablesContainer::does_override(InterfaceDefinition* interface) {
@@ -756,10 +767,10 @@ void VariablesContainer::adopt(MembersContainer* definition) {
     for(const auto node : definition->evaluated_nodes()) {
         switch(node->kind()) {
             case ASTNodeKind::FunctionDecl:
-                indexes[node->as_function_unsafe()->name_view()] = {node, -1};
+                indexes[node->as_function_unsafe()->name_view()] = node;
                 break;
             case ASTNodeKind::GenericFuncDecl:
-                indexes[node->as_gen_func_decl_unsafe()->master_impl->name_view()] = {node, -1};
+                indexes[node->as_gen_func_decl_unsafe()->master_impl->name_view()] = node;
                 break;
             default:
                 break;

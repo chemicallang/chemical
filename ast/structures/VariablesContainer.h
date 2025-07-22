@@ -30,7 +30,7 @@ protected:
      * the index for a variable means index of the variable -> inside the variables vector, this allows us to quickly
      * get the index to the variable, with the name, since llvm works with indexes and not names
      */
-    std::unordered_map<chem::string_view, std::pair<ASTNode*, int>> indexes;
+    std::unordered_map<chem::string_view, ASTNode*> indexes;
 
     /**
      * the variables, this vector is just calculated so we can traverse over it fast
@@ -67,21 +67,30 @@ public:
         return variable_type_index(name, consider_inherited_structs).first;
     }
 
+    long direct_mem_index(BaseDefMember* member);
+
     long direct_child_index(const chem::string_view &varName);
 
     uint64_t total_byte_size(bool is64Bit);
 
     uint64_t largest_member_byte_size(bool is64Bit);
 
+    ASTNode* child(const chem::string_view& name) {
+        auto found = indexes.find(name);
+        return found != indexes.end() ? found->second : nullptr;
+    }
+
+    // no longer gives direct child, can also find inherited
+    [[deprecated]]
     ASTNode* direct_child(const chem::string_view& name) {
         auto found = indexes.find(name);
-        return found != indexes.end() ? found->second.first : nullptr;
+        return found != indexes.end() ? found->second : nullptr;
     }
 
     BaseDefMember *child_def_member(const chem::string_view& name) {
         auto found = indexes.find(name);
         if(found == indexes.end()) return nullptr;
-        const auto node = found->second.first;
+        const auto node = found->second;
         switch(node->kind()) {
             case ASTNodeKind::UnnamedUnion:
             case ASTNodeKind::UnnamedStruct:
@@ -98,7 +107,7 @@ public:
             const auto copied = var->copy_member(allocator);
             copied->set_parent(new_parent);
             var = copied;
-            indexes[copied->name] = { copied, i };
+            indexes[copied->name] = copied;
             i++;
         }
     }
@@ -138,7 +147,7 @@ public:
     void insert_variable_no_check(BaseDefMember* member) {
         const auto index = static_cast<int>(variables_container.size());
         variables_container.emplace_back(member);
-        indexes[member->name] = {member, index};
+        indexes[member->name] = member;
     }
 
     /**
@@ -241,7 +250,7 @@ public:
      * add an extension function
      */
     inline void add_extension_func(const chem::string_view& name, FunctionDeclaration* decl) {
-        indexes[name] = {(ASTNode*) decl, -1};
+        indexes[name] = (ASTNode*) decl;
 #ifdef COMPILER_BUILD
         extension_functions.emplace_back((ASTNode*) decl);
 #endif
@@ -251,7 +260,7 @@ public:
      * add extension function
      */
     inline void add_extension_func(const chem::string_view& name, GenericFuncDecl* decl) {
-        indexes[name] = {(ASTNode*) decl, -1};
+        indexes[name] = (ASTNode*) decl;
 #ifdef COMPILER_BUILD
         extension_functions.emplace_back((ASTNode*) decl);
 #endif

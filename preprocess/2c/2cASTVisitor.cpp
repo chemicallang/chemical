@@ -4159,6 +4159,9 @@ void ToCAstVisitor::VisitUnnamedStruct(UnnamedStruct *def) {
 
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
     for(auto& func : def->instantiated_functions()) {
+        // TODO: try to not get overriding information
+        // TODO: try to pass true as a constant for overriding
+        // TODO: since these functions exist in this struct anyway, so they must be override
         const auto overriding = def->get_func_overriding_info(func);
         contained_func_decl(visitor, func, overriding.base_func != nullptr, def);
     }
@@ -4175,13 +4178,15 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
     for (auto& inherits: def->inherited) {
-        const auto overridden = inherits.type->linked_node()->as_interface_def();
+        const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
         if (overridden) {
+            overridden->active_user = def;
             for (auto& func: overridden->instantiated_functions()) {
                 if (!def->contains_func(func->name_view())) {
                     contained_func_decl(*this, func, false, def);
                 }
             }
+            overridden->active_user = nullptr;
         }
     }
     contained_struct_functions(*this, def);

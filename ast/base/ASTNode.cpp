@@ -23,11 +23,19 @@
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/GenericImplDecl.h"
+#include "ast/structures/CapturedVariable.h"
+#include "ast/statements/EmbeddedNode.h"
+#include "ast/structures/VariantMemberParam.h"
+#include "ast/values/PatternMatchExpr.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
+#include "ast/statements/Import.h"
 #include "ast/structures/StructMember.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/StructType.h"
+#include "ast/types/UnionType.h"
 #include "ast/types/BoolType.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/If.h"
@@ -543,29 +551,150 @@ bool ASTNode::requires_moving(ASTNodeKind k) {
     }
 }
 
-//bool ASTNode::has_moved(ASTNodeKind k, Value* ref) {
-//    switch(k) {
-//        case ASTNodeKind::FunctionParam:
-//            return as_func_param_unsafe()->get_has_moved();
-//        case ASTNodeKind::VarInitStmt:
-//            return as_var_init_unsafe()->get_has_moved();
-//        default:
-//            return false;
-//    }
-//}
-//
-//void ASTNode::set_moved(ASTNodeKind k, Value* ref) {
-//    switch(k) {
-//        case ASTNodeKind::VarInitStmt:
-//            as_var_init_unsafe()->moved();
-//            return;
-//        case ASTNodeKind::FunctionParam:
-//            as_func_param_unsafe()->moved();
-//            return;
-//        default:
-//            return;
-//    }
-//}
+ASTNode* child(ImportStatement* stmt, const chem::string_view &name) {
+    if(stmt->symbols) {
+        auto found = stmt->symbols->find(name);
+        return found != stmt->symbols->end() ? found->second : nullptr;
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("symbols pointer doesn't exist in import statement");
+#endif
+        return nullptr;
+    }
+}
+
+ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
+    auto found = container->indexes.find(name);
+    return found != container->indexes.end() ? found->second : nullptr;
+}
+
+ASTNode* ASTNode::child(const chem::string_view &name) {
+    switch(kind()) {
+        case ASTNodeKind::VarInitStmt: {
+            const auto stmt = as_var_init_unsafe();
+            if (stmt->type) {
+                const auto linked = stmt->type->linked_node();
+                return linked ? linked->child(name) : nullptr;
+            } else if (stmt->value) {
+                if (stmt->value->kind() == ValueKind::CastedValue) {
+                    const auto t = stmt->value->known_type();
+                    const auto l = t->linked_node();
+                    return l ? l->child(name) : nullptr;
+                } else {
+                    const auto linked = stmt->value->linked_node();
+                    return linked ? linked->child(name) : nullptr;
+                }
+            }
+            return nullptr;
+        }
+        case ASTNodeKind::FunctionParam: {
+            const auto param = as_func_param_unsafe();
+            const auto linked_node = param->type->linked_node();
+            return linked_node ? linked_node->child(name) : nullptr;
+        }
+        case ASTNodeKind::GenericTypeParam: {
+            const auto param = as_generic_type_param_unsafe();
+            const auto linked = param->active_linked();
+            return linked ? linked->child(name) : (param->at_least_type ? param->at_least_type->linked_node()->child(name) : nullptr);
+        }
+        case ASTNodeKind::EnumDecl: {
+            const auto decl = as_enum_decl_unsafe();
+            auto mem = decl->members.find(name);
+            if(mem == decl->members.end()) {
+                const auto inherited = decl->get_inherited_enum_decl();
+                return inherited ? inherited->child(name) : nullptr;
+            } else {
+                return mem->second;
+            }
+        }
+        case ASTNodeKind::StructMember: {
+            const auto mem = as_struct_member_unsafe();
+            auto linked = mem->type->linked_node();
+            if (!linked) return nullptr;
+            return linked->child(name);
+        }
+        case ASTNodeKind::NamespaceDecl: {
+            const auto ns = as_namespace_unsafe();
+            auto node = ns->extended.find(name);
+            if (node != ns->extended.end()) {
+                return node->second;
+            }
+            return nullptr;
+        }
+        case ASTNodeKind::StructDecl: {
+            const auto decl = as_struct_def_unsafe();
+            auto node = ::child(decl, name);
+            if (node) {
+                return node;
+            } else if (!decl->inherited.empty()) {
+                for (auto& inherits : decl->inherited) {
+                    if (inherits.specifier == AccessSpecifier::Public) {
+                        const auto thing = inherits.type->linked_node()->child(name);
+                        if (thing) return thing;
+                    }
+                }
+            };
+            return nullptr;
+        }
+        case ASTNodeKind::CapturedVariable:
+            return as_captured_var_unsafe()->linked->child(name);
+        case ASTNodeKind::GenericStructDecl:
+            return as_gen_struct_def_unsafe()->master_impl->ASTNode::child(name);
+        case ASTNodeKind::GenericUnionDecl:
+            return as_gen_union_decl_unsafe()->master_impl->ASTNode::child(name);
+        case ASTNodeKind::GenericVariantDecl:
+            return as_gen_variant_decl_unsafe()->master_impl->ASTNode::child(name);
+        case ASTNodeKind::GenericInterfaceDecl:
+            return as_gen_interface_decl_unsafe()->master_impl->ASTNode::child(name);
+        case ASTNodeKind::GenericTypeDecl:
+            return as_gen_type_decl_unsafe()->master_impl->child(name);
+        case ASTNodeKind::GenericImplDecl:
+            return as_gen_impl_decl_unsafe()->master_impl->ASTNode::child(name);
+        case ASTNodeKind::EmbeddedNode:
+            return as_embedded_node_unsafe()->child_res_fn(as_embedded_node_unsafe(), const_cast<chem::string_view*>(&name));
+        case ASTNodeKind::TypealiasStmt: {
+            const auto linked = as_typealias_unsafe()->actual_type->linked_node();
+            return linked ? linked->child(name) : nullptr;
+        }
+        case ASTNodeKind::ImportStmt:
+            return ::child(as_import_stmt_unsafe(), name);
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::UnionDecl:
+            return ::child(as_members_container_unsafe(), name);
+        case ASTNodeKind::VariantMemberParam: {
+            const auto pure_type = as_variant_member_param_unsafe()->type->canonical();
+            const auto linked_node = pure_type->linked_node();
+            return linked_node->child(name);
+        }
+        case ASTNodeKind::StructType:
+        case ASTNodeKind::UnionType:
+        case ASTNodeKind::UnnamedUnion:
+        case ASTNodeKind::UnnamedStruct:
+            return ::child(as_variables_container(), name);
+        case ASTNodeKind::VariantMember: {
+            const auto mem = as_variant_member_unsafe();
+            auto found = mem->values.find(name);
+            if(found != mem->values.end()) {
+                return (ASTNode*) &found->second;
+            }
+            return nullptr;
+        }
+        case ASTNodeKind::VariantCaseVariable: {
+            const auto variant = as_variant_case_var_unsafe();
+            if (variant->is_generic_param()) {
+                const auto result = variant->member_param->child(name);
+                return result;
+            } else {
+                return variant->member_param->child(name);
+            }
+        }
+        case ASTNodeKind::PatternMatchId:
+            return as_patt_match_id_unsafe()->member_param->child(name);
+        default:
+            return nullptr;
+    }
+}
 
 #ifdef COMPILER_BUILD
 

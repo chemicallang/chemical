@@ -54,8 +54,6 @@ public:
         return type;
     }
 
-    ASTNode* child(const chem::string_view &name) final;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) final;

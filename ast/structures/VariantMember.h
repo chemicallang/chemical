@@ -74,8 +74,6 @@ public:
         return true;
     }
 
-    ASTNode *child(const chem::string_view &name) final;
-
     ASTNode *child(unsigned int index);
 
     BaseType* child_type(unsigned int index);

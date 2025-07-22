@@ -41,13 +41,6 @@ public:
         return name_view().str();
     }
 
-    /**
-     * returns itself as extendable members container
-     */
-    ExtendableMembersContainerNode *as_extendable_members_container_node() final {
-        return this;
-    }
-
     inline void shallow_copy_into(ExtendableMembersContainerNode& other, ASTAllocator& allocator) {
         MembersContainer::shallow_copy_into(other, allocator);
     }

@@ -198,5 +198,5 @@ ExtendableMembersContainerNode* InitBlock::getContainer() {
     if(!parent) {
         return nullptr;
     }
-    return parent->as_extendable_members_container_node();
+    return parent->as_extendable_members_container_unsafe();
 }

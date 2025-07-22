@@ -61,11 +61,6 @@ public:
         return active_type ? active_type->linked_node() : nullptr;
     }
 
-    ASTNode *child(const chem::string_view &name) final {
-        const auto linked = active_linked();
-        return linked ? linked->child(name) : (at_least_type ? at_least_type->linked_node()->child(name) : nullptr);
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_param_type(Codegen &gen) final {

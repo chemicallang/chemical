@@ -237,8 +237,6 @@ public:
      */
     void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    ASTNode *child(const chem::string_view &name) final;
-
     BaseType* known_type() final;
 
     uint64_t byte_size(bool is64Bit) final {

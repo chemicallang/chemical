@@ -260,12 +260,6 @@ llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 #endif
 
-ASTNode *StructMember::child(const chem::string_view &childName) {
-    auto linked = type->linked_node();
-    if (!linked) return nullptr;
-    return linked->child(childName);
-}
-
 void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     bool has_constructor = false;
     bool has_def_constructor = false;
@@ -302,21 +296,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
         // we make the struct copyable by default, if it doesn't have any destructor
         attrs.is_copy = true;
     }
-}
-
-ASTNode *StructDefinition::child(const chem::string_view &name) {
-    auto node = ExtendableMembersContainerNode::child(name);
-    if (node) {
-        return node;
-    } else if (!inherited.empty()) {
-        for (auto& inherits: inherited) {
-            if (inherits.specifier == AccessSpecifier::Public) {
-                const auto thing = inherits.type->linked_node()->child(name);
-                if (thing) return thing;
-            }
-        }
-    };
-    return nullptr;
 }
 
 BaseType* StructDefinition::known_type() {

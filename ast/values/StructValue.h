@@ -82,7 +82,7 @@ public:
 
     ASTNode* child(const chem::string_view& name) {
         if(definition) {
-            return definition->child(name);
+            return definition->ASTNode::child(name);
         } else {
             return container->direct_child(name);
         }

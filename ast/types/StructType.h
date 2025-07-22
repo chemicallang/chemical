@@ -23,6 +23,10 @@ public:
 
     }
 
+    VariablesContainer* as_variables_container() override {
+        return this;
+    }
+
     BaseType* copy(ASTAllocator &allocator) const override {
         return new (allocator.allocate<StructType>()) StructType(name, parent(), ASTNode::encoded_location());
     }
@@ -34,10 +38,6 @@ public:
     }
 
     bool satisfies(BaseType *type) final;
-
-    ASTNode* child(const chem::string_view &childName) override {
-        return VariablesContainer::direct_child(childName);
-    }
 
     ASTNode* linked_node() override {
         return this;

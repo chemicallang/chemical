@@ -402,7 +402,7 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseTy
                     return resolve_container(instantiator, found->as_typealias_unsafe()->actual_type);
                 default:
                     diagnoser.error("unknown struct/union being initialized via struct value", this);
-                    definition = found->as_extendable_members_container_node();
+                    definition = found->as_extendable_member_container();
                     container = definition;
                     return false;
             }

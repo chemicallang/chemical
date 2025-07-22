@@ -25,11 +25,3 @@ void Namespace::put_in_extended(std::unordered_map<chem::string_view, ASTNode*>&
         ::declare_node(declarer, node, AccessSpecifier::Private);
     }
 }
-
-ASTNode *Namespace::child(const chem::string_view &child_name) {
-    auto node = extended.find(child_name);
-    if(node != extended.end()) {
-        return node->second;
-    }
-    return nullptr;
-}

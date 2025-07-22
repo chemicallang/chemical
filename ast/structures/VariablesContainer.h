@@ -23,6 +23,8 @@ protected:
      */
     std::vector<ASTNode*> nodes;
 
+public:
+
     /**
      * indexes are maintained to nodes by their names, this allows us to get the function or variable in a single check
      * the pair contains the pointer to the node, which could be a variable, function (maybe generic), the second
@@ -31,6 +33,8 @@ protected:
      * get the index to the variable, with the name, since llvm works with indexes and not names
      */
     std::unordered_map<chem::string_view, ASTNode*> indexes;
+
+protected:
 
     /**
      * the variables, this vector is just calculated so we can traverse over it fast
@@ -75,7 +79,7 @@ public:
 
     uint64_t largest_member_byte_size(bool is64Bit);
 
-    ASTNode* child(const chem::string_view& name) {
+    ASTNode* get_child(const chem::string_view& name) {
         auto found = indexes.find(name);
         return found != indexes.end() ? found->second : nullptr;
     }

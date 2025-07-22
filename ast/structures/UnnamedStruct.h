@@ -59,10 +59,6 @@ public:
         return false;
     }
 
-    ASTNode *child(const chem::string_view &name) final {
-        return VariablesContainer::child_def_member(name);
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return total_byte_size(is64Bit);
     }

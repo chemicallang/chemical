@@ -154,10 +154,6 @@ public:
      */
     void register_use_to_inherited_interfaces(StructDefinition* definition);
 
-    inline ASTNode* child(const chem::string_view &name) {
-        return VariablesContainer::direct_child(name);
-    }
-
     FunctionDeclaration* inherited_function(const chem::string_view& name);
 
     FunctionDeclaration *direct_child_function(const chem::string_view& name);

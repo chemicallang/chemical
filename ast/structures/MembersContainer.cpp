@@ -745,7 +745,7 @@ long VariablesContainer::direct_mem_index(BaseDefMember* member) {
 }
 
 long VariablesContainer::direct_child_index(const chem::string_view& varName) {
-    const auto c = child(varName);
+    const auto c = get_child(varName);
     if(c == nullptr) return -1;
     return direct_mem_index(c->as_base_def_member_unsafe());
 }

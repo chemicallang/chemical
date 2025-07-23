@@ -5,10 +5,10 @@ public type destructor_type = (obj : *mut void) => void
 public struct default_function_instance {
 
     // the pointer to function we are going to call
-    var fn_pointer : *mut void
+    var fn_pointer : *mut any
 
     // we store data pointer, so storage can be done on stack or heap
-    var fn_data_ptr : *mut void
+    var fn_data_ptr : *mut any
 
     // 32 bytes of buffer, 4 pointers
     @maxalign

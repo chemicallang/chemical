@@ -43,10 +43,11 @@ bool is_variant_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool re
     }
 }
 
-bool LinkedType::satisfies(BaseType *other) {
+bool LinkedType::satisfies(BaseType *other_impure) {
     if(!linked) {
         return false;
     }
+    const auto other = other_impure->canonical();
     const auto other_kind = other->kind();
     if(other_kind == BaseTypeKind::Linked && linked == ((LinkedType*) other)->linked) {
         return true;

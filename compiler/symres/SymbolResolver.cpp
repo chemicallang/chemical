@@ -72,15 +72,32 @@ void SymbolResolver::declare_runtime(const chem::string_view& name, ASTNode* nod
     };
 }
 
+bool params_satisfy(FunctionType* type, std::vector<FunctionParam*>& param_types, bool check_self) {
+    if(type->params.size() != param_types.size()) return false;
+    unsigned i = check_self ? 0 : (type->has_self_param() ? 1 : 0);
+    const auto siz = type->params.size();
+    while(i < siz) {
+        if(!type->params[i]->type->satisfies(param_types[i]->type)) {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
 bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* const previous, FunctionDeclaration* declaration) {
     if(declaration->is_override()) {
         const auto func = previous->as_function();
-        if (func->returnType->is_same(declaration->returnType) && func->do_param_types_match(declaration->params, false)) {
+        if(func == nullptr) {
+            error((ASTNode*) declaration) << "node with name '" << name << "' cannot be overridden because its not a function";
+            return false;
+        }
+        if (func->returnType->satisfies(declaration->returnType) && params_satisfy(func, declaration->params, false)) {
             table.declare(name, declaration);
             return true;
         } else {
             dup_sym_error(declaration->name_view(), previous, declaration);
-            error((AnnotableNode*) declaration) << "function " << declaration->name_view() << " cannot override because it's parameter types and return type don't match";
+            error((ASTNode*) declaration) << "function '" << declaration->name_view() << "' cannot override because it's parameter types or return type don't match";
             return false;
         }
     }

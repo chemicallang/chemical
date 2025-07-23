@@ -49,7 +49,7 @@ public struct vector<T> {
         if (s >= data_cap) {
             ensure_capacity_for_one_more()
         }
-        memcpy(&data_ptr[s], &value, sizeof(T))
+        memcpy(&mut data_ptr[s], &value, sizeof(T))
         intrinsics::forget(value)
         data_size = s + 1
     }
@@ -85,7 +85,7 @@ public struct vector<T> {
         if(index == last) {
             data_size = last;
         } else {
-            memmove(&data_ptr[index], &data_ptr[index + 1], sizeof(T) * (last - index));
+            memmove(&mut data_ptr[index], &data_ptr[index + 1], sizeof(T) * (last - index));
             data_size = last;
         }
     }

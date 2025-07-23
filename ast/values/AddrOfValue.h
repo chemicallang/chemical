@@ -24,7 +24,7 @@ public:
         Value* value,
         bool is_mutable,
         SourceLocation location
-    ) : Value(ValueKind::AddrOfValue, &_ptr_type, location), value(value), is_mutable(is_mutable), _ptr_type(value->getType(), false) {
+    ) : Value(ValueKind::AddrOfValue, &_ptr_type, location), value(value), is_mutable(is_mutable), _ptr_type(value->getType(), is_mutable) {
 
     }
 

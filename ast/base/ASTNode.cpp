@@ -632,18 +632,9 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
         case ASTNodeKind::VarInitStmt: {
             const auto stmt = as_var_init_unsafe();
             if (stmt->type) {
-                const auto linked = child_provider(stmt->type);
-                return linked ? linked->child(name) : nullptr;
+                return provide_child(stmt->type, name);
             } else if (stmt->value) {
-                if (stmt->value->kind() == ValueKind::CastedValue) {
-                    const auto t = stmt->value->known_type();
-                    const auto l = child_provider(t);
-                    return l ? l->child(name) : nullptr;
-                } else {
-                    // TODO: value using linked_node
-                    const auto linked = stmt->value->linked_node();
-                    return linked ? linked->child(name) : nullptr;
-                }
+                return provide_child(stmt->value->getType(), name);
             }
             return nullptr;
         }

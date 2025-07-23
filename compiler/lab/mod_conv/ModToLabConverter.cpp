@@ -129,7 +129,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << "var __chx_should_build : bool = true;\n";
     output << "var __chx_cached_build : *mut Module = null;\n";
     output << "public func get(ctx : *mut BuildContext) : *mut Module {\n";
-    output << "\treturn ctx.default_get(&__chx_should_build, &__chx_cached_build, build);\n";
+    output << "\treturn ctx.default_get(&mut __chx_should_build, &mut __chx_cached_build, build);\n";
     output << "}\n";
 
 }

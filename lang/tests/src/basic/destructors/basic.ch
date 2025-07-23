@@ -317,7 +317,7 @@ func test_destructors() {
         if(count == 0){
             var d = Destructible {
                 data : 892,
-                count : &count,
+                count : &mut count,
                 lamb : (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -332,7 +332,7 @@ func test_destructors() {
         if(count == 0){
             var d = DestructibleAlias {
                 data : 892,
-                count : &count,
+                count : &mut count,
                 lamb : (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -345,7 +345,7 @@ func test_destructors() {
         var count = 0;
         var data_usable = false;
         if(count == 0){
-            var d = create_destructible(&count, 334);
+            var d = create_destructible(&mut count, 334);
             data_usable = d.data == 334 && count == 0;
         }
         return count == 1 && data_usable;
@@ -356,7 +356,7 @@ func test_destructors() {
         if(count == 0){
             var d : Destructible;
             d.data = 426
-            d.count = &count;
+            d.count = &mut count;
             d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
@@ -370,7 +370,7 @@ func test_destructors() {
         if(count == 0){
             var d : DestructibleAlias;
             d.data = 426
-            d.count = &count;
+            d.count = &mut count;
             d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
@@ -380,64 +380,64 @@ func test_destructors() {
     })
     test("destruction at early return : true", () => {
          var count = 0;
-         test_destruction_at_early_return(&count, true);
+         test_destruction_at_early_return(&mut count, true);
          return count == 1;
     })
     test("destruction at early return : false", () => {
          var count = 0;
-         test_destruction_at_early_return(&count, false);
+         test_destruction_at_early_return(&mut count, false);
          return count == 2;
     })
     test("conditional destruction : true", () => {
          var count = 0;
-         test_conditional_destruction(&count, true);
+         test_conditional_destruction(&mut count, true);
          return count == 2;
     })
     test("conditional destruction : false", () => {
          var count = 0;
-         test_conditional_destruction(&count, false);
+         test_conditional_destruction(&mut count, false);
          return count == 1;
     })
     test("destruct struct created via function call", () => {
         var count = 0;
         if(count == 0) {
-            var d = create_destructible(&count, 852);
+            var d = create_destructible(&mut count, 852);
         }
         return count == 1;
     })
     test("destruct struct typealias created via function call", () => {
         var count = 0;
         if(count == 0) {
-            var d = create_destructible_alias(&count, 654);
+            var d = create_destructible_alias(&mut count, 654);
         }
         return count == 1;
     })
     test("destruct struct accessed via function call", () => {
         var count = 0;
-        var data = create_destructible(&count, 858).data;
+        var data = create_destructible(&mut count, 858).data;
         return count == 1 && data == 858;
     })
     test("destruct struct typealias accessed via function call", () => {
         var count = 0;
-        var data = create_destructible_alias(&count, 544).data;
+        var data = create_destructible_alias(&mut count, 544).data;
         return count == 1 && data == 544;
     })
     test("destructor is called when access chain is inside a function", () => {
         var count = 0;
         var get_int = (thing : int) => thing;
-        var data = get_int(create_destructible(&count, 363).data);
+        var data = get_int(create_destructible(&mut count, 363).data);
         return count == 1 && data == 363;
     })
     test("destructor is called when access chain typealias is inside a function", () => {
         var count = 0;
         var get_int = (thing : int) => thing;
-        var data = get_int(create_destructible_alias(&count, 765).data);
+        var data = get_int(create_destructible_alias(&mut count, 765).data);
         return count == 1 && data == 765;
     })
     test("destructor is not called on values moved to other var init", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible(&count, 874)
+            var d = create_destructible(&mut count, 874)
             var c = d;
         }
         return count == 1
@@ -445,7 +445,7 @@ func test_destructors() {
     test("destructor is not called on typealias values moved to other var init", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible_alias(&count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             var c = d;
         }
         return count == 1
@@ -453,8 +453,8 @@ func test_destructors() {
     test("destructor is not called on values moved to other assignment", () => {
         var count = 0
         if(count == 0) {
-            var a = create_destructible(&count, 874)
-            var d = create_destructible(&count, 874)
+            var a = create_destructible(&mut count, 874)
+            var d = create_destructible(&mut count, 874)
             // here a is destructed, then d is moved into a
             a = d;
             // then here a is destructed
@@ -464,8 +464,8 @@ func test_destructors() {
     test("destructor is not called on typealias values moved to other assignment", () => {
         var count = 0
         if(count == 0) {
-            var a = create_destructible_alias(&count, 874)
-            var d = create_destructible_alias(&count, 874)
+            var a = create_destructible_alias(&mut count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             // here a is destructed, then d is moved into a
             a = d;
             // then here a is destructed
@@ -475,7 +475,7 @@ func test_destructors() {
     test("destructor is not called on values moved to other functions", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible(&count, 874)
+            var d = create_destructible(&mut count, 874)
             take_destructible_i(d)
         }
         return count == 1
@@ -483,7 +483,7 @@ func test_destructors() {
     test("destructor is not called on typealias values moved to other functions", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible_alias(&count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             take_destructible_alias_i(d)
         }
         return count == 1
@@ -491,7 +491,7 @@ func test_destructors() {
     test("destructor is not called on values moved to other structs", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible(&count, 874)
+            var d = create_destructible(&mut count, 874)
             var h = Holder1 { thing : d }
         }
         return count == 1
@@ -499,7 +499,7 @@ func test_destructors() {
     test("destructor is not called on typealias values moved to other structs", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible_alias(&count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             var h = Holder2 { thing : d }
         }
         return count == 1
@@ -507,7 +507,7 @@ func test_destructors() {
     test("destructor is not called on values moved to other arrays", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible(&count, 874)
+            var d = create_destructible(&mut count, 874)
             var h = [ d ]
         }
         return count == 1
@@ -515,7 +515,7 @@ func test_destructors() {
     test("destructor is not called on typealias values moved to other arrays", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible_alias(&count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             var h = [ d ]
         }
         return count == 1
@@ -523,7 +523,7 @@ func test_destructors() {
     test("destructor is not called on values moved to other variants", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible(&count, 874)
+            var d = create_destructible(&mut count, 874)
             var h = OptDestructible.Some(d)
         }
         return count == 1
@@ -531,7 +531,7 @@ func test_destructors() {
     test("destructor is not called on typealias values moved to other variants", () => {
         var count = 0
         if(count == 0) {
-            var d = create_destructible_alias(&count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             var h = OptDestructible.Some(d)
         }
         return count == 1
@@ -540,7 +540,7 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             var d : Destructible
-            d.count = &count;
+            d.count = &mut count;
             d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
@@ -554,23 +554,23 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             var d : Destructible
-            d.count = &count;
+            d.count = &mut count;
             d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
-            const ptr_to_d = test_ret_ptr_to_d(&d)
+            const ptr_to_d = test_ret_ptr_to_d(&mut d)
         }
         return count == 1;
     })
     test("destructor is called on values that are reinitialized using assignment", () => {
         var count = 0
         if(count == 0) {
-            var a = create_destructible(&count, 874)
-            var d = create_destructible(&count, 874)
+            var a = create_destructible(&mut count, 874)
+            var d = create_destructible(&mut count, 874)
             // a is destructed, d is moved into it
             a = d;
             // since d is not initialized, it's not destructed, however now it's initialized
-            d = create_destructible(&count, 323)
+            d = create_destructible(&mut count, 323)
             // a is destructed and d is destructed
         }
         return count == 3
@@ -578,12 +578,12 @@ func test_destructors() {
     test("destructor is called on typealias values that are reinitialized using assignment", () => {
         var count = 0
         if(count == 0) {
-            var a = create_destructible_alias(&count, 874)
-            var d = create_destructible_alias(&count, 874)
+            var a = create_destructible_alias(&mut count, 874)
+            var d = create_destructible_alias(&mut count, 874)
             // a is destructed, d is moved into it
             a = d;
             // since d is not initialized, it's not destructed, however now it's initialized
-            d = create_destructible_alias(&count, 323)
+            d = create_destructible_alias(&mut count, 323)
             // a is destructed and d is destructed
         }
         return count == 3
@@ -595,8 +595,8 @@ func test_destructors() {
             var i = 0;
             var ptr : *mut Destructible;
             while(i < 10) {
-                ptr = &arr[i];
-                ptr.count = &count;
+                ptr = &mut arr[i];
+                ptr.count = &mut count;
                 ptr.lamb = (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -612,8 +612,8 @@ func test_destructors() {
             var i = 0;
             var ptr : *mut DestructibleAlias;
             while(i < 10) {
-                ptr = &arr[i];
-                ptr.count = &count;
+                ptr = &mut arr[i];
+                ptr.count = &mut count;
                 ptr.lamb = (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -629,8 +629,8 @@ func test_destructors() {
             var i = 0;
             var ptr : *mut Destructible;
             while(i < 10) {
-                ptr = &arr[i];
-                ptr.count = &count;
+                ptr = &mut arr[i];
+                ptr.count = &mut count;
                 ptr.lamb = (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -646,8 +646,8 @@ func test_destructors() {
             var i = 0;
             var ptr : *mut DestructibleAlias;
             while(i < 10) {
-                ptr = &arr[i];
-                ptr.count = &count;
+                ptr = &mut arr[i];
+                ptr.count = &mut count;
                 ptr.lamb = (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -660,7 +660,7 @@ func test_destructors() {
         var count = 0
         if(count == 0) {
             var holder = Holder1 {
-                thing : create_destructible(&count, 332)
+                thing : create_destructible(&mut count, 332)
             }
         }
         return count == 1
@@ -669,19 +669,19 @@ func test_destructors() {
         var count = 0
         if(count == 0) {
             var holder = Holder2 {
-                thing : create_destructible_alias(&count, 332)
+                thing : create_destructible_alias(&mut count, 332)
             }
         }
         return count == 1
     })
     test("destructor works, when last if don't return", () => {
         var count = 0
-        destructible_but_last_if(&count, 454);
+        destructible_but_last_if(&mut count, 454);
         return count == 1;
     })
     test("destructor works, when last if returns completely", () => {
         var count = 0
-        destructible_but_last_if_returns(&count, 655);
+        destructible_but_last_if_returns(&mut count, 655);
         return count == 1;
     })
     test("structs passed to functions as parameters are automatically destructed - 1", () => {
@@ -689,7 +689,7 @@ func test_destructors() {
         if(count == 0) {
             test_struct_param_destructor(
                 Destructible {
-                    count : &count,
+                    count : &mut count,
                     lamb : (count : *mut int) => {
                         *count = *count + 1;
                     },
@@ -702,21 +702,21 @@ func test_destructors() {
     test("structs passed to functions as arguments are automatically destructed - 2", () => {
         var count = 0;
         if(count == 0) {
-            test_struct_param_destructor(create_destructible(&count, 223))
+            test_struct_param_destructor(create_destructible(&mut count, 223))
         }
         return count == 1;
     })
     test("structs passed to functions as typealias arguments are automatically destructed - 3", () => {
         var count = 0;
         if(count == 0) {
-            test_struct_param_destructor(create_destructible_alias(&count, 223))
+            test_struct_param_destructor(create_destructible_alias(&mut count, 223))
         }
         return count == 1;
     })
     test("referenced structs are moved into functions as arguments are not destructed twice", () => {
         var count = 0;
         if(count == 0) {
-            var d = create_destructible(&count, 223);
+            var d = create_destructible(&mut count, 223);
             test_struct_param_destructor(d)
         }
         return count == 1;
@@ -724,7 +724,7 @@ func test_destructors() {
     test("referenced structs are moved into functions as typealias arguments are not destructed twice", () => {
         var count = 0;
         if(count == 0) {
-            var d = create_destructible_alias(&count, 223);
+            var d = create_destructible_alias(&mut count, 223);
             test_struct_param_destructor(d)
         }
         return count == 1;
@@ -732,28 +732,28 @@ func test_destructors() {
     test("struct created in a access chain node, not assigned to a variable is destructed", () => {
         var count = 0;
         if(count == 0) {
-            create_destructible(&count, 676)
+            create_destructible(&mut count, 676)
         }
         return count == 1;
     })
     test("typealias struct created in a access chain node, not assigned to a variable is destructed", () => {
         var count = 0;
         if(count == 0) {
-            create_destructible_alias(&count, 676)
+            create_destructible_alias(&mut count, 676)
         }
         return count == 1;
     })
     test("generic structs destructor is called in var init struct value", () => {
         var count = 0;
         if(count == 0) {
-            var d = GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
+            var d = GenDestruct<int> { data : 454, count : &mut count, lamb : destruct_inc_count  }
         }
         return count == 1
     })
     test("generic structs destructor is called when created through function call", () => {
         var count = 0;
         if(count == 0) {
-            var d = create_long_gen_dest(343, &count, destruct_inc_count);
+            var d = create_long_gen_dest(343, &mut count, destruct_inc_count);
         }
         return count == 1;
     })
@@ -761,7 +761,7 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             var d = GenDestructOwner {
-                d : GenDestruct<long> { data : 454, count : &count, lamb : destruct_inc_count  }
+                d : GenDestruct<long> { data : 454, count : &mut count, lamb : destruct_inc_count  }
             }
         }
         return count == 1;
@@ -770,7 +770,7 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             var d : GenDestruct<int>[1] = [
-                GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
+                GenDestruct<int> { data : 454, count : &mut count, lamb : destruct_inc_count  }
             ]
         }
         return count == 1;
@@ -779,7 +779,7 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             take_gen_destruct_short(GenDestruct<short> {
-                data : 889, count : &count, lamb : destruct_inc_count
+                data : 889, count : &mut count, lamb : destruct_inc_count
             });
         }
         return count == 1;
@@ -787,13 +787,13 @@ func test_destructors() {
     test("generic struct destructor is called when passed to a function - 2", () => {
         var count = 0;
         if(count == 0) {
-            take_gen_destruct_short(create_short_gen_dest(343, &count, destruct_inc_count));
+            take_gen_destruct_short(create_short_gen_dest(343, &mut count, destruct_inc_count));
         }
         return count == 1;
     })
     test("generic struct destructor is called in access chain", () => {
         var count = 0;
-        const d = create_long_gen_dest(343, &count, destruct_inc_count).data
+        const d = create_long_gen_dest(343, &mut count, destruct_inc_count).data
         return count == 1;
     })
     test("comptime constructor struct is destructed, when in var init", () => {
@@ -812,17 +812,17 @@ func test_destructors() {
     })
     test("lambda taking a struct, the struct is destructed", () => {
         var count = 0;
-        send_lambda_struct(347, &count, (d) => {})
+        send_lambda_struct(347, &mut count, (d) => {})
         return count == 1;
     })
     test("returning struct parameter doesn't destruct it", () => {
         var count = 0;
-        const d = test_return_struct_param(Destructible { data : 777, count : &count, lamb : destruct_inc_count });
+        const d = test_return_struct_param(Destructible { data : 777, count : &mut count, lamb : destruct_inc_count });
         return d.data == 777 && count == 0;
     })
     test("lambda doesn't destruct outside it's scope", () => {
         var count = 0;
-        var d = Destructible { data : 677, count : &count, lamb : destruct_inc_count }
+        var d = Destructible { data : 677, count : &mut count, lamb : destruct_inc_count }
         var lamb : () => void = () => {
             return;
         }
@@ -839,7 +839,7 @@ func test_destructors() {
         if(count == 0){
             const x = OptDestructible.Some(Destructible {
                 data : 892,
-                count : &count,
+                count : &mut count,
                 lamb : (count : *mut int) => {
                     *count = *count + 1;
                 }
@@ -861,7 +861,7 @@ func test_destructors() {
             test_variant_param_destructor(
                 OptDestructible.Some(
                     Destructible {
-                        count : &count,
+                        count : &mut count,
                         lamb : (count : *mut int) => {
                             *count = *count + 1;
                         },
@@ -875,52 +875,52 @@ func test_destructors() {
     test("variants passed to functions as parameters are automatically destructed - 2", () => {
         var count = 0;
         if(count == 0) {
-            test_variant_param_destructor(OptDestructible.Some(create_destructible(&count, 223)))
+            test_variant_param_destructor(OptDestructible.Some(create_destructible(&mut count, 223)))
         }
         return count == 1;
     })
     test("returning variant parameter doesn't destruct it", () => {
         var count = 0;
         const x = test_return_variant_param(OptDestructible.Some(Destructible {
-            data : 777, count : &count, lamb : destruct_inc_count
+            data : 777, count : &mut count, lamb : destruct_inc_count
         }));
         return count == 0;
     })
     test("variant destruction occurs when allocated using var init", () => {
         var count = 0
-        test_variant_destruction_simple(&count);
+        test_variant_destruction_simple(&mut count);
         return count == 1
     })
     test("variant destructs the typealias struct allocated within it", () => {
         var count = 0
-        test_variant_destruction_simple2(&count)
+        test_variant_destruction_simple2(&mut count)
         return count == 1;
     })
     test("variant destruction at early return : true", () => {
          var count = 0;
-         test_variant_destruction_at_early_return(&count, true);
+         test_variant_destruction_at_early_return(&mut count, true);
          return count == 1;
     })
     test("variant destruction at early return : false", () => {
          var count = 0;
-         test_variant_destruction_at_early_return(&count, false);
+         test_variant_destruction_at_early_return(&mut count, false);
          return count == 2;
     })
     test("variant conditional destruction : true", () => {
          var count = 0;
-         test_variant_conditional_destruction(&count, true);
+         test_variant_conditional_destruction(&mut count, true);
          return count == 2;
     })
     test("variant conditional destruction : false", () => {
          var count = 0;
-         test_variant_conditional_destruction(&count, false);
+         test_variant_conditional_destruction(&mut count, false);
          return count == 1;
     })
     test("destructible structs passed as references to function calls are destructed - 1", () => {
         var count = 0
         if(count == 0) {
             take_destructible_ref(Destructible {
-                data : 777, count : &count, lamb : destruct_inc_count
+                data : 777, count : &mut count, lamb : destruct_inc_count
             })
         }
         return count == 1
@@ -928,7 +928,7 @@ func test_destructors() {
     test("destructible structs passed as references to function calls are destructed - 2", () => {
         var count = 0
         if(count == 0) {
-            take_destructible_ref(create_destructible(&count, 334))
+            take_destructible_ref(create_destructible(&mut count, 334))
         }
         return count == 1
     })
@@ -936,7 +936,7 @@ func test_destructors() {
         var count = 0
         if(count == 0) {
             take_gen_destruct_ref(GenDestruct<short> {
-                data : 777, count : &count, lamb : destruct_inc_count
+                data : 777, count : &mut count, lamb : destruct_inc_count
             })
         }
         return count == 1
@@ -944,7 +944,7 @@ func test_destructors() {
     test("generic destructible structs passed as references to function calls are destructed - 2", () => {
         var count = 0
         if(count == 0) {
-            take_gen_destruct_ref(create_short_gen_dest(343, &count, destruct_inc_count))
+            take_gen_destruct_ref(create_short_gen_dest(343, &mut count, destruct_inc_count))
         }
         return count == 1
     })
@@ -952,7 +952,7 @@ func test_destructors() {
         var count = 0
         if(count == 0) {
             var d = Destructible {
-                data : 777, count : &count, lamb : destruct_inc_count
+                data : 777, count : &mut count, lamb : destruct_inc_count
             }
             d.copy().copy().copy()
         }
@@ -962,7 +962,7 @@ func test_destructors() {
         var count = 0
         if(count == 0) {
             var d = Destructible {
-                data : 739, count : &count, lamb : destruct_inc_count
+                data : 739, count : &mut count, lamb : destruct_inc_count
             }
             var data = d.copy().data
         }

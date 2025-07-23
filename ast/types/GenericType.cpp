@@ -89,14 +89,15 @@ GenericType* GenericType::copy(ASTAllocator& allocator) const {
 }
 
 bool GenericType::satisfies(BaseType *pure_type) {
-    switch(pure_type->kind()) {
-        case BaseTypeKind::Generic:
-            return referenced->satisfies(pure_type->as_generic_type_unsafe()->referenced);
-        case BaseTypeKind::Linked:
-            return referenced->satisfies(pure_type);
-        default:
-            return false;
-    }
+    return referenced->satisfies(pure_type);
+//    switch(pure_type->kind()) {
+//        case BaseTypeKind::Generic:
+//            return referenced->satisfies(pure_type->as_generic_type_unsafe()->referenced);
+//        case BaseTypeKind::Linked:
+//            return referenced->satisfies(pure_type);
+//        default:
+//            return false;
+//    }
 }
 
 ASTNode *GenericType::linked_node() {

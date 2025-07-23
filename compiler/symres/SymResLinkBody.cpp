@@ -54,6 +54,7 @@
 #include "LinkSignatureAPI.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/utils/GenericUtils.h"
+#include "NodeSymbolDeclarer.h"
 
 void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     SymResLinkBody linker(resolver);
@@ -93,7 +94,7 @@ void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
         }
     }
     for(auto& inherits : container->inherited) {
-        const auto def = inherits.type->linked_node()->as_members_container();
+        const auto def = inherits.type->get_members_container();
         if(def) {
             def->declare_inherited_members(linker);
         }
@@ -102,7 +103,7 @@ void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
 
 void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
-        const auto def = inherits.type->linked_node()->as_members_container();
+        const auto def = inherits.type->get_members_container();
         if(def) {
             def->declare_inherited_members(linker);
         }
@@ -190,6 +191,8 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
 
 bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResolver& resolver) {
     auto& value = id->value;
+    // TODO: use get type to get the type of parent value
+    // TODO: then use child on type, we have dedicated functions for this
     auto linked_node = parent->linked_node();
     if(linked_node) {
         const auto child = linked_node->child(value);
@@ -200,6 +203,7 @@ bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResol
             return true;
         } else {
             id->linked = resolver.unresolved_decl;
+            id->setType(resolver.unresolved_decl->known_type());
             resolver.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
         }
     } else {
@@ -274,6 +278,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         // since we couldn't find a linked declaration, we will
         // link this identifier with unresolved declaration
         identifier->linked = linker.unresolved_decl;
+        identifier->setType(linker.unresolved_decl->known_type());
         linker.error(identifier) << "unresolved variable identifier '" << value << "' not found";
     }
 }
@@ -311,7 +316,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     auto id = lhs->as_identifier();
     if(id) {
-        auto linked = id->linked_node();
+        auto linked = id->linked;
         auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::VarInitStmt) {
             auto init = linked->as_var_init_unsafe();
@@ -754,7 +759,7 @@ bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
         }
         switch(parent_kind) {
             case ASTNodeKind::ImplDecl:
-                parent = parent_node->as_impl_def_unsafe()->struct_type->linked_node();
+                parent = parent_node->as_impl_def_unsafe()->struct_type->get_direct_linked_canonical_node();
                 break;
             case ASTNodeKind::StructDecl: {
                 const auto def = parent_node->as_struct_def_unsafe();
@@ -840,6 +845,9 @@ void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
     const auto found = linker.find(node->name);
     if(found != nullptr) {
         node->linked = found;
+    } else {
+        linker.error(node) << "unresolved identifier '" << node->name << "' captured";
+        node->linked = linker.unresolved_decl;
     }
     linker.declare(node->name, node);
 }
@@ -1108,7 +1116,7 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 }
 
 void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
-    const auto linked_node = node->interface_type->linked_node();
+    const auto linked_node = node->interface_type->get_direct_linked_canonical_node();
     if(!linked_node) {
         return;
     }
@@ -1147,9 +1155,9 @@ void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
     if(node->root) {
         node->root->declare_extended_in_linker(linker);
     } else {
-        TopLevelDeclSymDeclare declarer(linker);
-        for(auto& child : node->nodes) {
-            declarer.visit(child);
+        SymbolResolverDeclarer declarer(linker);
+        for(const auto child : node->nodes) {
+            declare_node(declarer, child, AccessSpecifier::Private);
         }
     }
     for(const auto child : node->nodes) {
@@ -1782,6 +1790,7 @@ void SymResLinkBody::VisitLinkedType(LinkedType* type) {
         if(linked) {
             type->linked = linked;
         } else {
+            // no need to error because we visited value, which prob cased an error if unresolved
             type->linked = linker.unresolved_decl;
         }
         return;

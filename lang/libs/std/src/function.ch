@@ -1,5 +1,7 @@
 public namespace std {
 
+public type destructor_type = (obj : *mut void) => void
+
 public struct default_function_instance {
 
     // the pointer to function we are going to call
@@ -27,11 +29,11 @@ public struct default_function_instance {
         const destr = intrinsics::get_lambda_cap_destructor(lambda)
         const size_data = intrinsics::sizeof_lambda_captured(lambda);
         const align_data = intrinsics::alignof_lambda_captured(lambda)
-        return intrinsics::wrap(make2(ptr, cap, destr, size_data, align_data))
+        return intrinsics::wrap(make2(ptr, cap, destr as destructor_type, size_data, align_data))
     }
 
     @make
-    func make2(ptr : *mut void, cap : *mut void, destr : (obj : *mut void) => void, size_data : size_t, align_data : size_t) {
+    func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
         // copy the fat pointer
         fn_pointer = ptr;
         // we get the captured struct from the lambda
@@ -55,7 +57,7 @@ public struct default_function_instance {
             is_heap = true;
         } else {
             // we are going to allocate it in buffer
-            var dest = &buffer[0]
+            var dest = &mut buffer[0]
             memcpy(dest, captured, size_data)
             fn_data_ptr = dest
             is_heap = false;

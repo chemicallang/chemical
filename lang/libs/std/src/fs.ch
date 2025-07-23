@@ -200,7 +200,7 @@ public namespace fs {
             var search_path : char[1024]; // Assuming 1024 is sufficient
             snprintf(search_path, sizeof(search_path), "%s\\*", src_dir);
 
-            var hFind : HANDLE = FindFirstFileA(search_path, &find_data);
+            var hFind : HANDLE = FindFirstFileA(search_path, &mut find_data);
 
             if (hFind == INVALID_HANDLE_VALUE) { // Assumes INVALID_HANDLE_VALUE is defined
                 // GetLastError() could provide more info
@@ -241,7 +241,7 @@ public namespace fs {
                         return -1;
                     }
                 }
-            } while (FindNextFileA(hFind, &find_data) != 0); // Assumes FindNextFileA is available
+            } while (FindNextFileA(hFind, &mut find_data) != 0); // Assumes FindNextFileA is available
 
             var last_error : DWORD = GetLastError();
             if (last_error != ERROR_NO_MORE_FILES) { // Check if the loop terminated due to an error other than end of files

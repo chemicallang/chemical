@@ -51,6 +51,9 @@ public:
      * get diagnostic
      */
     Diag& empty_diagnostic(const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
+        if(severity == DiagSeverity::Error) {
+            has_errors = true;
+        }
         diagnostics.emplace_back(Range { start, end }, severity, file_path.str(), "");
         return diagnostics.back();
     }

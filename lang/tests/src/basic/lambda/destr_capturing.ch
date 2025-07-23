@@ -22,7 +22,7 @@ func test_destr_cap_lamb_param(fun : std::function<() => void>) {
 func test_capturing_lambda_destruction() {
     test("capturing lambda destructor is called in var init", () => {
         var counter = 0;
-        var m = CapLambDestrCounter { counter : &counter }
+        var m = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
             var lambda : std::function<() => void> = |m|() => {
 
@@ -32,7 +32,7 @@ func test_capturing_lambda_destruction() {
     })
     test("capturing lambda destructor is called when contained in struct", () => {
         var counter = 0
-        var m = CapLambDestrCounter { counter : &counter }
+        var m = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
             var capLamb = CapLambContainer {
                 fun : |m|() => {
@@ -44,7 +44,7 @@ func test_capturing_lambda_destruction() {
     })
     test("capturing lambda function is destructed in array", () => {
         var counter = 0;
-        var m = CapLambDestrCounter { counter : &counter }
+        var m = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
             var container : std::function<() => void>[] = [
                 |m|() => {
@@ -56,7 +56,7 @@ func test_capturing_lambda_destruction() {
     })
     test("capturing lambda function is destructed in variant", () => {
         var counter = 0;
-        var m = CapLambDestrCounter { counter : &counter }
+        var m = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
             var some = CapLambVarCon.Some(|m|() => {
 
@@ -66,8 +66,8 @@ func test_capturing_lambda_destruction() {
     })
     test("capturing lambda function is destructed in assignment", () => {
         var counter = 0;
-        var m = CapLambDestrCounter { counter : &counter }
-        var m2 = CapLambDestrCounter { counter : &counter }
+        var m = CapLambDestrCounter { counter : &mut counter }
+        var m2 = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
             var some : std::function<() => void> = |m|() => {}
             some = |m2|() => {}
@@ -77,7 +77,7 @@ func test_capturing_lambda_destruction() {
     test("capturing lambda moves the values, destructor is not called on moved", () => {
         var counter = 0;
         if(counter == 0) {
-            var m = CapLambDestrCounter { counter : &counter }
+            var m = CapLambDestrCounter { counter : &mut counter }
             var lambda : std::function<() => void> = |m|() => {
 
             }
@@ -86,7 +86,7 @@ func test_capturing_lambda_destruction() {
     })
     test("capturing lambda is destructed when passed to a function as an argument", () => {
         var counter = 0
-        var m = CapLambDestrCounter { counter : &counter }
+        var m = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
             test_destr_cap_lamb_param(|m|() => {
 

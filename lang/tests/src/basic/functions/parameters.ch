@@ -3,7 +3,7 @@ func assign_to_addr(value : *mut int) {
 }
 
 func take_addr_of(value : int) : int {
-    assign_to_addr(&value)
+    assign_to_addr(&mut value)
     return value;
 }
 

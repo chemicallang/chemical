@@ -32,17 +32,17 @@ variant PMOptGen1<T> {
 
 func <T> get_pm_opt1_gen_val(opt : PMOptGen1<T>) : int {
     var Some(value) = opt else -1
-    return value;
+    return value as int;
 }
 
 func <T> get_pm_opt1_gen_val_with_ret(opt : PMOptGen1<T>) : int {
     var Some(value) = opt else return 0
-    return value;
+    return value as int;
 }
 
 func <T> get_pm_opt1_gen_val_with_if(opt : PMOptGen1<T>) : int {
     if(var Some(value) = opt) {
-        return value;
+        return value as int;
     }
     return -1;
 }

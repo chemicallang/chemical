@@ -17,7 +17,7 @@ public:
     constexpr NewValue(
         Value* value,
         SourceLocation location
-    ) : Value(ValueKind::NewValue, &ptr_type, location), value(value), ptr_type(value->getType(), false) {
+    ) : Value(ValueKind::NewValue, &ptr_type, location), value(value), ptr_type(value->getType(), true) {
 
     }
 

@@ -36,23 +36,23 @@ struct ImplAbstractRandomNumber : AbstractAbstractRandomNumber {
 func test_abstract_structs() {
 
     test("method in abstract structs work through implementation struct", () => {
-        var abs = ImplAbstractRandomNumber {}
+        var abs = ImplAbstractRandomNumber { AbstractAbstractRandomNumber : AbstractAbstractRandomNumber{} }
         return abs.give_number() == 553;
     })
     test("method in abstract structs work through abstract struct", () => {
-        var abs = ImplAbstractRandomNumber {}
+        var abs = ImplAbstractRandomNumber { AbstractAbstractRandomNumber : AbstractAbstractRandomNumber{} }
         return abs.give_abstract_number_indirect() == 555;
     })
     test("method in abstract structs work through extension method on abstract struct - 1", () => {
-        var abs = ImplAbstractRandomNumber {}
+        var abs = ImplAbstractRandomNumber { AbstractAbstractRandomNumber : AbstractAbstractRandomNumber{} }
         return abs.abs_str_give_rand_num() == 553;
     })
     test("method in abstract structs work through extension method on abstract struct - 2", () => {
-        var abs = ImplAbstractRandomNumber {}
+        var abs = ImplAbstractRandomNumber { AbstractAbstractRandomNumber : AbstractAbstractRandomNumber{} }
         return abs.abs_str_give_rand_num_ind() == 555;
     })
     test("method in abstract structs work through extension method on interface", () => {
-        var abs = ImplAbstractRandomNumber {}
+        var abs = ImplAbstractRandomNumber { AbstractAbstractRandomNumber : AbstractAbstractRandomNumber{} }
         return abs.ext_abs_rand_num() == 553;
     })
 

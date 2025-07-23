@@ -25,7 +25,7 @@ public:
     inline constexpr NewTypedValue(
         TypeLoc type,
         SourceLocation location
-    ) : Value(ValueKind::NewTypedValue, &ptr_type, location), type(type), ptr_type(type, false) {
+    ) : Value(ValueKind::NewTypedValue, &ptr_type, location), type(type), ptr_type(type, true) {
 
     }
 

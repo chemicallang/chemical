@@ -37,8 +37,10 @@ void Diagnoser::diagnostic(const chem::string_view &message, DiagSeverity severi
 void Diagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& path, const chem::string_view& tag) {
     if(!diagnostics.empty()) {
         for (const auto &err: diagnostics) {
-            err.ansi(std::cerr, path, tag) << '\n';
+            const auto use_cerr = err.severity.has_value() && err.severity.value() == DiagSeverity::Error;
+            err.ansi(use_cerr ? std::cerr : std::cout, path, tag) << '\n';
         }
+        std::cout << std::flush;
         std::cerr << std::flush;
     }
 }

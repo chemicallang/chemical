@@ -1240,7 +1240,7 @@ bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_t
 //        case ValueKind::AccessChain:
 //        case ValueKind::FunctionCall:
 //        case ValueKind::IndexOperator:
-//            return !value->create_type(allocator)->isStructLikeType();
+//            return !value->getType()->isStructLikeType();
 //        default:
 //            return false;
 //    }
@@ -3442,7 +3442,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
         }
     }
     const auto struct_val = val->as_struct_value();
-    const auto val_type = val->create_type(allocator);
+    const auto val_type = val->getType();
     if(struct_val) {
         if(implicit_mutate_value_default(*this, type, val)) {
            return;

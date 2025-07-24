@@ -75,6 +75,55 @@ void sym_res_link_type_deprecated(SymbolResolver& resolver, BaseType* type, Sour
     linker.visit(type, loc);
 }
 
+/**
+ * when nodes are to be declared and used sequentially, so node can be referenced
+ * after it is declared, this method should be called
+ * for example, this code, i should be declared first then incremented
+ * var i = 0;
+ * i++; <--- i is declared above (if it's below it shouldn't be referencable)
+ */
+void link_seq(SymResLinkBody& visitor, Scope& scope) {
+    auto& nodes = scope.nodes;
+    if(nodes.empty()) return;
+    const auto curr_func = visitor.linker.current_func_type;
+    if(curr_func) {
+        const auto moved_ids_begin = curr_func->moved_identifiers.size();
+        const auto moved_chains_begin = curr_func->moved_chains.size();
+        visitor.VisitScope(&scope);
+        if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
+            curr_func->erase_moved_ids_after(moved_ids_begin);
+            curr_func->erase_moved_chains_after(moved_chains_begin);
+        }
+    } else {
+        visitor.VisitScope(&scope);
+    }
+}
+
+/**
+ * this will link the given body sequentially, backing the moved identifiers and chains
+ * into the given vectors, which you can restore later
+ */
+void link_seq_backing_moves(
+        SymResLinkBody& visitor,
+        Scope& scope,
+        std::vector<VariableIdentifier*>& moved_ids,
+        std::vector<AccessChain*>& moved_chains
+) {
+    const auto curr_func = visitor.linker.current_func_type;
+    if(!curr_func) return;
+
+    // where the moved ids / chains of if body begin
+    const auto if_moved_ids_begin = curr_func->moved_identifiers.size();
+    const auto if_moved_chains_begin = curr_func->moved_chains.size();
+
+    // link the body
+    link_seq(visitor, scope);
+
+    // save all the moved identifiers / chains inside the if body to temporary location
+    curr_func->save_moved_ids_after(moved_ids, if_moved_ids_begin);
+    curr_func->save_moved_chains_after(moved_chains, if_moved_chains_begin);
+}
+
 void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
     const auto container = this;
     for(const auto var : container->variables()) {
@@ -389,8 +438,8 @@ void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
 void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {
     auto& value = node->value;
     visit(value);
-    node->put_in(linker.implicit_args, value, &linker, [](ProvideStmt* stmt, void* data) {
-        stmt->body.link_sequentially((*(SymbolResolver*) data));
+    node->put_in(linker.implicit_args, value, this, [](ProvideStmt* stmt, void* data) {
+        link_seq((*(SymResLinkBody*) data), stmt->body);
     });
 }
 
@@ -571,7 +620,7 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
                 }
             }
         }
-        linker.link_body_seq_backing_moves(scope, moved_ids, moved_chains);
+        link_seq_backing_moves(*this, scope, moved_ids, moved_chains);
         linker.scope_end();
         i++;
     }
@@ -639,12 +688,12 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
 }
 
 void SymResLinkBody::VisitComptimeBlock(ComptimeBlock* node) {
-    node->body.link_sequentially(linker);
+    link_seq(*this, node->body);
 }
 
 void SymResLinkBody::VisitDoWhileLoopStmt(DoWhileLoop* node) {
     linker.scope_start();
-    node->body.link_sequentially(linker);
+    link_seq(*this, node->body);
     visit(node->condition);
     linker.scope_end();
 }
@@ -722,7 +771,7 @@ void SymResLinkBody::VisitForLoopStmt(ForLoop* node) {
     visit(node->initializer);
     visit(node->conditionExpr);
     visit(node->incrementerExpr);
-    node->body.link_sequentially(linker);
+    link_seq(*this, node->body);
     linker.scope_end();
 }
 
@@ -817,7 +866,7 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
             if(node->is_comptime()) {
                 linker.comptime_context = true;
             }
-            node->body->link_sequentially(linker);
+            link_seq(*this, node->body.value());
             linker.comptime_context = false;
         }
         linker.scope_end();
@@ -997,7 +1046,7 @@ void link_body(
         // since pattern matching introduces symbols to link against
         symRes.visit(conditionExpr);
     }
-    linker.link_body_seq_backing_moves(body, moved_ids, moved_chains);
+    link_seq_backing_moves(symRes, body, moved_ids, moved_chains);
     linker.scope_end();
 }
 
@@ -1095,7 +1144,7 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
     // link the else body
     if(node->elseBody.has_value()) {
         linker.scope_start();
-        linker.link_body_seq_backing_moves(node->elseBody.value(), moved_ids, moved_chains);
+        link_seq_backing_moves(*this, node->elseBody.value(), moved_ids, moved_chains);
         linker.scope_end();
     }
 
@@ -1164,27 +1213,6 @@ void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
     linker.scope_end();
 }
 
-inline void link_seq(SymbolResolver& linker, Scope* scope) {
-    // TODO: this calls into its own API, we need to use SymResLinkBody
-    sym_res_link_body(linker, scope);
-}
-
-void Scope::link_sequentially(SymbolResolver &linker) {
-    if(nodes.empty()) return;
-    const auto curr_func = linker.current_func_type;
-    if(curr_func) {
-        const auto moved_ids_begin = curr_func->moved_identifiers.size();
-        const auto moved_chains_begin = curr_func->moved_chains.size();
-        link_seq(linker, this);
-        if (nodes.back()->kind() == ASTNodeKind::ReturnStmt) {
-            curr_func->erase_moved_ids_after(moved_ids_begin);
-            curr_func->erase_moved_chains_after(moved_chains_begin);
-        }
-    } else {
-        link_seq(linker, this);
-    }
-}
-
 void SymResLinkBody::VisitScope(Scope* node) {
     for (const auto child: node->nodes) {
         visit(child);
@@ -1192,7 +1220,7 @@ void SymResLinkBody::VisitScope(Scope* node) {
 }
 
 void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
-    node->body.link_sequentially(linker);
+    link_seq(*this, node->body);
     // determining the type of loop block
     if(node->is_value) {
         const auto first = node->get_first_broken();
@@ -1307,7 +1335,7 @@ void SymResLinkBody::VisitUnionDecl(UnionDef* node) {
 void SymResLinkBody::VisitUnsafeBlock(UnsafeBlock* node) {
     auto prev = linker.safe_context;
     linker.safe_context = false;
-    node->scope.link_sequentially(linker);
+    link_seq(*this, node->scope);
     linker.safe_context = prev;
 }
 
@@ -1325,7 +1353,7 @@ void SymResLinkBody::VisitVariantCaseVariable(VariantCaseVariable* node) {
 void SymResLinkBody::VisitWhileLoopStmt(WhileLoop* node) {
     linker.scope_start();
     visit(node->condition);
-    node->body.link_sequentially(linker);
+    link_seq(*this, node->body);
     linker.scope_end();
 }
 
@@ -1992,7 +2020,7 @@ bool link_full(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_type
     auto& linker = visitor.linker;
     linker.scope_start();
     const auto result = link_params_and_caps(fn, visitor, link_param_types);
-    fn->scope.link_sequentially(linker);
+    link_seq(visitor, fn->scope);
     linker.scope_end();
     return result;
 }

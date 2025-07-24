@@ -50,7 +50,6 @@
 #include "ast/utils/ASTUtils.h"
 #include "SymResLinkBody.h"
 #include "SymResLinkBodyAPI.h"
-#include "LinkSignatureAPI.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/utils/GenericUtils.h"
 #include "NodeSymbolDeclarer.h"
@@ -1822,10 +1821,31 @@ void SymResLinkBody::VisitCapturingFunctionType(CapturingFunctionType* type) {
     visit(type->instance_type);
 }
 
+void link_container(SymResLinkBody& visitor, VariablesContainer* container) {
+    for(const auto var : container->variables()) {
+        switch(var->kind()) {
+            case ASTNodeKind::StructMember:
+                visitor.visit(var->as_struct_member_unsafe()->type);
+                break;
+            case ASTNodeKind::UnnamedUnion:
+                link_container(visitor, var->as_unnamed_union_unsafe());
+                break;
+            case ASTNodeKind::UnnamedStruct:
+                link_container(visitor, var->as_unnamed_struct_unsafe());
+                break;
+            default:
+#ifdef DEBUG
+                throw std::runtime_error("unknown type of variable member");
+#else
+                continue;
+#endif
+        }
+    }
+}
+
 void SymResLinkBody::VisitStructType(StructType* type) {
     type->take_variables_from_parsed_nodes(linker);
-    // TODO: we should NOT use signature linking here
-    sym_res_vars_signature(linker, type);
+    link_container(*this, type);
     if(!type->name.empty()) {
         linker.declare(type->name, type);
     }
@@ -1833,8 +1853,7 @@ void SymResLinkBody::VisitStructType(StructType* type) {
 
 void SymResLinkBody::VisitUnionType(UnionType* type) {
     type->take_variables_from_parsed_nodes(linker);
-    // TODO: we should NOT use signature linking here
-    sym_res_vars_signature(linker, type);
+    link_container(*this, type);
     if(!type->name.empty()) {
         linker.declare(type->name, type);
     }

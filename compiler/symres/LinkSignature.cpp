@@ -38,11 +38,6 @@ void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
     visitor.visit(scope);
 }
 
-void sym_res_vars_signature(SymbolResolver& resolver, VariablesContainer* container) {
-    TopLevelLinkSignature visitor(resolver);
-    visitor.LinkVariables(container);
-}
-
 void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
     const auto decl = linker.find(value->value);
     if(decl) {

@@ -4821,7 +4821,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     // handling dynamic dispatch
     const auto grandpa = get_parent_from(call->parent_val);
     if(grandpa) {
-        auto grandpaType = grandpa->create_type(allocator);
+        auto grandpaType = grandpa->getType();
         if(grandpaType) {
             auto pure_grandpa = grandpaType->pure_type(allocator);
             if (pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {

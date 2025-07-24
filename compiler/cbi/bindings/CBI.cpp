@@ -242,7 +242,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_StructValueadd_value", (void*) StructValueadd_value },
         { "compiler_VariantCaseadd_variable", (void*) VariantCaseadd_variable },
         { "compiler_ScopegetNodes", (void*) ScopegetNodes },
-        { "compiler_Scopelink_sequentially", (void*) Scopelink_sequentially },
         { "compiler_DoWhileLoopget_body", (void*) DoWhileLoopget_body },
         { "compiler_WhileLoopget_body", (void*) WhileLoopget_body },
         { "compiler_ForLoopget_body", (void*) ForLoopget_body },

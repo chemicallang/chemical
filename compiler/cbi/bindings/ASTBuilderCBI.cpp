@@ -651,10 +651,6 @@ std::vector<ASTNode*>* ScopegetNodes(Scope* scope) {
     return &scope->nodes;
 }
 
-void Scopelink_sequentially(Scope* scope, SymbolResolver* resolver) {
-    scope->link_sequentially(*resolver);
-}
-
 std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop) {
     return &loop->body.nodes;
 }

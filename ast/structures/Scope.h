@@ -88,15 +88,6 @@ public:
     }
 
     /**
-     * when nodes are to be declared and used sequentially, so node can be referenced
-     * after it is declared, this method should be called
-     * for example, this code, i should be declared first then incremented
-     * var i = 0;
-     * i++; <--- i is declared above (if it's below it shouldn't be referencable)
-     */
-    void link_sequentially(SymbolResolver &linker);
-
-    /**
      * module has translated, this scope is a top level scope
      * and you intend to remove nodes that are internal, this function
      * is what you must call

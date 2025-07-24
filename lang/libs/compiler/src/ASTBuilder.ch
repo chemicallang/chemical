@@ -215,8 +215,6 @@ public struct Scope : ASTNode {
 
     func getNodes(&self) : *mut VecRef<ASTNode>;
 
-    func link_sequentially(&self, resolver : *mut SymbolResolver)
-
 }
 
 public struct LoopASTNode : ASTNode {

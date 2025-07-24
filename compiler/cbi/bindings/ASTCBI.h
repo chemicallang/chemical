@@ -57,8 +57,6 @@ extern "C" {
 
     std::vector<ASTNode*>* ScopegetNodes(Scope* scope);
 
-    void Scopelink_sequentially(Scope* scope, SymbolResolver* resolver);
-
     std::vector<ASTNode*>* DoWhileLoopget_body(DoWhileLoop* loop);
 
     std::vector<ASTNode*>* WhileLoopget_body(WhileLoop* loop);

@@ -458,16 +458,6 @@ public:
     void declare_runtime(const chem::string_view& name, ASTNode* node);
 
     /**
-     * this will link the given body sequentially, backing the moved identifiers and chains
-     * into the given vectors, which you can restore later
-     */
-    void link_body_seq_backing_moves(
-            Scope& scope,
-            std::vector<VariableIdentifier*>& moved_ids,
-            std::vector<AccessChain*>& moved_chains
-    );
-
-    /**
      * helper method that should be used to declare functions that takes into account
      * multiple methods with same names, it will declare function with access specifier
      * internal, which means function is visible to files in current module

@@ -18,4 +18,5 @@ void sym_res_signature(SymbolResolver& resolver, Scope* scope);
 /**
  * symbol resolve the variable types and default values in the container
  */
+[[deprecated]]
 void sym_res_vars_signature(SymbolResolver& resolver, VariablesContainer* container);

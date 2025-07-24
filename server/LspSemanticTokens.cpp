@@ -618,6 +618,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
     // let's do symbol resolution
     SymbolResolver resolver(
+            binder,
             comptime_scope,
             pathHandler,
             instContainer,

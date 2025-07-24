@@ -339,7 +339,7 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node, boo
     switch(linked_kind) {
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::UnionDecl: {
-            const auto node = linked_node->as_extendable_members_container_node();
+            const auto node = linked_node->as_extendable_members_container_unsafe();
             if(has_self) {
                 put_functions_of(analyzer, node);
             } else {
@@ -355,7 +355,7 @@ bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node, boo
             return true;
         case ASTNodeKind::VariantDecl:
         case ASTNodeKind::InterfaceDecl: {
-            const auto node = linked_node->as_extendable_members_container_node();
+            const auto node = linked_node->as_extendable_members_container_unsafe();
             if(has_self) {
                 put_functions_of(analyzer, node);
             } else {

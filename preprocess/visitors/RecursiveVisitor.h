@@ -407,8 +407,13 @@ public:
     }
 
     void VisitStructValue(StructValue *val) {
-        if(val->refType) {
-            visit_it(val->refType);
+        auto refType = val->getRefTypeLoc();
+        if(refType) {
+            const auto prefType = refType.getType();
+            visit_it(refType);
+            if(prefType != refType.getType()) {
+                val->setRefType(refType);
+            }
         }
         for(auto& value : val->values) {
             visit_it(value.second.value);

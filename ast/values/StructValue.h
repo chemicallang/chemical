@@ -26,26 +26,25 @@ private:
 
 public:
 
-    TypeLoc refType;
     std::unordered_map<chem::string_view, StructMemberInitializer> values;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
 
     StructValue(
-        TypeLoc refType,
+        BaseType* refType,
         SourceLocation location
-    ) : Value(ValueKind::StructValue, refType, location), refType(refType), definition(nullptr), container(nullptr)
+    ) : Value(ValueKind::StructValue, refType, location), definition(nullptr), container(nullptr)
     {
 
     }
 
     StructValue(
-        TypeLoc refType,
+        BaseType* refType,
         ExtendableMembersContainerNode *definition,
         VariablesContainer* container,
         SourceLocation location
-    ) : Value(ValueKind::StructValue, refType, location), refType(refType), definition(definition), container(container)
+    ) : Value(ValueKind::StructValue, refType, location), definition(definition), container(container)
     {
 
     }
@@ -58,8 +57,20 @@ public:
 
     bool resolve_container(GenericInstantiatorAPI& instantiator, BaseType* containerType);
 
+    inline BaseType* getRefType() {
+        return Value::getType();
+    }
+
+    inline void setRefType(BaseType* type) {
+        Value::setType(type);
+    }
+
+    inline TypeLoc getRefTypeLoc() {
+        return TypeLoc(Value::getType(), encoded_location());
+    }
+
     inline bool resolve_container(GenericInstantiatorAPI& instantiator) {
-        return resolve_container(instantiator, refType);
+        return resolve_container(instantiator, getRefType());
     }
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
@@ -117,7 +128,7 @@ public:
             const auto k = definition->kind();
             return k == ASTNodeKind::UnionDecl || k == ASTNodeKind::UnnamedUnion;
         } else {
-            return refType->kind() == BaseTypeKind::Union;
+            return getRefType()->kind() == BaseTypeKind::Union;
         }
     }
 

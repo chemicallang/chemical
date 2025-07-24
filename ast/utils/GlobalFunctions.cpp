@@ -141,7 +141,7 @@ namespace InterpretVector {
     public:
         std::vector<Value*> values;
         explicit InterpretVectorVal(InterpretVectorNode* node) : StructValue(
-            { node->known_type(), ZERO_LOC },
+            node->known_type(),
             (StructDefinition*) node,
             (StructDefinition*) node,
             ZERO_LOC
@@ -1667,7 +1667,7 @@ class DefValue : public StructValue {
 public:
 
     DefValue(DefDecl *defDecl) : StructValue(
-            {defDecl->known_type(), ZERO_LOC},
+            defDecl->known_type(),
             defDecl,
             defDecl,
             ZERO_LOC
@@ -1681,7 +1681,7 @@ struct DefThing {
     DefValue defValue;
     VarInitStatement defStmt;
 
-    DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), TypeLoc(defValue.refType, ZERO_LOC), &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
+    DefThing() : defValue(&decl), defStmt(true, false, ZERO_LOC_ID("def"), TypeLoc(defValue.getRefType(), ZERO_LOC), &defValue, nullptr, ZERO_LOC, AccessSpecifier::Public) {
         defStmt.set_compiler_decl(true);
     }
 

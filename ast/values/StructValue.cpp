@@ -256,6 +256,7 @@ const chem::string_view& StructValue::linked_name_view() {
     if(definition) {
         return definition->name_view();
     } else {
+        const auto refType = getRefType();
         switch(refType->kind()) {
             case BaseTypeKind::Struct:
                 return refType->as_struct_type_unsafe()->name;
@@ -271,6 +272,7 @@ bool StructValue::allows_direct_init() {
     if(definition) {
         return node_allows_direct_init(definition);
     } else {
+        const auto refType = getRefType();
         switch(refType->kind()) {
             case BaseTypeKind::Struct:
             case BaseTypeKind::Union:
@@ -282,13 +284,14 @@ bool StructValue::allows_direct_init() {
 }
 
 std::vector<TypeLoc>& StructValue::generic_list() {
-    return ((GenericType*) refType.getType())->types;
+    return ((GenericType*) getRefType())->types;
 }
 
 std::vector<TypeLoc> StructValue::create_generic_list() {
+    const auto refType = getRefType();
     const auto k = refType->kind();
     if(k == BaseTypeKind::Generic) {
-        return ((GenericType*) refType.getType())->types;
+        return ((GenericType*) refType)->types;
     } else {
         return {};
     }
@@ -415,6 +418,7 @@ ASTNode *StructValue::linked_node() {
     if(definition) {
         return definition;
     } else {
+        const auto refType = getRefType();
         return refType ? refType->linked_node() : nullptr;
     }
 }
@@ -436,6 +440,7 @@ void StructValue::runtime_name(std::ostream& output, NameMangler& mangler) {
                 return;
         }
     } else {
+        const auto refType = getRefType();
         switch(refType->kind()) {
             case BaseTypeKind::Struct:
                 output << refType->as_struct_type_unsafe()->name;
@@ -462,7 +467,7 @@ Value *StructValue::call_member(
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
-        scope.error("couldn't find member function by name " + name.str() + " in a struct by name " + refType->representation(), this);
+        scope.error("couldn't find member function by name " + name.str() + " in a struct by name " + getRefType()->representation(), this);
         return nullptr;
     }
 #ifdef DEBUG
@@ -492,7 +497,7 @@ Value *StructValue::evaluated_value(InterpretScope &scope) {
 
 StructValue* StructValue::initialized_value(InterpretScope& scope) {
     auto struct_value = new (scope.allocate<StructValue>()) StructValue(
-            refType.copy(scope.allocator),
+            getRefTypeLoc().copy(scope.allocator),
             definition,
             container,
             encoded_location()
@@ -523,7 +528,7 @@ void StructValue::declare_default_values(
 
 StructValue *StructValue::copy(ASTAllocator& allocator) {
     auto struct_value = new (allocator.allocate<StructValue>()) StructValue(
-        refType.copy(allocator),
+        getRefTypeLoc().copy(allocator),
         definition,
         container,
         encoded_location()
@@ -540,11 +545,11 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
 }
 
 BaseType* StructValue::create_type(ASTAllocator& allocator) {
-    return refType;
+    return getRefType();
 }
 
 BaseType* StructValue::known_type() {
-    return refType;
+    return getRefType();
 }
 
 Value *StructValue::child(InterpretScope &scope, const chem::string_view &name) {

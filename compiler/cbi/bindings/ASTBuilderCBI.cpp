@@ -357,7 +357,7 @@ StringValue* ASTBuildermake_string_value(ASTBuilder* builder, chem::string_view*
 
 StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, BaseType* ref, ASTNode* parent_node, uint64_t location) {
     // TODO do not take parent_node as parameter
-    return new (builder->allocate<StructValue>()) StructValue({ref, location}, location);
+    return new (builder->allocate<StructValue>()) StructValue(ref, location);
 }
 
 UBigIntValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location) {

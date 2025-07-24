@@ -47,7 +47,6 @@
 #include "ast/values/NumberValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "compiler/symres/SymbolResolver.h"
-#include "DeclareTopLevel.h"
 #include "ast/utils/ASTUtils.h"
 #include "SymResLinkBody.h"
 #include "SymResLinkBodyAPI.h"
@@ -154,11 +153,10 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
             linker.declare(var->name, var);
         }
     }
+    SymbolResolverDeclarer declarer(linker);
     // declare all the functions
-    TopLevelDeclSymDeclare declarer(linker);
-
     for(auto& func : container->functions()) {
-        declarer.visit(func);
+        declare_node(declarer, func, AccessSpecifier::Private);
     }
     for (const auto func: container->functions()) {
         visit(func);
@@ -1167,6 +1165,7 @@ void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
 }
 
 inline void link_seq(SymbolResolver& linker, Scope* scope) {
+    // TODO: this calls into its own API, we need to use SymResLinkBody
     sym_res_link_body(linker, scope);
 }
 
@@ -1812,6 +1811,7 @@ void SymResLinkBody::VisitCapturingFunctionType(CapturingFunctionType* type) {
 
 void SymResLinkBody::VisitStructType(StructType* type) {
     type->take_variables_from_parsed_nodes(linker);
+    // TODO: we should NOT use signature linking here
     sym_res_vars_signature(linker, type);
     if(!type->name.empty()) {
         linker.declare(type->name, type);
@@ -1820,6 +1820,7 @@ void SymResLinkBody::VisitStructType(StructType* type) {
 
 void SymResLinkBody::VisitUnionType(UnionType* type) {
     type->take_variables_from_parsed_nodes(linker);
+    // TODO: we should NOT use signature linking here
     sym_res_vars_signature(linker, type);
     if(!type->name.empty()) {
         linker.declare(type->name, type);

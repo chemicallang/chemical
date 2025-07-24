@@ -3335,13 +3335,13 @@ std::string ToCAstVisitor::string_accept(Value* any) {
 
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(init->is_top_level()) {
-        const auto init_type = init->type ? init->type : init->value->create_type(allocator);
+        const auto init_type = init->known_type();
         new_line_and_indent(init->encoded_location());
         const auto is_exported = init->is_exported();
         var_init_top_level(*this, init, init_type, !is_exported, true, false);
         return;
     }
-    auto init_type = init->type ? init->type : init->value->create_type(allocator);
+    auto init_type = init->known_type();
     var_init(*this, init, init_type);
     destructor->VisitVarInitStmt(init);
 }

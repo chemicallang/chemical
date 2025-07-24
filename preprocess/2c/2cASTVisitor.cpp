@@ -5506,7 +5506,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
 
     const auto elseKind = value->elseExpression.kind;
     if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
-        const auto type = value->expression->create_type(allocator);
+        const auto type = value->expression->getType();
         visit(type);
         write('*');
     } else if(elseKind == PatternElseExprKind::DefValue) {
@@ -5524,7 +5524,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         visit(value->expression);
     } else if(elseKind == PatternElseExprKind::DefValue) {
 
-        const auto type = value->expression->create_type(allocator);
+        const auto type = value->expression->getType();
         const auto memberId = value->param_names[0];
         const auto member = memberId->member_param->parent();
         const auto def = member->parent();

@@ -3419,7 +3419,7 @@ bool ToCAstVisitor::requires_return(Value* val) {
             return true;
         }
     } else {
-        const auto valType = val->create_type(allocator);
+        const auto valType = val->getType();
         if(valType->isStructLikeType()) {
             return false;
         } else {

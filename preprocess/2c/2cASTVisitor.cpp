@@ -4326,7 +4326,7 @@ void ToCAstVisitor::VisitNewTypedValue(NewTypedValue *value) {
 void ToCAstVisitor::VisitNewValue(NewValue *value) {
     const auto value_kind = value->value->val_kind();
     if(value_kind == ValueKind::StructValue || value_kind == ValueKind::AccessChain) {
-        auto value_type = value->value->create_type(allocator);
+        auto value_type = value->value->getType();
         write("({ ");
         visit(value_type);
         write("* ");

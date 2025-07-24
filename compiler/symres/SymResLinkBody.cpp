@@ -2278,15 +2278,16 @@ void SymResLinkBody::VisitStringValue(StringValue* strValue) {
 void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     // load the expected type before hand
     const auto exp_type = expected_type;
-    if(structValue->refType) {
-        visit(structValue->refType);
+    const auto refType = structValue->getRefType();
+    if(refType) {
+        visit(refType, structValue->encoded_location());
     } else {
         if(!exp_type) {
             linker.error("unnamed struct value cannot link without a type", structValue);
-            structValue->refType = { new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()), structValue->encoded_location()};
+            structValue->setType(new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
             return;
         }
-        structValue->refType = {exp_type, structValue->refType.getLocation()};
+        structValue->setType(exp_type);
     }
     if(!structValue->resolve_container(linker.genericInstantiator)) {
         return;
@@ -2295,7 +2296,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     if(!structValue->allows_direct_init()) {
         linker.error(structValue) << "struct value with a constructor cannot be initialized, name '" << structValue->linked_extendable()->name_view() << "' has a constructor";
     }
-    auto refTypeKind = structValue->refType->kind();
+    auto refTypeKind = structValue->getRefType()->kind();
     if(refTypeKind == BaseTypeKind::Generic) {
         for (auto& arg: structValue->generic_list()) {
             visit(arg);

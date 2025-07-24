@@ -176,7 +176,6 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi);
-        val->setType(val->refType);
     }
 }
 

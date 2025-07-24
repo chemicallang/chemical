@@ -60,21 +60,6 @@ void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     linker.VisitScope(scope);
 }
 
-void sym_res_link_node_deprecated(SymbolResolver& resolver, ASTNode* node) {
-    SymResLinkBody linker(resolver);
-    linker.visit(node);
-}
-
-void sym_res_link_value_deprecated(SymbolResolver& resolver, Value* value, BaseType* expected_type) {
-    SymResLinkBody linker(resolver);
-    linker.visit(value, expected_type);
-}
-
-void sym_res_link_type_deprecated(SymbolResolver& resolver, BaseType* type, SourceLocation loc) {
-    SymResLinkBody linker(resolver);
-    linker.visit(type, loc);
-}
-
 /**
  * when nodes are to be declared and used sequentially, so node can be referenced
  * after it is declared, this method should be called
@@ -1436,7 +1421,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
                 auto& value = *value_ptr;
                 const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
                 const auto expected_type = param ? param->type : nullptr;
-                sym_res_link_value_deprecated(linker, &value, expected_type);
+                visitor.visit(&value, expected_type);
                 current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
                 i++;
             }
@@ -1472,7 +1457,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
         auto& value = *value_ptr;
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
-        sym_res_link_value_deprecated(linker, &value, expected_type);
+        visitor.visit(&value, expected_type);
         current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         i++;
     }
@@ -1520,7 +1505,7 @@ void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* 
 bool link_call_gen_args(SymResLinkBody& visitor, FunctionCall* call) {
     auto& linker = visitor.linker;
     for(auto& type : call->generic_list) {
-        sym_res_link_type_deprecated(linker, const_cast<BaseType*>(type.getType()), type.getLocation());
+        visitor.visit(const_cast<BaseType*>(type.getType()), type.getLocation());
     }
     return true;
 }

@@ -15,8 +15,6 @@ extern "C" {
 
     int ValuegetKind(Value* value);
 
-    bool Valuelink(Value* value, Value** ptr_ref, BaseType* expected_type, SymbolResolver* resolver);
-
     ASTNode* ValuegetLinkedNode(Value* value);
 
     uint64_t ASTNodegetEncodedLocation(ASTNode* node);
@@ -25,11 +23,7 @@ extern "C" {
 
     ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name);
 
-    void ASTNodedeclare_and_link(ASTNode* node, ASTNode** ptr_ref, SymbolResolver* resolver);
-
     int BaseTypegetKind(BaseType* type);
-
-    bool BaseTypelink(BaseType* value, BaseType** ptr_ref, SymbolResolver* resolver);
 
     ASTNode* BaseTypegetLinkedNode(BaseType* type);
 

@@ -2091,7 +2091,7 @@ void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, AST
 
 void CDestructionVisitor::queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->getType();
-    const auto linked = return_type->get_direct_linked_node();
+    const auto linked = return_type->get_direct_linked_canonical_node();
     if(linked) {
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::VariantMember) {

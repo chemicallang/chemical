@@ -4391,7 +4391,7 @@ void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
     if(!value->post) {
         write(value->increment ? "++" : "--");
     }
-    const auto type = value->getValue()->create_type(allocator);
+    const auto type = value->getValue()->getType();
     if(type && type->pure_type(allocator)->getLoadableReferredType() != nullptr) {
         if(value->post) {
             write('(');

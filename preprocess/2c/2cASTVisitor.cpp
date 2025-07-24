@@ -5046,7 +5046,7 @@ void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
 void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
     write("switch(");
     VariantDefinition* variant = nullptr;
-    const auto known_t = statement->expression->create_type(allocator);
+    const auto known_t = statement->expression->getType();
     if(known_t) {
         const auto linked = known_t->linked_node();
         if(linked) {
@@ -5448,7 +5448,7 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     nested_value = true;
 
     // automatic dereferencing the first value
-    const auto first_type = expr->firstValue->create_type(allocator);
+    const auto first_type = expr->firstValue->getType();
     const auto first_pure = first_type->pure_type(allocator);
     if(first_pure->getLoadableReferredType() != nullptr) {
         write('*');
@@ -5461,7 +5461,7 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     space();
 
     // automatic dereferencing the second value
-    const auto second_type = expr->secondValue->create_type(allocator);
+    const auto second_type = expr->secondValue->getType();
     const auto second_pure = second_type->pure_type(allocator);
     if(second_pure->getLoadableReferredType() != nullptr) {
         write('*');

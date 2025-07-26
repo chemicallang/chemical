@@ -203,6 +203,7 @@ llvm::Type *StructValue::llvm_type(Codegen &gen) {
     if(definition) {
         return definition->llvm_type(gen);
     } else {
+        const auto refType = getRefType();
         switch(refType->kind()) {
             case BaseTypeKind::Struct:
                 return refType->as_struct_type_unsafe()->llvm_type(gen);
@@ -218,6 +219,7 @@ bool StructValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& inde
     if(definition) {
         return definition->add_child_index(gen, indexes, name);
     } else {
+        const auto refType = getRefType();
         switch(refType->kind()) {
             case BaseTypeKind::Union:
                 return refType->as_union_type_unsafe()->add_child_index(gen, indexes, name);

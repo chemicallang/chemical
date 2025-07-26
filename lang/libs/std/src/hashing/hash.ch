@@ -31,8 +31,7 @@ public interface Eq {
 
 @comptime
 func <T> compare(value : T, value2 : T) : bool {
-    type ptr_any = *any
-    if(T is char || T is uchar || is_type_number<T>() || intrinsics::satisfies(ptr_any, T)) {
+    if(T is char || T is uchar || is_type_number<T>() || intrinsics::satisfies<*any, T>()) {
         return intrinsics::wrap(value == value2) as bool
     } else if(T is Eq) {
        const comp = value as Eq
@@ -50,12 +49,11 @@ public interface Hashable {
 
 @comptime
 func <T> hash(value : T) : uint {
-    type ptr_any = *any
     if(T is char || T is uchar || T is &char || T is &uchar) {
         return intrinsics::wrap(value as uint) as uint
     } else if(T is short || T is ushort) {
         return intrinsics::wrap(value * KnuthsMultiplicativeConstant) as uint
-    } else if(intrinsics::satisfies(ptr_any, T)) {
+    } else if(intrinsics::satisfies<*any, T>()) {
         return intrinsics::wrap(murmurhash(value as *char, sizeof(T), 0)) as uint
     } else if(is_type_number<T>()) {
         return intrinsics::wrap(__wrap_murmur_hash<T>(value)) as uint

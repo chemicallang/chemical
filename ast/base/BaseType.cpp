@@ -437,8 +437,8 @@ BaseType* BaseType::removeReferenceFromType() {
 }
 
 bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
-    const auto val_type = value->create_type(allocator);
-    return val_type != nullptr && satisfies(val_type->canonical());
+    const auto val_type = value->getType();
+    return satisfies(val_type->canonical());
 }
 
 unsigned BaseType::type_alignment(bool is64Bit) {

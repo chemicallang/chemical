@@ -650,7 +650,7 @@ void RepresentationVisitor::VisitArrayValue(ArrayValue *arr) {
 }
 
 void RepresentationVisitor::VisitStructValue(StructValue *val) {
-    visit(val->refType);
+    visit(val->getRefType());
     write(" {");
     indentation_level += 1;
     unsigned i = 0;

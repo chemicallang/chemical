@@ -971,6 +971,46 @@ public:
     }
 };
 
+class InterpretValueSatisfies : public FunctionDeclaration {
+public:
+
+    FunctionParam valueParam;
+    FunctionParam valueParam2;
+
+    explicit InterpretValueSatisfies(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("value_satisfies"),
+            {cache.getBoolType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ),  valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+        valueParam2("value2", { cache.getAnyType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
+    {
+        set_compiler_decl(true);
+        params.emplace_back(&valueParam);
+        params.emplace_back(&valueParam2);
+    }
+    inline Value* get_bool(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool value) {
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.size() != 2) {
+            call_scope->error("intrinsics::value_satisfies requires 2 arguments", call);
+            return nullptr;
+        }
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        const auto val_one = call->values[0];
+        const auto val_two = call->values[1];
+        const auto first_type = val_one->known_type();
+        if(first_type) {
+            return get_bool(allocator, typeBuilder, first_type->satisfies(call_scope->allocator, val_two, false));
+        } else {
+            return get_bool(allocator, typeBuilder, false);
+        }
+    }
+};
 
 class InterpretIsPtrNull : public FunctionDeclaration {
 public:
@@ -1583,6 +1623,7 @@ public:
     InterpretSize sizeFn;
     InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
+    InterpretValueSatisfies satisfiesValueFn;
 
     InterpretGetRawLocation get_raw_location;
     InterpretGetRawLocOf get_raw_loc_of;
@@ -1617,11 +1658,11 @@ public:
         memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
-        sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), get_target_fn(cache, this), get_build_dir(cache, this),
-        get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this), get_call_loc(cache, this), get_char_no(cache, this),
-        get_caller_line_no(cache, this), get_caller_char_no(cache, this), get_loc_file_path(cache, this),
-        get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this), get_child_fn(cache, this),
-        forget_fn(cache, this), error_fn(cache, this),
+        sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), satisfiesValueFn(cache, this), get_target_fn(cache, this),
+        get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
+        get_call_loc(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
+        get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
+        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this)
     {
@@ -1629,7 +1670,7 @@ public:
         nodes = {
             &memNamespace, &ptrNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
-            &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &get_raw_location,
+            &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &satisfiesValueFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,

@@ -72,7 +72,7 @@ bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignmen
             const auto typeSatisfies = type->satisfies(given);
             return is_mutable ? typeSatisfies && value->is_ref_l_value() : typeSatisfies;
         } else {
-            return false;
+            return is_mutable ? false : type->satisfies(given);
         }
     }
     if(!assignment && is_mutable && !given->is_mutable()) {

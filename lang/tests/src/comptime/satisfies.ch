@@ -381,29 +381,34 @@ func test_satisfies() {
         return intrinsics::satisfies<T, U>()
     })
     test("direct bool type satisfy mutable reference bool type with backing storage", () => {
-        type T = &mut bool
+        var x = false
+        var T : &mut bool = x
         var U : bool = false
-        return intrinsics::satisfies<T, U>()
+        return intrinsics::value_satisfies(T, U)
     })
     test("direct int n types satisfy mutable reference int n types with backing storage - 1", () => {
-        type T = &mut int
+        var x = 0
+        var T : &mut int = x
         var U : int = 0
-        return intrinsics::satisfies<T, U>()
+        return intrinsics::value_satisfies(T, U)
     })
     test("direct int n types satisfy mutable reference int n types with backing storage - 2", () => {
-        type T = &mut int
+        var x = 0
+        var T : &mut int = x
         var U : long = 0
-        return intrinsics::satisfies<T, U>()
+        return intrinsics::value_satisfies(T, U)
     })
     test("direct int n types satisfy mutable reference int n types with backing storage - 3", () => {
-        type T = &mut uint
+        var x : uint = 0
+        var T : &mut uint = x
         var U : uint = 0
-        return intrinsics::satisfies<T, U>()
+        return intrinsics::value_satisfies(T, U)
     })
     test("direct int n types satisfy mutable reference int n types with backing storage - 4", () => {
-        type T = &mut uint
+        var x : uint = 0
+        var T : &mut uint = x
         var U : ulong = 0
-        return intrinsics::satisfies<T, U>()
+        return intrinsics::value_satisfies(T, U)
     })
     test("constant bool declaration does not qualify as backing storage for mutable reference types", () => {
         type T = &mut bool
@@ -463,32 +468,52 @@ func test_satisfies() {
         return intrinsics::satisfies<T, U>() && intrinsics::satisfies<V, X>()
     })
     test("reference int n types satisfies int n types for auto dereference - 1", () => {
-        type T = int
-        type U = &int
-        type V = int
-        type X = &mut int
-        return intrinsics::satisfies<T, U>() && intrinsics::satisfies<V, X>()
+        var x = 0
+        var T : int = 0
+        var U : &int = x
+        return intrinsics::value_satisfies(T, U)
     })
     test("reference int n types satisfies int n types for auto dereference - 2", () => {
-        type T = int
-        type U = &long
-        type V = int
-        type X = &mut long
-        return intrinsics::satisfies<T, U>() && intrinsics::satisfies<V, X>()
+        var x = 0
+        var T : int = 0
+        var U : &long = x
+        return intrinsics::value_satisfies(T, U)
     })
     test("reference int n types satisfies int n types for auto dereference - 3", () => {
-        type T = uint
-        type U = &uint
-        type V = uint
-        type X = &mut uint
-        return intrinsics::satisfies<T, U>() && intrinsics::satisfies<V, X>()
+        var x : uint = 0
+        var T : uint = 0
+        var U : &uint = x
+        return intrinsics::value_satisfies(T, U)
     })
     test("reference int n types satisfies int n types for auto dereference - 4", () => {
-        type T = uint
-        type U = &ulong
-        type V = uint
-        type X = &mut ulong
-        return intrinsics::satisfies<T, U>() && intrinsics::satisfies<V, X>()
+        var x : ulong = 0
+        var T : uint = 0
+        var U : &ulong = x
+        return intrinsics::value_satisfies(T, U)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 5", () => {
+        var x = 0
+        var V : int = 0
+        var X : &mut int = x
+        return intrinsics::value_satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 6", () => {
+        var x = 0
+        var V : int = 0
+        var X : &mut long = x
+        return intrinsics::value_satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 7", () => {
+        var x : uint = 0
+        var V : uint = 0
+        var X : &mut uint = x
+        return intrinsics::value_satisfies(V, X)
+    })
+    test("reference int n types satisfies int n types for auto dereference - 8", () => {
+        var x : ulong = 0
+        var V : uint = 0
+        var X : &mut ulong = x
+        return intrinsics::value_satisfies(V, X)
     })
     test("function type satisfies *void type", () => {
         type T = *void

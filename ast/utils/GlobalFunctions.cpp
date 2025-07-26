@@ -945,10 +945,6 @@ public:
 
 class InterpretSatisfies : public FunctionDeclaration {
 public:
-
-    FunctionParam valueParam;
-    FunctionParam valueParam2;
-
     explicit InterpretSatisfies(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("satisfies"),
             {cache.getBoolType(), ZERO_LOC},
@@ -957,30 +953,21 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ),
-        valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
-        valueParam2("value2", { cache.getAnyType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
-    {
+    ) {
         set_compiler_decl(true);
-        params.emplace_back(&valueParam);
-        params.emplace_back(&valueParam2);
     }
     inline Value* get_bool(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool value) {
         return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.size() != 2) {
-            call_scope->error("wrong arguments size given to intrinsics::satisfies function", call);
-            return nullptr;
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->generic_list.size() != 2) {
+            call_scope->error("intrinsics::satisfies requires 2 generic arguments", call);
+            return get_bool(allocator, typeBuilder, false);
         }
-        const auto val_one = call->values[0];
-        const auto val_two = call->values[1];
-        const auto first_type = val_one->known_type();
-        if(first_type) {
-            return get_bool(allocator, call_scope->global->typeBuilder, first_type->satisfies(call_scope->allocator, val_two, false));
-        } else {
-            return get_bool(allocator, call_scope->global->typeBuilder, false);
-        }
+        const auto type1 = call->generic_list[0];
+        const auto type2 = call->generic_list[1];
+        return get_bool(allocator, typeBuilder, type1->satisfies(type2));
     }
 };
 

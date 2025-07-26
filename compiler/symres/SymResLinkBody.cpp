@@ -1629,11 +1629,14 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     const auto curr_func = func_type->as_function();
     // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
     // we also don't want to instantiate this call, if the generic list is not completely specialized
+    // TODO: two checks for specialization of parameters are running, one inside the instantiate_call
+    // makeup mind about which one to keep
     if ((curr_func && curr_func->generic_parent != nullptr) || !are_all_specialized(call->generic_list)) {
         // since current function has a generic parent (it is generic), we do not want to instantiate this call here
         // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
         // changing back to generic decl, since instantiator needs access to it
         parent_id->linked = gen_decl;
+        call->setType(curr_func->returnType);
         return true;
     }
     if(gen_decl) {
@@ -1641,6 +1644,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         // instantiate call can return null, when the inferred types aren found to be not specialized
         if (!new_link) {
             parent_id->linked = gen_decl;
+            call->setType(gen_decl->master_impl->returnType);
             return true;
         }
 

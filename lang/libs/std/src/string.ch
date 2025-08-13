@@ -1,7 +1,6 @@
 public namespace std {
 
-@comptime
-public const STR_BUFF_SIZE = 16;
+public comptime const STR_BUFF_SIZE = 16;
 
 public struct string : Hashable, Eq {
 
@@ -22,9 +21,8 @@ public struct string : Hashable, Eq {
     } storage;
     var state : char
 
-    @comptime
     @constructor
-    func make(value : literal<string>) {
+    comptime func make(value : literal<string>) {
         return intrinsics::wrap(constructor(value, intrinsics::size(value)))
     }
 

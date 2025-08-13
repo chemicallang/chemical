@@ -6,9 +6,8 @@ public namespace std {
         var _size : size_t
 
         @implicit
-        @comptime
         @constructor
-        func make(value : literal<string>) {
+        comptime func make(value : literal<string>) {
             return intrinsics::wrap(constructor(value, intrinsics::size(value)))
         }
 

@@ -2293,8 +2293,7 @@ public type double_t = double
  * @see https://en.cppreference.com/w/c/types/limits/FLT_EVAL_METHOD
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-@comptime
-public const FLT_EVAL_METHOD = 0
+public comptime const FLT_EVAL_METHOD = 0
 
 /**
  * TODO these macros

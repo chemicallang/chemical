@@ -6,16 +6,14 @@ public struct span<T> {
     var _size : size_t
 
     @implicit
-    @comptime
     @constructor
-    func make2(array : T[]) {
+    comptime func make2(array : T[]) {
         return intrinsics::wrap(constructor<T>(array, intrinsics::size(array)))
     }
 
     @implicit
-    @comptime
     @constructor
-    func make2(vec : &vector<T>) {
+    comptime func make2(vec : &vector<T>) {
         return intrinsics::wrap(constructor<T>(vec.data(), vec.size()))
     }
 

@@ -33,9 +33,8 @@ The expressions are suitable for use as initializers for objects with static or 
  * @return A complex number composed of real and imag as the real and imaginary parts.
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
-@comptime
 @extern
-public func CMPLXF(real : float, imag : float) : float_complex {
+public comptime func CMPLXF(real : float, imag : float) : float_complex {
     // TODO this
     return 0;
 }
@@ -46,9 +45,8 @@ public func CMPLXF(real : float, imag : float) : float_complex {
  * @return A complex number composed of real and imag as the real and imaginary parts.
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
-@comptime
 @extern
-public func CMPLX(real : double, imag : double) : double_complex {
+public comptime func CMPLX(real : double, imag : double) : double_complex {
     return double_complex { real : real, imag : imag }
 }
 
@@ -58,9 +56,8 @@ public func CMPLX(real : double, imag : double) : double_complex {
  * @return A complex number composed of real and imag as the real and imaginary parts.
  * @see https://en.cppreference.com/w/c/numeric/complex/CMPLX
  */
-@comptime
 @extern
-public func CMPLXL(real : longdouble, imag : longdouble) : longdouble_complex {
+public comptime func CMPLXL(real : longdouble, imag : longdouble) : longdouble_complex {
     return longdouble_complex { real : real, imag : imag }
 }
 

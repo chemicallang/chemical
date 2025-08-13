@@ -1,8 +1,7 @@
 
 using namespace std;
 
-@comptime
-const BufferCapacity = 1024
+comptime const BufferCapacity = 1024
 
 /**
  * provides access to the source code provided by the user

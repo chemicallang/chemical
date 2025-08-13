@@ -59,4 +59,4 @@ public type errno_t = int;
 /**
  * @def NULL Pointer to nothing.
  */
-@comptime public const NULL = null
+comptime public const NULL = null

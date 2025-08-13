@@ -119,7 +119,8 @@ ASTNode* Parser::parseVarInitializationTokens(
         AccessSpecifier specifier,
         bool matchExpr,
         bool allowDeclarations,
-        bool requiredType
+        bool requiredType,
+        bool comptime
 ) {
 
     auto& start_tok = *token;
@@ -163,6 +164,10 @@ ASTNode* Parser::parseVarInitializationTokens(
     }
 
     auto stmt = new (allocator.allocate<VarInitStatement>()) VarInitStatement(is_const, is_ref, loc_id(allocator, id), nullptr, nullptr, parent_node, loc_single(start_tok), specifier);
+
+    if(comptime) {
+        stmt->set_comptime(true);
+    }
 
 #ifdef LSP_BUILD
     id->linked = stmt;

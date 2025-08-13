@@ -73,10 +73,10 @@ public namespace fs {
         SkipExisting = 1 << 2
     };
 
-    @comptime public const COPY_NONE = CopyOptions.None;
-    @comptime public const COPY_RECURSIVE = CopyOptions.Recursive;
-    @comptime public const COPY_OVERWRITE = CopyOptions.Overwrite;
-    @comptime public const COPY_SKIP_EXISTING = CopyOptions.SkipExisting;
+    public comptime const COPY_NONE = CopyOptions.None;
+    public comptime const COPY_RECURSIVE = CopyOptions.Recursive;
+    public comptime const COPY_OVERWRITE = CopyOptions.Overwrite;
+    public comptime const COPY_SKIP_EXISTING = CopyOptions.SkipExisting;
 
     public func path_exists(path : *char) : bool {
         if(def.windows) {

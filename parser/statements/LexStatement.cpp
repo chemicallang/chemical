@@ -50,7 +50,7 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
             return (ASTNode*) parseVariantStructureTokens(allocator, spec);
         case TokenType::VarKw:
         case TokenType::ConstKw:
-            return parseVarInitializationTokens(allocator, spec, false, true, false);
+            return parseVarInitializationTokens(allocator, spec, false, true, false, comptime);
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, spec);
         case TokenType::TypeKw:
@@ -91,7 +91,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
             }
         case TokenType::ConstKw:
         case TokenType::VarKw:
-            return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, false);
+            return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, false, comptime);
         case TokenType::UsingKw:
             return (ASTNode*) parseUsingStatement(allocator);
         case TokenType::HashMacro:
@@ -141,7 +141,7 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
     switch(token->type) {
         case TokenType::VarKw:
         case TokenType::ConstKw:
-            return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true, true, false);
+            return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true, true, false, false);
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::InitKw:

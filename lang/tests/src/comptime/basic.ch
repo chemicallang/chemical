@@ -5,9 +5,8 @@ struct Pair66 {
     var b : int
 
     @implicit
-    @comptime
     @constructor
-    func check(value : bool) {
+    comptime func check(value : bool) {
         if(value){
             return intrinsics::wrap(first())
         } else {
@@ -15,18 +14,16 @@ struct Pair66 {
         }
     }
 
-    @comptime
     @constructor
-    func pair2() {
+    comptime func pair2() {
         return Pair66 {
             a : 10,
             b : 10
         }
     }
 
-    @comptime
     @constructor
-    func pair1(d : literal<int>) {
+    comptime func pair1(d : literal<int>) {
         return Pair66 {
             a : d / 2
             b : d / 2
@@ -63,43 +60,36 @@ struct CTStructGetChild {
 
 }
 
-@comptime
-func give_me_some_sum() : (a : int, b : int) => int {
+comptime func give_me_some_sum() : (a : int, b : int) => int {
     return intrinsics::get_child_fn(CTStructGetChild, "fake_sum") as (a : int, b : int) => int;
 }
 
-@comptime
-func comptime_primitive() : int {
+comptime func comptime_primitive() : int {
     return 10;
 }
 
-@comptime
-func comptime_sum(a : int, b : int) : int {
+comptime func comptime_sum(a : int, b : int) : int {
     return a + b;
 }
 
-@comptime
-func pair_66() : Pair66 {
+comptime func pair_66() : Pair66 {
     return Pair66 {
         a : 33,
         b : 11
     }
 }
 
-@comptime
-func pair_66_ref() : Pair66 {
+comptime func pair_66_ref() : Pair66 {
     var x = pair_66();
     return x;
 }
 
-@comptime
-func call_struct_func() : int {
+comptime func call_struct_func() : int {
     var x = pair_66();
     return x.sum();
 }
 
-@comptime
-func determine_str_len(str : literal<string>) : ubigint {
+comptime func determine_str_len(str : literal<string>) : ubigint {
     return intrinsics::size(str);
 }
 
@@ -107,13 +97,11 @@ func runtime_sum(a : int, b : int) : int {
     return a + b;
 }
 
-@comptime
-func return_runtime_sum() : (a : int, b : int) => int {
+comptime func return_runtime_sum() : (a : int, b : int) => int {
     return runtime_sum;
 }
 
-@comptime
-func sum_multiple(x : int) : int {
+comptime func sum_multiple(x : int) : int {
     return intrinsics::wrap(runtime_sum(x * 2, x * 2)) as int;
 }
 
@@ -142,9 +130,8 @@ func ret_struct_implicit_b() : Pair66 {
 }
 
 struct CompTimeCounter {
-    @comptime
     @constructor
-    func constructor(thing : *mut int) {
+    comptime func constructor(thing : *mut int) {
         return intrinsics::wrap(actual(thing, 1));
     }
     @constructor
@@ -153,13 +140,11 @@ struct CompTimeCounter {
     }
 }
 
-@comptime
-func get_line_no() : ubigint {
+comptime func get_line_no() : ubigint {
 
 }
 
-@comptime
-func give_caller_line_no() : ubigint {
+comptime func give_caller_line_no() : ubigint {
     return intrinsics::get_caller_line_no();
 }
 

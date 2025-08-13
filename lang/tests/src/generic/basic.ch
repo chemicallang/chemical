@@ -178,8 +178,7 @@ struct gen_struct_calls_gen<T> {
     }
 }
 
-@comptime
-func <T> comptime_func_call_gen1() : int {
+comptime func <T> comptime_func_call_gen1() : int {
     if(T is short) {
         return 2
     } else if(T is int) {

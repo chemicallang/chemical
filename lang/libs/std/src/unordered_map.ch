@@ -6,8 +6,7 @@ public struct unordered_map_node<Key, Value> {
     var next : *mut unordered_map_node<Key, Value>; // Pointer to next node in the chain
 };
 
-@comptime
-public const LOAD_FACTOR_THRESHOLD : float = 0.75f
+public comptime const LOAD_FACTOR_THRESHOLD : float = 0.75f
 
 public struct unordered_map<Key, Value> {
 

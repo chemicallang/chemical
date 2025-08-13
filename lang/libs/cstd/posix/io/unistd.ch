@@ -1,17 +1,17 @@
 /** @def O_RDONLY Open for reading only. */
-@comptime public const O_RDONLY = 0b00000000
+public comptime const O_RDONLY = 0b00000000
 
 /** @def O_WRONLY Open for writing only. */
-@comptime public const O_WRONLY = 0b00000001
+public comptime const O_WRONLY = 0b00000001
 
 /** @def O_RDWR   Open for reading and writing. */
-@comptime public const O_RDWR = 0b00000010
+public comptime const O_RDWR = 0b00000010
 
 /** @def O_CREAT  Create file if it does not exist. */
-@comptime public const O_CREAT = 0b01000000
+public comptime const O_CREAT = 0b01000000
 
 /** @def O_TRUNC  Truncate file to zero length. */
-@comptime public const O_TRUNC = 0b1000000000
+public comptime const O_TRUNC = 0b1000000000
 
 public enum OpenFlags : int {
 

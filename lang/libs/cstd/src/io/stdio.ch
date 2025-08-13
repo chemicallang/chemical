@@ -1062,29 +1062,25 @@ public func fseek(stream : *mut FILE, offset : long, origin : int) : int
  * argument to fseek indicating seeking from beginning of the file
  * @see https://en.cppreference.com/w/c/io
  */
-@comptime
-public const SEEK_SET = 0
+public comptime const SEEK_SET = 0
 
 /**
  * argument to fseek indicating seeking from the current file position
  * @see https://en.cppreference.com/w/c/io
  */
-@comptime
-public const SEEK_CUR = 1
+public comptime const SEEK_CUR = 1
 
 /**
  * argument to fseek indicating seeking from end of the file
  * @see https://en.cppreference.com/w/c/io
  */
-@comptime
-public const SEEK_END = 2
+public comptime const SEEK_END = 2
 
 /**
  * integer constant expression of type int and negative value
  * @see https://en.cppreference.com/w/c/io
  */
-@comptime
-public const EOF : int = -1;
+public comptime const EOF : int = -1;
 
 /**
  * Sets the file position indicator and the multibyte parsing state (if any) for the file stream stream according to the value pointed to by pos.

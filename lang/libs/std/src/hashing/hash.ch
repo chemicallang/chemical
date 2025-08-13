@@ -1,5 +1,4 @@
-@comptime
-const KnuthsMultiplicativeConstant = 2654435769ui32
+comptime const KnuthsMultiplicativeConstant = 2654435769ui32
 
 func hash_short(key : short) : uint {
     return (key * KnuthsMultiplicativeConstant)
@@ -13,13 +12,11 @@ public func <T> __wrap_murmur_hash(value : &T) : uint {
     return murmurhash(&value as *char, sizeof(T), 0u)
 }
 
-@comptime
-func <T> is_type_number() : bool {
+comptime func <T> is_type_number() : bool {
     return T is int || T is uint || T is short || T is ushort || T is long || T is ulong || T is bigint || T is ubigint || T is float || T is double;
 }
 
-@comptime
-func <T> is_type_ref_number() : bool {
+comptime func <T> is_type_ref_number() : bool {
     return T is &int || T is &uint || T is &short || T is &ushort || T is &long || T is &ulong || T is &bigint || T is &ubigint || T is &float || T is &double;
 }
 
@@ -29,8 +26,7 @@ public interface Eq {
 
 }
 
-@comptime
-func <T> compare(value : T, value2 : T) : bool {
+comptime func <T> compare(value : T, value2 : T) : bool {
     if(T is char || T is uchar || is_type_number<T>() || intrinsics::satisfies<*any, T>()) {
         return intrinsics::wrap(value == value2) as bool
     } else if(T is Eq) {
@@ -47,8 +43,7 @@ public interface Hashable {
 
 }
 
-@comptime
-func <T> hash(value : T) : uint {
+comptime func <T> hash(value : T) : uint {
     if(T is char || T is uchar || T is &char || T is &uchar) {
         return intrinsics::wrap(value as uint) as uint
     } else if(T is short || T is ushort) {

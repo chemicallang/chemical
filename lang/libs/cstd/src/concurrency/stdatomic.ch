@@ -415,9 +415,8 @@ public func <A, C> atomic_init(obj : *atomic<A>, desired : atomic<C>);
  * @return Returns y, no longer a part of a dependency tree.
  * @see https://en.cppreference.com/w/c/atomic/kill_dependency
  */
-@comptime
 @extern
-public func <A> kill_dependency(y : atomic<A>) : atomic<A> {
+public comptime func <A> kill_dependency(y : atomic<A>) : atomic<A> {
     // TODO do something
     return y;
 }

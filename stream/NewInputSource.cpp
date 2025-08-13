@@ -4,10 +4,10 @@
 
 #include "NewFileInputSource.h"
 
-#include <cstddef>
 #include <system_error>
 #include <stdexcept>
 #include <memory>
+#include <sstream>
 
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -100,7 +100,23 @@ void MemoryMappedFile::close() noexcept {
     }
 }
 
-FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
+#if defined(_WIN32)
+inline std::string utf16_to_utf8(const std::wstring& wstr) {
+    if (wstr.empty()) return {};
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0,
+                                          wstr.data(), (int)wstr.size(),
+                                          nullptr, 0,
+                                          nullptr, nullptr);
+    std::string result(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0,
+                        wstr.data(), (int)wstr.size(),
+                        result.data(), size_needed,
+                        nullptr, nullptr);
+    return result;
+}
+#endif
+
+FileErrHeapPtr MemoryMappedFile::map_or_fallback(PATH_STR path) {
     // clear previous state if any
     close();
 
@@ -113,19 +129,30 @@ FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
                               FILE_ATTRIBUTE_NORMAL,
                               nullptr);
     if (fileHandle_ == INVALID_HANDLE_VALUE) {
-        throw std::system_error(GetLastError(), std::system_category(),
-                                "CreateFileW failed");
+        return new FileErr{
+                static_cast<int>(GetLastError()),
+                "system",
+                std::system_category().message(GetLastError()),
+                "CreateFileW",
+                utf16_to_utf8(path)
+        };
     }
 
     LARGE_INTEGER size_li;
     if (!GetFileSizeEx(fileHandle_, &size_li)) {
+        auto err = static_cast<int>(GetLastError());
         CloseHandle(fileHandle_);
         fileHandle_ = INVALID_HANDLE_VALUE;
-        throw std::system_error(GetLastError(), std::system_category(),
-                                "GetFileSizeEx failed");
+        return new FileErr{
+                err,
+                "system",
+                std::system_category().message(err),
+                "GetFileSizeEx",
+                utf16_to_utf8(path)
+        };
     }
 
-    uint64_t fileSize = static_cast<uint64_t>(size_li.QuadPart);
+    auto fileSize = static_cast<uint64_t>(size_li.QuadPart);
     if (fileSize == 0) {
         // empty file: nothing to map; close file handle
         CloseHandle(fileHandle_);
@@ -135,13 +162,7 @@ FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
         return nullptr;
     }
 
-    // Create file mapping
-    mappingHandle_ = CreateFileMappingW(fileHandle_,
-                                        nullptr,
-                                        PAGE_READONLY,
-                                        0,
-                                        0,
-                                        nullptr);
+    mappingHandle_ = CreateFileMappingW(fileHandle_, nullptr, PAGE_READONLY, 0, 0, nullptr);
     if (!mappingHandle_) {
         // fallback to read
         fallback_read(path, fileSize);
@@ -167,19 +188,31 @@ FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
 
     data_ = static_cast<const char*>(view);
     size_ = static_cast<size_t>(fileSize);
-    // success
+
 #else
     // POSIX path
     int fd = ::open(path, O_RDONLY);
     if (fd < 0) {
-        throw std::system_error(errno, std::generic_category(), "open failed");
+        return new FileErr{
+            errno,
+            "generic",
+            std::generic_category().message(errno),
+            "open",
+            path
+        };
     }
 
     struct stat st;
     if (fstat(fd, &st) != 0) {
         int e = errno;
         ::close(fd);
-        throw std::system_error(e, std::generic_category(), "fstat failed");
+        return new FileErr{
+            e,
+            "generic",
+            std::generic_category().message(e),
+            "fstat",
+            path
+        };
     }
 
     uint64_t fileSize = static_cast<uint64_t>(st.st_size);
@@ -187,12 +220,18 @@ FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
         ::close(fd);
         size_ = 0;
         data_ = nullptr;
-        return;
+        return nullptr;
     }
 
     if (fileSize > static_cast<uint64_t>(SIZE_MAX)) {
         ::close(fd);
-        throw std::system_error(EOVERFLOW, std::generic_category(), "file too large for process address space");
+        return new FileErr{
+            EOVERFLOW,
+            "generic",
+            std::generic_category().message(EOVERFLOW),
+            "file size check",
+            path
+        };
     }
 
     void* mapped = mmap(nullptr, static_cast<size_t>(fileSize), PROT_READ, MAP_PRIVATE, fd, 0);
@@ -200,7 +239,7 @@ FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
         // fallback: read into heap buffer
         fallback_read(path, fileSize);
         ::close(fd);
-        return;
+        return nullptr;
     }
 
     // mmap succeeded: can close fd
@@ -208,6 +247,8 @@ FileErr* MemoryMappedFile::map_or_fallback(PATH_STR path) {
     data_ = static_cast<const char*>(mapped);
     size_ = static_cast<size_t>(fileSize);
 #endif
+
+    return nullptr; // success
 }
 
 #ifdef _WIN32

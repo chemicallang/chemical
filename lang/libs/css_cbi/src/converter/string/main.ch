@@ -43,8 +43,8 @@ func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Va
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
-    args.push(builder.make_number_value(len, location));
-    args.push(builder.make_number_value(hash, location))
+    args.push(builder.make_ubigint_value(len, location));
+    args.push(builder.make_ubigint_value(hash, location))
     const new_chain = builder.make_access_chain(std::span<*mut ChainValue>([ call ]), location)
     return new_chain;
 }
@@ -72,7 +72,7 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
     var args = call.get_args();
     args.push(value)
     if(len != 0) {
-        args.push(builder.make_number_value(len, location));
+        args.push(builder.make_ubigint_value(len, location));
     }
     const new_chain = builder.make_access_chain(std::span<*mut ChainValue>([ call ]), location)
     return new_chain;

@@ -21,20 +21,15 @@ func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut Access
     const builder = converter.builder
     const support = converter.support
     const location = intrinsics::get_raw_location();
-    const chain = builder.make_access_chain(false, location)
-    var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-    chain_values.push(base)
     var name : std::string_view = std::string_view("append_css_char")
     var id = builder.make_identifier(name, support.appendCssCharFn, false, location);
-    chain_values.push(id)
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     const char_val = builder.make_char_value(value, location);
     args.push(char_val)
-    const new_chain = builder.make_access_chain(true, location)
-    var new_chain_values = new_chain.get_values();
-    new_chain_values.push(call);
+    const new_chain = builder.make_access_chain(std::span<*mut ChainValue>([ call ]), location)
     return new_chain;
 }
 
@@ -42,20 +37,15 @@ func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Va
     const builder = converter.builder
     const support = converter.support
     const location = intrinsics::get_raw_location();
-    const chain = builder.make_access_chain(false, location)
-    var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-    chain_values.push(base)
     var id = builder.make_identifier(std::string_view("append_css"), support.appendCssFn, false, location);
-    chain_values.push(id)
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
     args.push(builder.make_number_value(len, location));
     args.push(builder.make_number_value(hash, location))
-    const new_chain = builder.make_access_chain(true, location)
-    var new_chain_values = new_chain.get_values();
-    new_chain_values.push(call);
+    const new_chain = builder.make_access_chain(std::span<*mut ChainValue>([ call ]), location)
     return new_chain;
 }
 
@@ -63,10 +53,7 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
     const builder = converter.builder
     const support = converter.support
     const location = intrinsics::get_raw_location();
-    const chain = builder.make_access_chain(false, location)
-    var chain_values = chain.get_values()
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-    chain_values.push(base)
     var name : std::string_view
     if(len == 0) {
         name = std::string_view("append_css_char_ptr")
@@ -80,16 +67,14 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
         node = support.appendCssFn
     }
     var id = builder.make_identifier(name, node, false, location);
-    chain_values.push(id)
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_value(chain, location)
     var args = call.get_args();
     args.push(value)
     if(len != 0) {
         args.push(builder.make_number_value(len, location));
     }
-    const new_chain = builder.make_access_chain(true, location)
-    var new_chain_values = new_chain.get_values();
-    new_chain_values.push(call);
+    const new_chain = builder.make_access_chain(std::span<*mut ChainValue>([ call ]), location)
     return new_chain;
 }
 

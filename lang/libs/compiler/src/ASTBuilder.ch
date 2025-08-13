@@ -101,13 +101,13 @@ public struct Expression : Value {}
 
 public struct FloatValue : Value {}
 
-public struct FunctionCall : Value {
+public struct FunctionCall : ChainValue {
 
     func get_args(&self) : *VecRef<Value>;
 
 }
 
-public struct IndexOperator : Value {
+public struct IndexOperator : ChainValue {
 
     func get_values(&self) : *VecRef<Value>;
 
@@ -173,7 +173,7 @@ public struct UShortValue : Value {}
 
 public struct ValueNode : ASTNode {}
 
-public struct VariableIdentifier : Value {}
+public struct VariableIdentifier : ChainValue {}
 
 public struct EmbeddedValue : Value {
 
@@ -438,7 +438,9 @@ public struct ASTBuilder {
 
     func make_void_type(&self, location : ubigint) : *mut VoidType
 
-    func make_access_chain(&self, is_node : bool, location : ubigint) : *mut AccessChain
+    func make_access_chain(&self, values : &std::span<*mut ChainValue>, location : ubigint) : *mut AccessChain
+
+    func make_access_chain_node(&self, values : &std::span<*mut ChainValue>, parent_node : *mut ASTNode, location : ubigint) : *mut ASTNode
 
     func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *mut ValueWrapperNode
 

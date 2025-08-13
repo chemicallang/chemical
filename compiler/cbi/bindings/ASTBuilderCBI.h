@@ -4,6 +4,7 @@
 
 #include "CBIUtils.h"
 #include "std/chem_string_view.h"
+#include "std/chem_span.h"
 #include "ast/utils/Operation.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/ast_fwd.h"
@@ -79,7 +80,9 @@ extern "C" {
 
     VoidType* ASTBuildermake_void_type(ASTBuilder* builder, uint64_t location);
 
-    AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, bool is_node, uint64_t location);
+    AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, chem::span<ChainValue*>* values, uint64_t location);
+
+    ASTNode* ASTBuildermake_access_chain_node(ASTBuilder* builder, chem::span<ChainValue*>* values, ASTNode* parent_node, uint64_t location);
 
     ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value, ASTNode* parent_node);
 

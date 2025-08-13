@@ -389,10 +389,10 @@ Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvi
     }
 }
 
-Token read_multi_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
+const char* read_multi_line_string(SourceProvider& provider) {
     while(true) {
-        auto current = provider.readCharacter();
-        switch(current) {
+        const auto data = provider.current_data();
+        switch(provider.readCharacter()) {
             case '"': {
                 // check the second "
                 const auto next = provider.peek();
@@ -403,33 +403,15 @@ Token read_multi_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvid
                     if (provider.peek() == '"') {
                         // consume the last "
                         provider.increment();
-                        return Token(TokenType::MultilineString, str.finalize_view(), pos);
-                    } else {
-                        str.append('"');
-                        str.append('"');
+                        return data;
                     }
-                } else {
-                    str.append('"');
                 }
                 break;
             }
             case '\0':
                 // no need to report an error if '\0', since next time unexpected token will be given
-                return Token(TokenType::MultilineString, str.finalize_view(), pos);
-            case '\n':
-                str.append('\n');
-                break;
-            case '\r':
-                if(provider.peek() == '\n') {
-                    // only append a \n for \r\n
-                    str.append(provider.readCharacter());
-                } else {
-                    // don't know what a single \r is doing here, outputting it as it is
-                    str.append('\r');
-                }
-                break;
+                return provider.current_data();
             default:
-                str.append(current);
                 break;
         }
     }
@@ -670,7 +652,9 @@ Token Lexer::getNextToken() {
                 if(provider.peek() == '"') {
                     provider.increment();
                     // here the multiline string begins
-                    return read_multi_line_string(*this, str, provider, pos);
+                    const auto start = provider.current_data();
+                    const auto end = read_multi_line_string(provider);
+                    return Token(TokenType::MultilineString, chem::string_view(start, end - start), pos);
                 } else {
                     // empty string
                     return Token(TokenType::String, view_str(EmptyCStr), pos);

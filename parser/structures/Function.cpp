@@ -282,16 +282,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
         return nullptr;
     }
 
-    // by default comptime functions are allocated using job allocator
-    // because they can be called indirectly in different modules
-    // so we retain them, throughout executable
-    // TODO: remove looking over annotations
-    for(auto& annot : annotations) {
-        if(annot.name == "comptime") {
-            is_comptime = true;
-        }
-    }
-
     // comptime functions must be allocated on global allocator
     // they can be called from external modules, without being public
     auto& body_allocator = is_comptime ? global_allocator : passed_allocator;

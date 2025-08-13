@@ -77,6 +77,13 @@ public:
     }
 
     /**
+     * this gives the current data pointer (read only)
+     */
+    const char* current_data() {
+        return data_;
+    }
+
+    /**
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
      */

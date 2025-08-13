@@ -3,13 +3,13 @@ public type off_t = long
 // TODO we're not sure about these three comptime constants
 
 // Socket.
-@comptime public const _S_IFSOCK = 0xC000
+public comptime const _S_IFSOCK = 0xC000
 
 // Symbolic link.
-@comptime public const _S_IFLNK = 0xA000
+public comptime const _S_IFLNK = 0xA000
 
 // Block device.
-@comptime public const _S_IFBLK = 0x6000
+public comptime const _S_IFBLK = 0x6000
 
 /**
  * @enum FileTypeBits

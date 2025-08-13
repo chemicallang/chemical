@@ -13,4 +13,4 @@
  *
  * There are no more files.
  */
-@comptime public const ERROR_NO_MORE_FILES = 18L
+public comptime const ERROR_NO_MORE_FILES = 18L

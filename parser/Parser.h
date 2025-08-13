@@ -533,7 +533,8 @@ public:
             AccessSpecifier specifier,
             bool matchExpr,
             bool allowDeclarations,
-            bool requiredType
+            bool requiredType,
+            bool comptime
     );
 
     /**

@@ -29,17 +29,17 @@ public func stat(pathname : *char, buf : *mut Stat) : int
 public func fstat(fd : int, buf : *mut Stat) : int
 
 // File type mask
-@comptime public const _S_IFMT = 0xF000
+public comptime const _S_IFMT = 0xF000
 // Directory
-@comptime public const _S_IFDIR = 0x4000
+public comptime const _S_IFDIR = 0x4000
 // Character special
-@comptime public const _S_IFCHR = 0x2000
+public comptime const _S_IFCHR = 0x2000
 // Pipe
-@comptime public const _S_IFIFO = 0x1000
+public comptime const _S_IFIFO = 0x1000
 // Regular
-@comptime public const _S_IFREG = 0x8000
+public comptime const _S_IFREG = 0x8000
 
-@comptime public const S_IFMT = _S_IFMT
-@comptime public const S_IFDIR = _S_IFDIR
-@comptime public const S_IFCHR = _S_IFCHR
-@comptime public const S_IFREG = _S_IFREG
+public comptime const S_IFMT = _S_IFMT
+public comptime const S_IFDIR = _S_IFDIR
+public comptime const S_IFCHR = _S_IFCHR
+public comptime const S_IFREG = _S_IFREG

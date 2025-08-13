@@ -1,11 +1,9 @@
 
-@comptime
-func <T> comptime_size_of() : ubigint {
+comptime func <T> comptime_size_of() : ubigint {
     return sizeof(T)
 }
 
-@comptime
-func <T> comptime_align_of() : ubigint {
+comptime func <T> comptime_align_of() : ubigint {
     return alignof(T)
 }
 

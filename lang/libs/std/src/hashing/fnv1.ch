@@ -30,12 +30,10 @@ public func fnv1_hash(s : *char) : size_t {
     return hash;
 }
 
-@comptime
-public func comptime_fnv1a_hash_32(s : *char) : uint {
+public comptime func comptime_fnv1a_hash_32(s : *char) : uint {
     return fnv1a_hash_32(s);
 }
 
-@comptime
-public func comptime_fnv1_hash(s : *char) : size_t {
+public comptime func comptime_fnv1_hash(s : *char) : size_t {
     return fnv1_hash(s)
 }

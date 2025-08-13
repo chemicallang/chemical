@@ -109,6 +109,7 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
             }
         } },
         { "comptime", [](Parser* parser, ASTNode* node) -> void {
+            parser->warning("comptime annotation is deprecated and will be removed");
             if(!node->set_comptime(true)) {
                 parser->error("couldn't make the declaration comptime");
             }

@@ -21,9 +21,8 @@ public struct default_function_instance {
     // is the captured struct allocated on heap
     var is_heap : bool
 
-    @comptime
     @make
-    func make(lambda : () => void) {
+    comptime func make(lambda : () => void) {
         const ptr = intrinsics::get_lambda_fn_ptr(lambda)
         const cap = intrinsics::get_lambda_cap_ptr(lambda)
         const destr = intrinsics::get_lambda_cap_destructor(lambda)

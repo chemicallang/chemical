@@ -600,8 +600,7 @@ public func (builder : &mut ASTBuilder) allocate_view(view : &std::string_view) 
     return builder.allocator.allocate_view(view);
 }
 
-@comptime
-public func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
+public comptime func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
     // TODO get destructor function
     var delete_fn = intrinsics::get_child_fn(T, "delete") as (obj : *void) => void;
     if(delete_fn != null) {

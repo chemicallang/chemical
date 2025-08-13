@@ -31,13 +31,36 @@ struct FileErr {
     std::string path;       // file path for context
 
     // Convert to human-readable string
+    [[nodiscard]]
     std::string format() const {
-        std::ostringstream oss;
-        oss << "Error during " << operation
-            << " on '" << path << "': "
-            << message << " (code " << code
-            << ", category: " << category << ")";
-        return oss.str();
+        std::string oss;
+        oss.append("Error during ");
+        oss.append(operation); oss.append(" on '");
+        oss.append(path); oss.append("': "); oss.append(message);
+        oss.append(" (code "); oss.append(std::to_string(code)); oss.append(", category: "); oss.append(category); oss.append(")");
+        return oss;
+    }
+};
+
+class FileErrHeapPtr {
+public:
+    FileErr* ptr;
+    inline constexpr FileErrHeapPtr(FileErr* ptr) : ptr(ptr) {
+
+    }
+    inline FileErr* release() {
+        FileErr* tmp = ptr;
+        ptr = nullptr;
+        return tmp;
+    }
+    inline FileErr* operator->() const noexcept {
+        return ptr;
+    }
+    inline FileErr& operator*() const noexcept {
+        return *ptr;
+    }
+    ~FileErrHeapPtr() {
+        delete ptr;
     }
 };
 
@@ -45,7 +68,7 @@ class MemoryMappedFile : public NewInputSource {
 private:
 
     // the error is allocated on the heap
-    FileErr *err = nullptr;
+    FileErrHeapPtr err = FileErrHeapPtr(nullptr);
 
 #if defined(_WIN32)
     HANDLE      fileHandle_ = INVALID_HANDLE_VALUE;
@@ -65,8 +88,8 @@ public:
     // open and map (throws std::system_error on failure)
     explicit MemoryMappedFile(PATH_STR path);
 
-    FileErr* open(PATH_STR path) {
-        map_or_fallback(path);
+    FileErrHeapPtr open(PATH_STR path) {
+        return map_or_fallback(path);
     }
 
     ~MemoryMappedFile();
@@ -88,7 +111,7 @@ public:
     void close() noexcept;
 
 private:
-    FileErr* map_or_fallback(PATH_STR path);
+    FileErrHeapPtr map_or_fallback(PATH_STR path);
     void fallback_read(PATH_STR path, uint64_t fileSize);
 
 };

@@ -185,7 +185,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuildermake_ushort_value", (void*) ASTBuildermake_ushort_value },
         { "compiler_ASTBuildermake_block_value", (void*) ASTBuildermake_block_value },
         { "compiler_ASTBuildermake_value_node", (void*) ASTBuildermake_value_node },
-        { "compiler_ASTBuildermake_identifier_old", (void*) ASTBuildermake_identifier_old },
         { "compiler_ASTBuildermake_identifier", (void*) ASTBuildermake_identifier },
         { "compiler_ASTBuildermake_variant_case", (void*) ASTBuildermake_variant_case },
         { "compiler_ASTBuildermake_variant_case_variable", (void*) ASTBuildermake_variant_case_variable },

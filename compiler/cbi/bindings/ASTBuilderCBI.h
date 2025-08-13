@@ -154,8 +154,6 @@ extern "C" {
 
     ValueNode* ASTBuildermake_value_node(ASTBuilder* builder, Value* value, ASTNode* parent_node, uint64_t location);
 
-    VariableIdentifier* ASTBuildermake_identifier_old(ASTBuilder* builder, chem::string_view* value, bool is_ns, uint64_t location);
-
     VariableIdentifier* ASTBuildermake_identifier(ASTBuilder* builder, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location);
 
     VariantCase* ASTBuildermake_variant_case(ASTBuilder* builder, VariantMember* member, SwitchStatement* stmt, uint64_t location);

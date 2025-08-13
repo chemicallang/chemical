@@ -306,7 +306,12 @@ FloatValue* ASTBuildermake_float_value(ASTBuilder* builder, float value, uint64_
 
 FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location) {
     const auto call = new (builder->allocate<FunctionCall>()) FunctionCall(parent_val, location);
-    // TODO: setType for the function call
+    const auto func_type = parent_val->getType()->canonical()->as_function_type();
+    if(func_type) {
+        call->setType(func_type->returnType);
+    } else {
+        // TODO: user is probably calling a variant member
+    }
     return call;
 }
 
@@ -404,13 +409,10 @@ ValueNode* ASTBuildermake_value_node(ASTBuilder* builder, Value* value, ASTNode*
     return new (builder->allocate<ValueNode>()) ValueNode(value, parent_node, location);
 }
 
-VariableIdentifier* ASTBuildermake_identifier_old(ASTBuilder* builder, chem::string_view* value, bool is_ns, uint64_t location) {
-    return new (builder->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
-}
-
 VariableIdentifier* ASTBuildermake_identifier(ASTBuilder* builder, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location) {
     const auto id = new (builder->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
     id->linked = linked;
+    id->setType(linked->known_type());
     return id;
 }
 

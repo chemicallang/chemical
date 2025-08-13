@@ -12,15 +12,20 @@
 #include "std/chem_string.h"
 #include <istream>
 #include <streambuf>
-#include "InputSource.h"
+#include "NewInputSource.h"
 
 class SourceProvider {
 public:
 
     /**
-     * the capacity of the buffer
+     * the pointer to data
      */
-    constexpr static size_t BUFFER_CAPACITY = 1024;
+    const char* data_;
+
+    /**
+     * the size of the data
+     */
+    std::size_t size_;
 
     /**
      * this counts lines, zero-based
@@ -33,29 +38,6 @@ public:
      * zero-based
      */
     unsigned int lineCharacterNumber = 0;
-
-    /**
-     * the buffer is where we load characters from the input source
-     * gradually in small blocks
-     */
-    char buffer[BUFFER_CAPACITY];
-
-    /**
-     * the buffer size is the characters we read into the buffer
-     * from the input source, input source may have less characters than
-     * capacity, this will always be less than capacity
-     */
-    size_t bufferSize = 0;
-
-    /**
-     * buffer position
-     */
-    size_t bufferPos = 0;
-
-    /**
-     * fills the buffer
-     */
-    void bufferFill();
 
     /**
      * handles the character read from the stream
@@ -74,14 +56,16 @@ public:
 public:
 
     /**
-     * the input source is used to read and fill the buffer
+     * create a source provider with a stream
      */
-    InputSource* stream;
+    explicit SourceProvider(NewInputSource& stream) : data_(stream.data()), size_(stream.size()) {
+
+    }
 
     /**
      * create a source provider with a stream
      */
-    explicit SourceProvider(InputSource* stream) : stream(stream) {
+    explicit SourceProvider(NewInputSource* stream) : data_(stream->data()), size_(stream->size()) {
 
     }
 

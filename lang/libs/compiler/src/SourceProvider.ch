@@ -10,17 +10,15 @@ const BufferCapacity = 1024
 @compiler.interface
 public struct SourceProvider {
 
+    var data_ptr : *char
+
+    var data_len : size_t
+
+    var data_end : *char
+
     var lineNumber : uint
 
     var lineCharacterNumber : uint
-
-    var buffer : char[BufferCapacity]
-
-    var bufferSize : size_t
-
-    var bufferPos : size_t
-
-    var stream_ptr : *void
 
     /**
      * reads a single character and returns it

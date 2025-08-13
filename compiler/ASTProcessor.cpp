@@ -23,7 +23,6 @@
 #include "compiler/lab/mod_conv/ModToLabConverter.h"
 #include "ast/statements/Import.h"
 #include "compiler/symres/NodeSymbolDeclarer.h"
-#include "stream/StringInputSource.h"
 #include "compiler/lab/LabGetMethodInjection.h"
 
 #ifdef COMPILER_BUILD
@@ -639,8 +638,8 @@ bool ASTProcessor::import_mod_file_as_lab(
     // lets use it to translate module file into a build.lab and import it
     std::ostringstream stream;
     convertToBuildLab(data, stream);
-    const auto& labOut = stream.str();
-    StringInputSource labInpSource(labOut);
+    const auto labOut = stream.view();
+    InputSource labInpSource(labOut.data(), labOut.size());
 
     // import the file into result
     return import_chemical_file(result, modFileId, modFile, &labInpSource, use_job_allocator);
@@ -649,9 +648,10 @@ bool ASTProcessor::import_mod_file_as_lab(
 
 std::optional<FileInputSource> ASTProcessor::make_file_input_source(const char* abs_path, ASTFileResult& result) {
     FileInputSource inp_source(abs_path);
-    if(inp_source.has_error()) {
+    const auto err = inp_source.error();
+    if(err != nullptr) {
         result.continue_processing = false;
-        result.read_error = inp_source.error_message();
+        result.read_error = err->format();
         std::cerr << rang::fg::red << "error: when reading file " << abs_path;
         if(!result.read_error.empty()) {
             std::cerr << " because " << result.read_error;
@@ -672,7 +672,8 @@ bool import_file_in_lab(
     const auto fileId = meta.file_id;
     // import the file if it has no error
     FileInputSource inp_source(abs_path.data());
-    if(!inp_source.has_error()) {
+    const auto err = inp_source.error();
+    if(err == nullptr) {
         // import the file into result (lex and parse)
         const auto import_res = proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
         if(import_res && abs_path.ends_with("build.lab")) {
@@ -696,11 +697,11 @@ bool import_file_in_lab(
 
     // since an error occurred, if this is an import for build.lab file
     // and instead of a build.lab file user has a chemical.mod file, we translate it
-    auto prev_msg = inp_source.error_message();
+    auto prev_msg = err->format();
     if(abs_path.ends_with(".lab")) {
         auto modFile = resolve_sibling(abs_path, "chemical.mod");
         const auto modFileErr = inp_source.open(modFile.data());
-        if(modFileErr == InputSourceErrorKind::None) {
+        if(!modFileErr) {
 
             // lets get a new file id for module file
             auto modFileId = proc.loc_man.encodeFile(modFile);
@@ -773,7 +774,7 @@ bool ASTProcessor::import_chemical_file(
 
     auto& unit = result.unit;
 
-    Lexer lexer(std::string(abs_path), inp_source, &binder, file_allocator);
+    Lexer lexer(std::string(abs_path), *inp_source, &binder, file_allocator);
     std::vector<Token> tokens;
 
     // actual lexing
@@ -851,7 +852,7 @@ bool ASTProcessor::import_chemical_mod_file(
         InputSource* inp_source
 ) {
 
-    Lexer lexer(std::string(abs_path), inp_source, nullptr, fileAllocator);
+    Lexer lexer(std::string(abs_path), *inp_source, nullptr, fileAllocator);
     std::vector<Token> tokens;
     lexer.getTokens(tokens);
 
@@ -890,8 +891,9 @@ bool ASTProcessor::import_chemical_mod_file(
         const std::string_view& abs_path
 ) {
     FileInputSource inp_source(abs_path.data());
-    if(inp_source.has_error()) {
-        data.read_error = inp_source.error_message();
+    const auto err = inp_source.error();
+    if(err != nullptr) {
+        data.read_error = err->format();
         std::cerr << rang::fg::red << "error: when reading file " << abs_path;
         if(!data.read_error.empty()) {
             std::cerr << " because " << data.read_error;

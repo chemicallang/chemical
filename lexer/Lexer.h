@@ -113,7 +113,7 @@ public:
      */
     Lexer(
             std::string file_path,
-            InputSource* input,
+            InputSource& input,
             CompilerBinder* binder,
             BatchAllocator& file_allocator
     ) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000),

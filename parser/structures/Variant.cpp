@@ -80,14 +80,26 @@ VariantMember* Parser::parseVariantMember(ASTAllocator& allocator, VariantDefini
     }
 }
 
-bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier) {
+bool Parser::parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime) {
     auto annotation = parseAnnotation(allocator);
     if(annotation) {
         return true;
     }
     switch(token->type) {
+        case TokenType::ComptimeKw:
+            if(comptime) {
+                error("already inside comptime context");
+            }
+            token++;
+            if(token->type == TokenType::LBrace) {
+                const auto blk = (ASTNode*) parseComptimeBlockNoKw(allocator);
+                def->get_parsed_nodes_container().emplace_back(blk);
+                return true;
+            } else {
+                return parseAnyVariantMember(allocator, def, specifier, true);
+            }
         case TokenType::FuncKw: {
-            const auto func = parseFunctionStructureTokens(allocator, specifier, true);
+            const auto func = parseFunctionStructureTokens(allocator, specifier, true, false, comptime);
             if(func) {
                 def->get_parsed_nodes_container().emplace_back(func);
                 return true;
@@ -163,7 +175,7 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
 
         do {
             consumeNewLines();
-            if(parseAnyVariantMember(passed_allocator, decl, AccessSpecifier::Public)) {
+            if(parseAnyVariantMember(passed_allocator, decl, AccessSpecifier::Public, false)) {
                 consumeOfType(TokenType::SemiColonSym);
             } else {
                 break;

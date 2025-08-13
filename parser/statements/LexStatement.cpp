@@ -30,11 +30,16 @@ AccessSpecifier get_specifier_from(TokenType type) {
     }
 }
 
-ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& local_allocator, AccessSpecifier spec) {
-    auto& allocator = spec == AccessSpecifier::Public ? global_allocator : local_allocator;
+ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier spec, bool comptime) {
     switch (token->type) {
         case TokenType::FuncKw:
-            return (ASTNode*) parseFunctionStructureTokens(allocator, spec, false, true);
+            return (ASTNode*) parseFunctionStructureTokens(allocator, spec, false, true, comptime);
+        case TokenType::ComptimeKw:
+            if(comptime) {
+                error("already inside comptime context");
+            }
+            token++;
+            return (ASTNode*) parseTopLevelAccessSpecifiedDecl(allocator, spec, true);
         case TokenType::EnumKw:
             return (ASTNode*) parseEnumStructureTokens(allocator, spec);
         case TokenType::StructKw:
@@ -60,16 +65,30 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& local_allocator,
     }
 }
 
-ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
+ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) {
     const auto tokenType = token->type;
     switch(tokenType) {
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::PublicKw:
+            token++;
+            return parseTopLevelAccessSpecifiedDecl(global_allocator, AccessSpecifier::Public, comptime);
         case TokenType::PrivateKw:
+            token++;
+            return parseTopLevelAccessSpecifiedDecl(allocator, AccessSpecifier::Private, comptime);
         case TokenType::InternalKw:
             token++;
-            return parseTopLevelAccessSpecifiedDecl(allocator, get_specifier_from(tokenType));
+            return parseTopLevelAccessSpecifiedDecl(allocator, AccessSpecifier::Internal, comptime);
+        case TokenType::ComptimeKw:
+            if(comptime) {
+                error("already inside comptime context");
+            }
+            if(token->type == TokenType::LBrace) {
+                return (ASTNode*) parseComptimeBlockNoKw(allocator);
+            } else {
+                token++;
+                return parseTopLevelStatement(allocator, true);
+            }
         case TokenType::ConstKw:
         case TokenType::VarKw:
             return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, false);
@@ -79,8 +98,6 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
             return parseMacroNode(allocator, CBIFunctionType::ParseMacroTopLevelNode);
         case TokenType::ProvideKw:
             return (ASTNode*) parseProvideStatement(allocator);
-        case TokenType::ComptimeKw:
-            return (ASTNode*) parseComptimeBlock(allocator);
         case TokenType::AliasKw:
             error("alias statement not supported as a top level declaration");
             return nullptr;
@@ -103,7 +120,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator) {
             // on global allocator, so other modules can import nodes inside the if
             return (ASTNode*) parseIfStatement(global_allocator, false, false, true);
         case TokenType::FuncKw:
-            return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, false, true);
+            return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, false, true, comptime);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
         default:
@@ -339,21 +356,15 @@ ProvideStmt* Parser::parseProvideStatement(ASTAllocator& allocator) {
     }
 }
 
-ComptimeBlock* Parser::parseComptimeBlock(ASTAllocator& allocator) {
-    auto& tok = *token;
-    if(tok.type == TokenType::ComptimeKw) {
-        token++;
-        auto ctBlock = new (allocator.allocate<ComptimeBlock>()) ComptimeBlock(parent_node, loc_single(tok));
-        auto block = parseBraceBlock("comptime", ctBlock, allocator);
-        if(block.has_value()) {
-            ctBlock->body = std::move(block.value());
-        } else {
-            error("missing body for provide statement");
-        }
-        return ctBlock;
+ComptimeBlock* Parser::parseComptimeBlockNoKw(ASTAllocator& allocator) {
+    auto ctBlock = new(allocator.allocate<ComptimeBlock>()) ComptimeBlock(parent_node, loc_single(token));
+    auto block = parseBraceBlock("comptime", ctBlock, allocator);
+    if (block.has_value()) {
+        ctBlock->body = std::move(block.value());
     } else {
-        return nullptr;
+        error("missing body for provide statement");
     }
+    return ctBlock;
 }
 
 bool BasicParser::parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data) {

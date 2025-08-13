@@ -276,7 +276,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
     }
 }
 
-ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool member, bool allow_extensions) {
+ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier, bool member, bool allow_extensions, bool is_comptime) {
 
     if(!consumeToken(TokenType::FuncKw)) {
         return nullptr;
@@ -285,7 +285,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     // by default comptime functions are allocated using job allocator
     // because they can be called indirectly in different modules
     // so we retain them, throughout executable
-    bool is_comptime = false;
+    // TODO: remove looking over annotations
     for(auto& annot : annotations) {
         if(annot.name == "comptime") {
             is_comptime = true;
@@ -304,6 +304,10 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
 
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(""), { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
     annotate(decl);
+
+    if(is_comptime) {
+        decl->set_comptime(true);
+    }
 
     ASTNode* final_node = decl;
 

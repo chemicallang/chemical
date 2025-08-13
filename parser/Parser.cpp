@@ -83,7 +83,7 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
 
     while (true) {
         consumeNewLines();
-        auto stmt = parseTopLevelStatement(allocator);
+        auto stmt = parseTopLevelStatement(allocator, false);
         if(stmt) {
             nodes.emplace_back(stmt);
         } else if(!parseAnnotation(allocator)) {

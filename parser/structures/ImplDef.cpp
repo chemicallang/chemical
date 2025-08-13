@@ -72,7 +72,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
 
         auto prev_parent_node = parent_node;
         parent_node = impl;
-        parseContainerMembersInto(impl, allocator, AccessSpecifier::Public);
+        parseContainerMembersInto(impl, allocator, AccessSpecifier::Public, false);
         parent_node = prev_parent_node;
 
         if (!consumeToken(TokenType::RBrace)) {

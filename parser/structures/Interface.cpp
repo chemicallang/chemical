@@ -79,7 +79,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
             return finalDecl;
         }
 
-        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public);
+        parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false);
         parent_node = prev_parent_node;
 
         if (!consumeToken(TokenType::RBrace)) {

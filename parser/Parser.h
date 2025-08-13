@@ -634,14 +634,14 @@ public:
     /**
      * top level access specified declarations
      */
-    ASTNode* parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier specifier);
+    ASTNode* parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier specifier, bool comptime);
 
     /**
      * lexes a single top level statement, top level means in file scope, These include
      * functions, structs, interfaces, implementations, enum, annotations
      * comments, variable initialization with value, constants
      */
-    ASTNode* parseTopLevelStatement(ASTAllocator& allocator);
+    ASTNode* parseTopLevelStatement(ASTAllocator& allocator, bool comptime);
 
     /**
      * lexes a single nested level statement, nested level means not top level (must not be in file scope)
@@ -785,7 +785,7 @@ public:
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
-    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool member, bool allow_extensions = false);
+    ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool member, bool allow_extensions, bool comptime);
 
     /**
      * parses a interface structure
@@ -810,7 +810,7 @@ public:
     /**
      * parses members of a container, for example (struct / union members) or even compile time if statements
      */
-    void parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier);
+    void parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime);
 
     /**
      * lexes a struct block
@@ -825,7 +825,7 @@ public:
     /**
      * parses variant members and functions into the variant definition
      */
-    bool parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier);
+    bool parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime);
 
     /**
      * lexes a struct block
@@ -1036,9 +1036,21 @@ public:
     ProvideStmt* parseProvideStatement(ASTAllocator& allocator);
 
     /**
+     * parses a comptime block without a comptime keyword
+     */
+    ComptimeBlock* parseComptimeBlockNoKw(ASTAllocator& allocator);
+
+    /**
      * lexes a comptime block
      */
-    ComptimeBlock* parseComptimeBlock(ASTAllocator& allocator);
+    ComptimeBlock* parseComptimeBlock(ASTAllocator& allocator) {
+        if(token->type == TokenType::ComptimeKw) {
+            token++;
+            return parseComptimeBlockNoKw(allocator);
+        } else {
+            return nullptr;
+        }
+    }
 
     // -------------------------------- Exposed till here
 

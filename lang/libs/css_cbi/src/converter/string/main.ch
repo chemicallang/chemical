@@ -997,7 +997,7 @@ func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefi
     var className : char[10] = [];
     className[0] = '.'
     className[1] = prefix
-    base64_encode_32bit(hash, &className[2])
+    base64_encode_32bit(hash, &mut className[2])
     className[8] = '{'
     className[9] = '\0'
     converter.put_view_chain(std::string_view(&className[0], 9u))
@@ -1024,7 +1024,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
             var className : char[10] = [];
             className[0] = '.'
             className[1] = 'r'
-            base64_encode_32bit(hash, &className[2])
+            base64_encode_32bit(hash, &mut className[2])
             className[8] = '{'
             className[9] = '\0'
             const total = builder.allocate_view(std::string_view(&className[0], 9u));

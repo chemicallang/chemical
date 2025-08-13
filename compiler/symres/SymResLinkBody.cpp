@@ -2298,7 +2298,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     }
     structValue->diagnose_missing_members_for_init(linker);
     if(!structValue->allows_direct_init()) {
-        linker.error(structValue) << "struct value with a constructor cannot be initialized, name '" << structValue->linked_extendable()->name_view() << "' has a constructor";
+        linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
     }
     auto refTypeKind = structValue->getRefType()->kind();
     if(refTypeKind == BaseTypeKind::Generic) {

@@ -24,7 +24,7 @@ func allocate_multiple_values(
     }
     value.kind = CSSValueKind.Multiple
     value.data = multiple
-    return &multiple.values
+    return &mut multiple.values
 }
 
 func alloc_two_value_keywords(

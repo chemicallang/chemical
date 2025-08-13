@@ -8,9 +8,11 @@ public struct LexerState {
 
 }
 
+public type UserLexerSubroutineType = (instance : &void, lexer : &Lexer) => Token
+
 public struct UserLexerFn {
     var instance : *void
-    var subroutine : (instance : &void, lexer : &Lexer) => Token;
+    var subroutine : UserLexerSubroutineType;
 }
 
 @compiler.interface
@@ -24,7 +26,7 @@ public struct Lexer : LexerState {
 
     func getFileAllocator(&self) : *BatchAllocator
 
-    func setUserLexer(&self, instance : *void, subroutine : (instance : &void, lexer : &Lexer) => Token);
+    func setUserLexer(&self, instance : *void, subroutine : UserLexerSubroutineType);
 
     func unsetUserLexer(&self);
 

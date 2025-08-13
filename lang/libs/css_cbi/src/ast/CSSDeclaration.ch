@@ -14,6 +14,7 @@ struct CSSProperty {
 }
 
 // any keyword that is being stored as a value like 'auto'
+@direct_init
 struct CSSKeywordValueData {
 
     var kind : CSSKeywordKind
@@ -27,7 +28,7 @@ struct CSSKeywordValueData {
 
 }
 
-
+@direct_init
 struct CSSLengthValueData {
 
     var kind : CSSLengthKind
@@ -386,6 +387,7 @@ struct CSSTextShadowValueData {
 
 };
 
+@direct_init
 struct CSSValue {
 
     var kind : CSSValueKind

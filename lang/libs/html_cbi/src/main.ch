@@ -13,7 +13,7 @@ public func html_replacementNode(builder : *mut ASTBuilder, value : *mut Embedde
     var scope_nodes = scope.getNodes();
     var converter = ASTConverter {
         builder : builder,
-        support : &root.support,
+        support : &mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
@@ -37,21 +37,21 @@ public func html_traversalNode(node : *EmbeddedNode, data : *void, traverse : (d
 }
 
 @no_mangle
-public func html_symResValue(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
+public func html_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
 }
 
 @no_mangle
-public func html_replacementValue(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
+public func html_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValue) : *Value {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var block_val = builder.make_block_value(root.parent, loc)
     var scope_nodes = block_val.get_body()
     var converter = ASTConverter {
         builder : builder,
-        support : &root.support,
+        support : &mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
@@ -148,5 +148,5 @@ public func html_initializeLexer(lexer : *mut Lexer) {
         chemical_mode : false,
         lb_count : 0
     }
-    lexer.setUserLexer(ptr, getNextToken)
+    lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

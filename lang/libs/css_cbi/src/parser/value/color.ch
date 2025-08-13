@@ -12,7 +12,7 @@ func (cssParser : &mut CSSParser) parseHexColor(parser : *mut Parser, builder : 
     value.kind = CSSValueKind.Color
     value.data = col_value
     var out : uint32_t = 0
-    if(!parse_css_hex_color(colorView.data() + 1, colorView.size() - 1, &out)) {
+    if(!parse_css_hex_color(colorView.data() + 1, colorView.size() - 1, &mut out)) {
         parser.error("hash color is not valid");
     }
 }
@@ -51,7 +51,7 @@ func hashSmallColorValue(view : &std::string_view) : size_t {
 
     // copy the token value
     var arr : char[27] = []
-    strncpy(&arr[0], view.data(), size);
+    strncpy(&mut arr[0], view.data(), size);
     arr[size] = '\0'
 
     // lowercase it
@@ -134,7 +134,7 @@ func (parser : &mut Parser) parseNumberOrAngleOrNone(builder : *mut ASTBuilder) 
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            const lenKind = parseLengthKindSafe(&parser, builder)
+            const lenKind = parseLengthKindSafe(&mut parser, builder)
             if(lenKind == CSSLengthKind.Unknown) {
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(token.value) }
             } else {
@@ -421,7 +421,7 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
 
                 var col_value = builder.allocate<CSSColorValueData>();
                 col_value.kind = kind;
-                col_value.value.rgbData = rgbData
+                col_value.value.hslData = rgbData
 
                 value.kind = CSSValueKind.Color
                 value.data = col_value

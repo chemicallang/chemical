@@ -108,12 +108,6 @@ const std::unordered_map<chem::string_view, const AnnotationModifierFunc> Annota
                 parser->error("couldn't make the function min size");
             }
         } },
-        { "comptime", [](Parser* parser, ASTNode* node) -> void {
-            parser->warning("comptime annotation is deprecated and will be removed");
-            if(!node->set_comptime(true)) {
-                parser->error("couldn't make the declaration comptime");
-            }
-        } },
         { "compiler.interface", [](Parser* parser, ASTNode* node) -> void {
             // we used to make these structs no_mangle by default
             // but now we don't, because now we put module name prefix

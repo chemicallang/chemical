@@ -147,67 +147,69 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
         }
 };
 
-// read digits into the string
-void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
+inline chem::string_view view_from(SourceProvider& provider, const char* data) {
+    return { data, static_cast<std::size_t>(provider.current_data() - data) };
+}
+
+void read_digits(SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
         if(next != '\0' && std::isdigit(next)) {
-            str.append(provider.readCharacter());
+            provider.increment();
         } else {
-            break;
+            return;
         }
     }
 }
 
-void read_alpha_or_digits(SerialStrAllocator& str, SourceProvider& provider) {
+void read_alpha_or_digits(SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
         if(next != '\0' && std::isalnum(next)) {
-            str.append(provider.readCharacter());
+            provider.increment();
         } else {
-            break;
+            return;
         }
     }
 }
 
 // assumes that a digit exists at current location
-bool read_floating_digits(SerialStrAllocator& str, SourceProvider& provider) {
-    read_digits(str, provider);
+bool read_floating_digits(SourceProvider& provider) {
+    read_digits(provider);
     if(provider.increment('.')) {
-        str.append('.');
-        read_digits(str, provider);
+        read_digits(provider);
         return true;
     } else {
         return false;
     }
 }
 
-void read_number_suffix(SerialStrAllocator& str, SourceProvider& provider) {
+void read_number_suffix(SourceProvider& provider) {
     switch(provider.peek()) {
         case 'i':
-            str.append(provider.readCharacter());
-            read_digits(str, provider);
+            provider.increment();
+            read_digits(provider);
             return;
         case 'u':
-            str.append(provider.readCharacter());
+            provider.increment();
             if (provider.peek() == 'i') {
-                str.append(provider.readCharacter());
+                provider.increment();
             } else if(provider.peek() == 'l') {
-                str.append(provider.readCharacter());
+                provider.increment();
                 return;
             }
-            read_digits(str, provider);
+            read_digits(provider);
             return;
         case 'U':
-            str.append(provider.readCharacter());
+            provider.increment();
             if(provider.peek() == 'L') {
-                str.append(provider.readCharacter());
+                provider.increment();
             }
             return;
         case 'l':
         case 'L':
         case 'f':
-            str.append(provider.readCharacter());
+            provider.increment();
             return;
         default:
             return;
@@ -217,45 +219,45 @@ void read_number_suffix(SerialStrAllocator& str, SourceProvider& provider) {
 
 
 // reads  numbers with suffixes 123i8, 124ui16 123u32 or 0x332b2
-void read_number(SerialStrAllocator& str, SourceProvider& provider) {
-    if(read_floating_digits(str, provider)) {
+void read_number(SourceProvider& provider) {
+    if(read_floating_digits(provider)) {
         auto next = provider.peek();
         if(next == 'f') {
-            str.append(provider.readCharacter());
+            provider.increment();
         }
     } else {
-        read_number_suffix(str, provider);
+        read_number_suffix(provider);
     }
 }
 
 // if number starts with zero, we call this function
 // it allows us to check whether number is hex or bool like 0x34ffb3
 // this also assumes that zero has already been consumed and put onto the string
-void read_zero_starting_number(SerialStrAllocator& str, SourceProvider& provider) {
+void read_zero_starting_number(SourceProvider& provider) {
     switch(provider.peek()) {
         case 'X':
         case 'x':
         case 'o':
         case 'O':
-            str.append(provider.readCharacter());
-            read_alpha_or_digits(str, provider);
+            provider.increment();
+            read_alpha_or_digits(provider);
             // TODO is this needed here ?
-            read_number_suffix(str, provider);
+            read_number_suffix(provider);
             return;
         case 'b':
         case 'B':
-            str.append(provider.readCharacter());
-            read_digits(str, provider);
+            provider.increment();
+            read_digits(provider);
             return;
     }
-    return read_number(str, provider);
+    return read_number(provider);
 }
 
 void skip_current_line(SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\0' && p != '\n' && p != '\r') {
-            provider.readCharacter();
+            provider.increment();
         } else {
             return;
         }
@@ -280,7 +282,7 @@ void skip_multi_line_comment_text(SourceProvider& provider) {
             return;
         }
         if(read == '*' && provider.peek() == '/') {
-            provider.readCharacter();
+            provider.increment();
             return;
         }
     }
@@ -296,7 +298,7 @@ void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provi
             str.append(read);
         } else {
             if(provider.peek() == '/') {
-                provider.readCharacter();
+                provider.increment();
                 return;
             } else {
                 str.append(read);
@@ -396,11 +398,11 @@ Token read_multi_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvid
                 const auto next = provider.peek();
                 if (next == '"') {
                     // consume the second "
-                    provider.readCharacter();
+                    provider.increment();
                     // check the last "
                     if (provider.peek() == '"') {
                         // consume the last "
-                        provider.readCharacter();
+                        provider.increment();
                         return Token(TokenType::MultilineString, str.finalize_view(), pos);
                     } else {
                         str.append('"');
@@ -456,7 +458,7 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
             break;
     }
     if(provider.peek() == '\'') {
-        provider.readCharacter();
+        provider.increment();
         return Token(TokenType::Char, str.finalize_view(), pos);
     } else {
         lexer.diagnoser.diagnostic("expected a single quote after the value", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
@@ -465,18 +467,18 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
     }
 }
 
-void read_id(SerialStrAllocator& str, SourceProvider& provider) {
+void read_id(SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\0' && (p == '_' || std::isalnum(p))) {
-            str.append(provider.readCharacter());
+            provider.increment();
         } else {
             return;
         }
     }
 }
 
-void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
+void read_annotation_id(SourceProvider& provider) {
     while(true) {
         const auto p = provider.peek();
         switch(p) {
@@ -484,11 +486,11 @@ void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
             case '_':
             case '.':
             case ':':
-                str.append(provider.readCharacter());
+                provider.increment();
                 break;
             default:
                 if(std::isalnum(p)) {
-                    str.append(provider.readCharacter());
+                    provider.increment();
                 } else {
                     return;
                 }
@@ -499,7 +501,7 @@ void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
 
 Token win_new_line(SourceProvider& provider, const Position& pos) {
     if(provider.peek() == '\n') {
-        provider.readCharacter();
+        provider.increment();
         return Token(TokenType::NewLine, { NewlineWinCStr, 2 }, pos);
     } else {
         return Token(TokenType::NewLine, { NewlineRCStr, 1 }, pos);
@@ -519,6 +521,7 @@ Token Lexer::getNextToken() {
 #endif
         }
     }
+    const auto curr_data_ptr = provider.current_data();
     const auto current = provider.readCharacter();
     switch(current) {
         case '\0':
@@ -537,14 +540,14 @@ Token Lexer::getNextToken() {
             return Token(TokenType::RBracket, view_str(RBracketCStr), pos);
         case '+':
             if(provider.peek() == '+') {
-                provider.readCharacter();
+                provider.increment();
                 return Token(TokenType::DoublePlusSym, view_str(DoublePlusCStr), pos);
             } else {
                 return Token(TokenType::PlusSym, view_str(PlusOpCStr), pos);
             }
         case '-':
             if(provider.peek() == '-') {
-                provider.readCharacter();
+                provider.increment();
                 return Token(TokenType::DoubleMinusSym, view_str(DoubleMinusCStr), pos);
             } else {
                 return Token(TokenType::MinusSym, view_str(MinusOpCStr), pos);
@@ -563,7 +566,7 @@ Token Lexer::getNextToken() {
             }
         case '.':
             if(provider.peek() == '.') {
-                provider.readCharacter();
+                provider.increment();
                 if(provider.readCharacter() == '.') {
                     return Token(TokenType::TripleDotSym, view_str(TripleDotCStr), pos);
                 } else {
@@ -578,19 +581,18 @@ Token Lexer::getNextToken() {
         case ';':
             return Token(TokenType::SemiColonSym, view_str(SemiColOpCStr), pos);
         case '@': {
-            str.append('@');
-            read_annotation_id(str, provider);
-            return Token(TokenType::Annotation, str.finalize_view(), pos);
+            read_annotation_id(provider);
+            return Token(TokenType::Annotation, view_from(provider, curr_data_ptr), pos);
         }
         case '#': {
-            str.append('#');
-            read_annotation_id(str, provider);
-            auto view = chem::string_view((str.data + 1), str.length - 1);
+            read_annotation_id(provider);
+            auto hashed_view = view_from(provider, curr_data_ptr);
+            auto view = chem::string_view((hashed_view.data() + 1), hashed_view.size() - 1);
             auto found = binder->findHook(view, CBIFunctionType::InitializeLexer);
             if(found) {
                 ((EmbeddedLexerInitializeFn) found)(this);
             }
-            return Token(TokenType::HashMacro, str.finalize_view(), pos);
+            return Token(TokenType::HashMacro, hashed_view, pos);
         }
         case '<':
             if(provider.increment('=')) {
@@ -664,9 +666,9 @@ Token Lexer::getNextToken() {
             return read_character_token(*this, str, provider, pos);
         case '"':
             if(provider.peek() == '"') {
-                provider.readCharacter();
+                provider.increment();
                 if(provider.peek() == '"') {
-                    provider.readCharacter();
+                    provider.increment();
                     // here the multiline string begins
                     return read_multi_line_string(*this, str, provider, pos);
                 } else {
@@ -692,26 +694,22 @@ Token Lexer::getNextToken() {
         case '\r':
             return win_new_line(provider, pos);
         case '0':
-            str.append('0');
-            read_zero_starting_number(str, provider);
-            return Token(TokenType::Number, str.finalize_view(), pos);
+            read_zero_starting_number(provider);
+            return Token(TokenType::Number, view_from(provider, curr_data_ptr), pos);
         default:
             break;
     }
     if(std::isdigit(current)) {
-        str.append(current);
-        read_number(str, provider);
-        return Token(TokenType::Number, str.finalize_view(), pos);
+        read_number(provider);
+        return Token(TokenType::Number, view_from(provider, curr_data_ptr), pos);
     } else if(current == '_' || std::isalpha(current)) {
-        str.append(current);
-        read_id(str, provider);
-        auto view = str.current_view();
+        read_id(provider);
+        auto view = view_from(provider, curr_data_ptr);
         auto found = keywords.find(view);
         if(found != keywords.end()) {
-            str.deallocate();
             return Token(found->second, found->first, pos);
         } else {
-            return Token(TokenType::Identifier, str.finalize_view(), pos);
+            return Token(TokenType::Identifier, view, pos);
         }
     }
     diagnoser.diagnostic("unexpected token", chem::string_view(file_path), provider.position(), provider.position(), DiagSeverity::Error);

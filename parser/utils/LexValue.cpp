@@ -596,14 +596,13 @@ Value* allocate_number_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, unsi
     }
 }
 
-parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, char* mut_value, std::size_t value_size, bool is64Bit, SourceLocation location) {
+parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, const char* value, std::size_t value_size, bool is64Bit, SourceLocation location) {
 
     // considers bitwidths
     // i8, i16, i32, i64, i128
     // ui8, ui16, ui32, ui64, ui128
     // u8, u16, u32, u64, u128
 
-    const char* value = mut_value;
     const auto last_char_index = value_size - 1;
     const auto last_char = value[last_char_index];
 
@@ -685,8 +684,7 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
     std::string_view err;
     if(bit_width_size > 0) {
         const auto num = (int8_t) parse_num(value + bit_width_index, bit_width_size, strtol).result;
-        const auto suffix = mut_value[suffix_index];
-        mut_value[suffix_index] = '\0';
+        // mut_value[suffix_index] = '\0';
         switch(num) {
             case 8:
                 if(is_unsigned) {
@@ -738,7 +736,6 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 err = unk_bit_width_err;
                 break;
         }
-        mut_value[suffix_index] = suffix;
     }
 
     // conversion
@@ -749,24 +746,24 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 // avoiding values like 0xFFFFFF
                 goto final_block;
             } else {
-                mut_value[last_char_index] = '\0';
+                // mut_value[last_char_index] = '\0';
                 const auto num_value = parse_num(value, last_char_index, strtof);
-                mut_value[last_char_index] = last_char;
+                // mut_value[last_char_index] = last_char;
                 return {new(alloc.allocate<FloatValue>()) FloatValue(num_value.result, typeBuilder.getFloatType(), location), err.empty() ? num_value.error : err};
             }
         }
         case 'U':
         case 'u': {
-            mut_value[last_char_index] = '\0';
+            // mut_value[last_char_index] = '\0';
             const auto num_val = parse_num(value, suffix_index, strtoul);
-            mut_value[last_char_index] = last_char;
+            // mut_value[last_char_index] = last_char;
             return {new(alloc.allocate<UIntValue>()) UIntValue((unsigned int) num_val.result, typeBuilder.getUIntType(), location), num_val.error};
         }
         case 'i':
         case 'I': {
-            mut_value[last_char_index] = '\0';
+            // mut_value[last_char_index] = '\0';
             const auto num_val = parse_num(value, suffix_index, strtol);
-            mut_value[last_char_index] = last_char;
+            // mut_value[last_char_index] = last_char;
             return {new(alloc.allocate<IntValue>()) IntValue((int) num_val.result, typeBuilder.getIntType(), location), num_val.error};
         }
         case 'l':
@@ -775,15 +772,15 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
                 const auto sec_last_index = value_size - 2;
                 const auto sec_last = value[sec_last_index];
                 if(sec_last == 'u' || sec_last == 'U') {
-                    mut_value[sec_last_index] = '\0';
+                    // mut_value[sec_last_index] = '\0';
                     const auto num_value = parse_num(value, last_char_index, strtoul);
-                    mut_value[sec_last_index] = sec_last;
+                    // mut_value[sec_last_index] = sec_last;
                     return { new (alloc.allocate<ULongValue>()) ULongValue(num_value.result, typeBuilder.getULongType(), location), err.empty() ? num_value.error : err };
                 }
             }
-            mut_value[last_char_index] = '\0';
+            // mut_value[last_char_index] = '\0';
             const auto num_value = parse_num(value, last_char_index, strtol);
-            mut_value[last_char_index] = last_char;
+            // mut_value[last_char_index] = last_char;
             return { new (alloc.allocate<LongValue>()) LongValue(num_value.result, typeBuilder.getLongType(), location), err.empty() ? num_value.error : err };
         }
         default:

@@ -1,0 +1,3 @@
+public struct ChainValue : Value {
+
+}

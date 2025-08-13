@@ -389,7 +389,6 @@ set(COMMON_SOURCES
         compiler/lab/Utils.h
         stream/InputSource.h
         stream/FileInputSource.h
-        stream/StringInputSource.h
         stream/InputSource.cpp
         ast/structures/InheritedType.h
         ast/types/DynamicType.h
@@ -576,9 +575,6 @@ set(COMMON_SOURCES
         compiler/symres/SymResLinkBodyAPI.h
         compiler/cbi/model/ASTBuilder.h
         ast/statements/UnresolvedDecl.h
-        stream/NewInputSource.h
-        stream/NewFileInputSource.h
-        stream/NewInputSource.cpp
 )
 
 # Chemical LSP Executable Target

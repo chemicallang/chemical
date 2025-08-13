@@ -12,10 +12,10 @@
 #include "std/chem_string.h"
 #include <istream>
 #include <streambuf>
-#include "NewInputSource.h"
+#include "InputSource.h"
 
 class SourceProvider {
-public:
+private:
 
     /**
      * the pointer to data
@@ -26,6 +26,11 @@ public:
      * the size of the data
      */
     std::size_t size_;
+
+    /**
+     * the end point which should not be read
+     */
+    const char* const end_;
 
     /**
      * this counts lines, zero-based
@@ -39,11 +44,13 @@ public:
      */
     unsigned int lineCharacterNumber = 0;
 
+public:
+
     /**
      * handles the character read from the stream
      * changes line number and character number based on the character
      */
-    inline void handleCharacterRead(char c) {
+    inline void handleCharacterRead(char c) noexcept {
         if (c == '\n' || c == '\x0C' || (c == '\r' && peek() != '\n')) {
             // if there's no \n next to \r, the line ending must be CR, so we treat it as line ending
             lineNumber++;
@@ -58,14 +65,14 @@ public:
     /**
      * create a source provider with a stream
      */
-    explicit SourceProvider(NewInputSource& stream) : data_(stream.data()), size_(stream.size()) {
+    explicit SourceProvider(InputSource& stream) : data_(stream.data()), size_(stream.size()), end_(stream.data() + stream.size()) {
 
     }
 
     /**
      * create a source provider with a stream
      */
-    explicit SourceProvider(NewInputSource* stream) : data_(stream->data()), size_(stream->size()) {
+    explicit SourceProvider(const char* data, std::size_t size) : data_(data), size_(size), end_(data + size) {
 
     }
 
@@ -73,27 +80,41 @@ public:
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
      */
-    char readCharacter();
+    [[nodiscard]]
+    char readCharacter() noexcept {
+        if(data_ == end_) {
+            return '\0';
+        }
+        const auto read = *data_;
+        handleCharacterRead(read);
+        data_++;
+        return read;
+    }
+
+    /**
+     * increment a single character forward
+     */
+    void increment() noexcept {
+        if(data_ == end_) return;
+        handleCharacterRead(*data_);
+        data_++;
+    }
 
     /**
      * checks the stream is at the end
      * please also use both peek() == -1
      */
     [[nodiscard]]
-    bool eof() const;
+    inline bool eof() const noexcept {
+        return data_ == end_;
+    }
 
     /**
      * peaks the character to read
      */
     [[nodiscard]]
-    char peek();
-
-    /**
-     * is the peak character a number character
-     */
-    inline bool is_peak_number_char() {
-        const auto p = peek();
-        return p == '-' || std::isdigit(p);
+    inline char peek() const noexcept {
+        return (data_ < end_) ? *data_ : '\0';
     }
 
     /**
@@ -101,36 +122,35 @@ public:
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
-    bool increment(char c);
+    [[nodiscard]]
+    bool increment(char c) noexcept {
+        return (data_ < end_ && *data_ == c) ? (handleCharacterRead(*data_++), true) : false;
+    }
 
     /**
      * get zero-based current line number
      */
     [[nodiscard]]
-    unsigned int getLineNumber() const;
+    inline unsigned int getLineNumber() const noexcept {
+        return lineNumber;
+    }
 
     /**
      * get zero-based character number
      */
     [[nodiscard]]
-    unsigned int getLineCharNumber() const;
-
-    /**
-     * gets the stream position at the current position
-     * @return
-     */
-    [[nodiscard]]
-    StreamPosition getStreamPosition();
+    inline unsigned int getLineCharNumber() const noexcept {
+        return lineCharacterNumber;
+    }
 
     /**
      * reset the stream
      */
-    void reset();
-
-    /**
-     * reset the buffer and switch to the given source
-     */
-    void switch_source(InputSource* source);
+    void reset() {
+        lineNumber = 0;
+        lineCharacterNumber = 0;
+        data_ = end_ - size_;
+    }
 
     /**
      * reads whitespaces, returns how many whitespaces were read
@@ -147,7 +167,11 @@ public:
     /**
      * @return whether there's a newline at current position
      */
-    bool hasNewLine();
+    [[nodiscard]]
+    inline bool hasNewLine() const {
+        const auto p = peek();
+        return p == '\n' || p == '\r';
+    }
 
     /**
      * @return whether new line characters were read
@@ -160,17 +184,28 @@ public:
     void readWhitespacesAndNewLines();
 
     /**
+     * get the position of the stream, which you can restore later
+     */
+    [[nodiscard]]
+    StreamPosition getStreamPosition() {
+        return StreamPosition { data_, getLineNumber(), getLineCharNumber() };
+    }
+
+    /**
      * restores the position of this stream from the given position
      * @param position
      */
-    void restore(const StreamPosition &position);
+    void restore(const StreamPosition &position) {
+        data_ = position.data;
+        lineNumber = position.line;
+        lineCharacterNumber = position.character;
+    }
 
     /**
      * returns the token position at the very current position
-     * @return
      */
     inline Position position() {
-        return {getLineNumber(), getLineCharNumber()};
+        return { getLineNumber(), getLineCharNumber() };
     }
 
 };

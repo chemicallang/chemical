@@ -151,7 +151,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
 void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
-        if(next != -1 && std::isdigit(next)) {
+        if(next != '\0' && std::isdigit(next)) {
             str.append(provider.readCharacter());
         } else {
             break;
@@ -162,7 +162,7 @@ void read_digits(SerialStrAllocator& str, SourceProvider& provider) {
 void read_alpha_or_digits(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
-        if(next != -1 && std::isalnum(next)) {
+        if(next != '\0' && std::isalnum(next)) {
             str.append(provider.readCharacter());
         } else {
             break;
@@ -254,7 +254,7 @@ void read_zero_starting_number(SerialStrAllocator& str, SourceProvider& provider
 void skip_current_line(SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p != -1 && p != '\n' && p != '\r') {
+        if(p != '\0' && p != '\n' && p != '\r') {
             provider.readCharacter();
         } else {
             return;
@@ -265,7 +265,7 @@ void skip_current_line(SourceProvider& provider) {
 void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p != -1 && p != '\n' && p != '\r') {
+        if(p != '\0' && p != '\n' && p != '\r') {
             str.append(provider.readCharacter());
         } else {
             return;
@@ -276,7 +276,7 @@ void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
 void skip_multi_line_comment_text(SourceProvider& provider) {
     while(true) {
         const auto read = provider.readCharacter();
-        if(read == -1) {
+        if(read == '\0') {
             return;
         }
         if(read == '*' && provider.peek() == '/') {
@@ -289,7 +289,7 @@ void skip_multi_line_comment_text(SourceProvider& provider) {
 void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         const auto read = provider.readCharacter();
-        if(read == -1) {
+        if(read == '\0') {
             return;
         }
         if(read != '*') {
@@ -370,9 +370,9 @@ Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvi
                     break;
                 }
 #endif
-                // no need to report an error if -1, since next time unexpected token will be given
+                // no need to report an error if '\0', since next time unexpected token will be given
                 return Token(TokenType::String, str.finalize_view(), pos);
-            case -1:
+            case '\0':
                 return Token(TokenType::String, str.finalize_view(), pos);
             case '\n':
             case '\r':
@@ -411,8 +411,8 @@ Token read_multi_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvid
                 }
                 break;
             }
-            case -1:
-                // no need to report an error if -1, since next time unexpected token will be given
+            case '\0':
+                // no need to report an error if '\0', since next time unexpected token will be given
                 return Token(TokenType::MultilineString, str.finalize_view(), pos);
             case '\n':
                 str.append('\n');
@@ -449,7 +449,7 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
         case '\'':
             lexer.diagnoser.diagnostic("no value given inside single quotes", chem::string_view(lexer.file_path), pos, provider.position(), DiagSeverity::Error);
             return Token(TokenType::Char, str.finalize_view(), pos);
-        case -1:
+        case '\0':
             return Token(TokenType::Char, str.finalize_view(), pos);
         default:
             str.append(current);
@@ -468,7 +468,7 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
 void read_id(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
-        if(p != -1 && (p == '_' || std::isalnum(p))) {
+        if(p != '\0' && (p == '_' || std::isalnum(p))) {
             str.append(provider.readCharacter());
         } else {
             return;
@@ -480,7 +480,7 @@ void read_annotation_id(SerialStrAllocator& str, SourceProvider& provider) {
     while(true) {
         const auto p = provider.peek();
         switch(p) {
-            case -1:
+            case '\0':
             case '_':
             case '.':
             case ':':
@@ -521,7 +521,7 @@ Token Lexer::getNextToken() {
     }
     const auto current = provider.readCharacter();
     switch(current) {
-        case -1:
+        case '\0':
             return Token(TokenType::EndOfFile, { "", 0 }, pos);
         case '{':
             return Token(TokenType::LBrace, view_str(LBraceCStr), pos);

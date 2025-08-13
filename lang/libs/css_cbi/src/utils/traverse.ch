@@ -17,7 +17,7 @@ func traverse_multi_decls(
     var i = 0
     const total = vec.size()
     while(i < total) {
-        const decl = vec.get(i)
+        const decl = vec.get(i as size_t)
         traverse_decl(decl, resolver, loc)
         i++;
     }

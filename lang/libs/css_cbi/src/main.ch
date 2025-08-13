@@ -13,7 +13,7 @@ public func css_replacementNode(builder : *mut ASTBuilder, value : *mut Embedded
     var scope_nodes = scope.getNodes();
     var converter = ASTConverter {
         builder : builder,
-        support : &root.support,
+        support : &mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
@@ -37,21 +37,21 @@ public func css_traversalNode(node : *EmbeddedNode, data : *void, traverse : (da
 }
 
 @no_mangle
-public func css_symResValue(resolver : *SymbolResolver, value : *EmbeddedValue) : bool {
+public func css_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
     const loc = value.getEncodedLocation();
     const root = value.getDataPtr() as *mut CSSOM;
     sym_res_root(root, resolver, loc)
 }
 
 @no_mangle
-public func css_replacementValue(builder : *ASTBuilder, value : *EmbeddedValue) : *Value {
+public func css_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValue) : *Value {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;
     var block_val = builder.make_block_value(root.parent, loc)
     var scope_nodes = block_val.get_body()
     var converter = ASTConverter {
         builder : builder,
-        support : &root.support,
+        support : &mut root.support,
         vec : scope_nodes,
         parent : root.parent
         str : std::string()
@@ -75,7 +75,7 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
         const type = builder.make_string_type(loc)
-        const value = builder.make_embedded_value(std::string_view("css"), root, type, value_symbol_resolve_func, value_replacement_func, value_traversal_func, loc);
+        const value = builder.make_embedded_value(std::string_view("css"), root, type, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }
@@ -132,5 +132,5 @@ public func css_initializeLexer(lexer : *mut Lexer) {
         lb_count : 0,
         where : CSSLexerWhere.Declaration
     }
-    lexer.setUserLexer(ptr, getNextToken)
+    lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

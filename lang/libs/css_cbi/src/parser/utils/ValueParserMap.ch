@@ -16,7 +16,7 @@ struct ValueParserMap {
     }
 
     func getParserFor(&self, name : &std::string_view) : *void {
-        var value : *void
+        var value : *mut void
         if(map.find(name, value)) {
             return value;
         } else {

@@ -375,14 +375,14 @@ public struct ASTBuilder {
         child_res_fn : EmbeddedNodeChildResolutionFunc,
         parent_node : *ASTNode,
         location : ubigint
-    ) : *EmbeddedNode
+    ) : *mut EmbeddedNode
 
     func make_embedded_value(&self,
         name : &std::string_view,
         data_ptr : *void,
         type : *mut BaseType,
         location : ubigint
-    ) : *EmbeddedValue
+    ) : *mut EmbeddedValue
 
     func make_any_type(&self, location : ubigint) : *mut AnyType
 

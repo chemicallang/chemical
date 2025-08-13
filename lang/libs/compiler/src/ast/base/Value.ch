@@ -1,4 +1,4 @@
-public struct Value {
+public struct Value : ASTAny {
 
     func getEncodedLocation(&self) : ubigint
 

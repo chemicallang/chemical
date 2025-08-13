@@ -2,7 +2,7 @@ func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *
     var i = 0;
     const total = element.children.size()
     while(i < total) {
-        const child = element.children.get(i)
+        const child = element.children.get(i as size_t)
         if(child.kind == HtmlChildKind.Element) {
             const elem = child as *HtmlElement
             traverse_element(elem, data, traverse)

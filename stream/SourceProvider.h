@@ -85,9 +85,8 @@ public:
         if(data_ == end_) {
             return '\0';
         }
-        const auto read = *data_;
+        const auto read = *data_++;
         handleCharacterRead(read);
-        data_++;
         return read;
     }
 
@@ -96,8 +95,7 @@ public:
      */
     void increment() noexcept {
         if(data_ == end_) return;
-        handleCharacterRead(*data_);
-        data_++;
+        handleCharacterRead(*data_++);
     }
 
     /**

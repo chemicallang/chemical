@@ -8,7 +8,6 @@
 #include "std/chem_string.h"
 #include "ASTBuilderCBI.h"
 #include "ASTCBI.h"
-#include "SerialStrAllocatorCBI.h"
 #include "SymbolResolverCBI.h"
 #include "LexerCBI.h"
 #include "ParserCBI.h"
@@ -68,13 +67,6 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
 
 const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {
         { "compiler_BatchAllocatorallocate_size", (void*) BatchAllocatorallocate_size },
-};
-
-const std::pair<chem::string_view, void*> SerialStrAllocatorSymMap[] = {
-        {"compiler_SerialStrAllocatordeallocate", (void*) SerialStrAllocatordeallocate },
-        {"compiler_SerialStrAllocatorcurrent_view", (void*) SerialStrAllocatorcurrent_view },
-        {"compiler_SerialStrAllocatorfinalize_view", (void*) SerialStrAllocatorfinalize_view },
-        {"compiler_SerialStrAllocatorappend", (void*) SerialStrAllocatorappend }
 };
 
 const std::pair<chem::string_view, void*> SourceProviderSymMap[] = {
@@ -289,7 +281,6 @@ void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std:
     interface_maps.reserve(9);
     interface_maps.emplace("SourceProvider", SourceProviderSymMap);
     interface_maps.emplace("BatchAllocator", BatchAllocatorSymMap);
-    interface_maps.emplace("SerialStrAllocator", SerialStrAllocatorSymMap);
     interface_maps.emplace("Lexer", LexerSymMap);
     interface_maps.emplace("Parser", ParserSymMap);
     interface_maps.emplace("BuildContext", BuildContextSymMap);

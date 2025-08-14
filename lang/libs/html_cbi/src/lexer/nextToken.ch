@@ -1,7 +1,6 @@
 
 func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     const provider = &lexer.provider;
-    const str = &lexer.str;
     // the position of the current symbol
     const position = provider.getPosition();
     const data_ptr = provider.current_data()

@@ -1,111 +1,81 @@
-
-func (provider : &SourceProvider) read_tag_name(str : &SerialStrAllocator) : std::string_view {
+func (provider : &SourceProvider) read_alpha() {
     while(true) {
         const c = provider.peek();
-        if(c != -1 && (isalnum(c as int) || c == '_' || c == '-' || c == ':')) {
-            str.append(provider.readCharacter());
+        if(c != '\0' && (isalpha(c as int))) {
+            provider.increment();
         } else {
             break;
         }
     }
-    return str.finalize_view();
 }
 
-func (provider : &SourceProvider) read_alpha(str : &SerialStrAllocator) : std::string_view {
+func (provider : &SourceProvider) read_alpha_num() {
     while(true) {
         const c = provider.peek();
-        if(c != -1 && (isalpha(c as int))) {
-            str.append(provider.readCharacter());
+        if(c != '\0' && (isalnum(c as int))) {
+            provider.increment();
         } else {
             break;
         }
     }
-    return str.finalize_view();
 }
 
-func (provider : &SourceProvider) read_alpha_num(str : &SerialStrAllocator) : std::string_view {
+func (provider : &SourceProvider) read_css_id() {
     while(true) {
         const c = provider.peek();
-        if(c != -1 && (isalnum(c as int))) {
-            str.append(provider.readCharacter());
+        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_')) {
+            provider.increment();
         } else {
             break;
         }
     }
-    return str.finalize_view();
 }
 
-func (provider : &SourceProvider) read_css_id(str : &SerialStrAllocator) : std::string_view {
-    while(true) {
-        const c = provider.peek();
-        if(c != -1 && (isalnum(c as int) || c == '-' || c == '_')) {
-            str.append(provider.readCharacter());
-        } else {
-            break;
-        }
-    }
-    return str.finalize_view();
-}
-
-func (provider : &SourceProvider) read_text(str : &SerialStrAllocator) : std::string_view {
-    while(true) {
-        const c = provider.peek();
-        if(c != -1 && c != '<' && c != '{' && c != '}') {
-            str.append(provider.readCharacter());
-        } else {
-            break;
-        }
-    }
-    return str.finalize_view();
-}
-
-func (provider : &SourceProvider) read_single_quoted_value(str : &SerialStrAllocator) : std::string_view {
+func (provider : &SourceProvider) read_single_quoted_value() {
     while(true) {
         const c = provider.peek();
         if (c == '\'') {
-            str.append(provider.readCharacter());
+            provider.increment();
             break;
-        } else if(c != -1) {
-            str.append(provider.readCharacter());
+        } else if(c != '\0') {
+            provider.increment();
         } else {
             break;
         }
     }
-    return str.finalize_view();
 }
 
-func (provider : &SourceProvider) read_double_quoted_value(str : &SerialStrAllocator) : std::string_view {
+func (provider : &SourceProvider) read_double_quoted_value() {
     while(true) {
         const c = provider.peek();
         if (c == '"') {
-            str.append(provider.readCharacter());
+            provider.increment();
             break;
-        } else if(c != -1) {
-            str.append(provider.readCharacter());
+        } else if(c != '\0') {
+            provider.increment();
         } else {
             break;
         }
     }
-    return str.finalize_view();
 }
 
 // read digits into the string
-func (provider : &mut SourceProvider) read_digits(str : &mut SerialStrAllocator) {
+func (provider : &mut SourceProvider) read_digits() {
     while(true) {
         const next = provider.peek();
-        if(next != -1 && isdigit(next)) {
-            str.append(provider.readCharacter());
+        if(next != '\0' && isdigit(next)) {
+            provider.increment();
         } else {
             break;
         }
     }
 }
 
-func (provider : &mut SourceProvider) read_line(str : &mut SerialStrAllocator) {
+func (provider : &mut SourceProvider) read_line() {
     while(true) {
         const c = provider.peek()
-        if(c != -1 && c != '\r' && c != '\n') {
-            str.append(provider.readCharacter())
+        if(c != '\0' && c != '\r' && c != '\n') {
+            provider.increment()
         } else {
             return;
         }
@@ -113,12 +83,12 @@ func (provider : &mut SourceProvider) read_line(str : &mut SerialStrAllocator) {
 }
 
 // assumes that a digit exists at current location
-func (provider : &mut SourceProvider) read_floating_digits(str : &mut SerialStrAllocator) : bool {
-    provider.read_digits(str);
+func (provider : &mut SourceProvider) read_floating_digits() : bool {
+    provider.read_digits();
     const c = provider.peek();
     if(c == '.') {
-        str.append(provider.readCharacter());
-        provider.read_digits(str);
+        provider.increment();
+        provider.read_digits();
         return true;
     } else {
         return false;

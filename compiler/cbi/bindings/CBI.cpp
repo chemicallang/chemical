@@ -78,6 +78,7 @@ const std::pair<chem::string_view, void*> SerialStrAllocatorSymMap[] = {
 };
 
 const std::pair<chem::string_view, void*> SourceProviderSymMap[] = {
+        { "compiler_SourceProviderincrement", (void*) SourceProviderincrement },
         { "compiler_SourceProviderreadCharacter", (void*) SourceProviderreadCharacter },
         { "compiler_SourceProvidereof", (void*) SourceProvidereof },
         { "compiler_SourceProviderpeek", (void*) SourceProviderpeek },

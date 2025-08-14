@@ -3,6 +3,10 @@
 #include "SourceProviderCBI.h"
 #include "stream/SourceProvider.h"
 
+void SourceProviderincrement(SourceProvider* provider) {
+    provider->increment();
+}
+
 char SourceProviderreadCharacter(SourceProvider* provider)  {
     return provider->readCharacter();
 }

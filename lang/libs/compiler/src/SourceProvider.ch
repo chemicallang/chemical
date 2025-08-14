@@ -20,6 +20,11 @@ public struct SourceProvider {
     var lineCharacterNumber : uint
 
     /**
+     * increment a single character forward
+     */
+    func increment(&self)
+
+    /**
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
      */
@@ -73,6 +78,10 @@ public struct SourceProvider {
      */
     func readWhitespacesAndNewLines (&self) : void;
 
+}
+
+public func (provider : &SourceProvider) current_data() : *char {
+    return provider.data_ptr;
 }
 
 public func (provider : &SourceProvider) getPosition() : Position {

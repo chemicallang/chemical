@@ -122,13 +122,19 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     if(html.is_comment) {
         const provider = &lexer.provider
         const position = provider.getPosition();
-        if(provider.read_comment_text(lexer.str)) {
+        const data_ptr = provider.current_data()
+        const has_end = provider.read_comment_text()
+        if(has_end) {
             // comment has ended
             html.is_comment = false;
         }
+        var end_offset = 0
+        if(has_end) {
+            end_offset = 3
+        }
         return Token {
             type : TokenType.CommentText as int,
-            value : lexer.str.finalize_view(),
+            value : std::string_view(data_ptr, (provider.current_data() - end_offset) - data_ptr),
             position : position
         }
     }

@@ -792,8 +792,8 @@ bool ASTProcessor::import_chemical_file(
         // empty file
         return true;
     } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
-        result.continue_processing = false;
-        return false;
+        auto& last = tokens[total_toks - 1];
+        lexer.diagnoser.diagnostic(last.value, result.unit.scope.file_path, last.position, last.position, DiagSeverity::Error);
     }
 
     // move lexer diagnostics
@@ -802,6 +802,7 @@ bool ASTProcessor::import_chemical_file(
     // do not continue, if error occurs during lexing
     if(lexer.diagnoser.has_errors) {
         result.continue_processing = false;
+        return false;
     }
 
     // parse the file

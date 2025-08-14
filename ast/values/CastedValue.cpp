@@ -26,7 +26,8 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
             if(eval->is_value_int_n()) {
                 return intNType->create(scope.allocator, scope.global->typeBuilder, ((IntNumValue*) eval)->get_num_value(), encoded_location());
             } else {
-                scope.error("non integer value cannot be casted to integer type", this);
+                // TODO: cannot error out, we are returning intrinsics::wrap with a cast to integer
+                // scope.error("non integer value cannot be casted to integer type", this);
                 return eval;
             }
         }

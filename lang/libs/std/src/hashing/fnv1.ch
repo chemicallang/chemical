@@ -14,6 +14,19 @@ public func fnv1a_hash_32(str : *char) : uint {
     return hash;
 }
 
+public func fnv1_hash_view(view : &std::string_view) : size_t {
+    var ptr = view.data();
+    const end = ptr + view.size()
+    var hash : size_t = 0xcbf29ce484222325 as size_t;
+    while(ptr != end) {
+        const c = *ptr;
+        hash ^= c as size_t;
+        hash *= 0x100000001b3;
+        ptr++
+    }
+    return hash;
+}
+
 public func fnv1_hash(s : *char) : size_t {
     var ptr = s;
     var hash : size_t = 0xcbf29ce484222325 as size_t;

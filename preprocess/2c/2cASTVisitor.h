@@ -550,6 +550,8 @@ public:
 
     void VisitValueWrapper(ValueWrapperNode* node);
 
+    void VisitAccessChainNode(AccessChainNode* node);
+
     void VisitEnumDecl(EnumDeclaration* node);
 
     // enum members are handled along with enum declaration

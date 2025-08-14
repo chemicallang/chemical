@@ -822,6 +822,14 @@ public:
     }
 
     /**
+     * as access chain node unsafe
+     */
+    inline AccessChainNode* as_access_chain_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::AccessChainNode);
+        return (AccessChainNode*) this;
+    }
+
+    /**
      * as value node unsafe
      */
     inline ValueNode* as_value_node_unsafe() {

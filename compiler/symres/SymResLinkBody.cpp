@@ -5,6 +5,7 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/statements/ProvideStmt.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/UnresolvedDecl.h"
@@ -537,6 +538,19 @@ VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt
     return nullptr;
 }
 
+void create_var_case_var(VariableIdentifier* id, SymResLinkBody& linker, ASTAllocator& allocator, VariantCase* varCase, SwitchStatement* stmt) {
+    const auto param = varCase->member->values.find(id->value);
+    if (param != varCase->member->values.end()) {
+
+        auto variable = new(allocator.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, 0);
+        varCase->identifier_list.emplace_back(variable);
+        linker.visit(variable);
+
+    } else {
+        linker.linker.error("couldn't find variant member parameter with that name", id);
+    }
+}
+
 VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, VariantDefinition* def, FunctionCall* call) {
     auto& resolver = linker.linker;
     auto& astAlloc = *resolver.ast_allocator;
@@ -547,17 +561,9 @@ VariantCase* create_variant_case(SymResLinkBody& linker, SwitchStatement* stmt, 
             // put all values as variant case variables
             for (const auto value: call->values) {
                 if (value->kind() == ValueKind::Identifier) {
-                    const auto id = value->as_identifier_unsafe();
-                    const auto param = varCase->member->values.find(id->value);
-                    if (param != varCase->member->values.end()) {
-
-                        auto variable = new(astAlloc.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, 0);
-                        varCase->identifier_list.emplace_back(variable);
-                        linker.visit(variable);
-
-                    } else {
-                        resolver.error("couldn't find variant member parameter with that name", value);
-                    }
+                    create_var_case_var(value->as_identifier_unsafe(), linker, astAlloc, varCase, stmt);
+                } else if(value->kind() == ValueKind::AccessChain && value->as_access_chain_unsafe()->values.back()->kind() == ValueKind::Identifier) {
+                    create_var_case_var(value->as_access_chain_unsafe()->values.back()->as_identifier_unsafe(), linker, astAlloc, varCase, stmt);
                 } else {
                     resolver.error("expected value to be a identifier", value);
                 }
@@ -1409,6 +1415,10 @@ void SymResLinkBody::VisitMultiFunctionNode(MultiFunctionNode* node) {
 
 void SymResLinkBody::VisitValueWrapper(ValueWrapperNode* node) {
     visit(node->value);
+}
+
+void SymResLinkBody::VisitAccessChainNode(AccessChainNode* node) {
+    visit(&node->chain);
 }
 
 bool embedded_traverse(void* data, ASTAny* item) {

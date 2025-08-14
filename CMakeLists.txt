@@ -572,6 +572,7 @@ set(COMMON_SOURCES
         compiler/symres/SymResLinkBodyAPI.h
         compiler/cbi/model/ASTBuilder.h
         ast/statements/UnresolvedDecl.h
+        ast/statements/AccessChainNode.h
 )
 
 # Chemical LSP Executable Target

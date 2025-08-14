@@ -161,6 +161,8 @@ public:
 
     void VisitValueWrapper(ValueWrapperNode* node);
 
+    void VisitAccessChainNode(AccessChainNode* node);
+
     void VisitEmbeddedNode(EmbeddedNode* node);
 
     // ------------------------------------

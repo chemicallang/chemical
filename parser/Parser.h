@@ -450,7 +450,7 @@ public:
     /**
      * parse a function call
      */
-    FunctionCall* parseFunctionCall(ASTAllocator& allocator, AccessChain* chain);
+    FunctionCall* parseFunctionCall(ASTAllocator& allocator, std::vector<ChainValue*>& values);
 
     /**
      * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)
@@ -465,7 +465,7 @@ public:
         return s.has_value() ? s.value() : def;
     }
 
-    BaseType* ref_type_from(ASTAllocator& allocator, AccessChain* chain);
+    BaseType* ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values);
 
     /**
      * after an identifier has been consumed
@@ -474,14 +474,19 @@ public:
      * this is the method called by lexAccessChain after finding a identifier
      * @param assChain is the access chain in an assignment
      */
-    Value* parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct = false);
+    Value* parseAccessChainAfterId(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct = false);
 
     /**
      * this method does not compound the access chain, so can be called recursively
      * this method is called by lexAccessChain to not compound access chains nested in it
      * @param assChain is the access chain in an assignment
      */
-    Value* parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct = false);
+    Value* parseAccessChainRecursive(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct = false);
+
+    /**
+     * parses access chain node
+     */
+    void parseAccessChain(ASTAllocator& allocator, std::vector<ChainValue*>& values);
 
     /**
      * parse access chain
@@ -502,6 +507,12 @@ public:
      * parses a single dereference value
      */
     DereferenceValue* parseDereferenceValue(ASTAllocator& allocator);
+
+    /**
+     * it lexes a access chain, but allows a '&' operator before it to get the address of value
+     * so this allows a.b.c or &a.b.c
+     */
+    Value* parseLhsValue(ASTAllocator& allocator);
 
     /**
      * it lexes a access chain, but allows a '&' operator before it to get the address of value

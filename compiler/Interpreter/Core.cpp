@@ -6,6 +6,7 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/types/FunctionType.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/statements/Return.h"
@@ -131,6 +132,10 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
     node->value->evaluated_value(scope);
 }
 
+inline void interpret(InterpretScope& scope, AccessChainNode* node) {
+    node->chain.evaluated_value(scope);
+}
+
 void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
         auto initializer = stmt->value->scope_value(scope);
@@ -196,6 +201,9 @@ void InterpretScope::interpret(ASTNode* node) {
             break;
         case ASTNodeKind::ValueWrapper:
             ::interpret(*this, node->as_value_wrapper_unsafe());
+            break;
+        case ASTNodeKind::AccessChainNode:
+            ::interpret(*this, node->as_access_chain_node_unsafe());
             break;
         case ASTNodeKind::VarInitStmt:
             ::interpret(*this, node->as_var_init_unsafe());

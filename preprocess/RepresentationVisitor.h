@@ -177,6 +177,8 @@ public:
 
     void VisitValueWrapper(ValueWrapperNode* node);
 
+    void VisitAccessChainNode(AccessChainNode* node);
+
     void VisitEnumDecl(EnumDeclaration* node);
 
     // we handle enums when handling enum declarations

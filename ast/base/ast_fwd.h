@@ -32,6 +32,8 @@ class ProvideStmt;
 
 class ImportStatement;
 
+class AccessChainNode;
+
 class UnsafeBlock;
 
 class ReturnStatement;

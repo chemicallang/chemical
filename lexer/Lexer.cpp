@@ -652,6 +652,4 @@ void Lexer::getTokens(std::vector<Token>& tokens) {
 
 void Lexer::getUnit(LexUnit& unit) {
     getTokens(unit.tokens);
-exit_loop:
-    unit.allocator = std::move(str);
 }

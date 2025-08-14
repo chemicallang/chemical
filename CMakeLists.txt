@@ -454,15 +454,12 @@ set(COMMON_SOURCES
         lexer/TokenType.h
         lexer/Token.h
         lexer/LexUnit.h
-        std/alloc/SerialStrAllocator.h
         std/chem_span.h
         std/chem_string_view.h
         std/small_vector.h
         ast/values/AlignOfValue.h
         compiler/cbi/bindings/BatchAllocatorCBI.h
         compiler/cbi/bindings/BatchAllocatorCBI.cpp
-        compiler/cbi/bindings/SerialStrAllocatorCBI.h
-        compiler/cbi/bindings/SerialStrAllocator.cpp
         compiler/cbi/bindings/LexerCBI.h
         compiler/cbi/bindings/LexerCBI.cpp
         ast/values/NewTypedValue.h

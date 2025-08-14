@@ -22,8 +22,6 @@ public struct Lexer : LexerState {
 
     var user_lexer : UserLexerFn;
 
-    var str : SerialStrAllocator
-
     func getFileAllocator(&self) : *BatchAllocator
 
     func setUserLexer(&self, instance : *void, subroutine : UserLexerSubroutineType);

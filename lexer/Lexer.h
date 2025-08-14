@@ -5,7 +5,6 @@
 #include "stream/SourceProvider.h"
 #include "Token.h"
 #include "LexUnit.h"
-#include "std/alloc/SerialStrAllocator.h"
 #include "compiler/cbi/model/Model.h"
 #include "core/diag/Diagnoser.h"
 
@@ -61,11 +60,6 @@ public:
     UserLexerGetNextToken user_lexer;
 
     /**
-     * the allocator used for strings found in the source code
-     */
-    SerialStrAllocator str;
-
-    /**
      * a reference to batch allocator is stored which can be used
      * by the user's lexer
      */
@@ -116,7 +110,7 @@ public:
             InputSource& input,
             CompilerBinder* binder,
             BatchAllocator& file_allocator
-    ) : file_path(std::move(file_path)), provider(input), binder(binder), str(3000),
+    ) : file_path(std::move(file_path)), provider(input), binder(binder),
         user_lexer(nullptr), file_allocator(file_allocator) {
 
     }

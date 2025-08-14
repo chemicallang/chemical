@@ -277,88 +277,6 @@ const char* read_multi_line_comment_text(SourceProvider& provider) {
     }
 }
 
-// reads an escape sequence without escaping it into the string
-void read_escape_sequence(SerialStrAllocator& str, SourceProvider& provider) {
-    char current = provider.readCharacter();
-    if(current != 'x') {
-        str.append(current);
-    } else {
-        if(provider.increment('1')) {
-            if(provider.increment('b')) {
-                str.append('x');
-                str.append('1');
-                str.append('b');
-            } else {
-                str.append('x');
-                str.append('1');
-            }
-        } else {
-            str.append('x');
-        }
-    }
-}
-
-// returns whether the escape sequence is known or not
-// if unknown reads it into the string without escaping it
-bool read_escapable_char(SerialStrAllocator &str, SourceProvider& provider) {
-    char current = provider.readCharacter();
-    if(current != 'x') {
-        const auto next = escaped_char(current);
-        str.append(next);
-        return next != current || next == '\\' || next == '\'' || next == '"';
-    } else {
-        if(provider.increment('1') && provider.increment('b')) {
-            str.append('\x1b');
-            return true;
-        } else {
-            str.append(current);
-            return false;
-        }
-    }
-}
-
-Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
-#ifdef LSP_BUILD
-    bool escaping = false;
-#endif
-    while(true) {
-        auto current = provider.readCharacter();
-        switch(current) {
-            case '\\':
-#ifdef LSP_BUILD
-                str.append(current);
-                escaping = true;
-#else
-                if(!read_escapable_char(str, provider)) {
-                    lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
-                }
-#endif
-                break;
-            case '"':
-#ifdef LSP_BUILD
-                if(escaping) {
-                    str.append('"');
-                    escaping = false;
-                    break;
-                }
-#endif
-                // no need to report an error if '\0', since next time unexpected token will be given
-                return Token(TokenType::String, str.finalize_view(), pos);
-            case '\0':
-                return Token(TokenType::String, str.finalize_view(), pos);
-            case '\n':
-            case '\r':
-                lexer.diagnoser.diagnostic("single line string doesn't have a ending", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
-            default:
-#ifdef LSP_BUILD
-                escaping = false;
-#endif
-                str.append(current);
-                break;
-        }
-    }
-}
-
 const char* read_multi_line_string(SourceProvider& provider) {
     while(true) {
         switch(provider.readCharacter()) {
@@ -387,33 +305,43 @@ const char* read_multi_line_string(SourceProvider& provider) {
     }
 }
 
-Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider& provider, const Position& pos) {
-    auto current = provider.readCharacter();
-    switch(current) {
-        case '\\':
-#ifdef LSP_BUILD
-            str.append(current);
-            read_escape_sequence(str, provider);
-#else
-            if(!read_escapable_char(str, provider)) {
-                lexer.diagnoser.diagnostic("unknown escape sequence", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
-            }
-#endif
-            break;
-        case '\'':
-            lexer.diagnoser.diagnostic("no value given inside single quotes", chem::string_view(lexer.file_path), pos, provider.position(), DiagSeverity::Error);
-            return Token(TokenType::Char, str.finalize_view(), pos);
-        case '\0':
-            return Token(TokenType::Char, str.finalize_view(), pos);
-        default:
-            str.append(current);
-            break;
+// returns whether the ending quote was found
+bool read_quoted_string(SourceProvider& provider) {
+    while(true) {
+        switch(provider.readCharacter()) {
+            case '\\':
+                switch(provider.readCharacter()) {
+                    case 'x':
+                        provider.increment('1') && provider.increment('b');
+                    default:
+                        break;
+                }
+                break;
+            case '"':
+                return true;
+            case '\n':
+            case '\r':
+                return false;
+            default:
+                break;
+        }
     }
-    if(provider.peek() == '\'') {
-        provider.increment();
-        return Token(TokenType::Char, str.finalize_view(), pos);
-    } else {
-        return read_character_token(lexer, str, provider, pos);
+}
+
+bool read_char_in_quotes(SourceProvider& provider) {
+    switch(provider.readCharacter()) {
+        case '\\':
+            switch(provider.readCharacter()) {
+                case 'x':
+                    provider.increment('1') && provider.increment('b');
+                default:
+                    break;
+            }
+            return true;
+        case '\'':
+            return false;
+        default:
+            return true;
     }
 }
 
@@ -614,8 +542,17 @@ Token Lexer::getNextToken() {
             } else {
                 return Token(TokenType::EqualSym, view_str(EqualOpCStr), pos);
             }
-        case '\'':
-            return read_character_token(*this, str, provider, pos);
+        case '\'': {
+            const auto start = provider.current_data();
+            if (read_char_in_quotes(provider)) {
+                const auto end = provider.current_data();
+                provider.increment('\'');
+                return Token(TokenType::Char, chem::string_view(start, end - start), pos);
+            } else {
+                diagnoser.diagnostic("no value given inside single quotes", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                return Token(TokenType::Char, view_str(EmptyCStr), pos);
+            }
+        }
         case '"':
             if(provider.peek() == '"') {
                 provider.increment();
@@ -631,7 +568,13 @@ Token Lexer::getNextToken() {
                 }
             } else {
                 // single line string
-                return read_single_line_string(*this, str, provider, pos);
+                const auto start = provider.current_data();
+                const auto has_ending_quote = read_quoted_string(provider);
+                if(!has_ending_quote) {
+                    diagnoser.diagnostic("no ending quotes for the single line string", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                }
+                const auto end = provider.current_data() - (has_ending_quote ? 1 : 0);
+                return Token(TokenType::String, chem::string_view(start, end - start), pos);
             }
         case ' ':
         case '\t':

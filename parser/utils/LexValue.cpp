@@ -276,7 +276,7 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
 
     } else {
 
-        auto value = parseExpression(allocator);
+        auto value = parseExpression(allocator, true);
         if(!value) {
             unexpected_error("expected value after new");
             return nullptr;

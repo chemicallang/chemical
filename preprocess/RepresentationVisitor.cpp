@@ -8,6 +8,7 @@
 #include "ast/statements/Continue.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Return.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/Import.h"
@@ -558,6 +559,10 @@ void RepresentationVisitor::VisitTryStmt(TryCatch *statement) {
 
 void RepresentationVisitor::VisitValueWrapper(ValueWrapperNode *node) {
     visit(node->value);
+}
+
+void RepresentationVisitor::VisitAccessChainNode(AccessChainNode* node) {
+    visit(&node->chain);
 }
 
 void RepresentationVisitor::VisitIntValue(IntValue *val) {

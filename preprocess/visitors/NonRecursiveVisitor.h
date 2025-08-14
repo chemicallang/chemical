@@ -99,6 +99,9 @@ public:
     inline void VisitValueWrapper(ValueWrapperNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitAccessChainNode(AccessChainNode* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitEnumDecl(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -557,6 +560,9 @@ public:
             case ASTNodeKind::ValueWrapper:
                 static_cast<Derived*>(this)->VisitValueWrapper((ValueWrapperNode*) node);
                 return;
+            case ASTNodeKind::AccessChainNode:
+                static_cast<Derived*>(this)->VisitAccessChainNode((AccessChainNode*) node);
+                return;
             case ASTNodeKind::EnumDecl:
                 static_cast<Derived*>(this)->VisitEnumDecl((EnumDeclaration*) node);
                 return;
@@ -985,6 +991,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(ValueWrapperNode* node) {
         static_cast<Derived*>(this)->VisitValueWrapper(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(AccessChainNode* node) {
+        static_cast<Derived*>(this)->VisitAccessChainNode(node);
     }
     inline void VisitByPtrTypeNoNullCheck(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitEnumDecl(node);

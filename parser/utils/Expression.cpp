@@ -188,7 +188,8 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(identifier));
     chain->values.emplace_back((ChainValue*) first_value);
-    auto value = parseAccessChainAfterId(allocator, chain, identifier->position);
+    const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
+    const auto value = structValue ? structValue : chain;
     const auto finalValue = parseAfterValue(allocator, value, identifier);
     auto expr = parseRemainingExpression(allocator, finalValue, identifier);
     if(consumeToken(TokenType::RParen)) {
@@ -303,13 +304,13 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
         std::vector<TypeLoc> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {
-            auto call = parseFunctionCall(allocator, chain);
+            auto call = parseFunctionCall(allocator, chain->values);
             call->generic_list = std::move(genArgs);
         } else {
             error("expected a '(' after the generic list in function call");
         }
         if(consumeToken(TokenType::DotSym)) {
-            auto value = parseAccessChainRecursive(allocator, chain, start_pos, false);
+            auto value = parseAccessChainRecursive(allocator, chain->values, start_pos, false);
             if(!value || value != chain) {
                 error("expected a identifier after the dot . in the access chain");
                 return nullptr;

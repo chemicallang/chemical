@@ -13,6 +13,7 @@
 //#include "ast/statements/MacroValueStatement.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/AccessChainNode.h"
 //#include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
@@ -131,6 +132,10 @@ public:
 
     void VisitValueWrapper(ValueWrapperNode *node) {
         visit(node->value);
+    }
+
+    void VisitAccessChainNode(AccessChainNode *node) {
+        visit(&node->chain);
     }
 
     void VisitVarInitStmt(VarInitStatement *init) {

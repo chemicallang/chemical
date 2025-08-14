@@ -18,9 +18,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
-#include "ast/values/ComptimeValue.h"
 #include "ast/values/SizeOfValue.h"
-#include "ast/values/AlignOfValue.h"
 
 Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStruct) {
     switch(token->type) {
@@ -44,28 +42,30 @@ Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStru
     }
 }
 
+void Parser::parseAccessChain(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
+
+    auto id = consumeIdentifierOrKeyword();
+    if(id == nullptr) {
+        return;
+    }
+
+    auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
+    values.emplace_back(identifier);
+
+#ifdef LSP_BUILD
+    id->linked = identifier;
+#endif
+
+    // ignore the returned struct value
+    parseAccessChainAfterId(allocator, values, id->position);
+
+}
+
 Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     auto id = consumeIdentifierOrKeyword();
     if(id == nullptr) {
         return nullptr;
-    }
-
-    auto tokenType = token->type;
-
-    switch(tokenType) {
-        case TokenType::NewLine:
-        case TokenType::RParen:
-        case TokenType::RBrace:
-        case TokenType::RBracket:
-        case TokenType::CommaSym:
-            return new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));;
-        case TokenType::LBrace: {
-            auto ref_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value));
-            return parseStructValue(allocator, ref_type, id->position);
-        }
-        default:
-            break;
     }
 
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(id));
@@ -76,7 +76,9 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
     id->linked = identifier;
 #endif
 
-    return parseAccessChainAfterId(allocator, chain, id->position, parseStruct);
+    const auto structVal = parseAccessChainAfterId(allocator, chain->values, id->position, parseStruct);
+
+    return structVal ? structVal : chain;
 
 }
 
@@ -113,6 +115,44 @@ DereferenceValue* Parser::parseDereferenceValue(ASTAllocator& allocator) {
         }
     } else {
         return nullptr;
+    }
+}
+
+Value* Parser::parseLhsValue(ASTAllocator& allocator) {
+    switch (token->type) {
+        case TokenType::AmpersandSym:
+            return (Value*) parseAddrOfValue(allocator);
+        case TokenType::MultiplySym:
+            return (Value*) parseDereferenceValue(allocator);
+        case TokenType::DoublePlusSym:
+            return parsePreIncDecValue(allocator, true);
+        case TokenType::DoubleMinusSym:
+            return parsePreIncDecValue(allocator, false);
+        case TokenType::NullKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc_single(t));
+        }
+        case TokenType::TrueKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), loc_single(t));
+        }
+        case TokenType::FalseKw: {
+            const auto t = token;
+            token++;
+            return new(allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), loc_single(t));
+        }
+        case TokenType::UnsafeKw: {
+            token++;
+            return parseUnsafeValue(allocator);
+        }
+        case TokenType::ComptimeKw: {
+            token++;
+            return parseComptimeValue(allocator);
+        }
+        default:
+            return nullptr;
     }
 }
 
@@ -174,31 +214,31 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
     }
 }
 
-Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct) {
+Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct) {
     auto id = parseVariableIdentifier(allocator);
     if(id) {
-        chain->values.emplace_back(id);
+        values.emplace_back(id);
     } else {
         return nullptr;
     }
-    return parseAccessChainAfterId(allocator, chain, start, parseStruct);
+    return parseAccessChainAfterId(allocator, values, start, parseStruct);
 }
 
-ChainValue* take_parent(ASTAllocator& allocator, AccessChain* chain, SourceLocation location) {
-    if(chain->values.size() == 1) {
-        const auto parent_val = chain->values.back();
-        chain->values.pop_back();
+ChainValue* take_parent(ASTAllocator& allocator, std::vector<ChainValue*>& values, SourceLocation location) {
+    if(values.size() == 1) {
+        const auto parent_val = values.back();
+        values.pop_back();
         return parent_val;
     } else {
-        return new (allocator.allocate<AccessChain>()) AccessChain(std::move(chain->values), false, location);
+        return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), false, location);
     }
 }
 
-FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, AccessChain* chain) {
+FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
     auto& lParenTok = *token;
     if(lParenTok.type == TokenType::LParen) {
         const auto location = loc_single(lParenTok);
-        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(take_parent(allocator, chain, location), location);
+        auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(take_parent(allocator, values, location), location);
         token++;
         do {
             consumeNewLines();
@@ -236,34 +276,30 @@ void Parser::parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& a
     }
 }
 
-BaseType* Parser::ref_type_from(ASTAllocator& allocator, AccessChain* chain) {
-    if(chain->values.size() == 1) {
-        auto val = (VariableIdentifier*) chain->values.back();
+BaseType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
+    if(values.size() == 1) {
+        auto val = (VariableIdentifier*) values.back();
         return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, val->value));
     } else {
+        const auto loc = values.front()->encoded_location();
+        const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), false, loc);
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain);
     }
 }
 
-Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* chain, Position& start, bool parseStruct) {
-
-    if(parseStruct) {
-        if(token->type == TokenType::LBrace) {
-            return parseStructValue(allocator, ref_type_from(allocator, chain), start);
-        }
-    }
+Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct) {
 
     // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
         std::vector<TypeLoc> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {
-            auto call = parseFunctionCall(allocator, chain);
+            auto call = parseFunctionCall(allocator, values);
             call->generic_list = std::move(genArgs);
-            chain->values.emplace_back(call);
+            values.emplace_back(call);
         } else if(parseStruct && token->type == TokenType::LBrace) {
-            if(chain->values.size() == 1) {
-                auto id = (VariableIdentifier*) chain->values.back();
+            if(values.size() == 1) {
+                auto id = (VariableIdentifier*) values.back();
                 auto ref_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value));
                 auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
                 return parseStructValue(allocator, gen_type, start);
@@ -281,34 +317,34 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
     while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
         if(token->type == TokenType::LBracket) {
             const auto location = loc_single(token);
-            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, chain, location), location);
-            chain->values.emplace_back(indexOp);
+            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, values, location), location);
+            values.emplace_back(indexOp);
             while (token->type == TokenType::LBracket) {
                 token++;
                 auto expr = parseExpression(allocator);
                 if (!expr) {
                     error("expected an expression in indexing operators for access chain");
-                    return chain;
+                    return nullptr;
                 }
                 indexOp->values.emplace_back(expr);
                 auto rbToken = consumeOfType(TokenType::RBracket);
                 if (!rbToken) {
                     error("expected a closing bracket ] in access chain");
-                    return chain;
+                    return nullptr;
                 }
             }
         }
         while(true) {
             if (token->type == TokenType::LParen) {
-                auto call = parseFunctionCall(allocator, chain);
-                chain->values.emplace_back(call);
+                auto call = parseFunctionCall(allocator, values);
+                values.emplace_back(call);
             } else if(token->type == TokenType::LessThanSym) {
                 std::vector<TypeLoc> genArgs;
                 parseGenericArgsList(genArgs, allocator);
                 if(token->type == TokenType::LParen){
-                    auto call = parseFunctionCall(allocator, chain);
+                    auto call = parseFunctionCall(allocator, values);
                     call->generic_list = std::move(genArgs);
-                    chain->values.emplace_back(call);
+                    values.emplace_back(call);
                 } else {
                     error("expected a '(' after the generic list in function call");
                 }
@@ -320,18 +356,24 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, AccessChain* cha
 
     // TODO false for parseStruct being sent here, should be changed to parseStruct
     if(consumeToken(TokenType::DotSym)) {
-        return parseAccessChainRecursive(allocator, chain, start, false);
+        return parseAccessChainRecursive(allocator, values, start, false);
     } else if(consumeToken(TokenType::DoubleColonSym)) {
-        auto lastId = chain->values.back();
+        auto lastId = values.back();
         auto id = lastId->as_identifier();
         if(id) {
             id->is_ns = true;
         } else {
             error("double colon '::' after unknown value");
         }
-        return parseAccessChainRecursive(allocator, chain, start, parseStruct);
+        return parseAccessChainRecursive(allocator, values, start, parseStruct);
     }
 
-    return chain;
+    if(parseStruct) {
+        if(token->type == TokenType::LBrace) {
+            return parseStructValue(allocator, ref_type_from(allocator, values), start);
+        }
+    }
+
+    return nullptr;
 
 }

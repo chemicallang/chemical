@@ -10,6 +10,7 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/statements/UsingStmt.h"
@@ -205,6 +206,10 @@ public:
 
     void VisitValueWrapper(ValueWrapperNode *node) {
         visit_it(node->value);
+    }
+
+    void VisitAccessChainNode(AccessChainNode *node) {
+        visit_it(&node->chain);
     }
 
     void VisitVarInitStmt(VarInitStatement *init) {

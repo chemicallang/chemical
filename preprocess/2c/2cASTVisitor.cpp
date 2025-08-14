@@ -5759,6 +5759,26 @@ void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
     write(';');
 }
 
+void ToCAstVisitor::VisitAccessChainNode(AccessChainNode* node) {
+    const auto val_type = node->chain.getType();
+    if(val_type->isStructLikeType()) {
+        const auto destr = val_type->get_destructor();
+        if (destr != nullptr) {
+            const auto temp_name = get_local_temp_var_name_view();
+            visit(val_type);
+            write(' ');
+            write(temp_name);
+            write(" = ");
+            visit(&node->chain);
+            write(';');
+            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
+            return;
+        }
+    }
+    visit(&node->chain);
+    write(';');
+}
+
 void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const std::string& lamb_name) {
     visitor.write("(struct ");
     visitor.write_str(lamb_name);

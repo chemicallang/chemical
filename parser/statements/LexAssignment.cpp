@@ -7,6 +7,7 @@
 #include "ast/values/NumberValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/IncDecValue.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/statements/ValueWrapperNode.h"
 
 std::optional<Operation> Parser::parseOperation() {
@@ -110,30 +111,45 @@ std::optional<Operation> Parser::parseAssignmentOperator() {
     }
 }
 
+inline AccessChain* from_values(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values) {
+    const auto loc = chain_values.front()->encoded_location();
+    return new (allocator.allocate<AccessChain>()) AccessChain(std::move(chain_values), false, loc);
+}
+
 ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
 
     auto& start_tok = *token;
 
-    auto lhs = parseAccessChainOrAddrOf(allocator);
-    if(!lhs) {
-        return nullptr;
-    }
+    // allocated on stack, no allocation until push
+    std::vector<ChainValue*> chain_values;
 
-    // increment or decrement
-    auto& tok = *token;
-    switch(tok.type) {
-        case TokenType::DoublePlusSym: {
-            token++;
-            const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(lhs, true, true, loc_single(tok));
-            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
+    // parse
+    auto lhsNonAccessChain = parseLhsValue(allocator);
+    if(lhsNonAccessChain == nullptr) {
+
+        // parse access chain values into the vec
+        parseAccessChain(allocator, chain_values);
+        if(chain_values.empty()) {
+            return nullptr;
         }
-        case TokenType::DoubleMinusSym:{
-            token++;
-            const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(lhs, false, true, loc_single(tok));
-            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
+
+        // increment or decrement (only when its an access chain)
+        auto& tok = *token;
+        switch(tok.type) {
+            case TokenType::DoublePlusSym: {
+                token++;
+                const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(from_values(allocator, chain_values), true, true, loc_single(tok));
+                return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
+            }
+            case TokenType::DoubleMinusSym:{
+                token++;
+                const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(from_values(allocator, chain_values), false, true, loc_single(tok));
+                return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
+            }
+            default:
+                break;
         }
-        default:
-            break;
+
     }
 
     // lex the operator before the equal sign
@@ -144,15 +160,16 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         if (assOp.has_value()) {
             unexpected_error("expected an equal for assignment after the assignment operator");
         }
-        const auto lhs_kind = lhs->val_kind();
-        if (lhs_kind == ValueKind::AccessChain) {
-            const auto chain = lhs->as_access_chain_unsafe();
-            chain->set_is_node(true);
-            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(chain, parent_node);
-        } else if(lhs_kind == ValueKind::IncDecValue) {
-            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(lhs, parent_node);
+        if(lhsNonAccessChain) {
+            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(lhsNonAccessChain, parent_node);
+        } else if(!chain_values.empty()) {
+            const auto node = new (allocator.allocate<AccessChainNode>()) AccessChainNode(chain_values.front()->encoded_location(), parent_node);
+            node->chain.values = std::move(chain_values);
+            return node;
         }
     }
+
+    const auto lhs = lhsNonAccessChain ? lhsNonAccessChain : from_values(allocator, chain_values);
 
     auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(lhs, nullptr, Operation::Assignment, parent_node, loc_single(start_tok));
 

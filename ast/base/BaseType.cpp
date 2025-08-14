@@ -386,6 +386,23 @@ bool BaseType::is_mutable() {
     }
 }
 
+inline bool isNodeReferenceCanonical(ASTNode* node) {
+    return node->kind() == ASTNodeKind::TypealiasStmt && node->as_typealias_unsafe()->actual_type->isReferenceCanonical();
+}
+
+bool BaseType::isReferenceCanonical() {
+    switch(kind()) {
+        case BaseTypeKind::Reference:
+            return true;
+        case BaseTypeKind::Linked:
+            return isNodeReferenceCanonical(as_linked_type_unsafe()->linked);
+        case BaseTypeKind::Generic:
+            return isNodeReferenceCanonical(as_generic_type_unsafe()->referenced->linked);
+        default:
+            return false;
+    }
+}
+
 bool BaseType::is_reference_to(ASTNode* node) {
     if(kind() == BaseTypeKind::Reference) {
         const auto child_type = ((ReferenceType*) this)->type;

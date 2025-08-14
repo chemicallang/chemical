@@ -137,12 +137,11 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             position : position
                         }
                     } else {
-                        str.append(c);
                         html.lexed_tag_name = true;
-                        const tag_name = provider.read_tag_name(lexer.str);
+                        provider.read_tag_name();
                         return Token {
                             type : TokenType.TagName as int,
-                            value : tag_name,
+                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                             position : position
                         }
                     }

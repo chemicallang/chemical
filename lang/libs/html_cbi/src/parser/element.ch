@@ -1,6 +1,6 @@
 
-func isTagNameSelfClosing(ptr : *char) : bool {
-    switch(fnv1_hash(ptr)) {
+func isTagNameSelfClosing(view : &std::string_view) : bool {
+    switch(fnv1_hash_view(view)) {
         comptime_fnv1_hash("area"), comptime_fnv1_hash("base"), comptime_fnv1_hash("br"), comptime_fnv1_hash("col"),
         comptime_fnv1_hash("embed"), comptime_fnv1_hash("hr"), comptime_fnv1_hash("img"), comptime_fnv1_hash("input"),
         comptime_fnv1_hash("link"), comptime_fnv1_hash("meta"), comptime_fnv1_hash("source"), comptime_fnv1_hash("track"),
@@ -27,7 +27,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
         parser.increment();
 
-        const isSelfClosing = isTagNameSelfClosing(id.value.data());
+        const isSelfClosing = isTagNameSelfClosing(id.value);
 
         var element : *mut HtmlElement = builder.allocate<HtmlElement>();
         new (element) HtmlElement {

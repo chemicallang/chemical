@@ -51,17 +51,6 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         return nullptr;
     }
 
-    if(id->type == TokenType::StructKw) {
-        const auto value = (Value*) parseStructValue(allocator, nullptr, id->position);
-        if(!value) {
-            unexpected_error("expected '{' after the struct keyword for unnamed struct value");
-        }
-#ifdef LSP_BUILD
-        id->linked = value;
-#endif
-        return value;
-    }
-
     auto tokenType = token->type;
 
     switch(tokenType) {
@@ -167,6 +156,18 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
         case TokenType::AlignOfKw: {
             token++;
             return parseAlignOfValue(allocator);
+        }
+        case TokenType::StructKw: {
+            auto& position = token->position;
+            token++;
+            const auto value = (Value*) parseStructValue(allocator, nullptr, position);
+            if(!value) {
+                unexpected_error("expected '{' after the struct keyword for unnamed struct value");
+            }
+#ifdef LSP_BUILD
+            id->linked = value;
+#endif
+            return value;
         }
         default:
             return (Value*) parseAccessChain(allocator, parseStruct);

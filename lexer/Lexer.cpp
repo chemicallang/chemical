@@ -361,7 +361,6 @@ Token read_single_line_string(Lexer& lexer, SerialStrAllocator& str, SourceProvi
 
 const char* read_multi_line_string(SourceProvider& provider) {
     while(true) {
-        const auto data = provider.current_data();
         switch(provider.readCharacter()) {
             case '"': {
                 // check the second "
@@ -373,7 +372,8 @@ const char* read_multi_line_string(SourceProvider& provider) {
                     if (provider.peek() == '"') {
                         // consume the last "
                         provider.increment();
-                        return data;
+                        // back three pointers (the three quotes)
+                        return provider.current_data() - 3;
                     }
                 }
                 break;

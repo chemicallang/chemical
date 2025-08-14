@@ -131,6 +131,11 @@ public:
     bool is_reference_to(ASTNode* node);
 
     /**
+     * checks if this type is a reference
+     */
+    bool isReferenceCanonical();
+
+    /**
      * get loadable referred to type
      */
     BaseType* getLoadableReferredType();

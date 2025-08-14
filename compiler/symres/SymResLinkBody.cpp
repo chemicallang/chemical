@@ -314,11 +314,65 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     }
 }
 
+bool is_assignable(Value* lhs) {
+    switch(lhs->kind()) {
+        case ValueKind::AddrOfValue:
+        case ValueKind::IsValue:
+        case ValueKind::StructValue:
+        case ValueKind::ArrayValue:
+        case ValueKind::LambdaFunc:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+        case ValueKind::String:
+        case ValueKind::NumberValue:
+        case ValueKind::Int:
+        case ValueKind::UInt:
+        case ValueKind::Short:
+        case ValueKind::UShort:
+        case ValueKind::Long:
+        case ValueKind::ULong:
+        case ValueKind::BigInt:
+        case ValueKind::UBigInt:
+        case ValueKind::IfValue:
+        case ValueKind::SwitchValue:
+        case ValueKind::LoopValue:
+        case ValueKind::VariantCase:
+        case ValueKind::Bool:
+        case ValueKind::Char:
+        case ValueKind::UChar:
+        case ValueKind::Float:
+        case ValueKind::Double:
+        case ValueKind::NullValue:
+        case ValueKind::NotValue:
+        case ValueKind::NegativeValue:
+        case ValueKind::NewValue:
+        case ValueKind::NewTypedValue:
+        case ValueKind::PlacementNewValue:
+        case ValueKind::ComptimeValue:
+        case ValueKind::CastedValue:
+        case ValueKind::UnsafeValue:
+        case ValueKind::Expression:
+            return false;
+        case ValueKind::AccessChain:
+            return is_assignable(lhs->as_access_chain_unsafe()->values.back());
+        case ValueKind::FunctionCall:
+            return lhs->getType()->isReferenceCanonical();
+        case ValueKind::IncDecValue:
+            return !lhs->as_inc_dec_value_unsafe()->post;
+        default:
+            return true;
+    }
+}
+
 void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     auto& lhs = assign->lhs;
     auto& value = assign->value;
 
     link_assignable(*this, lhs, nullptr);
+
+    if(!is_assignable(lhs)) {
+        linker.error("Expression is not assignable", lhs);
+    }
 
     const auto lhsType = lhs->getType();
 

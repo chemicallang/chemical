@@ -1154,4 +1154,9 @@ public:
         return ((EmbeddedValue*) this);
     }
 
+    inline IncDecValue* as_inc_dec_value_unsafe() {
+        CHECK_CAST(ValueKind::IncDecValue);
+        return ((IncDecValue*) this);
+    }
+
 };

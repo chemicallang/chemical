@@ -702,6 +702,7 @@ void RepresentationVisitor::VisitDereferenceValue(DereferenceValue *casted) {
 }
 
 void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {
+    visit(call->parent_val);
     write('(');
     int i = 0;
     while (i < call->values.size()) {

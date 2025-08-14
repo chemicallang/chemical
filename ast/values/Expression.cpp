@@ -8,6 +8,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/LongType.h"
+#include "ast/types/ULongType.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/NullValue.h"
@@ -81,9 +82,9 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder) {
     if((expr->operation == Operation::Addition || expr->operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
         return first;
     }
-    // subtracting a pointer results in a long type
+    // subtracting a pointer results in a ulong type
     if(expr->operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return typeBuilder.getLongType();
+        return typeBuilder.getULongType();
     }
     return first;
 }
@@ -121,9 +122,9 @@ BaseType* Expression::create_type(ASTAllocator& allocator) {
     if((operation == Operation::Addition || operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
         return first;
     }
-    // subtracting a pointer results in a long type
+    // subtracting a pointer results in a ulong type
     if(operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return new (allocator.allocate<LongType>()) LongType();
+        return new (allocator.allocate<ULongType>()) ULongType();
     }
     return first;
 }

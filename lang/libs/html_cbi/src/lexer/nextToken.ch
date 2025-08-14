@@ -4,9 +4,10 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     const str = &lexer.str;
     // the position of the current symbol
     const position = provider.getPosition();
+    const data_ptr = provider.current_data()
     const c = provider.readCharacter();
     switch(c) {
-        -1 => {
+        '\0' => {
             return Token {
                 type : TokenType.EndOfFile as int,
                 value : view(""),
@@ -128,15 +129,15 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         default => {
             if(html.has_lt) {
                 if(isalpha(c as int)) {
-                    str.append(c);
                     if(html.lexed_tag_name) {
-                        const tag_name = provider.read_attr_name(lexer.str);
+                        provider.read_attr_name();
                         return Token {
                             type : TokenType.AttrName as int,
-                            value : tag_name,
+                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                             position : position
                         }
                     } else {
+                        str.append(c);
                         html.lexed_tag_name = true;
                         const tag_name = provider.read_tag_name(lexer.str);
                         return Token {
@@ -155,28 +156,27 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                            }
                         }
                         '\'' => {
-                            str.append('\'');
+                            provider.read_single_quoted_value()
                             return Token {
                                 type : TokenType.SingleQuotedValue as int,
-                                value : provider.read_single_quoted_value(lexer.str),
+                                value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                                 position : position
                             }
                         }
                         '"' => {
-                            str.append('"')
+                            provider.read_double_quoted_value()
                             return Token {
                                 type : TokenType.DoubleQuotedValue as int,
-                                value : provider.read_double_quoted_value(lexer.str),
+                                value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                                 position : position
                             }
                         }
                         default => {
                             if(isdigit(c)) {
-                                str.append(c);
-                                provider.read_floating_digits(lexer.str);
+                                provider.read_floating_digits();
                                 return Token {
                                     type : TokenType.Number as int,
-                                    value : str.finalize_view(),
+                                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                                     position : position
                                 }
                             } else {
@@ -190,14 +190,11 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     }
                 }
             } else {
-                str.append(c);
-                var text = provider.read_text(lexer.str)
-                if(text.size() != 0) {
-                    return Token {
-                        type : TokenType.Text as int,
-                        value : text,
-                        position : position
-                    }
+                provider.read_text()
+                return Token {
+                    type : TokenType.Text as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    position : position
                 }
             }
         }

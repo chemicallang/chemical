@@ -8,6 +8,8 @@ class SourceProvider;
 
 extern "C" {
 
+    void SourceProviderincrement(SourceProvider* provider);
+
     char SourceProviderreadCharacter(SourceProvider* provider);
 
     bool SourceProvidereof(SourceProvider* provider);

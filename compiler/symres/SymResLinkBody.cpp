@@ -352,13 +352,12 @@ bool is_assignable(Value* lhs) {
         case ValueKind::CastedValue:
         case ValueKind::UnsafeValue:
         case ValueKind::Expression:
+        case ValueKind::IncDecValue:
             return false;
         case ValueKind::AccessChain:
             return is_assignable(lhs->as_access_chain_unsafe()->values.back());
         case ValueKind::FunctionCall:
             return lhs->getType()->isReferenceCanonical();
-        case ValueKind::IncDecValue:
-            return !lhs->as_inc_dec_value_unsafe()->post;
         default:
             return true;
     }

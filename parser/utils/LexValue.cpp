@@ -46,8 +46,6 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 
-#ifdef LSP_BUILD
-
 bool read_escapable_char(const char** currentPtrPtr, const char* end, std::string& str) {
 
     // load the current character
@@ -116,25 +114,23 @@ chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, con
 
 }
 
-#endif
-
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::Char) {
         // consume the token
         token++;
         // the value will contain single quotes around it
-#ifdef LSP_BUILD
         auto escaped = escaped_view(allocator, *this, t.value);
-        if(escaped.empty()) {
-            return new (allocator.allocate<CharValue>()) CharValue('\0', typeBuilder.getCharType(), loc_single(t));
-        } else if(escaped.size() != 1) {
-            error("couldn't handle escape sequence in character value");
+        switch(escaped.size()) {
+            case 0:
+                return new (allocator.allocate<CharValue>()) CharValue('\0', typeBuilder.getCharType(), loc_single(t));
+            case 1:
+                break;
+            default:
+                error("couldn't handle escape sequence in character value");
+                break;
         }
         return new (allocator.allocate<CharValue>()) CharValue(*escaped.data(), typeBuilder.getCharType(), loc_single(t));
-#else
-        return new (allocator.allocate<CharValue>()) CharValue(*(t.value.data()), typeBuilder.getCharType(), loc_single(t));
-#endif
     } else {
         return nullptr;
     }
@@ -145,11 +141,7 @@ std::optional<chem::string_view> BasicParser::parseString(ASTAllocator& allocato
     switch(t.type) {
         case TokenType::String:
             token++;
-#ifdef LSP_BUILD
             return escaped_view(allocator, *this, t.value);
-#else
-            return allocate_view(allocator, t.value);
-#endif
         case TokenType::MultilineString:
             token++;
             return allocate_view(allocator, t.value);
@@ -163,11 +155,7 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
     switch(t.type) {
         case TokenType::String:
             token++;
-#ifdef LSP_BUILD
             return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), typeBuilder.getStringType(), loc_single(t));
-#else
-            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
-#endif
         case TokenType::MultilineString:
             token++;
             return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));

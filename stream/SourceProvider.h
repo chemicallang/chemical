@@ -127,9 +127,8 @@ public:
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
-    [[nodiscard]]
     bool increment(char c) noexcept {
-        return (data_ < end_ && *data_ == c) ? (handleCharacterRead(*data_++), true) : false;
+        return (data_ < end_ && *data_ == c) ? (handleCharacterRead(c), data_++, true) : false;
     }
 
     /**

@@ -253,7 +253,7 @@ void read_zero_starting_number(SourceProvider& provider) {
     return read_number(provider);
 }
 
-void skip_current_line(SourceProvider& provider) {
+void read_current_line(SourceProvider& provider) {
     while(true) {
         auto p = provider.peek();
         if(p != '\0' && p != '\n' && p != '\r') {
@@ -264,45 +264,15 @@ void skip_current_line(SourceProvider& provider) {
     }
 }
 
-void read_current_line(SerialStrAllocator& str, SourceProvider& provider) {
-    while(true) {
-        auto p = provider.peek();
-        if(p != '\0' && p != '\n' && p != '\r') {
-            str.append(provider.readCharacter());
-        } else {
-            return;
-        }
-    }
-}
-
-void skip_multi_line_comment_text(SourceProvider& provider) {
+const char* read_multi_line_comment_text(SourceProvider& provider) {
     while(true) {
         const auto read = provider.readCharacter();
         if(read == '\0') {
-            return;
+            return provider.current_data();
         }
         if(read == '*' && provider.peek() == '/') {
             provider.increment();
-            return;
-        }
-    }
-}
-
-void read_multi_line_comment_text(SerialStrAllocator& str, SourceProvider& provider) {
-    while(true) {
-        const auto read = provider.readCharacter();
-        if(read == '\0') {
-            return;
-        }
-        if(read != '*') {
-            str.append(read);
-        } else {
-            if(provider.peek() == '/') {
-                provider.increment();
-                return;
-            } else {
-                str.append(read);
-            }
+            return provider.current_data() - 2;
         }
     }
 }
@@ -443,9 +413,7 @@ Token read_character_token(Lexer& lexer, SerialStrAllocator& str, SourceProvider
         provider.increment();
         return Token(TokenType::Char, str.finalize_view(), pos);
     } else {
-        lexer.diagnoser.diagnostic("expected a single quote after the value", chem::string_view(lexer.file_path), provider.position(), provider.position(), DiagSeverity::Error);
-        read_current_line(str, provider);
-        return Token(TokenType::Char, str.finalize_view(), pos);
+        return read_character_token(lexer, str, provider, pos);
     }
 }
 
@@ -597,22 +565,24 @@ Token Lexer::getNextToken() {
             if (p == '/') {
 #ifdef LSP_BUILD
                 if(keep_comments) {
-                    provider.readCharacter();
-                    read_current_line(str, provider);
-                    return Token(TokenType::SingleLineComment, str.finalize_view(), pos);
+                    provider.increment();
+                    const auto data_ptr = provider.current_data();
+                    read_current_line(provider);
+                    return Token(TokenType::SingleLineComment, view_from(provider, data_ptr), pos);
                 }
 #endif
-                skip_current_line(provider);
+                read_current_line(provider);
                 return getNextToken();
             } else if(p == '*') {
 #ifdef LSP_BUILD
                 if(keep_comments) {
-                    provider.readCharacter();
-                    read_multi_line_comment_text(str, provider);
-                    return Token(TokenType::MultiLineComment, str.finalize_view(), pos);
+                    provider.increment();
+                    const auto start = provider.current_data();
+                    const auto end = read_multi_line_comment_text(provider);
+                    return Token(TokenType::MultiLineComment, chem::string_view(start, end - start), pos);
                 }
 #endif
-                skip_multi_line_comment_text(provider);
+                read_multi_line_comment_text(provider);
                 return getNextToken();
             } else {
                 return Token(TokenType::DivideSym, view_str(DivOpCStr), pos);

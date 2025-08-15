@@ -959,7 +959,7 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
     diagnoser.error((ASTNode*) decl) << decl->name_view() << " function must have two implicit reference parameters";
 }
 
-void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def) {
+void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
     returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
 }
 

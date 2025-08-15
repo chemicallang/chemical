@@ -873,9 +873,17 @@ FunctionType* FunctionCall::func_type_from_parent_type(ASTAllocator& allocator, 
     auto func_type = can_type->as_function_type();
     const auto func_decl = safe_linked_func();
     if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
-        const auto struct_def = func_decl->parent()->as_struct_def();
-        if(struct_def->generic_parent != nullptr) {
-            func_type->returnType = { new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def)), func_type->returnType.getLocation() };
+        const auto parent = func_decl->parent();
+        if(parent->kind() == ASTNodeKind::StructDecl) {
+            const auto struct_def = parent->as_struct_def_unsafe();
+            if (struct_def->generic_parent != nullptr) {
+                func_type->returnType = {new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def)), func_type->returnType.getLocation()};
+            }
+        } else if(parent->kind() == ASTNodeKind::VariantDecl) {
+            const auto variant_def = parent->as_variant_def_unsafe();
+            if (variant_def->generic_parent != nullptr) {
+                func_type->returnType = {new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(variant_def)), func_type->returnType.getLocation()};
+            }
         }
     }
     return func_type;
@@ -1014,8 +1022,8 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
 void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call) {
     if(!parent_id->linked) return;
     const auto linked_kind = parent_id->linked->kind();
-    if(linked_kind == ASTNodeKind::StructDecl) {
-        StructDefinition* parent_struct = parent_id->linked->as_struct_def_unsafe();
+    if(linked_kind == ASTNodeKind::StructDecl || linked_kind == ASTNodeKind::VariantDecl) {
+        const auto parent_struct = parent_id->linked->as_extendable_members_container_unsafe();
         auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
@@ -1032,6 +1040,16 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
             parent_id->setType(constructorFunc->known_type());
         } else {
             genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+        }
+    } else if(linked_kind == ASTNodeKind::GenericVariantDecl) {
+        const auto gen_struct = parent_id->linked->as_gen_variant_decl_unsafe();
+        const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
+        auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
+        if(constructorFunc) {
+            parent_id->linked = constructorFunc;
+            parent_id->setType(constructorFunc->known_type());
+        } else {
+            genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
         }
     }
 }
@@ -1209,11 +1227,16 @@ void FunctionCall::determine_type(ASTAllocator& allocator, ASTDiagnoser& diagnos
         const auto func = newLinked->as_function_unsafe();
         if (func->is_constructor_fn() && func->parent()) {
             // we do not support constructors in variants
-            const auto struct_def = func->parent()->as_struct_def();
-            if (struct_def && struct_def->generic_parent != nullptr) {
-                call->setType(new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def), call->generic_list));
+            const auto parent = func->parent();
+            if(parent->kind() == ASTNodeKind::StructDecl || parent->kind() == ASTNodeKind::VariantDecl) {
+                const auto container = parent->as_members_container_unsafe();
+                if (container && container->generic_parent != nullptr) {
+                    call->setType(new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(container), call->generic_list));
+                } else {
+                    call->setType(new(allocator.allocate<LinkedType>()) LinkedType(container));
+                }
             } else {
-                call->setType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def));
+                call->setType(new(allocator.allocate<LinkedType>()) LinkedType(parent));
             }
         } else {
             call->setType(func->returnType);

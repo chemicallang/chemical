@@ -1674,10 +1674,8 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_vie
             auto linked = func_type->returnType->linked_node();
             if(linked) {
                 const auto linked_kind = linked->kind();
-                if (linked_kind == ASTNodeKind::StructDecl) {
-                    allocate_struct_for_func_call(visitor, linked->as_struct_def_unsafe(), &call, func_type, identifier);
-                } else if (linked_kind == ASTNodeKind::VariantDecl) {
-                    allocate_struct_for_func_call(visitor, linked->as_variant_def_unsafe(), &call, func_type, identifier);
+                if (linked_kind == ASTNodeKind::StructDecl || linked_kind == ASTNodeKind::VariantDecl) {
+                    allocate_struct_for_func_call(visitor, linked->as_extendable_members_container_unsafe(), &call, func_type, identifier);
                 } else if (linked_kind == ASTNodeKind::InterfaceDecl && func_type->returnType->pure_type(visitor.allocator)->kind() == BaseTypeKind::Dynamic) {
                     allocate_fat_pointer_for_value(visitor, &call, identifier, nullptr);
                 }

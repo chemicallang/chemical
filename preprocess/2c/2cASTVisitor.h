@@ -552,6 +552,10 @@ public:
 
     void VisitAccessChainNode(AccessChainNode* node);
 
+    void VisitIncDecNode(IncDecNode* node);
+
+    void VisitPatternMatchExprNode(PatternMatchExprNode* node);
+
     void VisitEnumDecl(EnumDeclaration* node);
 
     // enum members are handled along with enum declaration

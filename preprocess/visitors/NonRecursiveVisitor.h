@@ -102,6 +102,12 @@ public:
     inline void VisitAccessChainNode(AccessChainNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitIncDecNode(IncDecNode* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
+    inline void VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitEnumDecl(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -563,6 +569,12 @@ public:
             case ASTNodeKind::AccessChainNode:
                 static_cast<Derived*>(this)->VisitAccessChainNode((AccessChainNode*) node);
                 return;
+            case ASTNodeKind::IncDecNode:
+                static_cast<Derived*>(this)->VisitIncDecNode((IncDecNode*) node);
+                return;
+            case ASTNodeKind::PatternMatchExprNode:
+                static_cast<Derived*>(this)->VisitPatternMatchExprNode((PatternMatchExprNode*) node);
+                return;
             case ASTNodeKind::EnumDecl:
                 static_cast<Derived*>(this)->VisitEnumDecl((EnumDeclaration*) node);
                 return;
@@ -995,6 +1007,12 @@ public:
     inline void VisitByPtrTypeNoNullCheck(AccessChainNode* node) {
         static_cast<Derived*>(this)->VisitAccessChainNode(node);
     }
+    inline void VisitByPtrTypeNoNullCheck(IncDecNode* node) {
+        static_cast<Derived*>(this)->VisitIncDecNode(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(PatternMatchExprNode* node) {
+        static_cast<Derived*>(this)->VisitPatternMatchExprNode(node);
+    }
     inline void VisitByPtrTypeNoNullCheck(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitEnumDecl(node);
     }
@@ -1135,6 +1153,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(IncDecValue* value) {
         static_cast<Derived*>(this)->VisitIncDecValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(PatternMatchExpr* value) {
+        static_cast<Derived*>(this)->VisitPatternMatchExpr(value);
     }
     inline void VisitByPtrTypeNoNullCheck(IsValue* value) {
         static_cast<Derived*>(this)->VisitIsValue(value);

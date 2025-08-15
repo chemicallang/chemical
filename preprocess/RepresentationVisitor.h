@@ -179,6 +179,10 @@ public:
 
     void VisitAccessChainNode(AccessChainNode* node);
 
+    void VisitIncDecNode(IncDecNode* node);
+
+    void VisitPatternMatchExprNode(PatternMatchExprNode* node);
+
     void VisitEnumDecl(EnumDeclaration* node);
 
     // we handle enums when handling enum declarations

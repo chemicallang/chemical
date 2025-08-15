@@ -6,7 +6,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/AccessChain.h"
-#include "ast/values/IncDecValue.h"
+#include "ast/statements/IncDecNode.h"
 #include "ast/statements/AccessChainNode.h"
 #include "ast/statements/ValueWrapperNode.h"
 
@@ -138,13 +138,11 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         switch(tok.type) {
             case TokenType::DoublePlusSym: {
                 token++;
-                const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(from_values(allocator, chain_values), true, true, loc_single(tok));
-                return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
+                return new (allocator.allocate<IncDecNode>()) IncDecNode(from_values(allocator, chain_values), true, true, loc_single(tok), parent_node);
             }
             case TokenType::DoubleMinusSym:{
                 token++;
-                const auto val = new (allocator.allocate<IncDecValue>()) IncDecValue(from_values(allocator, chain_values), false, true, loc_single(tok));
-                return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(val, parent_node);
+                return new (allocator.allocate<IncDecNode>()) IncDecNode(from_values(allocator, chain_values), false, true, loc_single(tok), parent_node);
             }
             default:
                 break;
@@ -161,7 +159,8 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
             unexpected_error("expected an equal for assignment after the assignment operator");
         }
         if(lhsNonAccessChain) {
-            return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(lhsNonAccessChain, parent_node);
+            // TODO: remove this in favor of IncDecNode
+            return new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(lhsNonAccessChain, parent_node);
         } else if(!chain_values.empty()) {
             const auto node = new (allocator.allocate<AccessChainNode>()) AccessChainNode(chain_values.front()->encoded_location(), parent_node);
             node->chain.values = std::move(chain_values);

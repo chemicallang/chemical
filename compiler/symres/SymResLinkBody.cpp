@@ -1421,6 +1421,14 @@ void SymResLinkBody::VisitAccessChainNode(AccessChainNode* node) {
     visit(&node->chain);
 }
 
+void SymResLinkBody::VisitIncDecNode(IncDecNode* node) {
+    visit(&node->value);
+}
+
+void SymResLinkBody::VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+    visit(&node->value);
+}
+
 bool embedded_traverse(void* data, ASTAny* item) {
     const auto traverser = static_cast<SymResLinkBody*>(data);
     switch(item->any_kind()) {

@@ -29,6 +29,8 @@
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/IncDecNode.h"
+#include "ast/statements/PatternMatchExprNode.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
@@ -563,6 +565,14 @@ void RepresentationVisitor::VisitValueWrapper(ValueWrapperNode *node) {
 
 void RepresentationVisitor::VisitAccessChainNode(AccessChainNode* node) {
     visit(&node->chain);
+}
+
+void RepresentationVisitor::VisitIncDecNode(IncDecNode* node) {
+    visit(&node->value);
+}
+
+void RepresentationVisitor::VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+    visit(&node->value);
 }
 
 void RepresentationVisitor::VisitIntValue(IntValue *val) {

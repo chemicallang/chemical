@@ -17,6 +17,8 @@
 #include "ast/structures/EnumDeclaration.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/IncDecNode.h"
+#include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/Typealias.h"
@@ -196,20 +198,28 @@ public:
         }
     }
 
-    void VisitValueNode(ValueNode *node) {
+    inline void VisitValueNode(ValueNode *node) {
         visit_it(node->value);
     }
 
-    void VisitUnsafeBlock(UnsafeBlock *block) {
+    inline void VisitUnsafeBlock(UnsafeBlock *block) {
         visit_it(block->scope);
     }
 
-    void VisitValueWrapper(ValueWrapperNode *node) {
+    inline void VisitValueWrapper(ValueWrapperNode *node) {
         visit_it(node->value);
     }
 
-    void VisitAccessChainNode(AccessChainNode *node) {
+    inline void VisitAccessChainNode(AccessChainNode *node) {
         visit_it(&node->chain);
+    }
+
+    inline void VisitIncDecNode(IncDecNode *node) {
+        visit_it(&node->value);
+    }
+
+    inline void VisitPatternMatchExprNode(PatternMatchExprNode *node) {
+        visit_it(&node->value);
     }
 
     void VisitVarInitStmt(VarInitStatement *init) {

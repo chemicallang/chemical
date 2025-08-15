@@ -14,6 +14,8 @@
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/AccessChainNode.h"
+#include "ast/statements/IncDecNode.h"
+#include "ast/statements/PatternMatchExprNode.h"
 //#include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
@@ -118,24 +120,32 @@ public:
         visit(expr->secondValue);
     }
 
-    void VisitCastedValue(CastedValue *casted) {
+    inline void VisitCastedValue(CastedValue *casted) {
         visit(casted->value);
     }
 
-    void VisitValueNode(ValueNode *node) {
+    inline void VisitValueNode(ValueNode *node) {
         visit(node->value);
     }
 
-    void VisitUnsafeBlock(UnsafeBlock *block) {
+    inline void VisitUnsafeBlock(UnsafeBlock *block) {
         visit(&block->scope);
     }
 
-    void VisitValueWrapper(ValueWrapperNode *node) {
+    inline void VisitValueWrapper(ValueWrapperNode *node) {
         visit(node->value);
     }
 
-    void VisitAccessChainNode(AccessChainNode *node) {
+    inline void VisitAccessChainNode(AccessChainNode *node) {
         visit(&node->chain);
+    }
+
+    inline void VisitIncDecNode(IncDecNode* node) {
+        visit(&node->value);
+    }
+
+    inline void VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+        visit(&node->value);
     }
 
     void VisitVarInitStmt(VarInitStatement *init) {

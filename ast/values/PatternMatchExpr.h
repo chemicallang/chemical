@@ -149,7 +149,7 @@ public:
             BaseType* type,
             SourceLocation location
     ) : Value(ValueKind::PatternMatchExpr, type, location), is_const(is_const), member_name(member_name),
-        expression(nullptr)
+        expression(nullptr), destructure_by_name(false)
     {
 
     }
@@ -158,15 +158,13 @@ public:
 
     VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    Value* copy(ASTAllocator &allocator) override {
-        const auto copied = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
-            is_const, member_name, getType(), encoded_location()
-        );
+    void copy_to_constructed(ASTAllocator& allocator, PatternMatchExpr* copied) {
         for(const auto name : param_names) {
             const auto id = name->copy(allocator);
             id->matchExpr = copied;
             copied->param_names.emplace_back(id);
         }
+        copied->destructure_by_name = destructure_by_name;
         copied->expression = expression->copy(allocator);
         auto& elseExpr = copied->elseExpression;
         elseExpr.kind = elseExpression.kind;
@@ -174,6 +172,13 @@ public:
             elseExpr.value = elseExpression.value->copy(allocator);
         }
         copied->member = member;
+    }
+
+    Value* copy(ASTAllocator &allocator) override {
+        const auto copied = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
+            is_const, member_name, getType(), encoded_location()
+        );
+        copy_to_constructed(allocator, copied);
         return copied;
     }
 

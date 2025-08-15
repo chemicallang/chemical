@@ -3585,12 +3585,18 @@ void ToCAstVisitor::VisitForLoopStmt(ForLoop *forLoop) {
     visit(forLoop->conditionExpr);
     write(';');
     const auto inc_kind = forLoop->incrementerExpr->kind();
-    if(inc_kind == ASTNodeKind::AssignmentStmt) {
-        assign_statement(*this, forLoop->incrementerExpr->as_assignment_unsafe());
-    } else if(inc_kind == ASTNodeKind::ValueWrapper) {
-        visit(forLoop->incrementerExpr->as_value_wrapper_unsafe()->value);
-    } else {
-        visit(forLoop->incrementerExpr);
+    switch(inc_kind) {
+        case ASTNodeKind::AssignmentStmt:
+            assign_statement(*this, forLoop->incrementerExpr->as_assignment_unsafe());
+            break;
+        case ASTNodeKind::IncDecNode:
+            visit(&forLoop->incrementerExpr->as_inc_dec_node_unsafe()->value);
+            break;
+        default:
+            write("({ ");
+            visit(forLoop->incrementerExpr);
+            write(" })");
+            break;
     }
     write(')');
     scope(*this, forLoop->body);
@@ -5739,44 +5745,40 @@ void ToCAstVisitor::VisitValueNode(ValueNode *node) {
     write(';');
 }
 
-void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
-    const auto val_type = node->value->getType();
+void visit_wrapped_value(ToCAstVisitor& visitor, ASTNode* node, Value* value) {
+    const auto val_type = value->getType();
     if(val_type->isStructLikeType()) {
         const auto destr = val_type->get_destructor();
         if (destr != nullptr) {
-            const auto temp_name = get_local_temp_var_name_view();
-            visit(val_type);
-            write(' ');
-            write(temp_name);
-            write(" = ");
-            visit(node->value);
-            write(';');
-            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
+            const auto temp_name = visitor.get_local_temp_var_name_view();
+            visitor.visit(val_type);
+            visitor.write(' ');
+            visitor.write(temp_name);
+            visitor.write(" = ");
+            visitor.visit(value);
+            visitor.write(';');
+            visitor.destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
             return;
         }
     }
-    visit(node->value);
-    write(';');
+    visitor.visit(value);
+    visitor.write(';');
+}
+
+void ToCAstVisitor::VisitValueWrapper(ValueWrapperNode *node) {
+    visit_wrapped_value(*this, node, node->value);
 }
 
 void ToCAstVisitor::VisitAccessChainNode(AccessChainNode* node) {
-    const auto val_type = node->chain.getType();
-    if(val_type->isStructLikeType()) {
-        const auto destr = val_type->get_destructor();
-        if (destr != nullptr) {
-            const auto temp_name = get_local_temp_var_name_view();
-            visit(val_type);
-            write(' ');
-            write(temp_name);
-            write(" = ");
-            visit(&node->chain);
-            write(';');
-            destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
-            return;
-        }
-    }
-    visit(&node->chain);
-    write(';');
+    visit_wrapped_value(*this, node, &node->chain);
+}
+
+void ToCAstVisitor::VisitIncDecNode(IncDecNode* node) {
+    visit_wrapped_value(*this, node, &node->value);
+}
+
+void ToCAstVisitor::VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+    visit_wrapped_value(*this, node, &node->value);
 }
 
 void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const std::string& lamb_name) {

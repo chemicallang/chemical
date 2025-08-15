@@ -20,8 +20,6 @@ extern "C" {
 
     void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn);
 
-    BaseType* ASTBuildercreateType(ASTBuilder* builder, Value* value);
-
     EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, ASTNode* parent_node, uint64_t location);
 
     EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, uint64_t location);

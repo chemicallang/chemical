@@ -32,7 +32,7 @@ public:
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override {
-        const auto inst = chain.llvm_value(gen);
+        const auto inst = chain.llvm_value(gen, nullptr);
         chain.llvm_destruct(gen, inst);
     }
 

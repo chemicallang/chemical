@@ -162,6 +162,7 @@ Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Va
             duplicate->values.emplace_back((ChainValue*) evaluated);
             copy_from(scope.allocator, duplicate->values, values, i);
             duplicate->relink_parent();
+            duplicate->setType(duplicate->values.back()->getType());
             return duplicate;
 
         } else {

@@ -523,12 +523,10 @@ public:
     /**
      * parse a pattern match expression
      */
-    PatternMatchExpr* parsePatternMatchExprAfterId(
+    void parsePatternMatchExprAfterId(
             ASTAllocator& allocator,
-            bool is_const,
+            PatternMatchExpr* into,
             bool is_lbrace,
-            chem::string_view name_view,
-            Token* start_token,
             bool parseElse
     );
 

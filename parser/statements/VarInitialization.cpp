@@ -8,7 +8,7 @@
 #include "parser/Parser.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
-#include "ast/values/PatternMatchExpr.h"
+#include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/ValueWrapperNode.h"
 
 // if neither a type or a value is given, it would causes errors (in lsp)
@@ -19,19 +19,12 @@ VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {
     return stmt;
 }
 
-PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
+void Parser::parsePatternMatchExprAfterId(
         ASTAllocator& allocator,
-        bool is_const,
+        PatternMatchExpr* patternMatch,
         bool is_lbrace,
-        chem::string_view name_view,
-        Token* start_token,
         bool parseElse
 ) {
-
-    // pattern match expression
-    const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
-        is_const, is_lbrace, allocate_view(allocator, name_view), loc_single(start_token)
-    );
 
     // lets parse the identifiers
     do {
@@ -111,7 +104,6 @@ PatternMatchExpr* Parser::parsePatternMatchExprAfterId(
         }
     }
 
-    return patternMatch;
 }
 
 ASTNode* Parser::parseVarInitializationTokens(
@@ -148,18 +140,18 @@ ASTNode* Parser::parseVarInitializationTokens(
         if (is_lBrace || lType == TokenType::LParen) {
             // this is a destructuring operation
             token++;
-            const auto patternMatchExpr = parsePatternMatchExprAfterId(allocator, is_const, is_lBrace, id->value, &start_tok, true);
-            assert(patternMatchExpr != nullptr);
+
+            const auto patternMatchExpr = new (allocator.allocate<PatternMatchExprNode>()) PatternMatchExprNode(
+                    is_const, is_lBrace, allocate_view(allocator, id->value), loc_single(start_tok), parent_node
+            );
+
+             parsePatternMatchExprAfterId(allocator, &patternMatchExpr->value, is_lBrace, true);
 
 #ifdef LSP_BUILD
             id->linked = patternMatchExpr;
 #endif
 
-            const auto wrapperNode = new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(
-                    patternMatchExpr, parent_node
-            );
-
-            return wrapperNode;
+            return patternMatchExpr;
         }
     }
 

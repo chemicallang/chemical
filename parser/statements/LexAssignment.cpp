@@ -120,6 +120,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
 
     auto& start_tok = *token;
 
+    // handle pre increment and decrement
     switch(token->type) {
         case TokenType::DoublePlusSym:
             return parsePreIncDecNode(allocator, true);
@@ -142,7 +143,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
             return nullptr;
         }
 
-        // increment or decrement (only when its an access chain)
+        // post increment or decrement (only when its an access chain)
         auto& tok = *token;
         switch(tok.type) {
             case TokenType::DoublePlusSym: {

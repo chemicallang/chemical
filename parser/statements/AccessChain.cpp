@@ -124,10 +124,6 @@ Value* Parser::parseLhsValue(ASTAllocator& allocator) {
             return (Value*) parseAddrOfValue(allocator);
         case TokenType::MultiplySym:
             return (Value*) parseDereferenceValue(allocator);
-        case TokenType::DoublePlusSym:
-            return parsePreIncDecValue(allocator, true);
-        case TokenType::DoubleMinusSym:
-            return parsePreIncDecValue(allocator, false);
         case TokenType::NullKw: {
             const auto t = token;
             token++;

@@ -120,6 +120,15 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
 
     auto& start_tok = *token;
 
+    switch(token->type) {
+        case TokenType::DoublePlusSym:
+            return parsePreIncDecNode(allocator, true);
+        case TokenType::DoubleMinusSym:
+            return parsePreIncDecNode(allocator, false);
+        default:
+            break;
+    }
+
     // allocated on stack, no allocation until push
     std::vector<ChainValue*> chain_values;
 
@@ -158,13 +167,12 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
         if (assOp.has_value()) {
             unexpected_error("expected an equal for assignment after the assignment operator");
         }
-        if(lhsNonAccessChain) {
-            // TODO: remove this in favor of IncDecNode
-            return new(allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(lhsNonAccessChain, parent_node);
-        } else if(!chain_values.empty()) {
+        if(!chain_values.empty()) {
             const auto node = new (allocator.allocate<AccessChainNode>()) AccessChainNode(chain_values.front()->encoded_location(), parent_node);
             node->chain.values = std::move(chain_values);
             return node;
+        } else {
+            unexpected_error("expected an equal for assignment without an access chain");
         }
     }
 

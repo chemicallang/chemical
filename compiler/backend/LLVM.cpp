@@ -442,7 +442,7 @@ bool VariableIdentifier::add_child_index(Codegen& gen, std::vector<llvm::Value *
 }
 
 llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
-    auto addr = value->create_type(gen.allocator);
+    auto addr = value->getType();
     const auto addr_kind = addr->kind();
     if(addr_kind == BaseTypeKind::Pointer) {
         return ((PointerType*) (addr))->type->llvm_type(gen);
@@ -534,8 +534,8 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
 }
 
 llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
-    auto firstType = firstValue->create_type(gen.allocator);
-    auto secondType = secondValue->create_type(gen.allocator);
+    auto firstType = firstValue->getType();
+    auto secondType = secondValue->getType();
     auto first_pure = firstType->pure_type(gen.allocator);
     auto second_pure = secondType->pure_type(gen.allocator);
     // promote literal values is using gen allocator
@@ -545,9 +545,9 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     replace_number_values(gen.allocator, gen.comptime_scope.typeBuilder, first_pure, second_pure);
     // shrink_literal_values(gen.allocator, first_pure, second_pure);
     // promote_literal_values(gen.allocator, first_pure, second_pure);
-    firstType = firstValue->create_type(gen.allocator);
+    firstType = firstValue->getType();
     first_pure = firstType->canonical();
-    secondType = secondValue->create_type(gen.allocator);
+    secondType = secondValue->getType();
     second_pure = secondType->canonical();
     auto logical = llvm_logical_expr(gen, first_pure, second_pure);
     if(logical) return logical;
@@ -591,7 +591,7 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 }
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
-    auto type = value->create_type(gen.allocator)->pure_type(gen.allocator);
+    auto type = value->getType()->pure_type(gen.allocator);
     const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, gen.comptime_scope.typeBuilder.getShortType(), encoded_location());
     auto value_pointer = value->llvm_pointer(gen);
     // TODO loading the value after pointer, value is not being loaded using the pointer we have
@@ -622,7 +622,7 @@ llvm::Value* CastedValue::llvm_pointer(Codegen &gen) {
 
 llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
-    const auto value_type_real = value->create_type(gen.allocator);
+    const auto value_type_real = value->getType();
     const auto value_type = value_type_real->pure_type(gen.allocator);
     const auto type = getType();
     const auto pure_type = getType()->pure_type(gen.allocator);
@@ -813,7 +813,7 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
 }
 
 llvm::Type* ExtractionValue::llvm_type(Codegen &gen) {
-    const auto type = create_type(gen.allocator);
+    const auto type = getType();
     return type->llvm_type(gen);
 }
 
@@ -899,7 +899,7 @@ llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
-    const auto type = create_type(gen.allocator);
+    const auto type = getType();
     return type->llvm_type(gen);
 }
 
@@ -1207,7 +1207,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
     // before destruction, get the return value
     llvm::Value* return_value = nullptr;
     if(value) {
-        if(value->reference() && value->create_type(gen.allocator)->isStructLikeType()) {
+        if(value->reference() && value->getType()->isStructLikeType()) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
             auto value_ptr = value->llvm_pointer(gen);
@@ -1391,7 +1391,7 @@ bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
 }
 
 void Value::llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
-    const auto type = create_type(gen.allocator);
+    const auto type = getType();
     type->llvm_destruct(gen, allocaInst, encoded_location());
 }
 
@@ -1611,7 +1611,7 @@ bool Codegen::copy_or_move_struct(BaseType* known_type, Value* value, llvm::Valu
 void AssignStatement::code_gen(Codegen &gen) {
 
     const auto pointer = lhs->llvm_pointer(gen);
-    const auto lhs_type_non_canon = lhs->create_type(gen.allocator);
+    const auto lhs_type_non_canon = lhs->getType();
     const auto lhs_type = lhs_type_non_canon->canonical();
 
     if(assOp == Operation::Assignment) {
@@ -1666,7 +1666,7 @@ void AssignStatement::code_gen(Codegen &gen) {
 
 void DestructStmt::code_gen(Codegen &gen) {
 
-    auto created_type = identifier->create_type(gen.allocator);
+    auto created_type = identifier->getType();
     auto pure_type = created_type->pure_type(gen.allocator);
 //    auto pure_type = identifier->get_pure_type(gen.allocator);
     bool determined_array = false;

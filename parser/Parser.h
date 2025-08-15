@@ -947,6 +947,11 @@ public:
     Value* parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token);
 
     /**
+     * increment decrement node is parsed
+     */
+    IncDecNode* parsePreIncDecNode(ASTAllocator& allocator, bool increment);
+
+    /**
      * increment decrement value is parsed
      */
     Value* parsePreIncDecValue(ASTAllocator& allocator, bool increment);

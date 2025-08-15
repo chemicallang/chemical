@@ -41,6 +41,7 @@
 #include "ast/structures/LoopBlock.h"
 #include "parse_num.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/IncDecNode.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/SizeOfValue.h"
@@ -359,6 +360,24 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
         default:
             return value;
     }
+}
+
+IncDecNode* Parser::parsePreIncDecNode(ASTAllocator& allocator, bool increment) {
+    auto& t = *token;
+    if(t.type == (increment ? TokenType::DoublePlusSym : TokenType::DoubleMinusSym)) {
+        token++;
+    } else {
+        return nullptr;
+    }
+    const auto expr = parseAccessChainOrAddrOf(allocator);
+    if(!expr) {
+        if(increment) {
+            unexpected_error("expected an expression after the pre increment");
+        } else {
+            unexpected_error("expected an expression after the pre decrement");
+        }
+    }
+    return new (allocator.allocate<IncDecNode>()) IncDecNode(expr, increment, false, loc_single(t), parent_node);
 }
 
 Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {

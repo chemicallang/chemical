@@ -1220,7 +1220,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
         } else {
             return_value = value->llvm_ret_value(gen, value);
             if(return_value && func_type) {
-                auto value_type = value->get_pure_type(gen.allocator);
+                auto value_type = value->getType()->canonical();
                 auto to_type = func_type->returnType->pure_type(gen.allocator);
 
                 const auto mutated = gen.mutate_capturing_function(to_type, value);
@@ -1668,7 +1668,6 @@ void DestructStmt::code_gen(Codegen &gen) {
 
     auto created_type = identifier->getType();
     auto pure_type = created_type->pure_type(gen.allocator);
-//    auto pure_type = identifier->get_pure_type(gen.allocator);
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {
         determined_array = true;

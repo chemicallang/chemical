@@ -254,7 +254,7 @@ static inline void initialize(AccessChain* chain, chem::span<ChainValue*>& value
 }
 
 AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, chem::span<ChainValue*>* values, uint64_t location) {
-    const auto chain = new (builder->allocate<AccessChain>()) AccessChain(false, location);
+    const auto chain = new (builder->allocate<AccessChain>()) AccessChain(location);
     initialize(chain, *values);
     return chain;
 }

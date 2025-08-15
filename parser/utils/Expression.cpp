@@ -186,7 +186,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     }
 
     Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(identifier));
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(identifier));
     chain->values.emplace_back((ChainValue*) first_value);
     const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
     const auto value = structValue ? structValue : chain;
@@ -300,7 +300,7 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
     }
 
     if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(start_tok));
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(start_tok));
         std::vector<TypeLoc> genArgs;
         parseGenericArgsList(genArgs, allocator);
         if(token->type == TokenType::LParen) {

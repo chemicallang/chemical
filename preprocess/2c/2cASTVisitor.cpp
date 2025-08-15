@@ -1907,7 +1907,6 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
 
 void CAfterStmtVisitor::VisitAccessChain(AccessChain *chain) {
     RecursiveValueVisitor::VisitAccessChain(chain);
-//    destruct_chain(chain, chain->is_node());
 }
 
 void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {

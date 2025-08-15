@@ -101,7 +101,7 @@ ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& a
             return values.front();
         } else {
             const auto first = values.front();
-            const auto parent = new (allocator.allocate<AccessChain>()) AccessChain(false, first->encoded_location());
+            const auto parent = new (allocator.allocate<AccessChain>()) AccessChain(first->encoded_location());
             unsigned i = 0;
             while(i < values.size() - 1) {
                 parent->values.emplace_back(values[i]);

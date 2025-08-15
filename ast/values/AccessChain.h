@@ -13,8 +13,6 @@
 
 struct AccessChainAttributes {
 
-    bool is_node;
-
     bool is_moved;
 
 };
@@ -35,9 +33,8 @@ public:
      * constructor
      */
     constexpr AccessChain(
-        bool is_node,
         SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, location), attrs(is_node, false) {
+    ) : ChainValue(ValueKind::AccessChain, location), attrs(false) {
 
     }
 
@@ -45,10 +42,9 @@ public:
      * constructor
      */
     constexpr AccessChain(
-            bool is_node,
             BaseType* chain_type,
             SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, chain_type, location), attrs(is_node, false) {
+    ) : ChainValue(ValueKind::AccessChain, chain_type, location), attrs(false) {
 
     }
 
@@ -57,9 +53,8 @@ public:
      */
     constexpr AccessChain(
         std::vector<ChainValue*> values,
-        bool is_node,
         SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, location), values(std::move(values)), attrs(is_node, false) {
+    ) : ChainValue(ValueKind::AccessChain, location), values(std::move(values)), attrs(false) {
 
     }
 
@@ -68,23 +63,14 @@ public:
      */
     constexpr AccessChain(
             std::vector<ChainValue*> values,
-            bool is_node,
             BaseType* chain_type,
             SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, chain_type, location), values(std::move(values)), attrs(is_node, false) {
+    ) : ChainValue(ValueKind::AccessChain, chain_type, location), values(std::move(values)), attrs(false) {
 
-    }
-
-    inline bool is_node() {
-        return attrs.is_node;
     }
 
     inline bool is_moved() {
         return attrs.is_moved;
-    }
-
-    inline void set_is_node(bool is_node) {
-        attrs.is_node = is_node;
     }
 
     inline void set_is_moved(bool is_moved) {

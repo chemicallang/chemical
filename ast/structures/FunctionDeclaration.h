@@ -419,7 +419,7 @@ public:
 
     void make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
-    void ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, StructDefinition* def);
+    void ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
 
     void ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
 

@@ -241,8 +241,17 @@ bool VariantCaseVariable::add_child_index(Codegen& gen, std::vector<llvm::Value 
 #endif
 
 void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+    bool has_constructor = false;
+    bool has_def_constructor = false;
     bool has_destructor = false;
     for(auto& func : non_gen_range()) {
+        if(func->is_constructor_fn()) {
+            has_constructor = true;
+            if(!func->has_explicit_params()) {
+                has_def_constructor = true;
+            }
+            func->ensure_constructor(allocator, diagnoser, this);
+        }
         if(func->is_delete_fn()) {
             func->ensure_destructor(allocator, diagnoser, this);
             has_destructor = true;

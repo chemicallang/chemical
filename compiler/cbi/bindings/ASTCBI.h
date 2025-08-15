@@ -15,6 +15,8 @@ extern "C" {
 
     int ValuegetKind(Value* value);
 
+    BaseType* ValuegetType(Value* value);
+
     ASTNode* ValuegetLinkedNode(Value* value);
 
     uint64_t ASTNodegetEncodedLocation(ASTNode* node);
@@ -36,6 +38,8 @@ extern "C" {
     std::vector<Value*>* ArrayValueget_values(ArrayValue* value);
 
     std::vector<Value*>* FunctionCallget_args(FunctionCall* value);
+
+    std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node);
 
     std::vector<Value*>* IndexOperatorget_values(IndexOperator* op);
 

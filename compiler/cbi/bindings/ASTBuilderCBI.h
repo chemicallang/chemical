@@ -108,6 +108,8 @@ extern "C" {
 
     FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location);
 
+    AccessChainNode* ASTBuildermake_function_call_node(ASTBuilder* builder, ChainValue* parent_val, ASTNode* parent_node, uint64_t location);
+
     IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location);
 
     Int128Value* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location);

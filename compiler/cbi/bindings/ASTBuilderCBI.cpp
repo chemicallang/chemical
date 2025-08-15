@@ -71,6 +71,7 @@
 #include "ast/structures/Namespace.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Typealias.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/structures/If.h"
 #include "ast/values/LambdaFunction.h"
@@ -245,18 +246,23 @@ VoidType* ASTBuildermake_void_type(ASTBuilder* builder, uint64_t location) {
     return builder->typeBuilder.getVoidType();
 }
 
-AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, chem::span<ChainValue*>* values, uint64_t location) {
-    const auto chain = new (builder->allocate<AccessChain>()) AccessChain(false, location);
-    for(const auto value : *values) {
+static inline void initialize(AccessChain* chain, chem::span<ChainValue*>& values) {
+    for(const auto value : values) {
         chain->values.emplace_back(value);
     }
-    chain->setType(values->back()->getType());
+    chain->setType(values.back()->getType());
+}
+
+AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, chem::span<ChainValue*>* values, uint64_t location) {
+    const auto chain = new (builder->allocate<AccessChain>()) AccessChain(false, location);
+    initialize(chain, *values);
     return chain;
 }
 
 ASTNode* ASTBuildermake_access_chain_node(ASTBuilder* builder, chem::span<ChainValue*>* values, ASTNode* parent_node, uint64_t location) {
-    const auto chain = ASTBuildermake_access_chain(builder, values, location);
-    return new (builder->allocate<ValueWrapperNode>()) ValueWrapperNode(chain, parent_node);
+    const auto chain = new (builder->allocate<AccessChainNode>()) AccessChainNode(location, parent_node);
+    initialize(&chain->chain, *values);
+    return chain;
 }
 
 ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value, ASTNode* parent_node) {
@@ -313,6 +319,17 @@ FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, ChainValue
         // TODO: user is probably calling a variant member
     }
     return call;
+}
+
+AccessChainNode* ASTBuildermake_function_call_node(ASTBuilder* builder, ChainValue* parent_val, ASTNode* parent_node, uint64_t location) {
+    //TODO: dedicated function call node
+    // WHEN dedicated function call node is created, please note that get args on function call node exists
+    // which assumes the parameter is a access chain node (fix in both cbi as well)
+    const auto call = ASTBuildermake_function_call_value(builder, parent_val, location);
+    const auto node = new (builder->allocate<AccessChainNode>()) AccessChainNode(location, parent_node);
+    node->chain.values.emplace_back(call);
+    node->chain.setType(call->getType());
+    return node;
 }
 
 IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location) {
@@ -565,6 +582,10 @@ int ValuegetKind(Value* value) {
     return static_cast<int>(value->val_kind());
 }
 
+BaseType* ValuegetType(Value* value) {
+    return value->getType();
+}
+
 uint64_t ValuegetEncodedLocation(Value* value) {
     return value->encoded_location().encoded;
 }
@@ -619,6 +640,10 @@ std::vector<Value*>* ArrayValueget_values(ArrayValue* value) {
 
 std::vector<Value*>* FunctionCallget_args(FunctionCall* value) {
     return &value->values;
+}
+
+std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node) {
+    return &node->chain.values.back()->as_func_call_unsafe()->values;
 }
 
 std::vector<Value*>* IndexOperatorget_values(IndexOperator* op) {

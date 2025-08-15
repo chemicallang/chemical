@@ -412,6 +412,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
 
         }
 
+        // parsing the inheritance list
         if(consumeToken(TokenType::ColonSym)) {
             do {
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
@@ -423,6 +424,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
                 decl->inherited.emplace_back(TypeLoc{type, typeLoc}, in_spec);
             } while(consumeToken(TokenType::CommaSym));
         }
+
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return final_decl;

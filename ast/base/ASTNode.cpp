@@ -627,6 +627,23 @@ ASTNode* provide_child(BaseType* type, const chem::string_view& name) {
     return provider ? provider->child(name) : nullptr;
 }
 
+// get inherited or direct child from a members container (like struct gives)
+ASTNode* container_child(MembersContainer* decl, const chem::string_view& name) {
+    // TODO: this function should resolve the child in a single check
+    auto node = ::child(decl, name);
+    if (node) {
+        return node;
+    } else if (!decl->inherited.empty()) {
+        for (auto& inherits : decl->inherited) {
+            if (inherits.specifier == AccessSpecifier::Public) {
+                const auto thing = provide_child(inherits.type, name);
+                if (thing) return thing;
+            }
+        }
+    };
+    return nullptr;
+}
+
 ASTNode* ASTNode::child(const chem::string_view &name) {
     switch(kind()) {
         case ASTNodeKind::VarInitStmt: {
@@ -669,21 +686,9 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
             }
             return nullptr;
         }
-        case ASTNodeKind::StructDecl: {
-            const auto decl = as_struct_def_unsafe();
-            auto node = ::child(decl, name);
-            if (node) {
-                return node;
-            } else if (!decl->inherited.empty()) {
-                for (auto& inherits : decl->inherited) {
-                    if (inherits.specifier == AccessSpecifier::Public) {
-                        const auto thing = provide_child(inherits.type, name);
-                        if (thing) return thing;
-                    }
-                }
-            };
-            return nullptr;
-        }
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+            return container_child(as_members_container_unsafe(), name);
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->linked->child(name);
         case ASTNodeKind::GenericStructDecl:
@@ -705,7 +710,6 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
         }
         case ASTNodeKind::ImportStmt:
             return ::child(as_import_stmt_unsafe(), name);
-        case ASTNodeKind::VariantDecl:
         case ASTNodeKind::InterfaceDecl:
         case ASTNodeKind::UnionDecl:
             return ::child(as_members_container_unsafe(), name);

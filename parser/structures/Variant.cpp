@@ -168,6 +168,19 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
 
         }
 
+        // parsing the inheritance list
+        if(consumeToken(TokenType::ColonSym)) {
+            do {
+                auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
+                const auto typeLoc = loc_single(token);
+                auto type = parseLinkedOrGenericType(allocator);
+                if(!type) {
+                    return finalDecl;
+                }
+                decl->inherited.emplace_back(TypeLoc{type, typeLoc}, in_spec);
+            } while(consumeToken(TokenType::CommaSym));
+        }
+
         if(!consumeToken(TokenType::LBrace)) {
             error("expected a '{' for struct block");
             return finalDecl;

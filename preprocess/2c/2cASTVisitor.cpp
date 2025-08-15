@@ -4773,9 +4773,9 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
     const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
-    const auto parent_type = call->parent_val->create_type(allocator);
+    const auto parent_type = call->parent_val->getType();
     const auto canonical_parent = parent_type->canonical();
-    const auto func_type = call->func_type_from_parent_type(allocator, canonical_parent);
+    const auto func_type = call->function_type(allocator);
 
     // handling comptime functions
     if(func_decl && func_decl->is_comptime()) {

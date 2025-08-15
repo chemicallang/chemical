@@ -979,6 +979,7 @@ void relink_multi_id(
             auto func = multi->func_for_call(allocator, values);
             if(func) {
                 parent->linked = func;
+                parent->setType(func->known_type());
                 parent->process_linked(diagnoser, nullptr);
             } else {
                 diagnoser->error("couldn't find function that satisfies given arguments", parent);

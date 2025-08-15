@@ -105,13 +105,7 @@ func (converter : &mut ASTConverter) put_wrapped_chemical_value_in(value : *mut 
 }
 
 func is_func_call_ret_void(builder : *mut ASTBuilder, call : *mut FunctionCall) : bool {
-    const type = call.getType()
-    if(type) {
-        const kind = type.getKind();
-        return kind == BaseTypeKind.Void;
-    } else {
-        return false;
-    }
+    return call.getType().getKind() == BaseTypeKind.Void
 }
 
 func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Value) {

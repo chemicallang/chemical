@@ -33,7 +33,7 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::V
 }
 
 llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
-    auto pure_type = parent_val->get_pure_type(gen.allocator);
+    auto pure_type = parent_val->getType()->canonical();
     if(pure_type->is_pointer()) {
         auto parent_value = parent_val->llvm_value(gen, nullptr);
         auto child_type = pure_type->create_child_type(gen.allocator);

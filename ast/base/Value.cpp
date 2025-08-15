@@ -1062,16 +1062,6 @@ BaseType* Value::get_canonical_type(ASTAllocator& allocator) {
     return create_type(allocator)->canonical();
 }
 
-BaseType* Value::get_pure_type(ASTAllocator& allocator) {
-    auto base_type = create_type(allocator);
-    auto pure_type = base_type->pure_type(allocator);
-    if(pure_type == base_type) {;
-        return base_type;
-    } else {
-        return pure_type;
-    }
-}
-
 BaseType* Value::pure_type_ptr() {
     return known_type()->canonical();
 }

@@ -4540,8 +4540,7 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
         if (member) {
             if(previous) {
                 // user wrote 'self.' before the member access
-                // TODO use getType->canonical()
-                const auto prev_type = previous->get_pure_type(visitor.allocator);
+                const auto prev_type = previous->getType()->canonical();
                 const auto linked = prev_type->linked_node();
                 if(linked) {
                     switch(linked->kind()) {

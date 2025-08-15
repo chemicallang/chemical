@@ -1429,6 +1429,10 @@ void SymResLinkBody::VisitPatternMatchExprNode(PatternMatchExprNode* node) {
     visit(&node->value);
 }
 
+void SymResLinkBody::VisitPlacementNewNode(PlacementNewNode* node) {
+    visit(&node->value);
+}
+
 bool embedded_traverse(void* data, ASTAny* item) {
     const auto traverser = static_cast<SymResLinkBody*>(data);
     switch(item->any_kind()) {

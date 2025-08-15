@@ -108,6 +108,9 @@ public:
     inline void VisitPatternMatchExprNode(PatternMatchExprNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitPlacementNewNode(PlacementNewNode* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitEnumDecl(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -575,6 +578,9 @@ public:
             case ASTNodeKind::PatternMatchExprNode:
                 static_cast<Derived*>(this)->VisitPatternMatchExprNode((PatternMatchExprNode*) node);
                 return;
+            case ASTNodeKind::PlacementNewNode:
+                static_cast<Derived*>(this)->VisitPlacementNewNode((PlacementNewNode*) node);
+                return;
             case ASTNodeKind::EnumDecl:
                 static_cast<Derived*>(this)->VisitEnumDecl((EnumDeclaration*) node);
                 return;
@@ -1012,6 +1018,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(PatternMatchExprNode* node) {
         static_cast<Derived*>(this)->VisitPatternMatchExprNode(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(PlacementNewNode* node) {
+        static_cast<Derived*>(this)->VisitPlacementNewNode(node);
     }
     inline void VisitByPtrTypeNoNullCheck(EnumDeclaration* node) {
         static_cast<Derived*>(this)->VisitEnumDecl(node);

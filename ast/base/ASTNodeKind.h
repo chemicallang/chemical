@@ -39,6 +39,7 @@ enum class ASTNodeKind : uint8_t {
     AccessChainNode,
     IncDecNode,
     PatternMatchExprNode,
+    PlacementNewNode,
 
     EnumDecl,
     EnumMember,

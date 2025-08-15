@@ -575,6 +575,7 @@ set(COMMON_SOURCES
         ast/statements/AccessChainNode.h
         ast/statements/IncDecNode.h
         ast/statements/PatternMatchExprNode.h
+        ast/statements/PlacementNewNode.h
 )
 
 # Chemical LSP Executable Target

@@ -16,6 +16,7 @@
 #include "ast/statements/AccessChainNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
+#include "ast/statements/PlacementNewNode.h"
 //#include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
@@ -145,6 +146,10 @@ public:
     }
 
     inline void VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+        visit(&node->value);
+    }
+
+    inline void VisitPlacementNewNode(PlacementNewNode* node) {
         visit(&node->value);
     }
 

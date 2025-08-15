@@ -925,7 +925,7 @@ public:
     /**
      * parses a new value as a node
      */
-    ASTNode* parseNewValueAsNode(ASTAllocator& allocator);
+    ASTNode* parsePlacementNewNode(ASTAllocator& allocator);
 
     /**
      * values in provide are supported very less

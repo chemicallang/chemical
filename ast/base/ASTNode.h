@@ -846,6 +846,14 @@ public:
     }
 
     /**
+     * as access chain node unsafe
+     */
+    inline PlacementNewNode* as_placement_new_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::PlacementNewNode);
+        return (PlacementNewNode*) this;
+    }
+
+    /**
      * as value node unsafe
      */
     inline ValueNode* as_value_node_unsafe() {

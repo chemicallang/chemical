@@ -5781,6 +5781,10 @@ void ToCAstVisitor::VisitPatternMatchExprNode(PatternMatchExprNode* node) {
     visit_wrapped_value(*this, node, &node->value);
 }
 
+void ToCAstVisitor::VisitPlacementNewNode(PlacementNewNode *node) {
+    visit_wrapped_value(*this, node, &node->value);
+}
+
 void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const std::string& lamb_name) {
     visitor.write("(struct ");
     visitor.write_str(lamb_name);

@@ -38,6 +38,8 @@ class IncDecNode;
 
 class PatternMatchExprNode;
 
+class PlacementNewNode;
+
 class UnsafeBlock;
 
 class ReturnStatement;

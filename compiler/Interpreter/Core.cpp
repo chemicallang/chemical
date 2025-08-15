@@ -14,6 +14,7 @@
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
+#include "ast/statements/PlacementNewNode.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/structures/If.h"
@@ -146,6 +147,10 @@ inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
     node->value.evaluated_value(scope);
 }
 
+inline void interpret(InterpretScope& scope, PlacementNewNode* node) {
+    node->value.evaluated_value(scope);
+}
+
 void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
         auto initializer = stmt->value->scope_value(scope);
@@ -220,6 +225,9 @@ void InterpretScope::interpret(ASTNode* node) {
             break;
         case ASTNodeKind::PatternMatchExprNode:
             ::interpret(*this, node->as_pattern_match_expr_node_unsafe());
+            break;
+        case ASTNodeKind::PlacementNewNode:
+            ::interpret(*this, node->as_placement_new_node_unsafe());
             break;
         case ASTNodeKind::VarInitStmt:
             ::interpret(*this, node->as_var_init_unsafe());

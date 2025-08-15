@@ -183,6 +183,8 @@ public:
 
     void VisitPatternMatchExprNode(PatternMatchExprNode* node);
 
+    void VisitPlacementNewNode(PlacementNewNode* node);
+
     void VisitEnumDecl(EnumDeclaration* node);
 
     // we handle enums when handling enum declarations

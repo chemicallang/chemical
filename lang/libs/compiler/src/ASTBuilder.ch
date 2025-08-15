@@ -77,6 +77,14 @@ public struct AccessChain : Value {
 
 public struct ValueWrapperNode : ASTNode {}
 
+public struct AccessChainNode : ASTNode {}
+
+public struct FunctionCallNode : ASTNode {
+
+    func get_args(&self) : *VecRef<Value>;
+
+}
+
 public struct AddrOfValue : Value {}
 
 public struct ArrayValue : Value {
@@ -440,7 +448,7 @@ public struct ASTBuilder {
 
     func make_access_chain(&self, values : &std::span<*mut ChainValue>, location : ubigint) : *mut AccessChain
 
-    func make_access_chain_node(&self, values : &std::span<*mut ChainValue>, parent_node : *mut ASTNode, location : ubigint) : *mut ASTNode
+    func make_access_chain_node(&self, values : &std::span<*mut ChainValue>, parent_node : *mut ASTNode, location : ubigint) : *mut AccessChainNode
 
     func make_value_wrapper(&self, value : *Value, parent_node : *ASTNode) : *mut ValueWrapperNode
 
@@ -465,6 +473,8 @@ public struct ASTBuilder {
     func make_float_value(&self, value : float, location : ubigint) : *mut FloatValue
 
     func make_function_call_value(&self, parent_val : *Value, location : ubigint) : *mut FunctionCall
+
+    func make_function_call_node(&self, parent_val : *Value, parent_node : *mut ASTNode, location : ubigint) : *mut FunctionCallNode
 
     func make_index_op_value(&self, parent_val : *Value, location : ubigint) : *mut IndexOperator
 

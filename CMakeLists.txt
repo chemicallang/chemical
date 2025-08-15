@@ -573,6 +573,8 @@ set(COMMON_SOURCES
         compiler/cbi/model/ASTBuilder.h
         ast/statements/UnresolvedDecl.h
         ast/statements/AccessChainNode.h
+        ast/statements/IncDecNode.h
+        ast/statements/PatternMatchExprNode.h
 )
 
 # Chemical LSP Executable Target

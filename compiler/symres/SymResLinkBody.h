@@ -163,6 +163,10 @@ public:
 
     void VisitAccessChainNode(AccessChainNode* node);
 
+    void VisitIncDecNode(IncDecNode* node);
+
+    void VisitPatternMatchExprNode(PatternMatchExprNode* node);
+
     void VisitEmbeddedNode(EmbeddedNode* node);
 
     // ------------------------------------

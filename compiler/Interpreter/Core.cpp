@@ -12,6 +12,8 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/IncDecNode.h"
+#include "ast/statements/PatternMatchExprNode.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/structures/If.h"
@@ -136,6 +138,14 @@ inline void interpret(InterpretScope& scope, AccessChainNode* node) {
     node->chain.evaluated_value(scope);
 }
 
+inline void interpret(InterpretScope& scope, IncDecNode* node) {
+    node->value.evaluated_value(scope);
+}
+
+inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
+    node->value.evaluated_value(scope);
+}
+
 void interpret(InterpretScope& scope, VarInitStatement* stmt) {
     if (stmt->value) {
         auto initializer = stmt->value->scope_value(scope);
@@ -204,6 +214,12 @@ void InterpretScope::interpret(ASTNode* node) {
             break;
         case ASTNodeKind::AccessChainNode:
             ::interpret(*this, node->as_access_chain_node_unsafe());
+            break;
+        case ASTNodeKind::IncDecNode:
+            ::interpret(*this, node->as_inc_dec_node_unsafe());
+            break;
+        case ASTNodeKind::PatternMatchExprNode:
+            ::interpret(*this, node->as_pattern_match_expr_node_unsafe());
             break;
         case ASTNodeKind::VarInitStmt:
             ::interpret(*this, node->as_var_init_unsafe());

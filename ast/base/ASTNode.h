@@ -830,6 +830,22 @@ public:
     }
 
     /**
+     * as access chain node unsafe
+     */
+    inline IncDecNode* as_inc_dec_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::IncDecNode);
+        return (IncDecNode*) this;
+    }
+
+    /**
+     * as access chain node unsafe
+     */
+    inline PatternMatchExprNode* as_pattern_match_expr_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::PatternMatchExprNode);
+        return (PatternMatchExprNode*) this;
+    }
+
+    /**
      * as value node unsafe
      */
     inline ValueNode* as_value_node_unsafe() {

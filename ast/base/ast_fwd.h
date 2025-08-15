@@ -34,6 +34,10 @@ class ImportStatement;
 
 class AccessChainNode;
 
+class IncDecNode;
+
+class PatternMatchExprNode;
+
 class UnsafeBlock;
 
 class ReturnStatement;

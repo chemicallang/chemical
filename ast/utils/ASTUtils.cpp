@@ -145,9 +145,11 @@ FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* exp
     auto str = allocator.allocate_str(id_view.data(), id_view.size());
     auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(str, id_view.size()), location);
     id->linked = decl;
+    id->setType(decl->known_type());
     auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(id, location);
     imp_call->parent_val = id;
     imp_call->values.emplace_back(arg);
+    imp_call->setType(decl->returnType);
     return imp_call;
 }
 

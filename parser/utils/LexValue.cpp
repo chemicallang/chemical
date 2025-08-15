@@ -41,7 +41,6 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/LoopBlock.h"
 #include "parse_num.h"
-#include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/UnsafeValue.h"

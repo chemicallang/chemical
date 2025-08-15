@@ -9,7 +9,6 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/PatternMatchExprNode.h"
-#include "ast/statements/ValueWrapperNode.h"
 
 // if neither a type or a value is given, it would causes errors (in lsp)
 VarInitStatement* fix_stmt(VarInitStatement* stmt, TypeBuilder& builder) {

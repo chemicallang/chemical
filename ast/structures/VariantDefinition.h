@@ -141,7 +141,19 @@ public:
 
     static llvm::StructType* llvm_type_with_member(Codegen& gen, VariantMember* member, bool anonymous = true);
 
-    llvm::Value* load_type_int(Codegen &gen, llvm::Value* pointer, SourceLocation location);
+    llvm::Value* ptr_to_type_int(Codegen& gen, llvm::Type* type, llvm::Value* pointer);
+
+    llvm::Value* load_type_int(Codegen& gen, llvm::Type* type, llvm::Value* pointer, SourceLocation location);
+
+    inline llvm::Value* load_type_int(Codegen &gen, llvm::Value* pointer, SourceLocation location) {
+        return load_type_int(gen, llvm_type(gen), pointer, location);
+    }
+
+    // this is the pointer to a single member
+    // variants store a single member (the largest member)
+    llvm::Value* get_member_pointer(Codegen& gen, llvm::Type* type, llvm::Value* pointer);
+
+    llvm::Value* get_param_pointer(Codegen& gen, llvm::Type* type, llvm::Value* pointer, VariantMemberParam* param);
 
     llvm::Value* get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param);
 

@@ -497,17 +497,18 @@ bool is_node_decl(ASTNode* linked) {
 }
 
 bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
-    const auto member_index = member->parent()->direct_child_index(member->name);
+    const auto def = member->parent();
+    const auto member_index = def->direct_child_index(member->name);
     if(member_index == -1) {
         gen.error(call) << "couldn't find member index for the variant member with name '" << member->name << "'";
         return false;
     }
     // storing the type index in the enum inside variant
-    auto type_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+    const auto type_ptr = def->ptr_to_type_int(gen, def_type, allocated);
     const auto storeInstr = gen.builder->CreateStore(gen.builder->getInt32(member_index), type_ptr);
     gen.di.instr(storeInstr, call);
     // storing the values of the variant inside it's struct
-    auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
+    auto data_ptr = def->get_member_pointer(gen, def_type, allocated);
     const auto struct_type = member->llvm_raw_struct_type(gen);
     unsigned i = 0;
     auto itr = member->values.begin();

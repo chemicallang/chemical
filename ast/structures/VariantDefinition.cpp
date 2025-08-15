@@ -19,40 +19,64 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+// get no of directly inherited composed struct types inside variant definition
+unsigned int direct_inh_composed_structs(VariantDefinition* def) {
+    unsigned i = 0;
+    for(const auto &inherits : def->inherited) {
+        if(inherits.type->linked_struct_def()) {
+            i++;
+        }
+    }
+    return i;
+}
+
 llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, VariantMember* member, bool anonymous) {
     std::vector<llvm::Type*> elements;
-    elements.emplace_back(gen.builder->getInt32Ty()); // <--- int enum is stored at top, so we know the type
-    if(member) {
-        std::vector<llvm::Type*> sub_elements { member->llvm_raw_struct_type(gen) };
-        elements.emplace_back(llvm::StructType::get(*gen.ctx, sub_elements));
+    const auto def = member->parent();
+
+    elements.reserve(def->variables().size() + def->inherited.size());
+    for(const auto &inherits : def->inherited) {
+        if(inherits.type->linked_struct_def()) {
+            elements.emplace_back(inherits.type->llvm_type(gen));
+        }
     }
+
+    elements.emplace_back(gen.builder->getInt32Ty()); // <--- int enum is stored at top (after inherited structs), so we know the type
+    std::vector<llvm::Type*> sub_elements { member->llvm_raw_struct_type(gen) };
+    elements.emplace_back(llvm::StructType::get(*gen.ctx, sub_elements));
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     } else {
-        return llvm::StructType::create(*gen.ctx, elements, gen.mangler.mangle(member->parent()));
+        return llvm::StructType::create(*gen.ctx, elements, gen.mangler.mangle(def));
     }
 }
 
-llvm::Value* VariantDefinition::load_type_int(Codegen &gen, llvm::Value* pointer, SourceLocation location) {
-    const auto def_type = llvm_type(gen);
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
-    const auto gep = gen.builder->CreateGEP(def_type, pointer, idxList, "",gen.inbounds);
+llvm::Value* VariantDefinition::ptr_to_type_int(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer) {
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(direct_inh_composed_structs(this)) };
+    return gen.builder->CreateGEP(def_type, pointer, idxList, "",gen.inbounds);
+}
+
+llvm::Value* VariantDefinition::load_type_int(Codegen &gen, llvm::Type* def_type, llvm::Value* pointer, SourceLocation location) {
+    const auto gep = ptr_to_type_int(gen, def_type, pointer);
     const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
     gen.di.instr(loadInst, location);
     return loadInst;
 }
 
+llvm::Value* VariantDefinition::get_member_pointer(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer) {
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)) };
+    return gen.builder->CreateGEP(def_type, pointer, idxList, "", gen.inbounds);
+}
+
+llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer, VariantMemberParam* param) {
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
+    return gen.builder->CreateGEP(def_type, pointer, idxList, "", gen.inbounds);
+}
+
 llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param) {
     const auto mem = param->parent();
-    const auto largest = largest_member()->as_variant_member_unsafe();
-    llvm::Type* container_type;
-    if(largest == mem) {
-        container_type = llvm_type(gen);
-    } else {
-        container_type = llvm_type_with_member(gen, mem);
-    }
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
-    return gen.builder->CreateGEP(container_type, pointer, idxList, "", gen.inbounds);
+    const auto container_type = llvm_type_with_member(gen, mem);
+    return get_param_pointer(gen, container_type, pointer, param);
 }
 
 llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
@@ -119,7 +143,9 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
     if(indexes.empty()) {
         indexes.emplace_back(gen.builder->getInt32(0));
     }
-    indexes.emplace_back(gen.builder->getInt32(1));
+    // why aren't we adding this ?
+    // because this method is only called for members that are present in inherited structs
+    // indexes.emplace_back(gen.builder->getInt32(1 + direct_inh_composed_structs(this)));
     return llvm_union_child_index(gen, indexes, name);
 }
 
@@ -147,7 +173,8 @@ bool VariantMember::add_child_index(Codegen& gen, std::vector<llvm::Value *>& in
         return false;
     }
     const auto index = found - values.begin();
-    indexes.emplace_back(gen.builder->getInt32(index));
+    const auto p = parent();
+    indexes.emplace_back(gen.builder->getInt32(direct_inh_composed_structs(p) + index));
 }
 
 llvm::Type* VariantMember::llvm_raw_struct_type(Codegen &gen) {
@@ -167,7 +194,7 @@ llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {
 }
 
 bool VariantMemberParam::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    return type->pure_type(gen.allocator)->linked_node()->add_child_index(gen, indexes, name);
+    return type->canonical()->linked_node()->add_child_index(gen, indexes, name);
 }
 
 llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {

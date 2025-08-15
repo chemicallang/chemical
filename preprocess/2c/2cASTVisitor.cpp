@@ -4540,10 +4540,18 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
         if (member) {
             if(previous) {
                 // user wrote 'self.' before the member access
+                // TODO use getType->canonical()
                 const auto prev_type = previous->get_pure_type(visitor.allocator);
-                const auto previous_def = prev_type->linked_struct_def();
-                if (previous_def) {
-                    write_path_to_member(visitor, previous_def, member);
+                const auto linked = prev_type->linked_node();
+                if(linked) {
+                    switch(linked->kind()) {
+                        case ASTNodeKind::StructDecl:
+                        case ASTNodeKind::VariantDecl:
+                            write_path_to_member(visitor, linked->as_extendable_members_container_unsafe(), member);
+                            break;
+                        default:
+                            break;
+                    }
                 }
             } else {
                 // does not have 'self.', since 'a' is an identifier

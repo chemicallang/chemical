@@ -1321,7 +1321,7 @@ public:
             if(value) {
                 const auto id = new(allocator.allocate<VariableIdentifier>()) VariableIdentifier(value->name_view(), value->known_type(), 0, true);
                 id->linked = value;
-                return new(allocator.allocate<AccessChain>()) AccessChain({id}, false, value->known_type(), 0);
+                return new(allocator.allocate<AccessChain>()) AccessChain({id}, value->known_type(), 0);
             }
         }
         return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), 0);

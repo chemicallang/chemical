@@ -77,7 +77,7 @@ bool AccessChain::compile_time_computable() {
 }
 
 AccessChain *AccessChain::copy(ASTAllocator& allocator) {
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(is_node(), getType(), encoded_location());
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(getType(), encoded_location());
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy(allocator));
     }
@@ -158,7 +158,7 @@ Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Va
         // we relink the parent of b.c so they know the parent has changed to a
         if(next == nullptr && evaluated && evaluated->as_chain_value()) {
 
-            const auto duplicate = new (scope.allocate<AccessChain>()) AccessChain(false, evaluated->encoded_location());
+            const auto duplicate = new (scope.allocate<AccessChain>()) AccessChain(evaluated->encoded_location());
             duplicate->values.emplace_back((ChainValue*) evaluated);
             copy_from(scope.allocator, duplicate->values, values, i);
             duplicate->relink_parent();

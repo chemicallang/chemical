@@ -106,28 +106,28 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
     decl->body.emplace(decl, ZERO_LOC);
     const auto ctxId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("ctx"), ptrBuildCtx, ZERO_LOC, false);
     const auto defGetId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("default_get"), nullptr, ZERO_LOC, false);
-    const auto callParentChain = new (allocator.allocate<AccessChain>()) AccessChain({ ctxId, defGetId }, false, ZERO_LOC);
+    const auto callParentChain = new (allocator.allocate<AccessChain>()) AccessChain({ ctxId, defGetId }, ZERO_LOC);
     const auto funcCall = new (allocator.allocate<FunctionCall>()) FunctionCall(callParentChain, ZERO_LOC);
 
     // build flag id argument
     const auto buildFlagId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(buildFlagName, nullptr, ZERO_LOC, false);
-    const auto buildFlagIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFlagId }, false, nullptr, ZERO_LOC);
+    const auto buildFlagIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFlagId }, nullptr, ZERO_LOC);
     const auto buildFlagPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(buildFlagIdWrap, true, ZERO_LOC);
 
     // cached ptr id argument
     const auto cachedPtrId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(cachedPtrName, nullptr, ZERO_LOC, false);
-    const auto cachedPtrIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ cachedPtrId }, false, nullptr, ZERO_LOC);
+    const auto cachedPtrIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ cachedPtrId }, nullptr, ZERO_LOC);
     const auto cachedPtrPtr = new (allocator.allocate<AddrOfValue>()) AddrOfValue(cachedPtrIdWrap, true, ZERO_LOC);
 
     // lets do default get function call arguments
     const auto buildFuncId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view("build"), nullptr, ZERO_LOC, false);
-    const auto buildFuncIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFuncId }, false, nullptr, ZERO_LOC);
+    const auto buildFuncIdWrap = new (allocator.allocate<AccessChain>()) AccessChain({ buildFuncId }, nullptr, ZERO_LOC);
 
     // putting arguments
     funcCall->values = { buildFlagPtr, cachedPtrPtr, buildFuncIdWrap };
 
     // just wrapping the function call in a chain before return
-    const auto funcCallWrap = new (allocator.allocate<AccessChain>()) AccessChain({ funcCall }, false, nullptr, ZERO_LOC);
+    const auto funcCallWrap = new (allocator.allocate<AccessChain>()) AccessChain({ funcCall }, nullptr, ZERO_LOC);
     const auto retStmt = new (allocator.allocate<ReturnStatement>()) ReturnStatement(funcCallWrap, decl, ZERO_LOC);
     decl->body.value().nodes.emplace_back(retStmt);
 

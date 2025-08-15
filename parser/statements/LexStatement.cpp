@@ -216,7 +216,7 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
         token++;
         auto has_namespace = consumeToken(TokenType::NamespaceKw);
         const auto location = loc_single(tok);
-        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, location);
+        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(location);
         auto stmt = new (allocator.allocate<UsingStmt>()) UsingStmt(chain, parent_node, has_namespace, location);
         do {
             auto id = parseVariableIdentifier(allocator);

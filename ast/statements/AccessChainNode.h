@@ -13,7 +13,7 @@ public:
     constexpr AccessChainNode(
         SourceLocation loc,
         ASTNode* parent_node
-    ) : ASTNode(ASTNodeKind::AccessChainNode, parent_node, loc), chain(true, loc) {
+    ) : ASTNode(ASTNodeKind::AccessChainNode, parent_node, loc), chain(loc) {
 
     }
 

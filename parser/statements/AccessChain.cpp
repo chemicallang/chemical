@@ -68,7 +68,7 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
         return nullptr;
     }
 
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(false, loc_single(id));
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(id));
     auto identifier = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, id->value), loc_single(id));
     chain->values.emplace_back(identifier);
 
@@ -226,7 +226,7 @@ ChainValue* take_parent(ASTAllocator& allocator, std::vector<ChainValue*>& value
         values.pop_back();
         return parent_val;
     } else {
-        return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), false, location);
+        return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), location);
     }
 }
 
@@ -278,7 +278,7 @@ BaseType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*
         return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, val->value));
     } else {
         const auto loc = values.front()->encoded_location();
-        const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), false, loc);
+        const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), loc);
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain);
     }
 }

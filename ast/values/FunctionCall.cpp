@@ -202,9 +202,15 @@ llvm::Value* arg_value(
             argValue = value->llvm_value(gen, param_type);
         }
     }
-    if (func_type->isVariadic() && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
-        // Ensure proper type promotion for float values passed to printf
-        argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
+    const auto argValType_1234 = argValue->getType();
+    if (func_type->isVariadic() && func_type->isInVarArgs(i) && (argValType_1234->isFloatTy() || argValType_1234->isIntegerTy(1))) {
+        if(argValType_1234->isFloatTy()) {
+            // Ensure proper type promotion for float values passed to printf
+            argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
+        } else if(argValType_1234->isIntegerTy(1)) {
+            // Ensure proper type promotion for boolean values passed to printf
+            argValue = gen.builder->CreateZExt(argValue, llvm::Type::getInt32Ty(*gen.ctx));
+        }
     } else {
 
         // we copy objects and send to function calls, only objects that have copy annotation

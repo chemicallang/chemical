@@ -112,7 +112,6 @@ const std::pair<chem::string_view, void*> PtrVecSymMap[] = {
 const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuilderallocate_with_cleanup", (void*) ASTBuilderallocate_with_cleanup },
         { "compiler_ASTBuilderstore_cleanup", (void*) ASTBuilderstore_cleanup },
-        { "compiler_ASTBuildercreateType", (void*) ASTBuildercreateType },
         { "compiler_ASTBuildermake_embedded_node", (void*) ASTBuildermake_embedded_node },
         { "compiler_ASTBuildermake_embedded_value", (void*) ASTBuildermake_embedded_value },
         { "compiler_ASTBuildermake_any_type", (void*) ASTBuildermake_any_type },

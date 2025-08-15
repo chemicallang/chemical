@@ -19,6 +19,7 @@
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
+#include "ast/statements/PlacementNewNode.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/Typealias.h"
@@ -219,6 +220,10 @@ public:
     }
 
     inline void VisitPatternMatchExprNode(PatternMatchExprNode *node) {
+        visit_it(&node->value);
+    }
+
+    inline void VisitPlacementNewNode(PlacementNewNode *node) {
         visit_it(&node->value);
     }
 

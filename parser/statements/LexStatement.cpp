@@ -169,7 +169,7 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::ProvideKw:
             return (ASTNode*) parseProvideStatement(allocator);
         case TokenType::NewKw:
-            return (ASTNode*) parseNewValueAsNode(allocator);
+            return (ASTNode*) parsePlacementNewNode(allocator);
         case TokenType::ComptimeKw:
             return (ASTNode*) parseComptimeBlock(allocator);
         case TokenType::IfKw:

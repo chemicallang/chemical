@@ -556,6 +556,8 @@ public:
 
     void VisitPatternMatchExprNode(PatternMatchExprNode* node);
 
+    void VisitPlacementNewNode(PlacementNewNode *node);
+
     void VisitEnumDecl(EnumDeclaration* node);
 
     // enum members are handled along with enum declaration

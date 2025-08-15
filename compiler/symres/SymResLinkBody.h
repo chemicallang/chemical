@@ -167,6 +167,8 @@ public:
 
     void VisitPatternMatchExprNode(PatternMatchExprNode* node);
 
+    void VisitPlacementNewNode(PlacementNewNode* node);
+
     void VisitEmbeddedNode(EmbeddedNode* node);
 
     // ------------------------------------

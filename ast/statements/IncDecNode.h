@@ -28,7 +28,6 @@ public:
             encoded_location(),
             parent()
         );
-        node->value.setType(value.getType());
         return node;
     }
 

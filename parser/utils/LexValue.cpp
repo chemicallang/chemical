@@ -22,6 +22,7 @@
 #include "ast/values/NewTypedValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
+#include "ast/statements/PlacementNewNode.h"
 #include "ast/values/BigIntValue.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/values/UBigIntValue.h"
@@ -289,13 +290,40 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
 
 }
 
-ASTNode* Parser::parseNewValueAsNode(ASTAllocator& allocator) {
-    auto newValue = parseNewValue(allocator);
-    if(newValue) {
-        return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(newValue, parent_node);
-    } else {
+ASTNode* Parser::parsePlacementNewNode(ASTAllocator& allocator) {
+    const auto new_tok = token;
+    if(new_tok->type != TokenType::NewKw) {
         return nullptr;
     }
+    token++;
+
+    // placement new
+    const auto t_type = token->type;
+    if(t_type == TokenType::LParen) {
+        auto new_value = new (allocator.allocate<PlacementNewNode>()) PlacementNewNode(nullptr, nullptr, loc_single(new_tok), parent_node);
+        token++;
+        auto pointer_val = parseExpression(allocator);
+        if(!pointer_val) {
+            unexpected_error("expected a pointer value for placement new");
+            return nullptr;
+        }
+        new_value->value.pointer = pointer_val;
+        if(token->type != TokenType::RParen) {
+            unexpected_error("expected a ')' after the pointer value in new expression");
+        }
+        token++;
+        auto value = parseExpression(allocator, true);
+        if(!value) {
+            unexpected_error("expected a value for placement new expression");
+            return nullptr;
+        }
+        new_value->value.value = value;
+        return new_value;
+    }
+
+    error("new value as a statement is not allowed, it can lead to memory leaks");
+    return nullptr;
+
 }
 
 Value* Parser::parsePostIncDec(ASTAllocator& allocator, Value* value, Token* start_token) {

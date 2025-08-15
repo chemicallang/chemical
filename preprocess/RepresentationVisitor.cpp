@@ -31,6 +31,7 @@
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
+#include "ast/statements/PlacementNewNode.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
@@ -572,6 +573,10 @@ void RepresentationVisitor::VisitIncDecNode(IncDecNode* node) {
 }
 
 void RepresentationVisitor::VisitPatternMatchExprNode(PatternMatchExprNode* node) {
+    visit(&node->value);
+}
+
+void RepresentationVisitor::VisitPlacementNewNode(PlacementNewNode* node) {
     visit(&node->value);
 }
 

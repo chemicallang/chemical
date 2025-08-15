@@ -8,6 +8,7 @@
 #include "parser/Parser.h"
 #include "ast/structures/If.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/PatternMatchExpr.h"
 
 std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level) {
 
@@ -39,9 +40,13 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
             return std::nullopt;
         }
 
+        // pattern match expression
+        const auto patternMatch = new (allocator.allocate<PatternMatchExpr>()) PatternMatchExpr(
+                !isVar, lBrace, allocate_view(allocator, id->value), loc_single(t)
+        );
+
         // parse pattern match
-        const auto patternMatch = parsePatternMatchExprAfterId(allocator, !isVar, lBrace, id->value, &t, false);
-        assert(patternMatch != nullptr);
+        parsePatternMatchExprAfterId(allocator, patternMatch, lBrace, false);
 
 #ifdef LSP_BUILD
         id->linked = (ASTAny*) patternMatch;

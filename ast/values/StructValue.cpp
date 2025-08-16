@@ -27,6 +27,61 @@
 #include "compiler/llvmimpl.h"
 #include "IntValue.h"
 
+void default_initialize_inherited(Codegen& gen, VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value);
+
+void default_initialize_struct(Codegen& gen, ExtendableMembersContainerNode* decl, llvm::Type* parent_type, llvm::Value* ptr, Value* parent_value) {
+
+    const auto cons = decl->default_constructor_func();
+    if(cons && !cons->is_generated_fn()) {
+
+        // we'll be calling this constructor function
+        const auto func = cons->llvm_func(gen);
+        gen.builder->CreateCall(func, { ptr });
+
+    } else {
+
+        // default initialize the inherited structs
+        default_initialize_inherited(gen, decl, decl->llvm_type(gen), ptr, parent_value);
+
+        // the type of struct
+        const auto decl_type = decl->llvm_type(gen);
+
+        // initializing direct variables directly
+        for(const auto var : decl->variables()) {
+            auto defValue = var->default_value();
+            if (defValue) {
+                auto variable = decl->variable_type_index(var->name);
+                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+                defValue->store_in_struct(gen, parent_value, ptr, decl_type, idx, variable.first, variable.second);
+            } else {
+                gen.error(parent_value) << "expected a default value for '" <<  var->name << "'";
+            }
+        }
+
+    }
+
+}
+
+void default_initialize_inherited(Codegen& gen, VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value) {
+    // storing default values for inherited variables
+    unsigned inherited_index = 0;
+    for(auto& inh : container->inherited) {
+        const auto node = inh.type->get_direct_linked_canonical_node();
+        if(node->kind() == ASTNodeKind::StructDecl) {
+            const auto decl = node->as_struct_def_unsafe();
+
+            // pointer to inherited struct in allocated struct
+            const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
+
+            // default initialize the struct
+            default_initialize_struct(gen, decl, decl->llvm_type(gen), ptr, parent_value);
+
+            // increase the inherited index
+            inherited_index++;
+        }
+    }
+}
+
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* expected_type) {
 
     const auto parent_type = llvm_type(gen);
@@ -44,6 +99,21 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             gen.error(this) << "couldn't assign dyn object struct " << representation() << " to expected type " << expected_type->representation();
         }
         inst = allocaInst;
+    }
+
+    // default initialize inherited values in struct
+    unsigned inherited_index = 0;
+    for(auto& inh : container->inherited) {
+        const auto node = inh.type->get_direct_linked_canonical_node();
+        if (node->kind() == ASTNodeKind::StructDecl) {
+            const auto decl = node->as_struct_def_unsafe();
+            if(values.find(decl->name_view()) == values.end()) {
+                const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
+                default_initialize_struct(gen, decl, decl->llvm_type(gen), ptr, this);
+            }
+            // increase the inherited index
+            inherited_index++;
+        }
     }
 
     for (auto &value: values) {
@@ -79,7 +149,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         }
     }
 
-    // storing default values
+    // storing default values for direct variables
     const auto isUnion = is_union();
     for(const auto value : container->variables()) {
         auto found = values.find(value->name);
@@ -126,8 +196,8 @@ unsigned int StructValue::store_in_struct(
 ) {
     if (index == -1) {
         gen.error(this) <<
-            "can't store struct value '" << representation() << "' into parent struct value '" << parent->representation() << "' with an unknown index"
-                << " where current definition name '" << definition->name_view() << "'";
+                        "can't store struct value '" << representation() << "' into parent struct value '" << parent->representation() << "' with an unknown index"
+                        << " where current definition name '" << definition->name_view() << "'";
         return index + values.size();
     }
     auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
@@ -146,7 +216,7 @@ unsigned int StructValue::store_in_array(
 ) {
     if (index == -1) {
         gen.error(this)
-            << "can't store struct value " << representation() << " array value " << ((Value*) parent)->representation() << " with an unknown index" <<
+                << "can't store struct value " << representation() << " array value " << ((Value*) parent)->representation() << " with an unknown index" <<
                 " where current definition name " << definition->name_view();
         return index + 1;
     }
@@ -303,7 +373,7 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     if(is_union()) {
         if(values.size() != 1) {
             diagnoser.error(this) << "union '"
-            << definition->name_view() << "' must be initialized with a single member value";
+                                  << definition->name_view() << "' must be initialized with a single member value";
             return false;
         } else {
             return true;
@@ -543,10 +613,10 @@ void StructValue::declare_default_values(
 
 StructValue *StructValue::copy(ASTAllocator& allocator) {
     auto struct_value = new (allocator.allocate<StructValue>()) StructValue(
-        getRefTypeLoc().copy(allocator),
-        definition,
-        container,
-        encoded_location()
+            getRefTypeLoc().copy(allocator),
+            definition,
+            container,
+            encoded_location()
     );
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {

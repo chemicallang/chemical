@@ -11,6 +11,7 @@
 #include "ast/statements/AccessChainNode.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/statements/DeallocStmt.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/VariantMember.h"
@@ -979,16 +980,21 @@ void RepresentationVisitor::VisitIsValue(IsValue *isVal) {
 }
 
 void RepresentationVisitor::VisitDeleteStmt(DestructStmt *delStmt) {
-    write("destruct");
+    write(delStmt->getFreeAfter() ? "delete" : "destruct");
     if(delStmt->is_array) {
         write('[');
         if(delStmt->array_value) {
             visit(delStmt->array_value);
         }
         write(']');
-        write(' ');
-        visit(delStmt->identifier);
     }
+    write(' ');
+    visit(delStmt->identifier);
+}
+
+void RepresentationVisitor::VisitDeallocStmt(DeallocStmt* node) {
+    write("dealloc ");
+    visit(node->ptr);
 }
 
 void RepresentationVisitor::VisitVariantCase(VariantCase *chain) {

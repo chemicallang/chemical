@@ -450,7 +450,7 @@ ContinueStatement* ASTBuildermake_continue_stmt(ASTBuilder* builder, LoopASTNode
 }
 
 DestructStmt* ASTBuildermake_destruct_stmt(ASTBuilder* builder, Value* array_value, Value* ptr_value, bool is_array, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<DestructStmt>()) DestructStmt(array_value, ptr_value, is_array, parent_node, location);
+    return new (builder->allocate<DestructStmt>()) DestructStmt(array_value, ptr_value, is_array, false, parent_node, location);
 }
 
 ReturnStatement* ASTBuildermake_return_stmt(ASTBuilder* builder, Value* value, FunctionTypeBody* decl, ASTNode* parent_node, uint64_t location) {

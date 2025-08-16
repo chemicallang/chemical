@@ -13,6 +13,7 @@
 #include "ast/statements/EmbeddedNode.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
+#include "ast/statements/DeallocStmt.h"
 #include "2cBackendContext.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
@@ -3250,6 +3251,8 @@ void ToCAstVisitor::prepare_translate() {
     } else {
         write("extern void* malloc(unsigned long size);");
     }
+    new_line_and_indent();
+    write("extern void free(void* block);");
 }
 
 void ToCAstVisitor::reset() {
@@ -4278,22 +4281,38 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
 
     auto data = stmt->get_data(allocator);
 
-    if(data.destructor_func == nullptr) {
+    if(data.destructor_func == nullptr && !stmt->getFreeAfter()) {
         return;
     }
 
     auto prev_nested = nested_value;
     nested_value = true;
+    // TODO: do not use string_accept
     auto self_name = string_accept(stmt->identifier);
     nested_value = prev_nested;
-    UBigIntValue siz_val(data.array_size, comptime_scope.typeBuilder.getUBigIntType(), ZERO_LOC);
 
-    if(stmt->is_array) {
-        destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
-    } else {
-        destructor->destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
+    if(data.destructor_func != nullptr) {
+        UBigIntValue siz_val(data.array_size, comptime_scope.typeBuilder.getUBigIntType(), ZERO_LOC);
+        if (stmt->is_array) {
+            destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
+        } else {
+            destructor->destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
+        }
     }
 
+    if(stmt->getFreeAfter()) {
+        new_line_and_indent();
+        write("free(");
+        write(self_name);
+        write(");");
+    }
+
+}
+
+void ToCAstVisitor::VisitDeallocStmt(DeallocStmt* node) {
+    write("free(");
+    visit(node->ptr);
+    write(");");
 }
 
 void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
@@ -4330,10 +4349,21 @@ void ToCAstVisitor::VisitNewTypedValue(NewTypedValue *value) {
     write("))");
 }
 
+static inline bool is_value_ref_container(Value* value) {
+    const auto last_id = value->get_last_id();
+    return last_id && ASTNode::isMembersContainer(last_id->linked->kind());
+}
+
 void ToCAstVisitor::VisitNewValue(NewValue *value) {
     const auto value_kind = value->value->val_kind();
-    if(value_kind == ValueKind::StructValue || value_kind == ValueKind::AccessChain) {
+    if(value_kind == ValueKind::AccessChain || value_kind == ValueKind::StructValue) {
         auto value_type = value->value->getType();
+        if(is_value_ref_container(value->value)) {
+            write("malloc(sizeof(");
+            visit(value_type);
+            write("))");
+            return;
+        }
         write("({ ");
         visit(value_type);
         write("* ");
@@ -4342,7 +4372,8 @@ void ToCAstVisitor::VisitNewValue(NewValue *value) {
         write(" = ");
         write("malloc(sizeof(");
         visit(value_type);
-        write(")); *");
+        write(")); ");
+        write('*');
         write(temp_name);
         write(" = ");
         visit(value->value);

@@ -10,6 +10,7 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/statements/DeallocStmt.h"
 //#include "ast/statements/MacroValueStatement.h"
 //#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
@@ -227,8 +228,12 @@ public:
         }
     }
 
-    void VisitDeleteStmt(DestructStmt *stmt) {
+    inline void VisitDeleteStmt(DestructStmt *stmt) {
         visit(stmt->identifier);
+    }
+
+    inline void VisitDeallocStmt(DeallocStmt* stmt) {
+        visit(stmt->ptr);
     }
 
     void VisitWhileLoopStmt(WhileLoop *loop) {

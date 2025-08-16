@@ -320,6 +320,12 @@ public:
     }
 
     /**
+     * this gets the free function or declares it in the current module
+     * @return
+     */
+    llvm::Function* getFreeFn();
+
+    /**
      * this gets the malloc function or declares it in the current module
      */
     llvm::Function* getMallocFn();

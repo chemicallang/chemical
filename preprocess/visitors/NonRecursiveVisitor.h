@@ -45,6 +45,9 @@ public:
     inline void VisitDeleteStmt(DestructStmt* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitDeallocStmt(DeallocStmt* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
     inline void VisitImportStmt(ImportStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -515,6 +518,9 @@ public:
             case ASTNodeKind::DeleteStmt:
                 static_cast<Derived*>(this)->VisitDeleteStmt((DestructStmt*) node);
                 return;
+            case ASTNodeKind::DeallocStmt:
+                static_cast<Derived*>(this)->VisitDeallocStmt((DeallocStmt*) node);
+                return;
             case ASTNodeKind::ImportStmt:
                 static_cast<Derived*>(this)->VisitImportStmt((ImportStatement*) node);
                 return;
@@ -958,6 +964,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(DestructStmt* node) {
         static_cast<Derived*>(this)->VisitDeleteStmt(node);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DeallocStmt* node) {
+        static_cast<Derived*>(this)->VisitDeallocStmt(node);
     }
     inline void VisitByPtrTypeNoNullCheck(ImportStatement* node) {
         static_cast<Derived*>(this)->VisitImportStmt(node);

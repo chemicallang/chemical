@@ -11,6 +11,7 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/AccessChainNode.h"
+#include "ast/statements/DeallocStmt.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/statements/UsingStmt.h"
@@ -361,6 +362,10 @@ public:
             visit_it(stmt->array_value);
         }
         visit_it(stmt->identifier);
+    }
+
+    void VisitDeallocStmt(DeallocStmt* stmt) {
+        visit_it(stmt->ptr);
     }
 
     void VisitWhileLoopStmt(WhileLoop *loop) {

@@ -65,6 +65,8 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "new", TokenType::NewKw },
                 { "continue", TokenType::ContinueKw },
                 { "destruct", TokenType::DestructKw },
+                { "dealloc", TokenType::DeallocKw },
+                { "delete", TokenType::DeleteKw },
                 { "provide", TokenType::ProvideKw },
                 { "default", TokenType::DefaultKw },
                 { "unsafe", TokenType::UnsafeKw },

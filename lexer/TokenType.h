@@ -19,6 +19,8 @@ enum class TokenType {
     NewKw,
     ContinueKw,
     DestructKw,
+    DeleteKw,
+    DeallocKw,
     ProvideKw,
     DefaultKw,
     UnsafeKw,

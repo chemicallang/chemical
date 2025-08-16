@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/ProvideStmt.h"
+#include "ast/statements/DeallocStmt.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/values/CastedValue.h"
@@ -160,7 +161,10 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return parseMacroNode(allocator, CBIFunctionType::ParseMacroNode);
         case TokenType::ReturnKw:
             return (ASTNode*) parseReturnStatement(allocator);
+        case TokenType::DeallocKw:
+            return (ASTNode*) parseDeallocStatement(allocator);
         case TokenType::DestructKw:
+        case TokenType::DeleteKw:
             return (ASTNode*) parseDestructStatement(allocator);
         case TokenType::ThrowKw:
             return (ASTNode*) parseThrowStatement(allocator);
@@ -191,6 +195,23 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         default:
             return parseAssignmentStmt(allocator);
 
+    }
+}
+
+DeallocStmt* Parser::parseDeallocStatement(ASTAllocator& allocator) {
+    auto& tok = *token;
+    if(tok.type == TokenType::DeallocKw) {
+        token++;
+        auto stmt = new (allocator.allocate<DeallocStmt>()) DeallocStmt(nullptr, parent_node, loc_single(tok));
+        auto expr = parseAccessChainOrAddrOf(allocator);
+        if(expr) {
+            stmt->ptr = expr;
+        } else {
+            error("expected a value after 'dealloc'");;
+        }
+        return stmt;
+    } else {
+        return nullptr;
     }
 }
 

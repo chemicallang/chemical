@@ -117,6 +117,23 @@ variant InheriterOfPoint : VariantInheritedPoint {
     Second(x : int, y : int, z : int)
 }
 
+struct ConstructedVertex {
+    var x : int
+    var y : int
+    var z : int
+    @make
+    func make() {
+        x = 98
+        y = 97
+        z = 96
+    }
+}
+
+variant VertexInheriter : ConstructedVertex {
+    First(i : int)
+    Second(j : int)
+}
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;
@@ -299,5 +316,23 @@ func test_variants() {
         var i = InheriterOfPoint.Second(65, 87, 45)
         var Second(x, y, z) = i else unreachable
         return x == 65 && y == 87 && z == 45 && i.a == 10 && i.b == 20
+    })
+    test("inherited struct in variant is default initialized with constructor - 1", () => {
+        var i = VertexInheriter.First(92)
+        return i.x == 98 && i.y == 97 && i.z == 96
+    })
+    test("inherited struct in variant is default initialized with constructor - 2", () => {
+        var x = VertexInheriter.First(92)
+        var First(i) = x else unreachable
+        return i == 92 && x.x == 98 && x.y == 97 && x.z == 96
+    })
+    test("inherited struct in variant is default initialized with constructor - 3", () => {
+        var i = VertexInheriter.Second(83)
+        return i.x == 98 && i.y == 97 && i.z == 96
+    })
+    test("inherited struct in variant is default initialized with constructor - 4", () => {
+        var i = VertexInheriter.Second(83)
+        var Second(j) = i else unreachable
+        return j == 83 && i.x == 98 && i.y == 97 && i.z == 96
     })
 }

@@ -61,14 +61,25 @@ public:
     int16_t iterations_body_done = 0;
 
     /**
+     * this is the generic instantiation that is instantiated by the generic parent
+     */
+    int generic_instantiation = -1;
+
+    /**
      * this is set by generic declarations that invoke this container as implementation
      */
     GenericMembersDecl* generic_parent = nullptr;
 
+private:
+
     /**
-     * this is the generic instantiation that is instantiated by the generic parent
+     * set during symbol resolution
+     * all variables + inherited structs in this container can be default initialized
+     * using default constructors or default values
      */
-    int generic_instantiation = -1;
+    std::optional<bool> default_initialized = std::nullopt;
+
+public:
 
     /**
      * default constructor
@@ -129,6 +140,12 @@ public:
 
     VariablesContainer* as_variables_container() {
         return this;
+    }
+
+    bool getAllMembersDefaultInitialized();
+
+    inline void setAllMembersDefaultInitialized(bool value) {
+        default_initialized = value;
     }
 
     /**

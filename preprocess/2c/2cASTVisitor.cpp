@@ -3299,6 +3299,10 @@ void ToCAstVisitor::write(std::string& value) {
     output->write(value.c_str(), (std::streamsize) value.size());
 }
 
+void ToCAstVisitor::write(chem::string& str) {
+    output->write(str.data(), (std::streamsize) str.size());
+}
+
 void ToCAstVisitor::write_str(const std::string& value) {
     output->write(value.c_str(), (std::streamsize) value.size());
 }
@@ -5236,6 +5240,93 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
     write('}');
 }
 
+void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
+
+    const auto cons = def->default_constructor_func();
+    if(cons && !cons->is_generated_fn()) {
+
+        if (has_value_before) {
+            visitor.write(", ");
+        }
+        has_value_before = false;
+
+        visitor.new_line_and_indent(loc);
+        visitor.write('.');
+        visitor.write(def->name_view());
+        visitor.write(" = ");
+
+        visitor.write("({ struct ");
+        visitor.mangle(def);
+        auto temp_name = visitor.get_local_temp_var_name();
+        visitor.write(' ');
+        visitor.write(temp_name);
+        visitor.write("; ");
+        visitor.mangle(cons);
+        visitor.write("(&");
+        visitor.write(temp_name);
+        visitor.write("); ");
+        visitor.write(temp_name);
+        visitor.write("; })");
+
+        has_value_before = true;
+
+    } else {
+
+        if(has_value_before) {
+            visitor.write(", ");
+        }
+        has_value_before = false;
+
+        visitor.new_line_and_indent(loc);
+        visitor.write('.');
+        visitor.write(def->name_view());
+        visitor.write(" = ");
+        visitor.write("(struct ");
+        visitor.mangle(def);
+        visitor.write(") {");
+
+        visitor.indentation_level += 1;
+
+        // default initialize the inherited structs
+        for(auto& inh : def->inherited) {
+            auto container = inh.type->get_direct_linked_canonical_node();
+            if(container) {
+                const auto child_def = container->as_struct_def();
+                if(def) {
+                    default_initialize_struct(visitor, child_def, has_value_before, loc);
+                }
+            }
+        }
+
+        // must initialize values directly
+        for(const auto var : def->variables()) {
+            auto defValue = var->default_value();
+            if(defValue) {
+                if(has_value_before) {
+                    visitor.write(", ");
+                } else {
+                    has_value_before = true;
+                }
+                visitor.new_line_and_indent(loc);
+                visitor.write('.');
+                visitor.write(var->name);
+                visitor.write(" = ");
+                visitor.accept_mutating_value(var->known_type(), defValue, false);
+            } else {
+                visitor.error(loc) << "no default value present for '" << var->name << "' in struct value";
+            }
+        }
+
+        visitor.indentation_level -= 1;
+
+        visitor.new_line_and_indent(loc);
+        visitor.write("}");
+
+        has_value_before = true;
+    }
+
+}
+
 void ToCAstVisitor::VisitStructValue(StructValue *val) {
     auto linked = val->linked_node();
     auto linked_kind = linked->kind();
@@ -5279,19 +5370,21 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
         }
     }
+
+    // default initialize the direct variables
     auto& variables = val->variables()->variables();
     for(const auto var : variables) {
         auto found = val->values.find(var->name);
         if(found == val->values.end()) {
             auto defValue = var->default_value();
-            const auto member = val->child_member(var->name);
-            if(has_value_before) {
-                write(", ");
-            } else {
-                has_value_before = true;
-            }
-            new_line_and_indent(val->encoded_location());
             if(defValue) {
+                const auto member = val->child_member(var->name);
+                if(has_value_before) {
+                    write(", ");
+                } else {
+                    has_value_before = true;
+                }
+                new_line_and_indent(val->encoded_location());
                 write('.');
                 write(var->name);
                 write(" = ");
@@ -5301,6 +5394,20 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
             }
         }
     }
+
+    // default initialize the inherited structs
+    for(auto& inh : val->variables()->inherited) {
+        auto container = inh.type->get_direct_linked_canonical_node();
+        if(container) {
+            const auto def = container->as_struct_def();
+            if (def) {
+                if(val->values.find(def->name_view()) == val->values.end()) {
+                    default_initialize_struct(*this, def, has_value_before, val->encoded_location());
+                }
+            }
+        }
+    }
+
     indentation_level -= 1;
     nested_value = prev;
     new_line_and_indent();

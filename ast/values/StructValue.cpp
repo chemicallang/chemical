@@ -29,22 +29,23 @@
 
 void default_initialize_inherited(Codegen& gen, VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value);
 
-void default_initialize_struct(Codegen& gen, ExtendableMembersContainerNode* decl, llvm::Type* parent_type, llvm::Value* ptr, Value* parent_value) {
+void default_initialize_struct(Codegen& gen, ExtendableMembersContainerNode* decl, llvm::Value* ptr, Value* parent_value) {
 
     const auto cons = decl->default_constructor_func();
     if(cons && !cons->is_generated_fn()) {
 
         // we'll be calling this constructor function
         const auto func = cons->llvm_func(gen);
-        gen.builder->CreateCall(func, { ptr });
+        const auto callInst = gen.builder->CreateCall(func, { ptr });
+        gen.di.instr(callInst, parent_value);
 
     } else {
 
-        // default initialize the inherited structs
-        default_initialize_inherited(gen, decl, decl->llvm_type(gen), ptr, parent_value);
-
         // the type of struct
         const auto decl_type = decl->llvm_type(gen);
+
+        // default initialize the inherited structs
+        default_initialize_inherited(gen, decl, decl->llvm_type(gen), ptr, parent_value);
 
         // initializing direct variables directly
         for(const auto var : decl->variables()) {
@@ -74,7 +75,7 @@ void default_initialize_inherited(Codegen& gen, VariablesContainer* container, l
             const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
 
             // default initialize the struct
-            default_initialize_struct(gen, decl, decl->llvm_type(gen), ptr, parent_value);
+            default_initialize_struct(gen, decl, ptr, parent_value);
 
             // increase the inherited index
             inherited_index++;
@@ -109,7 +110,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             const auto decl = node->as_struct_def_unsafe();
             if(values.find(decl->name_view()) == values.end()) {
                 const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
-                default_initialize_struct(gen, decl, decl->llvm_type(gen), ptr, this);
+                default_initialize_struct(gen, decl, ptr, this);
             }
             // increase the inherited index
             inherited_index++;

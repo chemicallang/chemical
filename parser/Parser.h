@@ -709,6 +709,11 @@ public:
     DestructStmt* parseDestructStatement(ASTAllocator& allocator);
 
     /**
+     * parse dealloc statement
+     */
+    DeallocStmt* parseDeallocStatement(ASTAllocator& allocator);
+
+    /**
      * parses a single return statement
      */
     ReturnStatement* parseReturnStatement(ASTAllocator& allocator);

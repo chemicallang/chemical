@@ -17,10 +17,6 @@ class DestructStmt : public ASTNode {
 public:
 
     /**
-     * if the statement has brackets destruct[] ptr;
-     */
-    bool is_array;
-    /**
      * the actual identifier / access chain value destruct[array_value] ptr; <--- ptr is the one
      */
     Value* identifier;
@@ -28,6 +24,14 @@ public:
      * array value is the one in brackets like destruct[array_value] ptr;
      */
     Value* array_value;
+    /**
+     * if the statement has brackets destruct[] ptr;
+     */
+    bool is_array;
+    /**
+     * should the pointer be free'd after
+     */
+    bool free_after = false;
 
     /**
      * constructor
@@ -36,10 +40,19 @@ public:
         Value* array_value,
         Value* value,
         bool is_array,
+        bool free_after,
         ASTNode* parent_node,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::DeleteStmt, parent_node, location), array_value(array_value), identifier(value), is_array(is_array) {
+    ) : ASTNode(ASTNodeKind::DeleteStmt, parent_node, location), array_value(array_value), identifier(value), is_array(is_array), free_after(free_after) {
 
+    }
+
+    inline bool getFreeAfter() {
+        return free_after;
+    }
+
+    inline void setFreeAfter(bool value) {
+        free_after = value;
     }
 
     DestructData get_data(ASTAllocator& allocator);
@@ -49,6 +62,7 @@ public:
             array_value ? array_value->copy(allocator) : nullptr,
             identifier->copy(allocator),
             is_array,
+            free_after,
             parent(),
             encoded_location()
         );

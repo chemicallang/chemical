@@ -116,9 +116,10 @@ DestructStmt* fix_destruct(DestructStmt* stmt, ASTAllocator& allocator) {
 
 DestructStmt* Parser::parseDestructStatement(ASTAllocator& allocator) {
     auto& tok = *token;
-    if(tok.type == TokenType::DestructKw) {
+    const auto is_delete_kw = tok.type == TokenType::DeleteKw;
+    if(is_delete_kw || tok.type == TokenType::DestructKw) {
         token++;
-        auto stmt = new (allocator.allocate<DestructStmt>()) DestructStmt(nullptr, nullptr, false, parent_node, loc_single(tok));
+        auto stmt = new (allocator.allocate<DestructStmt>()) DestructStmt(nullptr, nullptr, false, is_delete_kw, parent_node, loc_single(tok));
         if(consumeToken(TokenType::LBracket)) {
             stmt->is_array = true;
             auto value = parseAccessChainOrValue(allocator);

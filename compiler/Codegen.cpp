@@ -368,6 +368,17 @@ void Codegen::enqueue_destructible(BaseType* nonCanonType, ASTNode* node, llvm::
     }
 }
 
+llvm::Function* Codegen::getFreeFn() {
+    const auto previousFunc = module->getFunction("free");
+    if(previousFunc != nullptr) {
+        return previousFunc;
+    } else {
+        const auto paramType = builder->getPtrTy();
+        const auto type = llvm::FunctionType::get(builder->getVoidTy(), { paramType }, false);
+        return create_func(*this, "free", type, llvm::Function::LinkageTypes::ExternalLinkage);
+    }
+}
+
 llvm::Function* Codegen::getMallocFn() {
     const auto previousFunc = module->getFunction("malloc");
     if(previousFunc != nullptr) {

@@ -4,6 +4,7 @@
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
+#include "ast/statements/DeallocStmt.h"
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/AccessChainNode.h"
 #include "ast/statements/Return.h"
@@ -471,6 +472,10 @@ void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
         linker.error("destruct cannot be called on a value that isn't a pointer", node);
         return;
     }
+}
+
+void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
+    visit(node->ptr);
 }
 
 void SymResLinkBody::VisitProvideStmt(ProvideStmt* node) {

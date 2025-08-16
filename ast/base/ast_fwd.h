@@ -316,6 +316,8 @@ class ThrowStatement;
 
 class DestructStmt;
 
+class DeallocStmt;
+
 class UsingStmt;
 
 class Namespace;

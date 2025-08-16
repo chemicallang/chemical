@@ -89,6 +89,8 @@ public:
 
     void VisitDeleteStmt(DestructStmt* node);
 
+    void VisitDeallocStmt(DeallocStmt* node);
+
     void VisitProvideStmt(ProvideStmt* node);
 
     void VisitReturnStmt(ReturnStatement* node);

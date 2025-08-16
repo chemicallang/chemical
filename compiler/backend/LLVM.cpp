@@ -76,6 +76,7 @@
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/statements/DeallocStmt.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/LoopBlock.h"
@@ -1756,13 +1757,18 @@ void DestructStmt::code_gen(Codegen &gen) {
 
     auto id_value = identifier->llvm_value(gen);
 
-    // we could further free the pointer, using
-//        std::vector<llvm::Value*> args;
-//        args.emplace_back(structPtr);
-//        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
-
     gen.destruct(id_value, arr_size_llvm, elem_type, true, encoded_location());
 
+    if(getFreeAfter()) {
+        const auto free_func = gen.getFreeFn();
+        gen.builder->CreateCall(free_func, { id_value });
+    }
+
+}
+
+void DeallocStmt::code_gen(Codegen& gen) {
+    const auto free_func = gen.getFreeFn();
+    gen.builder->CreateCall(free_func, { ptr->llvm_value(gen) });
 }
 
 llvm::Type* LoopBlock::llvm_type(Codegen &gen) {

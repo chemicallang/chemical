@@ -141,6 +141,8 @@ public:
 
     void VisitDeleteStmt(DestructStmt* node);
 
+    void VisitDeallocStmt(DeallocStmt* node);
+
     void VisitImportStmt(ImportStatement* node);
 
     void VisitReturnStmt(ReturnStatement* node);

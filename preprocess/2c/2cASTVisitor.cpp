@@ -360,12 +360,6 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define static_interface_passed_param_name "__chx_interface_self"
-#define fn_call_struct_var_name "chx_fn_cl_struct"
-
-// without the parent node name
-static void struct_name(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def) {
-    visitor.mangler.mangle_no_parent(*visitor.output, def);
-}
 
 void node_name(ToCAstVisitor& visitor, ASTNode* node) {
     if(!node) return;
@@ -1594,6 +1588,8 @@ void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
 
 }
 
+void default_initialize_inherited(ToCAstVisitor& visitor, VariablesContainer* def, bool& has_value_before, SourceLocation loc);
+
 void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
 
     const auto member = call->parent_val->linked_node()->as_variant_member();
@@ -1603,13 +1599,30 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     visitor.write("(struct ");
     visitor.mangle(linked);
     visitor.write(") ");
-    visitor.write("{ ");
+    visitor.write("{ .");
+    visitor.write(variant_type_variant_name);
+    visitor.write(" = ");
     visitor.write_str(std::to_string(index));
     visitor.write(", ");
+
+    bool has_value_before = false;
+
+    visitor.indentation_level += 1;
+
+    // default initialize inherited members
+    default_initialize_inherited(visitor, linked, has_value_before, call->encoded_location());
+
+    // initialize the parameters
     unsigned i = 0;
     auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;
     for(auto& value : member->values) {
+        if(has_value_before) {
+            visitor.write(", ");
+        } else {
+            has_value_before = true;
+        }
+        if(visitor.is_debug_code) visitor.new_line_and_indent();
         visitor.write('.');
         visitor.write(member->name);
         visitor.write('.');
@@ -1627,11 +1640,15 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         } else {
             visitor.accept_mutating_value(value.second->type, val, false);
         }
-        visitor.write(", ");
         i++;
     }
+
+    visitor.indentation_level -= 1;
+
+    if(visitor.is_debug_code) visitor.new_line_and_indent();
+
     visitor.nested_value = prev_nested;
-    visitor.write('}');
+    visitor.write(" }");
 
 }
 
@@ -5271,6 +5288,21 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
     write('}');
 }
 
+void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc);
+
+void default_initialize_inherited(ToCAstVisitor& visitor, VariablesContainer* def, bool& has_value_before, SourceLocation loc) {
+    // default initialize the inherited structs
+    for(auto& inh : def->inherited) {
+        auto container = inh.type->get_direct_linked_canonical_node();
+        if(container) {
+            const auto child_def = container->as_struct_def();
+            if(child_def) {
+                default_initialize_struct(visitor, child_def, has_value_before, loc);
+            }
+        }
+    }
+}
+
 void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
 
     const auto cons = def->default_constructor_func();
@@ -5308,13 +5340,13 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
         }
         has_value_before = false;
 
-        visitor.new_line_and_indent(loc);
+        if(visitor.is_debug_code) visitor.new_line_and_indent(loc);
         visitor.write('.');
         visitor.write(def->name_view());
         visitor.write(" = ");
         visitor.write("(struct ");
         visitor.mangle(def);
-        visitor.write(") {");
+        visitor.write(") { ");
 
         visitor.indentation_level += 1;
 
@@ -5338,7 +5370,7 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
                 } else {
                     has_value_before = true;
                 }
-                visitor.new_line_and_indent(loc);
+                if(visitor.is_debug_code) visitor.new_line_and_indent(loc);
                 visitor.write('.');
                 visitor.write(var->name);
                 visitor.write(" = ");
@@ -5350,8 +5382,8 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
 
         visitor.indentation_level -= 1;
 
-        visitor.new_line_and_indent(loc);
-        visitor.write("}");
+        if(visitor.is_debug_code) visitor.new_line_and_indent(loc);
+        visitor.write(" }");
 
         has_value_before = true;
     }

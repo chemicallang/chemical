@@ -70,6 +70,11 @@ public:
     bool is64Bit = true;
 
     /**
+     * set in constructor, writes easy to understand code
+     */
+    bool is_debug_code = false;
+
+    /**
      * whether to output debug comments or not
      */
 #ifdef DEBUG

@@ -221,6 +221,7 @@ const auto lib_cmd_desc = "invoke the llvm lib tool";
 const auto mode_cmd_desc = "mode: debug, debug_quick, release_small, release_fast";
 const auto version_cmd_desc = "get the version of the compiler";
 const auto help_cmd_desc = "get help for command line options";
+const auto minify_c_desc = "minify the generated c code";
 const auto benchmark_cmd_desc = "benchmark the compilation process";
 const auto print_ast_desc = "print representation of the ast";
 const auto print_cst_desc = "print representation of the cst";
@@ -451,6 +452,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("mode", "m", CmdOptionType::SingleValue, mode_cmd_desc),
             CmdOption("version", CmdOptionType::NoValue, version_cmd_desc),
             CmdOption("help", CmdOptionType::NoValue, help_cmd_desc),
+            CmdOption("", "minify-c", CmdOptionType::NoValue, minify_c_desc),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
             CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
             CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
@@ -571,7 +573,8 @@ int compiler_main(int argc, char *argv[]) {
         opts->print_cst = options.has_value("print-cst", "pr-cst");
         opts->print_ig = options.has_value("print-ig", "pr-ig");
         opts->verbose = verbose;
-        opts->debug_info = options.has_value("", "g");
+        opts->minify_c = options.has_value("minify-c");
+        opts->debug_info = options.has_value("", "g") || (opts->outMode == OutputMode::Debug || opts->outMode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
 #endif
@@ -680,11 +683,8 @@ int compiler_main(int argc, char *argv[]) {
         compiler.set_cmd_options(&options);
 
         // Prepare compiler options
-        prepare_options(&compiler_opts);
         compiler_opts.outMode = mode;
-        if(mode == OutputMode::DebugComplete) {
-            compiler_opts.debug_info = true;
-        }
+        prepare_options(&compiler_opts);
 
         // build cbi modules
         build_cbi_modules(compiler, options);
@@ -755,11 +755,8 @@ int compiler_main(int argc, char *argv[]) {
     // set default compiler options
     // we disable cache (because its command line invocation)
     compiler_opts.is_caching_enabled = false;
-    prepare_options(&compiler_opts);
     compiler_opts.outMode = mode;
-    if(mode == OutputMode::DebugComplete) {
-        compiler_opts.debug_info = true;
-    }
+    prepare_options(&compiler_opts);
 
     // build cbi modules
     build_cbi_modules(compiler, options);

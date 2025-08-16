@@ -70,20 +70,6 @@ public:
     bool is64Bit = true;
 
     /**
-     * set in constructor, writes easy to understand code
-     */
-    bool is_debug_code = false;
-
-    /**
-     * whether to output debug comments or not
-     */
-#ifdef DEBUG
-    bool debug_comments = true;
-#else
-    bool debug_comments = false;
-#endif
-
-    /**
      * when true, output c will be like c++
      * it'll use bool instead of _Bool for example
      */
@@ -93,6 +79,12 @@ public:
      * when on, line directives will be written
      */
     bool line_directives = false;
+
+    /**
+     * this minifies the C code, removing any indentation
+     * and new lines
+     */
+    bool minify = false;
 
     /**
      * 0 means in root, no indentation
@@ -210,7 +202,8 @@ public:
         std::ostream* output,
         ASTAllocator& allocator,
         LocationManager& manager,
-        bool debug_info
+        bool debug_info,
+        bool minify
     );
 
     /**
@@ -249,10 +242,8 @@ public:
         allocated_temp_var_names.emplace_back(get_local_temp_var_name());
         return chem::string_view(allocated_temp_var_names.back());
     }
-    /**
-     * emits a new line, line directive if required
-     */
-    inline void new_line(SourceLocation location) {
+
+    inline void new_line_no_check(SourceLocation location) {
         write('\n');
         if(line_directives) {
             write_line_directive(location);
@@ -261,10 +252,19 @@ public:
     }
 
     /**
+     * emits a new line, line directive if required
+     */
+    inline void new_line(SourceLocation location) {
+        if(minify) return;
+        new_line_no_check(location);
+    }
+
+    /**
      * helper method
      */
     inline void new_line_and_indent(SourceLocation location) {
-        new_line(location);
+        if(minify) return;
+        new_line_no_check(location);
         indent();
     }
 
@@ -309,6 +309,7 @@ public:
      * write a new line and indent to the indentation level
      */
     inline void new_line() {
+        if(minify) return;
         write('\n');
     }
 
@@ -316,7 +317,8 @@ public:
      * creates a new line and indents to current indentation level
      */
     inline void new_line_and_indent() {
-        new_line();
+        if(minify) return;
+        write('\n');
         indent();
     }
 
@@ -391,17 +393,29 @@ public:
         write_line_directive(loc_pos.start.line + 1, chem::string_view(filePath));
     }
 
+#ifdef DEBUG
+
     /**
      * write a debug comment
      */
     void debug_comment(const chem::string_view& value, bool new_line = true) {
-        if(debug_comments) {
-            if(new_line) new_line_and_indent();
-            write("/** ");
-            write(value);
-            write(" **/");
-        }
+        if(minify) return;
+        if(new_line) new_line_and_indent();
+        write("/** ");
+        write(value);
+        write(" **/");
     }
+
+#else
+
+    /**
+     * write a debug comment
+     */
+    inline void debug_comment(const chem::string_view& value, bool new_line = true) {
+
+    }
+
+#endif
 
     /**
      * this function mutates the value based on type, however it doesn't check for implicit constructors

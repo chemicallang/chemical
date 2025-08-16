@@ -513,6 +513,10 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
     const auto type_ptr = def->ptr_to_type_int(gen, def_type, allocated);
     const auto storeInstr = gen.builder->CreateStore(gen.builder->getInt32(member_index), type_ptr);
     gen.di.instr(storeInstr, call);
+
+    // default initializing the inherited variables inside the variant
+    gen.default_initialize_inherited(def, def_type, allocated, call);
+
     // storing the values of the variant inside it's struct
     auto data_ptr = def->get_member_pointer(gen, def_type, allocated);
     const auto struct_type = member->llvm_raw_struct_type(gen);

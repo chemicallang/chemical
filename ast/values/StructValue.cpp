@@ -27,62 +27,6 @@
 #include "compiler/llvmimpl.h"
 #include "IntValue.h"
 
-void default_initialize_inherited(Codegen& gen, VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value);
-
-void default_initialize_struct(Codegen& gen, ExtendableMembersContainerNode* decl, llvm::Value* ptr, Value* parent_value) {
-
-    const auto cons = decl->default_constructor_func();
-    if(cons && !cons->is_generated_fn()) {
-
-        // we'll be calling this constructor function
-        const auto func = cons->llvm_func(gen);
-        const auto callInst = gen.builder->CreateCall(func, { ptr });
-        gen.di.instr(callInst, parent_value);
-
-    } else {
-
-        // the type of struct
-        const auto decl_type = decl->llvm_type(gen);
-
-        // default initialize the inherited structs
-        default_initialize_inherited(gen, decl, decl->llvm_type(gen), ptr, parent_value);
-
-        // initializing direct variables directly
-        for(const auto var : decl->variables()) {
-            auto defValue = var->default_value();
-            if (defValue) {
-                auto variable = decl->variable_type_index(var->name);
-                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-                defValue->store_in_struct(gen, parent_value, ptr, decl_type, idx, variable.first, variable.second);
-            } else {
-                gen.error(parent_value) << "expected a default value for '" <<  var->name << "'";
-            }
-        }
-
-    }
-
-}
-
-void default_initialize_inherited(Codegen& gen, VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value) {
-    // storing default values for inherited variables
-    unsigned inherited_index = 0;
-    for(auto& inh : container->inherited) {
-        const auto node = inh.type->get_direct_linked_canonical_node();
-        if(node->kind() == ASTNodeKind::StructDecl) {
-            const auto decl = node->as_struct_def_unsafe();
-
-            // pointer to inherited struct in allocated struct
-            const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
-
-            // default initialize the struct
-            default_initialize_struct(gen, decl, ptr, parent_value);
-
-            // increase the inherited index
-            inherited_index++;
-        }
-    }
-}
-
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* expected_type) {
 
     const auto parent_type = llvm_type(gen);
@@ -110,7 +54,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             const auto decl = node->as_struct_def_unsafe();
             if(values.find(decl->name_view()) == values.end()) {
                 const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
-                default_initialize_struct(gen, decl, ptr, this);
+                gen.default_initialize_struct(decl, ptr, this);
             }
             // increase the inherited index
             inherited_index++;

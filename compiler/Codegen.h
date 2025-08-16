@@ -42,6 +42,10 @@ class FunctionType;
 
 class MembersContainer;
 
+class VariablesContainer;
+
+class ExtendableMembersContainerNode;
+
 class FunctionCall;
 
 class FunctionDeclaration;
@@ -361,6 +365,16 @@ public:
      * create a function's basic block, with the given name
      */
     llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
+
+    /**
+     * default initialize inherited variables of the given container
+     */
+    void default_initialize_inherited(VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value);
+
+    /**
+     * default initialize the struct inside the given ptr, the parent_value is probably the debug_value
+     */
+    void default_initialize_struct(ExtendableMembersContainerNode* decl, llvm::Value* ptr, Value* parent_value);
 
     /**
      * capturing lambdas need to be mutated to capturing function types

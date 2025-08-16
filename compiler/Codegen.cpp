@@ -172,6 +172,62 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
 
 }
 
+void Codegen::default_initialize_struct(ExtendableMembersContainerNode* decl, llvm::Value* ptr, Value* parent_value) {
+
+    auto& gen = *this;
+
+    const auto cons = decl->default_constructor_func();
+    if(cons && !cons->is_generated_fn()) {
+
+        // we'll be calling this constructor function
+        const auto func = cons->llvm_func(gen);
+        const auto callInst = builder->CreateCall(func, { ptr });
+        di.instr(callInst, parent_value);
+
+    } else {
+
+        // the type of struct
+        const auto decl_type = decl->llvm_type(gen);
+
+        // default initialize the inherited structs
+        default_initialize_inherited(decl, decl->llvm_type(gen), ptr, parent_value);
+
+        // initializing direct variables directly
+        for(const auto var : decl->variables()) {
+            auto defValue = var->default_value();
+            if (defValue) {
+                auto variable = decl->variable_type_index(var->name);
+                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+                defValue->store_in_struct(gen, parent_value, ptr, decl_type, idx, variable.first, variable.second);
+            } else {
+                error(parent_value) << "expected a default value for '" <<  var->name << "'";
+            }
+        }
+
+    }
+
+}
+
+void Codegen::default_initialize_inherited(VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value) {
+    // storing default values for inherited variables
+    unsigned inherited_index = 0;
+    for(auto& inh : container->inherited) {
+        const auto node = inh.type->get_direct_linked_canonical_node();
+        if(node->kind() == ASTNodeKind::StructDecl) {
+            const auto decl = node->as_struct_def_unsafe();
+
+            // pointer to inherited struct in allocated struct
+            const auto ptr = builder->CreateGEP(parent_type, inst, { builder->getInt32(inherited_index) });
+
+            // default initialize the struct
+            default_initialize_struct(decl, ptr, parent_value);
+
+            // increase the inherited index
+            inherited_index++;
+        }
+    }
+}
+
 void Codegen::createFunctionBlock(llvm::Function *fn) {
     auto entry = createBB("entry", fn);
     SetInsertPoint(entry);

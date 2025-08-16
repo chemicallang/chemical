@@ -143,9 +143,26 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
     if(indexes.empty()) {
         indexes.emplace_back(gen.builder->getInt32(0));
     }
-    // why aren't we adding this ?
-    // because this method is only called for members that are present in inherited structs
-    // indexes.emplace_back(gen.builder->getInt32(1 + direct_inh_composed_structs(this)));
+
+    auto index = variable_index(name, false);
+    if (index == -1) {
+        const auto curr_size = (int) indexes.size();
+        int inherit_ind = 0;
+        // checking the inherited structs for given child
+        for(auto& inherits : inherited) {
+            auto linked_def = inherits.type->linked_struct_def();
+            if(linked_def) {
+                if(linked_def->add_child_index(gen, indexes, name)) {
+                    const auto itr = indexes.begin() + curr_size;
+                    indexes.insert(itr, gen.builder->getInt32(inherit_ind));
+                    return true;
+                }
+            }
+            inherit_ind++;
+        }
+        return false;
+    }
+
     return llvm_union_child_index(gen, indexes, name);
 }
 

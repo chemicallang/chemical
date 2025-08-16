@@ -312,19 +312,32 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     std::vector<chem::string_view> missing;
     for(auto& mem : container->inherited) {
         auto& type = *mem.type;
-        if(type.get_direct_linked_struct()) {
+        const auto linked_struct = type.get_direct_linked_struct();
+        if(linked_struct) {
             const auto& ref_type_name = mem.ref_type_name();
             auto val = values.find(ref_type_name);
             if (val == values.end()) {
-                missing.emplace_back(ref_type_name);
+                if(!linked_struct->getAllMembersDefaultInitialized()) {
+                    missing.emplace_back(ref_type_name);
+                }
             }
         }
     }
+
+    // check all variables have been default initialized
     for(const auto mem : container->variables()) {
         if(mem->default_value() == nullptr) {
             auto val = values.find(mem->name);
             if (val == values.end()) {
-                missing.emplace_back(mem->name);
+                const auto kType = mem->known_type();
+                const auto kContainer = kType->get_members_container();
+                if(kContainer) {
+                    if(!kContainer->getAllMembersDefaultInitialized()) {
+                        missing.emplace_back(mem->name);
+                    }
+                } else {
+                    missing.emplace_back(mem->name);
+                }
             }
         }
     }

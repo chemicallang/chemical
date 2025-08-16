@@ -282,7 +282,6 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     }
     if(!has_def_constructor && all_members_has_def_constructor()) {
         if(create_def_constructor_checking(allocator, diagnoser, name_view())) {
-            has_def_constructor = true;
             if (!has_constructor) {
                 attrs.is_direct_init = true;
             }

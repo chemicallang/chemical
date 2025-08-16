@@ -238,6 +238,53 @@ unsigned int MembersContainer::init_values_req_size() {
     return i;
 }
 
+bool MembersContainer::getAllMembersDefaultInitialized() {
+
+    if(default_initialized.has_value()) {
+        return default_initialized.value();
+    }
+
+    // state variable
+    bool final_def_initialized = true;
+    bool variables_initialized = true;
+
+    // check all variables have been default initialized
+    for(const auto var : variables()) {
+        if(var->default_value() != nullptr) {
+            continue;
+        }
+        variables_initialized = false;
+        const auto container = var->known_type()->get_members_container();
+        if(container) {
+            if(!container->getAllMembersDefaultInitialized()) {
+                final_def_initialized = false;
+            }
+        } else {
+            final_def_initialized = false;
+        }
+    }
+
+    // check if all inherited members are default initialized
+    for(auto& inh : inherited) {
+        const auto container = inh.type->get_members_container();
+        const auto initialized = container->getAllMembersDefaultInitialized();
+        if(!initialized) {
+            final_def_initialized = false;
+        }
+    }
+
+    // check if default constructor exists
+    const auto cons = default_constructor_func();
+    if(cons) {
+        setAllMembersDefaultInitialized(true);
+        return true;
+    }
+
+    setAllMembersDefaultInitialized(final_def_initialized);
+    return true;
+
+}
+
 void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
     for(const auto node : from_nodes) {
         switch(node->kind()) {
@@ -598,6 +645,7 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
     const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(this);
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), {returnType, loc}, false, this, loc);
     decl->body.emplace(Scope{nullptr, loc});
+    decl->set_is_generated_fn(true);
     decl->set_constructor_fn(true);
     insert_func(decl);
     return decl;
@@ -609,6 +657,7 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), returnType, false, this, loc);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 0, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
+    decl->set_is_generated_fn(true);
     decl->set_delete_fn(true);
     insert_func(decl);
     return decl;
@@ -621,6 +670,7 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 0, nullptr, true, decl, loc));
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 1, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
+    decl->set_is_generated_fn(true);
     decl->set_copy_fn(true);
     insert_func(decl);
     return decl;

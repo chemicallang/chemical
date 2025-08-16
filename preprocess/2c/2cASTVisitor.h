@@ -343,6 +343,11 @@ public:
     void write_str(const std::string& str);
 
     /**
+     * write a chemical string
+     */
+    void write(chem::string& str);
+
+    /**
      * write the string view to stream
      */
     void write(std::string_view& str);

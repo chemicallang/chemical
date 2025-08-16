@@ -107,6 +107,16 @@ func <T> get_sum_gen(v : GenVar<T>) : T {
     }
 }
 
+struct VariantInheritedPoint {
+    var a : int = 10
+    var b : int = 20
+}
+
+variant InheriterOfPoint : VariantInheritedPoint {
+    First(x : int, y : int)
+    Second(x : int, y : int, z : int)
+}
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;
@@ -271,5 +281,23 @@ func test_variants() {
             Some(a) => return a == 234;
             None => return false;
         }
+    })
+    test("inherited struct in variant is default initialized properly - 1", () => {
+        var i = InheriterOfPoint.First(48, 58)
+        return i.a == 10 && i.b == 20
+    })
+    test("inherited struct in variant is default initialized properly - 2", () => {
+        var i = InheriterOfPoint.First(48, 58)
+        var First(x, y) = i else unreachable
+        return x == 48 && y == 58 && i.a == 10 && i.b == 20
+    })
+    test("inherited struct in variant is default initialized properly - 3", () => {
+        var i = InheriterOfPoint.Second(65, 87, 45)
+        return i.a == 10 && i.b == 20
+    })
+    test("inherited struct in variant is default initialized properly - 4", () => {
+        var i = InheriterOfPoint.Second(65, 87, 45)
+        var Second(x, y, z) = i else unreachable
+        return x == 65 && y == 87 && z == 45 && i.a == 10 && i.b == 20
     })
 }

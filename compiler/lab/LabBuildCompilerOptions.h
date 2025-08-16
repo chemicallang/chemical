@@ -48,6 +48,11 @@ public:
     OutputMode outMode = OutputMode::Debug;
 
     /**
+     * should the generated c code be minified
+     */
+    bool minify_c = false;
+
+    /**
      * whether the generated ir should be debuggable ir
      */
     bool debug_ir = false;

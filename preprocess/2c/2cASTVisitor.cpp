@@ -142,9 +142,11 @@ ToCAstVisitor::ToCAstVisitor(
     std::ostream *output,
     ASTAllocator& allocator,
     LocationManager& manager,
-    bool debug_info
+    bool debug_info,
+    bool minify
 ) : binder(binder), comptime_scope(scope), mangler(mangler), output(output), allocator(allocator),
-    declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), loc_man(manager), line_directives(debug_info), ASTDiagnoser(manager)
+    declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), loc_man(manager),
+    line_directives(debug_info), minify(minify), ASTDiagnoser(manager)
 {
     // TODO do the same as tld
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
@@ -1622,7 +1624,7 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         } else {
             has_value_before = true;
         }
-        if(visitor.is_debug_code) visitor.new_line_and_indent();
+        visitor.new_line_and_indent();
         visitor.write('.');
         visitor.write(member->name);
         visitor.write('.');
@@ -1645,7 +1647,7 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
 
     visitor.indentation_level -= 1;
 
-    if(visitor.is_debug_code) visitor.new_line_and_indent();
+    visitor.new_line_and_indent();
 
     visitor.nested_value = prev_nested;
     visitor.write(" }");
@@ -2444,26 +2446,26 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         visitor.write("};");
 
         // writing the destructor
-        if(lamb->has_destructor_for_capture()) {
-            visitor.new_line_and_indent();
-            visitor.write("void ");
-            visitor.write(lamb_name);
-            visitor.write("_cap_destr(struct ");
-            visitor.write(lamb_name);
-            visitor.write("_cap* self) {");
+        const auto has_cap_destr = lamb->has_destructor_for_capture();
+        visitor.new_line_and_indent();
+        visitor.write("static ");
+        if(!has_cap_destr) {
+            visitor.write("inline ");
+        }
+        visitor.write("void ");
+        visitor.write(lamb_name);
+        visitor.write("_cap_destr(struct ");
+        visitor.write(lamb_name);
+        visitor.write("_cap* self) {");
+        if(has_cap_destr) {
             visitor.indentation_level += 1;
             for (const auto var: lamb->captureList) {
                 call_struct_member_delete_fn(visitor, var->known_type(), var->name);
             }
             visitor.indentation_level -= 1;
             visitor.new_line_and_indent();
-            visitor.write("}");
-        } else {
-            visitor.new_line_and_indent();
-            visitor.write("#define ");
-            visitor.write(lamb_name);
-            visitor.write("_cap_destr NULL");
         }
+        visitor.write("}");
 
     }
     visitor.new_line_and_indent();
@@ -5340,7 +5342,7 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
         }
         has_value_before = false;
 
-        if(visitor.is_debug_code) visitor.new_line_and_indent(loc);
+        visitor.new_line_and_indent(loc);
         visitor.write('.');
         visitor.write(def->name_view());
         visitor.write(" = ");
@@ -5370,7 +5372,7 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
                 } else {
                     has_value_before = true;
                 }
-                if(visitor.is_debug_code) visitor.new_line_and_indent(loc);
+                visitor.new_line_and_indent(loc);
                 visitor.write('.');
                 visitor.write(var->name);
                 visitor.write(" = ");
@@ -5382,7 +5384,7 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
 
         visitor.indentation_level -= 1;
 
-        if(visitor.is_debug_code) visitor.new_line_and_indent(loc);
+        visitor.new_line_and_indent(loc);
         visitor.write(" }");
 
         has_value_before = true;
@@ -5404,7 +5406,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         *output << runName;
         write(')');
     }
-    write('{');
+    write("{ ");
     auto prev = nested_value;
     nested_value = true;
     bool has_value_before = false;
@@ -5441,7 +5443,6 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         if(found == val->values.end()) {
             auto defValue = var->default_value();
             if(defValue) {
-                const auto member = val->child_member(var->name);
                 if(has_value_before) {
                     write(", ");
                 } else {
@@ -5451,7 +5452,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                 write('.');
                 write(var->name);
                 write(" = ");
-                accept_mutating_value(member ? member->known_type() : nullptr, defValue, false);
+                accept_mutating_value(var->known_type(), defValue, false);
             } else if(!val->is_union()) {
                 error(val) << "no default value present for '" << var->name << "' in struct value";
             }
@@ -5474,7 +5475,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     indentation_level -= 1;
     nested_value = prev;
     new_line_and_indent();
-    write('}');
+    write(" }");
 }
 
 //void deref_id(ToCAstVisitor& visitor, VariableIdentifier* identifier) {

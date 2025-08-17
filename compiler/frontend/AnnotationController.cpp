@@ -285,4 +285,10 @@ AnnotationController::AnnotationController() {
             { "static", { annot_handler_static, AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, AnnotationDefType::Handler } },
     };
+
+    // reserving memory for faster operations
+    definitions.reserve(128);
+    collections.reserve(32);
+    marked.reserve(128);
+
 }

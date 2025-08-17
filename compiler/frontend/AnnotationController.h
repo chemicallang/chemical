@@ -70,8 +70,6 @@ struct AnnotationDefinition {
 
     };
 
-    uint32_t id;
-
     AnnotationDefType type;
 
 };

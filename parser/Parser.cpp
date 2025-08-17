@@ -17,13 +17,14 @@ Parser::Parser(
         std::string_view file_path,
         Token* start_token,
         LocationManager& loc_man,
+        AnnotationController& controller,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
         TypeBuilder& typeBuilder,
         bool is64Bit,
         CompilerBinder* binder
 ) : BasicParser(loc_man, file_id, start_token), stored_file_path(file_path),
-    global_allocator(global_allocator), typeBuilder(typeBuilder),
+    global_allocator(global_allocator), typeBuilder(typeBuilder), controller(controller),
     mod_allocator(mod_allocator), is64Bit(is64Bit), binder(binder)
 {
     annotations.reserve(16);

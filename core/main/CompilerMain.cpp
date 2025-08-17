@@ -222,6 +222,7 @@ const auto mode_cmd_desc = "mode: debug, debug_quick, release_small, release_fas
 const auto version_cmd_desc = "get the version of the compiler";
 const auto help_cmd_desc = "get help for command line options";
 const auto minify_c_desc = "minify the generated c code";
+const auto test_cmd_desc = "run tests";
 const auto benchmark_cmd_desc = "benchmark the compilation process";
 const auto print_ast_desc = "print representation of the ast";
 const auto print_cst_desc = "print representation of the cst";
@@ -453,6 +454,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("version", CmdOptionType::NoValue, version_cmd_desc),
             CmdOption("help", CmdOptionType::NoValue, help_cmd_desc),
             CmdOption("", "minify-c", CmdOptionType::NoValue, minify_c_desc),
+            CmdOption("test", "test", CmdOptionType::NoValue, test_cmd_desc),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
             CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
             CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
@@ -665,6 +667,7 @@ int compiler_main(int argc, char *argv[]) {
 #endif
 
     auto build_dir_opt = options.option_new("build-dir", "b");
+    const auto is_testing_env = options.has_value("test");
 
     const auto is_lab_file = args[0].ends_with(".lab");
     const auto is_mod_file = args[0].ends_with(".mod");
@@ -679,7 +682,7 @@ int compiler_main(int argc, char *argv[]) {
         LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
         CompilerBinder binder(argv[0]);
         LocationManager loc_man;
-        LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
+        LabBuildCompiler compiler(loc_man, binder, &compiler_opts, is_testing_env);
         compiler.set_cmd_options(&options);
 
         // Prepare compiler options
@@ -749,7 +752,7 @@ int compiler_main(int argc, char *argv[]) {
     LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
     CompilerBinder binder(argv[0]);
     LocationManager loc_man;
-    LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
+    LabBuildCompiler compiler(loc_man, binder, &compiler_opts, is_testing_env);
     compiler.set_cmd_options(&options);
 
     // set default compiler options

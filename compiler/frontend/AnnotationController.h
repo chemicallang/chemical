@@ -70,6 +70,8 @@ struct AnnotationDefinition {
 
     };
 
+    chem::string_view name;
+
     AnnotationDefType type;
 
 };
@@ -122,7 +124,19 @@ private:
 
 public:
 
-    std::size_t create_collection(const chem::string_view& name, unsigned int expected_usage) {
+    /**
+     * constructor
+     * @param is_env_testing required, during testing environment the testing collector
+     * annotation is initialized with a large container so that annotations are collected quickly
+     */
+    explicit AnnotationController(bool is_env_testing);
+
+private:
+
+    /**
+     * create a collection with expected range and get an id
+     */
+    std::size_t create_collection(unsigned int expected_usage) {
         const auto index = collections.size();
         collections.emplace_back();
         if(expected_usage > 2) {
@@ -131,16 +145,27 @@ public:
         return index;
     }
 
-private:
-
     void create_collector_annotation(const chem::string_view& name, AnnotationDefType type, unsigned int expected_usage) {
         definitions.emplace(name, AnnotationDefinition {
-            .collection_id = create_collection(name, expected_usage),
+            .collection_id = create_collection(expected_usage),
+            .name = name,
             .type = type
         });
     }
 
 public:
+
+    /**
+     * this disposes any marked + collected nodes
+     * this is done after a single executable been processed
+     * definitions of annotations remain
+     */
+    void dispose_stored_nodes() {
+        marked.clear();
+        for(auto& coll : collections) {
+            coll.nodes.clear();
+        }
+    }
 
     inline void create_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
         create_collector_annotation(name, AnnotationDefType::Collector, expected_usage);
@@ -153,22 +178,23 @@ public:
     void create_marker_annotation(const chem::string_view& name) {
         definitions.emplace(name, AnnotationDefinition {
                 .collection_id = 0,
+                .name = name,
                 .type = AnnotationDefType::Marker
         });
     }
 
-    void mark(ASTNode* node, const chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
-        marked.emplace(MarkedAnnotatedNode{node, name}, arguments ? std::move(*arguments) : std::vector<Value*> {});
+    void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+        marked.emplace(MarkedAnnotatedNode{node, definition.name}, std::move(arguments));
     }
 
-    void collect(ASTNode* node, const chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+    void collect(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
         auto& coll = collections[definition.collection_id];
-        coll.nodes.emplace_back(node, arguments ? std::move(*arguments) : std::vector<Value*> {});
+        coll.nodes.emplace_back(node, std::move(arguments));
     }
 
-    void mark_and_collect(ASTNode* node, const chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
-        mark(node, name, definition, arguments);
-        collect(node, name, definition, nullptr);
+    void mark_and_collect(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+        mark(node, definition, arguments);
+        collect(node, definition, arguments);
     }
 
     bool is_marked(ASTNode* node, const chem::string_view& name) {
@@ -180,34 +206,31 @@ public:
         return found == marked.end() ? nullptr : &found->second;
     }
 
-    bool handle_annotation(Parser* parser, ASTNode* node, const chem::string_view& name, std::vector<Value*>* arguments) {
-        auto found = definitions.find(name);
-        if(found == definitions.end()) {
-            return false;
-        } else {
-            auto& definition = found->second;
-            switch(definition.type) {
-                case AnnotationDefType::Handler:
-                    definition.handler(parser, node);
-                    return true;
-                case AnnotationDefType::Marker:
-                    mark(node, name, definition, arguments);
-                    return true;
-                case AnnotationDefType::Collector:
-                    collect(node, name, definition, arguments);
-                    return true;
-                case AnnotationDefType::MarkerAndCollector:
-                    mark_and_collect(node, name, definition, arguments);
-                    return true;
-            }
+    bool handle_annotation(AnnotationDefinition& definition, Parser* parser, ASTNode* node, std::vector<Value*>& arguments) {
+        switch(definition.type) {
+            case AnnotationDefType::Handler:
+                definition.handler(parser, node);
+                return true;
+            case AnnotationDefType::Marker:
+                mark(node, definition, arguments);
+                return true;
+            case AnnotationDefType::Collector:
+                collect(node, definition, arguments);
+                return true;
+            case AnnotationDefType::MarkerAndCollector:
+                mark_and_collect(node, definition, arguments);
+                return true;
         }
     }
 
-    /**
-     * constructor
-     * @param is_env_testing required, during testing environment the testing collector
-     * annotation is initialized with a large container so that annotations are collected quickly
-     */
-    explicit AnnotationController(bool is_env_testing);
+    AnnotationDefinition* get_definition(const chem::string_view& name) {
+        auto found = definitions.find(name);
+        return found == definitions.end() ? nullptr : &found->second;
+    }
+
+    bool handle_annotation(Parser* parser, ASTNode* node, const chem::string_view& name, std::vector<Value*>& arguments) {
+        auto found = definitions.find(name);
+        return found == definitions.end() ? false : handle_annotation(found->second, parser, node, arguments);
+    }
 
 };

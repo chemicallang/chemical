@@ -113,9 +113,10 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 LabBuildCompiler::LabBuildCompiler(
     LocationManager& loc_man,
     CompilerBinder& binder,
-    LabBuildCompilerOptions *options
-) : path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
-    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator)
+    LabBuildCompilerOptions *options,
+    bool is_testing_env
+) : controller(is_testing_env), path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
+    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator), is_testing_env(is_testing_env)
 {
 
 }
@@ -896,14 +897,14 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
         }
         // bind global container that contains namespaces like std and compiler
         // reusing it, if we created it before
-        global.rebind_container(resolver, compiler->container);
+        global.rebind_container(resolver, compiler->container, compiler->is_testing_env);
     } else {
         if(verbose) {
             std::cout << "[lab] " << "creating comptime methods" << std::endl;
         }
         // allow user the compiler (namespace) functions in @comptime
         // we create the new global container here once
-        compiler->container = global.create_container(resolver);
+        compiler->container = global.create_container(resolver, compiler->is_testing_env);
         if(verbose) {
             std::cout << "[lab] " << "created the global container" << std::endl;
         }
@@ -1097,7 +1098,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     global.backend_context = (BackendContext*) &c_context;
 
     // the processor we use
-    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
 
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
@@ -1289,7 +1290,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     auto& job_alloc = *job_allocator;
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
-    ASTProcessor processor(path_handler, options, mod_storage, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
     CodegenOptions code_gen_options;
     if(cmd) {
         code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
@@ -2262,6 +2263,7 @@ TCCState* LabBuildCompiler::built_lab_file(
             path_handler,
             options,
             mod_storage,
+            controller,
             loc_man,
             &lab_resolver,
             binder,

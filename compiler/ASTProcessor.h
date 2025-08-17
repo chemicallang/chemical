@@ -45,11 +45,18 @@ namespace ctpl {
     class thread_pool;
 }
 
+class AnnotationController;
+
 /**
  * this will be called ASTProcessor
  */
 class ASTProcessor {
 public:
+
+    /**
+     * annotation controller
+     */
+    AnnotationController& controller;
 
     /**
      * the location manager
@@ -130,6 +137,7 @@ public:
             ImportPathHandler& pathHandler,
             ASTProcessorOptions* options,
             ModuleStorage& mod_storage,
+            AnnotationController& controller,
             LocationManager& loc_man,
             SymbolResolver* resolver,
             CompilerBinder& binder,
@@ -138,7 +146,8 @@ public:
             ASTAllocator& mod_allocator,
             ASTAllocator& file_allocator
     ) : loc_man(loc_man), options(options), resolver(resolver), path_handler(pathHandler), binder(binder), type_builder(typeBuilder),
-        job_allocator(job_allocator), mod_allocator(mod_allocator), mod_storage(mod_storage), file_allocator(file_allocator)
+        job_allocator(job_allocator), mod_allocator(mod_allocator), mod_storage(mod_storage), file_allocator(file_allocator),
+        controller(controller)
     {
 
     }

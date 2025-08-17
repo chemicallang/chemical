@@ -117,12 +117,12 @@ public:
      * a container is created, which will be disposed, user is responsible for it's
      * ownership
      */
-    GlobalContainer* create_container(SymbolResolver& resolver);
+    GlobalContainer* create_container(SymbolResolver& resolver, bool test_env);
 
     /**
      * this global container will be binded to this symbol resolver
      */
-    void rebind_container(SymbolResolver& resolver, GlobalContainer* container);
+    void rebind_container(SymbolResolver& resolver, GlobalContainer* container, bool test_env);
 
     /**
      * the given containe will be disposed

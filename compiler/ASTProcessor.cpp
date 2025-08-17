@@ -811,6 +811,7 @@ bool ASTProcessor::import_chemical_file(
             abs_path,
             tokens.data(),
             resolver->comptime_scope.loc_man,
+            controller,
             job_allocator,
             use_job_allocator ? job_allocator : mod_allocator,
             type_builder,

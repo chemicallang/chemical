@@ -186,6 +186,29 @@ func create_def_value_test() : DefValueTest {
     }
 }
 
+// TDIS = Test Def Initialized Struct
+struct TDISA {
+    var a : int = 124
+}
+
+struct TDISB : TDISA {
+    var b : int = 453
+}
+
+struct TDISC : TDISB {
+    var c : int
+    @make
+    func make() {
+        c = 938
+    }
+}
+
+struct TDISD : TDISC {
+    var d : int = 89
+}
+
+struct TDISF : TDISD {}
+
 func test_no_type_structs() {
     test("can return created struct values without types", () => {
         var pair = create_pair_no_type();
@@ -403,6 +426,10 @@ func test_structs() {
     test("early return in constructors works - 2", () => {
         var early = EarlyReturnConstructor(false)
         return early.i == 33;
+    })
+    test("inherited default initialized structs work", () => {
+        var f = TDISF {}
+        return f.a == 124 && f.b == 453 && f.c == 938 && f.d == 89
     })
 }
 

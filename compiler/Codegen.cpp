@@ -228,6 +228,43 @@ void Codegen::default_initialize_inherited(VariablesContainer* container, llvm::
     }
 }
 
+/// Implicitly casts an integer constant to the target integer type,
+/// performing sign or zero extension (or truncation) as needed.
+/// Returns a llvm::ConstantInt* if the conversion is valid, or nullptr if not.
+llvm::ConstantInt* Codegen::implicit_cast_constant(llvm::ConstantInt* value, BaseType* to_type, llvm::Type* to_type_llvm) {
+
+    // The target type must be an integer type.
+    if (!to_type_llvm->isIntegerTy())
+        return value;
+
+    const auto fromIntTy = value->getType();
+    const auto toIntTy = llvm::cast<llvm::IntegerType>(to_type_llvm);
+
+    unsigned srcWidth = value->getType()->getIntegerBitWidth();
+    unsigned dstWidth = toIntTy->getBitWidth();
+
+    // If the widths are already equal, no conversion is needed.
+    if (srcWidth == dstWidth)
+        return value;
+
+    // Widen the integer.
+    if (srcWidth < dstWidth) {
+        const auto is_unsigned = to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned();
+        if(is_unsigned && !value->isNegative()) {
+            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().zext(dstWidth));
+            return llvm::dyn_cast<llvm::ConstantInt>(val);
+        } else {
+            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().sext(dstWidth));
+            return llvm::dyn_cast<llvm::ConstantInt>(val);
+        }
+    }
+
+    // Narrow the integer.
+    const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().trunc(dstWidth));
+    return llvm::dyn_cast<llvm::ConstantInt>(val);
+
+}
+
 void Codegen::createFunctionBlock(llvm::Function *fn) {
     auto entry = createBB("entry", fn);
     SetInsertPoint(entry);

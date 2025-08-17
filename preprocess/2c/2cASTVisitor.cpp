@@ -124,6 +124,7 @@
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/IsValue.h"
+#include "ast/values/InValue.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
 #include "preprocess/utils/RepresentationUtils.h"
@@ -4368,6 +4369,73 @@ void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
         }
     }
     write(result ? '1' : '0');
+}
+
+void ToCAstVisitor::VisitInValue(InValue* value) {
+    write("({");
+
+    // open inner scope
+    indentation_level += 1;
+    new_line_and_indent();
+    auto result_name = get_local_temp_var_name();
+    write("bool ");
+    write_str(result_name);
+    write(';');
+
+    // switch(lhs)
+    new_line_and_indent();
+    write("switch(");
+    visit(value->value); // write the tested expression
+    write(") {");
+
+    // switch body
+    indentation_level += 1;
+    for (const auto v : value->values) {
+        // case label
+        new_line_and_indent();
+        write("case ");
+        visit(v); // write the constant case (e.g. 'a' or 123)
+        write(":");
+
+        // case body
+        indentation_level += 1;
+        new_line_and_indent();
+        write_str(result_name);
+        write(" = ");
+        write(value->is_negating ? "false" : "true");
+        write(';');
+        new_line_and_indent();
+        write("break;");
+        indentation_level -= 1; // end case body
+    }
+
+    // default -> result = false
+    new_line_and_indent();
+    write("default:");
+    indentation_level += 1;
+    new_line_and_indent();
+    write_str(result_name);
+    write(" = ");
+    write(value->is_negating ? "true" : "false");
+    write(';');
+    new_line_and_indent();
+    write("break;");
+    indentation_level -= 1; // end default body
+
+    // close switch
+    indentation_level -= 1;
+    new_line_and_indent();
+    write("}");
+
+    // expression yields result
+    new_line_and_indent();
+    write_str(result_name);
+    write(';');
+
+    // close GNU statement-expression
+    indentation_level -= 1;
+    new_line_and_indent();
+    write("})");
 }
 
 void emit_sizeof_of_type(ToCAstVisitor& visitor, BaseType* type) {

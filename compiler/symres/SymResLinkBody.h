@@ -225,6 +225,8 @@ public:
 
     void VisitIsValue(IsValue* value);
 
+    void VisitInValue(InValue* value);
+
     void VisitLambdaFunction(LambdaFunction* value);
 
     void VisitNegativeValue(NegativeValue* value);

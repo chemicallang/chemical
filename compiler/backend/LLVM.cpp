@@ -56,6 +56,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/values/ValueNode.h"
+#include "ast/values/InValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/ExtractionValue.h"
 #include "ast/values/EmbeddedValue.h"
@@ -823,6 +824,77 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
     }
     // TODO implicitly returning struct parameter index is hardcoded
     return gen.current_function->getArg(0);
+}
+
+void generate_in_switch(Codegen& gen, InValue* inValue, llvm::BasicBlock *trueBB, llvm::BasicBlock *falseBB) {
+
+    const auto value = inValue->value;
+    auto& values = inValue->values;
+    const auto is_negating = inValue->is_negating;
+
+    auto& builder = *gen.builder;
+
+    const auto expr_value = value->llvm_value(gen, nullptr);
+    const auto expr_type = value->getType();
+
+    // Create the switch (default: falseBB)
+    const auto sw = builder.CreateSwitch(expr_value, is_negating ? trueBB : falseBB, values.size());
+    // add cases (casting case-consts to lhs width if needed)
+    for (const auto val : values) {
+
+        const auto caseValue = val->llvm_value(gen);
+        if(llvm::isa<llvm::ConstantInt>(caseValue)) {
+            const auto castedCase = Codegen::implicit_cast_constant((llvm::ConstantInt*) caseValue, expr_type, expr_value->getType());
+            sw->addCase(castedCase, is_negating ? falseBB : trueBB);
+        } else {
+            gen.error("in case value is not a constant", val);
+        }
+
+    }
+
+}
+
+void InValue::llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) {
+
+    generate_in_switch(gen, this, then_block, otherwise_block);
+
+}
+
+llvm::Type *InValue::llvm_type(Codegen &gen) {
+    return gen.builder->getInt1Ty();
+}
+
+llvm::Value *InValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+
+    auto& builder = *gen.builder;
+    auto& ctx = *gen.ctx;
+    const auto F = gen.current_function;
+
+    // Make blocks
+    const auto trueBB  = llvm::BasicBlock::Create(ctx, "in.match", F);
+    const auto falseBB = llvm::BasicBlock::Create(ctx, "in.nomatch", F);
+    const auto mergeBB  = llvm::BasicBlock::Create(ctx, "in.merge", F);
+
+    generate_in_switch(gen, this, trueBB, falseBB);
+
+    // trueBB: branch to merge
+    gen.SetInsertPoint(trueBB);
+    gen.CreateBr(mergeBB, encoded_location());
+
+    // falseBB: branch to merge
+    gen.SetInsertPoint(falseBB);
+    gen.CreateBr(mergeBB, encoded_location());
+
+    // mergeBB: phi
+    gen.SetInsertPoint(mergeBB);
+    const auto phi = builder.CreatePHI(builder.getInt1Ty(), 2, "in.res");
+    phi->addIncoming(llvm::ConstantInt::getTrue(ctx), trueBB);
+    phi->addIncoming(llvm::ConstantInt::getFalse(ctx), falseBB);
+
+    // return the phi
+    return phi;
+
+
 }
 
 llvm::Type* ExtractionValue::llvm_type(Codegen &gen) {

@@ -91,6 +91,8 @@
 //#include "ast/values/UIntValue.h"
 //#include "ast/values/ULongValue.h"
 #include "ast/values/NewValue.h"
+#include "ast/values/IsValue.h"
+#include "ast/values/InValue.h"
 #include "ast/values/PlacementNewValue.h"
 
 template<typename T>
@@ -120,6 +122,18 @@ public:
     void VisitExpression(Expression *expr) {
         visit(expr->firstValue);
         visit(expr->secondValue);
+    }
+
+    inline void VisitIsValue(IsValue* value) {
+        visit(value->value);
+        visit(value->type);
+    }
+
+    void VisitInValue(InValue* value) {
+        visit(value->value);
+        for(auto& child : value->values) {
+            visit(child);
+        }
     }
 
     inline void VisitCastedValue(CastedValue *casted) {

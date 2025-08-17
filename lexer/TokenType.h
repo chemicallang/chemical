@@ -81,6 +81,7 @@ enum class TokenType {
     ThisKw,
     AsKw,
     IsKw,
+    InKw,
     DynKw,
     ConstKw,
 

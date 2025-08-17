@@ -46,6 +46,7 @@
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/InValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LinkedValueType.h"
@@ -554,6 +555,23 @@ Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, Token
     return isValue;
 }
 
+Value* parseInValue(Parser& parser, ASTAllocator& allocator, Value* value, Token* start_token, bool is_negating) {
+    parser.token++;
+    auto inValue = new(allocator.allocate<InValue>()) InValue(value, is_negating, parser.typeBuilder.getBoolType(), parser.loc_single(start_token));
+    while(true) {
+        const auto expr = parser.parseExpression(allocator, false, false);
+        if(expr) {
+            inValue->values.emplace_back(expr);
+            if(!parser.consumeToken(TokenType::CommaSym)) {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    return inValue;
+}
+
 Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
     switch(token->type) {
         case TokenType::DoublePlusSym: {
@@ -579,14 +597,17 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
             switch(token->type) {
                 case TokenType::IsKw:
                     return parseIsValue(*this, allocator, value, start_token, true);
+                case TokenType::InKw:
+                    return parseInValue(*this, allocator, value, start_token, true);
                 default:
                     error("expected 'is' after the '!'");
                     return value;
             }
         }
-        case TokenType::IsKw: {
+        case TokenType::IsKw:
             return parseIsValue(*this, allocator, value, start_token, false);
-        }
+        case TokenType::InKw:
+            return parseInValue(*this, allocator, value, start_token, false);
         default:
             return value;
     }

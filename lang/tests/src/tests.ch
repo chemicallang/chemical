@@ -54,6 +54,7 @@ public func main() : int {
     test_external_interfaces();
     test_interface_generic_dispatch();
     test_capturing_lambda();
+    test_in_value();
     print_test_stats();
     return 0;
 }

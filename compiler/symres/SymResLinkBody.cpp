@@ -2068,6 +2068,13 @@ void SymResLinkBody::VisitIsValue(IsValue* isValue) {
     visit(type);
 }
 
+void SymResLinkBody::VisitInValue(InValue* value) {
+    visit(value->value);
+    for(const auto val : value->values) {
+        visit(val);
+    }
+}
+
 BaseType* find_return_type(std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         if(node->kind() == ASTNodeKind::ReturnStmt) {

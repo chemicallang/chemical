@@ -576,6 +576,8 @@ set(COMMON_SOURCES
         ast/statements/IncDecNode.h
         ast/statements/PatternMatchExprNode.h
         ast/statements/PlacementNewNode.h
+        ast/values/InValue.h
+        ast/values/InValue.cpp
 )
 
 # Chemical LSP Executable Target

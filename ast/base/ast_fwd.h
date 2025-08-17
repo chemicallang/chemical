@@ -188,6 +188,8 @@ class CastedValue;
 
 class IsValue;
 
+class InValue;
+
 class UnsafeValue;
 
 class ComptimeValue;

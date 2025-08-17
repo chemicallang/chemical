@@ -308,6 +308,8 @@ public:
 
     void VisitIsValue(IsValue* value);
 
+    void VisitInValue(InValue* value);
+
     void VisitDereferenceValue(DereferenceValue* value);
 
     void VisitRetStructParamValue(RetStructParamValue* value);

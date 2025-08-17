@@ -18,6 +18,7 @@ namespace llvm {
     class TargetMachine;
     class Value;
     class Constant;
+    class ConstantInt;
     class LLVMContext;
     class Module;
     class Type;

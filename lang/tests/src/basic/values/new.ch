@@ -17,6 +17,13 @@ struct PointNew13 {
 
 }
 
+namespace MultiIdStrTyCon {
+    struct PointMultiId {
+        var a : int
+        var b : int
+    }
+}
+
 func test_new() {
 
     // test new
@@ -49,6 +56,20 @@ func test_new() {
         var result = *ptr == 13;
         free(x);
         return result;
+    })
+
+    test("new works with single identifier struct types", () => {
+        var x = new PointNew13
+        x.a = 234
+        x.b = 111
+        return x.a == 234 && x.b == 111
+    })
+
+    test("new works with multiple identifier struct types", () => {
+        var x = new MultiIdStrTyCon::PointMultiId
+        x.a = 821
+        x.b = 2834
+        return x.a == 821 && x.b == 2834
     })
 
     test("new works with struct values", () => {

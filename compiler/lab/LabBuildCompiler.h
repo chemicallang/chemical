@@ -13,6 +13,7 @@
 #include "compiler/lab/ModuleStorage.h"
 #include "compiler/processor/ModuleDependencyRecord.h"
 #include "ast/base/TypeBuilder.h"
+#include "compiler/frontend/AnnotationController.h"
 
 class ASTAllocator;
 
@@ -39,6 +40,11 @@ class Codegen;
  */
 class LabBuildCompiler {
 public:
+
+    /**
+     * the annotation controller handles annotations
+     */
+    AnnotationController controller;
 
     /**
      * a single mangler to rule them all
@@ -125,12 +131,18 @@ public:
     ASTAllocator* file_allocator;
 
     /**
+     * is testing environment
+     */
+    bool is_testing_env;
+
+    /**
      * constructor
      */
     explicit LabBuildCompiler(
         LocationManager& loc_man,
         CompilerBinder& binder,
-        LabBuildCompilerOptions* options
+        LabBuildCompilerOptions* options,
+        bool is_testing_env
     );
 
     /**

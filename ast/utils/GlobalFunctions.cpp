@@ -1973,7 +1973,7 @@ BoolValue* boolValue(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool val
     return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
 }
 
-void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) {
+void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, bool test_env) {
     auto& targetData = scope.target_data;
     scope.prepare_target_data(targetData);
     // declaring native definitions like windows and stuff
@@ -1989,6 +1989,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
 #endif
     auto& typeBuilder = scope.typeBuilder;
     defThing.declare_value(allocator, "lsp", boolType, boolValue(allocator, typeBuilder, lsp_build));
+    defThing.declare_value(allocator, "test", boolType, boolValue(allocator, typeBuilder, test_env));
     defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, typeBuilder, is_debug(mode)));
     defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::DebugQuick));
     defThing.declare_value(allocator, "debug_complete", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::DebugComplete));
@@ -2015,7 +2016,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing) 
     defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, typeBuilder, targetData.is_aarch64));
 }
 
-void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr) {
+void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr, bool test_env) {
     auto& container = *container_ptr;
 
     // from previous (job/lsp request) global interpret scope, user may have introduced declarations into
@@ -2040,11 +2041,11 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.defThing.clear_values();
     // we recreate the target data, because the allocator disposes at the end of each job
     // and this method is called after disposal of the allocator when the job ends, and a new job starts
-    create_target_data_in_def(*this, container.defThing);
+    create_target_data_in_def(*this, container.defThing, test_env);
 
 }
 
-GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver) {
+GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver, bool test_env) {
 
     auto& typeCache = resolver.comptime_scope.typeBuilder;
     const auto container_ptr = new GlobalContainer(typeCache);
@@ -2061,7 +2062,7 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     declarer.visit(&container.defThing.decl);
     declarer.visit(&container.defThing.defStmt);
 
-    create_target_data_in_def(*this, container.defThing);
+    create_target_data_in_def(*this, container.defThing, test_env);
 
     return container_ptr;
 }

@@ -5,6 +5,7 @@
 //
 
 #include "compiler/cbi/model/CompilerBinder.h"
+#include "compiler/frontend/AnnotationController.h"
 #include "parser/Parser.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -15,243 +16,6 @@
 #include "ast/statements/UsingStmt.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 
-const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
-        { "inline", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.is_inline = true;
-            } else {
-                parser->error("couldn't make the function inline");
-            }
-        } },
-        { "inline:always", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.always_inline = true;
-            } else {
-                parser->error("couldn't make the function inline always");
-            }
-        } },
-        { "noinline", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.no_inline = true;
-            } else {
-                parser->error("couldn't make the function noinline");
-            }
-        } },
-        { "inline:no", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.no_inline = true;
-            } else {
-                parser->error("couldn't make the function noinline");
-            }
-        } },
-        { "inline:hint", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.inline_hint = true;
-            } else {
-                parser->error("couldn't make the function inline hint");
-            }
-        } },
-        { "compiler.inline", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.compiler_inline = true;
-            } else {
-                parser->error("couldn't make the function compiler inline");
-            }
-        } },
-        { "size:opt", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.opt_size = true;
-            } else {
-                parser->error("couldn't make the function opt size");
-            }
-        } },
-        { "size:min", [](Parser* parser, ASTNode* node) -> void {
-            auto func = node->as_function();
-            if(func) {
-                func->attrs.min_size = true;
-            } else {
-                parser->error("couldn't make the function min size");
-            }
-        } },
-        { "compiler.interface", [](Parser* parser, ASTNode* node) -> void {
-            // we used to make these structs no_mangle by default
-            // but now we don't, because now we put module name prefix
-            // in the symbols we provide to the module using cbi
-        } },
-        { "no_mangle", [](Parser* parser, ASTNode* node) -> void {
-            if(!make_node_no_mangle(node)) {
-                parser->error("couldn't make the node no_mangle");
-            }
-        } },
-        { "export", [](Parser* parser, ASTNode* node) -> void {
-            if(!make_node_no_mangle(node)) {
-                parser->error("couldn't make the node no_mangle");
-            }
-        } },
-        { "constructor", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_constructor_fn(true);
-            } else {
-                parser->error("couldn't make the function constructor");
-            }
-        } },
-        { "make", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_constructor_fn(true);
-            } else {
-                parser->error("couldn't make the function constructor");
-            }
-        } },
-        { "delete", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_delete_fn(true);
-            } else {
-                parser->error("couldn't make the function a delete function");
-            }
-        } },
-        { "override", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_override(true);
-            } else {
-                parser->error("couldn't make the function override");
-            }
-        } },
-        { "unsafe", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_unsafe(true);
-            } else {
-                parser->error("couldn't make the function unsafe");
-            }
-        } },
-        { "no_init", [](Parser* parser, ASTNode* node) -> void {
-            const auto def = node->as_struct_def();
-            if(def) {
-                def->set_no_init(true);
-            } else {
-                parser->error("couldn't make the struct def no_init");
-            }
-        }},
-        { "anonymous", [](Parser* parser, ASTNode* node) -> void {
-            if(!node->set_anonymous(true)) {
-                parser->error("couldn't make the declaration anonymous");
-            }
-        }},
-        { "extern", [](Parser* parser, ASTNode* node) -> void {
-            if(!make_node_no_mangle(node)) {
-                parser->error("couldn't make the node no_mangle");
-            }
-            const auto func = node->as_function();
-            if(func) {
-                func->set_extern(true);
-            }
-        }},
-        { "implicit", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_implicit(true);
-            } else {
-                parser->error("couldn't make the function implicit");
-            }
-        }},
-        { "direct_init", [](Parser* parser, ASTNode* node) -> void {
-            const auto def = node->as_struct_def();
-            if(def) {
-                def->set_direct_init(true);
-            } else {
-                parser->error("couldn't make the struct direct init");
-            }
-        }},
-        { "abstract", [](Parser* parser, ASTNode* node) -> void {
-            const auto def = node->as_struct_def();
-            if(def) {
-                def->set_abstract(true);
-            } else {
-                parser->error("couldn't make the struct abstract");
-            }
-        }},
-        { "thread_local", [](Parser* parser, ASTNode* node) -> void {
-            if(node->kind() == ASTNodeKind::VarInitStmt && node->is_top_level()) {
-                node->as_var_init_unsafe()->set_thread_local(true);
-            } else {
-                parser->error("cannot make the declaration thread local");
-            }
-        }},
-        { "maxalign", [](Parser* parser, ASTNode* node) -> void {
-            // TODO
-        }},
-        { "no_return", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_noReturn(true);
-            } else {
-                parser->error("couldn't make the function no return");
-            }
-        }},
-        { "cpp", [](Parser* parser, ASTNode* node) -> void {
-            const auto func = node->as_function();
-            if(func) {
-                func->set_cpp_mangle(true);
-                // TODO since cpp mangle is not supported yet
-                // we will set it to no mangle so C decl can be linked
-                func->set_no_mangle(true);
-            } else {
-                parser->error("couldn't make the function cpp");
-            }
-        }},
-        { "copy", [](Parser* parser, ASTNode* node) -> void {
-            switch(node->kind()) {
-                case ASTNodeKind::FunctionDecl:
-                    node->as_function_unsafe()->set_copy_fn(true);
-                    return;
-                case ASTNodeKind::StructDecl:
-                    node->as_struct_def_unsafe()->set_shallow_copyable(true);
-                    return;
-                case ASTNodeKind::UnionDecl:
-                    node->as_union_def_unsafe()->set_shallow_copyable(true);
-                    return;
-                case ASTNodeKind::VariantDecl:
-                    node->as_variant_def_unsafe()->set_shallow_copyable(true);
-                    return;
-                default:
-                    parser->error("unexpected copy annotation");
-            }
-        }},
-        { "clone", [](Parser* parser, ASTNode* node) -> void {
-            switch(node->kind()) {
-                case ASTNodeKind::FunctionDecl:
-                    node->as_function_unsafe()->set_copy_fn(true);
-                    return;
-                default:
-                    parser->error("unexpected clone annotation");
-            }
-        }},
-        { "static", [](Parser* parser, ASTNode* node) -> void {
-            const auto interface = node->as_interface_def();
-            if(interface) {
-                interface->set_is_static(true);
-            } else {
-                parser->error("couldn't make the interface static");
-            }
-        }},
-        { "deprecated", [](Parser* parser, ASTNode* node) -> void {
-            if(!node->set_deprecated(true)) {
-                parser->error("couldn't make the declaration deprecated");
-            }
-        }},
-};
-
 bool Parser::parseAnnotation(ASTAllocator& allocator) {
     if(token->type != TokenType::Annotation) {
         return false;
@@ -259,14 +23,39 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
     const auto annot = token;
     token++;
     auto name_view = chem::string_view(annot->value.data() + 1, annot->value.size() - 1);
-    auto found = AnnotationModifierFunctions.find(name_view);
-    if(found != AnnotationModifierFunctions.end()) {
-        annotations.emplace_back(name_view, found->second);
-        return true;
-    } else {
+    auto definition = controller.get_definition(name_view);
+    if(definition == nullptr) {
         error() << "unknown annotation found '" << annot->value << "'";
         return true;
     }
+    annotations.emplace_back(*definition, std::vector<Value*>{});
+    if(!consumeToken(TokenType::LParen)) {
+        return true;
+    }
+    auto& saved_annot = annotations.back();
+    auto& args = saved_annot.arguments;
+    do {
+        consumeNewLines();
+        auto expr = parseExpressionOrArrayOrStruct(allocator);
+        if(expr) {
+            args.emplace_back(expr);
+        } else {
+            break;
+        }
+    } while (consumeToken(TokenType::CommaSym));
+    consumeNewLines();
+    if (!consumeToken(TokenType::RParen)) {
+        unexpected_error("expected a ')' for a function call, after starting '('");
+        return true;
+    }
+    return true;
+}
+
+void Parser::annotate(ASTNode* node) {
+    for(auto& annot : annotations) {
+        controller.handle_annotation(annot.definition, this, node, annot.arguments);
+    }
+    annotations.clear();
 }
 
 Value* Parser::parseMacroValue(ASTAllocator& allocator) {

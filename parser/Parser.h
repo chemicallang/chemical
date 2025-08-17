@@ -36,19 +36,15 @@ class ValueAndOperatorStack;
 
 class TypeBuilder;
 
-/**
- * A function that is called upon encountering an annotation
- */
-typedef void(*AnnotationModifierFunc)(Parser *parser, ASTNode* node);
+struct AnnotationDefinition;
 
-/**
- * the struct representing the annotation modifier
- */
-struct AnnotationModifier {
+class AnnotationController;
 
-    chem::string_view name;
+struct SavedAnnotation {
 
-    AnnotationModifierFunc func;
+    AnnotationDefinition& definition;
+
+    std::vector<Value*> arguments;
 
 };
 
@@ -343,6 +339,11 @@ public:
     CompilerBinder* const binder;
 
     /**
+     * annotation controller
+     */
+    AnnotationController& controller;
+
+    /**
      * the global allocator for the job
      */
     ASTAllocator& global_allocator;
@@ -365,7 +366,7 @@ public:
     /**
      * these are annotation modifier functions that will be called on the next node
      */
-    std::vector<AnnotationModifier> annotations;
+    std::vector<SavedAnnotation> annotations;
 
     /**
      * initialize the lexer with this provider and path
@@ -375,6 +376,7 @@ public:
         std::string_view file_path,
         Token* start_token,
         LocationManager& loc_man,
+        AnnotationController& controller,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator,
         TypeBuilder& typeBuilder,
@@ -407,12 +409,7 @@ public:
     /**
      * suppose to be called on a node which can take annotations
      */
-    void annotate(ASTNode* node) {
-        for(auto& annot : annotations) {
-            annot.func(this, node);
-        }
-        annotations.clear();
-    }
+    void annotate(ASTNode* node);
 
     /**
      * parses nodes into the given vector

@@ -46,6 +46,11 @@
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/types/LinkedType.h"
+#include "ast/types/GenericType.h"
+#include "ast/types/LinkedValueType.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/AccessChain.h"
 
 bool read_escapable_char(const char** currentPtrPtr, const char* end, std::string& str) {
 
@@ -219,6 +224,181 @@ Value* Parser::parseArrayInit(ASTAllocator& allocator) {
     return arrayValue;
 }
 
+inline NamedLinkedType* named_linked_type(Parser& parser, ASTAllocator& allocator, Token* id) {
+    // type for the first identifier
+    auto idType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(parser.allocate_view(allocator, id->value));
+#ifdef LSP_BUILD
+    id->linked = idType;
+#endif
+    return idType;
+}
+
+inline AccessChain* create_chain(ASTAllocator& allocator, std::vector<ChainValue*>& values, SourceLocation id_loc) {
+    return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), id_loc);
+}
+
+inline LinkedValueType* create_linked_val_type(ASTAllocator& allocator, std::vector<ChainValue*>& values, SourceLocation id_loc) {
+    return new (allocator.allocate<LinkedValueType>()) LinkedValueType(create_chain(allocator, values, id_loc));
+}
+
+
+
+/**
+ * var x0 = new a <-- type
+ * var x1 = new a<> <-- type
+ * var x2 = new a<>() <-- value
+ * var x3 = new a<>{} <-- struct value
+ * var y = new a::b::c <-- type
+ * var z = new a::b::c <int> <-- type
+ * var a = new a::b::c <int> () <-- value
+ * var b = new a::b::c () <-- value
+ * var c = new a::b::c {} <-- value
+ * var d = new a::b::c <int> {} <-- value
+ */
+void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue, TypeLoc& outTypeLoc) {
+
+    // allocated on stack, no allocation until push
+    std::vector<ChainValue*> values;
+
+    auto id = parser.consumeIdentifier();
+    if(id == nullptr) {
+        // non identifier, probably new int
+        outTypeLoc = parser.parseTypeLoc(allocator);
+        return;
+    }
+
+    switch(parser.token->type) {
+
+        // user is writing a function call
+        case TokenType::LParen:
+            values.emplace_back(
+                    new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(parser.allocate_view(allocator, id->value), parser.loc_single(id))
+            );
+            outValue = parser.parseFunctionCall(allocator, values);
+            return;
+
+            // user is writing a struct value
+        case TokenType::LBrace:
+            outValue = (Value*) parser.parseStructValue(allocator, named_linked_type(parser, allocator, id), id->position);
+            return;
+
+            // user is writing an access chain
+        case TokenType::DoubleColonSym:
+        case TokenType::DotSym: {
+
+            const auto id_loc = parser.loc_single(id);
+
+            // parse a single identifier
+            values.emplace_back(
+                    new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(parser.allocate_view(allocator, id->value), id_loc)
+            );
+
+            // parse a dot chain
+            while(true) {
+                if(parser.consumeToken(TokenType::DotSym)) {
+                    continue;
+                } else if(parser.consumeToken(TokenType::DoubleColonSym)) {
+                    auto lastId = values.back();
+                    auto last_id = lastId->as_identifier();
+                    if(last_id) {
+                        last_id->is_ns = true;
+                    } else {
+                        parser.error("double colon '::' after unknown value");
+                    }
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            switch(parser.token->type) {
+                case TokenType::LParen:
+                    outValue = parser.parseFunctionCall(allocator, values);
+                    return;
+                case TokenType::LessThanSym: {
+
+                    // we have a generic list
+                    std::vector<TypeLoc> genArgs;
+                    parser.parseGenericArgsList(genArgs, allocator);
+
+                    switch (parser.token->type) {
+                        case TokenType::LParen: {
+                            const auto call = parser.parseFunctionCall(allocator, values);
+                            call->generic_list = std::move(genArgs);
+                            outValue = call;
+                            return;
+                        }
+                        case TokenType::LBrace: {
+                            const auto genType = new(allocator.allocate<GenericType>()) GenericType(create_linked_val_type(allocator, values, id_loc), std::move(genArgs));
+                            outValue = (Value*) parser.parseStructValue(allocator, genType, id->position);
+                            return;
+                        }
+                        default:
+                            // This is a type
+                            outTypeLoc = {
+                                    new(allocator.allocate<GenericType>()) GenericType(create_linked_val_type(allocator, values, id_loc), std::move(genArgs)),
+                                    parser.loc_single(id)
+                            };
+                            return;
+                    }
+
+                }
+                default:
+                    // This is a type
+                    outTypeLoc = {
+                            create_linked_val_type(allocator, values, id_loc),
+                            parser.loc_single(id)
+                    };
+                    return;
+            }
+
+            // safe return
+            return;
+        }
+            // a generic list is upcoming
+        case TokenType::LessThanSym: {
+
+            // we have a generic list
+            std::vector<TypeLoc> genArgs;
+            parser.parseGenericArgsList(genArgs, allocator);
+
+            switch (parser.token->type) {
+                case TokenType::LParen: {
+                    // parse a single identifier
+                    values.emplace_back(
+                            new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(parser.allocate_view(allocator, id->value), parser.loc_single(id))
+                    );
+                    const auto call = parser.parseFunctionCall(allocator, values);
+                    call->generic_list = std::move(genArgs);
+                    outValue = call;
+                    return;
+                }
+                case TokenType::LBrace: {
+                    const auto genType = new(allocator.allocate<GenericType>()) GenericType(named_linked_type(parser, allocator, id), std::move(genArgs));
+                    outValue = (Value*) parser.parseStructValue(allocator, genType, id->position);
+                    return;
+                }
+                default:
+                    outTypeLoc = {
+                            new(allocator.allocate<GenericType>()) GenericType(named_linked_type(parser, allocator, id), std::move(genArgs)),
+                            parser.loc_single(id)
+                    };
+                    return;
+            }
+
+            // safe return
+            return;
+        }
+        default:
+            outTypeLoc = {
+                    named_linked_type(parser, allocator, id),
+                    parser.loc_single(id)
+            };
+            return;
+    }
+
+}
+
 /**
  * There are 4 types of new values
  * 1 : new int; (there's a type after the value) storage -> BaseType*
@@ -263,27 +443,23 @@ Value* Parser::parseNewValue(ASTAllocator& allocator) {
         return new_value;
     }
 
-    // int, long <-- all primitive types are keywords
-    // *int, &int, dyn Thing, mut Thing
-    if(t_type == TokenType::MultiplySym || t_type == TokenType::AmpersandSym || t_type == TokenType::DynKw || t_type == TokenType::MutKw || Token::isKeyword(t_type)) {
+    Value* expr = nullptr;
+    TypeLoc typeLoc(nullptr);
 
-        auto type = parseTypeLoc(allocator);
-        if(!type) {
+    parseNewValueExpr(*this, allocator, expr, typeLoc);
+
+    if(expr == nullptr) {
+
+        if(!typeLoc) {
             unexpected_error("expected type after new");
             return nullptr;
         }
 
-        return new (allocator.allocate<NewTypedValue>()) NewTypedValue(type, loc_single(new_tok));
+        return new (allocator.allocate<NewTypedValue>()) NewTypedValue(typeLoc, loc_single(new_tok));
 
     } else {
 
-        auto value = parseExpression(allocator, true);
-        if(!value) {
-            unexpected_error("expected value after new");
-            return nullptr;
-        }
-
-        return new (allocator.allocate<NewValue>()) NewValue(value, loc_single(new_tok));
+        return new (allocator.allocate<NewValue>()) NewValue(expr, loc_single(new_tok));
 
     }
 

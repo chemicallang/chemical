@@ -4368,21 +4368,10 @@ void ToCAstVisitor::VisitNewTypedValue(NewTypedValue *value) {
     write("))");
 }
 
-static inline bool is_value_ref_container(Value* value) {
-    const auto last_id = value->get_last_id();
-    return last_id && ASTNode::isMembersContainer(last_id->linked->kind());
-}
-
 void ToCAstVisitor::VisitNewValue(NewValue *value) {
     const auto value_kind = value->value->val_kind();
-    if(value_kind == ValueKind::AccessChain || value_kind == ValueKind::StructValue) {
+    if(value_kind == ValueKind::FunctionCall || value_kind == ValueKind::AccessChain || value_kind == ValueKind::StructValue) {
         auto value_type = value->value->getType();
-        if(is_value_ref_container(value->value)) {
-            write("malloc(sizeof(");
-            visit(value_type);
-            write("))");
-            return;
-        }
         write("({ ");
         visit(value_type);
         write("* ");

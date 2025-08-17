@@ -303,21 +303,40 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
 
             // parse a dot chain
             while(true) {
-                if(parser.consumeToken(TokenType::DotSym)) {
-                    continue;
-                } else if(parser.consumeToken(TokenType::DoubleColonSym)) {
-                    auto lastId = values.back();
-                    auto last_id = lastId->as_identifier();
-                    if(last_id) {
-                        last_id->is_ns = true;
-                    } else {
-                        parser.error("double colon '::' after unknown value");
+
+                switch(parser.token->type) {
+                    case TokenType::DoubleColonSym: {
+                        // set previous identifier is_ns
+                        auto lastId = values.back();
+                        auto last_id = lastId->as_identifier();
+                        if (last_id) {
+                            last_id->is_ns = true;
+                        } else {
+                            parser.error("double colon '::' after unknown value");
+                        }
+                        break;
                     }
-                    continue;
+                    case TokenType::DotSym:
+                        break;
+                    default:
+                        goto end_loop;
+
+                }
+
+                parser.token++;
+
+                auto next_id = parser.consumeIdentifier();
+                if(next_id) {
+                    values.emplace_back(
+                            new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(parser.allocate_view(allocator, next_id->value), parser.loc_single(next_id))
+                    );
                 } else {
+                    parser.error("expected an identifier after '.' or '::'");
                     break;
                 }
+
             }
+            end_loop:
 
             switch(parser.token->type) {
                 case TokenType::LParen:

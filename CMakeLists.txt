@@ -578,6 +578,7 @@ set(COMMON_SOURCES
         ast/statements/PlacementNewNode.h
         ast/values/InValue.h
         ast/values/InValue.cpp
+        compiler/frontend/AnnotationController.h
 )
 
 # Chemical LSP Executable Target

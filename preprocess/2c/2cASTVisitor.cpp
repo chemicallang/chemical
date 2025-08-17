@@ -345,6 +345,14 @@ void write_encoded(ToCAstVisitor& visitor, const chem::string_view& value) {
     }
 }
 
+void visit_non_arr_type(ToCAstVisitor& visitor, BaseType* type) {
+    if(type->kind() == BaseTypeKind::Array) {
+        visit_non_arr_type(visitor, type->as_array_type_unsafe()->elem_type);
+    } else {
+        visitor.visit(type);
+    }
+}
+
 void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
     if(type->kind() == BaseTypeKind::Array) {
         visitor.write('[');
@@ -383,7 +391,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_vie
     if(func_type != nullptr && !func_type->isCapturing()) {
         func_type_with_id(visitor, func_type, id);
     } else {
-        visitor.visit(type);
+        visit_non_arr_type(visitor, type);
         if(!id.empty() && id != "_") {
             visitor.space();
             visitor.write(id);
@@ -1276,7 +1284,7 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
                 func_ptr_array_type(visitor, arr_type, elem_type, identifier);
                 write_id = false;
             } else {
-                visitor.visit(type);
+                visit_non_arr_type(visitor, type);
             }
             break;
         }
@@ -4362,10 +4370,22 @@ void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
     write(result ? '1' : '0');
 }
 
+void emit_sizeof_of_type(ToCAstVisitor& visitor, BaseType* type) {
+    visitor.write("sizeof(");
+    if(visitor.array_types_as_subscript) {
+        visitor.visit(type);
+    } else {
+        visitor.array_types_as_subscript = true;
+        visitor.visit(type);
+        visitor.array_types_as_subscript = false;
+    }
+    visitor.write(')');
+}
+
 void ToCAstVisitor::VisitNewTypedValue(NewTypedValue *value) {
-    write("malloc(sizeof(");
-    visit(value->type);
-    write("))");
+    write("malloc(");
+    emit_sizeof_of_type(*this, value->type);
+    write(')');
 }
 
 void ToCAstVisitor::VisitNewValue(NewValue *value) {
@@ -4378,9 +4398,9 @@ void ToCAstVisitor::VisitNewValue(NewValue *value) {
         auto temp_name = get_local_temp_var_name();
         write(temp_name);
         write(" = ");
-        write("malloc(sizeof(");
-        visit(value_type);
-        write(")); ");
+        write("malloc(");
+        emit_sizeof_of_type(*this, value_type);
+        write("); ");
         write('*');
         write(temp_name);
         write(" = ");
@@ -5596,12 +5616,15 @@ void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
 void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {
     write("sizeof");
     write('(');
+    auto prev = array_types_as_subscript;
+    array_types_as_subscript = true;
     const auto pure_t = size_of->for_type->pure_type(allocator);
     if(pure_t->kind() == BaseTypeKind::Reference) {
         visit(pure_t->as_reference_type_unsafe()->type);
     } else {
         visit(size_of->for_type);
     }
+    array_types_as_subscript = prev;
     write(')');
 }
 
@@ -6028,6 +6051,15 @@ void ToCAstVisitor::VisitLiteralType(LiteralType *literal) {
 
 void ToCAstVisitor::VisitArrayType(ArrayType *type) {
     visit(type->elem_type);
+    if(array_types_as_subscript) {
+        write('[');
+        if (type->has_array_size()) {
+            *output << type->get_array_size();
+        }
+        write(']');
+    } else {
+        write('*');
+    }
 }
 
 void ToCAstVisitor::VisitBoolType(BoolType *func) {

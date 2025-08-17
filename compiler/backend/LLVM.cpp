@@ -725,7 +725,16 @@ llvm::Type* NewValue::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
+llvm::Value* new_func_call(Codegen& gen, FunctionCall* call, llvm::Value* pointer_val) {
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::vector<llvm::Value*> args;
+    call->llvm_chain_value(gen, args, destructibles, pointer_val, nullptr, nullptr);
+    Value::destruct(gen, destructibles);
+    return pointer_val;
+}
+
 llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
+
     auto& mod = *gen.module;
     auto mallocFn = gen.getMallocFn();
     // chain and struct value both return the exact type (including accounting for generics so we should use that)
@@ -734,24 +743,27 @@ llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     const auto pointer_val = gen.builder->CreateCall(mallocFn, { size_val });
     gen.di.instr(pointer_val, this);
 
-    const auto kind = value->val_kind();
-    if(kind == ValueKind::StructValue) {
-        auto struct_val = value->as_struct_value_unsafe();
-        struct_val->initialize_alloca(pointer_val, gen, nullptr);
-        return pointer_val;
-    } else if(kind == ValueKind::AccessChain) {
-        auto chain = value->as_access_chain_unsafe();
-        auto last_call = chain->values.back()->as_func_call();
-        if(last_call) {
-            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            std::vector<llvm::Value*> args;
-            last_call->llvm_chain_value(gen, args, destructibles, pointer_val, nullptr, nullptr);
-            Value::destruct(gen, destructibles);
+    switch(value->val_kind()) {
+        case ValueKind::StructValue: {
+            auto struct_val = value->as_struct_value_unsafe();
+            struct_val->initialize_alloca(pointer_val, gen, nullptr);
             return pointer_val;
         }
+        case ValueKind::AccessChain: {
+            auto chain = value->as_access_chain_unsafe();
+            auto last_call = chain->values.back()->as_func_call();
+            if(last_call) {
+                return new_func_call(gen, last_call, pointer_val);
+            }
+            break;
+        }
+        case ValueKind::FunctionCall:
+            return new_func_call(gen, value->as_func_call_unsafe(), pointer_val);
+        default:
+            break;
     }
 
-    gen.error("unknown value given to placement new", this);
+    gen.error("unknown value given to new value", this);
 
 }
 

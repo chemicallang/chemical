@@ -98,6 +98,11 @@ public:
     unsigned int local_temp_var_i = 0;
 
     /**
+     * array types are by default emitted as pointer types
+     */
+    bool array_types_as_subscript = false;
+
+    /**
      * if true, function calls won't have a semicolon at the end
      */
     bool nested_value = false;

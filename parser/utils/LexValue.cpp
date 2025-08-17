@@ -257,9 +257,6 @@ inline LinkedValueType* create_linked_val_type(ASTAllocator& allocator, std::vec
  */
 void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue, TypeLoc& outTypeLoc) {
 
-    // allocated on stack, no allocation until push
-    std::vector<ChainValue*> values;
-
     auto id = parser.consumeIdentifier();
     if(id == nullptr) {
         // non identifier, probably new int
@@ -267,7 +264,18 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
         return;
     }
 
+    // allocated on stack, no allocation until push
+    std::vector<ChainValue*> values;
+
     switch(parser.token->type) {
+
+        // still a type, user wrote Thing[] or Thing*
+        case TokenType::LBracket:
+        case TokenType::MultiplySym:
+        case TokenType::AmpersandSym:
+            parser.token--;
+            outTypeLoc = parser.parseTypeLoc(allocator);
+            return;
 
         // user is writing a function call
         case TokenType::LParen:

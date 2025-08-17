@@ -20,9 +20,9 @@ class AnnotationController;
 
 enum class AnnotationDefType {
     /**
-     * the annotation is intrinsic to compiler, it handles itself
+     * the annotation has a handler that is invoked
      */
-    Intrinsic,
+    Handler,
     /**
      * marks a node, so you can quickly check whether a node has been marked
      * with a given annotation
@@ -38,275 +38,158 @@ enum class AnnotationDefType {
     MarkerAndCollector,
 };
 
+struct CollectedAnnotation {
+
+    /**
+     * collected node
+     */
+    ASTNode* node;
+
+    /**
+     * the arguments given to the annotation
+     */
+    std::vector<Value*> args;
+
+};
+
+struct AnnotationCollection {
+
+    std::vector<CollectedAnnotation> nodes;
+
+};
+
 struct AnnotationDefinition {
 
-    void(*handler)(Parser* parser, ASTNode* node);
+    union {
+
+        // intrinsic annotations have this handler
+        void(*handler)(Parser* parser, ASTNode* node);
+
+        // collector annotation have collection reference
+        std::size_t collection_id;
+
+    };
 
     AnnotationDefType type;
 
 };
 
-void annot_handler_inline(Parser* parser, ASTNode* node);
-void annot_handler_inline_always(Parser* parser, ASTNode* node);
-void annot_handler_noinline(Parser* parser, ASTNode* node);
+// Combined key
+struct MarkedAnnotatedNode {
+    ASTNode* ptr;
+    chem::string_view sv;
+};
 
-void annot_handler_inline(Parser* parser, ASTNode* node) {
-    auto func = node->as_function();
-    if(func) {
-        func->attrs.is_inline = true;
-    } else {
-        parser->error("couldn't make the function inline");
+// Hash functor (use with unordered_map)
+struct MarkedAnnotatedNodeHash {
+    std::size_t operator()(MarkedAnnotatedNode const& k) const noexcept {
+        // Hash pointer and string_view using std::hash
+        std::size_t h1 = std::hash<void*>()(k.ptr);
+        std::size_t h2 = std::hash<chem::string_view>()(k.sv);
+        // combine: boost::hash_combine style
+        // magic constant from boost
+        constexpr std::size_t magic = 0x9e3779b97f4a7c15ULL;
+        h1 ^= h2 + magic + (h1 << 6) + (h1 >> 2);
+        return h1;
     }
-}
+};
 
-void annot_handler_inline_always(Parser* parser, ASTNode* node) {
-    auto func = node->as_function();
-    if(func) {
-        func->attrs.always_inline = true;
-    } else {
-        parser->error("couldn't make the function inline always");
+// Equality comparator
+struct MarkedAnnotatedNodeEq {
+    bool operator()(MarkedAnnotatedNode const& a, MarkedAnnotatedNode const& b) const noexcept {
+        return a.ptr == b.ptr && a.sv == b.sv;
     }
-}
-
-void annot_handler_noinline(Parser* parser, ASTNode* node) {
-    auto func = node->as_function();
-    if(func) {
-        func->attrs.no_inline = true;
-    } else {
-        parser->error("couldn't make the function noinline");
-    }
-}
+};
 
 class AnnotationController {
 private:
 
+    /**
+     * annotation definitions
+     */
     std::unordered_map<chem::string_view, AnnotationDefinition> definitions;
+
+    /**
+     * annotation collections
+     */
+    std::vector<AnnotationCollection> collections;
+
+    /**
+     * nodes that have been marked
+     * the map value is the arguments of annotation
+     */
+    std::unordered_map<MarkedAnnotatedNode, std::vector<Value*>, MarkedAnnotatedNodeHash, MarkedAnnotatedNodeEq> marked;
 
 public:
 
-    void mark(ASTNode* node, chem::string_view& name, std::vector<Value*>& arguments);
-
-    void collect(ASTNode* node, chem::string_view& name, std::vector<Value*>& arguments);
-
-    void mark_or_collect(ASTNode* node, chem::string_view& name, std::vector<Value*>& arguments);
-
-    AnnotationController() {
-        definitions = {
-                { "inline", { annot_handler_inline, AnnotationDefType::Intrinsic } },
-                { "inline:always", { annot_handler_inline, AnnotationDefType::Intrinsic } },
-                { "inline.always", { annot_handler_inline, AnnotationDefType::Intrinsic } },
-                { "noinline", { annot_handler_inline, AnnotationDefType::Intrinsic } },
-                { "inline:no", [](Parser* parser, ASTNode* node) -> void {
-                    auto func = node->as_function();
-                    if(func) {
-                        func->attrs.no_inline = true;
-                    } else {
-                        parser->error("couldn't make the function noinline");
-                    }
-                } },
-                { "inline:hint", [](Parser* parser, ASTNode* node) -> void {
-                    auto func = node->as_function();
-                    if(func) {
-                        func->attrs.inline_hint = true;
-                    } else {
-                        parser->error("couldn't make the function inline hint");
-                    }
-                } },
-                { "compiler.inline", [](Parser* parser, ASTNode* node) -> void {
-                    auto func = node->as_function();
-                    if(func) {
-                        func->attrs.compiler_inline = true;
-                    } else {
-                        parser->error("couldn't make the function compiler inline");
-                    }
-                } },
-                { "size:opt", [](Parser* parser, ASTNode* node) -> void {
-                    auto func = node->as_function();
-                    if(func) {
-                        func->attrs.opt_size = true;
-                    } else {
-                        parser->error("couldn't make the function opt size");
-                    }
-                } },
-                { "size:min", [](Parser* parser, ASTNode* node) -> void {
-                    auto func = node->as_function();
-                    if(func) {
-                        func->attrs.min_size = true;
-                    } else {
-                        parser->error("couldn't make the function min size");
-                    }
-                } },
-                { "compiler.interface", [](Parser* parser, ASTNode* node) -> void {
-                    // we used to make these structs no_mangle by default
-                    // but now we don't, because now we put module name prefix
-                    // in the symbols we provide to the module using cbi
-                } },
-                { "no_mangle", [](Parser* parser, ASTNode* node) -> void {
-                    if(!make_node_no_mangle(node)) {
-                        parser->error("couldn't make the node no_mangle");
-                    }
-                } },
-                { "export", [](Parser* parser, ASTNode* node) -> void {
-                    if(!make_node_no_mangle(node)) {
-                        parser->error("couldn't make the node no_mangle");
-                    }
-                } },
-                { "constructor", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_constructor_fn(true);
-                    } else {
-                        parser->error("couldn't make the function constructor");
-                    }
-                } },
-                { "make", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_constructor_fn(true);
-                    } else {
-                        parser->error("couldn't make the function constructor");
-                    }
-                } },
-                { "delete", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_delete_fn(true);
-                    } else {
-                        parser->error("couldn't make the function a delete function");
-                    }
-                } },
-                { "override", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_override(true);
-                    } else {
-                        parser->error("couldn't make the function override");
-                    }
-                } },
-                { "unsafe", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_unsafe(true);
-                    } else {
-                        parser->error("couldn't make the function unsafe");
-                    }
-                } },
-                { "no_init", [](Parser* parser, ASTNode* node) -> void {
-                    const auto def = node->as_struct_def();
-                    if(def) {
-                        def->set_no_init(true);
-                    } else {
-                        parser->error("couldn't make the struct def no_init");
-                    }
-                }},
-                { "anonymous", [](Parser* parser, ASTNode* node) -> void {
-                    if(!node->set_anonymous(true)) {
-                        parser->error("couldn't make the declaration anonymous");
-                    }
-                }},
-                { "extern", [](Parser* parser, ASTNode* node) -> void {
-                    if(!make_node_no_mangle(node)) {
-                        parser->error("couldn't make the node no_mangle");
-                    }
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_extern(true);
-                    }
-                }},
-                { "implicit", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_implicit(true);
-                    } else {
-                        parser->error("couldn't make the function implicit");
-                    }
-                }},
-                { "direct_init", [](Parser* parser, ASTNode* node) -> void {
-                    const auto def = node->as_struct_def();
-                    if(def) {
-                        def->set_direct_init(true);
-                    } else {
-                        parser->error("couldn't make the struct direct init");
-                    }
-                }},
-                { "abstract", [](Parser* parser, ASTNode* node) -> void {
-                    const auto def = node->as_struct_def();
-                    if(def) {
-                        def->set_abstract(true);
-                    } else {
-                        parser->error("couldn't make the struct abstract");
-                    }
-                }},
-                { "thread_local", [](Parser* parser, ASTNode* node) -> void {
-                    if(node->kind() == ASTNodeKind::VarInitStmt && node->is_top_level()) {
-                        node->as_var_init_unsafe()->set_thread_local(true);
-                    } else {
-                        parser->error("cannot make the declaration thread local");
-                    }
-                }},
-                { "maxalign", [](Parser* parser, ASTNode* node) -> void {
-                    // TODO
-                }},
-                { "no_return", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_noReturn(true);
-                    } else {
-                        parser->error("couldn't make the function no return");
-                    }
-                }},
-                { "cpp", [](Parser* parser, ASTNode* node) -> void {
-                    const auto func = node->as_function();
-                    if(func) {
-                        func->set_cpp_mangle(true);
-                        // TODO since cpp mangle is not supported yet
-                        // we will set it to no mangle so C decl can be linked
-                        func->set_no_mangle(true);
-                    } else {
-                        parser->error("couldn't make the function cpp");
-                    }
-                }},
-                { "copy", [](Parser* parser, ASTNode* node) -> void {
-                    switch(node->kind()) {
-                        case ASTNodeKind::FunctionDecl:
-                            node->as_function_unsafe()->set_copy_fn(true);
-                            return;
-                        case ASTNodeKind::StructDecl:
-                            node->as_struct_def_unsafe()->set_shallow_copyable(true);
-                            return;
-                        case ASTNodeKind::UnionDecl:
-                            node->as_union_def_unsafe()->set_shallow_copyable(true);
-                            return;
-                        case ASTNodeKind::VariantDecl:
-                            node->as_variant_def_unsafe()->set_shallow_copyable(true);
-                            return;
-                        default:
-                            parser->error("unexpected copy annotation");
-                    }
-                }},
-                { "clone", [](Parser* parser, ASTNode* node) -> void {
-                    switch(node->kind()) {
-                        case ASTNodeKind::FunctionDecl:
-                            node->as_function_unsafe()->set_copy_fn(true);
-                            return;
-                        default:
-                            parser->error("unexpected clone annotation");
-                    }
-                }},
-                { "static", [](Parser* parser, ASTNode* node) -> void {
-                    const auto interface = node->as_interface_def();
-                    if(interface) {
-                        interface->set_is_static(true);
-                    } else {
-                        parser->error("couldn't make the interface static");
-                    }
-                }},
-                { "deprecated", [](Parser* parser, ASTNode* node) -> void {
-                    if(!node->set_deprecated(true)) {
-                        parser->error("couldn't make the declaration deprecated");
-                    }
-                }},
-        };
+    std::size_t create_collection(chem::string_view& name, unsigned int expected_usage) {
+        const auto index = collections.size();
+        collections.emplace_back();
+        if(expected_usage > 2) {
+            collections.back().nodes.reserve(expected_usage);
+        }
+        return index;
     }
+
+private:
+
+    void create_collector_annotation(chem::string_view& name, AnnotationDefType type, unsigned int expected_usage) {
+        definitions.emplace(name, AnnotationDefinition {
+            .collection_id = create_collection(name, expected_usage),
+            .type = type
+        });
+    }
+
+public:
+
+    inline void create_collector_annotation(chem::string_view& name, unsigned int expected_usage) {
+        create_collector_annotation(name, AnnotationDefType::Collector, expected_usage);
+    }
+
+    inline void create_marker_and_collector_annotation(chem::string_view& name, unsigned int expected_usage) {
+        create_collector_annotation(name, AnnotationDefType::MarkerAndCollector, expected_usage);
+    }
+
+    void mark(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+        marked.emplace(MarkedAnnotatedNode{node, name}, arguments ? std::move(*arguments) : std::vector<Value*> {});
+    }
+
+    void collect(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+        auto& coll = collections[definition.collection_id];
+        coll.nodes.emplace_back(node, arguments ? std::move(*arguments) : std::vector<Value*> {});
+    }
+
+    void mark_and_collect(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+        mark(node, name, definition, arguments);
+        collect(node, name, definition, nullptr);
+    }
+
+    bool handle_annotation(Parser* parser, ASTNode* node, chem::string_view& name, std::vector<Value*>* arguments) {
+        auto found = definitions.find(name);
+        if(found == definitions.end()) {
+            return false;
+        } else {
+            auto& definition = found->second;
+            switch(definition.type) {
+                case AnnotationDefType::Handler:
+                    definition.handler(parser, node);
+                    return true;
+                case AnnotationDefType::Marker:
+                    mark(node, name, definition, arguments);
+                    return true;
+                case AnnotationDefType::Collector:
+                    collect(node, name, definition, arguments);
+                    return true;
+                case AnnotationDefType::MarkerAndCollector:
+                    mark_and_collect(node, name, definition, arguments);
+                    return true;
+            }
+        }
+    }
+
+    /**
+     * constructor
+     */
+    explicit AnnotationController();
 
 };

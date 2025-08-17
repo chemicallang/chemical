@@ -15,34 +15,6 @@
 #include "ast/statements/UsingStmt.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 
-bool make_node_no_mangle(ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::FunctionDecl:
-            node->as_function_unsafe()->set_no_mangle(true);
-            return true;
-        case ASTNodeKind::InterfaceDecl:
-            node->as_interface_def_unsafe()->set_no_mangle(true);
-            return true;
-        case ASTNodeKind::StructDecl:
-            node->as_struct_def_unsafe()->set_no_mangle(true);
-            return true;
-        case ASTNodeKind::UnionDecl:
-            node->as_union_def_unsafe()->set_no_mangle(true);
-            return true;
-        case ASTNodeKind::VariantDecl:
-            node->as_variant_def_unsafe()->set_no_mangle(true);
-            return true;
-        case ASTNodeKind::TypealiasStmt:
-            node->as_typealias_unsafe()->set_no_mangle(true);
-            return true;
-        case ASTNodeKind::VarInitStmt:
-            node->as_var_init_unsafe()->set_no_mangle(true);
-            return true;
-        default:
-            return false;
-    }
-}
-
 const std::unordered_map<chem::string_view, const AnnotationModifierFunc> AnnotationModifierFunctions = {
         { "inline", [](Parser* parser, ASTNode* node) -> void {
             auto func = node->as_function();

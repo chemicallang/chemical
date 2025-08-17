@@ -371,6 +371,34 @@ bool ASTNode::set_anonymous(bool value) {
     }
 }
 
+bool ASTNode::set_no_mangle(bool value) {
+    switch(kind()) {
+        case ASTNodeKind::FunctionDecl:
+            as_function_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::InterfaceDecl:
+            as_interface_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::UnionDecl:
+            as_union_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            as_typealias_unsafe()->set_no_mangle(true);
+            return true;
+        case ASTNodeKind::VarInitStmt:
+            as_var_init_unsafe()->set_no_mangle(true);
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool ASTNode::is_shallow_copyable() {
     switch(kind()) {
         case ASTNodeKind::StructDecl:

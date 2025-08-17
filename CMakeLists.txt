@@ -579,6 +579,7 @@ set(COMMON_SOURCES
         ast/values/InValue.h
         ast/values/InValue.cpp
         compiler/frontend/AnnotationController.h
+        compiler/frontend/AnnotationController.cpp
 )
 
 # Chemical LSP Executable Target

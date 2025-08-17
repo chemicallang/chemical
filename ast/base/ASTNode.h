@@ -212,6 +212,12 @@ public:
     bool set_anonymous(bool value);
 
     /**
+     * set no mangle of a node
+     * @return true if successful otherwise false
+     */
+    bool set_no_mangle(bool value);
+
+    /**
      * a struct/union/variant can be makrked copy to force compiler to shallow copy everywhere
      */
     bool is_shallow_copyable();

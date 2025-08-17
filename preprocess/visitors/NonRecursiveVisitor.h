@@ -311,6 +311,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitInValue(InValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitDereferenceValue(DereferenceValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -782,6 +786,9 @@ public:
                 return;
             case ValueKind::IsValue:
                 static_cast<Derived*>(this)->VisitIsValue((IsValue*) value);
+                return;
+            case ValueKind::InValue:
+                static_cast<Derived*>(this)->VisitInValue((InValue*) value);
                 return;
             case ValueKind::DereferenceValue:
                 static_cast<Derived*>(this)->VisitDereferenceValue((DereferenceValue*) value);

@@ -44,6 +44,7 @@ enum class ValueKind : uint8_t {
     PlacementNewValue,
     IncDecValue,
     IsValue,
+    InValue,
     DereferenceValue,
     RetStructParamValue,
     AccessChain,

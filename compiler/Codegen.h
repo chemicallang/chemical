@@ -266,6 +266,11 @@ public:
     );
 
     /**
+     * implicit cast constant to given type
+     */
+    static llvm::ConstantInt* implicit_cast_constant(llvm::ConstantInt* value, BaseType* to_type, llvm::Type* to_type_llvm);
+
+    /**
      * initializes the llvm module and context
      */
     void module_init(const chem::string_view& scope_name, const chem::string_view& module_name);

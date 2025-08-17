@@ -38,6 +38,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/InValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/ForLoop.h"
@@ -977,6 +978,20 @@ void RepresentationVisitor::VisitIsValue(IsValue *isVal) {
     visit(isVal->value);
     write(" is ");
     visit(isVal->type);
+}
+
+void RepresentationVisitor::VisitInValue(InValue* value) {
+    visit(value->value);
+    write(" in ");
+    bool has_value_before = false;
+    for(const auto val : value->values) {
+        if(has_value_before) {
+            write(", ");
+        } else {
+            has_value_before = true;
+        }
+        visit(val);
+    }
 }
 
 void RepresentationVisitor::VisitDeleteStmt(DestructStmt *delStmt) {

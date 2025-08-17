@@ -89,6 +89,7 @@
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/IsValue.h"
+#include "ast/values/InValue.h"
 //#include "ast/values/FloatValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/SizeOfValue.h"
@@ -451,7 +452,7 @@ public:
         }
     }
 
-    inline void VisitArrayType(ArrayType *type) {
+    void VisitArrayType(ArrayType *type) {
         visit_it(type->elem_type);
         if(type->array_size_value) {
             visit_it(type->array_size_value);
@@ -461,6 +462,13 @@ public:
     inline void VisitIsValue(IsValue* value) {
         visit_it(value->value);
         visit_it(value->type);
+    }
+
+    void VisitInValue(InValue* value) {
+        visit_it(value->value);
+        for(auto& child : value->values) {
+            visit_it(child);
+        }
     }
 
     inline void VisitNewValue(NewValue *value) {
@@ -488,7 +496,7 @@ public:
         visit_it(value->for_type);
     }
 
-    void VisitTypeInsideValue(TypeInsideValue* value) {
+    inline void VisitTypeInsideValue(TypeInsideValue* value) {
         visit_it(value->type);
     }
 
@@ -500,7 +508,7 @@ public:
         }
     }
 
-    void VisitExtractionValue(ExtractionValue* value) {
+    inline void VisitExtractionValue(ExtractionValue* value) {
         visit_it(value->value);
     }
 
@@ -531,15 +539,15 @@ public:
         visit_it(type->instance_type);
     }
 
-    void VisitStructType(StructType* type) {
+    inline void VisitStructType(StructType* type) {
         VisitVariables(type->variables());
     }
 
-    void VisitUnionType(UnionType* type) {
+    inline void VisitUnionType(UnionType* type) {
         VisitVariables(type->variables());
     }
 
-    void VisitDynamicType(DynamicType* type) {
+    inline void VisitDynamicType(DynamicType* type) {
         visit_it(type->referenced);
     }
 
@@ -548,7 +556,7 @@ public:
         visit_it(type->secondType);
     }
 
-    void VisitAliasStmt(AliasStmt* node) {
+    inline void VisitAliasStmt(AliasStmt* node) {
         visit_it(node->value);
     }
 

@@ -70,6 +70,8 @@ struct AnnotationDefinition {
 
     };
 
+    uint32_t id;
+
     AnnotationDefType type;
 
 };
@@ -162,6 +164,15 @@ public:
     void mark_and_collect(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
         mark(node, name, definition, arguments);
         collect(node, name, definition, nullptr);
+    }
+
+    bool is_marked(ASTNode* node, chem::string_view& name) {
+        return marked.find(MarkedAnnotatedNode{node, name}) != marked.end();
+    }
+
+    std::vector<Value*>* get_args(ASTNode* node, chem::string_view& name) {
+        auto found = marked.find(MarkedAnnotatedNode{node, name});
+        return found == marked.end() ? nullptr : &found->second;
     }
 
     bool handle_annotation(Parser* parser, ASTNode* node, chem::string_view& name, std::vector<Value*>* arguments) {

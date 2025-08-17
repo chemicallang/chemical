@@ -251,7 +251,7 @@ void annot_handler_deprecated(Parser* parser, ASTNode* node) {
     }
 }
 
-AnnotationController::AnnotationController() {
+AnnotationController::AnnotationController(bool is_env_testing) {
     definitions = {
             { "inline", { annot_handler_inline, AnnotationDefType::Handler } },
             { "inline:always", { annot_handler_inline_always, AnnotationDefType::Handler } },
@@ -290,5 +290,17 @@ AnnotationController::AnnotationController() {
     definitions.reserve(128);
     collections.reserve(32);
     marked.reserve(128);
+
+    // adding testing annotations
+    create_collector_annotation("test", is_env_testing ? 256 : 0);
+    create_marker_annotation("test.id");
+    create_marker_annotation("test.group");
+    create_marker_annotation("test.ignore");
+    create_marker_annotation("test.timeout");
+    create_marker_annotation("test.retry");
+    create_marker_annotation("test.before_each");
+    create_marker_annotation("test.after_each");
+    create_marker_annotation("test.bench");
+
 
 }

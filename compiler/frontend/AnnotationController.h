@@ -122,7 +122,7 @@ private:
 
 public:
 
-    std::size_t create_collection(chem::string_view& name, unsigned int expected_usage) {
+    std::size_t create_collection(const chem::string_view& name, unsigned int expected_usage) {
         const auto index = collections.size();
         collections.emplace_back();
         if(expected_usage > 2) {
@@ -133,7 +133,7 @@ public:
 
 private:
 
-    void create_collector_annotation(chem::string_view& name, AnnotationDefType type, unsigned int expected_usage) {
+    void create_collector_annotation(const chem::string_view& name, AnnotationDefType type, unsigned int expected_usage) {
         definitions.emplace(name, AnnotationDefinition {
             .collection_id = create_collection(name, expected_usage),
             .type = type
@@ -142,38 +142,45 @@ private:
 
 public:
 
-    inline void create_collector_annotation(chem::string_view& name, unsigned int expected_usage) {
+    inline void create_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
         create_collector_annotation(name, AnnotationDefType::Collector, expected_usage);
     }
 
-    inline void create_marker_and_collector_annotation(chem::string_view& name, unsigned int expected_usage) {
+    inline void create_marker_and_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
         create_collector_annotation(name, AnnotationDefType::MarkerAndCollector, expected_usage);
     }
 
-    void mark(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+    void create_marker_annotation(const chem::string_view& name) {
+        definitions.emplace(name, AnnotationDefinition {
+                .collection_id = 0,
+                .type = AnnotationDefType::Marker
+        });
+    }
+
+    void mark(ASTNode* node, const chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
         marked.emplace(MarkedAnnotatedNode{node, name}, arguments ? std::move(*arguments) : std::vector<Value*> {});
     }
 
-    void collect(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+    void collect(ASTNode* node, const chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
         auto& coll = collections[definition.collection_id];
         coll.nodes.emplace_back(node, arguments ? std::move(*arguments) : std::vector<Value*> {});
     }
 
-    void mark_and_collect(ASTNode* node, chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
+    void mark_and_collect(ASTNode* node, const chem::string_view& name, AnnotationDefinition& definition, std::vector<Value*>* arguments) {
         mark(node, name, definition, arguments);
         collect(node, name, definition, nullptr);
     }
 
-    bool is_marked(ASTNode* node, chem::string_view& name) {
+    bool is_marked(ASTNode* node, const chem::string_view& name) {
         return marked.find(MarkedAnnotatedNode{node, name}) != marked.end();
     }
 
-    std::vector<Value*>* get_args(ASTNode* node, chem::string_view& name) {
+    std::vector<Value*>* get_args(ASTNode* node, const chem::string_view& name) {
         auto found = marked.find(MarkedAnnotatedNode{node, name});
         return found == marked.end() ? nullptr : &found->second;
     }
 
-    bool handle_annotation(Parser* parser, ASTNode* node, chem::string_view& name, std::vector<Value*>* arguments) {
+    bool handle_annotation(Parser* parser, ASTNode* node, const chem::string_view& name, std::vector<Value*>* arguments) {
         auto found = definitions.find(name);
         if(found == definitions.end()) {
             return false;
@@ -198,7 +205,9 @@ public:
 
     /**
      * constructor
+     * @param is_env_testing required, during testing environment the testing collector
+     * annotation is initialized with a large container so that annotations are collected quickly
      */
-    explicit AnnotationController();
+    explicit AnnotationController(bool is_env_testing);
 
 };

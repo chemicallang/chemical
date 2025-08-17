@@ -203,4 +203,10 @@ func test_sizeof_alignof() {
     test("alignof on references returns alignof underlying type - 6", () => {
         return alignof(&SizeOfStrT1) == alignof(SizeOfStrT1)
     })
+    test("sizeof with array types work", () => {
+        return sizeof([4]int) == 4 * 4;
+    })
+    test("sizeof with array of structs work", () => {
+        return sizeof([4]SizeOfStrT1) == 4 * 4 * 3;
+    })
 }

@@ -11,6 +11,7 @@
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/UIntValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/UBigIntValue.h"
@@ -1396,6 +1397,185 @@ public:
     }
 };
 
+class InterpretGetTestEach : public FunctionDeclaration {
+public:
+
+    explicit InterpretGetTestEach(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_test_each"),
+            {cache.getPtrToVoid(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& global = *call_scope->global;
+        auto& controller = global.build_compiler->controller;
+        auto& typeBuilder = global.typeBuilder;
+
+        const auto is_before_each = !call->values.empty() && call->values[0]->kind() == ValueKind::Bool && call->values[0]->get_the_bool();
+        const auto def = controller.get_definition(is_before_each ? "test.before_each" : "test.after_each");
+        const auto coll = controller.get_collection(def->collection_id);
+
+        if(coll.nodes.empty()) {
+            const auto node = coll.nodes.back().node;
+            if(node->kind() == ASTNodeKind::FunctionDecl) {
+                const auto func = node->as_function_unsafe();
+                const auto id = new(allocator.allocate<VariableIdentifier>()) VariableIdentifier(func->name_view(), func->known_type(), call->encoded_location());
+                return id;
+            }
+        }
+
+        return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), call->encoded_location());
+    }
+};
+
+class InterpretGetTests : public FunctionDeclaration {
+public:
+
+    // struct {
+    //  id : int,
+    //  name : *char,
+    //  group : *char,
+    //  ptr : (env : &mut TestEnv) => void,
+    //  file : *char,
+    //  timeout : uint,
+    //  retry : uint,
+    //  benchmark : bool,
+    //  lineNum : uint,
+    //  charNum : uint
+    // }
+
+    explicit InterpretGetTests(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("get_tests"),
+            {cache.getVoidType(), ZERO_LOC},
+            true,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+
+        auto& global = *call_scope->global;
+        auto& typeBuilder = global.typeBuilder;
+
+        // validation
+        if(call->generic_list.size() != 1) {
+            call_scope->error("get_tests requires a single generic argument, the struct definition representing the test", call);
+            return new (allocator.allocate<NullValue>()) NullValue(global.typeBuilder.getNullPtrType(), ZERO_LOC);
+        }
+
+        const auto elem_type = call->generic_list[0];
+        const auto test_def = elem_type->get_direct_linked_canonical_node();
+        if(!test_def || test_def->kind() != ASTNodeKind::StructDecl) {
+            call_scope->error("get_tests requires a single generic argument, the struct definition representing the test", call);
+            return new (allocator.allocate<NullValue>()) NullValue(global.typeBuilder.getNullPtrType(), ZERO_LOC);
+        }
+        const auto test_def_struct = test_def->as_struct_def_unsafe();
+
+        // getting the tests collection
+        auto& controller = global.build_compiler->controller;
+        const auto annot_def = controller.get_definition("test");
+        auto& collection = controller.get_collection(annot_def->collection_id);
+
+        // creating the return
+        const auto arrType = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, collection.nodes.size());
+        const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(call->encoded_location(), arrType);
+
+        const auto emptyStringVal = new (allocator.allocate<StringValue>()) StringValue("", typeBuilder.getStringType(), call->encoded_location());
+
+        // putting tests inside the list
+        int i = 0;
+        for(auto& node : collection.nodes) {
+            if(node.node->kind() == ASTNodeKind::FunctionDecl) {
+
+                const auto decl = node.node->as_function_unsafe();
+
+                // creating the struct value for given test
+                const auto value = new (allocator.allocate<StructValue>()) StructValue(elem_type, test_def_struct, test_def_struct, call->encoded_location());
+
+                // id
+                const auto idArgs = controller.get_args(node.node, "test.id");
+                auto testId = i;
+                if(idArgs && !idArgs->empty() && (*idArgs)[0]->kind() == ValueKind::Int) {
+                    testId = (*idArgs)[0]->get_the_int();
+                }
+                const auto idVal = new (allocator.allocate<IntValue>()) IntValue(testId, typeBuilder.getIntType(), call->encoded_location());
+                value->values.emplace("id", StructMemberInitializer{"id", idVal});
+
+                // name
+                const auto nameVal = new (allocator.allocate<StringValue>()) StringValue(decl->name_view(), typeBuilder.getStringType(), call->encoded_location());
+                value->values.emplace("name", StructMemberInitializer{"name", nameVal});
+
+                // group
+                const auto groupArgs = controller.get_args(node.node, "test.group");
+                auto groupVal = emptyStringVal;
+                if(groupArgs && !groupArgs->empty() && (*groupArgs)[0]->kind() == ValueKind::String) {
+                    groupVal = new (allocator.allocate<StringValue>()) StringValue((*groupArgs)[0]->get_the_string(), typeBuilder.getStringType(), call->encoded_location());
+                }
+                value->values.emplace("group", StructMemberInitializer{"group", groupVal});
+
+                // ptr
+                const auto ptr = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(decl->name_view(), decl->known_type(), call->encoded_location());
+                ptr->linked = decl;
+                value->values.emplace("ptr", StructMemberInitializer{"ptr", ptr});
+
+                // file
+                const auto fileScope = decl->get_file_scope();
+                auto fileVal = emptyStringVal;
+                if(fileScope) {
+                    fileVal = new (allocator.allocate<StringValue>()) StringValue(fileScope->file_path, typeBuilder.getStringType(), call->encoded_location());
+                }
+                value->values.emplace("file", StructMemberInitializer{"file", fileVal});
+
+                // timeout
+                const auto timeArgs = controller.get_args(node.node, "test.timeout");
+                unsigned timeout = 1000 * 60 * 60 * 1; // 1 hour
+                if(timeArgs && !timeArgs->empty() && (*timeArgs)[0]->kind() == ValueKind::UInt) {
+                    timeout = (*timeArgs)[0]->get_the_uint();
+                }
+                const auto timeoutVal = new (allocator.allocate<UIntValue>()) UIntValue(timeout, typeBuilder.getUIntType(), call->encoded_location());
+                value->values.emplace("timeout", StructMemberInitializer{"timeout", timeoutVal});
+
+                // retry
+                const auto retryArgs = controller.get_args(node.node, "test.retry");
+                // default retries is 0
+                unsigned retries = 0;
+                if(retryArgs && !retryArgs->empty() && (*retryArgs)[0]->kind() == ValueKind::UInt) {
+                    retries = (*retryArgs)[0]->get_the_uint();
+                }
+                const auto retryVal = new (allocator.allocate<UIntValue>()) UIntValue(retries, typeBuilder.getUIntType(), call->encoded_location());
+                value->values.emplace("retry", StructMemberInitializer{"retry", retryVal});
+
+                // benchmark
+                bool benchmark = false;
+                const auto marked_bench = controller.is_marked(node.node, "test.bench");
+                const auto benchVal = new (allocator.allocate<BoolValue>()) BoolValue(marked_bench, typeBuilder.getBoolType(), call->encoded_location());
+                value->values.emplace("bench", StructMemberInitializer{"bench", benchVal});
+
+                // line number + char number
+                const auto locData = global.loc_man.getLocation(decl->encoded_location());
+                const auto lineNumValue = new (allocator.allocate<UIntValue>()) UIntValue(locData.lineStart, typeBuilder.getUIntType(), call->encoded_location());
+                value->values.emplace("lineNum", StructMemberInitializer{"lineNum", lineNumValue});
+                const auto charNumValue = new (allocator.allocate<UIntValue>()) UIntValue(locData.charStart, typeBuilder.getUIntType(), call->encoded_location());
+                value->values.emplace("charNum", StructMemberInitializer{"charNum", charNumValue});
+
+                i++;
+            }
+        }
+
+        return arrVal;
+    }
+};
+
 class InterpretGetLambdaFnPtr : public FunctionDeclaration {
 public:
 
@@ -1646,6 +1826,9 @@ public:
     InterpretSizeOfLambdaCaptured sizeof_lambda_captured;
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
+    InterpretGetTests get_tests_fn;
+    InterpretGetTestEach get_test_each_fn;
+
     // TODO get_child_fn should be removed
     // we should use get destructor explicitly
     InterpretGetChildFunction get_child_fn;
@@ -1662,7 +1845,7 @@ public:
         get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
-        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this),
+        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_test_each_fn(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this)
     {
@@ -1672,7 +1855,7 @@ public:
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &satisfiesValueFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path,
+            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_test_each_fn,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured
         };

@@ -295,13 +295,13 @@ AnnotationController::AnnotationController(bool is_env_testing) {
 
     // adding testing annotations
     create_collector_annotation("test", is_env_testing ? 256 : 0);
+    create_collector_annotation("test.before_each", 1);
+    create_collector_annotation("test.after_each", 1);
     create_marker_annotation("test.id");
     create_marker_annotation("test.group");
     create_marker_annotation("test.ignore");
     create_marker_annotation("test.timeout");
     create_marker_annotation("test.retry");
-    create_marker_annotation("test.before_each");
-    create_marker_annotation("test.after_each");
     create_marker_annotation("test.bench");
 
 

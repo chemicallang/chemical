@@ -167,6 +167,10 @@ public:
         }
     }
 
+    inline AnnotationCollection& get_collection(std::size_t collection_id) {
+        return collections[collection_id];
+    }
+
     inline void create_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
         create_collector_annotation(name, AnnotationDefType::Collector, expected_usage);
     }

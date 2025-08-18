@@ -5746,7 +5746,13 @@ void ToCAstVisitor::VisitComptimeValue(ComptimeValue* value) {
 void ToCAstVisitor::VisitCastedValue(CastedValue *casted) {
     write('(');
     write('(');
-    visit(casted->getType());
+    if(array_types_as_subscript) {
+        visit(casted->getType());
+    } else {
+        array_types_as_subscript = true;
+        visit(casted->getType());
+        array_types_as_subscript = false;
+    }
     write(')');
     write(' ');
     auto prev_nested = nested_value;

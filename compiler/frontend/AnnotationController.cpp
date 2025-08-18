@@ -302,7 +302,7 @@ AnnotationController::AnnotationController(bool is_env_testing) {
     create_marker_annotation("test.ignore");
     create_marker_annotation("test.timeout");
     create_marker_annotation("test.retry");
-    create_marker_annotation("test.bench");
+    create_marker_annotation("test.benchmark");
 
 
 }

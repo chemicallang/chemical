@@ -1452,8 +1452,8 @@ public:
 
     explicit InterpretGetTests(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_tests"),
-            {cache.getVoidType(), ZERO_LOC},
-            true,
+            {cache.getAnyType(), ZERO_LOC},
+            false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
@@ -1501,6 +1501,7 @@ public:
 
                 // creating the struct value for given test
                 const auto value = new (allocator.allocate<StructValue>()) StructValue(elem_type, test_def_struct, test_def_struct, call->encoded_location());
+                arrVal->values.emplace_back(value);
 
                 // id
                 const auto idArgs = controller.get_args(node.node, "test.id");
@@ -1557,9 +1558,9 @@ public:
 
                 // benchmark
                 bool benchmark = false;
-                const auto marked_bench = controller.is_marked(node.node, "test.bench");
+                const auto marked_bench = controller.is_marked(node.node, "test.benchmark");
                 const auto benchVal = new (allocator.allocate<BoolValue>()) BoolValue(marked_bench, typeBuilder.getBoolType(), call->encoded_location());
-                value->values.emplace("bench", StructMemberInitializer{"bench", benchVal});
+                value->values.emplace("benchmark", StructMemberInitializer{"benchmark", benchVal});
 
                 // line number + char number
                 const auto locData = global.loc_man.getLocation(decl->encoded_location());

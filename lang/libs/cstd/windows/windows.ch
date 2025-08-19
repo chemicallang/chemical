@@ -67,6 +67,8 @@ public type ULONGLONG = ubigint
 public type SIZE_T = usize
 /** @brief Generic pointer. */
 public type LPVOID = *mut void
+/** @brief Pointer to void */
+public type PVOID = *mut void
 /** @brief Pointer to constant data. */
 public type LPCVOID = *void
 /** @brief Pointer to CHAR string. */

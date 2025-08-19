@@ -2761,6 +2761,11 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     tld->visitor.write(';');
 }
 
+inline void write_void_ptr_to_param(CTopLevelDeclarationVisitor* tld, FunctionParam* param) {
+    tld->write("void* ");
+    tld->write(param->name);
+}
+
 // when a function is inside struct / interface
 void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, StructDefinition* overridden = nullptr) {
     if(decl->is_comptime()) {
@@ -2772,19 +2777,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     }
     tld->visitor.new_line_and_indent();
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
-    unsigned i = 0;
-    auto write_self_param_now = [decl, tld, param, &i, overrides, overridden]() {
-        if(param && should_void_pointer_to_self(param->type, param->name, 0, overrides)) {
-            if(!overridden) {
-                tld->write("void* ");
-                tld->write(param->name);
-                if(decl->params.size() > 1) {
-                    tld->write(", ");
-                }
-                i = 1;
-            }
-        }
-    };
+    const auto is_write_self_param = param && !overridden && should_void_pointer_to_self(param->type, param->name, 0, overrides);
     const auto func_parent = decl->parent();
     const auto func_parent_kind = func_parent->kind();
     const auto is_func_parent_public = func_parent->specifier() == AccessSpecifier::Public;
@@ -2794,13 +2787,20 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         tld->value_visitor->write("static ");
         accept_func_return(tld->visitor, decl_return_func_type->returnType);
         tld->write('(');
-        write_self_param_now();
-        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, i);
+        if(is_write_self_param) {
+            write_void_ptr_to_param(tld, param);
+            if(decl->params.size() > 1) {
+                tld->write(", ");
+            }
+        }
+        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, is_write_self_param ? 1 : 0);
     } else {
         accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast() && !is_func_parent_public);
         tld->write('(');
-        write_self_param_now();
-        func_type_params(tld->visitor, decl, i);
+        if(is_write_self_param) {
+            write_void_ptr_to_param(tld, param);
+        }
+        func_type_params(tld->visitor, decl, is_write_self_param ? 1 : 0, is_write_self_param);
         tld->write(')');
     }
     if(is_parent_interface) {
@@ -3961,31 +3961,28 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;
     const auto interface = def && overrides ? def->get_overriding_interface(decl) : nullptr;
-    auto write_self_param_now = [decl, &visitor, param, &i, overrides, def, interface]() {
-        if(param && should_void_pointer_to_self(param->type, param->name, 0, overrides)) {
-            if(interface && interface->is_static()) {
-                visitor.write("void* ");
-                visitor.write(static_interface_passed_param_name);
-                if(decl->params.size() > 1) {
-                    visitor.write(", ");
-                }
-                i = 1;
-            }
-//            visitor->write(self_pointer_name);
-        }
-    };
+    const auto is_write_self_param = param && should_void_pointer_to_self(param->type, param->name, 0, overrides) && interface && interface->is_static();
     const auto decl_ret_func = decl->returnType->as_function_type();
     if(decl_ret_func != nullptr && !decl_ret_func->isCapturing()) {
         visitor.write("static ");
         accept_func_return(visitor, decl_ret_func->returnType);
         visitor.write('(');
-        write_self_param_now();
-        func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, i);
+        if(is_write_self_param) {
+            visitor.write("void* ");
+            visitor.write(static_interface_passed_param_name);
+            if(decl->params.size() > 1) {
+                visitor.write(", ");
+            }
+        }
+        func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, is_write_self_param ? 1 : 0);
     } else {
         accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
-        write_self_param_now();
-        func_type_params(visitor, decl, i);
+        if(is_write_self_param) {
+            visitor.write("void* ");
+            visitor.write(static_interface_passed_param_name);
+        }
+        func_type_params(visitor, decl, is_write_self_param ? 1 : 0, is_write_self_param);
         visitor.write(')');
     }
     visitor.write('{');

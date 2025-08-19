@@ -432,7 +432,7 @@ void write_struct_def_value_call(ToCAstVisitor& visitor, StructDefinition* def) 
     visitor.write(')');
 }
 
-void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0, bool has_params_before = false) {
+void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0, bool has_params_before = false, FunctionParam* self_void_ptr = nullptr) {
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->isStructLikeType();
     auto func = decl->as_function();
     if((is_struct_return || (func && func->is_constructor_fn())) && !(func && func->is_copy_fn())) {
@@ -449,7 +449,17 @@ void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0
         if(has_params_before) {
             visitor.write(", ");
         }
-        param_type_with_id(visitor, param->type, param->name);
+        if(param == self_void_ptr) {
+            visitor.write("void**");
+            if(param->type->is_mutable()) {
+                visitor.write(' ');
+            } else {
+                visitor.write("const ");
+            }
+            visitor.write(static_interface_passed_param_name);
+        } else {
+            param_type_with_id(visitor, param->type, param->name);
+        }
         has_params_before = true;
         i++;
     }
@@ -2787,20 +2797,11 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         tld->value_visitor->write("static ");
         accept_func_return(tld->visitor, decl_return_func_type->returnType);
         tld->write('(');
-        if(is_write_self_param) {
-            write_void_ptr_to_param(tld, param);
-            if(decl->params.size() > 1) {
-                tld->write(", ");
-            }
-        }
-        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, is_write_self_param ? 1 : 0);
+        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, 0);
     } else {
         accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast() && !is_func_parent_public);
         tld->write('(');
-        if(is_write_self_param) {
-            write_void_ptr_to_param(tld, param);
-        }
-        func_type_params(tld->visitor, decl, is_write_self_param ? 1 : 0, is_write_self_param);
+        func_type_params(tld->visitor, decl, 0, false);
         tld->write(')');
     }
     if(is_parent_interface) {
@@ -3967,22 +3968,11 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         visitor.write("static ");
         accept_func_return(visitor, decl_ret_func->returnType);
         visitor.write('(');
-        if(is_write_self_param) {
-            visitor.write("void* ");
-            visitor.write(static_interface_passed_param_name);
-            if(decl->params.size() > 1) {
-                visitor.write(", ");
-            }
-        }
-        func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, is_write_self_param ? 1 : 0);
+        func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, 0);
     } else {
         accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
-        if(is_write_self_param) {
-            visitor.write("void* ");
-            visitor.write(static_interface_passed_param_name);
-        }
-        func_type_params(visitor, decl, is_write_self_param ? 1 : 0, is_write_self_param);
+        func_type_params(visitor, decl, 0, false, is_write_self_param ? param : nullptr);
         visitor.write(')');
     }
     visitor.write('{');

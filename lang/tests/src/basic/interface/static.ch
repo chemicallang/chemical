@@ -58,6 +58,30 @@ struct RightExternalNumber : ExternallyImplementedInterface {
 
 }
 
+@static
+interface StructRetStaticInter {
+
+    func provide(&self) : ImplStaticSummer
+
+}
+
+func (inter : &mut StructRetStaticInter) sum_provider() : int {
+    var p = inter.provide();
+    return p.a + p.b
+}
+
+struct StructRetStaticInterImpl : StructRetStaticInter {
+
+    var x : int
+    var y : int
+
+    @override
+    func provide(&self) : ImplStaticSummer {
+        return ImplStaticSummer { a : x, b : y}
+    }
+
+}
+
 func test_static_interfaces() {
 
     test("methods in static interfaces work", () => {
@@ -108,6 +132,11 @@ func test_static_interfaces() {
     test("external interfaces implemented in current module work through extension method in external module", () => {
         var thing = RightExternalNumber {  }
         return thing.pls_give_ext_num() == 8765
+    })
+
+    test("methods of static interfaces can return structs", () => {
+        var thing = StructRetStaticInterImpl { x : 32, y : 87 };
+        return thing.sum_provider() == 32 + 87;
     })
 
 }

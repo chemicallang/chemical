@@ -32,3 +32,21 @@ public comptime const ERROR_PIPE_CONNECTED = 535L
 // All pipe instances are busy.
 //
 public comptime const ERROR_PIPE_BUSY = 231L
+
+//
+// MessageId: ERROR_BROKEN_PIPE
+//
+// MessageText:
+//
+// The pipe has been ended.
+//
+public comptime const ERROR_BROKEN_PIPE = 109L
+
+//
+// MessageId: ERROR_MORE_DATA
+//
+// MessageText:
+//
+// More data is available.
+//
+public comptime const ERROR_MORE_DATA = 234L    // dderror

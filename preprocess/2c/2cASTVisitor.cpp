@@ -489,8 +489,14 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* f
     if(is_static) {
         visitor.write("static ");
     }
+    if(func_decl->is_dll_import()) {
+        visitor.write("__chem_dllimport ");
+    }
     accept_func_return(visitor, func_decl->returnType);
     visitor.space();
+    if(func_decl->is_std_call()) {
+        visitor.write("__chem_stdcall ");
+    }
     visitor.mangle(func_decl);
 }
 
@@ -3275,12 +3281,20 @@ void ToCAstVisitor::prepare_translate() {
     // declaring malloc function
     new_line_and_indent();
     if(comptime_scope.target_data.is_win64) {
-        write("extern void* malloc(unsigned long long size);");
+        write("extern void* malloc(unsigned long long size);\n");
     } else {
-        write("extern void* malloc(unsigned long size);");
+        write("extern void* malloc(unsigned long size);\n");
     }
-    new_line_and_indent();
-    write("extern void free(void* block);");
+    write("extern void free(void* block);\n");
+    write("#if defined(_MSC_VER)\n"
+          "    #define __chem_stdcall __stdcall\n"
+          "    #define __chem_dllimport __declspec((dllimport))\n"
+          "#else\n"
+          "    #define __chem_stdcall __attribute__((stdcall))\n"
+          "    #define __chem_dllimport __attribute__((dllimport))\n"
+          "#endif\n"
+      );
+
 }
 
 void ToCAstVisitor::reset() {

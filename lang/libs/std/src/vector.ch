@@ -36,6 +36,11 @@ public struct vector<T> {
         }
     }
 
+    func reserve(&mut self, cap : size_t) {
+        if(cap < data_cap) return;
+        resize(cap);
+    }
+
     func ensure_capacity_for_one_more(&mut self) {
         if (data_cap == 0) {
             resize(2)

@@ -1,5 +1,4 @@
 /**
- * TODO these macros must be defined
  * errno
  *  macro which expands to POSIX-compatible thread-local error number variable
  *  (macro variable)
@@ -7,3 +6,4 @@
  *
  *  macros for standard POSIX-compatible error conditions
  */
+

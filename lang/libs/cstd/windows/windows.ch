@@ -1,10 +1,40 @@
-// TODO check these three declarations are correct
-// - usize: ubigint (unsigned 64-bit) seems reasonable for a modern target's pointer size.
-// - ULONG_PTR: Changed from *mut ulong to usize. ULONG_PTR is an unsigned integer type large enough to hold a pointer.
-// - UINT: uint seems correct (typically 32-bit unsigned).
-public type usize = ubigint
-public type ULONG_PTR = usize // Was *mut ulong, which is incorrect. Should be pointer-sized uint.
-public type UINT = uint
+if(def.win64) {
+
+    public type INT_PTR = bigint
+    public type PINT_PTR = *mut INT_PTR
+
+    public type UINT_PTR = ubigint
+    public type PUINT_PTR = *mut UINT_PTR
+
+    public type LONG_PTR = bigint
+    public type PLONG_PTR = *mut LONG_PTR
+
+    public type ULONG_PTR = ubigint
+    public type PULONG_PTR = *mut ULONG_PTR
+
+    //TODO: verify these
+    public type usize = ubigint
+    public type UINT = uint
+
+} else {
+
+    public type INT_PTR = int
+    public type PINT_PTR = *mut INT_PTR
+
+    public type UINT_PTR = uint
+    public type PUINT_PTR = *mut UINT_PTR
+
+    public type LONG_PTR = long
+    public type PLONG_PTR = *mut LONG_PTR
+
+    public type ULONG_PTR = ulong
+    public type PULONG_PTR = *mut ULONG_PTR
+
+    //TODO: verify these
+    public type usize = ubigint
+    public type UINT = uint
+
+}
 
 public type off_t = long
 

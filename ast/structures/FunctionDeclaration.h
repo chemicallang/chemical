@@ -136,6 +136,16 @@ struct FuncDeclAttributes {
      */
     bool is_generated = false;
 
+    /**
+     * did user put stdcall annotation over it
+     */
+    bool std_call = false;
+
+    /**
+     * did user put dllimport annotation over it
+     */
+    bool dll_import = false;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
@@ -190,7 +200,7 @@ public:
             ASTNodeKind k = ASTNodeKind::FunctionDecl
     )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, signature_resolved),
          identifier(identifier),
-         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false, false, false, false) {
     }
 
     /**
@@ -255,6 +265,22 @@ public:
 
     inline void set_extern(bool value) {
         attrs.is_extern = value;
+    }
+
+    inline bool is_std_call() {
+        return attrs.std_call;
+    }
+
+    inline void set_std_call(bool value) {
+        attrs.std_call = value;
+    }
+
+    inline bool is_dll_import() {
+        return attrs.dll_import;
+    }
+
+    inline void set_dll_import(bool value) {
+        attrs.dll_import = value;
     }
 
     inline bool is_cpp_mangle() {

@@ -42,6 +42,10 @@ public:
         return value;
     }
 
+    bool primitive() override {
+        return false;
+    }
+
     uint64_t byte_size(bool is64Bit) final {
         return value->byte_size(is64Bit);
     }

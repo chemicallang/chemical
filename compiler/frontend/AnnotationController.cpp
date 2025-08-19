@@ -122,6 +122,24 @@ void annot_handler_unsafe(Parser* parser, ASTNode* node) {
     }
 }
 
+void annot_handler_stdcall(Parser* parser, ASTNode* node) {
+    const auto func = node->as_function();
+    if(func) {
+        func->set_std_call(true);
+    } else {
+        parser->error("couldn't make the function stdcall");
+    }
+}
+
+void annot_handler_dllimport(Parser* parser, ASTNode* node) {
+    const auto func = node->as_function();
+    if(func) {
+        func->set_dll_import(true);
+    } else {
+        parser->error("couldn't make the function dllimport");
+    }
+};
+
 void annot_handler_no_init(Parser* parser, ASTNode* node) {
     const auto def = node->as_struct_def();
     if(def) {
@@ -272,6 +290,8 @@ AnnotationController::AnnotationController(bool is_env_testing) {
             { "delete", { annot_handler_delete, "delete", AnnotationDefType::Handler } },
             { "override", { annot_handler_override, "override", AnnotationDefType::Handler } },
             { "unsafe", { annot_handler_unsafe, "unsafe", AnnotationDefType::Handler } },
+            { "stdcall", { annot_handler_stdcall, "stdcall", AnnotationDefType::Handler } },
+            { "dllimport", { annot_handler_dllimport, "dllimport", AnnotationDefType::Handler } },
             { "no_init", { annot_handler_no_init, "no_init", AnnotationDefType::Handler } },
             { "anonymous", { annot_handler_anonymous, "anonymous", AnnotationDefType::Handler } },
             { "extern", { annot_handler_extern, "extern", AnnotationDefType::Handler } },

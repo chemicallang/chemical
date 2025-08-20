@@ -1513,7 +1513,12 @@ public:
                 value->values.emplace("id", StructMemberInitializer{"id", idVal});
 
                 // name
-                const auto nameVal = new (allocator.allocate<StringValue>()) StringValue(decl->name_view(), typeBuilder.getStringType(), call->encoded_location());
+                auto name_view = decl->name_view();
+                const auto nameArgs = controller.get_args(node.node, "test.name");
+                if(nameArgs && !nameArgs->empty() && (*nameArgs)[0]->kind() == ValueKind::String) {
+                    name_view = (*nameArgs)[0]->get_the_string();
+                }
+                const auto nameVal = new (allocator.allocate<StringValue>()) StringValue(name_view, typeBuilder.getStringType(), call->encoded_location());
                 value->values.emplace("name", StructMemberInitializer{"name", nameVal});
 
                 // group
@@ -1556,8 +1561,12 @@ public:
                 const auto retryVal = new (allocator.allocate<UIntValue>()) UIntValue(retries, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("retry", StructMemberInitializer{"retry", retryVal});
 
+                // pass on crash
+                const auto pass_on_crash = controller.is_marked(node.node, "test.pass_on_crash");
+                const auto crashVal = new (allocator.allocate<BoolValue>()) BoolValue(pass_on_crash, typeBuilder.getBoolType(), call->encoded_location());
+                value->values.emplace("pass_on_crash", StructMemberInitializer{"pass_on_crash", crashVal});
+
                 // benchmark
-                bool benchmark = false;
                 const auto marked_bench = controller.is_marked(node.node, "test.benchmark");
                 const auto benchVal = new (allocator.allocate<BoolValue>()) BoolValue(marked_bench, typeBuilder.getBoolType(), call->encoded_location());
                 value->values.emplace("benchmark", StructMemberInitializer{"benchmark", benchVal});

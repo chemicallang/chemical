@@ -100,9 +100,9 @@ struct TestEnvImpl : TestEnv {
     var fn : *mut TestFunction
 
     if(def.windows) {
-
         var pipeHandle : HANDLE
-
+    } else {
+        var fd : int
     }
 
     @override
@@ -212,7 +212,11 @@ struct TestFunctionState {
 
     var fn : *mut TestFunction
 
-    var exitCode : DWORD = 0
+    if(def.windows) {
+        var exitCode : DWORD = 0
+    } else {
+        var exitCode : int = 0
+    }
 
     var has_error_log : bool = false
 
@@ -244,14 +248,14 @@ func to_msg_cmd_type(str : *char) : MessageCommandType {
     }
 }
 
-func read_msg_type(msg_ptr : **char) : MessageCommandType {
+func read_msg_type(msg_ptr : *mut *char) : MessageCommandType {
     if (!msg_ptr) return MessageCommandType.None;      // guard **null
     var msg = *msg_ptr;
     if (!msg)      return MessageCommandType.None;     // guard *null
 
     const CMD_MAX = 120;
     var command_buffer : char[CMD_MAX];
-    var out = &command_buffer[0];
+    var out = &mut command_buffer[0];
     var written : int = 0;
 
     while (true) {
@@ -287,7 +291,7 @@ return codes:
   2 = trailing non-space characters after number
   3 = out of range for int (overflow/underflow)
 */
-func parse_int_w_end(s : *char, out : *mut int, endPtrPtr : **mut char) : int {
+func parse_int_w_end(s : *char, out : *mut int, endPtrPtr : *mut *char) : int {
     if (!s || !out || !endPtrPtr) return -1;  // also guard endPtrPtr
     set_errno(0);
 
@@ -321,7 +325,7 @@ func parse_int_w_end(s : *char, out : *mut int, endPtrPtr : **mut char) : int {
     return 0;
 }
 
-func parse_int_from_str(pstr : **mut char) : int {
+func parse_int_from_str(pstr : *mut *char) : int {
     if (!pstr || !*pstr) {
         fprintf(get_stderr(), "parse_int_from_str: null pointer passed\n");
         return 0;
@@ -352,7 +356,7 @@ func parse_int_from_str(pstr : **mut char) : int {
     return val as int;
 }
 
-func read_char(msg_ptr : **char, c : char) : bool {
+func read_char(msg_ptr : *mut *char, c : char) : bool {
     if (!msg_ptr) return false;
     var msg = *msg_ptr;
     if (!msg) return false;
@@ -366,7 +370,7 @@ func read_char(msg_ptr : **char, c : char) : bool {
     }
 }
 
-func read_str(msg_ptr : **mut char, into : &mut std::string) {
+func read_str(msg_ptr : *mut *char, into : &mut std::string) {
     if (!msg_ptr) return;
     var msg = *msg_ptr;
     if (!msg) return;
@@ -379,7 +383,7 @@ func read_str(msg_ptr : **mut char, into : &mut std::string) {
     *msg_ptr = msg;
 }
 
-func parseLog(msg_ptr : **char, log : &mut TestLog) {
+func parseLog(msg_ptr : *mut *char, log : &mut TestLog) {
     if (!msg_ptr || !log) return;
 
     if (!read_char(msg_ptr, ',')) { return; }
@@ -465,7 +469,7 @@ func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
         config.before_each = intrinsics::get_single_marked_decl_ptr("test.before_each") as TestFunctionPtr;
         config.after_each = intrinsics::get_single_marked_decl_ptr("test.after_each") as TestFunctionPtr;
 
-        var test_start = &tests[0]
+        var test_start = &mut tests[0]
         const test_end = test_start + tests_view.size()
 
         while(test_start != test_end) {
@@ -543,7 +547,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
                 current++;
                 if(current != end) {
                     const next = *current;
-                    const res = parse_int(next, &config.single_test_id)
+                    const res = parse_int(next, &mut config.single_test_id)
                     if(res != 0) {
                         printf("error: invalid function id %s", next);
                         return "invalid function id given for --test-id argument";
@@ -560,7 +564,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
                 current++
                 if(current != end) {
                     const next = *current;
-                    const res = parse_int(next, &config.process_limit)
+                    const res = parse_int(next, &mut config.process_limit)
                     if(res != 0) {
                         printf("error: invalid process limit given", next);
                         return "invalid process limit given";

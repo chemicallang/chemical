@@ -69,6 +69,9 @@ func test_sizeof_alignof() {
             return i == 4;
         }
     })
+    test("sizeof ulong works", () => {
+        return sizeof(ulong) == comptime_size_of<ulong>()
+    })
     test("sizeof struct", () => {
         var i = sizeof(SizeOfStrT1)
         return i == 12;

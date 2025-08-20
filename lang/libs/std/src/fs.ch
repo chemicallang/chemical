@@ -1,6 +1,6 @@
 if(!def.windows) {
-    public func posix_mkdir(pathname : *char) : int {
-        return mkdir(pathname, PermissionMode.S_IRWXU)
+    public func posix_mkdir(pathname : *char, mode : uint) : int {
+        return mkdir(pathname, mode)
     }
 }
 
@@ -10,7 +10,7 @@ public namespace fs {
         if(def.windows) {
             return _mkdir(pathname)
         } else {
-            return posix_mkdir(pathname)
+            return posix_mkdir(pathname, PermissionMode.S_IRWXU as uint)
         }
     }
 
@@ -83,7 +83,7 @@ public namespace fs {
             return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
         } else {
             var st : Stat;
-            return stat(path, &st) == 0;
+            return stat(path, &mut st) == 0;
         }
     }
 
@@ -93,7 +93,7 @@ public namespace fs {
             return (attributes != INVALID_FILE_ATTRIBUTES) && (attributes & FILE_ATTRIBUTE_DIRECTORY);
         } else {
             var st : Stat;
-            if (stat(path, &st) != 0) return false;
+            if (stat(path, &mut st) != 0) return false;
             return S_ISDIR(st.st_mode);
         }
     }
@@ -131,12 +131,12 @@ public namespace fs {
             var n : ssize_t;
 
             while (true) {
-                n = read(in_fd, buf, sizeof(buf));
+                n = read(in_fd, &mut buf[0], sizeof(buf));
                 if(n <= 0) { // 0 for EOF, -1 for error
                     if (n < 0) perror("read");
                     break; // Exit loop on error or EOF
                 }
-                if (write(out_fd, buf, n) != n) {
+                if (write(out_fd, &mut buf[0], n as ulong) != n) {
                     perror("write");
                     close(in_fd);
                     close(out_fd);
@@ -284,7 +284,7 @@ public namespace fs {
 
                 // Check if the entry is a directory using stat and S_ISDIR
                 var st : Stat; // Assumes Stat is defined/aliased appropriately
-                if (stat(src_path, &st) != 0) { // Assumes stat is available/wrapped
+                if (stat(src_path, &mut st) != 0) { // Assumes stat is available/wrapped
                     perror("Stat");
                     closedir(dir); // Close the handle before returning
                     return -1;

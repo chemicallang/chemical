@@ -580,6 +580,7 @@ set(COMMON_SOURCES
         ast/values/InValue.cpp
         compiler/frontend/AnnotationController.h
         compiler/frontend/AnnotationController.cpp
+        lang/libs/cstd/posix/io/spawn.ch
 )
 
 # Chemical LSP Executable Target

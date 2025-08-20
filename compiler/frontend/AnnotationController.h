@@ -24,6 +24,12 @@ enum class AnnotationDefType {
      */
     Handler,
     /**
+     * when an annotation must be present on a single node in the entire executable
+     * the single marker annotation is used, when multiple annotations are used
+     * they override
+     */
+    SingleMarker,
+    /**
      * marks a node, so you can quickly check whether a node has been marked
      * with a given annotation
      */
@@ -36,6 +42,12 @@ enum class AnnotationDefType {
      * marks the node and collects into a known collection
      */
     MarkerAndCollector,
+};
+
+enum class SingleMarkerMultiplePolicy {
+    Override,
+    Ignore,
+    Error
 };
 
 struct CollectedAnnotation {
@@ -67,6 +79,9 @@ struct AnnotationDefinition {
 
         // collector annotation have collection reference
         std::size_t collection_id;
+
+        // policy only available on single marked annotations
+        SingleMarkerMultiplePolicy policy;
 
     };
 
@@ -121,6 +136,11 @@ private:
      * the map value is the arguments of annotation
      */
     std::unordered_map<MarkedAnnotatedNode, std::vector<Value*>, MarkedAnnotatedNodeHash, MarkedAnnotatedNodeEq> marked;
+
+    /**
+     * single marked nodes are stored here
+     */
+    std::unordered_map<chem::string_view, CollectedAnnotation> single_marked;
 
 public:
 
@@ -179,15 +199,28 @@ public:
         create_collector_annotation(name, AnnotationDefType::MarkerAndCollector, expected_usage);
     }
 
-    void create_marker_annotation(const chem::string_view& name) {
+    inline void create_single_marker_annotation(const chem::string_view& name, SingleMarkerMultiplePolicy policy = SingleMarkerMultiplePolicy::Override) {
         definitions.emplace(name, AnnotationDefinition {
-                .collection_id = 0,
+                .policy = policy,
+                .name = name,
+                .type = AnnotationDefType::SingleMarker
+        });
+    }
+
+    inline void create_marker_annotation(const chem::string_view& name) {
+        definitions.emplace(name, AnnotationDefinition {
                 .name = name,
                 .type = AnnotationDefType::Marker
         });
     }
 
-    void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+    inline void mark_single_emplace(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+        single_marked.emplace(definition.name, CollectedAnnotation{node, std::move(arguments)});
+    }
+
+    void mark_single(Parser& parser, ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments);
+
+    inline void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
         marked.emplace(MarkedAnnotatedNode{node, definition.name}, std::move(arguments));
     }
 
@@ -205,6 +238,11 @@ public:
         return marked.find(MarkedAnnotatedNode{node, name}) != marked.end();
     }
 
+    CollectedAnnotation* get_single_marked(const chem::string_view& name) {
+        auto found = single_marked.find(name);
+        return found == single_marked.end() ? nullptr : &found->second;
+    }
+
     std::vector<Value*>* get_args(ASTNode* node, const chem::string_view& name) {
         auto found = marked.find(MarkedAnnotatedNode{node, name});
         return found == marked.end() ? nullptr : &found->second;
@@ -214,6 +252,9 @@ public:
         switch(definition.type) {
             case AnnotationDefType::Handler:
                 definition.handler(parser, node);
+                return true;
+            case AnnotationDefType::SingleMarker:
+                mark_single(*parser, node, definition, arguments);
                 return true;
             case AnnotationDefType::Marker:
                 mark(node, definition, arguments);

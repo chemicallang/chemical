@@ -99,7 +99,11 @@ struct TestEnvImpl : TestEnv {
 
     var fn : *mut TestFunction
 
-    var pipeHandle : HANDLE
+    if(def.windows) {
+
+        var pipeHandle : HANDLE
+
+    }
 
     @override
     func get_test_id(&self) : int {
@@ -111,13 +115,6 @@ struct TestEnvImpl : TestEnv {
         return fn.group
     }
 
-    func send_message(&self, msg : *char, len : DWORD) {
-        var written : DWORD;
-        if (!WriteFile(pipeHandle, msg, len, &written, null)) {
-            print_last_error("WriteFile");
-        }
-    }
-
     @override
     func logIt(&self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
         var msg = std::string();
@@ -125,7 +122,7 @@ struct TestEnvImpl : TestEnv {
         var buff : [2048]char
         snprintf(&mut buff[0], sizeof(buff), "%d,%d,%d,%s", type as int, lineNum, charNum, msgData);
         msg.append_char_ptr(&buff[0])
-        send_message(msg.data(), msg.size() as DWORD)
+        self.send_message(msg.data(), msg.size())
     }
 
     @override
@@ -133,7 +130,7 @@ struct TestEnvImpl : TestEnv {
         var msg = std::string();
         msg.append_char_ptr("$quit_group:");
         msg.append_char_ptr(reason)
-        send_message(msg.data(), msg.size() as DWORD)
+        self.send_message(msg.data(), msg.size())
     }
 
     @override
@@ -141,7 +138,7 @@ struct TestEnvImpl : TestEnv {
         var msg = std::string();
         msg.append_char_ptr("$quit_all:");
         msg.append_char_ptr(reason)
-        send_message(msg.data(), msg.size() as DWORD)
+        self.send_message(msg.data(), msg.size())
     }
 
 }
@@ -453,168 +450,6 @@ func append_integer(str : &mut std::string, dig : int) {
     const buffStart = &mut buffer[0]
     sprintf(buffStart, "%d", dig)
     str.append_char_ptr(buffStart);
-}
-
-func get_test_pipe_name(id : int) : std::string {
-    var pipeName = std::string()
-    pipeName.append_char_ptr("\\\\.\\pipe\\")
-    pipeName.append_char_ptr("chem_test_pipe-");
-    append_integer(pipeName, id);
-    return pipeName;
-}
-
-func create_test_env(fn : *mut TestFunction) : TestEnvImpl {
-    var pipeName = get_test_pipe_name(fn.id)
-    // connect to named pipe of parent executable
-    var hPipe : HANDLE;
-    while(true) {
-        hPipe = CreateFileA(
-            pipeName.data(),
-            GENERIC_WRITE | GENERIC_READ, // we want to send messages
-            0,                            // no sharing
-            null,                         // default security
-            OPEN_EXISTING,                // must already exist
-            0,
-            null
-        );
-        if (hPipe != INVALID_HANDLE_VALUE) break;
-        if (GetLastError() != ERROR_PIPE_BUSY) {
-            print_last_error("CreateFileA");
-            abort();
-        }
-        // If pipe is busy, wait a little and retry.
-        WaitNamedPipeA(pipeName.data(), 2000);
-    }
-    return TestEnvImpl {
-        fn : fn,
-        pipeHandle : hPipe
-    }
-}
-
-func print_last_error(what : *char) {
-    const err = GetLastError();
-    var msg : LPVOID;
-    FormatMessageA(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-        null, err, 0, (&mut msg) as LPSTR, 0, null
-    );
-    fprintf(get_stderr(), "%s failed with error %lu: %s\n", what, err, msg as *char);
-    LocalFree(msg);
-}
-
-func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : int {
-
-    if(def.windows) {
-
-        var si : STARTUPINFOA
-        var pi : PROCESS_INFORMATION;
-        ZeroMemory(&mut si, sizeof(si));
-        si.cb = sizeof(si);
-        ZeroMemory(&mut pi, sizeof(pi));
-
-        var cmd = std::string()
-        cmd.append_char_ptr(exe_path)
-        cmd.append(' ');
-        cmd.append_char_ptr("--test-id ");
-        append_integer(cmd, id);
-
-        // get pipe name
-        var pipeName = get_test_pipe_name(id);
-
-        // creating a pipe for communication with test process
-        const hPipe = CreateNamedPipeA(
-            pipeName.data(),
-            PIPE_ACCESS_DUPLEX,     // both read and write
-            PIPE_TYPE_MESSAGE |  PIPE_READMODE_MESSAGE | PIPE_WAIT, // message-based (not byte stream)
-            1,
-            1024, // output buffer size
-            1024, // input buffer size
-            0, // timeout
-            null // security
-        );
-
-        if (hPipe == INVALID_HANDLE_VALUE) {
-            print_last_error("CreateNamedPipeA")
-            return 1;
-        }
-
-        var ok = CreateProcessA(
-            null,
-            cmd.data(),
-            null,
-            null,
-            false, // do not inherit handles
-            0,
-            null,
-            null, // inherits cwd
-            &si,
-            &pi
-        )
-
-        if(!ok) {
-             var e = GetLastError();
-             fprintf(get_stderr(), "CreateProcess failed: %lu\n", e as ulong);
-             CloseHandle(hPipe);
-             return e as int;
-        }
-
-        // Wait for the child to connect.
-        if (!ConnectNamedPipe(hPipe, null)) {
-            if (GetLastError() != ERROR_PIPE_CONNECTED) {
-                fprintf(get_stderr(), "error: during connect named pipe");
-                CloseHandle(hPipe);
-                return 1;
-            }
-        }
-
-        var buffer : char[2048];
-        var bytesRead : DWORD;
-        while(true) {
-            if (ReadFile(hPipe, &buffer[0], sizeof(buffer)-1, &bytesRead, null)) {
-                if(bytesRead > 0) {
-                    buffer[bytesRead] = '\0'; // null terminate
-                    process_message(state, &mut buffer[0]);
-                } else {
-                    // 0 bytes means pipe closed gracefully
-                    break;
-                }
-            } else {
-                var err = GetLastError();
-                if (err == ERROR_BROKEN_PIPE) {
-                    // closed by the client
-                    break;
-                } else if(err == ERROR_MORE_DATA) {
-                    fprintf(get_stderr(), "buffer too small for testing data received: %lu\n", err);
-                    // Our buffer was too small for the message
-                    buffer[sizeof(buffer) - 1] = '\0';
-                    process_message(state, &mut buffer[0]);
-                    break;
-                } else {
-                    fprintf(get_stderr(), "ReadFile failed: %lu\n", err);
-                    break;
-                }
-            }
-        }
-
-        // Wait for process to finish
-        WaitForSingleObject(pi.hProcess, INFINITE);
-
-        var exitCode : DWORD;
-        if (GetExitCodeProcess(pi.hProcess, &exitCode)) {
-            // set the exit code in state
-            state.exitCode = exitCode;
-            if(exitCode != 0 && !state.fn.pass_on_crash) {
-                state.has_failed = true;
-            }
-        }
-
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-
-        return 0;
-
-    }
-
 }
 
 type TestFunctionPtr = (env : &mut TestEnv) => void

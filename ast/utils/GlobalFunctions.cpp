@@ -2219,12 +2219,15 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, 
     defThing.declare_value(allocator, "is_big_endian", boolType, boolValue(allocator, typeBuilder, !targetData.is_little_endian));
     defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, typeBuilder, targetData.is_64Bit));
     defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, typeBuilder, targetData.is_windows));
+    defThing.declare_value(allocator, "posix", boolType, boolValue(allocator, typeBuilder, !targetData.is_windows));
     defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, typeBuilder, targetData.is_win32));
     defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, typeBuilder, targetData.is_win64));
     defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, typeBuilder, targetData.is_linux));
     defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, typeBuilder, targetData.is_macos));
     defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, typeBuilder, targetData.is_freebsd));
     defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, typeBuilder, targetData.is_unix));
+    // TODO: get the right value for is_GNU for posix systems
+    defThing.declare_value(allocator, "gnu", boolType, boolValue(allocator, typeBuilder, targetData.is_unix));
     defThing.declare_value(allocator, "android", boolType, boolValue(allocator, typeBuilder, targetData.is_android));
     defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, typeBuilder, targetData.is_cygwin));
     defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, typeBuilder, targetData.is_mingw32));

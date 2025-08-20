@@ -1,3 +1,12 @@
+/* NULL-terminated array of "NAME=VALUE" environment variables.  */
+@extern
+public var __environ : **mut char;
+
+if(def.gnu) {
+    @extern
+    public var environ : **mut char;
+}
+
 /** @def O_RDONLY Open for reading only. */
 public comptime const O_RDONLY = 0b00000000
 

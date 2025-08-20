@@ -1493,7 +1493,7 @@ public:
         const auto emptyStringVal = new (allocator.allocate<StringValue>()) StringValue("", typeBuilder.getStringType(), call->encoded_location());
 
         // putting tests inside the list
-        int i = 0;
+        int i = INT_MAX / 2;
         for(auto& node : collection.nodes) {
             if(node.node->kind() == ASTNodeKind::FunctionDecl) {
 
@@ -1506,8 +1506,15 @@ public:
                 // id
                 const auto idArgs = controller.get_args(node.node, "test.id");
                 auto testId = i;
-                if(idArgs && !idArgs->empty() && (*idArgs)[0]->kind() == ValueKind::Int) {
-                    testId = (*idArgs)[0]->get_the_int();
+                if(idArgs && !idArgs->empty()) {
+                    const auto arg = (*idArgs)[0];
+                    auto num = arg->get_number();
+                    if(num.has_value()) {
+                        const auto userId = (int) num.value();
+                        if(userId > 0 && userId < INT_MAX / 2) {
+                            testId = userId;
+                        }
+                    }
                 }
                 const auto idVal = new (allocator.allocate<IntValue>()) IntValue(testId, typeBuilder.getIntType(), call->encoded_location());
                 value->values.emplace("id", StructMemberInitializer{"id", idVal});

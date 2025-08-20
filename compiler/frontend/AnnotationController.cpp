@@ -312,11 +312,12 @@ AnnotationController::AnnotationController(bool is_env_testing) {
     definitions.reserve(128);
     collections.reserve(32);
     marked.reserve(128);
+    single_marked.reserve(32);
 
     // adding testing annotations
     create_collector_annotation("test", is_env_testing ? 256 : 0);
-    create_collector_annotation("test.before_each", 1);
-    create_collector_annotation("test.after_each", 1);
+    create_single_marker_annotation("test.before_each");
+    create_single_marker_annotation("test.after_each");
     create_marker_annotation("test.id");
     create_marker_annotation("test.name");
     create_marker_annotation("test.group");
@@ -327,4 +328,24 @@ AnnotationController::AnnotationController(bool is_env_testing) {
     create_marker_annotation("test.benchmark");
 
 
+}
+
+void AnnotationController::mark_single(Parser& parser, ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+    switch(definition.policy) {
+        case SingleMarkerMultiplePolicy::Override:
+            mark_single_emplace(node, definition, arguments);
+            return;
+        case SingleMarkerMultiplePolicy::Ignore:
+            if(!single_marked.contains(definition.name)) {
+                mark_single_emplace(node, definition, arguments);
+            }
+            return;
+        case SingleMarkerMultiplePolicy::Error:
+            if(single_marked.contains(definition.name)) {
+                parser.error() << "single annotation with name '" << definition.name << "' already marks an existing declaration";
+            } else {
+                mark_single_emplace(node, definition, arguments);
+            }
+            return;
+    }
 }

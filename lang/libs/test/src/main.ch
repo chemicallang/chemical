@@ -171,11 +171,11 @@ struct TestRunnerConfig {
     /**
      * the testing function that should be executed before each test
      */
-    var before_each : *mut TestFunction = null
+    var before_each : (env : &mut TestEnv) => void = null
     /**
      * the testing function that should be executed after each test
      */
-    var after_each : *mut TestFunction = null
+    var after_each : (env : &mut TestEnv) => void = null
 }
 
 func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
@@ -183,7 +183,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
     var env = create_test_env(tfn);
 
     if(config.before_each) {
-        config.before_each.ptr(env)
+        config.before_each(env)
     }
 
     if(config.benchmark) {
@@ -194,7 +194,7 @@ func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
     }
 
     if(config.after_each) {
-        config.after_each.ptr(env)
+        config.after_each(env)
     }
 
 }
@@ -617,12 +617,18 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
 }
 
+type TestFunctionPtr = (env : &mut TestEnv) => void
+
 func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
 
     var tests = get_tests();
     var tests_view = std::span<TestFunction>(tests)
 
     if(config.single_test_id != -1) {
+
+        // initialize before each and after each
+        config.before_each = intrinsics::get_single_marked_decl_ptr("test.before_each") as TestFunctionPtr;
+        config.after_each = intrinsics::get_single_marked_decl_ptr("test.after_each") as TestFunctionPtr;
 
         var test_start = &tests[0]
         const test_end = test_start + tests_view.size()

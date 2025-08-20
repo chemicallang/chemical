@@ -1397,41 +1397,49 @@ public:
     }
 };
 
-class InterpretGetTestEach : public FunctionDeclaration {
+class InterpretGetSingleMarkedDeclPointer : public FunctionDeclaration {
 public:
 
-    explicit InterpretGetTestEach(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
-            ZERO_LOC_ID("get_test_each"),
-            {cache.getPtrToVoid(), ZERO_LOC},
-            true,
-            parent_node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
+    explicit InterpretGetSingleMarkedDeclPointer(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+        ZERO_LOC_ID("get_single_marked_decl_ptr"),
+        {cache.getAnyType(), ZERO_LOC},
+        false,
+        parent_node,
+        ZERO_LOC,
+        AccessSpecifier::Public,
+        true
     ) {
         set_compiler_decl(true);
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+
         auto& global = *call_scope->global;
-        auto& controller = global.build_compiler->controller;
         auto& typeBuilder = global.typeBuilder;
 
-        const auto is_before_each = !call->values.empty() && call->values[0]->kind() == ValueKind::Bool && call->values[0]->get_the_bool();
-        const auto def = controller.get_definition(is_before_each ? "test.before_each" : "test.after_each");
-        const auto coll = controller.get_collection(def->collection_id);
-
-        if(coll.nodes.empty()) {
-            const auto node = coll.nodes.back().node;
-            if(node->kind() == ASTNodeKind::FunctionDecl) {
-                const auto func = node->as_function_unsafe();
-                const auto id = new(allocator.allocate<VariableIdentifier>()) VariableIdentifier(func->name_view(), func->known_type(), call->encoded_location());
-                return id;
-            }
+        auto& controller = global.build_compiler->controller;
+        const auto evalValue = call->values.back()->evaluated_value(*call_scope);
+        if(evalValue->kind() != ValueKind::String) {
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), call->encoded_location());
         }
 
-        return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), call->encoded_location());
+        const auto marked = controller.get_single_marked(evalValue->as_string_unsafe()->value);
+        if(!marked) {
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), call->encoded_location());
+        }
+
+        if(marked->node->kind() != ASTNodeKind::FunctionDecl) {
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), call->encoded_location());
+        }
+
+        const auto decl = marked->node->as_function_unsafe();
+        const auto ptr = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(decl->name_view(), decl->known_type(), call->encoded_location());
+        ptr->linked = decl;
+
+        return ptr;
+
     }
+
 };
 
 class InterpretGetTests : public FunctionDeclaration {
@@ -1600,6 +1608,7 @@ public:
 
         return arrVal;
     }
+
 };
 
 class InterpretGetLambdaFnPtr : public FunctionDeclaration {
@@ -1853,7 +1862,7 @@ public:
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
     InterpretGetTests get_tests_fn;
-    InterpretGetTestEach get_test_each_fn;
+    InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
 
     // TODO get_child_fn should be removed
     // we should use get destructor explicitly
@@ -1871,7 +1880,7 @@ public:
         get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
-        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_test_each_fn(cache, this),
+        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this)
     {
@@ -1881,7 +1890,7 @@ public:
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &satisfiesValueFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_test_each_fn,
+            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured
         };

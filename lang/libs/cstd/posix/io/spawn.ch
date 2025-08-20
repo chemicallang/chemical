@@ -48,6 +48,15 @@ public func posix_spawn_file_actions_adddup2(
     __newfd : int
 ) : int
 
+
+/* Add an action to FILE-ACTIONS which tells the implementation to call
+   `close' for the given file descriptor during the `spawn' call.  */
+@extern
+public func posix_spawn_file_actions_addclose(
+    __file_actions : *mut posix_spawn_file_actions_t,
+    __fd : int
+) : int
+
 /* Free resources associated with FILE-ACTIONS.  */
 @extern
 public func posix_spawn_file_actions_destroy(

@@ -155,6 +155,10 @@ void annot_handler_anonymous(Parser* parser, ASTNode* node) {
     }
 }
 
+void annot_handler_const(Parser* parser, ASTNode* node) {
+    // TODO: not yet implemented
+}
+
 void annot_handler_extern(Parser* parser, ASTNode* node) {
     if(!node->set_no_mangle(true)) {
         parser->error("couldn't make the node no_mangle");
@@ -294,6 +298,7 @@ AnnotationController::AnnotationController(bool is_env_testing) {
             { "dllimport", { annot_handler_dllimport, "dllimport", AnnotationDefType::Handler } },
             { "no_init", { annot_handler_no_init, "no_init", AnnotationDefType::Handler } },
             { "anonymous", { annot_handler_anonymous, "anonymous", AnnotationDefType::Handler } },
+            { "const", { annot_handler_const, "const", AnnotationDefType::Handler } },
             { "extern", { annot_handler_extern, "extern", AnnotationDefType::Handler } },
             { "implicit", { annot_handler_implicit, "implicit", AnnotationDefType::Handler } },
             { "direct_init", { annot_handler_direct_init, "direct_init", AnnotationDefType::Handler } },

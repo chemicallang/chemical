@@ -42,7 +42,21 @@ bool ArrayType::satisfies(BaseType *pure_type) {
 }
 
 bool StringType::satisfies(BaseType *type) {
-    return type->kind() == BaseTypeKind::String;
+    switch(type->kind()) {
+        case BaseTypeKind::String:
+            return true;
+        case BaseTypeKind::Pointer: {
+            const auto child_type = type->as_pointer_type_unsafe()->type;
+            switch (child_type->kind()) {
+                case BaseTypeKind::IntN:
+                    return child_type->as_intn_type_unsafe()->is_char_or_uchar_type();
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
 }
 
 bool ExpressionType::satisfies(BaseType *type) {

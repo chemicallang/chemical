@@ -110,9 +110,9 @@ struct TestEnvImpl : TestEnv {
         return fn.group
     }
 
-    func send_message(&self, msg : *char) {
+    func send_message(&self, msg : *char, len : DWORD) {
         var written : DWORD;
-        if (!WriteFile(pipeHandle, msg, strlen(msg) as DWORD, &written, NULL)) {
+        if (!WriteFile(pipeHandle, msg, len, &written, null)) {
             print_last_error("WriteFile");
         }
     }
@@ -122,9 +122,9 @@ struct TestEnvImpl : TestEnv {
         var msg = std::string();
         msg.append_char_ptr("$log,")
         var buff : [2048]char
-        snprintf(&mut buff[0], 100, "%d,%d,%d,%s", type as int, lineNum, charNum, msgData);
+        snprintf(&mut buff[0], sizeof(buff), "%d,%d,%d,%s", type as int, lineNum, charNum, msgData);
         msg.append_char_ptr(&buff[0])
-        send_message(msg.data())
+        send_message(msg.data(), msg.size() as DWORD)
     }
 
     @override
@@ -132,7 +132,7 @@ struct TestEnvImpl : TestEnv {
         var msg = std::string();
         msg.append_char_ptr("$quit_group:");
         msg.append_char_ptr(reason)
-        send_message(msg.data())
+        send_message(msg.data(), msg.size() as DWORD)
     }
 
     @override
@@ -140,7 +140,7 @@ struct TestEnvImpl : TestEnv {
         var msg = std::string();
         msg.append_char_ptr("$quit_all:");
         msg.append_char_ptr(reason)
-        send_message(msg.data())
+        send_message(msg.data(), msg.size() as DWORD)
     }
 
 }
@@ -216,6 +216,10 @@ struct TestFunctionState {
 
     var exitCode : DWORD = 0
 
+    var has_error_log : bool = false
+
+    var has_failed : bool = false
+
     var logs : std::vector<TestLog>
 
     @make
@@ -233,84 +237,129 @@ enum MessageCommandType {
 }
 
 func to_msg_cmd_type(str : *char) : MessageCommandType {
-    switch(fnv1_hash(str)) {
-        comptime_fnv1_hash("log") => {
-            return MessageCommandType.Log;
-        }
-        comptime_fnv1_hash("quit_group") => {
-            return MessageCommandType.QuitGroup;
-        }
-        comptime_fnv1_hash("quit_all") => {
-            return MessageCommandType.QuitAll;
-        }
-        default => {
-            return MessageCommandType.None;
-        }
+    if (!str) return MessageCommandType.None; // guard nullptr
+    switch (fnv1_hash(str)) {
+        comptime_fnv1_hash("log") => { return MessageCommandType.Log; }
+        comptime_fnv1_hash("quit_group") => { return MessageCommandType.QuitGroup; }
+        comptime_fnv1_hash("quit_all") => { return MessageCommandType.QuitAll; }
+        default => { return MessageCommandType.None; }
     }
 }
 
 func read_msg_type(msg_ptr : **char) : MessageCommandType {
+    if (!msg_ptr) return MessageCommandType.None;      // guard **null
     var msg = *msg_ptr;
-    var command_buffer : char[120]
-    var out = &command_buffer[0]
-    while(true) {
+    if (!msg)      return MessageCommandType.None;     // guard *null
+
+    const CMD_MAX = 120;
+    var command_buffer : char[CMD_MAX];
+    var out = &command_buffer[0];
+    var written : int = 0;
+
+    while (true) {
         var c = *msg;
-        if(c == '\0' || c == ',') {
-            *out = '\0'
-            *msg_ptr = msg;
+        if (c == '\0' || c == ',') {
+            if (written < CMD_MAX) {
+                *out = '\0';
+            } else {
+                // ensure termination even if we filled the buffer completely
+                command_buffer[CMD_MAX-1] = '\0';
+            }
+            *msg_ptr = msg; // leave at delimiter or '\0'
             break;
         } else {
-            *out = c;
-            out++;
+            if (written < CMD_MAX - 1) { // keep room for '\0'
+                *out = c;
+                out++;
+                written++;
+            }
+            // Always advance source, even if we stopped writing, to not overflow.
             msg++;
         }
     }
+
     return to_msg_cmd_type(&command_buffer[0]);
 }
 
-/* return codes:
- *   0 = success (out filled)
- *  -1 = bad arguments (null pointers)
- *   1 = no digits found (nothing converted)
- *   2 = trailing non-space characters after number
- *   3 = out of range for int (overflow/underflow)
- */
+/*
+return codes:
+  0 = success (out filled)
+ -1 = bad arguments (null pointers)
+  1 = no digits found (nothing converted)
+  2 = trailing non-space characters after number
+  3 = out of range for int (overflow/underflow)
+*/
 func parse_int_w_end(s : *char, out : *mut int, endPtrPtr : **mut char) : int {
-    if (!s || !out) return -1;
-
+    if (!s || !out || !endPtrPtr) return -1;  // also guard endPtrPtr
     set_errno(0);
-    var endptr = *endPtrPtr
-    var val : long = strtol(s, endPtrPtr, 10);
 
-    /* no conversion performed (e.g. empty string or only whitespace) */
-    if (endptr == s) return 1;
+    // Call strtol with a local endptr, then publish it back to *endPtrPtr
+    var local_end : *mut char = null;
+    var val : long = strtol(s, &mut local_end, 10);
 
-    /* allow trailing whitespace but no other characters */
-    while (*endptr != '\0' && isspace(*endptr as int)) {
-        endptr++
-    };
-    if (*endptr != '\0') return 2;
+    if (local_end == s) { // no conversion
+        *endPtrPtr = s;   // keep caller’s pointer unchanged logically
+        return 1;
+    }
 
-    /* check range and errno for overflow/underflow */
-    if (get_errno() == ERANGE || val > INT_MAX || val < INT_MIN) return 3;
+    // Allow trailing whitespace only
+    var scan = local_end;
+    while (*scan != '\0' && isspace(*scan as int)) {
+        scan++;
+    }
+    if (*scan != '\0') {
+        *endPtrPtr = local_end;
+        return 2;
+    }
+
+    // Range check
+    if (get_errno() == ERANGE || val > INT_MAX || val < INT_MIN) {
+        *endPtrPtr = local_end;
+        return 3;
+    }
 
     *out = val as int;
+    *endPtrPtr = local_end;
     return 0;
 }
 
-func read_int(msg_ptr : **char) : int {
-    var end_ptr : *mut char
-    var out : int
-    var err = parse_int_w_end(*msg_ptr, &mut out, &mut end_ptr)
-    // TODO: ignoring error here
-    *msg_ptr = end_ptr
-    return out;
+func parse_int_from_str(pstr : **mut char) : int {
+    if (!pstr || !*pstr) {
+        fprintf(get_stderr(), "parse_int_from_str: null pointer passed\n");
+        return 0;
+    }
+
+    const s = *pstr;
+    const endptr = null;
+
+    set_errno(0);
+    const val = strtol(s, &endptr, 10);
+
+    if (endptr == s) {
+        // No digits were found
+        fprintf(get_stderr(), "parse_int_from_str: no digits at '%s'\n", s);
+        *pstr = endptr; // leave pointer unchanged
+        return 0;
+    }
+
+    if (get_errno() == ERANGE || val > INT_MAX || val < INT_MIN) {
+        fprintf(get_stderr(), "parse_int_from_str: value out of range at '%s'\n", s);
+        *pstr = endptr;
+        return 0;
+    }
+
+    // Move caller's pointer to endptr (either \0 or first non-digit)
+    *pstr = endptr;
+
+    return val as int;
 }
 
 func read_char(msg_ptr : **char, c : char) : bool {
-    var msg = *msg_ptr
-    if(*msg == '\0') return false;
-    if(*msg == c) {
+    if (!msg_ptr) return false;
+    var msg = *msg_ptr;
+    if (!msg) return false;
+
+    if (*msg == c) {
         msg++;
         *msg_ptr = msg;
         return true;
@@ -320,72 +369,76 @@ func read_char(msg_ptr : **char, c : char) : bool {
 }
 
 func read_str(msg_ptr : **mut char, into : &mut std::string) {
-    var msg = *msg_ptr
-    while(msg != '\0') {
-        into.append(*msg)
+    if (!msg_ptr) return;
+    var msg = *msg_ptr;
+    if (!msg) return;
+
+    // Append until NUL; caller is responsible for delimitation (e.g., already consumed the comma).
+    while (*msg != '\0') {
+        into.append(*msg); // use a single-char append; adjust to your std::string API
         msg++;
     }
     *msg_ptr = msg;
 }
 
 func parseLog(msg_ptr : **char, log : &mut TestLog) {
-    if(!read_char(msg_ptr, ',')) {
-        return;
-    }
-    log.type = read_int(msg_ptr) as LogType
-    if(!read_char(msg_ptr, ',')) {
-        return;
-    }
-    log.line = read_int(msg_ptr) as ubigint
-    if(!read_char(msg_ptr, ',')) {
-        return;
-    }
-    log.character = read_int(msg_ptr) as ubigint
-    if(!read_char(msg_ptr, ',')) {
-        return;
-    }
-    read_str(msg_ptr, log.message)
+    if (!msg_ptr || !log) return;
+
+    if (!read_char(msg_ptr, ',')) { return; }
+    log.type = parse_int_from_str(msg_ptr) as LogType;
+
+    if (!read_char(msg_ptr, ',')) { return; }
+    log.line = parse_int_from_str(msg_ptr) as ubigint;
+
+    if (!read_char(msg_ptr, ',')) { return; }
+    log.character = parse_int_from_str(msg_ptr) as ubigint;
+
+    if (!read_char(msg_ptr, ',')) { return; }
+
+    read_str(msg_ptr, log.message);
 }
 
-/**
- * to give you an idea of how messages are formatted
- *
- * the format is
- * $command, multiple parameters
- *
- *
- * $log,0,10,20,this is a normal log message
- * $log,1,10,20,this is an error log message
- * $log,2,10,20,this is a warning log message
- * $log,3,10,20,this is a info log message
- * $log,4,10,20,this is a success log message
- * $quit_group: this is a message to quit current group
- * $quit_all: this is a message to quit everything
- */
+/*
+Message format examples:
+$log,0,10,20,this is a normal log message
+$log,1,10,20,this is an error log message
+$log,2,10,20,this is a warning log message
+$log,3,10,20,this is a info log message
+$log,4,10,20,this is a success log message
+$quit_group
+$quit_all
+*/
 func process_message(state : &mut TestFunctionState, msg : *char) {
+    if (!state) return;
+    if (!msg)   return;
 
-    if(!read_char(&mut msg, '$')) {
-        // probably not our message
+    // Must start with '$' to be one of ours
+    if (!read_char(&mut msg, '$')) {
+        return;
     }
 
-    var msgType = read_msg_type(&mut msg)
-    switch(msgType) {
+    var msgType = read_msg_type(&mut msg);
+
+    switch (msgType) {
         MessageCommandType.None, default => {
             return;
         }
         MessageCommandType.Log => {
-            var log = TestLog {}
+            var log = TestLog();
             parseLog(&mut msg, log);
-            state.logs.push(log)
+            if(log.type !in LogType.Information, LogType.Warning, LogType.Success) {
+                state.has_failed = true;
+                state.has_error_log = true;
+            }
+            state.logs.push(log);
         }
         MessageCommandType.QuitGroup => {
-            // TODO quit group
+            // TODO: quit current group
         }
         MessageCommandType.QuitAll => {
-            // TODO quit all
+            // TODO: quit all
         }
     }
-
 }
 
 struct TestRunnerState {
@@ -547,17 +600,12 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
         var exitCode : DWORD;
         if (GetExitCodeProcess(pi.hProcess, &exitCode)) {
-            if (exitCode == 0) {
-                printf("Process exited normally (success)\n");
-            } else if (exitCode < 0xC0000000) {
-                printf("Process exited with failure code %lu\n", exitCode);
-            } else {
-                printf("Process crashed with exception code 0x%08lX\n", exitCode);
+            // set the exit code in state
+            state.exitCode = exitCode;
+            if(exitCode != 0) {
+                state.has_failed = true;
             }
         }
-
-        // set the exit code in state
-        state.exitCode = exitCode;
 
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
@@ -604,8 +652,6 @@ func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
         const test_end = test_start + tests_view.size()
 
         while(test_start != test_end) {
-            printf("launching test : %d\n", test_start.id);
-
             // creating state for the test function
             var ind = state.tests.size()
             state.tests.push(TestFunctionState(test_start));
@@ -701,13 +747,4 @@ func tester(argc : int, argv : **char) : int {
 
     return 0;
 
-}
-
-@test
-func test_me(env : &mut TestEnv) {
-
-}
-
-public func main(argc : int, argv : **char) : int {
-    return tester(argc, argv);
 }

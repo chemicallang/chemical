@@ -318,7 +318,9 @@ AnnotationController::AnnotationController(bool is_env_testing) {
     create_collector_annotation("test.before_each", 1);
     create_collector_annotation("test.after_each", 1);
     create_marker_annotation("test.id");
+    create_marker_annotation("test.name");
     create_marker_annotation("test.group");
+    create_marker_annotation("test.pass_on_crash");
     create_marker_annotation("test.ignore");
     create_marker_annotation("test.timeout");
     create_marker_annotation("test.retry");

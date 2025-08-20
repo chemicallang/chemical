@@ -89,6 +89,7 @@ struct TestFunction {
     var file : std::string_view
     var timeout : uint
     var retry : uint
+    var pass_on_crash : bool
     var benchmark : bool
     var lineNum : uint
     var charNum : uint
@@ -602,7 +603,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
         if (GetExitCodeProcess(pi.hProcess, &exitCode)) {
             // set the exit code in state
             state.exitCode = exitCode;
-            if(exitCode != 0) {
+            if(exitCode != 0 && !state.fn.pass_on_crash) {
                 state.has_failed = true;
             }
         }

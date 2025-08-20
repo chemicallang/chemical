@@ -224,6 +224,17 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
             const status_color = if(s.has_failed) col_red() else col_green();
             const status_text = if(s.has_failed) "FAIL" else "PASS";
             printf("  %s- %s%s%s%s", status_color, col_bold(), fn_name, col_reset(), col_reset());
+
+            /* Print function id only when present and less than INT_MAX/2 */
+            // NOTE: using literal threshold 1073741823 (INT_MAX/2 on 32-bit int)
+            if (s.fn) {
+                const id_thres : uint = 1073741823u;
+                // ensure s.fn.id is treated as unsigned for a safe comparison
+                if ((s.fn.id as uint) < id_thres) {
+                    printf(" (id %u)", s.fn.id as uint);
+                }
+            }
+
             printf("  [%s%u%s] ", status_color, s.exitCode as uint, col_reset());
             printf("%s%s%s\n", status_color, status_text, col_reset());
 

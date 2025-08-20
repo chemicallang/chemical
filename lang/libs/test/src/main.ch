@@ -659,6 +659,17 @@ func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
             const fn_state = state.tests.get_ptr(ind)
 
             launch_test(exe_path, test_start.id, *fn_state)
+
+            var tries : int = test_start.retry as int
+            if(tries > 1) {
+                tries--
+                while(tries > 1 && fn_state.has_failed) {
+                    fn_state.logs.clear()
+                    launch_test(exe_path, test_start.id, *fn_state)
+                    tries--
+                }
+            }
+
             test_start++;
         }
 

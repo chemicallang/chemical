@@ -1554,9 +1554,18 @@ public:
                 // retry
                 const auto retryArgs = controller.get_args(node.node, "test.retry");
                 // default retries is 0
-                unsigned retries = 0;
-                if(retryArgs && !retryArgs->empty() && (*retryArgs)[0]->kind() == ValueKind::UInt) {
-                    retries = (*retryArgs)[0]->get_the_uint();
+                int retries = 0;
+                if(retryArgs && !retryArgs->empty()) {
+                    const auto val = (*retryArgs)[0];
+                    const auto num = val->get_number();
+                    if(num.has_value()) {
+                        retries = (int) num.value();
+                        if(retries < 0) {
+                            retries = 0;
+                        } else if(retries > 999999) {
+                            retries = 999999;
+                        }
+                    }
                 }
                 const auto retryVal = new (allocator.allocate<UIntValue>()) UIntValue(retries, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("retry", StructMemberInitializer{"retry", retryVal});

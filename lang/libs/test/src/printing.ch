@@ -60,7 +60,10 @@ func col_gray() : *char  {
 
 func log_type_name(t : LogType) : *char {
     switch (t) {
+        LogType.Information => return "INFORMATION";
+        LogType.Warning => return "WARNING"
         LogType.Success => return "SUCCESS";
+        LogType.Error => return "ERROR"
         LogType.UnknownFailure => return "UNKNOWN";
         LogType.ConfigFailure => return "CONFIG";
         LogType.IOFailure => return "I/O";
@@ -79,12 +82,14 @@ func log_type_name(t : LogType) : *char {
 /* Short icon for log severity */
 func log_type_icon(t : LogType) : *char {
     switch (t) {
-        LogType.Success => { return "✓"; }
-        LogType.TodoFailure => { return "…"; }
-        LogType.WTFFailure => { return "‼"; }
-        LogType.SecurityFailure => { return "🔒"; }
-        LogType.UnknownFailure => { return "✖"; }
-        default => { return "!"; }
+        LogType.Warning => return "\x1b[33m!\x1b[0m";
+        LogType.Information => return "\x1b[34mi\x1b[0m"
+        LogType.Success =>       return "\x1b[32m+\x1b[0m";   // green +
+        LogType.TodoFailure =>    return "\x1b[36m...\x1b[0m"; // cyan dots
+        LogType.WTFFailure =>     return "\x1b[91m!!\x1b[0m";  // bright red !!
+        LogType.SecurityFailure => return "\x1b[93m##\x1b[0m";  // yellow ##
+        LogType.UnknownFailure, LogType.Error => return "\x1b[31mx\x1b[0m";   // red x
+        default =>                     return "\x1b[31mx\x1b[0m";   // red x
     }
 }
 
@@ -109,6 +114,32 @@ func safe_str(s : *char) : *char {
 
 /* ---- Pretty-print function ---- */
 
+func print_log_multiline(out : *FILE, msg : *char) {
+    if (!out || !msg) return;
+
+    var p = msg;
+    while (*p) {
+        const nl = strchr(p, '\n');
+        var len : size_t
+        if(nl) {
+            len = (nl - p) as size_t
+        } else {
+            len = strlen(p);
+        }
+
+        // Single write keeps lines intact and indentation consistent
+        // (assumes col_gray() / col_reset() return const char*)
+        fprintf(out, "       %s%.*s%s\n", col_gray(), len as int, p, col_reset());
+
+        if (!nl) break;
+        p = nl + 1;
+    }
+
+    // If the rest of your output goes to stderr, switch `out` to stderr instead,
+    // or keep stdout and flush to avoid “late” prints when stdout is fully buffered.
+    fflush(out);
+}
+
 func print_test_results(states : *TestFunctionState, count : size_t) {
 
     if (!states) {
@@ -129,7 +160,7 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
 
     for (var i : size_t = 0; i < count; ++i) {
         const s = &states[i];
-        if (s.exitCode == 0) ++passed; else ++failed;
+        if (s.has_failed) ++failed; else ++passed;
 
         var g = "(no-group)";
         if (s.fn && s.fn.group.data() && s.fn.group.data()[0]) g = s.fn.group.data();
@@ -190,8 +221,8 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
             if (strcmp(g, group_name) != 0) continue;
 
             /* Test header line */
-            const status_color = if(s.exitCode == 0) col_green() else col_red();
-            const status_text = if(s.exitCode == 0) "PASS" else "FAIL";
+            const status_color = if(s.has_failed) col_red() else col_green();
+            const status_text = if(s.has_failed) "FAIL" else "PASS";
             printf("  %s- %s%s%s%s", status_color, col_bold(), fn_name, col_reset(), col_reset());
             printf("  [%s%u%s] ", status_color, s.exitCode as uint, col_reset());
             printf("%s%s%s\n", status_color, status_text, col_reset());
@@ -217,24 +248,7 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
                     }
                     /* message may be multiline; indent each line */
                     if (!log.message.empty()) {
-                        const msg = log.message.data();
-                        /* print each line separately */
-                        const start = msg;
-                        while (*start !in '\0') {
-                            const nl = strchr(start, '\n');
-                            var len : size_t
-                            if(nl) {
-                                len = (nl - start) as size_t
-                            } else {
-                                len = strlen(start);
-                            };
-                            /* print with indentation */
-                            printf("       %s", col_gray());
-                            fwrite(start, 1, len, get_stdout());
-                            printf("%s\n", col_reset());
-                            if (!nl) break;
-                            start = nl + 1;
-                        }
+                        print_log_multiline(get_stdout(), log.message.data())
                     }
                 }
             } else {
@@ -254,7 +268,7 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
     }
 
     /* final summary line */
-    printf("%sSummary: %zu tests — %s%zu passed%s, %s%zu failed%s\n\n",
+    printf("%sSummary: %zu tests - %s%zu passed%s, %s%zu failed%s\n\n",
            col_bold(), total,
            col_green(), passed, col_reset(),
            some_col, failed, col_reset());

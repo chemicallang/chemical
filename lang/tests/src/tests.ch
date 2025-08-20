@@ -55,6 +55,7 @@ public func main() : int {
     test_interface_generic_dispatch();
     test_capturing_lambda();
     test_in_value();
+    test_failing_code();
     print_test_stats();
     return 0;
 }

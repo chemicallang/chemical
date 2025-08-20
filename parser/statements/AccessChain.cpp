@@ -334,6 +334,7 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Chai
             if (token->type == TokenType::LParen) {
                 auto call = parseFunctionCall(allocator, values);
                 values.emplace_back(call);
+                break;
             } else if(token->type == TokenType::LessThanSym) {
                 std::vector<TypeLoc> genArgs;
                 parseGenericArgsList(genArgs, allocator);

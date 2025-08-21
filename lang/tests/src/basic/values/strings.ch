@@ -41,4 +41,12 @@ klmnopqrstuvwxyz"""
     test("same contents of strings in two modules have same char ptr", () => {
         return SameStringContents == SameStringContents2
     })
+    test("single line strings end with a null terminator", () => {
+        var myStr = "abc"
+        return myStr[3] == '\0'
+    })
+    test("multi line strings end with a null terminator", () => {
+        var myStr = """abc"""
+        return myStr[3] == '\0'
+    })
 }

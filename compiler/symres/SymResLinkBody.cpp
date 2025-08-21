@@ -130,6 +130,10 @@ void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
     for(auto& inherits : container->inherited) {
         const auto def = inherits.type->get_members_container();
         if(def) {
+            if(def == container) {
+                linker.error(inherits.type.encoded_location()) << "recursion in inheritance is not allowed";
+                continue;
+            }
             def->declare_inherited_members(linker);
         }
     }

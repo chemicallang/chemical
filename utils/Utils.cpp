@@ -13,6 +13,10 @@
 #include <cstdlib>
 #include <cstring>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 std::string resolve_rel_child_path_str(const std::string_view& root_path, const std::string_view& file_path) {
     return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
 }
@@ -74,8 +78,279 @@ int launch_exe_in_same_window(char* path) {
     return system(path);
 }
 
+// Required headers (put near top of file)
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <cerrno>
+
 #ifdef _WIN32
 #include <windows.h>
+#include <process.h>   // _beginthreadex
+#else
+#include <spawn.h>
+  #include <sys/types.h>
+  #include <sys/wait.h>
+  #include <unistd.h>
+  #include <poll.h>
+  #include <fcntl.h>
+  extern char **environ;
+#endif
+
+// Return: >=0 = exit code (if waited), <0 = failure code
+int launch_process_and_wait(
+        const char* exe_path,
+        char* argv[],        // argv style, null-terminated
+        size_t argi,         // number of args (or you can ignore and rely on argv null)
+        bool waitForExit = true)
+{
+#ifdef _WIN32
+    // Build commandline from argv into a writable stack buffer.
+    // (CreateProcessA will be given exe_path as application name and cmdline as arguments.)
+    char cmdline[32 * 1024];
+    size_t pos = 0;
+    for (size_t i = 0; argv[i] != nullptr; ++i) {
+        const char* a = argv[i];
+        bool need_quote = false;
+        for (const char* p = a; *p; ++p) {
+            if (*p == ' ' || *p == '\t') { need_quote = true; break; }
+        }
+        if (need_quote) {
+            if (pos + 1 >= sizeof(cmdline)) return -4;
+            cmdline[pos++] = '"';
+            for (const char* p = a; *p; ++p) {
+                if (pos + 2 >= sizeof(cmdline)) return -5;
+                if (*p == '"') { cmdline[pos++] = '\\'; cmdline[pos++] = '"'; }
+                else cmdline[pos++] = *p;
+            }
+            if (pos + 1 >= sizeof(cmdline)) return -6;
+            cmdline[pos++] = '"';
+        } else {
+            for (const char* p = a; *p; ++p) {
+                if (pos + 1 >= sizeof(cmdline)) return -7;
+                cmdline[pos++] = *p;
+            }
+        }
+        // separator
+        if (argv[i + 1] != nullptr) {
+            if (pos + 1 >= sizeof(cmdline)) return -8;
+            cmdline[pos++] = ' ';
+        }
+    }
+    if (pos >= sizeof(cmdline)) return -9;
+    cmdline[pos] = '\0';
+
+    // Create pipes for stdout and stderr
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = nullptr;
+    sa.bInheritHandle = TRUE;
+
+    HANDLE childStdOutRead = nullptr, childStdOutWrite = nullptr;
+    HANDLE childStdErrRead = nullptr, childStdErrWrite = nullptr;
+
+    if (!CreatePipe(&childStdOutRead, &childStdOutWrite, &sa, 0)) {
+        return -110 - static_cast<int>(GetLastError());
+    }
+    if (!SetHandleInformation(childStdOutRead, HANDLE_FLAG_INHERIT, 0)) { // parent read should NOT be inheritable
+        // not fatal, continue
+    }
+
+    if (!CreatePipe(&childStdErrRead, &childStdErrWrite, &sa, 0)) {
+        CloseHandle(childStdOutRead); CloseHandle(childStdOutWrite);
+        return -111 - static_cast<int>(GetLastError());
+    }
+    if (!SetHandleInformation(childStdErrRead, HANDLE_FLAG_INHERIT, 0)) {
+        // not fatal
+    }
+
+    // Prepare STARTUPINFO to point child's stdout/stderr to pipe write handles.
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags |= STARTF_USESTDHANDLES;
+    si.hStdInput  = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = childStdOutWrite;
+    si.hStdError  = childStdErrWrite;
+    ZeroMemory(&pi, sizeof(pi));
+
+    // Create the process with inherited handles (so child can use the write pipe ends).
+    BOOL ok = CreateProcessA(
+            exe_path,      // lpApplicationName
+            cmdline,       // lpCommandLine (writable)
+            nullptr, nullptr,
+            TRUE,          // bInheritHandles -> child inherits write handles
+            0,             // creation flags (don't hide window)
+            nullptr,       // environment
+            nullptr,       // current directory
+            &si,
+            &pi
+    );
+
+    // Close the pipe write handles in the parent (parent only reads)
+    // IMPORTANT: close them before reading to allow EOF when child exits.
+    CloseHandle(childStdOutWrite);
+    CloseHandle(childStdErrWrite);
+
+    if (!ok) {
+        CloseHandle(childStdOutRead);
+        CloseHandle(childStdErrRead);
+        return -100 - static_cast<int>(GetLastError());
+    }
+
+    // Reader thread function: reads from pipe and writes to parent's console handle
+    struct ReaderParam { HANDLE from; HANDLE to; };
+    auto reader_fn = [](void* pv) -> unsigned {
+        ReaderParam *p = reinterpret_cast<ReaderParam*>(pv);
+        const DWORD BUF_SZ = 4096;
+        char buffer[BUF_SZ];
+        DWORD readBytes = 0;
+        for (;;) {
+            BOOL r = ReadFile(p->from, buffer, BUF_SZ, &readBytes, nullptr);
+            if (!r || readBytes == 0) break;
+            DWORD written = 0;
+            // Write to parent's std handle (may be console or redirected file)
+            WriteFile(p->to, buffer, readBytes, &written, nullptr);
+        }
+        return 0;
+    };
+
+    // create two thread contexts on stack
+    ReaderParam outParam{ childStdOutRead, GetStdHandle(STD_OUTPUT_HANDLE) };
+    ReaderParam errParam{ childStdErrRead, GetStdHandle(STD_ERROR_HANDLE) };
+
+    uintptr_t outThread = _beginthreadex(nullptr, 0, (unsigned (__stdcall *)(void *))reader_fn, &outParam, 0, nullptr);
+    uintptr_t errThread = _beginthreadex(nullptr, 0, (unsigned (__stdcall *)(void *))reader_fn, &errParam, 0, nullptr);
+
+    int exitCode = 0;
+    if (waitForExit) {
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        DWORD code = 0;
+        GetExitCodeProcess(pi.hProcess, &code);
+        exitCode = static_cast<int>(code);
+    } else {
+        exitCode = 0; // or return pi.dwProcessId
+    }
+
+    // Wait for reader threads to finish reading remaining output
+    if (outThread) {
+        WaitForSingleObject(reinterpret_cast<HANDLE>(outThread), INFINITE);
+        CloseHandle(reinterpret_cast<HANDLE>(outThread));
+    }
+    if (errThread) {
+        WaitForSingleObject(reinterpret_cast<HANDLE>(errThread), INFINITE);
+        CloseHandle(reinterpret_cast<HANDLE>(errThread));
+    }
+
+    // Close remaining handles
+    CloseHandle(childStdOutRead);
+    CloseHandle(childStdErrRead);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return exitCode;
+
+#else
+    // POSIX: create pipes, fork, dup2 child's stdout/stderr to pipes, parent reads and writes to parent's stdout/stderr.
+    int outpipe[2];
+    int errpipe[2];
+    if (pipe(outpipe) != 0) return -210 - errno;
+    if (pipe(errpipe) != 0) { close(outpipe[0]); close(outpipe[1]); return -211 - errno; }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        // fork failed
+        close(outpipe[0]); close(outpipe[1]); close(errpipe[0]); close(errpipe[1]);
+        return -212 - errno;
+    }
+
+    if (pid == 0) {
+        // Child
+        // Redirect stdout and stderr to the write ends of the pipes
+        // Close read ends first
+        close(outpipe[0]);
+        close(errpipe[0]);
+        if (dup2(outpipe[1], STDOUT_FILENO) == -1) _exit(127);
+        if (dup2(errpipe[1], STDERR_FILENO) == -1) _exit(127);
+        // Close the original write fds after dup2
+        close(outpipe[1]);
+        close(errpipe[1]);
+
+        // Execute
+        execvp(argv[0], argv);
+        // If execvp fails:
+        _exit(127);
+    }
+
+    // Parent
+    // Close write ends, keep read ends
+    close(outpipe[1]);
+    close(errpipe[1]);
+
+    // Make read ends non-blocking? We'll use poll to avoid blocking on one fd only.
+    // (Using blocking reads with poll is OK; we leave them blocking and use poll)
+    struct pollfd fds[2];
+    fds[0].fd = outpipe[0];
+    fds[0].events = POLLIN;
+    fds[1].fd = errpipe[0];
+    fds[1].events = POLLIN;
+
+    const size_t BUF_SZ = 4096;
+    char buffer[BUF_SZ];
+    bool out_open = true, err_open = true;
+    while (out_open || err_open) {
+        int nf = poll(fds, 2, -1);
+        if (nf < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        // stdout pipe
+        if (out_open && (fds[0].revents & (POLLIN | POLLHUP))) {
+            ssize_t r = read(outpipe[0], buffer, BUF_SZ);
+            if (r > 0) {
+                ssize_t w = write(STDOUT_FILENO, buffer, static_cast<size_t>(r));
+                (void)w;
+            } else {
+                out_open = false;
+                fds[0].events = 0;
+            }
+        }
+        // stderr pipe
+        if (err_open && (fds[1].revents & (POLLIN | POLLHUP))) {
+            ssize_t r = read(errpipe[0], buffer, BUF_SZ);
+            if (r > 0) {
+                ssize_t w = write(STDERR_FILENO, buffer, static_cast<size_t>(r));
+                (void)w;
+            } else {
+                err_open = false;
+                fds[1].events = 0;
+            }
+        }
+    }
+
+    // Close read ends
+    close(outpipe[0]);
+    close(errpipe[0]);
+
+    if (!waitForExit) {
+        // Return child's pid if non-blocking desired
+        return static_cast<int>(pid);
+    }
+
+    // Wait for child to exit and return status
+    int status = 0;
+    pid_t r;
+    do { r = waitpid(pid, &status, 0); } while (r == -1 && errno == EINTR);
+    if (r == -1) return -300 - errno;
+
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
+    if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
+    return -301;
+#endif
+}
+
+#ifdef _WIN32
 int launch_exe_in_sep_window(char* cmdline) {
     // Launch in a new window
     STARTUPINFO si;

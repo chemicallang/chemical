@@ -106,6 +106,10 @@ LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string_view* name, Mo
     return self->build_exe(name, dependencies->ptr, dependencies->size);
 }
 
+LabJob* BuildContextrun_jit_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
+    return self->run_jit_exe(name, dependencies->ptr, dependencies->size);
+}
+
 LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
     return self->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
 }

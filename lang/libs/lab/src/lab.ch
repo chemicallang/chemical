@@ -25,6 +25,7 @@ public struct Module {
 
 public enum LabJobType {
     Executable,
+    JITExecutable,
     Library,
     ToCTranslation,
     ToChemicalTranslation,

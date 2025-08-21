@@ -35,6 +35,7 @@ public enum ValueKind {
     PlacementNewValue,
     IncDecValue,
     IsValue,
+    InValue,
     DereferenceValue,
     RetStructParamValue,
     AccessChain,

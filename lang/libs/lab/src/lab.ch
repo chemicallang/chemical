@@ -135,6 +135,13 @@ public struct BuildContext {
     // build a cbi by given name, that can be used to integrate with compiler
     func build_cbi (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJobCBI
 
+    // sets the environment to testing mode
+    // which means def.test for next executables would return this value
+    // also ensures that resources for testing are ready
+    // call this with true, if you want to generate a testing executable
+    // however compiler wasn't invoked with --test parameter
+    func set_environment_testing(&self, value : bool);
+
     // indexes a function from cbi, so it can be called when required
     func index_cbi_fn(&self, job : *mut LabJobCBI, key : &std::string_view, fn_name : &std::string_view, fn_type : CBIFunctionType) : bool
 

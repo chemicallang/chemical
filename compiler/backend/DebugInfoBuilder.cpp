@@ -334,7 +334,7 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionTypeBody* decl, llvm::Function* 
     const auto name_view = as_func ? to_ref(as_func->name_view()) : func->getName();
 #ifdef DEBUG
     if(diScopes.empty()) {
-        throw std::runtime_error("expected a compile unit scope to be present, when starting a function scope");
+        throw std::runtime_error("expected a compile unit scope to be present when starting a function scope");
     }
 #endif
     std::vector<llvm::Metadata*> mds;

@@ -278,4 +278,8 @@ public:
         return found == definitions.end() ? false : handle_annotation(found->second, parser, node, arguments);
     }
 
+    // Other Helper Functions
+
+    void ensure_test_resources();
+
 };

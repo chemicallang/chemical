@@ -5,6 +5,7 @@ public enum ASTNodeKind {
     ContinueStmt,
     UnreachableStmt,
     DeleteStmt,
+    DeallocStmt,
     ImportStmt,
     ReturnStmt,
     SwitchStmt,
@@ -23,6 +24,10 @@ public enum ASTNodeKind {
     TryStmt,
     ValueNode,
     ValueWrapper,
+    AccessChainNode,
+    IncDecNode,
+    PatternMatchExprNode,
+    PlacementNewNode,
 
     EnumDecl,
     EnumMember,
@@ -65,6 +70,8 @@ public enum ASTNodeKind {
     FileScope,
     ModuleScope,
 
-    EmbeddedNode
+    EmbeddedNode,
+
+    UnresolvedDecl,
 
 }

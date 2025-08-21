@@ -2668,7 +2668,7 @@ inline void declare_inherited(ToCAstVisitor& visitor, VariablesContainer* def) {
     }
 }
 
-void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
+void early_declare_container(ToCAstVisitor& visitor, MembersContainer* def) {
     declare_inherited(visitor, def);
     // declare sub variables
     for(const auto var : def->variables()) {
@@ -2676,6 +2676,10 @@ void early_declare_container(ToCAstVisitor& visitor, VariablesContainer* def) {
         if(known_t) {
             auto sub_node = known_t->get_direct_linked_node();
             if (sub_node) {
+                if(sub_node == def) {
+                    visitor.error("recursion in composition is not allowed", var);
+                    continue;
+                }
                 early_declare_node(visitor, sub_node);
             }
         }

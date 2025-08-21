@@ -11,6 +11,8 @@
 #include "preprocess/ImportPathHandler.h"
 #include "CBIUtils.h"
 #include "compiler/cbi/model/CompilerBinder.h"
+#include "ast/utils/GlobalContainerFunctions.h"
+#include "compiler/frontend/AnnotationController.h"
 
 #ifdef COMPILER_BUILD
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);
@@ -116,6 +118,12 @@ LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* 
 
 LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
     return self->build_cbi(name, dependencies->ptr, dependencies->size);
+}
+
+void BuildContextset_environment_testing(LabBuildContext* self, bool value) {
+    self->compiler.controller.ensure_test_resources();
+    self->compiler.is_testing_env = value;
+    set_def_test_value(self->compiler.container, value);
 }
 
 bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type) {

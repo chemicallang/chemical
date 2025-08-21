@@ -43,6 +43,7 @@
 #include "core/source/LocationManager.h"
 #include "ast/base/TypeBuilder.h"
 #include "compiler/symres/DeclareTopLevel.h"
+#include "GlobalContainerFunctions.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -2189,6 +2190,14 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data) {
 
 BoolValue* boolValue(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool value) {
     return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
+}
+
+void set_def_test_value(GlobalContainer* container, bool value) {
+    auto& values = container->defThing.defValue.values;
+    auto found = values.find(chem::string_view("test"));
+    if(found != values.end()) {
+        found->second.value->as_bool_unsafe()->value = value;
+    }
 }
 
 void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, bool test_env) {

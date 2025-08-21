@@ -581,6 +581,7 @@ set(COMMON_SOURCES
         compiler/frontend/AnnotationController.h
         compiler/frontend/AnnotationController.cpp
         lang/libs/cstd/posix/io/spawn.ch
+        ast/utils/GlobalContainerFunctions.h
 )
 
 # Chemical LSP Executable Target

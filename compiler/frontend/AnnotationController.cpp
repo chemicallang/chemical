@@ -335,6 +335,10 @@ AnnotationController::AnnotationController(bool is_env_testing) {
 
 }
 
+void AnnotationController::ensure_test_resources() {
+    get_collection(get_definition("test")->collection_id).nodes.reserve(256);
+}
+
 void AnnotationController::mark_single(Parser& parser, ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
     switch(definition.policy) {
         case SingleMarkerMultiplePolicy::Override:

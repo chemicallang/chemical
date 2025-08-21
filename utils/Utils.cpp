@@ -9,8 +9,9 @@
 #include <iostream>
 #include <filesystem>
 #include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 std::string resolve_rel_child_path_str(const std::string_view& root_path, const std::string_view& file_path) {
     return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
@@ -69,58 +70,52 @@ std::string compiler_exe_path_relative_to_tcc(const std::string_view& exe_path) 
     return resolve_sibling(exe_path, chemical_exe_PATH_name());
 }
 
+int launch_exe_in_same_window(char* path) {
+    return system(path);
+}
+
 #ifdef _WIN32
 #include <windows.h>
-int launch_executable(char* path, bool same_window) {
-    if (same_window) {
-        // Launch in the same window
-        return system(path);
-    } else {
-        // Launch in a new window
-        STARTUPINFO si;
-        PROCESS_INFORMATION pi;
-        ZeroMemory(&si, sizeof(si));
-        si.cb = sizeof(si);
-        ZeroMemory(&pi, sizeof(pi));
+int launch_exe_in_sep_window(char* cmdline) {
+    // Launch in a new window
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
 
-        if (!CreateProcess(NULL, path, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)) {
-            fprintf(stderr, "CreateProcess failed (%d).\n", GetLastError());
-            return 1;
-        }
-
-        // Wait until child process exits.
-        WaitForSingleObject(pi.hProcess, INFINITE);
-
-        // Close process and thread handles.
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return 0;
+    if (!CreateProcess(NULL, cmdline, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)) {
+        fprintf(stderr, "CreateProcess failed (%d).\n", GetLastError());
+        return 1;
     }
+
+    // Wait until child process exits.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    // Close process and thread handles.
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return 0;
 }
 #else
 #include <unistd.h>
 #include <sys/wait.h>
-int launch_executable(char* path, bool same_window) {
-    if (same_window) {
-        // Launch in the same window
-        return system(path);
+int launch_exe_in_sep_window(char* path) {
+    // Launch in a new window
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process
+        execl(path, path, NULL);
+        std::cerr << "execl failed for executable path " << path << std::endl;
+        return 1;
+    } else if (pid < 0) {
+        // Fork failed
+        std::cerr << "Process fork failed for executable path " << path << std::endl;
+        return 1;
     } else {
-        // Launch in a new window
-        pid_t pid = fork();
-        if (pid == 0) {
-            // Child process
-            execl(path, path, NULL);
-            std::cerr << "execl failed for executable path " << path << std::endl;
-            return 1;
-        } else if (pid < 0) {
-            // Fork failed
-            std::cerr << "Process fork failed for executable path " << path << std::endl;
-            return 1;
-        } else {
-            // Parent process
-            wait(NULL); // Wait for child process to complete
-            return 0;
-        }
+        // Parent process
+        wait(NULL); // Wait for child process to complete
+        return 0;
     }
 }
 #endif

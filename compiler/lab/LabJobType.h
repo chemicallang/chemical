@@ -10,6 +10,12 @@ enum class LabJobType : int {
     Executable = 0,
 
     /**
+     * a jit executable is created and launched by compiling and
+     * linking multiple modules
+     */
+    JITExecutable,
+
+    /**
      * generate dll or shared object linking dependent modules
      */
     Library,

@@ -250,6 +250,11 @@ func test_satisfies() {
         type T = &BaseSatisfies11
         return intrinsics::satisfies<T, T>()
     })
+    test("direct struct satisfies a reference type but not the other way around", () => {
+        type T = EmptySatisfies
+        type K = &EmptySatisfies
+        return intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
+    })
     test("derived struct reference types satisfy base struct reference types but not the other way around", () => {
         type T = &DerivedSatisfies11
         type U = &BaseSatisfies11

@@ -71,11 +71,7 @@ bool LinkedType::satisfies(BaseType *other_impure) {
             if(other_linked) {
                 return is_struct_linked_satisfies(linked, other_linked, false);
             } else {
-                if(other->kind() == BaseTypeKind::Reference) {
-                    return is_struct_linked_satisfies(linked, other->as_reference_type_unsafe()->type->get_direct_linked_node(), true);
-                } else {
-                    break;
-                }
+                break;
             }
         }
         case ASTNodeKind::VariantDecl: {
@@ -83,11 +79,7 @@ bool LinkedType::satisfies(BaseType *other_impure) {
             if(other_linked) {
                 return is_variant_linked_satisfies(linked, other_linked, false);
             } else {
-                if(other->kind() == BaseTypeKind::Reference) {
-                    return is_variant_linked_satisfies(linked, other->as_reference_type_unsafe()->type->get_direct_linked_node(), true);
-                } else {
-                    break;
-                }
+                break;
             }
         }
         case ASTNodeKind::TypealiasStmt: {

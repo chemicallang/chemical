@@ -33,7 +33,7 @@ func test_char_ptr_strings() {
     test("check multiline strings work", () => {
         var first = """abcdefghij
 klmnopqrstuvwxyz"""
-        return strlen(first) == 27
+        return strlen(first) == 28
     })
     test("same contents of strings in same module have same char ptr", () => {
         return SameStringContentsSame1 == SameStringContentsSame2

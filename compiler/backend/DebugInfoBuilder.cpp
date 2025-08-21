@@ -105,6 +105,9 @@ llvm::DILocation* DebugInfoBuilder::di_loc(const Position& position) {
     if(diScopes.empty()) {
         throw std::runtime_error("expected a scope to be present, when creating a di location");
     }
+    if(diScopes.back() == diCompileUnit) {
+        throw std::runtime_error("scope for a location cannot be a di compile unit");
+    }
 #endif
     return llvm::DILocation::get(*gen.ctx, position.line + 1, position.character + 1, diScopes.back());
 }
@@ -417,7 +420,6 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
         return;
     }
     const auto location = loc_node(this, init->encoded_location());
-    const auto loc = di_loc(location.start);
     if(init->is_top_level()) {
         builder->createGlobalVariableExpression(
             diScopes.back(),
@@ -438,6 +440,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
                 location.start.line + 1,
                 to_di_type(*this, init->known_type(), false)
         );
+        const auto loc = di_loc(location.start);
         if (!init->is_const() && llvm::isa<llvm::Instruction>(val)) {
             llvm::Instruction *inst = llvm::cast<llvm::Instruction>(val);
             builder->insertDeclare(

@@ -82,7 +82,7 @@ func (point : &Point) double_sum() : int {
 }
 
 struct Container {
-    var point : int[2]
+    var point : [2]int
     var is_cool : bool
 }
 
@@ -216,14 +216,14 @@ func test_nodes() {
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
     test("uninitialized array", () => {
-        var arr : int[5] = [];
+        var arr : [5]int = [];
         arr[0] = 2;
         arr[1] = 4;
         arr[2] = 6;
         return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
     })
     test("multidimensional uninitialized array", () => {
-        var arr : int[2][2] = [];
+        var arr : [2][2]int = [];
         arr[0][0] = 2;
         arr[0][1] = 4;
         arr[1][0] = 6;

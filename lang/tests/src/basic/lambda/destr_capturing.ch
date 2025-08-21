@@ -46,7 +46,7 @@ func test_capturing_lambda_destruction() {
         var counter = 0;
         var m = CapLambDestrCounter { counter : &mut counter }
         if(counter == 0) {
-            var container : std::function<() => void>[] = [
+            var container : []std::function<() => void> = [
                 |m|() => {
 
                 }

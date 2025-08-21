@@ -229,7 +229,7 @@ func test_no_type_structs() {
         return p.pair.a == 87 && p.pair.b == 32
     })
     test("can store structs without type in arrays", () => {
-        var p : Pair[] = [ { a : 45, b : 76 } ]
+        var p : []Pair = [ { a : 45, b : 76 } ]
         return p[0].a == 45 && p[0].b == 76
     })
     test("can store structs without type in variants", () => {
@@ -357,11 +357,11 @@ func test_structs() {
         return p.imp.data == 55;
     })
     test("implicit constructors inside array values work - 1", () => {
-        var arr : ImpPair[1] = [ 55 ]
+        var arr : [1]ImpPair = [ 55 ]
         return arr[0].data == 55;
     })
     test("implicit constructors inside array values work - 2", () => {
-        var arr : ImpPair[1] = [ ImpPair(55) ]
+        var arr : [1]ImpPair = [ ImpPair(55) ]
         return arr[0].data == 55;
     })
     test("implicit constructors in return work - 1", () => {

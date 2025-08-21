@@ -110,11 +110,11 @@ func test_dynamic_dispatch() {
         return c.p.call() == 55;
     })
     test("storing dynamic object in a array value works - 1", () => {
-        var p : dyn Phone[] = [ SmartPhone { number1 : 11 } ]
+        var p : []dyn Phone = [ SmartPhone { number1 : 11 } ]
         return p[0].call() == 11;
     })
     test("storing dynamic object in a array value works - 2", () => {
-        var p : dyn Phone[] = [ CellPhone { number2 : 88 } ]
+        var p : []dyn Phone = [ CellPhone { number2 : 88 } ]
         return p[0].call() == 88;
     })
 }

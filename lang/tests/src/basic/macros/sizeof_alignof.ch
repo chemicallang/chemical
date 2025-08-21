@@ -26,7 +26,7 @@ struct SOT2 {
 
 struct SOT3 {
     var a : int;
-    var b : char[3];
+    var b : [3]char;
     var c : short;
 };
 

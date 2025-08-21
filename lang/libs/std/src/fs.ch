@@ -127,7 +127,7 @@ public namespace fs {
             const out_fd = open(dest, O_WRONLY | O_CREAT | O_TRUNC, 0o644);
             if (out_fd < 0) { perror("open dest"); close(in_fd); return -1; }
 
-            var buf : char[8192];
+            var buf : [8192]char;
             var n : ssize_t;
 
             while (true) {
@@ -197,7 +197,7 @@ public namespace fs {
             // And then use temp_path in FindFirstFileA.
             // Or, more directly for FindFirstFile, append \* to the directory name.
             // Let's create a path like "src_dir\*"
-            var search_path : char[1024]; // Assuming 1024 is sufficient
+            var search_path : [1024]char; // Assuming 1024 is sufficient
             snprintf(search_path, sizeof(search_path), "%s\\*", src_dir);
 
             var hFind : HANDLE = FindFirstFileA(search_path, &mut find_data);
@@ -216,8 +216,8 @@ public namespace fs {
                     continue;
 
                 // Construct full paths for source and destination
-                var src_path : char[1024];
-                var dst_path : char[1024];
+                var src_path : [1024]char;
+                var dst_path : [1024]char;
                 // Assuming a cross-platform path joining helper or using snprintf with platform separator
                 // For simplicity, let's assume snprintf with appropriate separator
                 // Use backslash on Windows
@@ -259,8 +259,8 @@ public namespace fs {
             if (!dir) { perror("opendir"); return -1; }
 
             var entry : *mut dirent; // Assumes dirent is defined
-            var src_path : char[1024];
-            var dst_path : char[1024];
+            var src_path : [1024]char;
+            var dst_path : [1024]char;
 
             while(true) {
                 entry = readdir(dir); // Assumes readdir is available

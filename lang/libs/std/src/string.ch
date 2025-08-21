@@ -15,7 +15,7 @@ public struct string : Hashable, Eq {
             var capacity : size_t;
         } heap;
         struct {
-            var buffer : char[STR_BUFF_SIZE];
+            var buffer : [STR_BUFF_SIZE]char;
             var length : uchar;
         } sso;
     } storage;

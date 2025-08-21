@@ -7,7 +7,7 @@ public struct span<T> {
 
     @implicit
     @constructor
-    comptime func make2(array : T[]) {
+    comptime func make2(array : []T) {
         return intrinsics::wrap(constructor<T>(array, intrinsics::size(array)))
     }
 

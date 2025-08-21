@@ -161,7 +161,7 @@ func test_functions() {
         return t.test.x == 100 && t.test.y == 100
     })
     test("supports function calls that return structs inside array values", () => {
-        var arr : TestStruct1[1] = [test_struct()]
+        var arr : [1]TestStruct1 = [test_struct()]
         return arr[0].x == 100 && arr[0].y == 100
     })
     test("expression test function is not called in 'or' ||", () => {

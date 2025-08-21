@@ -12,7 +12,7 @@ public struct default_function_instance {
 
     // 32 bytes of buffer, 4 pointers
     @maxalign
-    var buffer : char[32]
+    var buffer : [32]char
 
     // a destructor pointer is stored inside the function so we can
     // handle destruction of any variables required

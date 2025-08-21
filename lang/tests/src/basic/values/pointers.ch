@@ -103,7 +103,7 @@ func test_pointer_math() {
         return ptr2 < ptr1;
     })
     test("pointer access using index operator work", () => {
-        var d : int[2]
+        var d : [2]int
         d[0] = 55;
         d[1] = 60
         var ptr = &d[0]

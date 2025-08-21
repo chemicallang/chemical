@@ -162,7 +162,7 @@ func test_lambda() {
     })
     test("can call lambda stored in an array", () => {
         type MyLamb = () => int
-        var arr : MyLamb[2] = [];
+        var arr : [2]MyLamb = [];
         arr[0] = () => 5;
         arr[1] = () => 10;
         return arr[0]() == 5 && arr[1]() == 10;

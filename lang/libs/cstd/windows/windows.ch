@@ -303,8 +303,8 @@ public struct WIN32_FIND_DATAA {
     var nFileSizeLow : DWORD;     /**< Low-order DWORD of file size. */
     var dwReserved0 : DWORD;      /**< Reserved; do not use. */
     var dwReserved1 : DWORD;      /**< Reserved; do not use. */
-    var cFileName : char[260];    /**< File name (MAX_PATH). */
-    var cAlternateFileName : char[14]; /**< Short file name (8.3). */
+    var cFileName : [260]char;    /**< File name (MAX_PATH). */
+    var cAlternateFileName : [14]char; /**< Short file name (8.3). */
     // Some definitions might include these, depending on _WIN32_WINNT version
     // var dwFileType : DWORD;       /**< File type. */
     // var dwCreatorType : DWORD;    /**< File creator type. */

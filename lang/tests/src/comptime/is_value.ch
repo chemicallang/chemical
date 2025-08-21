@@ -105,12 +105,12 @@ func test_is_value() {
         return T !is float
     })
     test("same array types match", () => {
-        type T = int[]
-        return T is int[]
+        type T = []int
+        return T is []int
     })
     test("different array types don't match", () => {
-        type T = int[]
-        return T !is double[]
+        type T = []int
+        return T !is []double
     })
     test("all types satisfy any", () => {
         type A = int
@@ -126,11 +126,11 @@ func test_is_value() {
         type K = uchar
         type L = void
         type M = *void
-        type N = int[]
+        type N = []int
         return A is any && B is any && C is any && D is any && E is any && F is any && G is any && H is any && I is any && J is any && K is any && L is any && M is any && N is any
     })
     test("any doesn't satisfy other types (though)", () => {
         type T = any
-        return !(T is int || T is long || T is char || T is double || T is bool || T is float || T is ulong || T is uint || T is bigint || T is ubigint || T is uchar || T is void || T is *void || T is int[])
+        return !(T is int || T is long || T is char || T is double || T is bool || T is float || T is ulong || T is uint || T is bigint || T is ubigint || T is uchar || T is void || T is *void || T is []int)
     })
 }

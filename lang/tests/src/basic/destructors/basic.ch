@@ -590,7 +590,7 @@ func test_destructors() {
     test("array values are destructed", () => {
         var count = 0;
         if(count == 0) {
-            var arr : Destructible[10] = [];
+            var arr : [10]Destructible = [];
             var i = 0;
             var ptr : *mut Destructible;
             while(i < 10) {
@@ -607,7 +607,7 @@ func test_destructors() {
     test("array typealias values are destructed", () => {
         var count = 0;
         if(count == 0) {
-            var arr : DestructibleAlias[10] = [];
+            var arr : [10]DestructibleAlias = [];
             var i = 0;
             var ptr : *mut DestructibleAlias;
             while(i < 10) {
@@ -624,7 +624,7 @@ func test_destructors() {
     test("array types are destructed", () => {
         var count = 0;
         if(count == 0) {
-            var arr : Destructible[10];
+            var arr : [10]Destructible;
             var i = 0;
             var ptr : *mut Destructible;
             while(i < 10) {
@@ -641,7 +641,7 @@ func test_destructors() {
     test("array typealias types are destructed", () => {
         var count = 0;
         if(count == 0) {
-            var arr : DestructibleAlias[10];
+            var arr : [10]DestructibleAlias;
             var i = 0;
             var ptr : *mut DestructibleAlias;
             while(i < 10) {
@@ -768,7 +768,7 @@ func test_destructors() {
     test("generic struct destructor is called when inside array value", () => {
         var count = 0;
         if(count == 0) {
-            var d : GenDestruct<int>[1] = [
+            var d : [1]GenDestruct<int> = [
                 GenDestruct<int> { data : 454, count : &mut count, lamb : destruct_inc_count  }
             ]
         }

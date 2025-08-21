@@ -23,11 +23,11 @@ func test_char_ptr_strings() {
         return str[0] == '\n' && str[1] == '\t';
     })
     test("string arrays work too", () => {
-        var str : char[] = "hello"
+        var str : []char = "hello"
         return str[0] == 'h' && str[4] == 'o' && str[5] == '\0'
     })
     test("string arrays over sized work too", () => {
-        var str : char[10] = "hello"
+        var str : [10]char = "hello"
         return str[0] == 'h' && str[4] == 'o' && str[5] == '\0' && str[6] == '\0' && str[9] == '\0';
     })
     test("check multiline strings work", () => {

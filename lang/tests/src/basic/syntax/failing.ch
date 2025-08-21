@@ -5,7 +5,7 @@ func failing_socketpair(i : int) : int {
 func test_failing_code() {
 
     test("parsing succeeds on failing code - 1", () => {
-        var sv : int[2]
+        var sv : [2]int
         if(failing_socketpair(0) < 0) {
             return false;
         }

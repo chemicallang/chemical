@@ -37,7 +37,7 @@ func test_capturing_lambda() {
     test("capturing lambda works in array value", () => {
         var temp1 = 87;
         var temp2 = 99;
-        var arr : std::function<() => int>[] = [
+        var arr : []std::function<() => int> = [
             |temp1|() => {
                 return temp1;
             },

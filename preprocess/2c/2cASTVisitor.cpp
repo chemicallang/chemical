@@ -957,6 +957,16 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool ass
     accept_mutating_value_explicit(type, value, assigning_value);
 }
 
+void visit_subscript_arr_type(ToCAstVisitor& visitor, BaseType* type) {
+    if(visitor.array_types_as_subscript) {
+        visitor.visit(type);
+    } else {
+        visitor.array_types_as_subscript = true;
+        visitor.visit(type);
+        visitor.array_types_as_subscript = false;
+    }
+}
+
 void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, unsigned i = 0) {
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
@@ -1054,8 +1064,8 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             }
         } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
             visitor.write('(');
-            visitor.visit(base_type);
-            visitor.write("[])");
+            visit_subscript_arr_type(visitor, base_type);
+            visitor.write(")");
             visitor.accept_mutating_value_explicit(param->type, val, false);
         } else {
             visitor.accept_mutating_value_explicit(param->type, val, false);

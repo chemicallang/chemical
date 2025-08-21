@@ -176,6 +176,12 @@ func build(ctx : *mut AppBuildContext) {
         }
     }
 
+    // lets run the jit executable
+    // apparently this succeeds on linux
+    // but below build_exe DOES not, they both generate the same code
+    // dont know why
+    // ctx.run_jit_exe(exe_name, [ module ]);
+
     const exe_job = ctx.build_exe(exe_name, [ module ])
     ctx.define(exe_job, def);
     jc.ctx = ctx;

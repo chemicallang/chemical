@@ -68,6 +68,8 @@ extern "C" {
 
     LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies);
 
+    LabJob* BuildContextrun_jit_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies);
+
     LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies);
 
     LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies);

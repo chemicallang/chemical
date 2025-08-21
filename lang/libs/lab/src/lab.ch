@@ -126,6 +126,9 @@ public struct BuildContext {
     // build executable using module dependencies
     func build_exe (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
 
+    // compiles and runs the given executables instantly using jit
+    func run_jit_exe (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
+
     // build a dynamic library using executable dependencies
     func build_dynamic_lib (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
 

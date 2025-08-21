@@ -867,6 +867,9 @@ void begin_job_print(LabJob* job) {
         case LabJobType::Executable:
             std::cout << "Building executable";
             break;
+        case LabJobType::JITExecutable:
+            std::cout << "Building JIT executable";
+            break;
         case LabJobType::Library:
             std::cout << "Building library";
             break;
@@ -972,15 +975,21 @@ void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::
             fs::create_directory(module_dir_path);
         }
     }
-    if (job_type == LabJobType::Executable || job_type == LabJobType::CBI || job_type == LabJobType::ProcessingOnly ||
-        job_type == LabJobType::Library) {
-        if (is_use_obj_format) {
-            mod->object_path.clear();
-            mod->object_path.append(mod_obj_path);
-        } else {
-            mod->bitcode_path.clear();
-            mod->bitcode_path.append(mod_obj_path);
-        }
+    switch(job_type) {
+        case LabJobType::Executable:
+        case LabJobType::JITExecutable:
+        case LabJobType::CBI:
+        case LabJobType::ProcessingOnly:
+        case LabJobType::Library:
+            if (is_use_obj_format) {
+                mod->object_path.clear();
+                mod->object_path.append(mod_obj_path);
+            } else {
+                mod->bitcode_path.clear();
+                mod->bitcode_path.append(mod_obj_path);
+            }
+        default:
+            break;
     }
 }
 
@@ -1021,6 +1030,23 @@ const char* to_string(OutputMode mode) {
     }
 }
 
+// cross_platform_spawn.h  (paste this into a header or above your call site)
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
+#include <cassert>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h> // _spawn* fallback (not used here)
+#else
+#include <spawn.h>
+  #include <sys/wait.h>
+  extern char **environ;
+#endif
+
 int LabBuildCompiler::tcc_run_invocation(
     char* exe_path,
     std::vector<std::string_view>& obj_files,
@@ -1048,13 +1074,6 @@ int LabBuildCompiler::tcc_run_invocation(
     // prepare for jit
     prepare_tcc_state_for_jit(state);
 
-    // relocate the code before calling
-    if(tcc_relocate(state) == -1) {
-        std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate" << std::endl;
-        tcc_delete(state);
-        return 1;
-    }
-
     // run the main method
     const auto status = tcc_run(state, argc, argv);
 
@@ -1066,30 +1085,47 @@ int LabBuildCompiler::tcc_run_invocation(
 
 }
 
+// Replaceable limit for maximum argv entries (exe + flags + linkables + sentinel)
+constexpr size_t MAX_ARGS = 256;
+
 int LabBuildCompiler::launch_tcc_jit_exe(LabJob* job, std::vector<LabModule*>& dependencies) {
 
     auto& compiler_exe_path = options->exe_path;
 
-    std::string cmdline;
-    cmdline.reserve(compiler_exe_path.size() + 16 + (job->linkables.size() * 16));
-    cmdline.append(1, '"');
-    cmdline.append(compiler_exe_path);
-    cmdline.append(1, '"');
-    cmdline.append(1, ' ');
-    cmdline.append("--mode ");
-    cmdline.append(to_string(options->outMode));
-    cmdline.append(1, ' ');
-    for(auto& linkable : job->linkables) {
-        cmdline.append(1, '"');
-        cmdline.append(linkable.to_view());
-        cmdline.append(1, '"');
-        cmdline.append(1, ' ');
+    // Build argv on stack (no heap allocations)
+    // argv will contain pointers to NUL-terminated strings that must outlive exec/spawn call (they are on stack)
+    // Use mutable char* array because spawn/exec signatures are not const-correct.
+    char* argv[MAX_ARGS];
+    size_t argi = 0;
+
+    if (argi + 4 >= MAX_ARGS) return -1; // safety; should never happen here
+
+    // exe_path.c_str() is valid; cast away const for exec/spawn API
+    argv[argi++] = const_cast<char*>(compiler_exe_path.c_str());
+
+    // mode flag and its numeric string stored in stack buffer
+    argv[argi++] = const_cast<char*>("--mode");
+
+    // output mode argument
+    char modebuf[64];
+    int written = snprintf(modebuf, sizeof(modebuf), "%s", to_string(options->outMode));
+    if (written <= 0) return -2;
+    argv[argi++] = modebuf;
+
+    // Add all linkables (these string_views must refer to stable storage)
+    for (const auto &sv : job->linkables) {
+        if (argi + 2 >= MAX_ARGS) return -3; // too many args
+        argv[argi++] = const_cast<char*>(sv.data());
     }
-    cmdline.append(" tcc-jit ");
+
+    // final literal arg
+    argv[argi++] = const_cast<char*>("tcc-jit");
+
+    // sentinel
+    argv[argi] = nullptr;
 
     // TODO: support user arguments
-
-    return launch_exe_in_same_window(cmdline.data());
+    return launch_process_and_wait(compiler_exe_path.c_str(), argv, argi, true);
 
 }
 

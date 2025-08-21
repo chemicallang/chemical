@@ -294,6 +294,15 @@ public:
     );
 
     /**
+     * add a jit executable
+     */
+    LabJob* run_jit_exe(
+            chem::string_view* name,
+            LabModule** dependencies,
+            unsigned int dep_len
+    );
+
+    /**
      * adds a library entry that'll be built
      */
     LabJob* build_dynamic_lib(

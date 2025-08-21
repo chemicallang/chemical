@@ -194,6 +194,24 @@ public:
 #endif
 
     /**
+     * this is called by our own compiler to link tiny cc object files to
+     * run them using jit
+     */
+    static int tcc_run_invocation(
+        char* exe_path,
+        std::vector<std::string_view>& obj_files,
+        OutputMode mode,
+        int argc,
+        char** argv
+    );
+
+    /**
+     * launches a compiler instance to link and run the program in memory (jit)
+     * using tcc without emitting an executable
+     */
+    int launch_tcc_jit_exe(LabJob* job, std::vector<LabModule*>& dependencies);
+
+    /**
      * cbi job
      */
     int link_cbi_job(LabJobCBI* job, std::vector<LabModule*>& dependencies);
@@ -216,7 +234,15 @@ public:
      * should use tcc for this job type
      */
     inline bool use_tcc(LabJobType type) {
-        return options->use_tcc || type == LabJobType::ToCTranslation || type == LabJobType::CBI;
+        if(options->use_tcc) return true;
+        switch(type) {
+            case LabJobType::CBI:
+            case LabJobType::ToCTranslation:
+            case LabJobType::JITExecutable:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**

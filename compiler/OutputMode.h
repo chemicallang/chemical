@@ -64,6 +64,12 @@ inline bool is_release(OutputMode mode) {
     return !is_debug(mode);
 }
 
+const char* to_string(OutputMode mode);
+
+#ifdef COMPILER_BUILD
+
 class CodegenEmitterOptions;
 
 void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options);
+
+#endif

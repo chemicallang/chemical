@@ -15,6 +15,7 @@
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
 #include "Utils.h"
+#include "utils/ProcessUtils.h"
 #include "core/source/LocationManager.h"
 #include <fstream>
 #include <span>
@@ -127,6 +128,9 @@ int LabBuildCompiler::do_job(LabJob* job) {
     switch(job->type) {
         case LabJobType::Executable:
             return_int = do_executable_job(job);
+            break;
+        case LabJobType::JITExecutable:
+            return_int = process_modules(job);
             break;
         case LabJobType::Library:
             return_int = do_library_job(job);
@@ -1000,12 +1004,99 @@ inline void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
     create_job_build_dir(compiler->options->verbose, job->build_dir.to_std_string());
 }
 
+const char* to_string(OutputMode mode) {
+    switch(mode) {
+        case OutputMode::Debug:
+            return "debug";
+        case OutputMode::DebugQuick:
+            return "debug_quick";
+        case OutputMode::DebugComplete:
+            return "debug_complete";
+        case OutputMode::ReleaseFast:
+            return "release_fast";
+        case OutputMode::ReleaseSmall:
+            return "release_small";
+        case OutputMode::ReleaseSafe:
+            return "release_safe";
+    }
+}
+
+int LabBuildCompiler::tcc_run_invocation(
+    char* exe_path,
+    std::vector<std::string_view>& obj_files,
+    OutputMode mode,
+    int argc,
+    char** argv
+) {
+
+    const auto state = setup_tcc_state(exe_path, "", true, mode == OutputMode::DebugComplete);
+    if(state == nullptr) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't create tcc state for jit" << std::endl;
+        return 1;
+    }
+
+    // add object files to link
+    for(const auto& dep : obj_files) {
+        if(tcc_add_file(state, dep.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add object file '" << dep <<  "'" << std::endl;
+            tcc_delete(state);
+            return 1;
+        }
+    }
+
+    // prepare for jit
+    prepare_tcc_state_for_jit(state);
+
+    // relocate the code before calling
+    if(tcc_relocate(state) == -1) {
+        std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate" << std::endl;
+        tcc_delete(state);
+        return 1;
+    }
+
+    // run the main method
+    const auto status = tcc_run(state, argc, argv);
+
+    // delete the tcc state
+    tcc_delete(state);
+
+    // return the status
+    return status;
+
+}
+
+int LabBuildCompiler::launch_tcc_jit_exe(LabJob* job, std::vector<LabModule*>& dependencies) {
+
+    auto& compiler_exe_path = options->exe_path;
+
+    std::string cmdline;
+    cmdline.reserve(compiler_exe_path.size() + 16 + (job->linkables.size() * 16));
+    cmdline.append(1, '"');
+    cmdline.append(compiler_exe_path);
+    cmdline.append(1, '"');
+    cmdline.append(1, ' ');
+    cmdline.append("--mode ");
+    cmdline.append(to_string(options->outMode));
+    cmdline.append(1, ' ');
+    for(auto& linkable : job->linkables) {
+        cmdline.append(1, '"');
+        cmdline.append(linkable.to_view());
+        cmdline.append(1, '"');
+        cmdline.append(1, ' ');
+    }
+    cmdline.append(" tcc-jit ");
+
+    // TODO: support user arguments
+
+    return launch_exe_in_same_window(cmdline.data());
+
+}
+
 int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& dependencies) {
 
     auto& job_name = cbiJob->name;
     auto cbiName = cbiJob->name.to_std_string();
-    auto& cbiData = binder.data[cbiName];
-    auto& outModDependencies = dependencies;
 
     const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
     if(state == nullptr) {
@@ -1014,10 +1105,10 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
         return 1;
     }
 
-    // add module object files
-    for(const auto dep : outModDependencies) {
-        if(tcc_add_file(state, dep->object_path.data()) == -1) {
-            std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of cbi '" << job_name << '\'' << std::endl;
+    // add object files to link
+    for(const auto& dep : cbiJob->linkables) {
+        if(tcc_add_file(state, dep.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add object file '" << dep <<  "' in compilation of cbi '" << job_name << '\'' << std::endl;
             tcc_delete(state);
             return 1;
         }
@@ -1025,6 +1116,9 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
     // prepare for jit
     prepare_tcc_state_for_jit(state);
+
+    // flattened dependencies
+    auto& outModDependencies = dependencies;
 
     // import all compiler interfaces the modules require
     for(const auto mod : outModDependencies) {
@@ -1039,6 +1133,8 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
         tcc_delete(state);
         return 1;
     }
+
+    auto& cbiData = binder.data[cbiName];
 
     // we compile the entirety of this module and store it
     // here putting this module in cbi is what will delete it
@@ -1165,6 +1261,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             if(jobDone != 0) {
                 return jobDone;
             }
+        } else if(get_job_type == LabJobType::JITExecutable) {
+            const auto status = launch_tcc_jit_exe(job, dependencies);
+            if(status != 0) {
+                return status;
+            }
         }
 
         job->path_aliases = std::move(processor.path_handler.path_aliases);
@@ -1253,6 +1354,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         const auto jobDone = link_cbi_job(cbiJob, dependencies);
         if(jobDone != 0) {
             return jobDone;
+        }
+    } else if(get_job_type == LabJobType::JITExecutable) {
+        const auto status = launch_tcc_jit_exe(job, dependencies);
+        if(status != 0) {
+            return status;
         }
     }
 

@@ -214,6 +214,7 @@ const auto link_lib_cmd_desc = "link the given library when compiling";
 const auto cc_cmd_desc = "invokes the cc tool";
 const auto configure_cmd_desc = "configures the compiler for this OS";
 const auto linker_cmd_desc = "invoke the linker to link libraries";
+const auto tcc_jit_cmd_desc = "link object files arguments and run it using tiny cc";
 const auto ar_cmd_desc = "invoke the ar tool to archive libraries";
 const auto dlltool_cmd_desc = "invoke the dlltool to archive libraries";
 const auto ranlib_cmd_desc = "invoke the llvm ranlib tool";
@@ -234,7 +235,7 @@ const auto lto_desc = "enable link time optimization";
 const auto assertions_desc = "enable assertions for checking of generated code";
 const auto no_pie_desc = "disable position independent code";
 const auto target_desc = "the target for which code is being generated";
-const auto jit_desc = "just in time compile the given input";
+const auto jit_desc = "just in time compile the given input and run using tiny cc compiler";
 const auto output_desc = "the output at which file(s) will be generated";
 const auto resources_desc = "the path to resources directory required";
 const auto ignore_extension_desc = "compiler will ignore the extension of the file";
@@ -415,6 +416,45 @@ void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
     }
 }
 
+OutputMode get_output_mode(std::optional<std::string_view>& mode_opt, bool verbose) {
+    // configuring output mode from command line
+    if(mode_opt.has_value()) {
+        if(mode_opt.value() == "debug") {
+            // ignore
+        } else if(mode_opt.value() == "debug_quick") {
+            return OutputMode::DebugQuick;
+            if(verbose) {
+                std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
+            }
+        } else if(mode_opt.value() == "debug_complete") {
+            return OutputMode::DebugComplete;
+            if(verbose) {
+                std::cout << "mode: Debug Complete Enabled (debug_complete)" << std::endl;
+            }
+        } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
+            return OutputMode::ReleaseFast;
+            if(verbose) {
+                std::cout << "mode: Release Fast Enabled (release_fast)" << std::endl;
+            }
+        } else if(mode_opt.value() == "release_small") {
+            if(verbose) {
+                std::cout << "mode: Release Small Enabled (release_small)" << std::endl;
+            }
+            return OutputMode::ReleaseSmall;
+        } else {
+            std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
+            std::cout << "unknown mode '" << mode_opt.value() << '\'' << std::endl;
+        }
+    }
+#ifdef DEBUG
+    else {
+        std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
+        return OutputMode::DebugQuick;
+    }
+#endif
+    return OutputMode::Debug;
+}
+
 int compiler_main(int argc, char *argv[]) {
 
     // this only works if invoked without a debugger
@@ -446,6 +486,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
             CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
             CmdOption("linker", CmdOptionType::SubCommand, linker_cmd_desc),
+            CmdOption("tcc-jit", CmdOptionType::SubCommand, tcc_jit_cmd_desc),
             CmdOption("ar", CmdOptionType::SubCommand, ar_cmd_desc),
             CmdOption("dlltool", CmdOptionType::SubCommand, dlltool_cmd_desc),
             CmdOption("ranlib", CmdOptionType::SubCommand, ranlib_cmd_desc),
@@ -498,6 +539,17 @@ int compiler_main(int argc, char *argv[]) {
     if(options.has_value("version")) {
         std::cout << "Chemical v" << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << std::endl;
         return 0;
+    }
+
+    auto& jit_cmd_opt = options.cmd_opt("tcc-jit");
+    if(argc > 1 && jit_cmd_opt.has_multi_value()) {
+        auto mode = get_output_mode(options.option_new("mode", "m"), options.has_value("verbose", "v"));
+        std::vector<char*> jit_args;
+        auto span = jit_cmd_opt.get_multi_opt_values();
+        for(auto& view : span) {
+            jit_args.emplace_back(const_cast<char*>(view.data()));
+        }
+        return LabBuildCompiler::tcc_run_invocation(argv[0], args, mode, (int) jit_args.size(), jit_args.data());
     }
 
 #ifdef COMPILER_BUILD
@@ -627,44 +679,8 @@ int compiler_main(int argc, char *argv[]) {
 #endif
 #endif
 
-    OutputMode mode = OutputMode::Debug;
-
-    // configuring output mode from command line
-    auto& mode_opt = options.option_new("mode", "m");
-    if(mode_opt.has_value()) {
-        if(mode_opt.value() == "debug") {
-            // ignore
-        } else if(mode_opt.value() == "debug_quick") {
-            mode = OutputMode::DebugQuick;
-            if(verbose) {
-                std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
-            }
-        } else if(mode_opt.value() == "debug_complete") {
-            mode = OutputMode::DebugComplete;
-            if(verbose) {
-                std::cout << "mode: Debug Complete Enabled (debug_complete)" << std::endl;
-            }
-        } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
-            mode = OutputMode::ReleaseFast;
-            if(verbose) {
-                std::cout << "mode: Release Fast Enabled (release_fast)" << std::endl;
-            }
-        } else if(mode_opt.value() == "release_small") {
-            if(verbose) {
-                std::cout << "mode: Release Small Enabled (release_small)" << std::endl;
-            }
-            mode = OutputMode::ReleaseSmall;
-        } else {
-            std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
-            std::cout << "unknown mode '" << mode_opt.value() << '\'' << std::endl;
-        }
-    }
-#ifdef DEBUG
-    else {
-        std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
-        mode = OutputMode::DebugQuick;
-    }
-#endif
+    auto mode_opt = options.option_new("mode", "m");
+    const auto mode = get_output_mode(mode_opt, verbose);
 
     auto build_dir_opt = options.option_new("build-dir", "b");
     const auto is_testing_env = options.has_value("test");
@@ -839,7 +855,7 @@ int compiler_main(int argc, char *argv[]) {
         }
     }
 
-    LabJob job(LabJobType::Executable, chem::string("a"));
+    LabJob job(jit ? LabJobType::JITExecutable : LabJobType::Executable, chem::string("a"));
     set_options_for_main_job(options, job, module, dependencies);
 
     // checking if user requires ll, asm output at default location for the module

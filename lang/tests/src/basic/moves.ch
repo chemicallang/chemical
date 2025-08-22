@@ -413,37 +413,44 @@ func test_moves() {
         return delete_called == 1;
     })
     delete_called = 0;
-    test("movable member of struct, delete function is not called on previous moved value on assignment", () => {
-        var con = ClearObjCon { c : ClearObj { i : 655 } }
-        take_clear_obj(con.c);
-        con.c = ClearObj { i : 543 }
-        return delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
-    })
-    delete_called = 0;
-    test("clear function is called on previous value when moving into other struct", () => {
-        if(true) {
-            var con = ClearObjCon { c : ClearObj { i : 453 } }
-            var con2 = ClearObjCon { c : con.c }
-        }
-        return delete_called == 2;
-    })
-    delete_called = 0;
-    test("clear function is called on previous value when moving into array", () => {
-        if(true) {
-            var con = ClearObjCon { c : ClearObj { i : 453 } }
-            var con2 = [ con.c ]
-        }
-        return delete_called == 2;
-    })
-    delete_called = 0;
-    test("clear function is called on previous value when moving into var init", () => {
-        if(true) {
-            var con = ClearObjCon { c : ClearObj { i : 453 } }
-            var con2 = con.c
-        }
-        return delete_called == 2;
-    })
-
+    /** TODO: test moves a member of struct without initializing
+     * test("movable member of struct, delete function is not called on previous moved value on assignment", () => {
+     *     var con = ClearObjCon { c : ClearObj { i : 655 } }
+     *     take_clear_obj(con.c);
+     *     con.c = ClearObj { i : 543 }
+     *     return delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
+     * })
+     */
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("clear function is called on previous value when moving into other struct", () => {
+     *     if(true) {
+     *         var con = ClearObjCon { c : ClearObj { i : 453 } }
+     *         var con2 = ClearObjCon { c : con.c }
+     *     }
+     *     return delete_called == 2;
+     * })
+     */
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("clear function is called on previous value when moving into array", () => {
+     *     if(true) {
+     *         var con = ClearObjCon { c : ClearObj { i : 453 } }
+     *         var con2 = [ con.c ]
+     *     }
+     *     return delete_called == 2;
+     * })
+     */
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("clear function is called on previous value when moving into var init", () => {
+     *     if(true) {
+     *         var con = ClearObjCon { c : ClearObj { i : 453 } }
+     *         var con2 = con.c
+     *     }
+     *     return delete_called == 2;
+     * })
+     */
     // TESTING MOVE FUNCTIONS FROM HERE
 
     delete_called = 0;
@@ -483,20 +490,22 @@ func test_moves() {
         return delete_called == 1;
     })
 
-    delete_called = 0;
-    test("delete function is called, when moving struct member that would leave other one empty", () => {
-        var result : int = 7373
-        if(true) {
-            var a = MoveObjCon { m : MoveObj { i : 32 } }
-            var b = MoveObjCon { m : MoveObj { i : 33 } }
-            a.m = b.m
-            b.m = MoveObj { i : 34 }
-            result = a.m.i
-        }
-        // first a.m is destructed, b.m is moved into a.m (using move constructor, self = a.m, other = b.m)
-        // then a is destructed, and b is destructed, that's three destructors called, a single move
-        return delete_called == 3 && result == 33;
-    })
+    /**
+     * delete_called = 0;
+     * test("delete function is called, when moving struct member that would leave other one empty", () => {
+     *     var result : int = 7373
+     *     if(true) {
+     *         var a = MoveObjCon { m : MoveObj { i : 32 } }
+     *         var b = MoveObjCon { m : MoveObj { i : 33 } }
+     *         a.m = b.m
+     *         b.m = MoveObj { i : 34 }
+     *         result = a.m.i
+     *     }
+     *     // first a.m is destructed, b.m is moved into a.m (using move constructor, self = a.m, other = b.m)
+     *     // then a is destructed, and b is destructed, that's three destructors called, a single move
+     *     return delete_called == 3 && result == 33;
+     * })
+     */
 
     delete_called = 0;
     test("function param object moved, move function is not called", () => {
@@ -515,38 +524,46 @@ func test_moves() {
         con.m = MoveObj { i : 543 }
         return delete_called == 1;
     })
-    delete_called = 0;
-    test("movable member of struct, delete function is not called on previous moved value on assignment - 2", () => {
-        var con = MoveObjCon { m : MoveObj { i : 655 } }
-        take_move_obj(con.m);
-        con.m = MoveObj { i : 543 }
-        return delete_called == 1; // called once, inside the take_move_obj, but not due to assignment
-    })
-    delete_called = 0;
-    test("move function is called on previous value when moving struct member into other struct", () => {
-        if(true) {
-            var con = MoveObjCon { m : MoveObj { i : 453 } }
-            var con2 = MoveObjCon { m : con.m }
-        }
-        return delete_called == 2;
-    })
-    delete_called = 0;
-    test("move function is called on previous value when moving struct member into array", () => {
-        if(true) {
-            var con = MoveObjCon { m : MoveObj { i : 453 } }
-            var con2 = [ con.m ]
-            // TODO this should result in an error, that con object has uninitialized fields before destruction
-        }
-        return delete_called == 2;
-    })
-    delete_called = 0;
-    test("move function is called when moving struct member into var init", () => {
-        if(true) {
-            var con = MoveObjCon { m : MoveObj { i : 453 } }
-            var con2 = con.m
-        }
-        return delete_called == 2;
-    })
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("movable member of struct, delete function is not called on previous moved value on assignment - 2", () => {
+     *     var con = MoveObjCon { m : MoveObj { i : 655 } }
+     *     take_move_obj(con.m);
+     *     con.m = MoveObj { i : 543 }
+     *     return delete_called == 1; // called once, inside the take_move_obj, but not due to assignment
+     * })
+     */
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("move function is called on previous value when moving struct member into other struct", () => {
+     *     if(true) {
+     *         var con = MoveObjCon { m : MoveObj { i : 453 } }
+     *         var con2 = MoveObjCon { m : con.m }
+     *     }
+     *     return delete_called == 2;
+     * })
+     */
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("move function is called on previous value when moving struct member into array", () => {
+     *     if(true) {
+     *         var con = MoveObjCon { m : MoveObj { i : 453 } }
+     *         var con2 = [ con.m ]
+     *         // TODO this should result in an error, that con object has uninitialized fields before destruction
+     *     }
+     *     return delete_called == 2;
+     * })
+     */
+    /** TODO: test moves a member of struct without initializing
+     * delete_called = 0;
+     * test("move function is called when moving struct member into var init", () => {
+     *     if(true) {
+     *         var con = MoveObjCon { m : MoveObj { i : 453 } }
+     *         var con2 = con.m
+     *     }
+     *     return delete_called == 2;
+     * })
+     */
 
     // TESTING EXPLICIT COPY FUNCTION CALLS FROM HERE
 

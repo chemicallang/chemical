@@ -462,7 +462,7 @@ public:
         return s.has_value() ? s.value() : def;
     }
 
-    BaseType* ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values);
+    LinkedType* ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values);
 
     /**
      * after an identifier has been consumed
@@ -471,7 +471,13 @@ public:
      * this is the method called by lexAccessChain after finding a identifier
      * @param assChain is the access chain in an assignment
      */
-    Value* parseAccessChainAfterId(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct = false);
+    Value* parseAccessChainAfterId(
+            ASTAllocator& allocator,
+            std::vector<ChainValue*>& values,
+            Position& start,
+            bool parseStruct = false,
+            bool parseGenList = true
+    );
 
     /**
      * this method does not compound the access chain, so can be called recursively

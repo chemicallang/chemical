@@ -234,16 +234,6 @@ inline NamedLinkedType* named_linked_type(Parser& parser, ASTAllocator& allocato
     return idType;
 }
 
-inline AccessChain* create_chain(ASTAllocator& allocator, std::vector<ChainValue*>& values, SourceLocation id_loc) {
-    return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), id_loc);
-}
-
-inline LinkedValueType* create_linked_val_type(ASTAllocator& allocator, std::vector<ChainValue*>& values, SourceLocation id_loc) {
-    return new (allocator.allocate<LinkedValueType>()) LinkedValueType(create_chain(allocator, values, id_loc));
-}
-
-
-
 /**
  * var x0 = new a <-- type
  * var x1 = new a<> <-- type
@@ -357,14 +347,14 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
                             return;
                         }
                         case TokenType::LBrace: {
-                            const auto genType = new(allocator.allocate<GenericType>()) GenericType(create_linked_val_type(allocator, values, id_loc), std::move(genArgs));
+                            const auto genType = new(allocator.allocate<GenericType>()) GenericType(parser.ref_type_from(allocator, values), std::move(genArgs));
                             outValue = (Value*) parser.parseStructValue(allocator, genType, id->position);
                             return;
                         }
                         default:
                             // This is a type
                             outTypeLoc = {
-                                    new(allocator.allocate<GenericType>()) GenericType(create_linked_val_type(allocator, values, id_loc), std::move(genArgs)),
+                                    new(allocator.allocate<GenericType>()) GenericType(parser.ref_type_from(allocator, values), std::move(genArgs)),
                                     parser.loc_single(id)
                             };
                             return;
@@ -374,7 +364,7 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
                 default:
                     // This is a type
                     outTypeLoc = {
-                            create_linked_val_type(allocator, values, id_loc),
+                            parser.ref_type_from(allocator, values),
                             parser.loc_single(id)
                     };
                     return;

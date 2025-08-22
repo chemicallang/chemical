@@ -272,9 +272,9 @@ void Parser::parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& a
     }
 }
 
-BaseType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
-    if(values.size() == 1) {
-        auto val = (VariableIdentifier*) values.back();
+LinkedType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
+    if(values.size() == 1 && values.back()->kind() == ValueKind::Identifier) {
+        auto val = values.back()->as_identifier_unsafe();
         return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, val->value));
     } else {
         const auto loc = values.front()->encoded_location();
@@ -283,38 +283,63 @@ BaseType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*
     }
 }
 
-Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct) {
+Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct, bool parseGenList) {
 
-    // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
-    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-        std::vector<TypeLoc> genArgs;
-        parseGenericArgsList(genArgs, allocator);
-        if(token->type == TokenType::LParen) {
-            auto call = parseFunctionCall(allocator, values);
-            call->generic_list = std::move(genArgs);
-            values.emplace_back(call);
-        } else if(parseStruct && token->type == TokenType::LBrace) {
-            if(values.size() == 1) {
-                auto id = (VariableIdentifier*) values.back();
-                auto ref_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value));
-                auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
-                return parseStructValue(allocator, gen_type, start);
-            } else {
-                // TODO this shouldn't be the case, Generic Type currently supports only LinkedType, it should support LinkedValueType
-                error("multiple values in access chain of struct value are not supported");
-                return nullptr;
+    // consume access chain values
+    while(true) {
+
+        switch(token->type) {
+            case TokenType::DoubleColonSym: {
+                // set previous identifier is_ns
+                auto lastId = values.back();
+                auto last_id = lastId->as_identifier();
+                if (last_id) {
+                    last_id->is_ns = true;
+                } else {
+                    error("double colon '::' after unknown value");
+                }
+                break;
             }
-        } else {
-            unexpected_error("expected a '(' or '{' after the generic list for a function call or struct initialization");
+            case TokenType::DotSym:
+                break;
+            default:
+                goto end_loop;
+
         }
+
+        token++;
+
+        auto next_id = consumeIdentifierOrKeyword();
+        if(next_id) {
+            values.emplace_back(
+                    new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, next_id->value), loc_single(next_id))
+            );
+        } else {
+            error("expected an identifier after '.' or '::'");
+            break;
+        }
+
     }
 
-    // index operator, function call with generic items
-    while(token->type == TokenType::LParen || token->type == TokenType::LBracket) {
-        if(token->type == TokenType::LBracket) {
+    end_loop:
+
+    // generic list -> struct/call
+    // struct
+    // index op -> recursive chain
+    // function call -> recursive chain
+    switch(token->type) {
+        case TokenType::LBrace:
+            if(parseStruct) {
+                return parseStructValue(allocator, ref_type_from(allocator, values), start);
+            } else {
+                error("unexpected l-brace, struct value not expected");
+            }
+            break;
+        case TokenType::LBracket: {
             const auto location = loc_single(token);
-            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, values, location), location);
+            auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, values, location), location);
             values.emplace_back(indexOp);
+            // parse multiple index operators
             while (token->type == TokenType::LBracket) {
                 token++;
                 auto expr = parseExpression(allocator);
@@ -329,46 +354,46 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Chai
                     return nullptr;
                 }
             }
+            // parse recursive access chain
+            return parseAccessChainAfterId(allocator, values, start, false, false);
         }
-        while(true) {
-            if (token->type == TokenType::LParen) {
-                auto call = parseFunctionCall(allocator, values);
-                values.emplace_back(call);
-                break;
-            } else if(token->type == TokenType::LessThanSym) {
+        case TokenType::LParen: {
+            auto call = parseFunctionCall(allocator, values);
+            values.emplace_back(call);
+            // parse access chain recursive
+            return parseAccessChainAfterId(allocator, values, start, false, false);
+        }
+        case TokenType::LessThanSym:
+            if(parseGenList && isGenericEndAhead()) {
+                // generic list detected
                 std::vector<TypeLoc> genArgs;
                 parseGenericArgsList(genArgs, allocator);
-                if(token->type == TokenType::LParen){
-                    auto call = parseFunctionCall(allocator, values);
-                    call->generic_list = std::move(genArgs);
-                    values.emplace_back(call);
-                } else {
-                    error("expected a '(' after the generic list in function call");
+                // generic list -> struct/call
+                switch(token->type) {
+                    case TokenType::LBrace:
+                        if(parseStruct) {
+                            const auto ref_type = ref_type_from(allocator, values);
+                            const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
+                            return parseStructValue(allocator, gen_type, start);
+                        } else {
+                            error("unexpected l-brace, struct value not expected");
+                        }
+                        break;
+                    case TokenType::LParen: {
+                        auto call = parseFunctionCall(allocator, values);
+                        call->generic_list = std::move(genArgs);
+                        values.emplace_back(call);
+                        return parseAccessChainAfterId(allocator, values, start, false, false);
+                    }
+                    default:
+                        break;
                 }
             } else {
+                // less than operator x::y.z < 123
                 break;
             }
-        }
-    }
-
-    // TODO false for parseStruct being sent here, should be changed to parseStruct
-    if(consumeToken(TokenType::DotSym)) {
-        return parseAccessChainRecursive(allocator, values, start, false);
-    } else if(consumeToken(TokenType::DoubleColonSym)) {
-        auto lastId = values.back();
-        auto id = lastId->as_identifier();
-        if(id) {
-            id->is_ns = true;
-        } else {
-            error("double colon '::' after unknown value");
-        }
-        return parseAccessChainRecursive(allocator, values, start, parseStruct);
-    }
-
-    if(parseStruct) {
-        if(token->type == TokenType::LBrace) {
-            return parseStructValue(allocator, ref_type_from(allocator, values), start);
-        }
+        default:
+            break;
     }
 
     return nullptr;

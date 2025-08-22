@@ -200,6 +200,23 @@ struct wrap_gen_comptime_func_call<T> {
     }
 }
 
+namespace gen_container_ns {
+    struct contained_ns_gen<T> {
+        var x : T
+        func size(&self) : int {
+            if(T is short) {
+                return 2;
+            } else if(T is int) {
+                return 4;
+            } else if(T is bigint) {
+                return 8;
+            } else {
+                return 0;
+            }
+        }
+    }
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -486,5 +503,17 @@ func test_basic_generics() {
     test("default generic parameter type works in struct", () => {
         var s = GenStructDef<> { value : 10 }
         return s.test();
+    })
+    test("generic can exist inside namespaces - 1", () => {
+        var x = gen_container_ns::contained_ns_gen<short> { x : 10 }
+        return x.size() == 2
+    })
+    test("generic can exist inside namespaces - 2", () => {
+        var x = gen_container_ns::contained_ns_gen<int> { x : 10 }
+        return x.size() == 4
+    })
+    test("generic can exist inside namespaces - 3", () => {
+        var x = gen_container_ns::contained_ns_gen<bigint> { x : 10 }
+        return x.size() == 8
     })
 }

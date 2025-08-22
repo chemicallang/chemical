@@ -260,6 +260,20 @@ func test_satisfies() {
         type U = &BaseSatisfies11
         return intrinsics::satisfies<U, T>() && !intrinsics::satisfies<T, U>()
     })
+    test("pointer types do not satisfy reference types", () => {
+        type T = &EmptySatisfies
+        type K = *EmptySatisfies
+        type L = &mut EmptySatisfies
+        type M = *mut EmptySatisfies
+        return !intrinsics::satisfies<T, K>() && !intrinsics::satisfies<L, M>()
+    })
+    test("reference types do not satisfy pointer types", () => {
+        type T = *EmptySatisfies
+        type K = &EmptySatisfies
+        type L = *mut EmptySatisfies
+        type M = &mut EmptySatisfies
+        return !intrinsics::satisfies<T, K>() && !intrinsics::satisfies<L, M>()
+    })
     test("immutable reference types do not satisfy mutable reference types", () => {
         type T = &mut int
         type U = &int

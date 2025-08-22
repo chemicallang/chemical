@@ -559,6 +559,17 @@ bool is_generic_instantiation(ASTNode* gen_node, ASTNode* inst_node) {
     return false;
 }
 
+bool is_movable(VariableIdentifier* id) {
+    switch(id->linked->kind()) {
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::PatternMatchId:
+        case ASTNodeKind::VariantCaseVariable:
+            return false;
+        default:
+            return true;
+    }
+}
+
 bool FunctionTypeBody::mark_moved_value(
         ASTAllocator& allocator,
         Value* value_ptr,
@@ -567,9 +578,16 @@ bool FunctionTypeBody::mark_moved_value(
         bool check_implicit_constructors
 ) {
     auto& value = *value_ptr;
-    auto chain = value.as_access_chain();
-    if(chain && chain->values.back()->as_func_call()) {
-        return false;
+    switch(value.kind()) {
+        case ValueKind::AccessChain:
+            if(value.as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall) {
+                return false;
+            }
+            break;
+        case ValueKind::StructValue:
+            return false;
+        default:
+            break;
     }
     const auto expected_type_kind = expected_type ? expected_type->kind() : BaseTypeKind::Unknown;
     if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer || expected_type_kind == BaseTypeKind::String || expected_type_kind == BaseTypeKind::Dynamic) {
@@ -605,6 +623,25 @@ bool FunctionTypeBody::mark_moved_value(
                 diagnoser.error("cannot move a struct to a non struct type", &value);
             }
             return false;
+        }
+        switch(value.kind()) {
+            case ValueKind::Identifier:
+                if(!is_movable(value.as_identifier_unsafe())) {
+                    diagnoser.error("cannot move this value without re-initializing memory", &value);
+                    return false;
+                }
+                break;
+            case ValueKind::AccessChain: {
+                auto chain = value.as_access_chain_unsafe();
+                const auto last_value = chain->values.back();
+                if (last_value->kind() == ValueKind::Identifier && !is_movable(last_value->as_identifier_unsafe())) {
+                    diagnoser.error("cannot move this value without re-initializing memory", &value);
+                    return false;
+                }
+                break;
+            }
+            default:
+                break;
         }
         if (expected_node == (ASTNode*) linked_def) {
             final = mark_moved_value(&value, diagnoser);

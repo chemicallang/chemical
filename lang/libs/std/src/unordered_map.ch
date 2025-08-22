@@ -50,7 +50,7 @@ public struct unordered_map<Key, Value> {
         }
 
         // Free old table
-        free(table);
+        dealloc table;
         table = newTable;
         capacity = newCapacity;
     }
@@ -73,11 +73,11 @@ public struct unordered_map<Key, Value> {
                 // Call destructors on the key and value before freeing the node
                 destruct &currentNode.key;
                 destruct &currentNode.value;
-                free(currentNode);
+                dealloc currentNode;
                 currentNode = nextNode;
             }
         }
-        free(table);
+        dealloc table;
     }
 
     // Insert or update a key-value pair
@@ -153,7 +153,7 @@ public struct unordered_map<Key, Value> {
                 // Call destructors on the key and value before freeing the node
                 destruct &currentNode.key;
                 destruct &currentNode.value;
-                free(currentNode);
+                dealloc currentNode;
                 _size--;
                 return true;
             }

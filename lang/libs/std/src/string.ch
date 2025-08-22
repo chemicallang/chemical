@@ -335,7 +335,7 @@ public struct string : Hashable, Eq {
     @delete
     func delete(&mut self) {
         if(state == '2') {
-            free(storage.heap.data);
+            dealloc storage.heap.data;
         }
     }
 

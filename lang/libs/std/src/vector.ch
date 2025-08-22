@@ -116,7 +116,7 @@ public struct vector<T> {
     func delete(&mut self) {
         if(data_ptr != null) {
             destruct[data_size] data_ptr;
-            free(data_ptr);
+            dealloc data_ptr;
         }
     }
 

@@ -69,7 +69,7 @@ public struct default_function_instance {
             dtor(fn_data_ptr)
         }
         if(is_heap) {
-            free(fn_data_ptr)
+            dealloc fn_data_ptr
         }
     }
 

@@ -36,7 +36,7 @@ func test_new() {
         var x = new int;
         *x = 13;
         var result = *x == 13;
-        free(x);
+        dealloc x;
         return result;
     })
 
@@ -44,7 +44,7 @@ func test_new() {
         const x = new int;
         *x = 13;
         var result = *x == 13;
-        free(x);
+        dealloc x;
         return result;
     })
 
@@ -54,7 +54,7 @@ func test_new() {
         *x = &y
         const ptr = *x;
         var result = *ptr == 13;
-        free(x);
+        dealloc x;
         return result;
     })
 
@@ -78,7 +78,7 @@ func test_new() {
             b : 20
         };
         var result = x.a == 10 && x.b == 20;
-        free(x);
+        dealloc x;
         return result;
     })
 
@@ -88,14 +88,14 @@ func test_new() {
             b : 20
         };
         var result = x.a == 10 && x.b == 20;
-        free(x);
+        dealloc x;
         return result;
     })
 
     test("new works with access chains", () => {
         var x = new PointNew13(20, 13)
         var result = x.a == 20 && x.b == 13;
-        free(x);
+        dealloc x;
         return result;
     })
 
@@ -106,7 +106,7 @@ func test_new() {
             b : 33
         };
         var result = x.a == 87 && x.b == 33;
-        free(ptr);
+        dealloc ptr;
         return result;
     })
 
@@ -114,7 +114,7 @@ func test_new() {
         var ptr = malloc(sizeof(PointNew12));
         var x = new (ptr) PointNew13(20, 13)
         var result = x.a == 20 && x.b == 13;
-        free(ptr);
+        dealloc ptr;
         return result;
     })
 
@@ -122,7 +122,7 @@ func test_new() {
         var ptr = malloc(sizeof(PointNew12)) as *mut PointNew12
         new (ptr) PointNew12 { a : 12, b : 43 }
         var result = ptr.a == 12 && ptr.b == 43
-        free(ptr)
+        dealloc ptr
         return result;
     })
 

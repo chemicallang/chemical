@@ -85,7 +85,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
             }
             var got = read_exact(parent_fd, buf, len)
             if(got < 0 || got as uint32_t != len) {
-                free(buf)
+                dealloc buf
                 close(parent_fd)
                 var status : int
                 waitpid(pid, &mut status, 0)
@@ -98,7 +98,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
         process_message(state, buf)
 
-        free(buf);
+        dealloc buf;
 
     }
 

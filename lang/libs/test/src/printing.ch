@@ -181,7 +181,7 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
                 const tmp : **char = realloc(groups, newcap * sizeof(*char)) as **char;
                 if (!tmp) { /* allocation failed: bail out */
                     fprintf(get_stderr(), "print_test_results: out of memory\n");
-                    free(groups);
+                    dealloc groups;
                     return;
                 }
                 groups = tmp;
@@ -284,5 +284,5 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
            col_green(), passed, col_reset(),
            some_col, failed, col_reset());
 
-    free(groups);
+    dealloc groups;
 }

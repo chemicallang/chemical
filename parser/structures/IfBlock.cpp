@@ -182,6 +182,10 @@ IfValue* Parser::parseIfValue(ASTAllocator& allocator, bool top_level) {
 
     parseIfStatement(allocator, &val->stmt, true, true, top_level);
 
+    if(!val->stmt.elseBody.has_value()) {
+        error("if value always requires an else block", first.position);
+    }
+
     return val;
 
 }

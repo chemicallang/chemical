@@ -727,6 +727,22 @@ func test_nodes() {
         var j = if(var Thing2(value, value2) = t) value + value2 else -1
         return j == 30
     })
+    test("switch as value works with variant cases - 1", () => {
+        var t = IfValVariantTest1.Thing1(10)
+        var j = switch(t) {
+            Thing1(value) => value
+            Thing2(value) => -1
+        }
+        return j == 10;
+    })
+    test("switch as value works with variant cases - -2", () => {
+        var t = IfValVariantTest1.Thing2(20, 30)
+        var j = switch(t) {
+            Thing1(value) => value
+            Thing2(value) => value
+        }
+        return j == 20;
+    })
 }
 
 func declared_below() : int {

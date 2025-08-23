@@ -65,7 +65,6 @@ llvm::Value* SwitchValue::llvm_value(Codegen& gen, SwitchStatement& stmt, bool a
             }
             if (variant_def) {
                 if (stmt.scopes.size() == variant_def->variables().size() && !stmt.has_default_case()) {
-                    // TODO only do this when switch is a value
                     auto_default_case = true;
                 }
                 expr_value = variant_def->load_type_int(gen, expr_value, stmt.expression->encoded_location());
@@ -116,6 +115,14 @@ llvm::Value* SwitchValue::llvm_value(Codegen& gen, SwitchStatement& stmt, bool a
         scope_ind++;
     }
 
+    if (auto_default_case && !stmt.has_default_case()) {
+        if(caseBlock) {
+            switchInst->setDefaultDest(caseBlock);
+        } else {
+            gen.error("A default case must be present when generating switch instruction", stmt.encoded_location());
+        }
+    }
+
     gen.SetInsertPoint(end);
 
     const auto phiNode = gen.builder->CreatePHI(incoming[0].first->getType(), total_scopes);
@@ -126,22 +133,6 @@ llvm::Value* SwitchValue::llvm_value(Codegen& gen, SwitchStatement& stmt, bool a
 
     return phiNode;
 
-//    if(end) {
-//        if (all_scopes_return) {
-//            end->eraseFromParent();
-//            gen.destroy_current_scope = false;
-//            if(!stmt.has_default_case()) {
-//                if(auto_default_case && caseBlock) {
-//                    switchInst->setDefaultDest(caseBlock);
-//                } else {
-//                    gen.error(
-//                            "A default case must be present when generating switch instruction or it must not be the last statement in the function", (ASTNode*) this);
-//                }
-//            }
-//        } else {
-//
-//        }
-//    }
 }
 
 //llvm::ConstantInt* write_variant_call_id_index(Codegen& gen, VariantDefinition* variant, VariableIdentifier* value) {

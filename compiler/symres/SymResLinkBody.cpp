@@ -604,14 +604,6 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
         return;
     }
 
-    if(result && stmt->is_value) {
-        auto val_node = stmt->get_value_node();
-        if(!val_node) {
-            linker.error("expected a single value node for the value", (ASTNode*) stmt);
-            return;
-        }
-    }
-
     std::vector<VariableIdentifier*> moved_ids;
     std::vector<AccessChain*> moved_chains;
 
@@ -683,15 +675,6 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
         curr_func->restore_moved_ids(moved_ids);
         curr_func->restore_moved_chains(moved_chains);
     }
-
-    // setting types for the given switch
-    if(stmt->is_value) {
-        const auto node = stmt->get_value_node();
-        if(node) {
-            stmt->setType(node->getType());
-        }
-    }
-
 
 }
 
@@ -1203,15 +1186,6 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
     curr_func->restore_moved_ids(moved_ids);
     curr_func->restore_moved_chains(moved_chains);
 
-    // we never reach this point if the statement is compile time
-    // maybe type emplacement should also take place above
-    if(node->is_value) {
-        auto last_val = node->get_value_node();
-        if(last_val) {
-            node->setType(last_val->getType());
-        }
-    }
-
 }
 
 void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
@@ -1273,15 +1247,6 @@ void SymResLinkBody::VisitScope(Scope* node) {
 
 void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
     link_seq(*this, node->body);
-    // determining the type of loop block
-    if(node->is_value) {
-        const auto first = node->get_first_broken();
-        if(first) {
-            node->setType(first->getType());
-        } else {
-            node->setType(linker.comptime_scope.typeBuilder.getVoidType());
-        }
-    }
 
 }
 
@@ -2351,6 +2316,47 @@ void SymResLinkBody::VisitSizeOfValue(SizeOfValue* value) {
 
 void SymResLinkBody::VisitAlignOfValue(AlignOfValue* value) {
     visit(value->for_type);
+}
+
+void SymResLinkBody::VisitIfValue(IfValue* value) {
+    VisitIfStmt(&value->stmt);
+
+    // we never reach this point if the statement is compile time
+    // maybe type emplacement should also take place above
+    auto last_val = value->stmt.get_value_node();
+    if(last_val) {
+        value->setType(last_val->getType());
+    } else {
+        linker.error("expected a single value node for the if value", value);
+        return;
+    }
+
+}
+
+void SymResLinkBody::VisitSwitchValue(SwitchValue* value) {
+    VisitSwitchStmt(&value->stmt);
+
+    // setting types for the given switch
+    const auto node = value->stmt.get_value_node();
+    if(node) {
+        value->setType(node->getType());
+    } else {
+        linker.error("expected a single value node for the switch value", value);
+        return;
+    }
+
+
+}
+
+void SymResLinkBody::VisitLoopValue(LoopValue* value) {
+    VisitLoopBlock(&value->stmt);
+    // determine type of loop value
+    const auto first = value->stmt.get_first_broken();
+    if(first) {
+        value->setType(first->getType());
+    } else {
+        value->setType(linker.comptime_scope.typeBuilder.getVoidType());
+    }
 }
 
 void SymResLinkBody::VisitStringValue(StringValue* strValue) {

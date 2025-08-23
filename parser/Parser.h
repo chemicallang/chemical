@@ -757,9 +757,26 @@ public:
     std::optional<std::pair<Value*, Scope>> parseIfExprAndBlock(ASTAllocator& allocator, bool is_value, bool lex_value_node, bool top_level);
 
     /**
+     * parse an if statement into given statement
+     * note: if keyword must have been consumed
+     */
+    void parseIfStatement(
+            ASTAllocator& allocator,
+            IfStatement* stmt,
+            bool is_value,
+            bool parse_value_node,
+            bool top_level
+    );
+
+    /**
      * parse an if statement
      */
     IfStatement* parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level);
+
+    /**
+     * parses a single if value
+     */
+    IfValue* parseIfValue(ASTAllocator& allocator, bool top_level);
 
     /**
      * parses a single do while loop
@@ -777,9 +794,19 @@ public:
     ForLoop* parseForLoop(ASTAllocator& allocator);
 
     /**
+     * parses a single loop block
+     */
+    void parseLoopBlock(ASTAllocator& allocator, LoopBlock* block);
+
+    /**
      * lex loop block tokens
      */
-    LoopBlock* parseLoopBlockTokens(ASTAllocator& allocator, bool is_value);
+    LoopBlock* parseLoopBlockTokens(ASTAllocator& allocator);
+
+    /**
+     * parses a loop value
+     */
+    LoopValue* parseLoopValue(ASTAllocator& allocator);
 
     /**
      * parse parameter list
@@ -1036,7 +1063,22 @@ public:
     /**
      * lexes switch block
      */
+    void parseSwitchStatementBlock(
+            ASTAllocator& allocator,
+            SwitchStatement* stmt,
+            bool is_value = false,
+            bool parse_value_node = false
+    );
+
+    /**
+     * lexes switch block
+     */
     SwitchStatement* parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value = false, bool parse_value_node = false);
+
+    /**
+     * parses a single switch value
+     */
+    SwitchValue* parseSwitchValue(ASTAllocator& allocator);
 
     /**
      * parse try catch

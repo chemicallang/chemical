@@ -303,6 +303,18 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitIfValue(IfValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
+    inline void VisitSwitchValue(SwitchValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
+    inline void VisitLoopValue(LoopValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitIncDecValue(IncDecValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -764,13 +776,13 @@ public:
                 static_cast<Derived*>(this)->VisitLambdaFunction((LambdaFunction*) value);
                 return;
             case ValueKind::IfValue:
-                static_cast<Derived*>(this)->VisitIfStmt((IfStatement*) value);
+                static_cast<Derived*>(this)->VisitIfValue((IfValue*) value);
                 return;
             case ValueKind::SwitchValue:
-                static_cast<Derived*>(this)->VisitSwitchStmt((SwitchStatement*) value);
+                static_cast<Derived*>(this)->VisitSwitchValue((SwitchValue*) value);
                 return;
             case ValueKind::LoopValue:
-                static_cast<Derived*>(this)->VisitLoopBlock((LoopBlock*) value);
+                static_cast<Derived*>(this)->VisitLoopValue((LoopValue*) value);
                 return;
             case ValueKind::NewTypedValue:
                 static_cast<Derived*>(this)->VisitNewTypedValue((NewTypedValue*) value);
@@ -1238,6 +1250,15 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(BlockValue* value) {
         static_cast<Derived*>(this)->VisitBlockValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IfValue* value) {
+        static_cast<Derived*>(this)->VisitIfValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(SwitchValue* value) {
+        static_cast<Derived*>(this)->VisitSwitchValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(LoopValue* value) {
+        static_cast<Derived*>(this)->VisitLoopValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(WrapValue* value) {
         static_cast<Derived*>(this)->VisitWrapValue(value);

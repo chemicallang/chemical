@@ -332,29 +332,21 @@ public:
 
     void VisitSizeOfValue(SizeOfValue* value);
 
-    // TODO handle unsafe value
-    void VisitUnsafeValue(UnsafeValue* value) {}
-
-    // TODO error out when present not supposed to be present
-    void VisitComptimeValue(ComptimeValue* value) {}
-
     void VisitAlignOfValue(AlignOfValue* value);
+
+    void VisitUnsafeValue(UnsafeValue* value);
+
+    void VisitComptimeValue(ComptimeValue* value);
 
     void VisitVariantCase(VariantCase* value);
 
     void VisitAddrOfValue(AddrOfValue* value);
 
-    // TODO handle this
-    void VisitPointerValue(PointerValue* value) {}
+    void VisitIfValue(IfValue* value);
 
-    // TODO handle this
-    void VisitBlockValue(BlockValue* value) {}
+    void VisitSwitchValue(SwitchValue* value);
 
-    // TODO handle this
-    void VisitWrapValue(WrapValue* value) {}
-
-    // TODO handle this
-    void VisitDestructValue(DestructValue* value) {}
+    void VisitLoopValue(LoopValue* value);
 
     // Types
 

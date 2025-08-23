@@ -220,6 +220,12 @@ class NewValue;
 
 class PlacementNewValue;
 
+class IfValue;
+
+class SwitchValue;
+
+class LoopValue;
+
 class NegativeValue;
 
 class NotValue;

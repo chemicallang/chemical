@@ -249,6 +249,12 @@ public:
 
     void VisitAlignOfValue(AlignOfValue* value);
 
+    void VisitIfValue(IfValue* value);
+
+    void VisitSwitchValue(SwitchValue* value);
+
+    void VisitLoopValue(LoopValue* value);
+
     void VisitStringValue(StringValue* value);
 
     void VisitStructValue(StructValue* value);

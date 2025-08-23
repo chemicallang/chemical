@@ -11,6 +11,7 @@
 #include "ast/statements/Unreachable.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/LoopValue.h"
 
 ContinueStatement* Parser::parseContinueStatement(ASTAllocator& allocator) {
     auto& tok = *token;
@@ -155,7 +156,19 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
 
 }
 
-LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) {
+void Parser::parseLoopBlock(ASTAllocator& allocator, LoopBlock* loopBlock) {
+    // { statement(s) } with continue & break support
+    auto block = parseBraceBlock("loop", loopBlock, allocator);
+    if(block.has_value()) {
+        loopBlock->body = std::move(block.value());
+    } else {
+        unexpected_error("expected a brace block in a for block");
+        return;
+    }
+
+}
+
+LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator) {
 
     auto& tok = *token;
     if (tok.type != TokenType::LoopKw) {
@@ -164,17 +177,27 @@ LoopBlock* Parser::parseLoopBlockTokens(ASTAllocator& allocator, bool is_value) 
 
     token++;
 
-    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock(is_value, parent_node, loc_single(tok));
+    auto loopBlock = new (allocator.allocate<LoopBlock>()) LoopBlock(parent_node, loc_single(tok));
 
-    // { statement(s) } with continue & break support
-    auto block = parseBraceBlock("loop", loopBlock, allocator);
-    if(block.has_value()) {
-        loopBlock->body = std::move(block.value());
-    } else {
-        unexpected_error("expected a brace block in a for block");
-        return loopBlock;
-    }
+    parseLoopBlock(allocator, loopBlock);
 
     return loopBlock;
+
+}
+
+LoopValue* Parser::parseLoopValue(ASTAllocator& allocator) {
+
+    auto& tok = *token;
+    if (tok.type != TokenType::LoopKw) {
+        return nullptr;
+    }
+
+    token++;
+
+    const auto val = new (allocator.allocate<LoopValue>()) LoopValue(parent_node, loc_single(tok));
+
+    parseLoopBlock(allocator, &val->stmt);
+
+    return val;
 
 }

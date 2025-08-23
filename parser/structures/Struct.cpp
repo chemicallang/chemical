@@ -322,7 +322,7 @@ IfStatement* parseMemberIfStatement(Parser& parser, ASTAllocator& allocator, Acc
 
     parser.token++;
 
-    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parser.parent_node, false, parser.loc_single(first));
+    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parser.parent_node, parser.loc_single(first));
 
     auto exprBlock = parseMemberIfExprAndBlock(parser, allocator, specifier);
     if(exprBlock.has_value()) {

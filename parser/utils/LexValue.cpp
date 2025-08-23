@@ -643,11 +643,11 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
     const auto start_token = token;
     switch(start_token->type) {
         case TokenType::IfKw:
-            return parseIfStatement(allocator, true, true, false);
+            return (Value*) parseIfValue(allocator, false);
         case TokenType::SwitchKw:
-            return parseSwitchStatementBlock(allocator, true, true);
+            return (Value*) parseSwitchValue(allocator);
         case TokenType::LoopKw:
-            return parseLoopBlockTokens(allocator, true);
+            return (Value*) parseLoopValue(allocator);
         case TokenType::DoublePlusSym:
             return (Value*) parsePreIncDecValue(allocator, true);
         case TokenType::DoubleMinusSym:
@@ -679,11 +679,11 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
     const auto start_token = token;
     switch(start_token->type) {
         case TokenType::IfKw:
-            return parseIfStatement(allocator, true, true, false);
+            return (Value*) parseIfValue(allocator, false);
         case TokenType::SwitchKw:
-            return parseSwitchStatementBlock(allocator, true, true);
+            return (Value*) parseSwitchValue(allocator);
         case TokenType::LoopKw:
-            return parseLoopBlockTokens(allocator, true);
+            return (Value*) parseLoopValue(allocator);
         case TokenType::DoublePlusSym:
             return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, true), start_token);
         case TokenType::DoubleMinusSym:

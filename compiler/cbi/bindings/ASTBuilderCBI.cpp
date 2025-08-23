@@ -512,8 +512,8 @@ GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::st
     return new (builder->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, {at_least_type, location}, {def_type, location}, parent_node, index, location);
 }
 
-IfStatement* ASTBuildermake_if_stmt(ASTBuilder* builder, Value* condition, bool is_value, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<IfStatement>()) IfStatement(condition, parent_node, is_value, location);
+IfStatement* ASTBuildermake_if_stmt(ASTBuilder* builder, Value* condition, ASTNode* parent_node, uint64_t location) {
+    return new (builder->allocate<IfStatement>()) IfStatement(condition, parent_node, location);
 }
 
 ImplDefinition* ASTBuildermake_impl_def(ASTBuilder* builder, BaseType* interface_type, BaseType* struct_type, ASTNode* parent_node, uint64_t location) {

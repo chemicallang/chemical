@@ -7,6 +7,7 @@
 #include <cassert>
 #include "parser/Parser.h"
 #include "ast/structures/If.h"
+#include "ast/values/IfValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/PatternMatchExpr.h"
 
@@ -90,16 +91,13 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
 
 }
 
-IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level) {
-
-    auto& first = *token;
-    if(first.type != TokenType::IfKw) {
-        return nullptr;
-    }
-
-    token++;
-
-    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parent_node, is_value, loc_single(first));
+void Parser::parseIfStatement(
+        ASTAllocator& allocator,
+        IfStatement* statement,
+        bool is_value,
+        bool parse_value_node,
+        bool top_level
+) {
 
     auto exprBlock = parseIfExprAndBlock(allocator, is_value, parse_value_node, top_level);
     if(exprBlock.has_value()) {
@@ -110,7 +108,7 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
         if(!statement->condition) {
             statement->condition = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
         }
-        return statement;
+        return;
     }
 
     // lex whitespace
@@ -124,7 +122,7 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
             if(exprBlock2.has_value()) {
                 statement->elseIfs.emplace_back(std::move(exprBlock2.value()));
             } else {
-                return statement;
+                return;
             }
         } else {
             if(top_level) {
@@ -137,7 +135,7 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
                     statement->elseBody = std::move(block.value());
                 } else {
                     error("expected a brace block after the else while parsing an if statement");
-                    return statement;
+                    return;
                 }
             } else {
                 auto block = parseBraceBlockOrValueNode(allocator, "else", is_value, parse_value_node);
@@ -145,13 +143,45 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
                     statement->elseBody = std::move(block.value());
                 } else {
                     error("expected a brace block after the else while lexing an if statement");
-                    return statement;
+                    return;
                 }
             }
-            return statement;
+            return;
         }
     }
 
+}
+
+IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level) {
+
+    auto& first = *token;
+    if(first.type != TokenType::IfKw) {
+        return nullptr;
+    }
+
+    token++;
+
+    auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parent_node, loc_single(first));
+
+    parseIfStatement(allocator, statement, is_value, parse_value_node, top_level);
+
     return statement;
+
+}
+
+IfValue* Parser::parseIfValue(ASTAllocator& allocator, bool top_level) {
+
+    auto& first = *token;
+    if(first.type != TokenType::IfKw) {
+        return nullptr;
+    }
+
+    token++;
+
+    const auto val = new (allocator.allocate<IfValue>()) IfValue(nullptr, parent_node, loc_single(first));
+
+    parseIfStatement(allocator, &val->stmt, true, true, top_level);
+
+    return val;
 
 }

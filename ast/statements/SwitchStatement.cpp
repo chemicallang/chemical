@@ -24,26 +24,124 @@ llvm::Type* SwitchValue::llvm_type(Codegen &gen) {
     return node->llvm_type(gen);
 }
 
-llvm::AllocaInst* SwitchValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-    const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
-    gen.di.instr(allocated, Value::encoded_location());
-    auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = { nullptr, allocated };
-    stmt.code_gen(gen);
-    gen.current_assignable = prev_assignable;
-    return allocated;
-}
+llvm::Value* SwitchValue::llvm_value(Codegen& gen, SwitchStatement& stmt, bool allocate) {
 
-llvm::Value* SwitchValue::llvm_value(Codegen &gen, BaseType *type) {
-    stmt.code_gen(gen);
-    return nullptr;
-}
+    auto total_scopes = stmt.scopes.size();
 
-void SwitchValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
-    auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = { lhs, lhsPtr };
-    stmt.code_gen(gen);
-    gen.current_assignable = prev_assignable;
+    // the end block
+    llvm::BasicBlock* end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+
+    VariantDefinition* variant_def = nullptr;
+
+    // this boolean can be set to true, to set to last case as default
+    // this should be only set when it's guaranteed that default scope is not needed
+    // because all cases are covered
+    bool auto_default_case = false;
+
+    llvm::Value* expr_value = stmt.expression->llvm_value(gen);
+    const auto expr_type = stmt.expression->create_type(gen.allocator);
+    if(expr_type) {
+
+        // automatic dereference
+        const auto pure_type = expr_type->pure_type(gen.allocator);
+        if(pure_type->kind() == BaseTypeKind::Reference) {
+            const auto ref = pure_type->as_reference_type_unsafe()->type->pure_type(gen.allocator);
+            const auto ref_kind = ref->kind();
+            if(BaseType::isIntNType(ref_kind) || ref_kind == BaseTypeKind::Bool) {
+                const auto loadInst = gen.builder->CreateLoad(ref->llvm_type(gen), expr_value);
+                gen.di.instr(loadInst, stmt.expression);
+                expr_value = loadInst;
+            }
+        }
+
+        // variant members
+        const auto linked = expr_type->linked_node();
+        if(linked) {
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::VariantDecl) {
+                variant_def = linked->as_variant_def_unsafe();
+            } else if(linked_kind == ASTNodeKind::VariantMember) {
+                variant_def = linked->as_variant_member_unsafe()->parent();
+            }
+            if (variant_def) {
+                if (stmt.scopes.size() == variant_def->variables().size() && !stmt.has_default_case()) {
+                    // TODO only do this when switch is a value
+                    auto_default_case = true;
+                }
+                expr_value = variant_def->load_type_int(gen, expr_value, stmt.expression->encoded_location());
+            }
+        }
+
+    }
+
+    auto switchInst = gen.builder->CreateSwitch(expr_value, end, total_scopes);
+    gen.di.instr(switchInst, stmt.encoded_location());
+
+    bool all_scopes_return = true;
+
+    llvm::BasicBlock* caseBlock = nullptr;
+
+    std::vector<std::pair<llvm::Value*, llvm::BasicBlock*>> incoming;
+
+    unsigned scope_ind = 0;
+    const auto scopes_size = stmt.scopes.size();
+    while(scope_ind < scopes_size) {
+        auto& scope = stmt.scopes[scope_ind];
+
+        caseBlock = llvm::BasicBlock::Create(*gen.ctx, "case", gen.current_function);
+        gen.SetInsertPoint(caseBlock);
+        const auto value = scope.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+        incoming.emplace_back(value, gen.builder->GetInsertBlock());
+        if(!gen.has_current_block_ended) {
+            all_scopes_return = false;
+        }
+        gen.CreateBr(end, scope.encoded_location());
+
+        for(auto& switch_case : stmt.cases) {
+            if(switch_case.second == scope_ind) {
+                const auto caseValue =  switch_case.first->llvm_value(gen);
+                if(llvm::isa<llvm::ConstantInt>(caseValue)) {
+                    const auto castedCase = Codegen::implicit_cast_constant((llvm::ConstantInt*) caseValue, expr_type, expr_value->getType());
+                    switchInst->addCase(castedCase, caseBlock);
+                } else {
+                    gen.error("switch case value is not a constant", switch_case.first);
+                }
+            }
+        }
+
+        if(stmt.defScopeInd == scope_ind) {
+            switchInst->setDefaultDest(caseBlock);
+        }
+
+        scope_ind++;
+    }
+
+    gen.SetInsertPoint(end);
+
+    const auto phiNode = gen.builder->CreatePHI(incoming[0].first->getType(), total_scopes);
+
+    for(auto& inc : incoming) {
+        phiNode->addIncoming(inc.first, inc.second);
+    }
+
+    return phiNode;
+
+//    if(end) {
+//        if (all_scopes_return) {
+//            end->eraseFromParent();
+//            gen.destroy_current_scope = false;
+//            if(!stmt.has_default_case()) {
+//                if(auto_default_case && caseBlock) {
+//                    switchInst->setDefaultDest(caseBlock);
+//                } else {
+//                    gen.error(
+//                            "A default case must be present when generating switch instruction or it must not be the last statement in the function", (ASTNode*) this);
+//                }
+//            }
+//        } else {
+//
+//        }
+//    }
 }
 
 //llvm::ConstantInt* write_variant_call_id_index(Codegen& gen, VariantDefinition* variant, VariableIdentifier* value) {

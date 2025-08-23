@@ -98,6 +98,10 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    void destruct_current_scope(Codegen& gen, unsigned destruct_begin);
+
+    llvm::Value* code_gen_value_scope(Codegen& gen, bool allocate, unsigned destruct_begin);
+
     void code_gen(Codegen &gen) final;
 
     void code_gen_no_scope(Codegen &gen, unsigned destruct_begin);

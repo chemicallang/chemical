@@ -67,6 +67,8 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Import.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/SwitchValue.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/statements/ProvideStmt.h"
@@ -1504,34 +1506,85 @@ void ASTNode::code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation
     }
 }
 
+void Scope::destruct_current_scope(Codegen& gen, unsigned destruct_begin) {
+    const auto func_type = gen.current_func_type;
+    VariableIdentifier temp_id("", encoded_location());
+    int i = ((int) gen.destruct_nodes.size()) - 1;
+    while (i >= (int) destruct_begin) {
+        auto& nodePair = gen.destruct_nodes[i];
+        // TODO use the location that represents the scope end
+        temp_id.linked = nodePair.getInitializer();
+        if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
+            gen.conditional_destruct(nodePair, nullptr, encoded_location());
+        } else {
+            gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer(), this);
+        }
+        i--;
+    }
+}
+
+llvm::Value* Scope::code_gen_value_scope(Codegen& gen, bool allocate, unsigned destruct_begin) {
+    for(const auto node : nodes) {
+        node->code_gen_declare(gen);
+    }
+    if(nodes.size() > 1) {
+        int i = 0;
+        // do not do the last one
+        const auto total = (nodes.size() - 1);
+        while (i < total) {
+            nodes[i]->code_gen(gen, this, i);
+            i++;
+        }
+    }
+    llvm::Value* result;
+    // lets do the last one
+    const auto last = nodes.back();
+    switch(last->kind()) {
+        case ASTNodeKind::ValueNode: {
+            const auto value = last->as_value_node_unsafe()->value;
+            if (allocate) {
+                result = value->llvm_allocate(gen, "", nullptr);
+            } else {
+                result = value->llvm_value(gen);
+            }
+            break;
+        }
+        case ASTNodeKind::IfStmt: {
+            auto& stmt = *last->as_if_stmt_unsafe();
+            result = IfValue::llvm_value(gen, stmt, allocate);
+            break;
+        }
+        case ASTNodeKind::SwitchStmt: {
+            auto& stmt = *last->as_switch_stmt_unsafe();
+            result = SwitchValue::llvm_value(gen, stmt, allocate);
+            break;
+        }
+        default:
+            last->code_gen(gen, this, nodes.size() - 1);
+            result = nullptr;
+            break;
+    }
+    if(gen.destroy_current_scope) {
+        destruct_current_scope(gen, destruct_begin);
+    } else {
+        gen.destroy_current_scope = true;
+    }
+    auto itr = gen.destruct_nodes.begin() + destruct_begin;
+    gen.destruct_nodes.erase(itr, gen.destruct_nodes.end());
+    return result;
+}
+
 void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
     for(const auto node : nodes) {
         node->code_gen_declare(gen);
     }
     int i = 0;
     while(i < nodes.size()) {
-//        std::cout << "Generating " + std::to_string(i) << std::endl;
         nodes[i]->code_gen(gen, this, i);
-//        std::cout << "Success " + std::to_string(i) << " : " << nodes[i]->representation() << std::endl;
         i++;
     }
     if(gen.destroy_current_scope) {
-        const auto func_type = gen.current_func_type;
-
-        VariableIdentifier temp_id("", encoded_location());
-
-        i = ((int) gen.destruct_nodes.size()) - 1;
-        while (i >= (int) destruct_begin) {
-            auto& nodePair = gen.destruct_nodes[i];
-            // TODO use the location that represents the scope end
-            temp_id.linked = nodePair.getInitializer();
-            if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-                gen.conditional_destruct(nodePair, nullptr, encoded_location());
-            } else {
-                gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer(), this);
-            }
-            i--;
-        }
+        destruct_current_scope(gen, destruct_begin);
     } else {
         gen.destroy_current_scope = true;
     }

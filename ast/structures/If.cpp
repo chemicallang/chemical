@@ -17,26 +17,136 @@ llvm::Type* IfValue::llvm_type(Codegen &gen) {
     return node->llvm_type(gen);
 }
 
-llvm::AllocaInst* IfValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-    const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
-    gen.di.instr(allocated, Value::encoded_location());
-    auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = { nullptr, allocated };
-    stmt.code_gen(gen);
-    gen.current_assignable = prev_assignable;
-    return allocated;
-}
+llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate) {
 
-llvm::Value* IfValue::llvm_value(Codegen &gen, BaseType *type) {
-    stmt.code_gen(gen);
-    return nullptr;
-}
+//    auto scope = stmt.get_or_resolve_scope((InterpretScope&) gen.comptime_scope, gen);
+//    if(scope.has_value()) {
+//        if(scope.value()) {
+//            scope.value()->code_gen(gen);
+//        }
+//        return;
+//    } else if(stmt.is_top_level()) {
+//        gen.error("top level if statement couldn't be resolved at comptime", &stmt);
+//        return;
+//    }
 
-void IfValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
-    auto prev_assignable = gen.current_assignable;
-    gen.current_assignable = { lhs, lhsPtr };
-    stmt.code_gen(gen);
-    gen.current_assignable = prev_assignable;
+    // compare
+    llvm::BasicBlock *elseBlock = nullptr;
+
+    // creating a then block
+    auto thenBlock = llvm::BasicBlock::Create(*gen.ctx, "ifthen", gen.current_function);
+
+    // creating all the else ifs blocks
+    // every else if it has two blocks, one block that checks the condition, the other block which runs when condition succeeds
+    const auto total_elseifs = stmt.elseIfs.size();
+    std::vector<std::pair<llvm::BasicBlock *, llvm::BasicBlock *>> elseIfsBlocks(total_elseifs);
+    unsigned int i = 0;
+    while (i < total_elseifs) {
+        // else if condition block
+        auto conditionBlock = llvm::BasicBlock::Create(*gen.ctx, "elseifcond" + std::to_string(i), gen.current_function);
+        // else if body block
+        auto elseIfBodyBlock = llvm::BasicBlock::Create(*gen.ctx, "elseifbody" + std::to_string(i), gen.current_function);
+        // save
+        elseIfsBlocks[i] = std::pair(conditionBlock, elseIfBodyBlock);
+        i++;
+    }
+
+    // create an else block
+    if (stmt.elseBody.has_value()) {
+        elseBlock = llvm::BasicBlock::Create(*gen.ctx, "ifelse", gen.current_function);
+    }
+
+    // end block
+    llvm::BasicBlock* endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
+
+    // the block after the first if block
+    const auto elseOrEndBlock = elseBlock ? elseBlock : endBlock;
+    auto nextBlock = !elseIfsBlocks.empty() ? elseIfsBlocks[0].first : elseOrEndBlock;
+
+    // Branch based on comparison result
+    stmt.condition->llvm_conditional_branch(gen, thenBlock, nextBlock);
+
+    // the phi node entries
+    std::vector<std::pair<llvm::Value*, llvm::BasicBlock*>> incoming;
+
+    // generating then code
+    gen.SetInsertPoint(thenBlock);
+    const auto ifBodyValue = stmt.ifBody.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+    incoming.emplace_back(ifBodyValue, gen.builder->GetInsertBlock());
+    bool is_then_returns = gen.has_current_block_ended;
+    if(endBlock) {
+        // TODO send the ending location of the block
+        gen.CreateBr(endBlock, stmt.ifBody.encoded_location());
+    } else {
+        // TODO send the ending location here
+        gen.DefaultRet(stmt.ifBody.encoded_location());
+    }
+
+    bool all_elseifs_return = true;
+
+    // generating else if block
+    i = 0;
+    while (i < total_elseifs) {
+        auto &elif = stmt.elseIfs[i];
+        auto &pair = elseIfsBlocks[i];
+
+        // generating condition code
+        gen.SetInsertPoint(pair.first);
+        nextBlock = ((i + 1) < elseIfsBlocks.size()) ? elseIfsBlocks[i + 1].first : elseOrEndBlock;
+        elif.first->llvm_conditional_branch(gen, pair.second, nextBlock);
+
+        // generating block code
+        gen.SetInsertPoint(pair.second);
+        const auto elseIfVal = elif.second.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+        incoming.emplace_back(elseIfVal, gen.builder->GetInsertBlock());
+        if(!gen.has_current_block_ended) {
+            all_elseifs_return = false;
+        }
+        if(endBlock) {
+            // TODO send the ending location of the block
+            gen.CreateBr(endBlock, elif.second.encoded_location());
+        } else {
+            // TODO send the ending location here
+            gen.DefaultRet(elif.second.encoded_location());
+        }
+        i++;
+    }
+
+    // generating else block
+    bool is_else_returns = false;
+    if (elseBlock) {
+        gen.SetInsertPoint(elseBlock);
+        const auto elseBlockVal = stmt.elseBody.value().code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+        incoming.emplace_back(elseBlockVal, gen.builder->GetInsertBlock());
+        is_else_returns = gen.has_current_block_ended;
+        if(endBlock) {
+            // TODO send the ending location of the block
+            gen.CreateBr(endBlock, stmt.elseBody->encoded_location());
+        } else {
+            // TODO send the ending location of the block
+            gen.DefaultRet(stmt.elseBody->encoded_location());
+        }
+    }
+
+    gen.SetInsertPoint(endBlock);
+
+    const auto phi = gen.builder->CreatePHI(ifBodyValue->getType(), total_elseifs + 1 + (elseBlock ? 1 : 0));
+
+    for(auto& inc : incoming) {
+        phi->addIncoming(inc.first, inc.second);
+    }
+
+    return phi;
+
+//    if(endBlock) {
+//        // set to end block
+//        if (is_then_returns && all_elseifs_return && is_else_returns) {
+//            endBlock->eraseFromParent();
+//            gen.destroy_current_scope = false;
+//        } else {
+//            gen.SetInsertPoint(endBlock);
+//        }
+//    }
 }
 
 void IfStatement::code_gen(Codegen &gen) {

@@ -441,7 +441,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
                 to_di_type(*this, init->known_type(), false)
         );
         const auto loc = di_loc(location.start);
-        if (!init->is_const() && llvm::isa<llvm::Instruction>(val)) {
+        if (!init->is_const() && llvm::isa<llvm::Instruction>(val) && !llvm::isa<llvm::PHINode>(val)) {
             llvm::Instruction *inst = llvm::cast<llvm::Instruction>(val);
             builder->insertDeclare(
                     init->llvm_ptr,                                         // Variable allocation

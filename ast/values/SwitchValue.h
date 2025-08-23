@@ -37,13 +37,17 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    static llvm::Value* llvm_value(Codegen& gen, SwitchStatement& stmt, bool allocate);
+
     llvm::Type* llvm_type(Codegen &gen) final;
 
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) final;
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override {
+        return (llvm::AllocaInst*) llvm_value(gen, stmt, true);
+    }
 
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
-
-    void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;
+    inline llvm::Value* llvm_value(Codegen &gen, BaseType *exp_type = nullptr) final {
+        return llvm_value(gen, stmt, false);
+    }
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override {
         const auto linked = linked_node();

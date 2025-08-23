@@ -128,6 +128,14 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
         }
     }
 
+//    if(endBlock) {
+//        // set to end block
+//        if (is_then_returns && all_elseifs_return && is_else_returns) {
+//            endBlock->eraseFromParent();
+//            gen.destroy_current_scope = false;
+//        }
+//    }
+
     gen.SetInsertPoint(endBlock);
 
     const auto phi = gen.builder->CreatePHI(ifBodyValue->getType(), total_elseifs + 1 + (elseBlock ? 1 : 0));
@@ -138,15 +146,6 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
 
     return phi;
 
-//    if(endBlock) {
-//        // set to end block
-//        if (is_then_returns && all_elseifs_return && is_else_returns) {
-//            endBlock->eraseFromParent();
-//            gen.destroy_current_scope = false;
-//        } else {
-//            gen.SetInsertPoint(endBlock);
-//        }
-//    }
 }
 
 void IfStatement::code_gen(Codegen &gen) {

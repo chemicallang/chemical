@@ -69,13 +69,7 @@ void Parser::parseExpressionWith(ASTAllocator& allocator, ValueAndOperatorStack&
                 shunting_yard_on_operator(stack, final, o1.value());
                 value_first = true;
             } else {
-                auto valueOrAc = parseAccessChainOrValue(allocator);
-                if(valueOrAc) {
-                    final.putValue(valueOrAc);
-                    value_first = false;
-                } else {
-                    goto other_values;
-                }
+                goto other_values;
             }
         }
         continue;

@@ -4490,7 +4490,26 @@ void ToCAstVisitor::VisitInValue(InValue* value) {
 }
 
 void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
-    visit(stmt.condition);
+
+
+    // generating if pattern match expr expression pointer (for single access)
+    const auto is_pmatt_expr = stmt.condition->kind() == ValueKind::PatternMatchExpr;
+    if(is_pmatt_expr) {
+        write("({ ");
+        do_patt_mat_expr(*this, stmt.condition->as_pattern_match_expr_unsafe());
+        new_line_and_indent(stmt.condition->encoded_location());
+    }
+
+    // generating code for condition of if
+    nested_value = true;
+    if(stmt.condition->kind() == ValueKind::PatternMatchExpr) {
+        do_patt_mat_expr_cond(*this, stmt.condition->as_pattern_match_expr_unsafe());
+    } else {
+        visit(stmt.condition);
+    }
+    nested_value = false;
+
+    // generating ternary for if statement
     write(" ? ");
     write("({ ");
     visit_value_scope(&stmt.ifBody, destructor->destruct_jobs.size());
@@ -4511,6 +4530,10 @@ void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
         write("; })");
     } else {
         error("if value always require an else block", stmt.encoded_location());
+    }
+
+    if(is_pmatt_expr) {
+        write("; })");
     }
 }
 

@@ -567,6 +567,99 @@ func test_nodes() {
         } else 0
         return j == 20
     })
+    test("nested if in switch value statements - 1", () => {
+        var i = 2;
+        var tens = true;
+        var j = switch(i) {
+            1 => if(tens) 10 else 100
+            2 => if(tens) 20 else 200
+            default => 0
+        }
+        return j == 20
+    })
+    test("nested if in switch value statements - 2", () => {
+        var i = 1;
+        var tens = false;
+        var j = switch(i) {
+            1 => if(tens) 10 else 100
+            2 => if(tens) 20 else 200
+            default => 0
+        }
+        return j == 100
+    })
+    test("nested if in switch value statements - 3", () => {
+        var i = 3;
+        var tens = false;
+        var j = switch(i) {
+            1 => if(tens) 10 else 100
+            2 => if(tens) 20 else 200
+            default => 0
+        }
+        return j == 0
+    })
+    test("nested if in switch value statements - 4", () => {
+        var i = 2;
+        var tens = false;
+        var j = switch(i) {
+            1 => if(tens) 10 else 100
+            2 => if(tens) 20 else 200
+            default => 0
+        }
+        return j == 200
+    })
+    test("nested if in braced switch value statements - 1", () => {
+        var i = 2;
+        var tens = true;
+        var j = switch(i) {
+            1 => { if(tens) 10 else 100 }
+            2 => { if(tens) 20 else 200 }
+            default => 0
+        }
+        return j == 20
+    })
+    test("nested if in braced switch value statements - 2", () => {
+        var i = 1;
+        var tens = false;
+        var j = switch(i) {
+            1 => { if(tens) 10 else 100 }
+            2 => { if(tens) 20 else 200 }
+            default => 0
+        }
+        return j == 100
+    })
+    test("nested if in braced switch value statements - 3", () => {
+        var i = 3;
+        var tens = false;
+        var j = switch(i) {
+            1 => { if(tens) 10 else 100 }
+            2 => { if(tens) 20 else 200 }
+            default => 0
+        }
+        return j == 0
+    })
+    test("nested if in braced switch value statements - 4", () => {
+        var i = 2;
+        var tens = false;
+        var j = switch(i) {
+            1 => { if(tens) 10 else 100 }
+            2 => { if(tens) 20 else 200 }
+            default => 0
+        }
+        return j == 200
+    })
+    test("nested if in braced switch value statement with additional statement", () => {
+        var i = 2;
+        var tens = false;
+        var j = switch(i) {
+            1 => { if(tens) 10 else 100 }
+            2 => {
+                i = 90;
+                if(tens) 20 else 200
+            }
+            default => 0
+        }
+        return i == 90 && j == 200
+    })
     test("loop continue and break work as needed", () => {
         var i = 0;
         for(var j = 0; j < 10; j++) {

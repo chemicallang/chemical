@@ -4601,7 +4601,7 @@ void ToCAstVisitor::writeSwitchStmtValue(SwitchStatement& stmt, BaseType* type) 
         write(resultVarName);
         write(" = ");
         write("({ ");
-        scope_no_parens_or_line(*this, scope);
+        visit_value_scope(&scope, destructor->destruct_jobs.size());
         write("; });");
         new_line_and_indent();
         write("break;");

@@ -1613,6 +1613,7 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
         for(auto& str : flags) {
             std::cout << '\'' << str << '\'' << ' ';
         }
+        std::cout << "into " << output_path;
         std::cout << std::endl;
         flags.emplace_back("-v");
     }

@@ -126,6 +126,11 @@ struct DefaultInitStruct {
 
 }
 
+variant IfValVariantTest1 {
+    Thing1(value : int)
+    Thing2(value : int, value2 : int)
+}
+
 const MyInt = 5;
 
 func give_nine_hundred_two() : int {
@@ -706,6 +711,21 @@ func test_nodes() {
     test("struct is initialized with values inside init block when using constructor", () => {
         var d = DefaultInitStruct(true);
         return d.a == 20 && d.b == 30
+    })
+    test("pattern matching inside if value works - 1", () => {
+        var t = IfValVariantTest1.Thing1(10)
+        var j = if(var Thing1(value) = t) value else -1
+        return j == 10
+    })
+    test("pattern matching inside if value works - 2", () => {
+        var t = IfValVariantTest1.Thing2(10, 20)
+        var j = if(var Thing1(value) = t) value else -1
+        return j == -1
+    })
+    test("pattern matching inside if value works - 3", () => {
+        var t = IfValVariantTest1.Thing2(10, 20)
+        var j = if(var Thing2(value, value2) = t) value + value2 else -1
+        return j == 30
     })
 }
 

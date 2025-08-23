@@ -822,7 +822,7 @@ Value* Parser::parseComptimeValue(ASTAllocator& allocator) {
 }
 
 ValueNode* Parser::parseValueNode(ASTAllocator& allocator) {
-    auto acVal = parseAccessChainOrValue(allocator, true);
+    auto acVal = parseExpression(allocator, true);
     if(acVal) {
         return new (allocator.allocate<ValueNode>()) ValueNode(acVal, parent_node, acVal->encoded_location());
     } else {

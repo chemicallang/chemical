@@ -60,11 +60,6 @@ public:
     bool pass_structs_to_initialize = true;
 
     /**
-     * this should be set to true
-     */
-    bool top_level_node = true;
-
-    /**
      * is system 64bit
      */
     bool is64Bit = true;
@@ -111,6 +106,11 @@ public:
      * a typedef struct containing two void pointers is prepared
      */
     std::string fat_pointer_type;
+
+    /**
+     * store the name of the current assignable
+     */
+    std::string current_assignable;
 
     /**
      * allocated values locally, based on Value*
@@ -522,11 +522,23 @@ public:
     void writeReturnStmtFor(Value* value);
 
     /**
+     * write the if statement as a value
+     */
+    void writeIfStmtValue(IfStatement& value);
+
+    /**
+     * write the switch statement as a value
+     */
+    void writeSwitchStmtValue(SwitchStatement& value, BaseType* type);
+
+    /**
      * write the return value, the type is the type of the function
      */
     void return_value(Value* val, BaseType* type);
 
     void write_identifier(VariableIdentifier* value, bool is_first);
+
+    void visit_value_scope(Scope* scope, unsigned destruct_begin);
 
     void visit_scope(Scope *scope, unsigned destruct_begin);
 
@@ -709,6 +721,12 @@ public:
     void VisitIsValue(IsValue* value);
 
     void VisitInValue(InValue* value);
+
+    void VisitIfValue(IfValue* value);
+
+    void VisitSwitchValue(SwitchValue* value);
+
+    void VisitLoopValue(LoopValue* value);
 
     void VisitDereferenceValue(DereferenceValue* value);
 

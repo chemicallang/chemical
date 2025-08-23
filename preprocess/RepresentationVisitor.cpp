@@ -106,6 +106,11 @@
 #include "ast/values/UInt128Value.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
+#include "ast/values/UnsafeValue.h"
+#include "ast/values/ComptimeValue.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/LoopValue.h"
 #include "utils/RepresentationUtils.h"
 #include "preprocess/2c/2cASTVisitor.h"
 
@@ -723,6 +728,18 @@ void RepresentationVisitor::VisitDereferenceValue(DereferenceValue *casted) {
     visit(casted->getValue());
 }
 
+void RepresentationVisitor::VisitIfValue(IfValue* value) {
+    VisitIfStmt(&value->stmt);
+}
+
+void RepresentationVisitor::VisitSwitchValue(SwitchValue* value) {
+    VisitSwitchStmt(&value->stmt);
+}
+
+void RepresentationVisitor::VisitLoopValue(LoopValue* value) {
+    VisitLoopBlock(&value->stmt);
+}
+
 void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {
     visit(call->parent_val);
     write('(');
@@ -1056,6 +1073,18 @@ void RepresentationVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write("alignof(");
     visit(align_of->for_type);
     write(')');
+}
+
+void RepresentationVisitor::VisitUnsafeValue(UnsafeValue* value) {
+    write("unsafe {");
+    visit(value->getValue());
+    write('}');
+}
+
+void RepresentationVisitor::VisitComptimeValue(ComptimeValue* value) {
+    write("comptime {");
+    visit(value->getValue());
+    write('}');
 }
 
 void RepresentationVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {

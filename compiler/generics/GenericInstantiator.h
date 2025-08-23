@@ -150,11 +150,7 @@ public:
         current_func_type = prev;
     }
 
-    void VisitIfStmt(IfStatement *stmt);
-
     void VisitSwitchStmt(SwitchStatement* node);
-
-    void VisitLoopBlock(LoopBlock* node);
 
     inline void VisitVariableIdentifier(VariableIdentifier* value) {
         relink_identifier(value);
@@ -167,6 +163,12 @@ public:
     void VisitFunctionCall(FunctionCall *call);
 
     void VisitIsValue(IsValue* value);
+
+    void VisitIfValue(IfValue* value);
+
+    void VisitSwitchValue(SwitchValue* value);
+
+    void VisitLoopValue(LoopValue* value);
 
     void VisitComptimeValue(ComptimeValue* value);
 

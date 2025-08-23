@@ -1154,4 +1154,19 @@ public:
         return ((IncDecValue*) this);
     }
 
+    inline IfValue* as_if_value_unsafe() {
+        CHECK_CAST(ValueKind::IfValue);
+        return ((IfValue*) this);
+    }
+
+    inline SwitchValue* as_switch_value_unsafe() {
+        CHECK_CAST(ValueKind::SwitchValue);
+        return ((SwitchValue*) this);
+    }
+
+    inline LoopValue* as_loop_value_unsafe() {
+        CHECK_CAST(ValueKind::LoopValue);
+        return ((LoopValue*) this);
+    }
+
 };

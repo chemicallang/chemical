@@ -9,6 +9,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/VariantCase.h"
+#include "ast/values/SwitchValue.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/IntNType.h"
 #include "ast/structures/VariantDefinition.h"
@@ -18,30 +19,30 @@
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
 
-llvm::Type* SwitchStatement::llvm_type(Codegen &gen) {
-    const auto node = get_value_node();
+llvm::Type* SwitchValue::llvm_type(Codegen &gen) {
+    const auto node = stmt.get_value_node();
     return node->llvm_type(gen);
 }
 
-llvm::AllocaInst* SwitchStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+llvm::AllocaInst* SwitchValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
     gen.di.instr(allocated, Value::encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
-    code_gen(gen);
+    stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
     return allocated;
 }
 
-llvm::Value* SwitchStatement::llvm_value(Codegen &gen, BaseType *type) {
-    code_gen(gen);
+llvm::Value* SwitchValue::llvm_value(Codegen &gen, BaseType *type) {
+    stmt.code_gen(gen);
     return nullptr;
 }
 
-void SwitchStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void SwitchValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { lhs, lhsPtr };
-    code_gen(gen);
+    stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
 }
 
@@ -133,7 +134,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     }
 
     auto switchInst = gen.builder->CreateSwitch(expr_value, end, total_scopes);
-    gen.di.instr(switchInst, Value::encoded_location());
+    gen.di.instr(switchInst, encoded_location());
 
     bool all_scopes_return = true;
 
@@ -200,20 +201,20 @@ Value* SwitchStatement::get_value_node() {
     return Value::get_first_value_from_value_node(this);
 }
 
-BaseType* SwitchStatement::create_type(ASTAllocator& allocator) {
-    if(!is_value || scopes.empty()) return nullptr;
-    auto last_val = get_value_node();
+BaseType* SwitchValue::create_type(ASTAllocator& allocator) {
+    if(stmt.scopes.empty()) return nullptr;
+    auto last_val = stmt.get_value_node();
     return last_val ? last_val->create_type(allocator) : nullptr;
 }
 
 BaseType *SwitchStatement::known_type() {
-    if(!is_value || scopes.empty()) return nullptr;
+    if(scopes.empty()) return nullptr;
     auto last_val = get_value_node();
     return last_val ? last_val->known_type() : nullptr;
 }
 
-ASTNode *SwitchStatement::linked_node() {
-    const auto known = known_type();
+ASTNode *SwitchValue::linked_node() {
+    const auto known = stmt.known_type();
     return known ? known->linked_node() : nullptr;
 }
 
@@ -236,14 +237,7 @@ VariantDefinition* SwitchStatement::getVarDefFromExpr() {
     return nullptr;
 }
 
-
-SwitchStatement* SwitchStatement::copy(ASTAllocator &allocator) {
-    const auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(
-            expression->copy(allocator),
-            parent(),
-            is_value,
-            ASTNode::encoded_location()
-    );
+void SwitchStatement::copy_into(ASTAllocator& allocator, SwitchStatement* stmt) {
     stmt->cases.reserve(cases.size());
     for(auto& aCase : cases) {
         const auto copied_case = aCase.first->copy(allocator);
@@ -269,5 +263,14 @@ SwitchStatement* SwitchStatement::copy(ASTAllocator &allocator) {
         stmt->scopes.emplace_back(scope.parent(), scope.encoded_location());
         scope.copy_into(stmt->scopes.back(), allocator, stmt);
     }
+}
+
+SwitchStatement* SwitchStatement::copy(ASTAllocator &allocator) {
+    const auto stmt = new (allocator.allocate<SwitchStatement>()) SwitchStatement(
+            expression->copy(allocator),
+            parent(),
+            ASTNode::encoded_location()
+    );
+    copy_into(allocator, stmt);
     return stmt;
 }

@@ -90,6 +90,9 @@
 #include "ast/values/Expression.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/InValue.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/LoopValue.h"
 //#include "ast/values/FloatValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/SizeOfValue.h"
@@ -558,6 +561,18 @@ public:
 
     inline void VisitAliasStmt(AliasStmt* node) {
         visit_it(node->value);
+    }
+
+    inline void VisitIfValue(IfValue* value) {
+        VisitIfStmt(&value->stmt);
+    }
+
+    inline void VisitSwitchValue(SwitchValue* value) {
+        VisitSwitchStmt(&value->stmt);
+    }
+
+    inline void VisitLoopValue(LoopValue* value) {
+        VisitLoopBlock(&value->stmt);
     }
 
 };

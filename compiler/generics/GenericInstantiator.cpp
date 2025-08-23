@@ -179,17 +179,6 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
     }
 }
 
-void GenericInstantiator::VisitIfStmt(IfStatement *stmt) {
-    RecursiveVisitor<GenericInstantiator>::VisitIfStmt(stmt);
-    if(stmt->is_value) {
-        auto last_val = stmt->get_value_node();
-        if(last_val) {
-            stmt->setType(last_val->getType());
-        }
-    }
-
-}
-
 void GenericInstantiator::VisitSwitchStmt(SwitchStatement* stmt) {
     visit_it(stmt->expression);
     const auto varDef = stmt->getVarDefFromExpr();
@@ -254,25 +243,31 @@ void GenericInstantiator::VisitSwitchStmt(SwitchStatement* stmt) {
         i++;
     }
 
-    // determine new type for this switch value
-    if(stmt->is_value) {
-        const auto node = stmt->get_value_node();
-        if(node) {
-            stmt->setType(node->getType());
-        }
-    }
-
 }
 
-void GenericInstantiator::VisitLoopBlock(LoopBlock* node) {
-    RecursiveVisitor<GenericInstantiator>::VisitLoopBlock(node);
-    if(node->is_value) {
-        const auto first = node->get_first_broken();
-        if(first) {
-            node->setType(first->getType());
-        } else {
-            node->setType((BaseType*) typeBuilder.getVoidType());
-        }
+void GenericInstantiator::VisitIfValue(IfValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitIfStmt(&value->stmt);
+    auto last_val = value->stmt.get_value_node();
+    if(last_val) {
+        value->setType(last_val->getType());
+    }
+}
+
+void GenericInstantiator::VisitSwitchValue(SwitchValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitSwitchStmt(&value->stmt);
+    const auto node = value->stmt.get_value_node();
+    if(node) {
+        value->setType(node->getType());
+    }
+}
+
+void GenericInstantiator::VisitLoopValue(LoopValue* value) {
+    RecursiveVisitor<GenericInstantiator>::VisitLoopBlock(&value->stmt);
+    const auto first = value->stmt.get_first_broken();
+    if(first) {
+        value->setType(first->getType());
+    } else {
+        value->setType((BaseType*) typeBuilder.getVoidType());
     }
 }
 

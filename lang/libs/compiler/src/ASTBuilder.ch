@@ -564,7 +564,7 @@ public struct ASTBuilder {
 
     func make_generic_param(&self, name : &string_view, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *mut GenericTypeParameter
 
-    func make_if_stmt(&self, condition : *Value, is_value : bool, parent_node : *ASTNode, location : ubigint) : *mut IfStatement
+    func make_if_stmt(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *mut IfStatement
 
     func make_impl_def(&self, interface_type : *BaseType, struct_type : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut ImplDefinition
 

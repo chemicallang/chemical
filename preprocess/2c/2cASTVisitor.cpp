@@ -333,6 +333,13 @@ void scope_no_parens(ToCAstVisitor& visitor, Scope& scope) {
 }
 
 // will write a scope to visitor
+void scope_no_parens_or_line(ToCAstVisitor& visitor, Scope& scope) {
+    visitor.indentation_level+=1;
+    visitor.visit(&scope);
+    visitor.indentation_level-=1;
+}
+
+// will write a scope to visitor
 void scope(ToCAstVisitor& visitor, Scope& scope) {
     visitor.write('{');
     scope_no_parens(visitor, scope);
@@ -1336,12 +1343,12 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
 void value_alloca_store(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value) {
     if(value) {
         auto value_kind = value->val_kind();
-        if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
-            value_alloca(visitor, identifier, type, value);
-            visitor.new_line_and_indent(value->encoded_location());
-            visitor.visit(value);
-            return;
-        }
+//        if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
+//            value_alloca(visitor, identifier, type, value);
+//            visitor.new_line_and_indent(value->encoded_location());
+//            visitor.visit(value);
+//            return;
+//        }
 //        auto value_chain = value->as_access_chain_unsafe();
 //        if(value_kind == ValueKind::AccessChain && type->isStructLikeType()) {
 //            const auto call = value_chain->values.back()->as_func_call();
@@ -3412,32 +3419,17 @@ void ToCAstVisitor::VisitAssignmentStmt(AssignStatement *assign) {
     write(';');
 }
 
-void write_assignable(ToCAstVisitor& visitor, ASTNode* node) {
-    const auto k = node->kind();
-    switch(k) {
-        case ASTNodeKind::VarInitStmt:
-            visitor.write(node->as_var_init()->name_view());
-            return;
-        case ASTNodeKind::AssignmentStmt:
-            visitor.visit(node->as_assignment()->lhs);
-            return;
-        default:
-            const auto p = node->parent();
-            if(p) {
-                write_assignable(visitor, p);
-            } else {
-                visitor.write("[UnknownAssignable]");
-            }
-            return;
-    }
-}
-
 void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     if(node->value) {
         auto val_kind = node->value->val_kind();
         if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
-            write_assignable(*this, node->parent());
-            write(" = ");
+            if(current_assignable.empty()) {
+                write("// unused assignable");
+                new_line_and_indent();
+            } else {
+                write(current_assignable);
+                write(" = ");
+            }
         }
         auto prev = nested_value;
         nested_value = true;
@@ -4155,9 +4147,54 @@ void ToCAstVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
 
 }
 
+inline void visit_scope_node(ToCAstVisitor& visitor, ASTNode* node) {
+    visitor.new_line_and_indent(node->encoded_location());
+    visitor.before_stmt->visit(node);
+    visitor.visit(node);
+    visitor.after_stmt->visit(node);
+}
+
+// this is only done in scopes where it is inside if value and switch value
+// so we can get the value from last if or switch value which is represented as a statemnt
+void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
+    const auto siz = scope->nodes.size();
+    if(siz != 0) {
+        auto start = scope->nodes.data();
+        const auto end = start + (siz - 1); // till before the last element
+        while(start != end) {
+            visit_scope_node(*this, *start);
+            start++;
+        }
+        // now process the end special as a value
+        const auto node = *end;
+        switch(node->kind()) {
+            case ASTNodeKind::IfStmt:
+                before_stmt->visit(node);
+                writeIfStmtValue(*node->as_if_stmt_unsafe());
+                after_stmt->visit(node);
+                break;
+            case ASTNodeKind::SwitchStmt: {
+                const auto stmt = node->as_switch_stmt_unsafe();
+                before_stmt->visit(stmt);
+                writeSwitchStmtValue(*stmt, stmt->known_type());
+                after_stmt->visit(stmt);
+                break;
+            }
+            default:
+                visit_scope_node(*this, node);
+                break;
+        }
+    }
+    if(destructor->destroy_current_scope) {
+        destructor->dispatch_jobs_from_no_clean((int) destruct_begin);
+    } else {
+        destructor->destroy_current_scope = true;
+    }
+    auto itr = destructor->destruct_jobs.begin() + destruct_begin;
+    destructor->destruct_jobs.erase(itr, destructor->destruct_jobs.end());
+}
+
 void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
-    auto prev = top_level_node;
-    top_level_node = false;
     for(const auto node : scope->nodes) {
         new_line_and_indent(node->encoded_location());
         before_stmt->visit(node);
@@ -4171,7 +4208,6 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     }
     auto itr = destructor->destruct_jobs.begin() + destruct_begin;
     destructor->destruct_jobs.erase(itr, destructor->destruct_jobs.end());
-    top_level_node = prev;
 }
 
 void ToCAstVisitor::VisitScope(Scope *scope) {
@@ -4451,6 +4487,156 @@ void ToCAstVisitor::VisitInValue(InValue* value) {
     indentation_level -= 1;
     new_line_and_indent();
     write("})");
+}
+
+void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
+    visit(stmt.condition);
+    write(" ? ");
+    write("({ ");
+    visit_value_scope(&stmt.ifBody, destructor->destruct_jobs.size());
+    write("; })");
+    for(auto& elseIf : stmt.elseIfs) {
+        write(" : ");
+        visit(elseIf.first);
+        write(" ? ");
+        write("({ ");
+        visit_value_scope(&elseIf.second, destructor->destruct_jobs.size());
+        VisitScope(&elseIf.second);
+        write("; })");
+    }
+    write(" : ");
+    if(stmt.elseBody.has_value()) {
+        write("({ ");
+        visit_value_scope(&stmt.elseBody.value(), destructor->destruct_jobs.size());
+        write("; })");
+    } else {
+        error("if value always require an else block", stmt.encoded_location());
+    }
+}
+
+void ToCAstVisitor::VisitIfValue(IfValue* value) {
+    writeIfStmtValue(value->stmt);
+}
+
+void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
+    // automatic dereference
+    if(type->pure_type(visitor.allocator)->getLoadableReferredType() != nullptr) {
+        visitor.write('*');
+    }
+    visitor.visit(expr);
+}
+
+void write_switch_expr(ToCAstVisitor& visitor, SwitchStatement* statement) {
+    const auto known_t = statement->expression->getType();
+    if(known_t) {
+        const auto linked = known_t->linked_node();
+        if(linked) {
+            const auto linked_kind = linked->kind();
+            VariantDefinition* variant = nullptr;
+            if(linked_kind == ASTNodeKind::VariantDecl) {
+                variant = linked->as_variant_def_unsafe();
+            } else if(linked_kind == ASTNodeKind::VariantMember) {
+                variant = linked->as_variant_member_unsafe()->parent();
+            }
+            if (variant) {
+                // turn on the active iteration of the variant
+                visitor.visit(statement->expression);
+                write_accessor(visitor, statement->expression, nullptr);
+                visitor.write(variant_type_variant_name);
+            } else {
+                switch_expr(visitor, statement->expression, known_t);
+            }
+        } else {
+            switch_expr(visitor, statement->expression, known_t);
+        }
+    } else {
+        visitor.visit(statement->expression);
+    }
+}
+
+void ToCAstVisitor::writeSwitchStmtValue(SwitchStatement& stmt, BaseType* type) {
+    const auto statement = &stmt;
+
+    write("({ ");
+
+    auto resultVarName = get_local_temp_var_name();
+    visit(type);
+    write(' ');
+    write(resultVarName);
+    write("; ");
+
+    write("switch(");
+    write_switch_expr(*this, statement);
+    write(") {");
+    unsigned i = 0;
+    indentation_level += 1;
+    while(i < statement->scopes.size()) {
+        auto& scope = statement->scopes[i];
+        new_line_and_indent();
+
+        unsigned case_ind = 0;
+        const auto size = statement->cases.size();
+        bool has_line_before = true;
+        while(case_ind < size) {
+            auto& switch_case = statement->cases[case_ind];
+            if(switch_case.second == i) {
+                if(!has_line_before) {
+                    new_line_and_indent();
+                }
+                write("case ");
+
+                visit(switch_case.first);
+
+                write(':');
+                has_line_before = false;
+            }
+            case_ind++;
+        }
+        if(statement->defScopeInd == i) {
+            write("default:");
+        }
+
+        indentation_level += 1;
+        write("{ ");
+        write(resultVarName);
+        write(" = ");
+        write("({ ");
+        scope_no_parens_or_line(*this, scope);
+        write("; });");
+        new_line_and_indent();
+        write("break;");
+        indentation_level -= 1;
+        new_line_and_indent();
+        write('}');
+        i++;
+    }
+    indentation_level -= 1;
+    new_line_and_indent();
+    write("} ");
+    write(resultVarName);
+    write(';');
+
+    write(" })");
+}
+
+void ToCAstVisitor::VisitSwitchValue(SwitchValue* value) {
+    writeSwitchStmtValue(value->stmt, value->getType());
+}
+
+void ToCAstVisitor::VisitLoopValue(LoopValue* value) {
+    write("({ ");
+    auto& tempVar = current_assignable;
+    auto prev_assignable = std::move(tempVar);
+    tempVar = get_local_temp_var_name();
+    visit(value->getType());
+    write(' ');
+    write(tempVar);
+    write("; while(1)");
+    scope(*this, value->stmt.body);
+    write(' ');
+    write(tempVar);
+    write("; })");
+    current_assignable = std::move(prev_assignable);
 }
 
 void emit_sizeof_of_type(ToCAstVisitor& visitor, BaseType* type) {
@@ -5191,41 +5377,9 @@ void write_variant_call_index(ToCAstVisitor& visitor, Value* value) {
     }
 }
 
-void switch_expr(ToCAstVisitor& visitor, Value* expr, BaseType* type) {
-    // automatic dereference
-    if(type->pure_type(visitor.allocator)->getLoadableReferredType() != nullptr) {
-        visitor.write('*');
-    }
-    visitor.visit(expr);
-}
-
 void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
     write("switch(");
-    VariantDefinition* variant = nullptr;
-    const auto known_t = statement->expression->getType();
-    if(known_t) {
-        const auto linked = known_t->linked_node();
-        if(linked) {
-            const auto linked_kind = linked->kind();
-            if(linked_kind == ASTNodeKind::VariantDecl) {
-                variant = linked->as_variant_def_unsafe();
-            } else if(linked_kind == ASTNodeKind::VariantMember) {
-                variant = linked->as_variant_member_unsafe()->parent();
-            }
-            if (variant) {
-                // turn on the active iteration of the variant
-                visit(statement->expression);
-                write_accessor(*this, statement->expression, nullptr);
-                write(variant_type_variant_name);
-            } else {
-                switch_expr(*this, statement->expression, known_t);
-            }
-        } else {
-            switch_expr(*this, statement->expression, known_t);
-        }
-    } else {
-        visit(statement->expression);
-    }
+    write_switch_expr(*this, statement);
     write(") {");
     unsigned i = 0;
     indentation_level += 1;
@@ -6003,22 +6157,7 @@ void ToCAstVisitor::VisitEmbeddedValue(EmbeddedValue* value) {
 }
 
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {
-    auto val_kind = node->value->val_kind();
-    if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
-        write_assignable(*this, node->parent());
-        write(" = ");
-    }
-    auto prev = nested_value;
-    nested_value = true;
-//    if(val_kind == ValueKind::AccessChain) {
-//
-//    } else if(val_kind == ValueKind::FunctionCall) {
-//
-//    } else {
-        visit(node->value);
-//    }
-    nested_value = prev;
-    write(';');
+    visit(node->value);
 }
 
 void visit_wrapped_value(ToCAstVisitor& visitor, ASTNode* node, Value* value) {

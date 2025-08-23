@@ -5,36 +5,37 @@
 #include "ast/types/FunctionType.h"
 #include "ast/base/InterpretScope.h"
 #include "compiler/ASTDiagnoser.h"
+#include "ast/values/IfValue.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
 
-llvm::Type* IfStatement::llvm_type(Codegen &gen) {
-    const auto node = get_value_node();
+llvm::Type* IfValue::llvm_type(Codegen &gen) {
+    const auto node = stmt.get_value_node();
     return node->llvm_type(gen);
 }
 
-llvm::AllocaInst* IfStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+llvm::AllocaInst* IfValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
     gen.di.instr(allocated, Value::encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
-    code_gen(gen);
+    stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
     return allocated;
 }
 
-llvm::Value* IfStatement::llvm_value(Codegen &gen, BaseType *type) {
-    code_gen(gen);
+llvm::Value* IfValue::llvm_value(Codegen &gen, BaseType *type) {
+    stmt.code_gen(gen);
     return nullptr;
 }
 
-void IfStatement::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+void IfValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { lhs, lhsPtr };
-    code_gen(gen);
+    stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
 }
 
@@ -189,7 +190,7 @@ void IfStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
     code_gen(gen, index != scope->nodes.size() - 1);
 }
 
-bool IfStatement::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
+bool IfValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
     const auto linked = linked_node();
     return linked != nullptr && linked->add_child_index(gen, indexes, name);
 }
@@ -254,19 +255,17 @@ Value* IfStatement::get_value_node() {
     return Value::get_first_value_from_value_node(this);
 }
 
-BaseType* IfStatement::create_type(ASTAllocator& allocator) {
-    if(!is_value) return nullptr;
-    auto last_val = get_value_node();
-    return last_val ? last_val->create_type(allocator) : nullptr;
-}
-
 BaseType *IfStatement::known_type() {
-    if(!is_value) return nullptr;
     auto last_val = get_value_node();
     return last_val ? last_val->known_type() : nullptr;
 }
 
-ASTNode *IfStatement::linked_node() {
-    const auto known = known_type();
+BaseType* IfValue::create_type(ASTAllocator& allocator) {
+    auto last_val = stmt.get_value_node();
+    return last_val ? last_val->create_type(allocator) : nullptr;
+}
+
+ASTNode *IfValue::linked_node() {
+    const auto known = stmt.known_type();
     return known ? known->linked_node() : nullptr;
 }

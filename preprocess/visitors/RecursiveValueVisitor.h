@@ -75,6 +75,9 @@
 //#include "ast/values/CharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/LoopValue.h"
 //#include "ast/values/FloatValue.h"
 #include "ast/values/ValueNode.h"
 //#include "ast/values/Int128Value.h"
@@ -183,7 +186,7 @@ public:
         }
     }
 
-    void VisitAssignmentStmt(AssignStatement *assign) {
+    inline void VisitAssignmentStmt(AssignStatement *assign) {
         visit(assign->value);
     }
 
@@ -226,7 +229,7 @@ public:
         }
     }
 
-    void VisitLambdaFunction(LambdaFunction *func) {
+    inline void VisitLambdaFunction(LambdaFunction *func) {
         visit(&func->scope);
     }
 
@@ -266,6 +269,10 @@ public:
         visit(&loop->body);
     }
 
+    void VisitLoopBlock(LoopBlock* node) {
+        visit(&node->body);
+    }
+
     void VisitSwitchStmt(SwitchStatement *stmt) {
         visit(stmt->expression);
         for(auto& scope : stmt->scopes) {
@@ -291,11 +298,11 @@ public:
         }
     }
 
-    void VisitArrayType(ArrayType *type) {
+    inline void VisitArrayType(ArrayType *type) {
         visit(type->elem_type);
     }
 
-    void VisitNewValue(NewValue *value) {
+    inline void VisitNewValue(NewValue *value) {
         visit(value->value);
     }
 
@@ -304,8 +311,20 @@ public:
         visit(value->value);
     }
 
-    void VisitTypeInsideValue(TypeInsideValue* value) {
+    inline void VisitTypeInsideValue(TypeInsideValue* value) {
         visit(value->type);
+    }
+
+    inline void VisitIfValue(IfValue* value) {
+        VisitIfStmt(&value->stmt);
+    }
+
+    inline void VisitSwitchValue(SwitchValue* value) {
+        VisitSwitchStmt(&value->stmt);
+    }
+
+    inline void VisitLoopValue(LoopValue* value) {
+        VisitLoopBlock(&value->stmt);
     }
 
 };

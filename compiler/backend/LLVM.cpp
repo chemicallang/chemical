@@ -90,6 +90,7 @@
 #include "ast/utils/ASTUtils.h"
 #include "compiler/lab/TargetData.h"
 #include "ast/values/NewValue.h"
+#include "ast/values/LoopValue.h"
 #include "ast/types/NullPtrType.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 
@@ -1855,28 +1856,28 @@ void DeallocStmt::code_gen(Codegen& gen) {
     gen.builder->CreateCall(free_func, { ptr->llvm_value(gen) });
 }
 
-llvm::Type* LoopBlock::llvm_type(Codegen &gen) {
-    return get_first_broken()->llvm_type(gen);
+llvm::Type* LoopValue::llvm_type(Codegen &gen) {
+    return stmt.get_first_broken()->llvm_type(gen);
 }
 
-llvm::Value* LoopBlock::llvm_value(Codegen &gen, BaseType *type) {
-    code_gen(gen);
+llvm::Value* LoopValue::llvm_value(Codegen &gen, BaseType *type) {
+    stmt.code_gen(gen);
     return nullptr;
 }
 
-void LoopBlock::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs) {
+void LoopValue::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { lhs, lhsPtr };
-    code_gen(gen);
+    stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
 }
 
-llvm::AllocaInst* LoopBlock::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+llvm::AllocaInst* LoopValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
     gen.di.instr(allocated, Value::encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
-    code_gen(gen);
+    stmt.code_gen(gen);
     gen.current_assignable = prev_assignable;
     return allocated;
 }

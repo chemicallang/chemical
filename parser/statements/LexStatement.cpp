@@ -185,7 +185,7 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::SwitchKw:
             return (ASTNode*) parseSwitchStatementBlock(allocator, is_value, parse_value_node);
         case TokenType::LoopKw:
-            return (ASTNode*) parseLoopBlockTokens(allocator, is_value);
+            return (ASTNode*) parseLoopBlockTokens(allocator);
         case TokenType::ForKw:
             return (ASTNode*) parseForLoop(allocator);
         case TokenType::DoKw:

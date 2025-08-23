@@ -6433,7 +6433,7 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             }
             return;
         case ASTNodeKind::EnumDecl:
-            write("int");
+            visit(linked.as_enum_decl_unsafe()->underlying_type);
             return;
         case ASTNodeKind::VariantMember:
             write("struct ");

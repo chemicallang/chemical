@@ -395,6 +395,16 @@ func test_nodes() {
         var i = if(val) create_pair_point(10, 20) else create_pair_point(5, 2);
         return i.x == 5 && i.y == 2;
     })
+    test("if as a value can be passed to function calls as argument - 1", () => {
+        var val = true
+        var i = create_pair_point(if(val) 10 else 5, if(val) 20 else 2)
+        return i.x == 10 && i.y == 20
+    })
+    test("if as a value can be passed to function calls as argument - 1", () => {
+        var val = false
+        var i = create_pair_point(if(val) 10 else 5, if(val) 20 else 2)
+        return i.x == 5 && i.y == 2
+    })
     test("switch as a value works with function calls - 1", () => {
         var val = 45;
         var i = switch(val) {

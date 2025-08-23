@@ -437,6 +437,16 @@ func test_nodes() {
         }
         return i.x == 5 && i.y == 2;
     })
+    test("switch as a value can be passed to function calls as argument - 1", () => {
+        var val = 45;
+        var i = create_pair_point(if(val == 45) 10 else 5, if(val == 45) 20 else 2)
+        return i.x == 10 && i.y == 20;
+    })
+    test("switch as a value can be passed to function calls as argument - 2", () => {
+        var val = 32;
+        var i = create_pair_point(if(val == 45) 10 else 5, if(val == 45) 20 else 2)
+        return i.x == 5 && i.y == 2;
+    })
     test("nested if in if value statements - 1", () => {
         var i = 2;
         var j = if(i > 0) if(i < 2) 10 else 20 else 30

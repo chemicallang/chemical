@@ -2,6 +2,13 @@ struct EmptySatisfies {
 
 }
 
+struct EmptySatisfies22 {
+    @delete
+    func delete(&self) {
+
+    }
+}
+
 struct BaseSatisfies11 {
     var x : int
     var y : int
@@ -250,9 +257,14 @@ func test_satisfies() {
         type T = &BaseSatisfies11
         return intrinsics::satisfies<T, T>()
     })
-    test("direct struct satisfies a reference type but not the other way around", () => {
+    test("direct struct satisfies a reference type but not the other way around when shallow copyable", () => {
         type T = EmptySatisfies
         type K = &EmptySatisfies
+        return intrinsics::satisfies<K, T>() && intrinsics::satisfies<T, K>()
+    })
+    test("direct struct satisfies a reference type but not the other way around when NOT shallow copyable", () => {
+        type T = EmptySatisfies22
+        type K = &EmptySatisfies22
         return intrinsics::satisfies<K, T>() && !intrinsics::satisfies<T, K>()
     })
     test("derived struct reference types satisfy base struct reference types but not the other way around", () => {

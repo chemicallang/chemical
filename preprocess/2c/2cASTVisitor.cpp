@@ -3421,15 +3421,12 @@ void ToCAstVisitor::VisitAssignmentStmt(AssignStatement *assign) {
 
 void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     if(node->value) {
-        auto val_kind = node->value->val_kind();
-        if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
-            if(current_assignable.empty()) {
-                write("// unused assignable");
-                new_line_and_indent();
-            } else {
-                write(current_assignable);
-                write(" = ");
-            }
+        if(current_assignable.empty()) {
+            write("/** unused assignable **/");
+            new_line_and_indent();
+        } else {
+            write(current_assignable);
+            write(" = ");
         }
         auto prev = nested_value;
         nested_value = true;

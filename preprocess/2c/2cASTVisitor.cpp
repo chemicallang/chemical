@@ -641,6 +641,13 @@ bool is_value_param_hidden_pointer(Value* value) {
                 }
                 return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
             }
+            case ASTNodeKind::StructMember:{
+                const auto type = linked->as_struct_member_unsafe()->type;
+                if(type->is_reference()) {
+                    return true;
+                }
+                return false;
+            }
             default:
                 return false;
         }

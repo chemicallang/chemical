@@ -765,6 +765,34 @@ func test_nodes() {
         }
         return y == 12 && z == 98
     })
+    test("switch value inside loop break works - 1", () => {
+        var x = 9
+        var y = 0
+        var z = loop {
+            if(y == 12) {
+               break switch(x) {
+                    9 => 87
+                    default => 98
+               }
+            }
+            y++
+        }
+        return y == 12 && z == 87
+    })
+    test("switch value inside loop break works - 2", () => {
+        var x = 3
+        var y = 0
+        var z = loop {
+            if(y == 12) {
+               break switch(x) {
+                    9 => 87
+                    default => 98
+               }
+            }
+            y++
+        }
+        return y == 12 && z == 98
+    })
 }
 
 func declared_below() : int {

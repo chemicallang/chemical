@@ -2817,9 +2817,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     const auto is_write_self_param = param && !overridden && should_void_pointer_to_self(param->type, param->name, 0, overrides);
     const auto func_parent = decl->parent();
-    const auto func_parent_kind = func_parent->kind();
-    const auto is_func_parent_public = func_parent->specifier() == AccessSpecifier::Public;
-    auto is_parent_interface = func_parent_kind == ASTNodeKind::InterfaceDecl;
+    const auto is_static = decl->body.has_value() && func_parent->specifier() != AccessSpecifier::Public;
     const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
         tld->value_visitor->write("static ");
@@ -2827,12 +2825,12 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         tld->write('(');
         func_ret_func_proto_after_l_paren(tld->visitor, decl, decl_return_func_type, 0);
     } else {
-        accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast() && !is_func_parent_public);
+        accept_func_return_with_name(tld->visitor, decl, is_static);
         tld->write('(');
         func_type_params(tld->visitor, decl, 0, false);
         tld->write(')');
     }
-    if(is_parent_interface) {
+    if(func_parent->kind() == ASTNodeKind::InterfaceDecl) {
         tld->write(" __attribute__((weak))");
     }
     tld->write(';');
@@ -3994,6 +3992,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;
     const auto interface = def && overrides ? def->get_overriding_interface(decl) : nullptr;
+    const auto is_static = decl->body.has_value() && (interface ? interface->specifier() != AccessSpecifier::Public : (def && def->specifier() != AccessSpecifier::Public));
     const auto is_write_self_param = param && should_void_pointer_to_self(param->type, param->name, 0, overrides) && interface && interface->is_static();
     const auto decl_ret_func = decl->returnType->as_function_type();
     if(decl_ret_func != nullptr && !decl_ret_func->isCapturing()) {
@@ -4002,7 +4001,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         visitor.write('(');
         func_ret_func_proto_after_l_paren(visitor, decl, decl_ret_func, 0);
     } else {
-        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
+        accept_func_return_with_name(visitor, decl, is_static);
         visitor.write('(');
         func_type_params(visitor, decl, 0, false, is_write_self_param ? param : nullptr);
         visitor.write(')');

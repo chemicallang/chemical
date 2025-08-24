@@ -15,6 +15,8 @@ public enum ChemicalTokenType {
     NewKw,
     ContinueKw,
     DestructKw,
+    DeleteKw,
+    DeallocKw,
     ProvideKw,
     DefaultKw,
     UnsafeKw,
@@ -75,6 +77,7 @@ public enum ChemicalTokenType {
     ThisKw,
     AsKw,
     IsKw,
+    InKw,
     DynKw,
     ConstKw,
 

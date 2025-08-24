@@ -4177,6 +4177,13 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
                 after_stmt->visit(stmt);
                 break;
             }
+            case ASTNodeKind::LoopBlock: {
+                const auto stmt = node->as_loop_block_unsafe();
+                before_stmt->visit(stmt);
+                writeLoopStmtValue(*stmt, stmt->known_type());
+                after_stmt->visit(stmt);
+                break;
+            }
             default:
                 visit_scope_node(*this, node);
                 break;
@@ -4643,20 +4650,24 @@ void ToCAstVisitor::VisitSwitchValue(SwitchValue* value) {
     writeSwitchStmtValue(value->stmt, value->getType());
 }
 
-void ToCAstVisitor::VisitLoopValue(LoopValue* value) {
+void ToCAstVisitor::writeLoopStmtValue(LoopBlock& block, BaseType* type) {
     write("({ ");
     auto& tempVar = current_assignable;
     auto prev_assignable = std::move(tempVar);
     tempVar = get_local_temp_var_name();
-    visit(value->getType());
+    visit(type);
     write(' ');
     write(tempVar);
     write("; while(1)");
-    scope(*this, value->stmt.body);
+    scope(*this, block.body);
     write(' ');
     write(tempVar);
     write("; })");
     current_assignable = std::move(prev_assignable);
+}
+
+void ToCAstVisitor::VisitLoopValue(LoopValue* value) {
+    writeLoopStmtValue(value->stmt, value->getType());
 }
 
 void emit_sizeof_of_type(ToCAstVisitor& visitor, BaseType* type) {

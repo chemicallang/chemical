@@ -532,6 +532,11 @@ public:
     void writeSwitchStmtValue(SwitchStatement& value, BaseType* type);
 
     /**
+     * the write the loop block as a value
+     */
+    void writeLoopStmtValue(LoopBlock& value, BaseType* type);
+
+    /**
      * write the return value, the type is the type of the function
      */
     void return_value(Value* val, BaseType* type);

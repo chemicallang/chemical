@@ -948,7 +948,7 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
             }
             const auto lambda = value->as_lambda_func_unsafe();
             if(lambda->captureList.empty()) {
-                gen.builder->getInt64(0);
+                return gen.builder->getInt64(0);
             } else {
                 const auto capType = lambda->capture_struct_type(gen);
                 return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(capType));
@@ -961,7 +961,7 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
             }
             const auto lambda = value->as_lambda_func_unsafe();
             if(lambda->captureList.empty()) {
-                gen.builder->getInt64(0);
+                return gen.builder->getInt64(0);
             } else {
                 const auto capType = lambda->capture_struct_type(gen);
                 auto align = gen.module->getDataLayout().getABITypeAlign(capType);

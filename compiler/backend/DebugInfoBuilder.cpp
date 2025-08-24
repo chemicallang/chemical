@@ -58,11 +58,10 @@ DebugInfoBuilder::DebugInfoBuilder(
     llvm::DIBuilder* builder,
     Codegen& gen,
     bool isEnabled
-)  : loc_man(loc_man), builder(builder), gen(gen) {
+)  : loc_man(loc_man), builder(builder), gen(gen), isEnabled(isEnabled) {
     const auto m = gen.mode;
     const auto is_d = is_debug(m);
     isOptimized = !is_d;
-    isEnabled = isEnabled;
     if(isEnabled) {
         diScopes.reserve(20);
         cachedTypes.reserve(60);

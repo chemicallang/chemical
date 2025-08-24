@@ -809,6 +809,56 @@ func test_nodes() {
         }
         return y == 12 && z == 98
     })
+    test("loop value inside if value works - 1", () => {
+        var j = 23
+        var x = 0
+        var i = if(j == 23) loop {
+            if(x == 5) {
+                break x
+            }
+            x++
+        } else 98
+        return i == 5
+    })
+    test("loop value inside if value works - 2", () => {
+        var j = 24
+        var x = 0
+        var i = if(j == 23) loop {
+            if(x == 5) {
+                break x
+            }
+            x++
+        } else 98
+        return i == 98
+    })
+    test("loop value inside switch value works - 1", () => {
+        var j = 23
+        var x = 0
+        var i = switch(j) {
+            23 => loop {
+                if(x == 5) {
+                  break x
+                }
+                x++
+            }
+            default => 98
+        }
+        return i == 5
+    })
+    test("loop value inside switch value works - 2", () => {
+        var j = 25
+        var x = 0
+        var i = switch(j) {
+            23 => loop {
+                if(x == 5) {
+                  break x
+                }
+                x++
+            }
+            default => 98
+        }
+        return i == 98
+    })
 }
 
 func declared_below() : int {

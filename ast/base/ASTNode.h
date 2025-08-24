@@ -908,6 +908,14 @@ public:
     }
 
     /**
+     * get as loop block
+     */
+    inline LoopBlock* as_loop_block_unsafe() {
+        CHECK_CAST(ASTNodeKind::LoopBlock);
+        return (LoopBlock*) this;
+    }
+
+    /**
      * as break stmt unsafe
      */
     inline BreakStatement* as_break_stmt_unsafe() {

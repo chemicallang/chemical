@@ -1579,9 +1579,6 @@ llvm::Value* Scope::code_gen_value_scope(Codegen& gen, bool allocate, unsigned d
 }
 
 void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
-    for(const auto node : nodes) {
-        node->code_gen_declare(gen);
-    }
     int i = 0;
     while(i < nodes.size()) {
         nodes[i]->code_gen(gen, this, i);

@@ -1,8 +1,10 @@
+
 /**
- * @brief Error number set by system calls on failure.
+ * this is different on apple and android
+ * TODO: this is different on apple and free bsd : extern int *__error(void);
  */
 @extern
-public var errno : int;
+public func __errno_location() : *mut int
 
 /**
  * @brief Return human‑readable string for an error code.
@@ -13,11 +15,11 @@ public var errno : int;
 public func strerror(errnum : int) : *mut char
 
 public func get_errno() : int {
-    return errno
+    return *__errno_location();
 }
 
 public func set_errno(value : int) {
-    errno = value;
+    *__errno_location() = value;
 }
 
 public comptime const EPERM =		 1	/* Operation not permitted */

@@ -299,6 +299,9 @@ AccessSpecifier runtime_specifier(FunctionDeclaration* decl) {
 
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
 #ifdef DEBUG
+    if(name == "std_posix_mkdir") {
+        int i = 0;
+    }
     auto existing_func = gen.module->getFunction(name);
     if(existing_func) {
         gen.error((ASTNode*) decl) << "function with name '" << name << "' already exists in the module";

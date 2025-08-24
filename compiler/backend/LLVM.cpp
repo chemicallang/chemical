@@ -1914,8 +1914,16 @@ llvm::Type* LoopValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* LoopValue::llvm_value(Codegen &gen, BaseType *type) {
+    const auto t = llvm_type(gen);
+    const auto allocated = gen.builder->CreateAlloca(t);
+    gen.di.instr(allocated, encoded_location());
+    auto prev_assignable = gen.current_assignable;
+    gen.current_assignable = { nullptr, allocated };
     stmt.code_gen(gen);
-    return nullptr;
+    gen.current_assignable = prev_assignable;
+    const auto loadInstr = gen.builder->CreateLoad(t, allocated);
+    gen.di.instr(loadInstr, encoded_location());
+    return loadInstr;
 }
 
 void LoopValue::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs) {
@@ -1927,7 +1935,7 @@ void LoopValue::llvm_assign_value(Codegen &gen, llvm::Value* lhsPtr, Value *lhs)
 
 llvm::AllocaInst* LoopValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     const auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
-    gen.di.instr(allocated, Value::encoded_location());
+    gen.di.instr(allocated, encoded_location());
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = { nullptr, allocated };
     stmt.code_gen(gen);

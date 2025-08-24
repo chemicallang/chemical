@@ -61,6 +61,24 @@ func <T> call_on_casted_ref(ref : &T) : int {
     }
 }
 
+struct RefPassRet {
+
+    var ref : &int
+
+    func give1(&self) : int {
+        return ref;
+    }
+
+    func give2(&self) : &int {
+        return ref;
+    }
+
+    func give3(&self) : *int {
+        return &ref;
+    }
+
+}
+
 func test_references() {
     test("integer references are passed as function arguments automatically", () => {
         var i = 3
@@ -161,5 +179,20 @@ func test_references() {
         var arr = [ give_int_ref_32(i) ]
         arr[0] = 827
         return i == 827
+    })
+    test("stored reference inside struct is returned properly according to type - 1", () => {
+        var i = 32;
+        var p = RefPassRet { ref : i }
+        return p.give1() == 32
+    })
+    test("stored reference inside struct is returned properly according to type - 2", () => {
+        var i = 34;
+        var p = RefPassRet { ref : i }
+        return p.give2() == 34
+    })
+    test("stored reference inside struct is returned properly according to type - 3", () => {
+        var i = 98;
+        var p = RefPassRet { ref : i }
+        return *p.give3() == 98
     })
 }

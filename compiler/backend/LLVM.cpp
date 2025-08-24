@@ -809,6 +809,10 @@ llvm::Value *AddrOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(struct_value) {
         return struct_value->llvm_allocate(gen, "", nullptr);
     }
+    const auto ty = value->getType()->canonical();
+    if(ty->kind() == BaseTypeKind::Reference) {
+        return value->llvm_value(gen);
+    }
     return value->llvm_pointer(gen);
 }
 

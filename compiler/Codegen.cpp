@@ -487,9 +487,8 @@ llvm::Function* Codegen::getMallocFn() {
 
 llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, AccessSpecifier specifier) {
     const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
-    current_function = fn;
-    createFunctionBlock(current_function);
-    return current_function;
+    createFunctionBlock(fn);
+    return fn;
 }
 
 llvm::Function *Codegen::create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionTypeBody* func_type, Scope &scope) {

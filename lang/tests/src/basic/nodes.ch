@@ -743,6 +743,22 @@ func test_nodes() {
         }
         return j == 20;
     })
+    test("loop as a value can be passed to function calls as argument", () => {
+        var j = 0
+        var k = 0
+        var i = create_pair_point(loop {
+            if(j == 32) {
+                break j;
+            }
+            j++
+        }, loop {
+            if(k == 12) {
+                break k;
+            }
+            k++
+        })
+        return i.x == 32 && i.y == 12 && j == 32 && k == 12;
+    })
     test("if value inside loop break works - 1", () => {
         var x = 9
         var y = 0

@@ -2249,7 +2249,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, 
 void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr, bool test_env) {
     auto& container = *container_ptr;
 
-    // from previous (job/lsp request) global interpret scope, user may have introduced declarations into
+    // from previous (job / lsp request) global interpret scope, user may have introduced declarations into
     // these namespaces (which may be invalid, because their allocators have been destroyed)
     container.intrinsics_namespace.extended.clear();
     container.intrinsics_namespace.memNamespace.extended.clear();

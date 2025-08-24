@@ -1382,7 +1382,7 @@ void var_init_top_level(ToCAstVisitor& visitor, VarInitStatement* init, BaseType
         return;
     }
     if(init->is_thread_local()) {
-        visitor.write("_Thread_local ");
+        visitor.write("__chx_thread_local ");
     }
     if(is_static) {
         visitor.write("static ");
@@ -3323,6 +3323,28 @@ void ToCAstVisitor::prepare_translate() {
           "    #define __chem_dllimport __attribute__((dllimport))\n"
           "#endif\n"
       );
+    write("#ifndef __chx_thread_local\n"
+        "/* Tiny C Compiler */\n"
+        "#if defined(__TINYC__)\n"
+        "  #define __chx_thread_local\n"
+        "/* MSVC */\n"
+        "#elif defined(_MSC_VER)\n"
+        "  #define __chx_thread_local __declspec(thread)\n"
+        "/* C++11 and up */\n"
+        "#elif defined(__cplusplus) && (__cplusplus >= 201103L)\n"
+        "  #define __chx_thread_local thread_local\n"
+        "/* C11 _Thread_local (and ensure the implementation didn't disable threads) */\n"
+        "#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_THREADS__)\n"
+        "  #define __chx_thread_local _Thread_local\n"
+        "/* GCC/Clang extension fallback */\n"
+        "#elif defined(__GNUC__) || defined(__clang__)\n"
+        "  #define __chx_thread_local __thread\n"
+        "/* Last resort */\n"
+        "#else\n"
+        "  #define __chx_thread_local _Thread_local\n"
+        "#endif\n"
+        "#endif\n"
+);
 
 }
 

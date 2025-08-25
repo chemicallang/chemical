@@ -1,4 +1,4 @@
-func create_test_env(fn : *mut TestFunction) : TestEnvImpl {
+func create_test_env(fn : *mut TestFunction, config : &mut TestRunnerConfig) : TestEnvImpl {
     var pipeName = get_test_pipe_name(fn.id)
     // connect to named pipe of parent executable
     var hPipe : HANDLE;

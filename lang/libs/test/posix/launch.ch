@@ -1,15 +1,25 @@
-func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : int {
+func launch_test(exe_path : *char, , id : int, state : &mut TestFunctionState) : int {
 
-   var cmd = std::string()
-   cmd.append_char_ptr(exe_path)
-   cmd.append(' ');
-   cmd.append_char_ptr("--test-id ");
-   append_integer(cmd, id);
+    // Build argv for posix_spawnp (must be a NULL-terminated array)
+    var id_str = std::string();
+    append_integer(id_str, id);
 
-   var sv : int[2]
-   if(socketpair(AF_UNIX, SOCK_STREAM as int, 0, sv) < 0) {
+    var sv : int[2]
+    if(socketpair(AF_UNIX, SOCK_STREAM as int, 0, sv) < 0) {
         return -1;
-   }
+    }
+
+    var comm_id_str = std::string()
+    append_integer(comm_id_str, sv[1])
+
+    // argv: [exe_path, "--test-id", "<id>", NULL]
+    var argv : [6]*char;
+    argv[0] = exe_path;
+    argv[1] = "--test-id";
+    argv[2] = id_str.data();
+    argv[3] = "--comm-id";
+    argv[4] = comm_id_str.data()
+    argv[5] = null;
 
    // initialize the spawn file actions
    var pid : pid_t
@@ -22,13 +32,11 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
         return -1;
    }
 
-   // Duplicate child end to FD_CHILD in the child
-   posix_spawn_file_actions_adddup2(&mut actions, sv[1], FD_CHILD);
    // Close original child-end fd in the child's table (optional, good hygiene)
-   posix_spawn_file_actions_addclose(&mut actions, sv[1]);
+   posix_spawn_file_actions_addclose(&mut actions, sv[0]);
 
     // spawn the process
-    rc = posix_spawnp(&mut pid, exe_path, &actions, null as **char, cmd.data(), environ)
+    rc = posix_spawnp(&mut pid, exe_path, &actions, null as **char, argv, environ)
 
     // destroy the actions
     posix_spawn_file_actions_destroy(&mut actions);
@@ -84,7 +92,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
             }
             var got = read_exact(parent_fd, buf, len)
             if(got < 0 || got as uint32_t != len) {
-                dealloc buf
+                free(buf)
                 close(parent_fd)
                 var status : int
                 waitpid(pid, &mut status, 0)
@@ -97,7 +105,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
         process_message(state, buf)
 
-        dealloc buf;
+        free(buf);
 
     }
 
@@ -105,9 +113,16 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
     var status : int
     // try to reap child to avoid zombie
-    if(waitpid(pid, &mut status, 0)) {
+    if(waitpid(pid, &mut status, 0) < 0) {
         return -1;
     }
+
+    // set the exit code in state
+    state.exitCode = status;
+    if(status != 0 && !state.fn.pass_on_crash) {
+        state.has_failed = true;
+    }
+
     return -1;
 
 }

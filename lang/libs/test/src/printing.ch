@@ -114,7 +114,7 @@ func safe_str(s : *char) : *char {
 
 /* ---- Pretty-print function ---- */
 
-func print_log_multiline(out : *FILE, msg : *char) {
+func print_log_multiline(out : *mut FILE, msg : *char) {
     if (!out || !msg) return;
 
     var p = msg;
@@ -154,7 +154,7 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
     var passed : size_t = 0
     var failed : size_t = 0;
     /* We'll build a small map of unique group names (simple array) */
-    var groups : **char = null;
+    var groups : *mut *char = null;
     var groups_cap : size_t = 0
     var groups_len : size_t = 0;
 
@@ -178,7 +178,7 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
                 } else {
                     newcap = 8
                 };
-                const tmp : **char = realloc(groups, newcap * sizeof(*char)) as **char;
+                const tmp : *mut *char = realloc(groups, newcap * sizeof(*char)) as *mut *char;
                 if (!tmp) { /* allocation failed: bail out */
                     fprintf(get_stderr(), "print_test_results: out of memory\n");
                     dealloc groups;
@@ -284,5 +284,5 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
            col_green(), passed, col_reset(),
            some_col, failed, col_reset());
 
-    dealloc groups;
+    free(groups);
 }

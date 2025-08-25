@@ -158,6 +158,11 @@ struct TestRunnerConfig {
      */
     var single_test_id : int = -1
     /**
+     * the communication id is used for ipc communication between processes
+     * it may or may not be required
+     */
+    var comm_id : int = -1;
+    /**
      * limit total processes to it
      */
     var process_limit : int = 6;
@@ -177,7 +182,7 @@ struct TestRunnerConfig {
 
 func run_single_test(tfn : *mut TestFunction, config : &mut TestRunnerConfig) {
 
-    var env = create_test_env(tfn);
+    var env = create_test_env(tfn, config);
 
     if(config.before_each) {
         config.before_each(env)
@@ -538,7 +543,6 @@ func parse_int(s : *char, out : *mut int) : int {
 }
 
 func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) : *char {
-
     var current = args;
     while(current != end) {
         var command = *current;
@@ -559,6 +563,20 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
             }
             comptime_fnv1_hash("--benchmark"), comptime_fnv1_hash("-benchmark") => {
                 config.benchmark = true;
+            }
+            comptime_fnv1_hash("--comm-id") => {
+                current++;
+                if(current != end) {
+                    const next = *current;
+                    const res = parse_int(next, &mut config.comm_id)
+                    if(res != 0) {
+                        printf("error: invalid comm id %s", next);
+                        return "invalid function id given for --comm-id argument";
+                    }
+                } else {
+                    printf("error: --comm-id requires a single argument for the id");
+                    return "--comm-id requires a single argument for the id"
+                }
             }
             comptime_fnv1_hash("--process-limit") => {
                 current++

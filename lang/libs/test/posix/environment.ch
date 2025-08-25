@@ -1,6 +1,6 @@
-func create_test_env(fn : *mut TestFunction) : TestEnvImpl {
+func create_test_env(fn : *mut TestFunction, config : &mut TestRunnerConfig) : TestEnvImpl {
     return TestEnvImpl {
         fn : fn,
-        fd : FD_CONSTANT
+        fd : config.comm_id
     }
 }

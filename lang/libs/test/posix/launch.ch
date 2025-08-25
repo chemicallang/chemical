@@ -16,9 +16,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
    var actions : posix_spawn_file_actions_t
    var rc = posix_spawn_file_actions_init(&mut actions)
    if(rc != 0) {
-        var saved = errno;
+        var saved = get_errno();
         close(sv[0]); close(sv[1]);
-        errno = saved;
+        set_errno(saved);
         return -1;
    }
 
@@ -33,10 +33,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
     // destroy the actions
     posix_spawn_file_actions_destroy(&mut actions);
     if(rc != 0) {
-        var saved = errno;
+        var saved = get_errno();
         close(sv[0]); close(sv[1]);
-        errno = rc;
-        errno = rc;
+        set_errno(rc)
         return -1;
     }
 
@@ -50,11 +49,11 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
         var be_len : uint32_t;
         var r = read_exact(parent_fd, &be_len, sizeof(be_len))
         if(r < 0) {
-            var saved_errno = errno;
+            var saved_errno = get_errno();
             close(parent_fd);
             var status : int
             waitpid(pid, &status, 0)
-            errno = saved_errno;
+            set_errno(saved_errno);
             return -1;
         }
         if(r == 0) {
@@ -70,7 +69,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
             close(parent_fd)
             var status : int
             waitpid(pid, &status, 0)
-            errno = EPROTO
+            set_errno(EPROTO)
             return -1;
         }
         var buf : uint8_t* = null
@@ -80,7 +79,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
                 close(parent_fd)
                 var status : int
                 waitpid(pid, &mut status, 0)
-                errno = ENOMEM
+                set_errno(ENOMEM)
                 return -1;
             }
             var got = read_exact(parent_fd, buf, len)
@@ -90,7 +89,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
                 var status : int
                 waitpid(pid, &mut status, 0)
                 if(got >= 0) {
-                    errno = EPROTO
+                    set_errno(EPROTO)
                 }
                 return -1;
             }

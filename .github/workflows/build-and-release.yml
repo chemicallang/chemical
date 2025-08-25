@@ -70,13 +70,19 @@ jobs:
           path: chemical-bootstrap/out-win/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
-      - name: Map workspace to X and build there
+      # Configure the project
+      - name: Map workspace to X and configure
         shell: pwsh
         run: |
           subst X: $PWD
           cd X:\chemical-bootstrap\chemical
           mkdir out\build
           cmake -S . -B out\build\x64-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
+
+      # Build the llvm compiler target
+      - name: Build Chemical LLVM Based Compiler (Windows)
+        working-directory: chemical-bootstrap/chemical
+        run: |
           cmake --build out\build\x64-release --config Release --target Compiler
 
       # Build the tcc compiler target

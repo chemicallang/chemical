@@ -30,6 +30,7 @@
 #include "core/source/LocationManager.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "compiler/generics/InstantiationsContainer.h"
+#include "compiler/frontend/AnnotationController.h"
 
 class GlobalInterpretScope;
 
@@ -141,6 +142,11 @@ public:
      * locations when cached files change
      */
     LocationManager loc_man;
+
+    /**
+     * annotation controller
+     */
+    AnnotationController controller;
 
     /**
      * the global allocator allocates memory for entire session

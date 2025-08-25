@@ -2,7 +2,6 @@
 
 #include "WorkspaceManager.h"
 #include "preprocess/ImportPathHandler.h"
-#include "stream/StringInputSource.h"
 #include "utils/PathUtils.h"
 #include "stream/SourceProvider.h"
 #include "parser/Parser.h"
@@ -27,26 +26,24 @@ bool WorkspaceManager::get_lexed(LexResult* result, const std::string& path, boo
     auto overridden_source = get_overridden_source(path);
     result->abs_path = path;
     if (overridden_source.has_value()) {
-        StringInputSource input_source(overridden_source.value());
-        Lexer lexer(path, &input_source, &binder, result->fileAllocator);
+        InputSource input_source(overridden_source.value().c_str(), overridden_source.value().size());
+        Lexer lexer(path, input_source, &binder, result->fileAllocator);
         if(keep_comments) {
             lexer.keep_comments = true;
         }
         lexer.getTokens(result->tokens);
-        result->allocator = std::move(lexer.str.allocator);
         result->diags = std::move(lexer.diagnoser.diagnostics);
         result->has_errors = lexer.diagnoser.has_errors;
     } else {
         FileInputSource input_source(path.data());
-        if(input_source.has_error()) {
+        if(input_source.error()) {
             return false;
         }
-        Lexer lexer(path, &input_source, &binder, result->fileAllocator);
+        Lexer lexer(path, input_source, &binder, result->fileAllocator);
         if(keep_comments) {
             lexer.keep_comments = true;
         }
         lexer.getTokens(result->tokens);
-        result->allocator = std::move(lexer.str.allocator);
         result->diags = std::move(lexer.diagnoser.diagnostics);
         result->has_errors = lexer.diagnoser.has_errors;
     }
@@ -75,6 +72,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast_no_lock(Token* start_token,
             std::string_view(path),
             start_token,
             loc_man,
+            controller,
             allocator,
             allocator,
             typeBuilder,

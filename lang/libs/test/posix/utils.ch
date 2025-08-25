@@ -7,7 +7,7 @@ func read_exact(fd : int, buf : *void, count : size_t) : ssize_t {
     while (got < count) {
         var r = read(fd, (buf as *mut char) + got, count - got);
         if (r < 0) {
-            if (errno == EINTR) continue;
+            if (get_errno() == EINTR) continue;
             return -1;
         }
         if (r == 0) { // EOF
@@ -26,7 +26,7 @@ func write_exact(fd : int, buf : *void, count : size_t) : int {
     while (written < count) {
         var w : ssize_t = write(fd, (buf as *char) + written, count - written);
         if (w < 0) {
-            if (errno == EINTR) continue;
+            if (get_errno() == EINTR) continue;
             return -1;
         }
         written += w as size_t;

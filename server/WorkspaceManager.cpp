@@ -16,7 +16,6 @@
 #include "server/analyzers/DocumentLinksAnalyzer.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
-#include "stream/StringInputSource.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/processor/ASTFileMetaData.h"
@@ -38,7 +37,7 @@ WorkspaceManager::WorkspaceManager(
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
     context(modStorage, binder), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
-    modFileData(10), anonFilesData(10)
+    modFileData(10), anonFilesData(10), controller(false)
 {
 
 }
@@ -143,7 +142,7 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
 
     // setup stuff
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
-    LabBuildCompiler compiler(loc_man, binder, &options);
+    LabBuildCompiler compiler(loc_man, binder, &options, false);
     // this check for has_container protects us from disposing a container created
     // inside do_job (just a safety guard, although global_container should always be present)
     const auto has_container = global_container != nullptr;
@@ -194,7 +193,7 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
 
     // creating the compiler (static function, cannot reuse global contaienr)
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
-    LabBuildCompiler compiler(loc_man, binder, &options);
+    LabBuildCompiler compiler(loc_man, binder, &options, false);
 
     // creating context, this allows separation, we don't want to reuse
     // we do not want to share data between labs because lab files are very flexible
@@ -572,8 +571,7 @@ void replace(
         const std::string &replacement
 ) {
 
-    StringInputSource input_source(source);
-    auto provider = SourceProvider(&input_source);
+    auto provider = SourceProvider(source.data(), source.size());
 
     std::string nextSource;
 

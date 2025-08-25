@@ -194,14 +194,14 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             return parseAlignOfValue(allocator);
         }
         case TokenType::StructKw: {
-            auto& position = token->position;
+            auto& t = *token;
             token++;
-            const auto value = (Value*) parseStructValue(allocator, nullptr, position);
+            const auto value = (Value*) parseStructValue(allocator, nullptr, t.position);
             if(!value) {
                 unexpected_error("expected '{' after the struct keyword for unnamed struct value");
             }
 #ifdef LSP_BUILD
-            id->linked = value;
+            t.linked = value;
 #endif
             return value;
         }

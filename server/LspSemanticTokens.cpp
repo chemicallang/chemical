@@ -57,6 +57,7 @@ bool parse_file(
     auto& typeBuilder = manager.typeBuilder;
     auto& loc_man = manager.loc_man;
     const auto is64Bit = manager.is64Bit;
+    auto& controller = manager.controller;
 
     // parse the file
     Parser parser(
@@ -64,6 +65,7 @@ bool parse_file(
             unit.scope.file_path.view(),
             start_token,
             loc_man,
+            controller,
             allocator,
             allocator,
             typeBuilder,
@@ -444,7 +446,7 @@ void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_s
 
     // fast path, if container exists, rebind and return as fast as possible
     if(global_container) {
-        comptime_scope.rebind_container(resolver, global_container);
+        comptime_scope.rebind_container(resolver, global_container, false);
         return;
     }
 
@@ -453,12 +455,12 @@ void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_s
 
     // maybe someone created the container, while we were waiting to acquire the lock
     if(global_container) {
-        comptime_scope.rebind_container(resolver, global_container);
+        comptime_scope.rebind_container(resolver, global_container, false);
         return;
     }
 
     // create the container
-    global_container = comptime_scope.create_container(resolver);
+    global_container = comptime_scope.create_container(resolver, false);
 
 }
 

@@ -17,7 +17,7 @@ public:
         unsigned long value,
         ULongType* type,
         SourceLocation location
-    ) : IntNumValue(ValueKind::UInt, type, location), value(value){
+    ) : IntNumValue(ValueKind::ULong, type, location), value(value){
 
     }
 

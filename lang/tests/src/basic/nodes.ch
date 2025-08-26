@@ -284,11 +284,11 @@ func test_nodes() {
         };
         return p.call_divide(10, 5) == 2;
     })
-    /** TODO: these tests are failing
     test("default implementation in interface works when not overridden", () => {
         var p = Point { x : 20, y : 10 }
         return p.dividePDefault() == 2
     })
+    /** TODO: these tests are failing
     test("overridden implementation in interface works when overridden", () => {
         var p = Point { x : 20, y : 10 }
         return p.dividePOverride() == 4

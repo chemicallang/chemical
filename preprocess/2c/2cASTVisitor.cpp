@@ -5097,7 +5097,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
     }
     const auto last = values[end - 1];
     if(last->kind() == ValueKind::Identifier) {
-        const auto linked = last->linked_node();
+        const auto linked = last->as_identifier_unsafe()->linked;
         if (linked) {
             const auto lastKind = linked->kind();
             if (lastKind == ASTNodeKind::FunctionDecl) {
@@ -5309,6 +5309,31 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                 const auto returnKind = return_linked->kind();
                 if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
                     writeStructReturningFunctionCall(*this, call, return_linked, func_type);
+                    return;
+                }
+            }
+        }
+    }
+
+    if(func_decl) {
+        const auto parent = func_decl->parent();
+        if(parent && parent->kind() == ASTNodeKind::InterfaceDecl && grandpa) {
+            // calling a function inside an interface
+            // lets see if we can determine the implementation
+            const auto grandType = grandpa->getType();
+            const auto can_node = grandType->get_direct_linked_canonical_node();
+            if(can_node) {
+                const auto struct_def = can_node->as_struct_def();
+                if(struct_def) {
+                    const auto interface = parent->as_interface_def_unsafe();
+                    const auto prev_user = interface->active_user;
+                    interface->active_user = struct_def;
+                    mangle(func_decl);
+                    interface->active_user = prev_user;
+                    write('(');
+                    write_implicit_args(*this, func_type, call);
+                    func_call_args(*this, call, func_type);
+                    write(')');
                     return;
                 }
             }

@@ -11,7 +11,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/statements/UsingStmt.h"
 
-void annot_handler_inline(Parser* parser, ASTNode* node) {
+void annot_handler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.is_inline = true;
@@ -20,7 +20,7 @@ void annot_handler_inline(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_inline_always(Parser* parser, ASTNode* node) {
+void annot_handler_inline_always(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.always_inline = true;
@@ -29,7 +29,7 @@ void annot_handler_inline_always(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_noinline(Parser* parser, ASTNode* node) {
+void annot_handler_noinline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.no_inline = true;
@@ -38,7 +38,7 @@ void annot_handler_noinline(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_inline_hint(Parser* parser, ASTNode* node) {
+void annot_handler_inline_hint(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.inline_hint = true;
@@ -47,7 +47,7 @@ void annot_handler_inline_hint(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_compiler_inline(Parser* parser, ASTNode* node) {
+void annot_handler_compiler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.compiler_inline = true;
@@ -56,7 +56,7 @@ void annot_handler_compiler_inline(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_size_opt(Parser* parser, ASTNode* node) {
+void annot_handler_size_opt(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.opt_size = true;
@@ -65,7 +65,7 @@ void annot_handler_size_opt(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_size_min(Parser* parser, ASTNode* node) {
+void annot_handler_size_min(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
         func->attrs.min_size = true;
@@ -74,19 +74,19 @@ void annot_handler_size_min(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_compiler_interface(Parser* parser, ASTNode* node) {
+void annot_handler_compiler_interface(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     // we used to make these structs no_mangle by default
     // but now we don't, because now we put module name prefix
     // in the symbols we provide to the module using cbi
 }
 
-void annot_handler_no_mangle(Parser* parser, ASTNode* node) {
+void annot_handler_no_mangle(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!node->set_no_mangle(true)) {
         parser->error("couldn't make the node no_mangle");
     }
 }
 
-void annot_handler_constructor(Parser* parser, ASTNode* node) {
+void annot_handler_constructor(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_constructor_fn(true);
@@ -95,7 +95,7 @@ void annot_handler_constructor(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_delete(Parser* parser, ASTNode* node) {
+void annot_handler_delete(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_delete_fn(true);
@@ -104,7 +104,7 @@ void annot_handler_delete(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_override(Parser* parser, ASTNode* node) {
+void annot_handler_override(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_override(true);
@@ -113,7 +113,7 @@ void annot_handler_override(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_unsafe(Parser* parser, ASTNode* node) {
+void annot_handler_unsafe(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_unsafe(true);
@@ -122,7 +122,7 @@ void annot_handler_unsafe(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_stdcall(Parser* parser, ASTNode* node) {
+void annot_handler_stdcall(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_std_call(true);
@@ -131,7 +131,7 @@ void annot_handler_stdcall(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_dllimport(Parser* parser, ASTNode* node) {
+void annot_handler_dllimport(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_dll_import(true);
@@ -140,7 +140,7 @@ void annot_handler_dllimport(Parser* parser, ASTNode* node) {
     }
 };
 
-void annot_handler_no_init(Parser* parser, ASTNode* node) {
+void annot_handler_no_init(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto def = node->as_struct_def();
     if(def) {
         def->set_no_init(true);
@@ -149,17 +149,17 @@ void annot_handler_no_init(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_anonymous(Parser* parser, ASTNode* node) {
+void annot_handler_anonymous(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!node->set_anonymous(true)) {
         parser->error("couldn't make the declaration anonymous");
     }
 }
 
-void annot_handler_const(Parser* parser, ASTNode* node) {
+void annot_handler_const(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     // TODO: not yet implemented
 }
 
-void annot_handler_extern(Parser* parser, ASTNode* node) {
+void annot_handler_extern(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!node->set_no_mangle(true)) {
         parser->error("couldn't make the node no_mangle");
     }
@@ -169,7 +169,7 @@ void annot_handler_extern(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_implicit(Parser* parser, ASTNode* node) {
+void annot_handler_implicit(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_implicit(true);
@@ -178,7 +178,7 @@ void annot_handler_implicit(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_direct_init(Parser* parser, ASTNode* node) {
+void annot_handler_direct_init(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto def = node->as_struct_def();
     if(def) {
         def->set_direct_init(true);
@@ -187,7 +187,7 @@ void annot_handler_direct_init(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_abstract(Parser* parser, ASTNode* node) {
+void annot_handler_abstract(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto def = node->as_struct_def();
     if(def) {
         def->set_abstract(true);
@@ -196,7 +196,7 @@ void annot_handler_abstract(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_thread_local(Parser* parser, ASTNode* node) {
+void annot_handler_thread_local(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(node->kind() == ASTNodeKind::VarInitStmt && node->is_top_level()) {
         node->as_var_init_unsafe()->set_thread_local(true);
     } else {
@@ -204,11 +204,11 @@ void annot_handler_thread_local(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_maxalign(Parser* parser, ASTNode* node) {
+void annot_handler_maxalign(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     // TODO
 }
 
-void annot_handler_no_return(Parser* parser, ASTNode* node) {
+void annot_handler_no_return(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_noReturn(true);
@@ -217,7 +217,7 @@ void annot_handler_no_return(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_cpp(Parser* parser, ASTNode* node) {
+void annot_handler_cpp(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
         func->set_cpp_mangle(true);
@@ -229,7 +229,7 @@ void annot_handler_cpp(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_copy(Parser* parser, ASTNode* node) {
+void annot_handler_copy(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     switch(node->kind()) {
         case ASTNodeKind::FunctionDecl:
             node->as_function_unsafe()->set_copy_fn(true);
@@ -248,7 +248,7 @@ void annot_handler_copy(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_clone(Parser* parser, ASTNode* node) {
+void annot_handler_clone(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     switch(node->kind()) {
         case ASTNodeKind::FunctionDecl:
             node->as_function_unsafe()->set_copy_fn(true);
@@ -258,7 +258,7 @@ void annot_handler_clone(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_static(Parser* parser, ASTNode* node) {
+void annot_handler_static(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto interface = node->as_interface_def();
     if(interface) {
         interface->set_is_static(true);
@@ -267,10 +267,14 @@ void annot_handler_static(Parser* parser, ASTNode* node) {
     }
 }
 
-void annot_handler_deprecated(Parser* parser, ASTNode* node) {
+void annot_handler_deprecated(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!node->set_deprecated(true)) {
         parser->error("couldn't make the declaration deprecated");
     }
+}
+
+void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    // TODO:
 }
 
 AnnotationController::AnnotationController(bool is_env_testing) {
@@ -311,6 +315,7 @@ AnnotationController::AnnotationController(bool is_env_testing) {
             { "clone", { annot_handler_clone, "clone", AnnotationDefType::Handler } },
             { "static", { annot_handler_static, "static", AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
+            { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
     };
 
     // reserving memory for faster operations

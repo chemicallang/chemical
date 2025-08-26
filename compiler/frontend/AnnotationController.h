@@ -75,7 +75,7 @@ struct AnnotationDefinition {
     union {
 
         // intrinsic annotations have this handler
-        void(*handler)(Parser* parser, ASTNode* node);
+        void(*handler)(Parser* parser, ASTNode* node, std::vector<Value*>& args);
 
         // collector annotation have collection reference
         std::size_t collection_id;
@@ -251,7 +251,7 @@ public:
     bool handle_annotation(AnnotationDefinition& definition, Parser* parser, ASTNode* node, std::vector<Value*>& arguments) {
         switch(definition.type) {
             case AnnotationDefType::Handler:
-                definition.handler(parser, node);
+                definition.handler(parser, node, arguments);
                 return true;
             case AnnotationDefType::SingleMarker:
                 mark_single(*parser, node, definition, arguments);

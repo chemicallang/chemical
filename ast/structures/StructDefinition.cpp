@@ -92,6 +92,18 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
             if (llvm_data == user.end()) {
                 return false;
             }
+            // clean the function (any default implementation from interface may be there)
+            const auto func = llvm_data->second;
+            if(!(func->size() == 1 && func->front().empty())) {
+                while(!func->empty()) {
+                    auto& bb = func->back();
+                    bb.dropAllReferences();
+                    bb.eraseFromParent();
+                }
+                // create a new entry block
+                // ignore the return
+                llvm::BasicBlock::Create(*gen.ctx, "entry", func);
+            }
             function->set_llvm_data(gen, llvm_data->second);
             function->code_gen_override(gen, llvm_data->second);
         }

@@ -13,6 +13,7 @@
 #include "ast/base/Value.h"
 #include "MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
+#include "ast/types/LinkedType.h"
 
 struct InterfaceDefinitionAttrs {
 
@@ -47,6 +48,11 @@ static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
 
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
+
+    /**
+     * linked type to self
+     */
+    LinkedType linked_type;
 
     /**
      * the parent node of the interface
@@ -87,7 +93,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::InterfaceDecl, parent_node, location),
-        attrs(specifier, false, false, false) {
+        attrs(specifier, false, false, false), linked_type(this) {
 
     }
 
@@ -163,6 +169,10 @@ public:
     int vtable_function_index(FunctionDeclaration* decl);
 
     uint64_t byte_size(bool is64Bit) final;
+
+    BaseType* known_type() override {
+        return &linked_type;
+    }
 
 #ifdef COMPILER_BUILD
 

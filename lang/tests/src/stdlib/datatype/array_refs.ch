@@ -4,7 +4,7 @@ func array_ref_size(array : std::span<int>) : size_t {
 }
 
 func array_ref_at(array : std::span<int>, ind : int) : int {
-    return array.data[ind]
+    return array._data[ind]
 }
 
 func test_array_refs() {

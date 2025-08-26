@@ -140,7 +140,7 @@ func print_log_multiline(out : *mut FILE, msg : *char) {
     fflush(out);
 }
 
-func print_test_results(states : *TestFunctionState, count : size_t) {
+func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionState, count : size_t) {
 
     if (!states) {
         fprintf(get_stderr(), "print_test_results: states pointer is NULL\n");
@@ -218,6 +218,11 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
                 if (s.fn.group.data() && s.fn.group.data()[0]) g = s.fn.group.data();
                 if (s.fn.name.data() && s.fn.name.data()[0]) fn_name = s.fn.name.data();
             }
+            if(s.has_failed) {
+                if(config.successful_only) continue;
+            } else {
+                if(config.failure_only) continue;
+            }
             if (strcmp(g, group_name) != 0) continue;
 
             /* Test header line */
@@ -239,32 +244,34 @@ func print_test_results(states : *TestFunctionState, count : size_t) {
             printf("%s%s%s\n", status_color, status_text, col_reset());
 
             /* Print logs, if any */
-            if (s.logs.size() > 0) {
-                for (var li : size_t = 0; li < s.logs.size(); ++li) {
-                    const log = s.logs.get_ptr(li);
-                    const lt_color = log_type_color(log.type);
-                    const icon = log_type_icon(log.type);
-                    const lname = log_type_name(log.type);
-                    /* compose location string if present */
-                    if (log.line > 0 || log.character > 0) {
-                        printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
-                               lt_color, icon, col_reset(),
-                               lt_color, lname,
-                               log.line, log.character,
-                               col_reset());
-                    } else {
-                        printf("     %s%s%s %s%s%s\n",
-                               lt_color, icon, col_reset(),
-                               lt_color, lname, col_reset());
+            if(config.display_logs) {
+                if (s.logs.size() > 0) {
+                    for (var li : size_t = 0; li < s.logs.size(); ++li) {
+                        const log = s.logs.get_ptr(li);
+                        const lt_color = log_type_color(log.type);
+                        const icon = log_type_icon(log.type);
+                        const lname = log_type_name(log.type);
+                        /* compose location string if present */
+                        if (log.line > 0 || log.character > 0) {
+                            printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
+                                   lt_color, icon, col_reset(),
+                                   lt_color, lname,
+                                   log.line, log.character,
+                                   col_reset());
+                        } else {
+                            printf("     %s%s%s %s%s%s\n",
+                                   lt_color, icon, col_reset(),
+                                   lt_color, lname, col_reset());
+                        }
+                        /* message may be multiline; indent each line */
+                        if (!log.message.empty()) {
+                            print_log_multiline(get_stdout(), log.message.data())
+                        }
                     }
-                    /* message may be multiline; indent each line */
-                    if (!log.message.empty()) {
-                        print_log_multiline(get_stdout(), log.message.data())
-                    }
+                } else {
+                    /* no logs */
+                    printf("     %s(no logs)%s\n", col_gray(), col_reset());
                 }
-            } else {
-                /* no logs */
-                printf("     %s(no logs)%s\n", col_gray(), col_reset());
             }
             /* Horizontal separator between tests */
             printf("\n");

@@ -2,7 +2,7 @@ public namespace std {
 
 public struct span<T> {
 
-    var data : *T
+    var _data : *T
     var _size : size_t
 
     @implicit
@@ -20,13 +20,17 @@ public struct span<T> {
     @constructor
     func constructor(array_ptr : *T, array_size : size_t) {
         init {
-            data(array_ptr)
+            _data(array_ptr)
             _size(array_size)
         }
     }
 
+    func data(&self) : *T {
+        return _data;
+    }
+
     func get(&self, loc : size_t) : *T {
-        return data + loc;
+        return _data + loc;
     }
 
     func size(&self) : size_t {

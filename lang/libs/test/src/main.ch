@@ -147,7 +147,26 @@ comptime func get_tests() : []TestFunction {
     return intrinsics::get_tests<TestFunction>() as []TestFunction
 }
 
+struct TestDisplayConfig {
+    /**
+     * display successful tests only
+     */
+    var successful_only : bool = false;
+    /**
+     * display failed tests only
+     */
+    var failure_only : bool = false;
+    /**
+     * when false, no logs will be displayed
+     */
+    var display_logs : bool;
+}
+
 struct TestRunnerConfig {
+    /**
+     * display configuration
+     */
+    var display : TestDisplayConfig
     /**
      * should benchmark all the tests
      */
@@ -474,7 +493,7 @@ func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
         config.before_each = intrinsics::get_single_marked_decl_ptr("test.before_each") as TestFunctionPtr;
         config.after_each = intrinsics::get_single_marked_decl_ptr("test.after_each") as TestFunctionPtr;
 
-        var test_start = &mut tests[0]
+        var test_start = tests_view.data() as *mut TestFunction
         const test_end = test_start + tests_view.size()
 
         while(test_start != test_end) {
@@ -499,7 +518,7 @@ func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
         var state = TestRunnerState()
         state.tests.reserve(tests_view.size());
 
-        var test_start = &mut tests[0]
+        var test_start = tests_view.data() as *mut TestFunction
         const test_end = test_start + tests_view.size()
 
         while(test_start != test_end) {
@@ -524,7 +543,7 @@ func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
         }
 
         // print the test results
-        print_test_results(state.tests.data(), state.tests.size())
+        print_test_results(config.display, state.tests.data(), state.tests.size())
 
     }
 
@@ -578,6 +597,15 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
                     return "--comm-id requires a single argument for the id"
                 }
             }
+            comptime_fnv1_hash("--successful-only") => {
+                config.display.successful_only = true;
+            }
+            comptime_fnv1_hash("--failure-only") => {
+                config.display.failure_only = true;
+            }
+            comptime_fnv1_hash("--no-logs") => {
+                config.display.display_logs = false;
+            }
             comptime_fnv1_hash("--process-limit") => {
                 current++
                 if(current != end) {
@@ -614,11 +642,11 @@ func tester(argc : int, argv : **char) : int {
     }
 
     // parse the command line
-    var state = TestRunnerConfig()
-    parseCommand(state, argv, argv + argc)
+    var config = TestRunnerConfig()
+    parseCommand(config, argv, argv + argc)
 
     // run the tests (it knows which ones to run from configuration)
-    run_tests(*argv, state)
+    run_tests(*argv, config)
 
     return 0;
 

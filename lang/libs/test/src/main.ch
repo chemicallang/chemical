@@ -159,7 +159,7 @@ struct TestDisplayConfig {
     /**
      * when false, no logs will be displayed
      */
-    var display_logs : bool;
+    var display_logs : bool = true;
 }
 
 struct TestRunnerConfig {
@@ -482,10 +482,7 @@ func append_integer(str : &mut std::string, dig : int) {
 
 type TestFunctionPtr = (env : &mut TestEnv) => void
 
-func run_tests(exe_path : *char, config : &mut TestRunnerConfig) {
-
-    var tests = get_tests();
-    var tests_view = std::span<TestFunction>(tests)
+func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig) {
 
     if(config.single_test_id != -1) {
 
@@ -626,7 +623,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
 
 }
 
-func tester(argc : int, argv : **char) : int {
+public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {
 
     if(argc == 0) {
         // error out, the executable argument not given
@@ -637,7 +634,7 @@ func tester(argc : int, argv : **char) : int {
     // super fast case
     if(argc == 1) {
         var config = TestRunnerConfig()
-        run_tests(*argv, config);
+        run_tests(tests_view, *argv, config);
         return 0;
     }
 
@@ -646,8 +643,13 @@ func tester(argc : int, argv : **char) : int {
     parseCommand(config, argv, argv + argc)
 
     // run the tests (it knows which ones to run from configuration)
-    run_tests(*argv, config)
+    run_tests(tests_view, *argv, config)
 
     return 0;
 
+}
+
+public comptime func test_runner(argc : int, argv : **char) : int{
+    var t = get_tests()
+    return intrinsics::wrap(run_test_runner(std::span<TestFunction>(t), argc, argv))
 }

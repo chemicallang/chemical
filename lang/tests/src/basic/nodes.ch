@@ -64,12 +64,10 @@ struct Point : Calculator {
         return self.x * self.y;
     }
 
-/** TODO include this when testing divideP
     @override
     func dividePOverride(&self) : int {
         return divideP() + 2;
     }
-**/
 
 }
 
@@ -288,12 +286,10 @@ func test_nodes() {
         var p = Point { x : 20, y : 10 }
         return p.dividePDefault() == 2
     })
-    /** TODO: these tests are failing
     test("overridden implementation in interface works when overridden", () => {
         var p = Point { x : 20, y : 10 }
         return p.dividePOverride() == 4
     })
-    **/
     test("overridden interface struct functions implemented inside struct with self ref", () => {
          var p = Point {
              x : 5,

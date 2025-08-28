@@ -140,7 +140,7 @@ ToCAstVisitor::ToCAstVisitor(
     CompilerBinder& binder,
     GlobalInterpretScope& scope,
     NameMangler& mangler,
-    std::ostream *output,
+    std::ostream& output,
     ASTAllocator& allocator,
     LocationManager& manager,
     bool debug_info,
@@ -347,7 +347,7 @@ void scope(ToCAstVisitor& visitor, Scope& scope) {
 }
 
 void write_encoded(ToCAstVisitor& visitor, const chem::string_view& value) {
-    auto& out = *visitor.output;
+    auto& out = visitor.output;
     for(char c : value) {
         write_escape_encoded(out, c);
     }
@@ -381,14 +381,14 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 
 void node_name(ToCAstVisitor& visitor, ASTNode* node) {
     if(!node) return;
-    visitor.mangler.mangle(*visitor.output, node);
+    visitor.mangler.mangle(visitor.output, node);
 }
 
 // nodes inside namespaces for example namespace name is written before their name
 void node_parent_name(ToCAstVisitor& visitor, ASTNode* node, bool take_parent = true) {
     auto current = take_parent ? (node ? node->parent() : nullptr) : node;
     if(current) {
-        visitor.mangler.mangle(*visitor.output, current);
+        visitor.mangler.mangle(visitor.output, current);
     }
 }
 
@@ -607,7 +607,7 @@ StructDefinition* get_func_param_ref_struct(ASTNode* node) {
 }
 
 inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
-    visitor.mangler.mangle_vtable_name(*visitor.output, interface, definition);
+    visitor.mangler.mangle_vtable_name(visitor.output, interface, definition);
 }
 
 std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* type, Value* value) {
@@ -1546,11 +1546,11 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 }
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
-    visitor.mangler.mangle_no_parent(*visitor.output, func_decl);
+    visitor.mangler.mangle_no_parent(visitor.output, func_decl);
 }
 
 void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
-    visitor.mangler.mangle_no_parent(*visitor.output, func_decl);
+    visitor.mangler.mangle_no_parent(visitor.output, func_decl);
 }
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before = true) {
@@ -3362,7 +3362,7 @@ void ToCAstVisitor::reset() {
 ToCAstVisitor::~ToCAstVisitor() = default;
 
 void ToCAstVisitor::write(char value) {
-    output->put(value);
+    output.put(value);
 }
 
 void ToCAstVisitor::indent() {
@@ -3381,46 +3381,37 @@ std::string ToCAstVisitor::get_local_temp_var_name() {
 }
 
 void ToCAstVisitor::write(unsigned int num) {
-    *output << num;
+    output << num;
 }
 
 void ToCAstVisitor::write(std::string& value) {
-    output->write(value.c_str(), (std::streamsize) value.size());
+    output.write(value.c_str(), (std::streamsize) value.size());
 }
 
 void ToCAstVisitor::write(chem::string& str) {
-    output->write(str.data(), (std::streamsize) str.size());
+    output.write(str.data(), (std::streamsize) str.size());
 }
 
 void ToCAstVisitor::write_str(const std::string& value) {
-    output->write(value.c_str(), (std::streamsize) value.size());
+    output.write(value.c_str(), (std::streamsize) value.size());
 }
 
 void ToCAstVisitor::write(chem::string_view& str) {
-    output->write(str.data(), (std::streamsize) str.size());
+    output.write(str.data(), (std::streamsize) str.size());
 }
 
 void ToCAstVisitor::write(std::string_view& str) {
-    output->write(str.data(), (std::streamsize) str.size());
+    output.write(str.data(), (std::streamsize) str.size());
 }
 
 void ToCAstVisitor::write(const chem::string_view& str) {
-    output->write(str.data(), (std::streamsize) str.size());
+    output.write(str.data(), (std::streamsize) str.size());
 }
 
 void ToCAstVisitor::write_str_value(const chem::string_view& view) {
     write('"');
     write_encoded(*this, view);
     write('"');
-}
-
-std::string ToCAstVisitor::string_accept(Value* any) {
-    std::ostringstream stream;
-    auto curr_out = output;
-    output = &stream;
-    visit(any);
-    output = curr_out;
-    return stream.str();
 }
 
 void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
@@ -3822,7 +3813,7 @@ void process_variant_members_using(
     for (const auto var : def->variables()) {
         visitor.new_line_and_indent();
         visitor.write("case ");
-        *visitor.output << index;
+        visitor.output << index;
         visitor.write(':');
         const auto member = var->as_variant_member();
         process_member(visitor, member);
@@ -4107,7 +4098,7 @@ void do_patt_mat_expr_cond(ToCAstVisitor& visitor, PatternMatchExpr* value) {
     visitor.write(" == ");
     const auto mem = value->member;
     const auto def = mem->parent();
-    *visitor.output << def->direct_child_index(mem->name);
+    visitor.output << def->direct_child_index(mem->name);
 }
 
 void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
@@ -4396,8 +4387,13 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
 
     auto prev_nested = nested_value;
     nested_value = true;
-    // TODO: do not use string_accept
-    auto self_name = string_accept(stmt->identifier);
+    auto self_name = get_local_temp_var_name();
+    visit(stmt->identifier->getType());
+    write_str(self_name);
+    write(" = ");
+    visit(stmt->identifier);
+    write(';');
+    new_line_and_indent();
     nested_value = prev_nested;
 
     if(data.destructor_func != nullptr) {
@@ -4444,7 +4440,7 @@ void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
             } else {
                 write(" == ");
             }
-            *output << var->variable_index(mem->name, false);
+            output << var->variable_index(mem->name, false);
             write(')');
             return;
         }
@@ -4776,7 +4772,7 @@ void ToCAstVisitor::VisitLoopBlock(LoopBlock *loop) {
 
 void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
     const auto member = variant_case->member;
-    *output << member->parent()->direct_child_index(member->name);
+    output << member->parent()->direct_child_index(member->name);
 }
 
 void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
@@ -4975,7 +4971,7 @@ void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
     if(member->init_value) {
         visitor.visit(member->init_value);
     } else {
-        *visitor.output << member->get_default_index();
+        visitor.output << member->get_default_index();
     }
 }
 
@@ -5442,7 +5438,7 @@ void ToCAstVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
 void write_variant_call_id_index(ToCAstVisitor& visitor, VariableIdentifier* value) {
     const auto member = value->linked->as_variant_member();
     if(member) {
-        *visitor.output << member->parent()->variable_index(member->name, false);
+        visitor.output << member->parent()->variable_index(member->name, false);
     } else {
         visitor.write("-1");
     }
@@ -5451,7 +5447,7 @@ void write_variant_call_id_index(ToCAstVisitor& visitor, VariableIdentifier* val
 void write_variant_call_call_index(ToCAstVisitor& visitor, FunctionCall* value) {
     const auto member = value->parent_val->linked_node()->as_variant_member();
     if(member) {
-        *visitor.output << member->parent()->variable_index(member->name, false);
+        visitor.output << member->parent()->variable_index(member->name, false);
     } else {
         visitor.write("-1");
     }
@@ -5530,47 +5526,47 @@ void ToCAstVisitor::VisitTryStmt(TryCatch *statement) {
 }
 
 void ToCAstVisitor::VisitIntValue(IntValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitBigIntValue(BigIntValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitLongValue(LongValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitShortValue(ShortValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitUBigIntValue(UBigIntValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitUIntValue(UIntValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitULongValue(ULongValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitUShortValue(UShortValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitInt128Value(Int128Value *val) {
-    *output << val->get_num_value();
+    output << val->get_num_value();
 }
 
 void ToCAstVisitor::VisitUInt128Value(UInt128Value *val) {
-    *output << val->get_num_value();
+    output << val->get_num_value();
 }
 
 void ToCAstVisitor::VisitNumberValue(NumberValue *numValue) {
-    *output << numValue->get_num_value();
+    output << numValue->get_num_value();
 }
 
 void ToCAstVisitor::VisitFloatValue(FloatValue *val) {
@@ -5582,18 +5578,18 @@ void ToCAstVisitor::VisitFloatValue(FloatValue *val) {
 }
 
 void ToCAstVisitor::VisitDoubleValue(DoubleValue *val) {
-    *output << val->value;
+    output << val->value;
 }
 
 void ToCAstVisitor::VisitCharValue(CharValue *val) {
     write('\'');
-    write_escape_encoded(*output, val->value);
+    write_escape_encoded(output, val->value);
     write('\'');
 }
 
 void ToCAstVisitor::VisitUCharValue(UCharValue *val) {
     write('\'');
-    write_escape_encoded(*output, (char) val->value);
+    write_escape_encoded(output, (char) val->value);
     write('\'');
 }
 
@@ -5752,7 +5748,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         } else {
             write("struct ");
         }
-        *output << runName;
+        output << runName;
         write(')');
     }
     write("{ ");
@@ -6085,7 +6081,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write(variant_type_variant_name);
         write(" == ");
 
-        *output << def->direct_child_index(member->name);
+        output << def->direct_child_index(member->name);
         write(" ? ");
         write(varName2);
         write("->");
@@ -6109,7 +6105,7 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         write("->");
         write(variant_type_variant_name);
         write(" != ");
-        *output << def->direct_child_index(member->name);
+        output << def->direct_child_index(member->name);
         write(") {");
         indentation_level += 1;
         new_line_and_indent();
@@ -6385,7 +6381,7 @@ void ToCAstVisitor::VisitArrayType(ArrayType *type) {
     if(array_types_as_subscript) {
         write('[');
         if (type->has_array_size()) {
-            *output << type->get_array_size();
+            output << type->get_array_size();
         }
         write(']');
     } else {

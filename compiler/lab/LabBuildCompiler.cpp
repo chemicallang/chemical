@@ -1246,7 +1246,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(binder, global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info, options->minify_c);
+    ToCAstVisitor c_visitor(binder, global, mangler, output_ptr, *file_allocator, loc_man, options->debug_info, options->minify_c);
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
@@ -2467,7 +2467,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // compiler interfaces the lab files imports
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(binder, global, mangler, &output_ptr, *file_allocator, loc_man, options->debug_info, options->minify_c);
+    ToCAstVisitor c_visitor(binder, global, mangler, output_ptr, *file_allocator, loc_man, options->debug_info, options->minify_c);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context

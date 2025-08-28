@@ -146,6 +146,11 @@ struct FuncDeclAttributes {
      */
     bool dll_import = false;
 
+    /**
+     * did user put dllexport annotation over it
+     */
+    bool dll_export = false;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
@@ -281,6 +286,14 @@ public:
 
     inline void set_dll_import(bool value) {
         attrs.dll_import = value;
+    }
+
+    inline bool is_dll_export() {
+        return attrs.dll_export;
+    }
+
+    inline void set_dll_export(bool value) {
+        attrs.dll_export = value;
     }
 
     inline bool is_cpp_mangle() {

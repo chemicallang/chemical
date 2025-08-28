@@ -586,6 +586,7 @@ set(COMMON_SOURCES
         ast/values/SwitchValue.h
         ast/values/LoopValue.h
         ast/values/LoopValue.h
+        integration/libtcc/TCCMode.h
 )
 
 # Chemical LSP Executable Target

@@ -140,6 +140,15 @@ void annot_handler_dllimport(Parser* parser, ASTNode* node, std::vector<Value*>&
     }
 };
 
+void annot_handler_dllexport(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    const auto func = node->as_function();
+    if(func) {
+        func->set_dll_export(true);
+    } else {
+        parser->error("couldn't make the function dllexport");
+    }
+}
+
 void annot_handler_no_init(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto def = node->as_struct_def();
     if(def) {
@@ -300,6 +309,7 @@ AnnotationController::AnnotationController(bool is_env_testing) {
             { "unsafe", { annot_handler_unsafe, "unsafe", AnnotationDefType::Handler } },
             { "stdcall", { annot_handler_stdcall, "stdcall", AnnotationDefType::Handler } },
             { "dllimport", { annot_handler_dllimport, "dllimport", AnnotationDefType::Handler } },
+            { "dllexport", { annot_handler_dllexport, "dllexport", AnnotationDefType::Handler } },
             { "no_init", { annot_handler_no_init, "no_init", AnnotationDefType::Handler } },
             { "anonymous", { annot_handler_anonymous, "anonymous", AnnotationDefType::Handler } },
             { "const", { annot_handler_const, "const", AnnotationDefType::Handler } },

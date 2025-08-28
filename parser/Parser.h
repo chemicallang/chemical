@@ -184,6 +184,11 @@ public:
     bool parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
+     * a link statement defines a link library in .mod file
+     */
+    bool parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */

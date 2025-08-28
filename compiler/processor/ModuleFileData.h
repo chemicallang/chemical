@@ -9,13 +9,35 @@
 #include "core/diag/Diagnostic.h"
 #include <string>
 
-struct ModuleFileSource {
+struct ModFileSource {
 
     chem::string_view path;
 
     chem::string_view if_condition;
 
     bool is_negative = false;
+
+};
+
+typedef ModFileSource ModuleFileSource;
+
+enum class ModFileLinkLibKind { Name, File, DefaultLib };
+
+enum class ModFileLinkLibVisibility { Unknown };
+
+enum class ModFileLinkLibType { Unknown };
+
+struct ModFileLinkLib {
+
+    chem::string_view name;
+
+    ModFileLinkLibKind kind = ModFileLinkLibKind::Name;
+
+    ModFileLinkLibVisibility visibility = ModFileLinkLibVisibility::Unknown;
+
+    ModFileLinkLibType type = ModFileLinkLibType::Unknown;
+
+    chem::string_view if_condition;
 
 };
 

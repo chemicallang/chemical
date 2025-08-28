@@ -134,10 +134,21 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
         consumeNewLines();
         switch(token->type) {
             case TokenType::Identifier: {
-                // handling source like this
-                if(!parseSourceStmt(allocator, data)) {
-                    error("unknown identifier found");
-                    goto loop_break;
+                const auto hash_fn = std::hash<chem::string_view>();
+                switch(hash_fn(token->value)) {
+                    case hash_fn("source"):
+                        // handling source like this
+                        if(!parseSourceStmt(allocator, data)) {
+                            error("couldn't parse a source statement");
+                            goto loop_break;
+                        }
+                        break;
+                    case hash_fn("link"):
+                        if(!parseLinkStmt(allocator, data)) {
+                            error("couldn't parse a link statement");
+                            goto loop_break;
+                        }
+                    break;
                 }
                 break;
             }

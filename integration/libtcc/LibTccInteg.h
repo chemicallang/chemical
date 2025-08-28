@@ -7,6 +7,7 @@
 #include <vector>
 #include <optional>
 #include "std/chem_string.h"
+#include "TCCMode.h"
 
 class TCCDeletor {
 public:
@@ -22,22 +23,11 @@ public:
 /**
  * this function creates a new tcc state and also sets up it's libraries and includes correctly
  */
-TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name);
+TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMode mode);
 
-/**
- * set the output type to jit for a tcc state, should be set right after creation of the tcc state
- */
-bool tcc_set_output_for_jit(TCCState* s);
+TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, TCCMode mode);
 
-/**
- * should be set after creation, but always before compilation, this makes it so
- * that tcc generates debug code
- */
-void tcc_set_debug_options(TCCState* s);
-
-TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug);
-
-TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug);
+TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, TCCMode mode);
 
 /**
  * will redirect functions like malloc, free and memcpy to our compiler
@@ -45,10 +35,10 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
  */
 void prepare_tcc_state_for_jit(TCCState* state);
 
-int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, bool debug);
+int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode);
 
 std::optional<std::string> read_file_to_string(const char* file_path);
 
-int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, bool debug);
+int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode);
 
-int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects);
+int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects, TCCMode mode);

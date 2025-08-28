@@ -201,7 +201,7 @@ int BuildContextlink_objects(LabBuildContext* self, StringViewSpan* string_arr, 
         linkables.emplace_back(chem::string::make_view(string_arr->ptr[i]));
     }
     auto& options = *self->compiler.options;
-    return link_objects(options.exe_path, linkables, output_path->str(), options.target_triple);
+    return link_objects_now(options.use_tcc, &options, linkables, output_path->str());
 }
 
 int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr) {

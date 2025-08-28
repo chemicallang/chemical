@@ -56,7 +56,7 @@ public type BYTE = uchar
 /** @brief 16-bit unsigned integer. */
 public type WORD = ushort
 /** @brief 32-bit unsigned integer. */
-public type DWORD = uint32_t
+public type DWORD = ulong
 /** @brief Signed 32-bit integer. */
 public type LONG = int32_t
 /** @brief 64-bit signed integer. */
@@ -354,6 +354,8 @@ public struct PROCESS_INFORMATION {
  * @return The calling thread's last-error code.
  */
 @extern
+@stdcall
+@dllimport
 public func GetLastError() : DWORD
 
 /**
@@ -361,6 +363,8 @@ public func GetLastError() : DWORD
  * @param dwErrCode The new error code.
  */
 @extern
+@stdcall
+@dllimport
 public func SetLastError(dwErrCode : DWORD) : void
 
 /**
@@ -375,6 +379,8 @@ public func SetLastError(dwErrCode : DWORD) : void
  * @return Handle to the file or device, or INVALID_HANDLE_VALUE on error.
  */
 @extern
+@stdcall
+@dllimport
 public func CreateFileA(
     lpFileName : LPCSTR,
     dwDesiredAccess : DWORD,
@@ -395,6 +401,8 @@ public func CreateFileA(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func ReadFile(
     hFile : HANDLE,
     lpBuffer : LPVOID,
@@ -413,6 +421,8 @@ public func ReadFile(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func WriteFile(
     hFile : HANDLE,
     lpBuffer : LPCVOID,
@@ -427,6 +437,8 @@ public func WriteFile(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func CloseHandle(hObject : HANDLE) : BOOL
 
 /**
@@ -437,6 +449,8 @@ public func CloseHandle(hObject : HANDLE) : BOOL
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func CopyFileA(
     lpExistingFileName : LPCSTR,
     lpNewFileName : LPCSTR,
@@ -450,6 +464,8 @@ public func CopyFileA(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func MoveFileA(
     lpExistingFileName : LPCSTR,
     lpNewFileName : LPCSTR
@@ -462,6 +478,8 @@ public func MoveFileA(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func GetFileSizeEx(
     hFile : HANDLE,
     lpFileSize : *mut LARGE_INTEGER // Using LARGE_INTEGER for 64-bit size
@@ -476,6 +494,8 @@ public func GetFileSizeEx(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func SetFilePointerEx(
     hFile : HANDLE,
     liDistanceToMove : LARGE_INTEGER,
@@ -489,6 +509,8 @@ public func SetFilePointerEx(
  * @return The attributes of the file or directory, or INVALID_FILE_ATTRIBUTES on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func GetFileAttributesA(lpFileName : LPCSTR) : DWORD
 
 /**
@@ -498,6 +520,8 @@ public func GetFileAttributesA(lpFileName : LPCSTR) : DWORD
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func SetFileAttributesA(
     lpFileName : LPCSTR,
     dwFileAttributes : DWORD
@@ -513,6 +537,8 @@ public func SetFileAttributesA(
  * @return Length of the string copied to lpBuffer (excluding null terminator), or 0 on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func GetFullPathNameA(
     lpFileName : LPCSTR,
     nBufferLength : DWORD,
@@ -527,6 +553,8 @@ public func GetFullPathNameA(
  * @return If successful, the return value specifies the length of the string written to the buffer, not including the terminating null character. If fails, returns 0.
  */
 @extern
+@stdcall
+@dllimport
 public func GetCurrentDirectoryA(
     nBufferLength : DWORD,
     lpBuffer : LPSTR
@@ -538,6 +566,8 @@ public func GetCurrentDirectoryA(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func SetCurrentDirectoryA(lpPathName : LPCSTR) : BOOL
 
 
@@ -547,6 +577,8 @@ public func SetCurrentDirectoryA(lpPathName : LPCSTR) : BOOL
  * @return Handle to the module, or NULL on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func LoadLibraryA(lpLibFileName : LPCSTR) : HMODULE
 
 /**
@@ -555,6 +587,8 @@ public func LoadLibraryA(lpLibFileName : LPCSTR) : HMODULE
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func FreeLibrary(hLibModule : HMODULE) : BOOL
 
 /**
@@ -564,6 +598,8 @@ public func FreeLibrary(hLibModule : HMODULE) : BOOL
  * @return FARPROC pointer to the function or variable, or NULL on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func GetProcAddress(hModule : HMODULE, lpProcName : LPCSTR) : FARPROC
 
 /**
@@ -575,6 +611,8 @@ public func GetProcAddress(hModule : HMODULE, lpProcName : LPCSTR) : FARPROC
  * @return Pointer to the allocated memory, or NULL on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func VirtualAlloc(
     lpAddress : LPVOID,
     dwSize : SIZE_T,
@@ -590,6 +628,8 @@ public func VirtualAlloc(
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func VirtualFree(
     lpAddress : LPVOID,
     dwSize : SIZE_T,
@@ -601,6 +641,8 @@ public func VirtualFree(
  * @param dwMilliseconds Time-out interval, in milliseconds.
  */
 @extern
+@stdcall
+@dllimport
 public func Sleep(dwMilliseconds : DWORD) : void
 
 /**
@@ -608,6 +650,8 @@ public func Sleep(dwMilliseconds : DWORD) : void
  * @param uExitCode The exit code for the process.
  */
 @extern
+@stdcall
+@dllimport
 public func ExitProcess(uExitCode : UINT) : void
 
 /**
@@ -619,6 +663,8 @@ public func ExitProcess(uExitCode : UINT) : void
  * @return Button identifier the user clicked.
  */
 @extern
+@stdcall
+@dllimport
 public func MessageBoxA(
     hWnd : HANDLE,
     lpText : LPCSTR,
@@ -633,6 +679,8 @@ public func MessageBoxA(
  * @return Search handle or INVALID_HANDLE_VALUE on error.
  */
 @extern
+@stdcall
+@dllimport
 public func FindFirstFileA(lpFileName : LPCSTR, lpFindFileData : *mut WIN32_FIND_DATAA) : HANDLE
 
 /**
@@ -642,6 +690,8 @@ public func FindFirstFileA(lpFileName : LPCSTR, lpFindFileData : *mut WIN32_FIND
  * @return Nonzero on success, zero on failure/end.
  */
 @extern
+@stdcall
+@dllimport
 public func FindNextFileA(hFindFile : HANDLE, lpFindFileData : *mut WIN32_FIND_DATAA) : BOOL
 
 /**
@@ -650,6 +700,8 @@ public func FindNextFileA(hFindFile : HANDLE, lpFindFileData : *mut WIN32_FIND_D
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func FindClose(hFindFile : HANDLE) : BOOL
 
 /**
@@ -659,6 +711,8 @@ public func FindClose(hFindFile : HANDLE) : BOOL
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func CreateDirectoryA(lpPathName : LPCSTR, lpSecurityAttributes : *mut SECURITY_ATTRIBUTES) : BOOL
 
 /**
@@ -667,6 +721,8 @@ public func CreateDirectoryA(lpPathName : LPCSTR, lpSecurityAttributes : *mut SE
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func RemoveDirectoryA(lpPathName : LPCSTR) : BOOL
 
 /**
@@ -675,6 +731,8 @@ public func RemoveDirectoryA(lpPathName : LPCSTR) : BOOL
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func DeleteFileA(lpFileName : LPCSTR) : BOOL
 
 /**
@@ -683,6 +741,8 @@ public func DeleteFileA(lpFileName : LPCSTR) : BOOL
  * @return Handle to the specified device, or INVALID_HANDLE_VALUE on error.
  */
 @extern
+@stdcall
+@dllimport
 public func GetStdHandle(nStdHandle : DWORD) : HANDLE
 
 /**
@@ -690,6 +750,8 @@ public func GetStdHandle(nStdHandle : DWORD) : HANDLE
  * @param lpSystemTime Pointer to a SYSTEMTIME structure to receive the current system date and time.
  */
 @extern
+@stdcall
+@dllimport
 public func GetSystemTime(lpSystemTime : *mut SYSTEMTIME) : void
 
 /**
@@ -697,6 +759,8 @@ public func GetSystemTime(lpSystemTime : *mut SYSTEMTIME) : void
  * @param lpLocalTime Pointer to a SYSTEMTIME structure to receive the current local date and time.
  */
 @extern
+@stdcall
+@dllimport
 public func GetLocalTime(lpLocalTime : *mut SYSTEMTIME) : void
 
 /**
@@ -706,6 +770,8 @@ public func GetLocalTime(lpLocalTime : *mut SYSTEMTIME) : void
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func FileTimeToSystemTime(lpFileTime : *FILETIME, lpSystemTime : *mut SYSTEMTIME) : BOOL
 
 /**
@@ -715,6 +781,8 @@ public func FileTimeToSystemTime(lpFileTime : *FILETIME, lpSystemTime : *mut SYS
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func SystemTimeToFileTime(lpSystemTime : *SYSTEMTIME, lpFileTime : *mut FILETIME) : BOOL
 
 
@@ -723,6 +791,8 @@ public func SystemTimeToFileTime(lpSystemTime : *SYSTEMTIME, lpFileTime : *mut F
  * @return The process identifier of the calling process.
  */
 @extern
+@stdcall
+@dllimport
 public func GetCurrentProcessId() : DWORD
 
 /**
@@ -730,6 +800,8 @@ public func GetCurrentProcessId() : DWORD
  * @return The thread identifier of the calling thread.
  */
 @extern
+@stdcall
+@dllimport
 public func GetCurrentThreadId() : DWORD
 
 /**
@@ -747,6 +819,8 @@ public func GetCurrentThreadId() : DWORD
  * @return Nonzero on success, zero on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func CreateProcessA(
     lpApplicationName : LPCSTR,
     lpCommandLine : LPSTR, // Note: Can be modified by the function, thus LPSTR not LPCSTR
@@ -773,6 +847,8 @@ public func CreateProcessA(
  * @return ERROR_SUCCESS (0) if successful, or a nonzero error code.
  */
 @extern
+@stdcall
+@dllimport
 public func RegOpenKeyExA(
     hKey : HKEY,
     lpSubKey : LPCSTR,
@@ -787,6 +863,8 @@ public func RegOpenKeyExA(
  * @return ERROR_SUCCESS (0) if successful, or a nonzero error code.
  */
 @extern
+@stdcall
+@dllimport
 public func RegCloseKey(hKey : HKEY) : LONG
 
 /**
@@ -800,6 +878,8 @@ public func RegCloseKey(hKey : HKEY) : LONG
  * @return ERROR_SUCCESS (0) if successful, or a nonzero error code.
  */
 @extern
+@stdcall
+@dllimport
 public func RegQueryValueExA(
     hKey : HKEY,
     lpValueName : LPCSTR,
@@ -820,6 +900,8 @@ public func RegQueryValueExA(
  * @return ERROR_SUCCESS (0) if successful, or a nonzero error code.
  */
  @extern
+@stdcall
+@dllimport
 public func RegSetValueExA(
     hKey : HKEY,
     lpValueName : LPCSTR,
@@ -837,6 +919,8 @@ public func RegSetValueExA(
  * @return 0 on success, -1 on failure (sets errno).
  */
 @extern
+@stdcall
+@dllimport
 public func _mkdir(path : LPCSTR) : int
 
 /** @brief Removes a directory (CRT).
@@ -844,6 +928,8 @@ public func _mkdir(path : LPCSTR) : int
  * @return 0 on success, -1 on failure (sets errno).
  */
 @extern
+@stdcall
+@dllimport
 public func _rmdir(path : LPCSTR) : int
 
 /** @brief Changes the current working directory (CRT).
@@ -851,6 +937,8 @@ public func _rmdir(path : LPCSTR) : int
  * @return 0 on success, -1 on failure (sets errno).
  */
 @extern
+@stdcall
+@dllimport
 public func _chdir(path : LPCSTR) : int
 
 /** @brief Gets the current working directory (CRT).
@@ -859,4 +947,6 @@ public func _chdir(path : LPCSTR) : int
  * @return Pointer to buffer on success, NULL on failure.
  */
 @extern
+@stdcall
+@dllimport
 public func _getcwd(buffer : LPSTR, maxlen : int) : LPSTR

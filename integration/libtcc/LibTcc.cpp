@@ -13,12 +13,13 @@ void handle_tcc_error(void *opaque, const char *msg){
     std::cout << rang::fg::red << msg << " in " << ((char*) opaque) << rang::fg::reset << std::endl;
 }
 
-TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name) {
+TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMode mode) {
 
     // creating a tcc state
     auto s = tcc_new();
     if (!s) {
-        fprintf(stderr, "Could not create tcc state\n");
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't create a new tcc state" << std::endl;
         return nullptr;
     }
 
@@ -28,14 +29,12 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name) {
     // the tcc dir contains everything tcc needs present relative to our compiler executable
     auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
 
-    // TODO check if tcc dir is not present and error out appropriately
-
     // adding tcc include paths (which should be present relative to our compiler executable
     auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
     const auto includeRes = tcc_add_include_path(s, include_dir.data());;
     if (includeRes == -1) {
         std::cerr << rang::fg::red << "error: " << rang::fg::reset;
-        std::cerr << "couldn't include tcc include package" << std::endl;
+        std::cerr << "couldn't include tcc include package at '" << include_dir << '\'' << std::endl;
         return nullptr;
     }
 
@@ -44,21 +43,27 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name) {
     const auto addRes = tcc_add_library_path(s, lib_dir.data());
     if (addRes == -1) {
         std::cerr << rang::fg::red << "error: " << rang::fg::reset;
-        std::cerr << "couldn't add tcc library package" << std::endl;
+        std::cerr << "couldn't add tcc library package at '" << lib_dir << '\'' << std::endl;
         return nullptr;
+    }
+
+    // -b
+    // Generate additional support code to check memory allocations and array/pointer bounds. -g is implied. Note that the generated code is slower and bigger in this case.
+    // Note: -b is only available on i386 when using libtcc for the moment.
+    // -bt N Display N callers in stack traces. This is useful with -g or -b.
+    switch(mode) {
+        case TCCMode::None:
+            break;
+        case TCCMode::Debug:
+            tcc_set_options(s, "-g -bt 25");
+            break;
+        case TCCMode::DebugComplete:
+            tcc_set_options(s, "-g -bt 25 -b");
+            break;
     }
 
     return s;
 
-}
-
-bool tcc_set_output_for_jit(TCCState* s) {
-    const auto outputRes = tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-    if (outputRes == -1) {
-        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't set tcc output type" << std::endl;
-        return false;
-    }
-    return true;
 }
 
 bool tcc_set_output_for_extension(TCCState* s, const std::string& outputFileName) {
@@ -112,36 +117,15 @@ int backtrace_handler(void *udata, void *pc, const char *file, int line, const c
     return 1;
 }
 
-TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug) {
+TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, TCCMode mode) {
 
-    // creating a tcc state
-    const auto s = tcc_new();
-    if (!s) {
+    const auto s = tcc_new_state(exe_path, outputFileName.c_str(), mode);
+    if(s == nullptr) {
         return nullptr;
     }
 
-    /* set custom error/warning printer */
-    tcc_set_error_func(s, (char *) outputFileName.data(), handle_tcc_error);
-
-    int result;
-
-    auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
-    auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
-    auto lib_dir = resolve_rel_child_path_str(tcc_dir, "lib");
-    result = tcc_add_include_path(s, include_dir.data());;
-    if (result == -1) {
-        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
-        std::cerr << "couldn't include tcc package at '" << include_dir << '\'' << std::endl;
-        tcc_delete(s);
-        return nullptr;
-    }
-
-    result = tcc_add_library_path(s, lib_dir.data());
-    if (result == -1) {
-        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
-        std::cerr << "couldn't add tcc library package at '" << lib_dir << '\'' << std::endl;
-        tcc_delete(s);
-        return nullptr;
+    if (jit) {
+        tcc_set_backtrace_func(s, nullptr, backtrace_handler);
     }
 
     int outputType = TCC_OUTPUT_EXE;
@@ -157,18 +141,7 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
         }
     }
 
-    if (debug) {
-        // generates slower code in debug versions, but allows proper debugging
-        // it would be helpful to set -b but that's not working on my system
-        // -b
-        // Generate additional support code to check memory allocations and array/pointer bounds. -g is implied. Note that the generated code is slower and bigger in this case.
-        // Note: -b is only available on i386 when using libtcc for the moment.
-        // -bt N Display N callers in stack traces. This is useful with -g or -b.
-        tcc_set_options(s, "-g -bt 10");
-        tcc_set_backtrace_func(s, nullptr, backtrace_handler);
-    }
-
-    result = tcc_set_output_type(s, outputType);
+    const auto result = tcc_set_output_type(s, outputType);
     if (result == -1) {
         std::cerr << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't set tcc output type" << std::endl;
@@ -193,9 +166,9 @@ void prepare_tcc_state_for_jit(TCCState* s) {
     tcc_add_symbol(s, "memmove", (void*) memmove);
 }
 
-TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {
+TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, TCCMode mode) {
 
-    auto s = setup_tcc_state(exe_path, outputFileName, jit, debug);
+    auto s = setup_tcc_state(exe_path, outputFileName, jit, mode);
     if(!s) {
         return nullptr;
     }
@@ -217,14 +190,14 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
 
 }
 
-int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, bool debug) {
+int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode) {
 
     BenchmarkResults results{};
     if(benchmark) {
         results.benchmark_begin();
     }
 
-    auto s = compile_c_to_tcc_state(exe_path, program, outputFileName, jit, debug);
+    auto s = compile_c_to_tcc_state(exe_path, program, outputFileName, jit, mode);
     if(!s) {
         return 1;
     }
@@ -261,20 +234,20 @@ std::optional<std::string> read_file_to_string(const char* file_path) {
     return buffer.str();
 }
 
-int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, bool debug) {
+int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode) {
     auto read = read_file_to_string(c_file_path);
     if(read.has_value()) {
-        return compile_c_string(exe_path, read.value().data(), outputFileName, jit, benchmark, debug);
+        return compile_c_string(exe_path, read.value().data(), outputFileName, jit, benchmark, mode);
     } else {
         std::cerr << "couldn't open c file at " << c_file_path << " for compilation" << std::endl;
         return 1;
     }
 }
 
-int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects) {
+int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects, TCCMode mode) {
 
     // creating a new tcc state
-    const auto s = tcc_new_state(exe_path, outputFileName.data());
+    const auto s = tcc_new_state(exe_path, outputFileName.data(), mode);
     if(!s) return 1;
 
     // set output according to extension

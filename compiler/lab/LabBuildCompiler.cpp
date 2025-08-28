@@ -68,6 +68,27 @@ std::ostream& operator<<(std::ostream& os, const LabModule& mod) {
     return os;
 }
 
+TCCMode to_tcc_mode(OutputMode mode, bool debug_info) {
+    if(debug_info) {
+        return TCCMode::Debug;
+    }
+    switch(mode) {
+        case OutputMode::Debug:
+            return TCCMode::Debug;
+        case OutputMode::DebugComplete:
+            return TCCMode::DebugComplete;
+        case OutputMode::DebugQuick:
+        case OutputMode::ReleaseFast:
+        case OutputMode::ReleaseSmall:
+        case OutputMode::ReleaseSafe:
+            return TCCMode::None;
+    }
+}
+
+inline TCCMode to_tcc_mode(LabBuildCompilerOptions* options) {
+    return to_tcc_mode(options->outMode, options->debug_info);
+}
+
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
         auto child_type = found->returnType->known_child_type();
@@ -631,7 +652,7 @@ int LabBuildCompiler::process_module_tcc(
         if(verbose) {
             std::cout << "[lab] emitting the module '" << mod->name <<  "' object file at path '" << obj_path << '\'' << std::endl;
         }
-        const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, options->outMode == OutputMode::DebugComplete);
+        const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, to_tcc_mode(options));
         if (compile_c_result == 1) {
             const auto out_path = resolve_sibling(mod->object_path.to_view(), mod->name.to_std_string() + ".debug.c");
             writeToFile(out_path, program);
@@ -946,7 +967,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
         return 1;
     }
-    const auto compile_result = compile_c_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
+    const auto compile_result = compile_c_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, to_tcc_mode(compiler->options));
     if (compile_result == 1) {
         return 1;
     }
@@ -1055,7 +1076,7 @@ int LabBuildCompiler::tcc_run_invocation(
     char** argv
 ) {
 
-    const auto state = setup_tcc_state(exe_path, "", true, mode == OutputMode::DebugComplete);
+    const auto state = setup_tcc_state(exe_path, "", true, to_tcc_mode(mode, false));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit" << std::endl;
@@ -1134,7 +1155,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     auto& job_name = cbiJob->name;
     auto cbiName = cbiJob->name.to_std_string();
 
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, options->outMode == OutputMode::DebugComplete);
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
@@ -1555,69 +1576,94 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
 #endif
 
-int link_objects(
-    const std::string& comp_exe_path,
-    std::vector<chem::string>& linkables,
-    const std::string& output_path,
-    const std::vector<std::string>& flags,
-    const std::string_view& target_triple,
-    bool use_tcc
-) {
-    int link_result;
-#ifdef COMPILER_BUILD
-    if(use_tcc) {
-        chem::string copy(comp_exe_path);
-        link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
-    } else {
-        std::vector<std::string> data;
-        for (auto& obj: linkables) {
-            data.emplace_back(obj.data());
-        }
-        link_result = link_objects(data, output_path, comp_exe_path, flags, target_triple);
+void print_failed_to_link(std::vector<chem::string>& linkables, const std::string& output_path) {
+    std::cerr << "Failed to link \n";
+    for(auto& linkable : linkables) {
+        std::cerr << '\t' << linkable << '\n';
     }
-#else
-    chem::string copy(comp_exe_path);
-    link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
-#endif
-    if(link_result == 1) {
-        std::cerr << "Failed to link \n";
-        for(auto& linkable : linkables) {
-            std::cerr << '\t' << linkable << '\n';
-        }
-        std::cerr << "into " << output_path;
-        std::cerr << std::endl;
-        return link_result;
-    }
+    std::cerr << "into " << output_path;
+    std::cerr << std::endl;
+}
 
+int link_objects_tcc(
+        const std::string& comp_exe_path,
+        std::vector<chem::string>& linkables,
+        const std::string& output_path,
+        TCCMode mode
+) {
+    chem::string copy(comp_exe_path);
+    const auto link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables, mode);
+    if(link_result != 0) {
+        print_failed_to_link(linkables, output_path);
+    }
     return link_result;
 }
 
-int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path, bool use_tcc) {
-    std::vector<std::string> flags;
 #ifdef COMPILER_BUILD
-    if(options->no_pie && !use_tcc) {
+
+int link_objects_linker(
+        const std::string& comp_exe_path,
+        std::vector<chem::string>& linkables,
+        const std::string& output_path,
+        const std::string_view& target_triple,
+        bool debug_info,
+        OutputMode mode,
+        bool no_pie,
+        bool verbose
+) {
+    std::vector<std::string> data;
+    for (auto& obj: linkables) {
+        data.emplace_back(obj.data());
+    }
+    std::vector<std::string> flags;
+    if(debug_info || is_debug_or_compl(mode)) {
+        // on windows codeview is being used as .pdb and .ilk are being generated which aren't supported by gdb
+        // we can use -gdward-4 which is supported
+        // flags.emplace_back("-gdwarf-4");
+        flags.emplace_back("-g");
+    }
+    if(no_pie) {
         flags.emplace_back("-no-pie");
     }
-#endif
-    if(options->debug_info) {
-        flags.emplace_back("-g");
-        // TODO so on windows -gdward-4 is being used as .pdb and .ilk are being generated which aren't supported by gdb
-//        flags.emplace_back("-gdwarf-4");
+    if(verbose) {
+        flags.emplace_back("-v");
     }
+    const auto link_result = link_objects(data, output_path, comp_exe_path, flags, target_triple);
+    if(link_result != 0) {
+        print_failed_to_link(linkables, output_path);
+    }
+    return link_result;
+}
+
+#endif
+
+int link_objects_now(
+    bool use_tcc,
+    LabBuildCompilerOptions* options,
+    std::vector<chem::string>& linkables,
+    const std::string& output_path
+) {
     if(options->verbose) {
         std::cout << "[lab] linking objects ";
         for(auto& obj : linkables) {
             std::cout << '\'' << obj.to_view() << '\'' << ' ';
         }
-        std::cout << "with flags ";
-        for(auto& str : flags) {
-            std::cout << '\'' << str << '\'' << ' ';
-        }
         std::cout << "into " << output_path;
         std::cout << std::endl;
-        flags.emplace_back("-v");
     }
-    return link_objects(options->exe_path, linkables, output_path, flags, options->target_triple, use_tcc);
+#ifdef COMPILER_BUILD
+    if(use_tcc) {
+        return link_objects_tcc(options->exe_path, linkables, output_path, to_tcc_mode(options->outMode, options->debug_info));
+    } else {
+        return link_objects_linker(options->exe_path, linkables, output_path, options->target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose);
+    }
+#else
+    return link_objects_tcc(options->exe_path, linkables, output_path, to_tcc_mode(options->outMode, options->debug_info));
+#endif
+}
+
+int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path, bool use_tcc) {
+    return link_objects_now(use_tcc, options, linkables, output_path);
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
@@ -2101,7 +2147,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         // also not a single file in the build.lab has changed and its object file also exists
         // which means we can safely link the previous object files again
 
-        const auto state = setup_tcc_state(options->exe_path.data(), "", true, is_debug(options->outMode));
+        const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
         if(state == nullptr) {
             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
             std::cerr << "couldn't create tcc state for jit of cached build.lab object file" << std::endl;
@@ -2265,7 +2311,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     writeToFile(labOutCPath, str);
 
     // let's first create an object file for build.lab (for caching)
-    const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, options->outMode == OutputMode::DebugComplete);
+    const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, to_tcc_mode(options));
     if(objRes == -1){
 
         std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to compile 'build.lab' at '" << path <<  "' to object file, written to '" << labOutCPath << '\'' << std::endl;
@@ -2281,7 +2327,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // creating a new tcc state
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, is_debug(options->outMode));
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "couldn't create tcc state for 'build.lab' file at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         return nullptr;

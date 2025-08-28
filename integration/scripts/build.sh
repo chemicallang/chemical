@@ -1,5 +1,5 @@
 #
-# Copyright (c) Qinetik 2025.
+# Copyright (c) Chemical Language Foundation 2025.
 #
 
 cmake -S . -B cmake-build-debugwsl -G "Ninja Multi-Config" -DCMAKE_BUILD_TYPE=Debug

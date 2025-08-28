@@ -784,7 +784,7 @@ void Codegen::destruct(
     destruct(allocaInst, builder->getInt32(array_size), elem_type, false, location);
 }
 
-llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {
+llvm::BasicBlock *Codegen::createBB(const std::string_view &name, llvm::Function *fn) {
     return llvm::BasicBlock::Create(*ctx, name, fn);
 }
 

@@ -529,8 +529,7 @@ int LabBuildCompiler::process_module_tcc(
         ToCAstVisitor& c_visitor,
         const std::string& mod_timestamp_file,
         const std::string& out_c_file,
-        bool do_compile,
-        std::stringstream& output_ptr
+        bool do_compile
 ) {
 
     // variables
@@ -569,8 +568,7 @@ int LabBuildCompiler::process_module_tcc(
     // clear the current c string
     // some modules cause errors, don't compile, previous module may even have half contents
     // so we must clean that before beginning
-    output_ptr.clear();
-    output_ptr.str("");
+    c_visitor.writer.clear();
 
     // preparing translation
     c_visitor.prepare_translate();
@@ -631,7 +629,7 @@ int LabBuildCompiler::process_module_tcc(
     mod_allocator->clear();
 
     // getting the c program
-    const auto& program = output_ptr.str();
+    auto program = c_visitor.writer.finalized_std_view();
 
     // writing the translated c file (if user required)
     if(!out_c_file.empty()) {
@@ -652,7 +650,7 @@ int LabBuildCompiler::process_module_tcc(
         if(verbose) {
             std::cout << "[lab] emitting the module '" << mod->name <<  "' object file at path '" << obj_path << '\'' << std::endl;
         }
-        const auto compile_c_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, to_tcc_mode(options));
+        const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), obj_path, false, options->benchmark, to_tcc_mode(options));
         if (compile_c_result == 1) {
             const auto out_path = resolve_sibling(mod->object_path.to_view(), mod->name.to_std_string() + ".debug.c");
             writeToFile(out_path, program);
@@ -666,8 +664,7 @@ int LabBuildCompiler::process_module_tcc(
     }
 
     // clear the current c string
-    output_ptr.clear();
-    output_ptr.str("");
+    c_visitor.writer.clear();
 
     return 0;
 
@@ -1245,8 +1242,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     SymbolResolver resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // beginning
-    std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(binder, global, mangler, output_ptr, *file_allocator, loc_man, options->debug_info, options->minify_c);
+    ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
@@ -1395,7 +1391,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             }
         }
 
-        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile, output_ptr);
+        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile);
         if(result == 1) {
             return 1;
         }
@@ -1988,7 +1984,6 @@ TCCState* LabBuildCompiler::built_lab_file(
         const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        std::stringstream& output_ptr,
         bool mod_file_source
 ) {
 
@@ -2201,7 +2196,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");
 
         // compile the module
-        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true, output_ptr);
+        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true);
         if(module_result == 1) {
             return nullptr;
         }
@@ -2292,8 +2287,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // clear the output ptr
-    output_ptr.clear();
-    output_ptr.str("");
+    c_visitor.writer.clear();
 
     // preparing translation
     c_visitor.prepare_translate();
@@ -2304,7 +2298,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     );
 
     // compiling the c output from build.labs
-    const auto& str = output_ptr.str();
+    auto str = c_visitor.writer.finalized_std_view();
 
     // TODO place a check to only output this when need be
     const auto labOutCPath = resolve_rel_child_path_str(labModDir, "build.lab.c");
@@ -2364,8 +2358,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     tcc_relocate(state);
 
     // clear the output ptr
-    output_ptr.clear();
-    output_ptr.str("");
+    c_visitor.writer.clear();
 
     // clear the allocators
     mod_allocator->clear();
@@ -2466,8 +2459,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     create_or_rebind_container(this, global, lab_resolver);
 
     // compiler interfaces the lab files imports
-    std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(binder, global, mangler, output_ptr, *file_allocator, loc_man, options->debug_info, options->minify_c);
+    ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context
@@ -2484,7 +2476,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(
-            context, path, lab_processor, c_visitor, output_ptr, mod_file_source
+            context, path, lab_processor, c_visitor, mod_file_source
     );
 
     return state;

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2025.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "./SymbolResolverCBI.h"
 #include "compiler/SymbolResolver.h"

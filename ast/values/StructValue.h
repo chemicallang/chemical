@@ -103,10 +103,6 @@ public:
 
     ASTNode *linked_node() final;
 
-    void runtime_name(std::ostream& output, NameMangler& mangler);
-
-    std::string runtime_name_str(NameMangler& mangler);
-
     BaseDefMember* child_member(const chem::string_view& name){
         return container->child_member(name);
     }

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2025.
+// Copyright (c) chemicallang 2025.
 
 enum class IntNTypeKind {
 

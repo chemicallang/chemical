@@ -47,7 +47,9 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     } else {
-        return llvm::StructType::create(*gen.ctx, elements, gen.mangler.mangle(def));
+        ScratchString<128> temp_name;
+        gen.mangler.mangle(temp_name, def);
+        return llvm::StructType::create(*gen.ctx, elements, (std::string_view) temp_name);
     }
 }
 

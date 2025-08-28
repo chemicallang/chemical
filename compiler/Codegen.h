@@ -369,7 +369,7 @@ public:
     /**
      * create a function's basic block, with the given name
      */
-    llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
+    llvm::BasicBlock *createBB(const std::string_view &name, llvm::Function *fn);
 
     /**
      * default initialize inherited variables of the given container

@@ -1,4 +1,4 @@
-// Copyright (c) Qinetik 2025.
+// Copyright (c) Chemical Language Foundation 2025.
 
 #include "DebugInfoBuilder.h"
 #include <llvm/IR/DIBuilder.h>
@@ -420,10 +420,12 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
     }
     const auto location = loc_node(this, init->encoded_location());
     if(init->is_top_level()) {
+        ScratchString<128> temp_name;
+        gen.mangler.mangle(temp_name, init);
         builder->createGlobalVariableExpression(
             diScopes.back(),
             to_ref(init->name_view()),
-            gen.mangler.mangle(init),
+            (std::string_view) temp_name,
             diCompileUnit->getFile(),
             location.start.line + 1,
             to_di_type(*this, init->known_type(), false),

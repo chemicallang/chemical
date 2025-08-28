@@ -587,6 +587,7 @@ set(COMMON_SOURCES
         ast/values/LoopValue.h
         ast/values/LoopValue.h
         integration/libtcc/TCCMode.h
+        preprocess/2c/BufferedWriter.h
 )
 
 # Chemical LSP Executable Target

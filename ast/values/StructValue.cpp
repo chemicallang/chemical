@@ -453,43 +453,6 @@ ASTNode *StructValue::linked_node() {
     }
 }
 
-void StructValue::runtime_name(std::ostream& output, NameMangler& mangler) {
-    if(definition) {
-        switch (definition->kind()) {
-            case ASTNodeKind::UnionDecl: {
-                const auto uni = definition->as_union_def_unsafe();
-                mangler.mangle(output, uni);
-                return;
-            }
-            case ASTNodeKind::StructDecl: {
-                const auto decl = definition->as_struct_def_unsafe();
-                mangler.mangle(output, decl);
-                return;
-            }
-            default:
-                return;
-        }
-    } else {
-        const auto refType = getRefType();
-        switch(refType->kind()) {
-            case BaseTypeKind::Struct:
-                output << refType->as_struct_type_unsafe()->name;
-                return;
-            case BaseTypeKind::Union:
-                output << refType->as_union_type_unsafe()->name;
-                return;
-            default:
-                return;
-        }
-    }
-}
-
-std::string StructValue::runtime_name_str(NameMangler& mangler) {
-    std::stringstream stream;
-    runtime_name(stream, mangler);
-    return stream.str();
-}
-
 Value *StructValue::call_member(
         InterpretScope &scope,
         const chem::string_view &name,

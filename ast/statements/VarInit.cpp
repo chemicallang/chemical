@@ -11,6 +11,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/structures/VariantDefinition.h"
+#include "preprocess/2c/BufferedWriter.h"
 
 #ifdef COMPILER_BUILD
 
@@ -41,7 +42,9 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     if(value && initialize) {
         const auto string_val = value->as_string_value();
         if(string_val) {
-            const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), gen.mangler.mangle(this), 0, gen.module.get());
+            ScratchString<128> temp_name;
+            gen.mangler.mangle(temp_name, this);
+            const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), (std::string_view) temp_name, 0, gen.module.get());
             global->setLinkage(linkage);
             global->setConstant(is_const());
             llvm_ptr = global;
@@ -51,7 +54,9 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     } else {
         initializer = nullptr;
     }
-    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, gen.mangler.mangle(this));
+    ScratchString<128> temp_name;
+    gen.mangler.mangle(temp_name, this);
+    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, (std::string_view) temp_name);
     global->setDSOLocal(true);
     if(is_thread_local()) {
         global->setThreadLocal(true);

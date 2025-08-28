@@ -33,6 +33,7 @@
 #include "compiler/ASTDiagnoser.h"
 #include <sstream>
 #include <iostream>
+#include "preprocess/2c/BufferedWriter.h"
 
 #ifdef COMPILER_BUILD
 
@@ -297,24 +298,26 @@ AccessSpecifier runtime_specifier(FunctionDeclaration* decl) {
     }
 }
 
-void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const chem::string_view& name) {
 #ifdef DEBUG
-    auto existing_func = gen.module->getFunction(name);
+    auto existing_func = gen.module->getFunction(llvm::StringRef{name.data(), name.size()});
     if(existing_func) {
         gen.error((ASTNode*) decl) << "function with name '" << name << "' already exists in the module";
     }
 #endif
     auto func_type = decl->create_llvm_func_type(gen);
-    auto func = gen.create_function(name, func_type, decl, runtime_specifier(decl));
+    auto func = gen.create_function(name.view(), func_type, decl, runtime_specifier(decl));
     decl->llvm_attributes(func);
     decl->set_llvm_data(gen, func);
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic functions always have generic iteration equal to zero
-    create_non_generic_fn(gen, decl, gen.mangler.mangle(decl));
+    ScratchString<128> name_view;
+    gen.mangler.mangle(name_view, decl);
+    create_non_generic_fn(gen, decl, name_view);
 }
 
-llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string_view& name) {
     auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, runtime_specifier(decl));
     decl->set_llvm_data(gen, callee);
     return callee;
@@ -328,20 +331,26 @@ inline llvm::Function* external_declare_fn(Codegen& gen, FunctionDeclaration* de
         // TODO: FIX THIS
         return nullptr;
     }
-    return declare_non_gen_fn(gen, decl, gen.mangler.mangle(decl));
+    ScratchString<128> name_view;
+    gen.mangler.mangle(name_view, decl);
+    return declare_non_gen_fn(gen, decl, name_view);
 }
 
-void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name, bool is_exported) {
+void declare_non_gen_weak_fn(Codegen& gen, FunctionDeclaration *decl, const std::string_view& name, bool is_exported) {
     auto callee = gen.declare_weak_function(name, decl->create_llvm_func_type(gen), decl, is_exported, decl->ASTNode::encoded_location());
     decl->set_llvm_data(gen, callee);
 }
 
 void declare_fn_weak(Codegen& gen, FunctionDeclaration *decl, bool is_exported) {
-    declare_non_gen_weak_fn(gen, decl, gen.mangler.mangle(decl), is_exported);
+    ScratchString<128> name_view;
+    gen.mangler.mangle(name_view, decl);
+    declare_non_gen_weak_fn(gen, decl, name_view, is_exported);
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    declare_non_gen_fn(gen, decl, gen.mangler.mangle(decl));
+    ScratchString<128> name_view;
+    gen.mangler.mangle(name_view, decl);
+    declare_non_gen_fn(gen, decl, name_view);
 }
 
 void create_or_declare_fn(Codegen& gen, FunctionDeclaration* decl) {

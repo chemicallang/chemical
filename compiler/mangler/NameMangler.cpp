@@ -14,9 +14,10 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/statements/VarInit.h"
 #include "ast/structures/Namespace.h"
+#include "ast/values/StructValue.h"
 #include <sstream>
 
-inline void container_name(std::ostream& stream, ExtendableMembersContainerNode* container) {
+inline void container_name(BufferedWriter& stream, ExtendableMembersContainerNode* container) {
     if(container->generic_instantiation != -1) {
         stream << container->name_view();
         stream << "__cgs__";
@@ -26,7 +27,39 @@ inline void container_name(std::ostream& stream, ExtendableMembersContainerNode*
     }
 }
 
-void NameMangler::mangle_no_parent(std::ostream& stream, ASTNode* node) {
+void NameMangler::mangle_linked(BufferedWriter& stream, StructValue* value) {
+    const auto definition = value->linked_extendable();
+    if(definition) {
+        switch (definition->kind()) {
+            case ASTNodeKind::UnionDecl: {
+                const auto uni = definition->as_union_def_unsafe();
+                mangle(stream, uni);
+                return;
+            }
+            case ASTNodeKind::StructDecl: {
+                const auto decl = definition->as_struct_def_unsafe();
+                mangle(stream, decl);
+                return;
+            }
+            default:
+                return;
+        }
+    } else {
+        const auto refType = value->getRefType();
+        switch(refType->kind()) {
+            case BaseTypeKind::Struct:
+                stream << refType->as_struct_type_unsafe()->name;
+                return;
+            case BaseTypeKind::Union:
+                stream << refType->as_union_type_unsafe()->name;
+                return;
+            default:
+                return;
+        }
+    }
+}
+
+void NameMangler::mangle_no_parent(BufferedWriter& stream, ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::FunctionDecl: {
             const auto decl = node->as_function_unsafe();
@@ -88,7 +121,7 @@ bool is_node_no_mangle(ASTNode* node) {
     }
 }
 
-void write_file_scope(std::ostream& stream, ASTNode* node, FileScope* p) {
+void write_file_scope(BufferedWriter& stream, ASTNode* node, FileScope* p) {
     const auto scope = p->parent();
     if(scope && !is_node_no_mangle(node)) {
         if(!scope->scope_name.empty()) {
@@ -100,7 +133,7 @@ void write_file_scope(std::ostream& stream, ASTNode* node, FileScope* p) {
     }
 }
 
-bool NameMangler::mangle_non_func(std::ostream& stream, ASTNode* node) {
+bool NameMangler::mangle_non_func(BufferedWriter& stream, ASTNode* node) {
     const auto id = node->get_located_id();
     if(id) {
         const auto p = node->parent();
@@ -124,7 +157,7 @@ bool NameMangler::mangle_non_func(std::ostream& stream, ASTNode* node) {
     }
 }
 
-void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl, ASTNode* parent) {
+void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration* decl, ASTNode* parent) {
     switch(parent->kind()) {
         case ASTNodeKind::InterfaceDecl: {
             const auto interface = parent->as_interface_def_unsafe();
@@ -168,14 +201,14 @@ void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* 
     }
 }
 
-void NameMangler::mangle_func_parent(std::ostream& stream, FunctionDeclaration* decl) {
+void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration* decl) {
     const auto parent = decl->parent();
     if(parent) {
         mangle_func_parent(stream, decl, parent);
     }
 }
 
-void NameMangler::mangle(std::ostream& stream, FunctionDeclaration* decl) {
+void NameMangler::mangle(BufferedWriter& stream, FunctionDeclaration* decl) {
     if(!decl->is_no_mangle()) {
         mangle_func_parent(stream, decl);
         if(decl->isExtensionFn()) {
@@ -188,13 +221,7 @@ void NameMangler::mangle(std::ostream& stream, FunctionDeclaration* decl) {
     mangle_no_parent(stream, decl);
 }
 
-std::string NameMangler::mangle(FunctionDeclaration* decl) {
-    std::stringstream stream;
-    mangle(stream, decl);
-    return stream.str();
-}
-
-bool NameMangler::mangle(std::ostream& stream, ASTNode* node) {
+bool NameMangler::mangle(BufferedWriter& stream, ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::FunctionDecl:
             mangle(stream, node->as_function_unsafe());
@@ -205,19 +232,7 @@ bool NameMangler::mangle(std::ostream& stream, ASTNode* node) {
     }
 }
 
-std::string NameMangler::mangle(ASTNode* node) {
-    std::stringstream stream;
-    mangle(stream, node);
-    return stream.str();
-}
-
-void NameMangler::mangle_vtable_name(std::ostream& stream, InterfaceDefinition* interface, StructDefinition* def) {
+void NameMangler::mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, StructDefinition* def) {
     mangle(stream, interface);
     mangle(stream, def);
-}
-
-std::string NameMangler::mangle_vtable_name(InterfaceDefinition* interface, StructDefinition* def) {
-    std::stringstream stream;
-    mangle_vtable_name(stream, interface, def);
-    return stream.str();
 }

@@ -161,13 +161,15 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefin
     const auto constant = declare_only ? nullptr : llvm_build_vtable(gen, for_struct);
     const auto vtable_type = declare_only ? llvm_vtable_type(gen) : constant->getType();
     const auto linkage = specifier() == AccessSpecifier::Public ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
+    ScratchString<128> temp_name;
+    gen.mangler.mangle_vtable_name(temp_name, this, for_struct);
     auto table = new llvm::GlobalVariable(
             *gen.module,
             vtable_type,
             true,
             linkage,
             constant,
-            gen.mangler.mangle_vtable_name(this, for_struct)
+            (std::string_view) temp_name
     );
     // an alias to the first pointer in the llvm_vtable
     // since we are using structs, we don't need to create an alias to the first pointer

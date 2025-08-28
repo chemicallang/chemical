@@ -251,7 +251,7 @@ public:
     llvm::Type* with_elements_type(
         Codegen &gen,
         const std::vector<llvm::Type *>& elements,
-        const std::string& runtime_name
+        bool anonymous
     );
 
     llvm::StructType* llvm_stored_type(Codegen& gen);

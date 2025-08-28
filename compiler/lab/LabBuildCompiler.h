@@ -174,8 +174,7 @@ public:
         ToCAstVisitor& c_visitor,
         const std::string& mod_timestamp_file,
         const std::string& out_c_file,
-        bool do_compile,
-        std::stringstream& output_ptr
+        bool do_compile
     );
 
 #ifdef COMPILER_BUILD
@@ -338,7 +337,6 @@ public:
             const std::string_view& path,
             ASTProcessor& processor,
             ToCAstVisitor& c_visitor,
-            std::stringstream& output_ptr,
             bool mod_file_source
     );
 

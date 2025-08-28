@@ -14,6 +14,7 @@
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 #include "compiler/mangler/NameMangler.h"
 #include "core/source/LocationManager.h"
+#include "BufferedWriter.h"
 
 class GlobalInterpretScope;
 class ASTAllocator;
@@ -50,6 +51,12 @@ public:
      * required to replace embedded node and embedded values
      */
     CompilerBinder& binder;
+
+    /**
+     * the writer is used to actually write to an in memory buffer
+     * the in memory buffer is really large
+     */
+    BufferedWriter writer;
 
     /**
      * this option is here to support struct initialization in tinyCC compiler
@@ -177,11 +184,6 @@ public:
     MembersContainer* current_members_container = nullptr;
 
     /**
-     * a reference to the stream it's going to write results to
-     */
-    std::ostream& output;
-
-    /**
      * allocator
      */
     ASTAllocator& allocator;
@@ -204,7 +206,6 @@ public:
         CompilerBinder& binder,
         GlobalInterpretScope& global,
         NameMangler& mangler,
-        std::ostream& output,
         ASTAllocator& allocator,
         LocationManager& manager,
         bool debug_info,
@@ -214,7 +215,9 @@ public:
     /**
      * used to write a character to the stream
      */
-    void write(char value);
+    inline void write(char value) noexcept {
+        writer.append_char(value);
+    }
 
     /**
      * indentation of \t or spaces will be added for current indentation level
@@ -225,14 +228,14 @@ public:
      * mangle and write to output the runtime name of given node
      */
     inline void mangle(ASTNode* node) {
-        mangler.mangle(output, node);
+        mangler.mangle(writer, node);
     }
 
     /**
      * mangle and write to output the runtime name of given node
      */
     inline void mangle(FunctionDeclaration* decl) {
-        mangler.mangle(output, decl);
+        mangler.mangle(writer, decl);
     }
 
     /**
@@ -248,6 +251,9 @@ public:
         return chem::string_view(allocated_temp_var_names.back());
     }
 
+    /**
+     * emits a new line and writes line directives if needed
+     */
     inline void new_line_no_check(SourceLocation location) {
         write('\n');
         if(line_directives) {
@@ -330,44 +336,58 @@ public:
     /**
      * used to insert a space in stream
      */
-    inline void space() {
+    inline void space() noexcept {
         write(' ');
     }
 
     /**
      * write a number
      */
-    void write(unsigned int num);
+    inline void write(unsigned int num) noexcept {
+        writer << num;
+    }
 
     /**
      * used to write a string to a stream
      */
-    void write(std::string& str);
+    inline void write(std::string& str) noexcept {
+        writer.append(str.data(), str.size());
+    }
 
     /**
      * will write this string to stream
      */
-    void write_str(const std::string& str);
+    inline void write_str(const std::string& str) noexcept {
+        writer.append(str.data(), str.size());
+    }
 
     /**
      * write a chemical string
      */
-    void write(chem::string& str);
+    inline void write(chem::string& str) noexcept {
+        writer.append(str.data(), str.size());
+    }
 
     /**
      * write the string view to stream
      */
-    void write(std::string_view& str);
+    inline void write(std::string_view& str) noexcept {
+        writer.append(str.data(), str.size());
+    }
 
     /**
      * write the string view to stream
      */
-    void write(chem::string_view& str);
+    inline void write(chem::string_view& str) {
+        writer.append(str.data(), str.size());
+    }
 
     /**
      * write this string view to stream
      */
-    void write(const chem::string_view& str);
+    inline void write(const chem::string_view& str) noexcept {
+        writer.append(str.data(), str.size());
+    }
 
     /**
      * write the view encoded

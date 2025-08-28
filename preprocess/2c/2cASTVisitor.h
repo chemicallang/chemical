@@ -179,7 +179,7 @@ public:
     /**
      * a reference to the stream it's going to write results to
      */
-    std::ostream* output;
+    std::ostream& output;
 
     /**
      * allocator
@@ -204,7 +204,7 @@ public:
         CompilerBinder& binder,
         GlobalInterpretScope& global,
         NameMangler& mangler,
-        std::ostream* output,
+        std::ostream& output,
         ASTAllocator& allocator,
         LocationManager& manager,
         bool debug_info,
@@ -225,14 +225,14 @@ public:
      * mangle and write to output the runtime name of given node
      */
     inline void mangle(ASTNode* node) {
-        mangler.mangle(*output, node);
+        mangler.mangle(output, node);
     }
 
     /**
      * mangle and write to output the runtime name of given node
      */
     inline void mangle(FunctionDeclaration* decl) {
-        mangler.mangle(*output, decl);
+        mangler.mangle(output, decl);
     }
 
     /**
@@ -333,11 +333,6 @@ public:
     inline void space() {
         write(' ');
     }
-
-    /**
-     * accept any node to this visitor and receive a string instead
-     */
-    std::string string_accept(Value* any);
 
     /**
      * write a number

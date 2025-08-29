@@ -451,6 +451,48 @@ bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vect
 
 }
 
+void set_defined_declarations(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::NamespaceDecl:{
+            const auto ns = node->as_namespace_unsafe();
+            for(const auto child : ns->nodes) {
+                set_defined_declarations(child);
+            }
+            break;
+        }
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = node->as_if_stmt_unsafe();
+            if(stmt->computed_scope.has_value()) {
+                const auto scope = stmt->computed_scope.value();
+                if(scope) {
+                    for(const auto child : scope->nodes) {
+                        set_defined_declarations(child);
+                    }
+                }
+            }
+            break;
+        }
+        case ASTNodeKind::StructDecl:{
+            const auto decl = node->as_struct_def_unsafe();
+            decl->has_declared = true;
+            break;
+        }
+        case ASTNodeKind::UnionDecl:{
+            const auto decl = node->as_union_def_unsafe();
+            decl->has_declared = true;
+            break;
+        }
+        case ASTNodeKind::VariantDecl:{
+            const auto decl = node->as_variant_def_unsafe();
+            decl->has_declared = true;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+
 void set_generated_instantiations(ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::GenericFuncDecl: {
@@ -536,11 +578,18 @@ void set_generated_instantiations(ASTNode* node) {
     }
 }
 
-void process_cached_module(ASTProcessor& processor, std::vector<ASTFileMetaData>& files) {
+void process_cached_module(ASTProcessor& processor, std::vector<ASTFileMetaData>& files, bool is_tcc) {
     for(const auto& file : files) {
         auto& nodes = file.result->unit.scope.body.nodes;
-        for(const auto node : nodes) {
-            set_generated_instantiations(node);
+        if(is_tcc) {
+            for(const auto node : nodes) {
+                set_generated_instantiations(node);
+                set_defined_declarations(node);
+            }
+        } else {
+            for(const auto node : nodes) {
+                set_generated_instantiations(node);
+            }
         }
     }
 }
@@ -628,10 +677,11 @@ int LabBuildCompiler::process_module_tcc(
         }
 
         // this will set all the generic instantiations to generated
-        // which means generic decls won't generate those instantiations
-        process_cached_module(processor, mod->direct_files);
+        // which means generic decls won't generate those instantiations again
+        // it will also set all structs/variants as declared, so they won't be defined twice (in generated c)
+        process_cached_module(processor, mod->direct_files, true);
         for(const auto dep : mod->dependencies) {
-            process_cached_module(processor, dep->direct_files);
+            process_cached_module(processor, dep->direct_files, true);
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
@@ -785,9 +835,9 @@ int LabBuildCompiler::process_module_gen(
 
         // this will set all the generic instantiations to generated
         // which means generic decls won't generate those instantiations
-        process_cached_module(processor, mod->direct_files);
+        process_cached_module(processor, mod->direct_files, false);
         for(const auto dep : mod->dependencies) {
-            process_cached_module(processor, dep->direct_files);
+            process_cached_module(processor, dep->direct_files, false);
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
@@ -1441,7 +1491,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     if(job_type == LabJobType::ToCTranslation) {
         // skip compilation, only c translation required
-        writeToFile(job->abs_path.to_std_string(), program);
+        writeToFile(job->abs_path.to_std_string(), {program.data(), program.size() - 1});
         return 0;
     }
 
@@ -1449,8 +1499,8 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
     if (compile_c_result == 1) {
         auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
-        writeToFile(out_path, program);
-        std::cerr << rang::fg::red << "[lab] couldn't build c program due to error in translation, written at " << out_path << rang::fg::reset << std::endl;
+        writeToFile(out_path, {program.data(), program.size() - 1});
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_path << std::endl;
         return 1;
     }
 
@@ -1539,7 +1589,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     bool has_any_changed = false;
 
     for(const auto mod : job->dependencies) {
-        const auto changed = has_module_changed(this, mod, build_dir, use_tcc(job), true);
+        const auto changed = has_module_changed(this, mod, build_dir, false);
         if(changed) {
             has_any_changed = true;
         }

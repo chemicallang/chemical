@@ -50,15 +50,9 @@ private:
 public:
 
     /**
-     * the iterations for which functions have been declared
-     * this is an index, so next starts at this index
+     * this is set by generic declarations that invoke this container as implementation
      */
-    int16_t iterations_declared = 0;
-    /**
-     * iterations for which function bodies have been generated
-     * this is an index, so next starts at this index
-     */
-    int16_t iterations_body_done = 0;
+    GenericMembersDecl* generic_parent = nullptr;
 
     /**
      * this is the generic instantiation that is instantiated by the generic parent
@@ -66,9 +60,14 @@ public:
     int generic_instantiation = -1;
 
     /**
-     * this is set by generic declarations that invoke this container as implementation
+     * a code gen helper flag, to check if container has been declared
      */
-    GenericMembersDecl* generic_parent = nullptr;
+    bool has_declared = false;
+
+    /**
+     * a code gen helper flag, to check if container has been implemented
+     */
+    bool has_implemented = false;
 
 private:
 

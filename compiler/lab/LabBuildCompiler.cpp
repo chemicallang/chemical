@@ -11,6 +11,7 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericImplDecl.h"
+#include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/If.h"
 #include "utils/Benchmark.h"
 #include "ast/structures/ModuleScope.h"
@@ -484,6 +485,11 @@ void set_defined_declarations(ASTNode* node) {
         }
         case ASTNodeKind::VariantDecl:{
             const auto decl = node->as_variant_def_unsafe();
+            decl->has_declared = true;
+            break;
+        }
+        case ASTNodeKind::TypealiasStmt: {
+            const auto decl = node->as_typealias_unsafe();
             decl->has_declared = true;
             break;
         }

@@ -219,6 +219,10 @@ public:
         append_char('\0');
     }
 
+    inline const char* current_pos_data() const noexcept {
+        return buf_ + pos_;
+    }
+
     inline std::string_view finalized_std_view() noexcept {
         finalize();
         return { data(), size() };

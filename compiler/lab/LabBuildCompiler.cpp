@@ -548,10 +548,10 @@ int LabBuildCompiler::process_module_tcc(
 
     // we always build the module
     std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
-    std::cout << mod << rang::bg::reset << rang::fg::reset << std::endl;
+    std::cout << *mod << rang::bg::reset << rang::fg::reset << std::endl;
 
     if(verbose) {
-        std::cout << "[lab] " << "parsing the module" << mod << std::endl;
+        std::cout << "[lab] " << "parsing the module" << *mod << std::endl;
     }
 
     // this would import these direct files (lex and parse), into the module files
@@ -566,20 +566,20 @@ int LabBuildCompiler::process_module_tcc(
     // return failure if parse failed
     if(!parse_success) {
         if(verbose) {
-            std::cout << "[lab] " << "parsing failure in the module " << mod << std::endl;
+            std::cout << "[lab] " << "parsing failure in the module " << *mod << std::endl;
         }
         return 1;
     }
 
     if(verbose) {
-        std::cout << "[lab] " << "resolving symbols in the module " << mod << std::endl;
+        std::cout << "[lab] " << "resolving symbols in the module " << *mod << std::endl;
     }
 
     // symbol resolve all the files in the module
     const auto sym_res_status = processor.sym_res_module(mod);
     if(sym_res_status == 1) {
         if(verbose) {
-            std::cout << "[lab] " << "failure resolving symbols in the module " << mod << std::endl;
+            std::cout << "[lab] " << "failure resolving symbols in the module " << *mod << std::endl;
         }
         return 1;
     }
@@ -588,12 +588,20 @@ int LabBuildCompiler::process_module_tcc(
         std::cout << "[lab] " << "compiling module files" << std::endl;
     }
 
+    // the starting point where this module started translating
+    const auto start = c_visitor.writer.current_pos_data();
+
     // compile the whole module
     processor.translate_module(
             c_visitor, mod
     );
 
     if(caching) {
+        // saving all the c this module wrote in a partial file (for caching)
+        auto view = std::string_view(start, c_visitor.writer.current_pos_data() - start);
+        auto partial_c_out = resolve_sibling(mod_timestamp_file, "partial.2c.c");
+        writeToFile(partial_c_out, view);
+        // save a mod timestamp
         save_mod_timestamp(direct_files, mod_timestamp_file);
     }
 

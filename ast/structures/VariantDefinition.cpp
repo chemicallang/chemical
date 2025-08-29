@@ -134,10 +134,10 @@ void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
 }
 
 void VariantDefinition::code_gen(Codegen &gen, bool declare) {
-    auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
-    if(itr_ptr == 0) {
+    auto& has_done = declare ? has_declared : has_implemented;
+    if(!has_done) {
         code_gen_once(gen, declare);
-        itr_ptr++;
+        has_done = true;
     }
 }
 

@@ -134,8 +134,8 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
     if(is_comptime()) {
         return;
     }
-    auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
-    if(itr_ptr == 0) {
+    auto& has_done = declare ? has_declared : has_implemented;
+    if(!has_done) {
         struct_func_gen(gen, instantiated_functions(), declare);
         if (!declare) {
             for (auto& inherits: inherited) {
@@ -145,7 +145,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
                 }
             }
         }
-        itr_ptr++;
+        has_done = true;
     }
 }
 

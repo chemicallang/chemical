@@ -1831,7 +1831,7 @@ CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
     ToCAstVisitor &visitor,
     CValueDeclarationVisitor *value_visitor
 ) : SubVisitor(visitor), value_visitor(value_visitor) {
-    declared.reserve(30);
+
 }
 
 enum class DestructionJobType {
@@ -2792,9 +2792,15 @@ void early_declare_union(ToCAstVisitor& visitor, UnionDef* def) {
 
 void early_declare_node(ToCAstVisitor& c_visitor, ASTNode* node) {
     switch(node->kind()) {
-        case ASTNodeKind::TypealiasStmt:
-            c_visitor.tld.VisitTypealiasStmt(node->as_typealias_unsafe());
+        case ASTNodeKind::TypealiasStmt: {
+            const auto stmt = node->as_typealias_unsafe();
+            auto& has_declared = stmt->has_declared;
+            if (!has_declared) {
+                has_declared = true;
+                c_visitor.tld.VisitTypealiasStmt(stmt);
+            }
             return;
+        }
         case ASTNodeKind::StructDecl:
             early_declare_struct(c_visitor, node->as_struct_def_unsafe());
             return;
@@ -2970,10 +2976,7 @@ void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
 }
 
 void CTopLevelDeclarationVisitor::VisitTypealiasStmt(TypealiasStatement *stmt) {
-    if(!has_declared(stmt)) {
-        set_declared(stmt);
-        type_def_stmt(visitor, stmt);
-    }
+    type_def_stmt(visitor, stmt);
 }
 
 void CTopLevelDeclarationVisitor::VisitUnionDecl(UnionDef *def) {
@@ -3031,8 +3034,8 @@ void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
 
 void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def) {
-    if(def->iterations_declared == 0) {
-        def->iterations_declared++;
+    if(!def->has_declared) {
+        def->has_declared = true;
         declare_struct_def_only(def);
     }
 }
@@ -3077,8 +3080,8 @@ void CTopLevelDeclarationVisitor::declare_union_functions(UnionDef* def) {
 }
 
 void CTopLevelDeclarationVisitor::early_declare_union_def(UnionDef* def) {
-    if(!has_declared(def)) {
-        set_declared(def);
+    if(!def->has_declared) {
+        def->has_declared = true;
         declare_union_def_only(def);
     }
 }
@@ -3187,8 +3190,8 @@ void CTopLevelDeclarationVisitor::declare_variant_functions(VariantDefinition* d
 void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def);
 
 void CTopLevelDeclarationVisitor::early_declare_variant_def(VariantDefinition* def) {
-    if(!has_declared(def)) {
-        set_declared(def);
+    if(!def->has_declared) {
+        def->has_declared = true;
         declare_variant_def_only(def);
     }
 }
@@ -4389,10 +4392,7 @@ void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def
 }
 
 void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
-    if(def->iterations_body_done == 0) {
-        generate_contained_functions(*this, def);
-        def->iterations_body_done = 1;
-    }
+    generate_contained_functions(*this, def);
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {

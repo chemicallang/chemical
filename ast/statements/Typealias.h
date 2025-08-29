@@ -47,6 +47,10 @@ public:
      * if this is a generic instantiation, this variable is set to reflect that
      */
     int generic_instantiation = -1;
+    /**
+     * a code gen helper flag, to check if container has been declared
+     */
+    bool has_declared = false;
 
     /**
      * constructor

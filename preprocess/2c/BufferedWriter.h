@@ -195,6 +195,29 @@ public:
         }
     }
 
+    bool append_file(const char* path) noexcept {
+        if (!path) return false;
+        FILE* f = std::fopen(path, "rb");
+        if (!f) return false;
+        constexpr size_t CHUNK = 16 * 1024; // when we need more space, grow by at least this much
+        while (true) {
+            size_t avail = (cap_ > pos_) ? (cap_ - pos_) : 0;
+            if (avail == 0) {
+                // ask for at least CHUNK bytes more; ensure_total_capacity_for will grow (or abort on OOM per your impl)
+                ensure_total_capacity_for(CHUNK);
+                avail = (cap_ > pos_) ? (cap_ - pos_) : 0;
+                if (avail == 0) { std::fclose(f); return false; } // defensive: ensure_total_capacity_for failed silently
+            }
+
+            size_t got = std::fread(buf_ + pos_, 1, avail, f);
+            if (got == 0) break; // EOF or error
+            pos_ += got;
+        }
+        bool ok = !std::ferror(f);
+        std::fclose(f);
+        return ok;
+    }
+
     // Thin wrappers mapping to requested names/types
     inline void append_int(int32_t v) noexcept { return append_signed_i64(static_cast<int64_t>(v)); }
     inline void append_long(long v) noexcept { return append_signed_i64(static_cast<int64_t>(v)); }

@@ -100,8 +100,8 @@ LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* modu
     return self->translate_to_chemical(module, output_path);
 }
 
-LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies, chem::string_view* output_dir) {
-    return self->translate_to_c(name, dependencies->ptr, dependencies->size, output_dir);
+LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies, chem::string_view* output_path) {
+    return self->translate_to_c(name, dependencies->ptr, dependencies->size, output_path);
 }
 
 LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {

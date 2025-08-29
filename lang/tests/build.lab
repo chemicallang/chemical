@@ -29,13 +29,8 @@ func gen_bc(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Mod
 
 func gen_c(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
     const path = ctx.build_mod_file_path(exe_name, module.scope_name.to_view(), module.name.to_view(), std::string_view("mod_c.c"))
-    if(intrinsics::is_clang()) {
-        ctx.translate_mod_to_c(module, path.to_view());
-        printf("module : %s, output c : %s\n", module.name.data(), path.data());
-    } else {
-        module.out_c_path = path;
-        printf("module : %s, output c : %s\n", module.name.data(), module.out_c_path.data());
-    }
+    ctx.translate_mod_to_c(module, path.to_view());
+    printf("module : %s, output c : %s\n", module.name.data(), path.data());
 }
 
 struct JobAndContext {

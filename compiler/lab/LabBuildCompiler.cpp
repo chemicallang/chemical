@@ -893,6 +893,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     }
 #endif
     const auto is_use_obj_format = compiler->options->use_mod_obj_format;
+    const auto caching = compiler->options->is_caching_enabled;
     std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
     if(mod->type == LabModuleType::CFile) {
         std::cout << "compiling c ";
@@ -918,11 +919,13 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         return 1;
     }
 #endif
-    std::vector<std::string_view> paths;
-    for(auto& path : mod->paths) {
-        paths.emplace_back(path.to_view());
+    if(caching) {
+        std::vector<std::string_view> paths;
+        for (auto& path: mod->paths) {
+            paths.emplace_back(path.to_view());
+        }
+        save_mod_timestamp(paths, mod_timestamp_file);
     }
-    save_mod_timestamp(paths, mod_timestamp_file);
     return 0;
 }
 
@@ -1298,7 +1301,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     for(auto mod : dependencies) {
 
         if(verbose) {
-            std::cout << "[lab] " << "processing module " << mod << std::endl;
+            std::cout << "[lab] " << "processing module " << *mod << std::endl;
         }
 
         // creating the module directory and getting the timestamp file path
@@ -1348,7 +1351,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // add the job obj path to linkables
-    job->linkables.emplace_back(job_obj_path);
+    if(do_compile) {
+        job->linkables.emplace_back(job_obj_path);
+    }
 
     // cbi and jit jobs are here
     if(get_job_type == LabJobType::CBI) {
@@ -1365,6 +1370,12 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     auto program = c_visitor.writer.finalized_std_view();
+
+    if(job_type == LabJobType::ToCTranslation) {
+        // skip compilation, only c translation required
+        writeToFile(job->abs_path.to_std_string(), program);
+        return 0;
+    }
 
     // compiling the entire C to a single object file
     const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
@@ -2022,12 +2033,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // the build lab object file (cached)
     const auto labDir = resolve_rel_child_path_str(options->build_dir, "lab");
-    const auto labBuildDir = resolve_rel_child_path_str(labDir, "build");
-    const auto labModDir = resolve_rel_child_path_str(labBuildDir, "chemical.lab");
+    const auto labModDir = resolve_rel_child_path_str(labDir, "chemical.lab");
 
     // create required directories
     create_dir(labDir);
-    create_dir(labBuildDir);
     create_dir(labModDir);
 
     // figure out where to store the build lab object and dat file

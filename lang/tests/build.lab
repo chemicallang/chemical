@@ -27,12 +27,6 @@ func gen_bc(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Mod
     printf("module : %s, bitcode : %s\n", module.name.data(), module.bitcode_path.data());
 }
 
-func gen_c(ctx : *BuildContext, exe_name : &std::string_view, module : *mut Module) {
-    const path = ctx.build_mod_file_path(exe_name, module.scope_name.to_view(), module.name.to_view(), std::string_view("mod_c.c"))
-    ctx.translate_mod_to_c(module, path.to_view());
-    printf("module : %s, output c : %s\n", module.name.data(), path.data());
-}
-
 struct JobAndContext {
     var ctx : *mut AppBuildContext
     var job : *mut LabJob
@@ -126,7 +120,7 @@ func build(ctx : *mut AppBuildContext) {
     const do_bc = true;
     const do_to_ch = intrinsics::is_clang();
 
-    const do_c = !intrinsics::is_clang();
+    const do_c = false;
     var do_dyn_lib = !is_minimal;
     const do_one_job = false;
 
@@ -153,12 +147,8 @@ func build(ctx : *mut AppBuildContext) {
     }
 
     if(do_c) {
-        gen_c(ctx, exe_name, submod);
-        gen_c(ctx, exe_name, std_module);
-        gen_c(ctx, exe_name, module);
-        if(do_one_job) {
-            return;
-        }
+        const output_dir = build_dir_path(ctx, std::string_view("ToCJob.dir/output.c"));
+        ctx.translate_to_c(std::string_view("ToCJob"), [ module ], output_dir.to_view())
     }
 
     const def = std::string_view("CHECK_DEF")

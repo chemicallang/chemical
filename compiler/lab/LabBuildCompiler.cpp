@@ -285,71 +285,52 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
     const auto verbose = compiler->options->verbose;
     const auto caching = compiler->options->is_caching_enabled;
 
-    if(!caching) {
-        if(verbose) {
-            std::cout << "[lab] " << "skipping cache use, caching disabled" << std::endl;
-        }
-        return true;
-    }
-
     if(verbose) {
         std::cout << "[lab] " << "checking if module " << mod->scope_name << ':' << mod->name << " has changed" << std::endl;
     }
 
-    if(fs::exists(mod->object_path.to_view())) {
+    if(mod->type == LabModuleType::CFile || mod->type == LabModuleType::CPPFile) {
 
-        if (verbose) {
-            std::cout << "[lab] " << "found cached object file '" << mod->object_path << "', checking timestamp" << std::endl;
+        std::vector<std::string_view> paths;
+        for(auto& path : mod->paths) {
+            paths.emplace_back(path.to_view());
         }
 
-        if(mod->type == LabModuleType::CFile || mod->type == LabModuleType::CPPFile) {
+        // let's check if module timestamp file exists and is valid (files haven't changed)
+        if (compare_mod_timestamp(paths, mod_timestamp_file)) {
 
-            std::vector<std::string_view> paths;
-            for(auto& path : mod->paths) {
-                paths.emplace_back(path.to_view());
-            }
+            if (verbose) {
 
-            // let's check if module timestamp file exists and is valid (files haven't changed)
-            if (compare_mod_timestamp(paths, mod_timestamp_file)) {
-
-                if (verbose) {
-
-                    std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
-
-                }
-
-                return false;
-
-            } else if (verbose) {
-
-                std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
 
             }
 
-        } else {
+            return false;
 
-            // let's check if module timestamp file exists and is valid (files haven't changed)
-            if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+        } else if (verbose) {
 
-                if (verbose) {
-
-                    std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
-
-                }
-
-                return false;
-
-            } else if (verbose) {
-
-                std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
-
-            }
+            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
 
         }
 
-    } else if(verbose) {
+    } else {
 
-        std::cout << "[lab] " << "couldn't find cached object file at '" << mod->object_path << "' for module '" << mod->scope_name << ':' << mod->name << std::endl;
+        // let's check if module timestamp file exists and is valid (files haven't changed)
+        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+
+            if (verbose) {
+
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+
+            }
+
+            return false;
+
+        } else if (verbose) {
+
+            std::cout << "[lab] " << "couldn't find module timestamp file at '" << mod_timestamp_file << "' or it's not valid since files have changed" << std::endl;
+
+        }
 
     }
 
@@ -363,10 +344,23 @@ std::string get_mod_timestamp_path(const std::string_view& build_dir, LabModule*
     return resolve_rel_child_path_str(build_dir, f);
 }
 
-bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
+bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool check_obj) {
+    const auto verbose = compiler->options->verbose;
+    if(check_obj) {
+        if (!fs::exists(module->object_path.to_view())) {
+            if (verbose) {
+                std::cout << "[lab] " << "couldn't find cached object file at '" << module->object_path << "' for module '" << module->scope_name << ':' << module->name << std::endl;
+            }
+            return true;
+        } else {
+            if (verbose) {
+                std::cout << "[lab] " << "found cached object file '" << module->object_path << "', checking timestamp" << std::endl;
+            }
+        }
+    }
     bool has_deps_changed = false;
     for(const auto dep : module->dependencies) {
-        if(has_module_changed(compiler, dep, build_dir, use_tcc)) {
+        if(has_module_changed_recursive(compiler, dep, build_dir, use_tcc, check_obj)) {
             has_deps_changed = true;
         }
     }
@@ -381,6 +375,18 @@ bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std
     const auto has_changed = determine_change_in_files(compiler, module, mod_timestamp_file);
     module->has_changed = has_changed;
     return has_changed;
+}
+
+bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool check_obj) {
+    const auto caching = compiler->options->is_caching_enabled;
+    const auto verbose = compiler->options->verbose;
+    if(!caching) {
+        if(verbose) {
+            std::cout << "[lab] " << "skipping cache use, caching disabled" << std::endl;
+        }
+        return true;
+    }
+    return has_module_changed_recursive(compiler, module, build_dir, use_tcc, check_obj);
 }
 
 bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vector<ASTFileResult*>& files, const std::string_view& object_path, const std::string& mod_timestamp_file) {
@@ -527,9 +533,7 @@ int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string& mod_timestamp_file,
-        const std::string& out_c_file,
-        bool do_compile
+        const std::string& mod_timestamp_file
 ) {
 
     // variables
@@ -542,6 +546,14 @@ int LabBuildCompiler::process_module_tcc(
     // direct files are stored inside the module
     auto& direct_files = mod->direct_files;
 
+    // we always build the module
+    std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
+    std::cout << mod << rang::bg::reset << rang::fg::reset << std::endl;
+
+    if(verbose) {
+        std::cout << "[lab] " << "parsing the module" << mod << std::endl;
+    }
+
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
     const auto parse_success = processor.import_module_files_direct(pool, direct_files, mod);
@@ -553,60 +565,23 @@ int LabBuildCompiler::process_module_tcc(
 
     // return failure if parse failed
     if(!parse_success) {
+        if(verbose) {
+            std::cout << "[lab] " << "parsing failure in the module " << mod << std::endl;
+        }
         return 1;
     }
 
-    const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-    if(mod_data_path && do_compile) {
-        std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
-        if (!mod->name.empty()) {
-            std::cout << '\'' << mod->name.data() << "' ";
-        }
-        std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
-    }
-
-    // clear the current c string
-    // some modules cause errors, don't compile, previous module may even have half contents
-    // so we must clean that before beginning
-    c_visitor.writer.clear();
-
-    // preparing translation
-    c_visitor.prepare_translate();
-
     if(verbose) {
-        std::cout << "[lab] " << "resolving symbols in the module" << std::endl;
+        std::cout << "[lab] " << "resolving symbols in the module " << mod << std::endl;
     }
 
     // symbol resolve all the files in the module
     const auto sym_res_status = processor.sym_res_module(mod);
     if(sym_res_status == 1) {
-        return 1;
-    }
-
-    // check if module has not changed, and use cache appropriately
-    // not changed means object file is also present (we make the check when setting the boolean)
-    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
-
         if(verbose) {
-            std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, skipping compilation" << std::endl;
+            std::cout << "[lab] " << "failure resolving symbols in the module " << mod << std::endl;
         }
-
-        // this will set all the generic instantiations to generated
-        // which means generic decls won't generate those instantiations
-        process_cached_module(processor, mod->direct_files);
-        for(const auto dep : mod->dependencies) {
-            process_cached_module(processor, dep->direct_files);
-        }
-
-        // removing non public nodes, because these would be disposed when allocator clears
-        remove_non_public_nodes(processor, mod->direct_files);
-
-        // disposing data
-        mod_allocator->clear();
-
-        // the module hasn't changed
-        return 0;
-
+        return 1;
     }
 
     if(verbose) {
@@ -618,6 +593,10 @@ int LabBuildCompiler::process_module_tcc(
             c_visitor, mod
     );
 
+    if(caching) {
+        save_mod_timestamp(direct_files, mod_timestamp_file);
+    }
+
     if(verbose) {
         std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
     }
@@ -627,44 +606,6 @@ int LabBuildCompiler::process_module_tcc(
 
     // disposing data
     mod_allocator->clear();
-
-    // getting the c program
-    auto program = c_visitor.writer.finalized_std_view();
-
-    // writing the translated c file (if user required)
-    if(!out_c_file.empty()) {
-        if(mod->type == LabModuleType::CFile) {
-            copyFile(mod->paths[0].to_view(), out_c_file);
-        } else {
-            writeToFile(out_c_file, program);
-        }
-    } else {
-        // TODO place a check here
-        const auto out_path = resolve_sibling(mod->object_path.to_view(), mod->name.to_std_string() + ".2c.c");
-        writeToFile(out_path, program);
-    }
-
-    // compiling the c program, if required
-    if(do_compile) {
-        auto obj_path = mod->object_path.to_std_string();
-        if(verbose) {
-            std::cout << "[lab] emitting the module '" << mod->name <<  "' object file at path '" << obj_path << '\'' << std::endl;
-        }
-        const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), obj_path, false, options->benchmark, to_tcc_mode(options));
-        if (compile_c_result == 1) {
-            const auto out_path = resolve_sibling(mod->object_path.to_view(), mod->name.to_std_string() + ".debug.c");
-            writeToFile(out_path, program);
-            std::cerr << rang::fg::red << "[lab] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
-            return 1;
-        }
-        // exe->linkables.emplace_back(obj_path);
-        if(caching) {
-            save_mod_timestamp(direct_files, mod_timestamp_file);
-        }
-    }
-
-    // clear the current c string
-    c_visitor.writer.clear();
 
     return 0;
 
@@ -1252,6 +1193,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
+    // create or rebind the global container (comptime functions like intrinsics namespace)
     create_or_rebind_container(this, global, resolver);
 
     // configure output path
@@ -1273,8 +1215,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // build dir
     auto build_dir = exe->build_dir.to_std_string();
 
-    // for each module, let's determine its files and whether it has changed
-    for(const auto mod : dependencies) {
+    // outputting an object file
+    auto job_obj_path = resolve_rel_child_path_str(build_dir, "object_tcc.o");
+
+    // for each module, let's determine its files
+    for (const auto mod: dependencies) {
 
         // determining module's direct files
         processor.determine_module_files(mod);
@@ -1287,50 +1232,65 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     }
 
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
+    // if caching is enabled, we check if none of the files have changed
+    if(caching && do_compile) {
 
-    // now we check which module trees have changed
-    for(const auto mod : exe->dependencies) {
-        auto has_changed = has_module_changed(this, mod, build_dir, use_tcc(job));
-        if(has_changed) {
+        // if not a single module has changed, we consider it true
+        bool has_any_changed = false;
+
+        // check the job object path exists (since we are caching)
+        if (!fs::exists(job_obj_path)) {
             has_any_changed = true;
         }
-    }
 
-    if(!has_any_changed && do_compile) {
-
-        // NOTE: there exists not a single module that has changed
-        // which means we can safely link the previous object files again
-        // we need to return early so modules won't be parsed at all
-
-        for(const auto mod : dependencies) {
-            job->linkables.emplace_back(mod->object_path.to_chem_view());
-        }
-
-        if(get_job_type == LabJobType::CBI) {
-            const auto cbiJob = (LabJobCBI*) job;
-            const auto jobDone = link_cbi_job(cbiJob, dependencies);
-            if(jobDone != 0) {
-                return jobDone;
-            }
-        } else if(get_job_type == LabJobType::JITExecutable) {
-            const auto status = launch_tcc_jit_exe(job, dependencies);
-            if(status != 0) {
-                return status;
+        // now we check which module trees have changed
+        if(!has_any_changed) {
+            for (const auto mod: exe->dependencies) {
+                auto has_changed = has_module_changed(this, mod, build_dir, use_tcc(job), false);
+                if (has_changed) {
+                    has_any_changed = true;
+                }
             }
         }
 
-        job->path_aliases = std::move(processor.path_handler.path_aliases);
-        return 0;
+        if (!has_any_changed) {
+
+            // NOTE: there exists not a single module (or file) that has changed
+            // which means we can safely link the previous job object file again
+            // we need to return early so modules won't be parsed at all
+
+            // job object file that needs to be compiled
+            job->linkables.emplace_back(job_obj_path);
+
+            // for cbi/jit jobs, we need to link and run them
+            if (get_job_type == LabJobType::CBI) {
+                const auto cbiJob = (LabJobCBI*) job;
+                const auto jobDone = link_cbi_job(cbiJob, dependencies);
+                if (jobDone != 0) {
+                    return jobDone;
+                }
+            } else if (get_job_type == LabJobType::JITExecutable) {
+                const auto status = launch_tcc_jit_exe(job, dependencies);
+                if (status != 0) {
+                    return status;
+                }
+            }
+
+            job->path_aliases = std::move(processor.path_handler.path_aliases);
+            return 0;
+
+        }
 
     }
+
+    // begin translation
+    c_visitor.prepare_translate();
 
     // compile dependencies modules for this executable
     for(auto mod : dependencies) {
 
         if(verbose) {
-            std::cout << "[lab] " << "processing module " << mod->scope_name << ':' << mod->name << std::endl;
+            std::cout << "[lab] " << "processing module " << mod << std::endl;
         }
 
         // creating the module directory and getting the timestamp file path
@@ -1371,37 +1331,18 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             continue;
         }
 
-
-        // figuring out the translated c output for the module (if user required)
-        std::string out_c_file;
-        if(get_job_type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
-            out_c_file = mod->out_c_path.to_std_string();
-            if(out_c_file.empty()) {
-                if(!job->build_dir.empty()) {
-                    // TODO send this to module directory
-                    out_c_file = resolve_rel_child_path_str(job->build_dir.to_view(), mod->name.to_std_string() + ".2c.c");
-                } else if(!job->abs_path.empty()) {
-                    out_c_file = job->abs_path.to_std_string();
-                }
-#ifdef DEBUG
-                else {
-                    throw std::runtime_error("couldn't figure out the output c path");
-                }
-#endif
-            }
-        }
-
-        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file, out_c_file, do_compile);
+        // the actual translation happens here
+        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file);
         if(result == 1) {
             return 1;
         }
 
-        if(do_compile) {
-            job->linkables.emplace_back(mod->object_path.copy());
-        }
-
     }
 
+    // add the job obj path to linkables
+    job->linkables.emplace_back(job_obj_path);
+
+    // cbi and jit jobs are here
     if(get_job_type == LabJobType::CBI) {
         const auto cbiJob = (LabJobCBI*) job;
         const auto jobDone = link_cbi_job(cbiJob, dependencies);
@@ -1413,6 +1354,17 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         if(status != 0) {
             return status;
         }
+    }
+
+    auto program = c_visitor.writer.finalized_std_view();
+
+    // compiling the entire C to a single object file
+    const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
+    if (compile_c_result == 1) {
+        auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
+        writeToFile(out_path, program);
+        std::cerr << rang::fg::red << "[lab] couldn't build c program due to error in translation, written at " << out_path << rang::fg::reset << std::endl;
+        return 1;
     }
 
     exe->path_aliases = std::move(processor.path_handler.path_aliases);
@@ -1500,7 +1452,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     bool has_any_changed = false;
 
     for(const auto mod : job->dependencies) {
-        const auto changed = has_module_changed(this, mod, build_dir, use_tcc(job));
+        const auto changed = has_module_changed(this, mod, build_dir, use_tcc(job), true);
         if(changed) {
             has_any_changed = true;
         }
@@ -1990,6 +1942,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     auto& lab_processor = processor;
     auto& lab_resolver = *processor.resolver;
     const auto verbose = options->verbose;
+    const auto caching = options->is_caching_enabled;
 
     if(verbose) {
         std::cout << "[lab] building lab file at '" << path_view << '\'' << std::endl;
@@ -2125,66 +2078,65 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     }
 
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
+    // since caching, determine if any file has changed
+    if(caching && !has_buildLabChanged) {
 
-    // check which modules have changed
-    for(const auto mod : mod_dependencies) {
-        const auto changed = has_module_changed(this, mod, lab_mods_dir, true);
-        if(changed) {
-            has_any_changed = true;
-        }
-    }
+        // if not a single module has changed, we consider it true
+        bool has_any_changed = false;
 
-    if(!has_any_changed && !has_buildLabChanged) {
-
-        // NOTE: there exists not a single module that has changed
-        // also not a single file in the build.lab has changed and its object file also exists
-        // which means we can safely link the previous object files again
-
-        const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
-        if(state == nullptr) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
-            std::cerr << "couldn't create tcc state for jit of cached build.lab object file" << std::endl;
-            return nullptr;
+        // check which modules have changed
+        for (const auto mod: mod_dependencies) {
+            const auto changed = has_module_changed(this, mod, lab_mods_dir, true, false);
+            if (changed) {
+                has_any_changed = true;
+            }
         }
 
-        // add module object files
-        for(const auto dep : outModDependencies) {
-            if(tcc_add_file(state, dep->object_path.data()) == -1) {
-                std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of cached 'build.lab'" << std::endl;
+        if (!has_any_changed) {
+
+            // NOTE: there exists not a single module that has changed
+            // also not a single file in the build.lab has changed and its object file also exists
+            // which means we can safely link the previous object files again
+
+            const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
+            if (state == nullptr) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+                std::cerr << "couldn't create tcc state for jit of cached build.lab object file" << std::endl;
+                return nullptr;
+            }
+
+            // add final object file (of the build.lab we cached earlier)
+            if (tcc_add_file(state, buildLabObj.data()) == -1) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to add file '" << buildLabObj << "' in compilation of cached 'build.lab'" << std::endl;
                 tcc_delete(state);
                 return nullptr;
             }
-        }
 
-        // add final object file (of the build.lab we cached earlier)
-        if(tcc_add_file(state, buildLabObj.data()) == -1) {
-            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to add file '" << buildLabObj <<  "' in compilation of cached 'build.lab'" << std::endl;
-            tcc_delete(state);
-            return nullptr;
-        }
+            // prepare for jit
+            prepare_tcc_state_for_jit(state);
 
-        // prepare for jit
-        prepare_tcc_state_for_jit(state);
-
-        // import all compiler interfaces the modules require
-        for(const auto mod : outModDependencies) {
-            for(auto& interface : mod->compiler_interfaces) {
-                CompilerBinder::import_compiler_interface(interface, state);
+            // import all compiler interfaces the modules require
+            for (const auto mod: outModDependencies) {
+                for (auto& interface: mod->compiler_interfaces) {
+                    CompilerBinder::import_compiler_interface(interface, state);
+                }
             }
-        }
 
-        // relocate the code before calling
-        if(tcc_relocate(state) == -1) {
-            std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate cached build.lab" << std::endl;
-            tcc_delete(state);
-            return nullptr;
-        }
+            // relocate the code before calling
+            if (tcc_relocate(state) == -1) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to relocate cached build.lab" << std::endl;
+                tcc_delete(state);
+                return nullptr;
+            }
 
-        return state;
+            return state;
+
+        }
 
     }
+
+    // preparing translation
+    c_visitor.prepare_translate();
 
     // processing flattened dependencies
     for(const auto mod : outModDependencies) {
@@ -2192,17 +2144,12 @@ TCCState* LabBuildCompiler::built_lab_file(
         // the timestamp file is what determines whether the module needs to be rebuilt again
         const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod, true);
 
-        // the c output for this module, so we can debug
-        const auto out_c_path = resolve_sibling(timestamp_path, "mod.2c.c");
-
         // compile the module
-        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path, out_c_path, true);
+        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path);
         if(module_result == 1) {
             return nullptr;
         }
 
-        // since the job was successful, we can expect an object file at module's object_path
-        // we'll use this object file by linking it with tcc
     }
 
     // symbol resolve all the files in the module
@@ -2286,12 +2233,6 @@ TCCState* LabBuildCompiler::built_lab_file(
         i++;
     }
 
-    // clear the output ptr
-    c_visitor.writer.clear();
-
-    // preparing translation
-    c_visitor.prepare_translate();
-
     // translating the build.lab module
     lab_processor.translate_module(
         c_visitor, &chemical_lab_module
@@ -2325,15 +2266,6 @@ TCCState* LabBuildCompiler::built_lab_file(
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << "couldn't create tcc state for 'build.lab' file at '" << path << "', written to '" << labOutCPath << '\'' << std::endl;
         return nullptr;
-    }
-
-    // add module object files
-    for(const auto dep : outModDependencies) {
-        if(tcc_add_file(state, dep->object_path.data()) == -1) {
-            std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add module '" << dep->scope_name << ':' << dep->name <<  "' in compilation of 'build.lab'" << std::endl;
-            tcc_delete(state);
-            return nullptr;
-        }
     }
 
     // compiling the program

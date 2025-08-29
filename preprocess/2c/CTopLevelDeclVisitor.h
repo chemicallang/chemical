@@ -17,12 +17,6 @@ public:
     CValueDeclarationVisitor* value_visitor;
 
     /**
-     * this boolean indicates that we're dealing with nodes imported from external module
-     * that have been implemented before (for example var init needs to know about imported global variables)
-     */
-    bool external_module = false;
-
-    /**
      * is the node declared in current module
      * this allows to not declare nodes twice in a single module
      */

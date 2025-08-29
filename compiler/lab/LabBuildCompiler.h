@@ -172,9 +172,7 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string& mod_timestamp_file,
-        const std::string& out_c_file,
-        bool do_compile
+        const std::string& mod_timestamp_file
     );
 
 #ifdef COMPILER_BUILD

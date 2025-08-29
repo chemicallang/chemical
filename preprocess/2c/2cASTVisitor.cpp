@@ -330,14 +330,36 @@ void ToCAstVisitor::fwd_declare(BaseType* type) {
 }
 
 void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
-    auto& vis = tld;
-    auto prev = vis.external_module;
-    vis.external_module = true;
-    // declare the top level things with this visitor
-    for(auto& node : nodes) {
-        vis.visit(node);
+    for(const auto node : nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::GenericFuncDecl:
+                tld.VisitGenericFuncDecl(node->as_gen_func_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericStructDecl:
+                tld.VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
+                break;
+            case ASTNodeKind::GenericUnionDecl:
+                tld.VisitGenericUnionDecl(node->as_gen_union_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericInterfaceDecl:
+                tld.VisitGenericInterfaceDecl(node->as_gen_interface_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericVariantDecl:
+                tld.VisitGenericVariantDecl(node->as_gen_variant_decl_unsafe());
+                break;
+            case ASTNodeKind::GenericTypeDecl:
+                tld.VisitGenericTypeDecl(node->as_gen_type_decl_unsafe());
+                break;
+            case ASTNodeKind::InterfaceDecl:
+                tld.VisitInterfaceDecl(node->as_interface_def_unsafe());
+                break;
+            case ASTNodeKind::NamespaceDecl:
+                external_declare(node->as_namespace_unsafe()->nodes);
+                break;
+            default:
+                break;
+        }
     }
-    vis.external_module = prev;
 }
 
 void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
@@ -366,8 +388,6 @@ void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
         }
     }
 }
-
-class ToCAstVisitor;
 
 // will write a scope to visitor
 void scope_no_parens(ToCAstVisitor& visitor, Scope& scope) {
@@ -2890,7 +2910,7 @@ void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     visitor.new_line_and_indent();
     const auto has_initializer = init->value != nullptr;
     const auto is_exported = init->is_exported();
-    var_init_top_level(visitor, init, init_type, !is_exported, false, is_exported && (!has_initializer || external_module));
+    var_init_top_level(visitor, init, init_type, !is_exported, false, is_exported && (!has_initializer));
 }
 
 void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
@@ -3011,8 +3031,8 @@ void CTopLevelDeclarationVisitor::declare_struct_functions(StructDefinition* def
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def);
 
 void CTopLevelDeclarationVisitor::early_declare_struct_def(StructDefinition* def) {
-    if(!has_declared(def)) {
-        set_declared(def);
+    if(def->iterations_declared == 0) {
+        def->iterations_declared++;
         declare_struct_def_only(def);
     }
 }
@@ -3068,32 +3088,37 @@ void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::VisitGenericTypeDecl(GenericTypeDecl* node) {
-    for(const auto impl : node->instantiations) {
-        VisitTypealiasStmt(impl);
+    auto& i = node->total_declared_instantiations;
+    while(i < node->instantiations.size()) {
+        VisitTypealiasStmt(node->instantiations[i++]);
     }
 }
 
 void CTopLevelDeclarationVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
-    for(const auto impl : node->instantiations) {
-        VisitStructDecl(impl);
+    auto& i = node->total_declared_instantiations;
+    while(i < node->instantiations.size()) {
+        VisitStructDecl(node->instantiations[i++]);
     }
 }
 
 void CTopLevelDeclarationVisitor::VisitGenericUnionDecl(GenericUnionDecl* node) {
-    for(const auto impl : node->instantiations) {
-        VisitUnionDecl(impl);
+    auto& i = node->total_declared_instantiations;
+    while(i < node->instantiations.size()) {
+        VisitUnionDecl(node->instantiations[i++]);
     }
 }
 
 void CTopLevelDeclarationVisitor::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
-    for(const auto impl : node->instantiations) {
-        VisitInterfaceDecl(impl);
+    auto& i = node->total_declared_instantiations;
+    while(i < node->instantiations.size()) {
+        VisitInterfaceDecl(node->instantiations[i++]);
     }
 }
 
 void CTopLevelDeclarationVisitor::VisitGenericVariantDecl(GenericVariantDecl* node) {
-    for(const auto impl : node->instantiations) {
-        VisitVariantDecl(impl);
+    auto& i = node->total_declared_instantiations;
+    while(i < node->instantiations.size()) {
+        VisitVariantDecl(node->instantiations[i++]);
     }
 }
 
@@ -3249,15 +3274,15 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
             declare_contained_func(this, func, false);
         }
     }
-#ifdef COMPILER_BUILD
-    if(!external_module && !def->vtable_pointers.empty()) {
-        // this only occurs because when we generate interface with both backends without re-parsing, this module
-        visitor.error("interface has already vtable pointers generated, suspected interface being used in both backends", def);
-#ifdef DEBUG
-        throw std::runtime_error("interface being used in both backends c and llvm");
-#endif
-    }
-#endif
+//#ifdef COMPILER_BUILD
+//    if(!def->vtable_pointers.empty()) {
+//        // this only occurs because when we generate interface with both backends without re-parsing, this module
+//        visitor.error("interface has already vtable pointers generated, suspected interface being used in both backends", def);
+//#ifdef DEBUG
+//        throw std::runtime_error("interface being used in both backends c and llvm");
+//#endif
+//    }
+//#endif
     if(!is_static) {
         for (auto& use: def->users) {
             def->active_user = use.first;
@@ -3278,7 +3303,9 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
 #else
                 const auto has_vtable_impl = user.second;
 #endif
-                create_v_table(visitor, def, linked_struct, has_vtable_impl);
+                if(!has_vtable_impl) {
+                    create_v_table(visitor, def, linked_struct, false);
+                }
 #ifdef COMPILER_BUILD
                 if(!has_vtable_impl) {
                     def->vtable_pointers[linked_struct] = nullptr;
@@ -3310,7 +3337,7 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
 }
 
 void CTopLevelDeclarationVisitor::reset() {
-    declared.clear();
+
 }
 
 void CValueDeclarationVisitor::VisitFunctionType(FunctionType *type) {

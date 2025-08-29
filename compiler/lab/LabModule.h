@@ -29,6 +29,7 @@ struct LabModule {
     chem::string name;
 
     /**
+     * TODO: deprecated, we do NOT support this anymore
      * the translated c file (if any) will be written to this path
      */
     chem::string out_c_path;

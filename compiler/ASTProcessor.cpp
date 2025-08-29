@@ -1072,37 +1072,14 @@ int ASTProcessor::translate_module(
     LabModule* module
 ) {
 
-    // NOTE: here's the design guidelines for translating a module
-    // please note that not all guidelines are implemented in this function, some are implemented in
-    // the visitor, these only protect from referencing any struct from any module
-    // 1 - forward declare all the structs/unions/variants generic or non generic of both modules
-    // - before proceeding, now every function in both modules can reference any struct as a pointer
-    // - since we only use pointer types in functions, all functions can be declared
-    // 2 - declare top level with early declare composed variables and inherited types along with functions, all at once,
-    // - do not early declare function params and return type because function types will use only pointer and we have forward declared them
-    // - early declare var init type, typealias actual type (do not use canonical type, because if its a typealias, that probably also early declared itself)
-    // 3 - declare external module and internal module, before proceeding to implementing any generics
-    // - because external module generic can compose the struct of a internal module
-    // - we just make a single has_declared check before declaring struct definition, so if early declare has done it, we don't define it twice
-    // 4 - now all the structs are declared, functions are declared, only function implementations are remaining
-    // - so yeah that's what we will do, without checking, just implement all the functions of external
-    //               - or internal modules, implement only the remaining generics
-
-
     // let's create a flat vector of direct dependencies, that we want to process
     std::vector<LabModule*> dependencies;
     shallow_dedupe_sorted(dependencies, module->dependencies);
 
     // forward declare dependencies & dependencies of dependencies & current module
-    for(const auto dep1 : dependencies) {
-        forward_declare_in_c(c_visitor, this, dep1, "ExtFwdDeclare");
-    }
     forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
 
     // declare type aliases
-    for(const auto dep1 : dependencies) {
-        declare_type_aliases_in_c(c_visitor, this, dep1, "TypeAliasExtDeclare");
-    }
     declare_type_aliases_in_c(c_visitor, this, module, "TypeAliasDeclare");
 
     // we will declare the direct dependencies of this module

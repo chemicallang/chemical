@@ -11,8 +11,6 @@ public struct Module {
     var type : ModuleType
     var scope_name : std::string
     var name : std::string
-    // a path can be given, to output the translated C file (if any)
-    var out_c_path : std::string
     // the bitcode file path for this module
     var bitcode_path : std::string;
     // the object file path for this module

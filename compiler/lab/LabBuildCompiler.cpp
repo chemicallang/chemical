@@ -301,7 +301,7 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
 
             if (verbose) {
 
-                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
 
             }
 
@@ -320,7 +320,7 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
 
             if (verbose) {
 
-                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
 
             }
 
@@ -344,23 +344,48 @@ std::string get_mod_timestamp_path(const std::string_view& build_dir, LabModule*
     return resolve_rel_child_path_str(build_dir, f);
 }
 
-bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool check_obj) {
+std::string get_partial_c_path(const std::string_view& build_dir, LabModule* mod) {
+    auto f = mod->format('.');
+    f.append("/partial.2c.c");
+    return resolve_rel_child_path_str(build_dir, f);
+}
+
+bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
     const auto verbose = compiler->options->verbose;
-    if(check_obj) {
+    if(use_tcc && module->type == LabModuleType::CPPFile) {
+        // since cpp file modules are skipped in tiny cc build
+        // so we will ignore and assume it hasn't changed
+        return false;
+    }
+    if(use_tcc && module->type != LabModuleType::CFile) {
+        // asked to check the partial c file
+        auto partial_c = get_partial_c_path(build_dir, module);
+        if(!fs::exists(partial_c)) {
+            if (verbose) {
+                std::cout << "[lab] " << "couldn't find partial c file at '" << partial_c << "' for module '" << *module << std::endl;
+            }
+            return true;
+        } else {
+            if(verbose) {
+                std::cout << "[lab] " << "found cached partial c at '" << partial_c << "'" << std::endl;
+            }
+        }
+    } else {
+        // asked to check the object file
         if (!fs::exists(module->object_path.to_view())) {
             if (verbose) {
-                std::cout << "[lab] " << "couldn't find cached object file at '" << module->object_path << "' for module '" << module->scope_name << ':' << module->name << std::endl;
+                std::cout << "[lab] " << "couldn't find cached object file at '" << module->object_path << "' for module '" << *module << std::endl;
             }
             return true;
         } else {
             if (verbose) {
-                std::cout << "[lab] " << "found cached object file '" << module->object_path << "', checking timestamp" << std::endl;
+                std::cout << "[lab] " << "found cached object file at '" << module->object_path << "'" << std::endl;
             }
         }
     }
     bool has_deps_changed = false;
     for(const auto dep : module->dependencies) {
-        if(has_module_changed_recursive(compiler, dep, build_dir, use_tcc, check_obj)) {
+        if(has_module_changed_recursive(compiler, dep, build_dir, use_tcc)) {
             has_deps_changed = true;
         }
     }
@@ -377,7 +402,7 @@ bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module,
     return has_changed;
 }
 
-bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool check_obj) {
+bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc) {
     const auto caching = compiler->options->is_caching_enabled;
     const auto verbose = compiler->options->verbose;
     if(!caching) {
@@ -386,7 +411,7 @@ bool has_module_changed(LabBuildCompiler* compiler, LabModule* module, const std
         }
         return true;
     }
-    return has_module_changed_recursive(compiler, module, build_dir, use_tcc, check_obj);
+    return has_module_changed_recursive(compiler, module, build_dir, use_tcc);
 }
 
 bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vector<ASTFileResult*>& files, const std::string_view& object_path, const std::string& mod_timestamp_file) {
@@ -396,7 +421,7 @@ bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vect
     if(fs::exists(object_path)) {
 
         if (verbose) {
-            std::cout << "[lab] " << "found cached object file '" << object_path << "', checking timestamp" << std::endl;
+            std::cout << "[lab] " << "found cached object file '" << object_path << "'" << std::endl;
         }
 
         // let's check if module timestamp file exists and is valid (files haven't changed)
@@ -404,7 +429,7 @@ bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vect
 
             if (verbose) {
 
-                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "', reusing" << std::endl;
+                std::cout << "[lab] " << "found valid module timestamp file at '" << mod_timestamp_file << "'" << std::endl;
 
             }
 
@@ -582,6 +607,42 @@ int LabBuildCompiler::process_module_tcc(
             std::cout << "[lab] " << "failure resolving symbols in the module " << *mod << std::endl;
         }
         return 1;
+    }
+
+    // check if module has not changed, and use cache appropriately
+    // not changed means object file is also present (we make the check when setting the boolean)
+    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
+
+        if(verbose) {
+            std::cout << "[lab] " << "module " << mod->scope_name << ':' << mod->name << " hasn't changed, skipping compilation" << std::endl;
+        }
+
+        // append the partial c output to buffered writer
+        auto partial_c_out = resolve_sibling(mod_timestamp_file, "partial.2c.c");
+        if(fs::exists(partial_c_out)) {
+            c_visitor.writer.append_file(partial_c_out.c_str());
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("missing partial.2c.c, even though module hasn't changed");
+#endif
+        }
+
+        // this will set all the generic instantiations to generated
+        // which means generic decls won't generate those instantiations
+        process_cached_module(processor, mod->direct_files);
+        for(const auto dep : mod->dependencies) {
+            process_cached_module(processor, dep->direct_files);
+        }
+
+        // removing non public nodes, because these would be disposed when allocator clears
+        remove_non_public_nodes(processor, mod->direct_files);
+
+        // disposing data
+        mod_allocator->clear();
+
+        // the module hasn't changed
+        return 0;
+
     }
 
     if(verbose) {
@@ -1254,13 +1315,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             has_any_changed = true;
         }
 
-        // now we check which module trees have changed
-        if(!has_any_changed) {
-            for (const auto mod: exe->dependencies) {
-                auto has_changed = has_module_changed(this, mod, build_dir, use_tcc(job), false);
-                if (has_changed) {
-                    has_any_changed = true;
-                }
+        // checking which modules have changed
+        for (const auto mod: exe->dependencies) {
+            auto has_changed = has_module_changed(this, mod, build_dir, true);
+            if (has_changed) {
+                has_any_changed = true;
             }
         }
 
@@ -1269,9 +1328,18 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             // NOTE: there exists not a single module (or file) that has changed
             // which means we can safely link the previous job object file again
             // we need to return early so modules won't be parsed at all
+            if(verbose) {
+                std::cout << "[lab] " << "successfully reusing job object file at '" << job_obj_path << "'" << std::endl;
+            }
 
-            // job object file that needs to be compiled
+            // job object file that is already present
             job->linkables.emplace_back(job_obj_path);
+            // including any object files from C file modules
+            for(const auto mod : dependencies) {
+                if(mod->type == LabModuleType::CFile) {
+                    job->linkables.emplace_back(mod->object_path.to_chem_view());
+                }
+            }
 
             // for cbi/jit jobs, we need to link and run them
             if (get_job_type == LabJobType::CBI) {
@@ -2096,24 +2164,27 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // since caching, determine if any file has changed
-    if(caching && !has_buildLabChanged) {
+    if(caching) {
 
         // if not a single module has changed, we consider it true
         bool has_any_changed = false;
 
         // check which modules have changed
         for (const auto mod: mod_dependencies) {
-            const auto changed = has_module_changed(this, mod, lab_mods_dir, true, false);
+            const auto changed = has_module_changed(this, mod, lab_mods_dir, true);
             if (changed) {
                 has_any_changed = true;
             }
         }
 
-        if (!has_any_changed) {
+        if (!has_any_changed && !has_buildLabChanged) {
 
             // NOTE: there exists not a single module that has changed
             // also not a single file in the build.lab has changed and its object file also exists
             // which means we can safely link the previous object files again
+            if(verbose) {
+                std::cout << "[lab] " << "successfully reusing build lab at '" <<  buildLabObj << "'" << std::endl;
+            }
 
             const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
             if (state == nullptr) {

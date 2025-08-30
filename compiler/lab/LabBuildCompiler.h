@@ -266,11 +266,6 @@ public:
     }
 
     /**
-     * link process modules result
-     */
-    int link(std::vector<chem::string>& result, const std::string& path, bool use_tcc);
-
-    /**
      * does executable job (generates executable)
      */
     int do_executable_job(LabJob* job);

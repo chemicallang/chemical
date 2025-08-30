@@ -31,5 +31,6 @@ int link_objects_now(
         bool use_tcc,
         LabBuildCompilerOptions* options,
         std::vector<chem::string>& linkables,
-        const std::string& output_path
+        const std::string& output_path,
+        const std::string_view& target_triple
 );

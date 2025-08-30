@@ -980,7 +980,7 @@ void begin_job_print(LabJob* job) {
 
 }
 
-void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope& global, SymbolResolver& resolver) {
+void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope& global, SymbolResolver& resolver, const std::string& target_triple) {
     const auto verbose = compiler->options->verbose;
     if(compiler->container) {
         if(verbose) {
@@ -988,18 +988,30 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
         }
         // bind global container that contains namespaces like std and compiler
         // reusing it, if we created it before
-        global.rebind_container(resolver, compiler->container, compiler->is_testing_env);
+        global.rebind_container(resolver, compiler->container, target_triple, compiler->is_testing_env);
     } else {
         if(verbose) {
             std::cout << "[lab] " << "creating comptime methods" << std::endl;
         }
         // allow user the compiler (namespace) functions in @comptime
         // we create the new global container here once
-        compiler->container = global.create_container(resolver, compiler->is_testing_env);
+        compiler->container = global.create_container(resolver, target_triple, compiler->is_testing_env);
         if(verbose) {
             std::cout << "[lab] " << "created the global container" << std::endl;
         }
     }
+}
+
+void set_global_condition_reporting(LabBuildCompiler* compiler, const chem::string_view& name, bool value) {
+    if(!set_global_condition(compiler->container, name, value)) {
+#ifdef DEBUG
+        throw std::runtime_error("couldn't set global condition");
+#endif
+    }
+}
+
+void prepare_job_globals(LabBuildCompiler* compiler, GlobalInterpretScope& global, LabJob* job, bool using_tcc) {
+    set_global_condition_reporting(compiler, "using_tcc", using_tcc);
 }
 
 int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
@@ -1116,23 +1128,6 @@ const char* to_string(OutputMode mode) {
             return "release_safe";
     }
 }
-
-// cross_platform_spawn.h  (paste this into a header or above your call site)
-#include <cstdio>
-#include <cstdint>
-#include <cstring>
-#include <string>
-#include <vector>
-#include <cassert>
-
-#ifdef _WIN32
-#include <windows.h>
-#include <process.h> // _spawn* fallback (not used here)
-#else
-#include <spawn.h>
-  #include <sys/wait.h>
-  extern char **environ;
-#endif
 
 int LabBuildCompiler::tcc_run_invocation(
     char* exe_path,
@@ -1302,7 +1297,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(options->outMode, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // we hold the instantiated types inside this container
     InstantiationsContainer instContainer;
@@ -1322,7 +1317,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
-    create_or_rebind_container(this, global, resolver);
+    create_or_rebind_container(this, global, resolver, job->target_triple.to_std_string());
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -1533,7 +1528,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(options->outMode, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // generic instantiations types are stored here
     InstantiationsContainer instContainer;
@@ -1551,7 +1546,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
         code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
     }
-    Codegen gen(code_gen_options, binder, global, mangler, options->target_triple, options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
+    Codegen gen(code_gen_options, binder, global, mangler, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
     LLVMBackendContext g_context(&gen);
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;
@@ -1559,7 +1554,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(job->path_aliases);
 
-    create_or_rebind_container(this, global, resolver);
+    create_or_rebind_container(this, global, resolver, job->target_triple.to_std_string());
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -1732,7 +1727,8 @@ int link_objects_now(
     bool use_tcc,
     LabBuildCompilerOptions* options,
     std::vector<chem::string>& linkables,
-    const std::string& output_path
+    const std::string& output_path,
+    const std::string_view& target_triple
 ) {
     if(options->verbose) {
         std::cout << "[lab] linking objects ";
@@ -1746,15 +1742,11 @@ int link_objects_now(
     if(use_tcc) {
         return link_objects_tcc(options->exe_path, linkables, output_path, to_tcc_mode(options->outMode, options->debug_info));
     } else {
-        return link_objects_linker(options->exe_path, linkables, output_path, options->target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose);
+        return link_objects_linker(options->exe_path, linkables, output_path, target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose);
     }
 #else
     return link_objects_tcc(options->exe_path, linkables, output_path, to_tcc_mode(options->outMode, options->debug_info));
 #endif
-}
-
-int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path, bool use_tcc) {
-    return link_objects_now(use_tcc, options, linkables, output_path);
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
@@ -1763,7 +1755,7 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link(job->linkables, job->abs_path.to_std_string(), use_tcc(job));
+    return link_objects_now(use_tcc(job), options, job->linkables, job->abs_path.to_std_string(), job->target_triple.to_view());
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
@@ -1772,7 +1764,7 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link(job->linkables, job->abs_path.to_std_string(), use_tcc(job));
+    return link_objects_now(use_tcc(job), options, job->linkables, job->abs_path.to_std_string(), job->target_triple.to_view());
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
@@ -2508,7 +2500,8 @@ TCCState* LabBuildCompiler::built_lab_file(
 ) {
 
     // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(options->outMode, options->target_triple, nullptr, this, *job_allocator, type_builder, loc_man);
+    // empty target triple, because we are targeting the current system
+    GlobalInterpretScope global(options->outMode, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // instantiations container holds the types
     InstantiationsContainer instContainer;
@@ -2532,7 +2525,8 @@ TCCState* LabBuildCompiler::built_lab_file(
     );
 
     // creates or rebinds the global container
-    create_or_rebind_container(this, global, lab_resolver);
+    // empty target triple (current system)
+    create_or_rebind_container(this, global, lab_resolver, "");
 
     // compiler interfaces the lab files imports
     ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);

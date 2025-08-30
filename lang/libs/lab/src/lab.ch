@@ -171,9 +171,6 @@ public struct BuildContext {
     // un-define a definition
     func undefine (&self, job : *LabJob, name : &std::string_view) : bool;
 
-    // link object files (.o files) into a single binary
-    func link_objects (&self, string_arr : std::span<std::string_view>, output_path : &std::string_view) : int;
-
     // invoke llvm dll tool with given cli args
     func invoke_dlltool (&self, string_arr : std::span<std::string_view>) : int;
 

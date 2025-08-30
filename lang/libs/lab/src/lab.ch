@@ -78,14 +78,16 @@ public struct PathResolutionResult {
 @compiler.interface
 public struct BuildContext {
 
-    /**
-     * find the given module (if its build.lab / chemical.mod has been built)
-     */
-    func get_module(&self, scope_name : &std::string_view, name : &std::string_view) : *mut Module;
-
     func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
+    func get_cached(&self, job : *LabJob, scope_name : &std::string_view, name : &std::string_view) : *mut Module
+
+    func set_cached(&self, job : *LabJob, module : *mut Module);
+
     func add_path(&self, module : *mut Module, path : &std::string_view);
+
+    // adds the module to given job (as a dependency)
+    func add_module(&self, job : *mut LabJob, module : *mut Module);
 
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
@@ -108,6 +110,8 @@ public struct BuildContext {
 
     // resolve the path for a native library given the scope name and mod name
     func resolve_native_lib_path(&self, scope_name : &std::string_view, mod_name : &std::string_view) : PathResolutionResult
+
+    func resolve_condition(&self, job : *LabJob, condition : &std::string_view) : bool
 
     // resolves a path, this allows to get exact path to the library or file
     // you can resolve for example where the std library is using base_path empty and path "@std/"

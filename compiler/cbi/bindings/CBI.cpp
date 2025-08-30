@@ -29,9 +29,11 @@ chem::string* init_chem_string(chem::string* str) {
 }
 
 const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
-        { "lab_BuildContextget_module", (void*) BuildContextget_module },
         { "lab_BuildContextnew_module", (void*) BuildContextnew_module },
+        { "lab_BuildContextget_cached", (void*) BuildContextget_cached },
+        { "lab_BuildContextset_cached", (void*) BuildContextset_cached },
         { "lab_BuildContextadd_path", (void*) BuildContextadd_path },
+        { "lab_BuildContextadd_module", (void*) BuildContextadd_module },
         { "lab_BuildContextmodule_from_directory", (void*) BuildContextmodule_from_directory },
         { "lab_BuildContextfiles_module", (void*) BuildContextfiles_module },
         { "lab_BuildContextchemical_dir_module", (void*) BuildContextchemical_dir_module },
@@ -39,6 +41,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextcpp_file_module", (void*) BuildContextcpp_file_module },
         { "lab_BuildContextobject_module", (void*) BuildContextobject_module },
         { "lab_BuildContextadd_compiler_interface", (void*) BuildContextadd_compiler_interface },
+        { "lab_BuildContextresolve_condition", (void*) BuildContextresolve_condition },
         { "lab_BuildContextresolve_import_path", (void*) BuildContextresolve_import_path },
         { "lab_BuildContextresolve_native_lib_path", (void*) BuildContextresolve_native_lib_path },
         { "lab_BuildContextinclude_header", (void*) BuildContextinclude_header },

@@ -70,7 +70,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     // build method
-    output << "\nfunc build(ctx : *mut BuildContext) : *mut Module {\n";
+    output << "\npublic func build(ctx : *mut BuildContext, job : *LabJob) : *mut Module {\n";
+
+    output << "\tconst __chx_already_exists = ctx.get_cached(job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
+    output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
+
     output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", [ ";
 
     i = 0;
@@ -80,7 +84,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
                 writeAsIdentifier(stmt, i, output);
-                output << ".get(ctx), ";
+                output << ".build(ctx, job), ";
                 break;
             }
             default:
@@ -89,6 +93,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         i++;
     }
     output << "]);\n";
+    output << "\tctx.set_cached(job, mod)\n";
 
     if(!data.sources_list.empty()) {
         for(auto& src : data.sources_list) {
@@ -98,7 +103,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 if(src.is_negative) {
                     output << '!';
                 }
-                output << "def." << src.if_condition << ") {\n\t";
+                output << "ctx.resolve_condition(job, \"" << src.if_condition << "\")) {\n\t";
             }
             output << "\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
             if(has_if) {
@@ -125,11 +130,12 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << "\treturn mod;\n";
     output << "}\n\n";
 
-    // get method
-    output << "var __chx_should_build : bool = true;\n";
-    output << "var __chx_cached_build : *mut Module = null;\n";
-    output << "public func get(ctx : *mut BuildContext) : *mut Module {\n";
-    output << "\treturn ctx.default_get(&mut __chx_should_build, &mut __chx_cached_build, build);\n";
-    output << "}\n";
+// get method is not available
+//    // get method
+//    output << "var __chx_should_build : bool = true;\n";
+//    output << "var __chx_cached_build : *mut Module = null;\n";
+//    output << "public func get(ctx : *mut BuildContext) : *mut Module {\n";
+//    output << "\treturn ctx.default_get(&mut __chx_should_build, &mut __chx_cached_build, build);\n";
+//    output << "}\n";
 
 }

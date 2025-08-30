@@ -100,10 +100,6 @@ LabModule* LabBuildContext::add_with_type(
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    const auto found_module = storage.find_module(scope_name, module_name);
-    if(found_module != nullptr) {
-        return found_module;
-    }
     auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
     storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);

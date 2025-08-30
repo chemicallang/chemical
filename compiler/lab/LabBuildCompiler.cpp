@@ -631,7 +631,7 @@ int LabBuildCompiler::process_module_tcc(
     std::cout << *mod << rang::bg::reset << rang::fg::reset << std::endl;
 
     if(verbose) {
-        std::cout << "[lab] " << "parsing the module" << *mod << std::endl;
+        std::cout << "[lab] " << "parsing the module '" << *mod << '\'' << std::endl;
     }
 
     // this would import these direct files (lex and parse), into the module files
@@ -1857,10 +1857,22 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
     } else {
 
-        const auto modFilePath = resolve_rel_child_path_str(module_path, "chemical.mod");
+        auto modFilePath = resolve_rel_child_path_str(module_path, "chemical.mod");
         if(std::filesystem::exists(modFilePath)) {
 
-            return built_mod_file(context, modFilePath);
+            // check if we have already parsed this chemical.mod (from another module's dependency)
+            auto found = buildLabDependenciesCache.find(modFilePath);
+            if(found != buildLabDependenciesCache.end()) {
+                return found->second;
+            }
+
+            // build the mod file
+            const auto modPtr = built_mod_file(context, modFilePath);
+
+            // store the module pointer in cache
+            buildLabDependenciesCache[std::move(modFilePath)] = modPtr;
+
+            return modPtr;
 
         } else {
 
@@ -1952,14 +1964,14 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     chem::string_view scope_name(temp_scope_name, scope_name_size);
     chem::string_view module_name(temp_module_name, mod_name_size);
 
-    if(errorMsg == nullptr) {
-        const auto module = context.storage.find_module(scope_name, module_name);
-        if(module != nullptr) {
-            return module;
-        }
-    } else {
-        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't get module declaration from the mod file at '" << modFilePathView << "' because of error '" << errorMsg << '\'' << std::endl;
-    }
+//    if(errorMsg == nullptr) {
+//        const auto module = context.storage.find_module(scope_name, module_name);
+//        if(module != nullptr) {
+//            return module;
+//        }
+//    } else {
+//        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't get module declaration from the mod file at '" << modFilePathView << "' because of error '" << errorMsg << '\'' << std::endl;
+//    }
 
     if(verbose) {
         std::cout << "[lab] " << "parsing mod file '" << modFilePathView << '\'' << std::endl;
@@ -2117,13 +2129,25 @@ TCCState* LabBuildCompiler::built_lab_file(
     // if has imports, we import those files as well
     // it's required to build a proper import tree
     if(!direct_files_in_lab.empty()) {
+
         // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
-        const auto success = lab_processor.import_chemical_files_recursive(pool, labFileResult.imports, direct_files_in_lab, true);
-        if(!success) {
+        const auto parseSuccess = lab_processor.import_chemical_files_recursive(pool, labFileResult.imports, direct_files_in_lab, true);
+
+        // lets print diagnostics for all files in module
+        for(auto& file : direct_files_in_lab) {
+            print_results(*file.result, file.abs_path, options->benchmark);
+        }
+
+        // return failure if parse failed
+        if(!parseSuccess) {
+            if(verbose) {
+                std::cout << "[lab] " << "parsing failure in lab file at '" << path_view << '\'' << std::endl;
+            }
             return nullptr;
         }
+
     }
 
     ASTFileResult* files_to_flatten[] = { &labFileResult };
@@ -2166,6 +2190,8 @@ TCCState* LabBuildCompiler::built_lab_file(
     std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
 
     // based on imports figures out which modules have been imported
+    // TODO: we aren't determining module dependency from other imported build.lab files
+    // this just determines module dependencies from a single (root build.lab) file
     path_handler.figure_out_mod_dep_using_imports(
         path_view,
         buildLabModuleDependencies,

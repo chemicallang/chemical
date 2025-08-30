@@ -13,21 +13,30 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/utils/GlobalContainerFunctions.h"
 #include "compiler/frontend/AnnotationController.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 #ifdef COMPILER_BUILD
 int llvm_ar_main2(const std::span<chem::string_view> &command_args);
 #endif
 
-LabModule* BuildContextget_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name) {
-    return self->storage.find_module(*scope_name, *name);
-}
-
 LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies) {
     return self->new_module(*scope_name, *name, dependencies->ptr, dependencies->size);
 }
 
+LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* scope_name, chem::string_view* name) {
+    return self->get_cached(job, *scope_name, *name);
+}
+
+void BuildContextset_cached(LabBuildContext* self, LabJob* job, LabModule* module) {
+    self->set_exists_in_cache(job, module);
+}
+
 void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path) {
-    module->paths.emplace_back(chem::string(*path));
+    module->paths.emplace_back(*path);
+}
+
+void BuildContextadd_module(LabBuildContext* self, LabJob* job, LabModule* module) {
+    job->dependencies.emplace_back(module);
 }
 
 LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg) {
@@ -63,6 +72,17 @@ bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module
         module->compiler_interfaces_str.emplace_back(chem::string(*interface));
 #endif
         return true;
+    } else {
+        return false;
+    }
+}
+
+bool BuildContextresolve_condition(LabBuildContext* self, LabJob* job, chem::string_view* condition) {
+    // TODO: this is wrong, it just checks the global container
+    // which contains defaults for the lab environment, we need to check against the job target
+    auto enabled = is_condition_enabled(self->compiler.container, *condition);
+    if(enabled.has_value()) {
+        return enabled.value();
     } else {
         return false;
     }

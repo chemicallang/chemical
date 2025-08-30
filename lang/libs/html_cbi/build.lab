@@ -9,28 +9,36 @@ import "@html_ide/build.lab" as htmlIdeMod
 
 using namespace std;
 
-func build(ctx : *mut BuildContext) : *Module {
+var did_once = false;
+
+func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *Module {
+
+    // the std module
+    var std_module = stdMod.build(ctx, job);
+    if(std_module == null) {
+        return null
+    }
+
+    if(did_once) return std_module;
+    did_once = true;
+
+    var cbi = ctx.build_cbi(std::string_view("html"), [])
+    const job = cbi;
 
     // the cstd module
-    var cstd_module = cstdMod.get(ctx);
+    var cstd_module = cstdMod.build(ctx, job);
     if(cstd_module == null) {
         return null
     }
 
     // the std module
-    var std_module = stdMod.get(ctx);
-    if(std_module == null) {
-        return null
-    }
-
-    // the std module
-    var compiler_module = compilerMod.get(ctx);
+    var compiler_module = compilerMod.build(ctx, job);
     if(compiler_module == null) {
         return null
     }
 
     // html parser module
-    var html_parser = htmlParser.get(ctx)
+    var html_parser = htmlParser.build(ctx, job)
     if(html_parser == null) {
         return null
     }
@@ -38,7 +46,7 @@ func build(ctx : *mut BuildContext) : *Module {
     // only compile html ide module in lsp
     var htmlIde : *mut Module
     if(def.lsp) {
-        htmlIde = htmlIdeMod.get(ctx)
+        htmlIde = htmlIdeMod.build(ctx, job)
         if(htmlIde == null) {
             return null;
         }
@@ -49,8 +57,8 @@ func build(ctx : *mut BuildContext) : *Module {
     var dependencies = [ cstd_module, std_module, compiler_module, html_parser, htmlIde ]
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("html_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
-    var cbiDeps = [ module ]
-    var cbi = ctx.build_cbi(std::string_view("html"), cbiDeps)
+    ctx.add_module(cbi, module)
+
     ctx.index_def_cbi_fn(cbi, std::string_view("html_initializeLexer"), CBIFunctionType.InitializeLexer);
     ctx.index_def_cbi_fn(cbi, std::string_view("html_parseMacroValue"), CBIFunctionType.ParseMacroValue);
     ctx.index_def_cbi_fn(cbi, std::string_view("html_parseMacroNode"), CBIFunctionType.ParseMacroNode);

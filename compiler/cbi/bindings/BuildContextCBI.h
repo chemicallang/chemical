@@ -35,11 +35,15 @@ extern "C" {
         chem::string error;
     };
 
-    LabModule* BuildContextget_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name);
-
     LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies);
 
+    LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* scope_name, chem::string_view* name);
+
+    void BuildContextset_cached(LabBuildContext* self, LabJob* job, LabModule* module);
+
     void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string_view* path);
+
+    void BuildContextadd_module(LabBuildContext* self, LabJob* job, LabModule* module);
 
     [[deprecated]]
     LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg);
@@ -55,6 +59,8 @@ extern "C" {
     LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path);
 
     bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface);
+
+    bool BuildContextresolve_condition(LabBuildContext* self, LabJob* job, chem::string_view* condition);
 
     void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path);
 

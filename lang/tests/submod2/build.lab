@@ -2,10 +2,13 @@ import lab
 import std
 import "@std/build.lab" as stdMod
 
-public func build(ctx : *mut BuildContext) : *mut Module {
+public func build(ctx : *mut BuildContext, job : *mut LabJob) : *mut Module {
+
+    const cached = ctx.get_cached(job, std::string_view(""), std::string_view("submod2"));
+    if(cached != null) return cached;
 
     // the std module
-    const std_module = stdMod.get(ctx)
+    const std_module = stdMod.build(ctx, job)
     if(std_module == null) {
         return null
     }

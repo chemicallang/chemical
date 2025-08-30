@@ -676,22 +676,23 @@ bool import_file_in_lab(
     if(err == nullptr) {
         // import the file into result (lex and parse)
         const auto import_res = proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
-        if(import_res && abs_path.ends_with("build.lab")) {
-            // we inject a get method into every build.lab file
-            // it has to be specifically named build.lab so other lab files that are there for just
-            // imports don't get injected a get method which needs the build method to work
-            // it must also not be the last build.lab file
-            auto& typeBuilder = proc.type_builder;
-            auto& allocator = use_job_allocator ? proc.job_allocator : proc.mod_allocator;
-            const auto parentNode = &result.unit.scope;
-            const auto buildFlag = default_build_lab_build_flag(allocator, typeBuilder, parentNode);
-            const auto cachedPtr = default_build_lab_cached_ptr(allocator, typeBuilder, parentNode);
-            const auto getMethod = default_build_lab_get_method(allocator, typeBuilder, parentNode, buildFlag->name_view(), cachedPtr->name_view());
-            auto& nodes = result.unit.scope.body.nodes;
-            nodes.emplace_back(buildFlag);
-            nodes.emplace_back(cachedPtr);
-            nodes.emplace_back(getMethod);
-        }
+        // we don't inject any get method, a module is built right when it is needed
+//        if(import_res && abs_path.ends_with("build.lab")) {
+//            // we inject a get method into every build.lab file
+//            // it has to be specifically named build.lab so other lab files that are there for just
+//            // imports don't get injected a get method which needs the build method to work
+//            // it must also not be the last build.lab file
+//            auto& typeBuilder = proc.type_builder;
+//            auto& allocator = use_job_allocator ? proc.job_allocator : proc.mod_allocator;
+//            const auto parentNode = &result.unit.scope;
+//            const auto buildFlag = default_build_lab_build_flag(allocator, typeBuilder, parentNode);
+//            const auto cachedPtr = default_build_lab_cached_ptr(allocator, typeBuilder, parentNode);
+//            const auto getMethod = default_build_lab_get_method(allocator, typeBuilder, parentNode, buildFlag->name_view(), cachedPtr->name_view());
+//            auto& nodes = result.unit.scope.body.nodes;
+//            nodes.emplace_back(buildFlag);
+//            nodes.emplace_back(cachedPtr);
+//            nodes.emplace_back(getMethod);
+//        }
         return import_res;
     }
 

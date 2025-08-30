@@ -1115,7 +1115,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         auto& global = *call_scope->global;
-        auto& triple = global.target_triple;
+        auto& triple = global.build_compiler->current_job->target_triple;
         const auto triple_ptr = allocator.allocate_str(triple.data(), triple.size());
         return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(triple_ptr, triple.size()), global.typeBuilder.getStringType(), call->encoded_location());
     }
@@ -1959,85 +1959,6 @@ struct GlobalContainer {
 
 };
 
-#ifdef COMPILER_BUILD
-
-void init_target_data(llvm::Triple& triple, TargetData& data) {
-
-    const auto arhType = triple.getArch();
-
-    // Check for Windows
-    if (triple.isOSWindows()) {
-        data.is_windows = true;
-        if (arhType == llvm::Triple::x86) {
-            data.is_win32 = true;
-        } else if (arhType == llvm::Triple::x86_64) {
-            data.is_win64 = true;
-        }
-    }
-
-    // Check for Linux
-    if (triple.isOSLinux()) {
-        data.is_linux = true;
-        data.is_unix = true;
-    }
-
-    // Check for macOS
-    if (triple.isMacOSX()) {
-        data.is_macos = true;
-        data.is_unix = true;
-    }
-
-    // Check for FreeBSD
-    if (triple.isOSFreeBSD()) {
-        data.is_freebsd = true;
-        data.is_unix = true;
-    }
-
-    // Check for Android
-    if (triple.isAndroid()) {
-        data.is_android = true;
-        data.is_unix = true;
-    }
-
-    // Check for Cygwin
-    if (triple.isOSCygMing()) {
-        data.is_cygwin = true;
-        data.is_unix = true;
-    }
-
-    if(triple.isArch64Bit()) {
-        data.is_64Bit = true;
-    }
-
-    // Check for architecture
-    switch(arhType) {
-        case llvm::Triple::x86_64:
-            data.is_x86_64 = true;
-            break;
-        case llvm::Triple::x86:
-            data.is_i386 = true;
-            break;
-        case llvm::Triple::arm:
-            data.is_arm = true;
-            break;
-        case llvm::Triple::aarch64:
-            data.is_aarch64 = true;
-            break;
-        default:
-            break;
-    }
-
-    data.is_little_endian = triple.isLittleEndian();
-
-}
-
-void GlobalInterpretScope::prepare_target_data(TargetData& data) {
-    auto triple = llvm::Triple(target_triple);
-    init_target_data(triple, data);
-}
-
-#else
-
 // this puts the target data of the current executable
 void prepare_executable_target_data(TargetData& data) {
 #ifdef _WIN32
@@ -2110,7 +2031,97 @@ void prepare_executable_target_data(TargetData& data) {
 
 }
 
-void GlobalInterpretScope::prepare_target_data(TargetData& data) {
+#ifdef COMPILER_BUILD
+
+void init_target_data(llvm::Triple& triple, TargetData& data) {
+
+    const auto arhType = triple.getArch();
+
+    // Check for Windows
+    if (triple.isOSWindows()) {
+        data.is_windows = true;
+        if (arhType == llvm::Triple::x86) {
+            data.is_win32 = true;
+        } else if (arhType == llvm::Triple::x86_64) {
+            data.is_win64 = true;
+        }
+    }
+
+    // Check for Linux
+    if (triple.isOSLinux()) {
+        data.is_linux = true;
+        data.is_unix = true;
+    }
+
+    // Check for macOS
+    if (triple.isMacOSX()) {
+        data.is_macos = true;
+        data.is_unix = true;
+    }
+
+    // Check for FreeBSD
+    if (triple.isOSFreeBSD()) {
+        data.is_freebsd = true;
+        data.is_unix = true;
+    }
+
+    // Check for Android
+    if (triple.isAndroid()) {
+        data.is_android = true;
+        data.is_unix = true;
+    }
+
+    // Check for Cygwin
+    if (triple.isOSCygMing()) {
+        data.is_cygwin = true;
+        data.is_unix = true;
+    }
+
+    if(triple.isArch64Bit()) {
+        data.is_64Bit = true;
+    }
+
+    // Check for architecture
+    switch(arhType) {
+        case llvm::Triple::x86_64:
+            data.is_x86_64 = true;
+            break;
+        case llvm::Triple::x86:
+            data.is_i386 = true;
+            break;
+        case llvm::Triple::arm:
+            data.is_arm = true;
+            break;
+        case llvm::Triple::aarch64:
+            data.is_aarch64 = true;
+            break;
+        default:
+            break;
+    }
+
+    data.is_little_endian = triple.isLittleEndian();
+
+}
+
+void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::string& target_triple) {
+
+    if(target_triple.empty()) {
+        prepare_executable_target_data(data);
+        return;
+    }
+
+    auto triple = llvm::Triple(target_triple);
+    init_target_data(triple, data);
+}
+
+#else
+
+void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::string& target_triple) {
+
+    if(target_triple.empty()) {
+        prepare_executable_target_data(data);
+        return;
+    }
 
     // Split the target string by '-'
     std::vector<std::string> parts;
@@ -2200,9 +2211,9 @@ void set_def_test_value(GlobalContainer* container, bool value) {
     }
 }
 
-void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, bool test_env) {
+void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, const std::string& target_triple, bool test_env) {
     auto& targetData = scope.target_data;
-    scope.prepare_target_data(targetData);
+    scope.prepare_target_data(targetData, target_triple);
     // declaring native definitions like windows and stuff
     auto& allocator = scope.allocator;
     // we change the global interpret scope for each job, so we must redeclare def value
@@ -2216,6 +2227,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, 
 #endif
     auto& typeBuilder = scope.typeBuilder;
     defThing.declare_value(allocator, "lsp", boolType, boolValue(allocator, typeBuilder, lsp_build));
+    defThing.declare_value(allocator, "using_tcc", boolType, boolValue(allocator, typeBuilder, false));
     defThing.declare_value(allocator, "test", boolType, boolValue(allocator, typeBuilder, test_env));
     defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, typeBuilder, is_debug(mode)));
     defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::DebugQuick));
@@ -2246,7 +2258,7 @@ void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, 
     defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, typeBuilder, targetData.is_aarch64));
 }
 
-void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr, bool test_env) {
+void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr, const std::string& target_triple, bool test_env) {
     auto& container = *container_ptr;
 
     // from previous (job / lsp request) global interpret scope, user may have introduced declarations into
@@ -2271,11 +2283,12 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     container.defThing.clear_values();
     // we recreate the target data, because the allocator disposes at the end of each job
     // and this method is called after disposal of the allocator when the job ends, and a new job starts
-    create_target_data_in_def(*this, container.defThing, test_env);
+    // also the target data depends on the target, each target can have different variables
+    create_target_data_in_def(*this, container.defThing, target_triple, test_env);
 
 }
 
-GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver, bool test_env) {
+GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver, const std::string& target_triple, bool test_env) {
 
     auto& typeCache = resolver.comptime_scope.typeBuilder;
     const auto container_ptr = new GlobalContainer(typeCache);
@@ -2292,21 +2305,37 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     declarer.visit(&container.defThing.decl);
     declarer.visit(&container.defThing.defStmt);
 
-    create_target_data_in_def(*this, container.defThing, test_env);
+    create_target_data_in_def(*this, container.defThing, target_triple, test_env);
 
     return container_ptr;
 }
 
-std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name) {
+BoolValue* get_global_condition(GlobalContainer* container, const chem::string_view& name) {
     auto& values = container->defThing.defValue.values;
     auto found = values.find(name);
     if(found != values.end()) {
         const auto val = found->second.value;
         if(val->kind() == ValueKind::Bool) {
-            return val->as_bool_unsafe()->value;
-        } else {
-            return std::nullopt;
+            return val->as_bool_unsafe();
         }
+    }
+    return nullptr;
+}
+
+bool set_global_condition(GlobalContainer* container, const chem::string_view& name, bool enable) {
+    const auto cond = get_global_condition(container, name);
+    if(cond) {
+        cond->value = enable;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name) {
+    const auto cond = get_global_condition(container, name);
+    if(cond) {
+        return cond->value;
     } else {
         return std::nullopt;
     }

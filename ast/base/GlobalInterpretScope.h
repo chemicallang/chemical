@@ -27,6 +27,9 @@ struct GlobalContainer;
 
 class TypeBuilder;
 
+// returns whether succeeded
+bool set_global_condition(GlobalContainer* container, const chem::string_view& name, bool enable);
+
 std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name);
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
@@ -36,12 +39,6 @@ public:
      * the output mode
      */
     OutputMode mode;
-
-    /**
-     * the target triple given by the user
-     * this is what we're generating code for
-     */
-    const std::string target_triple;
 
     /**
      * the target data for which we're generating code
@@ -94,7 +91,6 @@ public:
      */
     explicit GlobalInterpretScope(
         OutputMode mode,
-        std::string target_triple,
         BackendContext* backendContext,
         LabBuildCompiler* buildCompiler,
         ASTAllocator& allocator,
@@ -117,12 +113,12 @@ public:
      * a container is created, which will be disposed, user is responsible for it's
      * ownership
      */
-    GlobalContainer* create_container(SymbolResolver& resolver, bool test_env);
+    GlobalContainer* create_container(SymbolResolver& resolver, const std::string& target_triple, bool test_env);
 
     /**
      * this global container will be binded to this symbol resolver
      */
-    void rebind_container(SymbolResolver& resolver, GlobalContainer* container, bool test_env);
+    void rebind_container(SymbolResolver& resolver, GlobalContainer* container, const std::string& target_triple, bool test_env);
 
     /**
      * the given containe will be disposed
@@ -132,7 +128,7 @@ public:
     /**
      * a target data, that user allocates can be used to get information about the target triple
      */
-    void prepare_target_data(TargetData& data);
+    void prepare_target_data(TargetData& data, const std::string& target_triple);
 
     /**
      * overrides the destructor of InterpretScope

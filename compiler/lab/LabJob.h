@@ -48,6 +48,13 @@ struct LabJob {
     LabJobStatus status = LabJobStatus::Pending;
 
     /**
+     * the target triple for every job can be different
+     * and therefore is stored here, by default the target triple supplied via
+     * the command line is used here, or default system target (if not supplied)
+     */
+    chem::string target_triple;
+
+    /**
      * these are linkable object or bitcode files required by the job
      */
     std::vector<chem::string> linkables;

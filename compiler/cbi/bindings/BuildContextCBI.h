@@ -98,8 +98,6 @@ extern "C" {
 
     void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), void* data);
 
-    int BuildContextlink_objects(LabBuildContext* self, StringViewSpan* string_arr, chem::string_view* output_path);
-
     int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr);
 
     int BuildContextinvoke_ranlib(LabBuildContext* self, StringViewSpan* string_arr);

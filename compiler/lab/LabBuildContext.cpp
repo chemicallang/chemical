@@ -168,6 +168,7 @@ LabJob* LabBuildContext::translate_to_chemical(
         chem::string_view* out_path
 ) {
     auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"));
+    job->target_triple.append(compiler.options->target_triple);
     executables.emplace_back(job);
     job->abs_path.append(*out_path);
     job->dependencies.emplace_back(module);
@@ -186,6 +187,7 @@ LabJob* LabBuildContext::translate_to_c(
         chem::string_view* out_path
 ) {
     auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name));
+    job->target_triple.append(compiler.options->target_triple);
     executables.emplace_back(job);
     set_build_dir(job);
     job->abs_path.append(*out_path);
@@ -199,6 +201,7 @@ LabJob* LabBuildContext::build_exe(
         unsigned int dep_len
 ) {
     auto exe = new LabJob(LabJobType::Executable, chem::string(*name));
+    exe->target_triple.append(compiler.options->target_triple);
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -216,6 +219,7 @@ LabJob* LabBuildContext::run_jit_exe(
         unsigned int dep_len
 ) {
     auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name));
+    // jit executables use the target triple of current system
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -233,6 +237,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
         unsigned int dep_len
 ) {
     auto exe = new LabJob(LabJobType::Library, chem::string(*name));
+    exe->target_triple.append(compiler.options->target_triple);
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto output_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -254,6 +259,7 @@ LabJob* LabBuildContext::build_cbi(
         unsigned int dep_len
 ) {
     auto exe = new LabJobCBI(chem::string(*name));
+    // cbi jobs also use the current system target triple
     executables.emplace_back(exe);
     set_build_dir(exe);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);

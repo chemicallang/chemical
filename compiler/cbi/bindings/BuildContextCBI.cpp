@@ -195,15 +195,6 @@ void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), voi
     self->on_finished_data = data;
 }
 
-int BuildContextlink_objects(LabBuildContext* self, StringViewSpan* string_arr, chem::string_view* output_path) {
-    std::vector<chem::string> linkables;
-    for(auto i = 0; i < string_arr->size; i++) {
-        linkables.emplace_back(chem::string::make_view(string_arr->ptr[i]));
-    }
-    auto& options = *self->compiler.options;
-    return link_objects_now(options.use_tcc, &options, linkables, output_path->str());
-}
-
 int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
     std::vector<chem::string_view> arr;

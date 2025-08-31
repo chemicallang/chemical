@@ -118,9 +118,9 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         for(auto& src : data.sources_list) {
             const auto has_if = src.if_cond != nullptr;
             if(has_if) {
-                output << "if(";
+                output << "\tif(";
                 writeIfConditional(src.if_cond, output);
-                output << ") {\n";
+                output << ") {\n\t";
             }
             output << "\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
             if(has_if) {
@@ -133,9 +133,9 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         for(auto& lib : data.link_libs) {
             const auto has_if = lib.if_cond != nullptr;
             if(has_if) {
-                output << "if(";
+                output << "\tif(";
                 writeIfConditional(lib.if_cond, output);
-                output << ") {\n";
+                output << ") {\n\t";
             }
             output << "\tctx.link_system_lib(mod, \"" << lib.name << "\")\n";
             if(has_if) {

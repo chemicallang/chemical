@@ -18,7 +18,7 @@
  * @see https://en.cppreference.com/w/c/program/signal
  */
 @extern
-public func signal(sig : int, handler : () => int) : int
+public func signal(sig : int, handler : (sig : int) => void) : int
 
 /**
  * Sends signal sig to the program. The signal handler, specified using signal(), is invoked.

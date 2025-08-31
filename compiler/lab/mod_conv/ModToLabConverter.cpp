@@ -31,6 +31,25 @@ void writeAsIdentifier(ImportStatement* stmt, unsigned index, std::ostream& outp
     }
 }
 
+void writeIfConditional(ModFileIfBase* if_base, std::ostream& output) {
+    if(if_base == nullptr) return;
+    if(if_base->is_id) {
+        const auto if_id = (ModFileIfId*) if_base;
+        if(if_id->is_negative) {
+            output << '!';
+        }
+        output << "job.target.";
+        output << if_id->value;
+    } else {
+        const auto if_expr = (ModFileIfExpr*) if_base;
+        output << '(';
+        writeIfConditional(if_expr->left, output);
+        output << (if_expr->op == ModFileIfExprOp::And ? " && " : " || ");
+        writeIfConditional(if_expr->right, output);
+        output << ')';
+    }
+}
+
 void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     // writing imports for modules
@@ -97,13 +116,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     if(!data.sources_list.empty()) {
         for(auto& src : data.sources_list) {
-            const auto has_if = !src.if_condition.empty();
+            const auto has_if = src.if_cond != nullptr;
             if(has_if) {
                 output << "if(";
-                if(src.is_negative) {
-                    output << '!';
-                }
-                output << "job.target." << src.if_condition << ") {\n";
+                writeIfConditional(src.if_cond, output);
+                output << ") {\n";
             }
             output << "\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
             if(has_if) {
@@ -114,13 +131,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     if(!data.link_libs.empty()) {
         for(auto& lib : data.link_libs) {
-            const auto has_if = !lib.if_condition.empty();
+            const auto has_if = lib.if_cond != nullptr;
             if(has_if) {
                 output << "if(";
-                if(lib.is_negative) {
-                    output << '!';
-                }
-                output << "job.target." << lib.if_condition << ") {\n";
+                writeIfConditional(lib.if_cond, output);
+                output << ") {\n";
             }
             output << "\tctx.link_system_lib(mod, \"" << lib.name << "\")\n";
             if(has_if) {

@@ -438,6 +438,11 @@ public:
 #endif
 
     /**
+     * destruct the call site
+     */
+    void destruct_current_scope(Value* returnValue);
+
+    /**
      * this function mutates the value based on type, however it doesn't check for implicit constructors
      */
     void accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value);

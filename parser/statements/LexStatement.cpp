@@ -424,6 +424,99 @@ bool BasicParser::parseModuleDefinition(ASTAllocator& allocator, ModuleFileData&
 
 }
 
+ModFileIfBase* parseModFileId(BasicParser& parser, ASTAllocator& allocator) {
+    const auto is_neg = parser.token->type == TokenType::NotSym;
+    if(is_neg) parser.token++;
+    auto id = parser.consumeIdentifierOrKeyword();
+    if(id) {
+        const auto if_id = allocator.allocate_released<ModFileIfId>();
+        if_id->is_id = true;
+        if_id->is_negative = is_neg;
+        if_id->value = parser.allocate_view(allocator, id->value);
+        return if_id;
+    } else {
+        return nullptr;
+    }
+}
+
+ModFileIfBase* parseModIfConditional(BasicParser& parser, ASTAllocator& allocator) {
+
+    auto first = parseModFileId(parser, allocator);
+    if(!first) {
+        return nullptr;
+    }
+
+    auto& token = parser.token;
+
+    const auto tok_type = token->type;
+    const auto isLogicalAnd = tok_type == TokenType::LogicalAndSym;
+    if(!(isLogicalAnd || tok_type == TokenType::LogicalOrSym)) {
+        return first;
+    }
+
+    token++;
+
+    // const auto loc_first = loc_single(token);
+    auto second = parseModFileId(parser, allocator);
+    if(!second) {
+        parser.error("expected a second value in expression");
+        return first;
+    }
+
+    const auto if_expr = allocator.allocate_released<ModFileIfExpr>();
+    if_expr->is_id = false;
+    if_expr->left = first;
+    if_expr->right = second;
+    if_expr->op = isLogicalAnd ? ModFileIfExprOp::And : ModFileIfExprOp::Or;
+
+    auto rootExpr = if_expr;
+    auto currentExpr = rootExpr;
+
+    while(true) {
+
+        const auto type = token->type;
+        const auto isNextLogicalAnd = type == TokenType::LogicalAndSym;
+
+        if(!(isNextLogicalAnd || type == TokenType::LogicalOrSym)) {
+            return rootExpr;
+        }
+
+        token++;
+        // const auto loc = loc_single(token);
+        const auto secondId = parseModFileId(parser, allocator);
+        if(!secondId) {
+            parser.error("expected second value in expression");
+            return rootExpr;
+        }
+
+        // A | B & C | D = (A | (B & C)) | D
+
+        if(isNextLogicalAnd && currentExpr->op != ModFileIfExprOp::And) {
+
+            const auto newExpr = allocator.allocate_released<ModFileIfExpr>();
+            newExpr->is_id = false;
+            newExpr->left = currentExpr->right;
+            newExpr->right = secondId;
+            newExpr->op = ModFileIfExprOp::And;
+
+            currentExpr->right = newExpr;
+        } else {
+
+            const auto newExpr = allocator.allocate_released<ModFileIfExpr>();
+            newExpr->is_id = false;
+            newExpr->left = currentExpr;
+            newExpr->right = secondId;
+            newExpr->op = isNextLogicalAnd ? ModFileIfExprOp::And : ModFileIfExprOp::Or;
+
+            currentExpr = newExpr;
+            rootExpr = currentExpr;
+
+        }
+
+    }
+
+}
+
 bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data) {
 
     if(token->type == TokenType::Identifier && token->value == "source") {
@@ -445,12 +538,10 @@ bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data)
     }
 
     if(consumeToken(TokenType::IfKw)) {
-        source.is_negative = consumeToken(TokenType::NotSym);
-        auto id = consumeIdentifierOrKeyword();
-        if(id) {
-            source.if_condition = allocate_view(allocator, id->value);
-        } else {
-            error("expected if condition after if in source statement");
+        const auto cond = parseModIfConditional(*this, allocator);
+        source.if_cond = cond;
+        if(!cond) {
+            error("expected condition after 'if' in source statement");
         }
     }
 
@@ -480,12 +571,10 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
 
     // condition is required
     if(consumeToken(TokenType::IfKw)) {
-        link_lib.is_negative = consumeToken(TokenType::NotSym);
-        auto id = consumeIdentifierOrKeyword();
-        if(id) {
-            link_lib.if_condition = allocate_view(allocator, id->value);
-        } else {
-            error("expected if condition after if in source statement");
+        const auto cond = parseModIfConditional(*this, allocator);
+        link_lib.if_cond = cond;
+        if(!cond) {
+            error("expected condition after 'if' in link statement");
         }
     }
 

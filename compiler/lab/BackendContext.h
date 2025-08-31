@@ -36,4 +36,9 @@ public:
      */
     virtual bool supports(CompilerFeatureKind kind) = 0;
 
+    /**
+     * destruct the call site
+     */
+    virtual void destruct_call_site(SourceLocation location) = 0;
+
 };

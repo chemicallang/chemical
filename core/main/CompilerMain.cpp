@@ -856,6 +856,11 @@ int compiler_main(int argc, char *argv[]) {
     }
 
     LabJob job(jit ? LabJobType::JITExecutable : LabJobType::Executable, chem::string("a"));
+    job.mode = mode;
+    if(!target.empty()) {
+        // TODO: update the target data according to target triple
+        job.target_triple.append(target);
+    }
     set_options_for_main_job(options, job, module, dependencies);
 
     // checking if user requires ll, asm output at default location for the module

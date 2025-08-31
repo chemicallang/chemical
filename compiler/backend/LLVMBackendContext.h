@@ -23,4 +23,6 @@ public:
         return true;
     }
 
+    void destruct_call_site(SourceLocation location) final;
+
 };

@@ -288,57 +288,59 @@ TypeLoc Parser::parseUnionTypeLoc(ASTAllocator& allocator) {
     return { type, type ? type->encoded_location() : ZERO_LOC };
 }
 
-// (First & Second) & Third = First & (Second & Third)
+// (First & Second) & Third = ((First & Second) & Third)
+// (First | Second) & Third = (First | (Second & Third))
 // (First & Second) | Third = (First & Second) | Third
-// (First | Second) & Third = First | (Second & Third)
-// (First | Second) | Third = First | (Second | Third)
-// (First & (Second & Third)) & Fourth = First & ((Second & Third) & Fourth)
-// (First & (Second & Third)) | Fourth = (First & (Second & Third)) | Fourth
-// ((First & Second) | Third) | Fourth = ((First & Second) | (Third | Fourth)
-// (First | (Second & Third)) & Fourth = (First | ((Second & Third) & Fourth))
-// (First | (Second | Third)) | Fourth = (First | ((Second | Third) | Fourth)
+// (First | Second) | Third = (First | Second) | Third
 BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstType) {
+
     const auto tok_type = token->type;
     const auto isLogicalAnd = tok_type == TokenType::LogicalAndSym;
-    if(isLogicalAnd || tok_type == TokenType::LogicalOrSym) {
-        token++;
-        const auto loc_first = loc_single(token);
-        const auto secondType = parseType(allocator);
-        if(!secondType) {
-            error("expected second type in expression type");
-            return firstType;
-        }
-        auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd);
-        auto currentExpr = rootExpr;
-        while(true) {
-            const auto type = token->type;
-            const auto isNextLogicalAnd = type == TokenType::LogicalAndSym;
-            if(isNextLogicalAnd || type == TokenType::LogicalOrSym) {
-                token++;
-                const auto loc = loc_single(token);
-                const auto nextType = parseType(allocator);
-                if(!nextType) {
-                    error("expected second type in expression type");
-                    return rootExpr;
-                }
-                if(!isNextLogicalAnd && currentExpr->isLogicalAnd) {
-                    const auto isCurrentRoot = currentExpr == rootExpr;
-                    currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextType, false);
-                    if(isCurrentRoot) {
-                        rootExpr = currentExpr;
-                    }
-                } else {
-                    const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextType, isNextLogicalAnd);
-                    currentExpr->secondType = newExpr;
-                    currentExpr = newExpr;
-                }
-            } else {
-                return rootExpr;
-            }
-        }
-    } else {
+    if(!(isLogicalAnd || tok_type == TokenType::LogicalOrSym)) {
         return firstType;
     }
+
+    token++;
+
+    // const auto loc_first = loc_single(token);
+    const auto secondType = parseType(allocator);
+    if(!secondType) {
+        error("expected second type in expression type");
+        return firstType;
+    }
+
+    auto rootExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(firstType, secondType, isLogicalAnd);
+    auto currentExpr = rootExpr;
+
+    while(true) {
+
+        const auto type = token->type;
+        const auto isNextLogicalAnd = type == TokenType::LogicalAndSym;
+
+        if(!(isNextLogicalAnd || type == TokenType::LogicalOrSym)) {
+            return rootExpr;
+        }
+
+        token++;
+        // const auto loc = loc_single(token);
+        const auto nextType = parseType(allocator);
+        if(!nextType) {
+            error("expected second type in expression type");
+            return rootExpr;
+        }
+
+        // A | B & C | D = (A | (B & C)) | D
+
+        if(isNextLogicalAnd && !currentExpr->isLogicalAnd) {
+            const auto newExpr = new(allocator.allocate<ExpressionType>()) ExpressionType(currentExpr->secondType, nextType, isNextLogicalAnd);
+            currentExpr->secondType = newExpr;
+        } else {
+            currentExpr = new (allocator.allocate<ExpressionType>()) ExpressionType(currentExpr, nextType, isNextLogicalAnd);
+            rootExpr = currentExpr;
+        }
+
+    }
+
 }
 
 MembersContainer* find_container_parent(ASTNode* parent) {

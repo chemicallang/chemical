@@ -27,9 +27,6 @@ struct GlobalContainer;
 
 class TypeBuilder;
 
-// returns whether succeeded
-bool set_global_condition(GlobalContainer* container, const chem::string_view& name, bool enable);
-
 std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name);
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
@@ -91,6 +88,7 @@ public:
      */
     explicit GlobalInterpretScope(
         OutputMode mode,
+        TargetData& target_data,
         BackendContext* backendContext,
         LabBuildCompiler* buildCompiler,
         ASTAllocator& allocator,
@@ -113,12 +111,12 @@ public:
      * a container is created, which will be disposed, user is responsible for it's
      * ownership
      */
-    GlobalContainer* create_container(SymbolResolver& resolver, const std::string& target_triple, bool test_env);
+    GlobalContainer* create_container(SymbolResolver& resolver, const TargetData& data);
 
     /**
      * this global container will be binded to this symbol resolver
      */
-    void rebind_container(SymbolResolver& resolver, GlobalContainer* container, const std::string& target_triple, bool test_env);
+    void rebind_container(SymbolResolver& resolver, GlobalContainer* container, const TargetData& data);
 
     /**
      * the given containe will be disposed

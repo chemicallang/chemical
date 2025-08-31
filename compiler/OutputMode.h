@@ -10,7 +10,7 @@
  * Release modes allow you to change properties quickly for code generation, The parameters customized
  * by release mode, may have more customized commands separately
  */
-enum class OutputMode {
+enum class OutputMode : int {
 
     /**
      * The debug mode, which also contains debug information, about the executable

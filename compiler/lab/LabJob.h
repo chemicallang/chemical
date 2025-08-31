@@ -9,6 +9,8 @@
 #include "preprocess/StringViewHashEqual.h"
 #include "compiler/cbi/model/CBIData.h"
 #include "compiler/cbi/model/CBIFunctionIndex.h"
+#include "TargetData.h"
+#include "compiler/OutputMode.h"
 
 struct LabModule;
 
@@ -53,6 +55,16 @@ struct LabJob {
      * the command line is used here, or default system target (if not supplied)
      */
     chem::string target_triple;
+
+    /**
+     * output mode for this job
+     */
+    OutputMode mode;
+
+    /**
+     * the target data
+     */
+    TargetData target_data = create_target_data();
 
     /**
      * these are linkable object or bitcode files required by the job

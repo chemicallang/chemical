@@ -11,7 +11,6 @@
 #include "preprocess/ImportPathHandler.h"
 #include "CBIUtils.h"
 #include "compiler/cbi/model/CompilerBinder.h"
-#include "ast/utils/GlobalContainerFunctions.h"
 #include "compiler/frontend/AnnotationController.h"
 #include "ast/base/GlobalInterpretScope.h"
 
@@ -63,6 +62,10 @@ LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* s
     return self->obj_file_module(*scope_name, *name, path);
 }
 
+void BuildContextlink_system_lib(LabBuildContext* self, LabModule* module, chem::string_view* name) {
+    module->link_system_libs.emplace_back(*name);
+}
+
 bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface) {
     auto& maps = self->binder.interface_maps;
     auto found = maps.find(*interface);
@@ -72,17 +75,6 @@ bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module
         module->compiler_interfaces_str.emplace_back(chem::string(*interface));
 #endif
         return true;
-    } else {
-        return false;
-    }
-}
-
-bool BuildContextresolve_condition(LabBuildContext* self, LabJob* job, chem::string_view* condition) {
-    // TODO: this is wrong, it just checks the global container
-    // which contains defaults for the lab environment, we need to check against the job target
-    auto enabled = is_condition_enabled(self->compiler.container, *condition);
-    if(enabled.has_value()) {
-        return enabled.value();
     } else {
         return false;
     }
@@ -143,7 +135,7 @@ LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, Mo
 void BuildContextset_environment_testing(LabBuildContext* self, bool value) {
     self->compiler.controller.ensure_test_resources();
     self->compiler.is_testing_env = value;
-    set_def_test_value(self->compiler.container, value);
+    // TODO: set the job environment as testing, which would produce the job as a testing executable
 }
 
 bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type) {

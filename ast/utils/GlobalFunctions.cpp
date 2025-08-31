@@ -43,7 +43,6 @@
 #include "core/source/LocationManager.h"
 #include "ast/base/TypeBuilder.h"
 #include "compiler/symres/DeclareTopLevel.h"
-#include "GlobalContainerFunctions.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -1962,72 +1961,72 @@ struct GlobalContainer {
 // this puts the target data of the current executable
 void prepare_executable_target_data(TargetData& data) {
 #ifdef _WIN32
-    data.is_windows = true;
-    data.is_win32 = true;
+    data.windows = true;
+    data.win32 = true;
 #endif
 
 #ifdef _WIN64
-    data.is_windows = true;
-    data.is_win64 = true;
+    data.windows = true;
+    data.win64 = true;
 #endif
 
-    data.is_64Bit = sizeof(void*) == 8;
+    data.is64Bit = sizeof(void*) == 8;
 
 #ifdef __linux__
-    data.is_linux = true;
-    data.is_unix = true;
+    data.linux = true;
+    data.unix = true;
 #endif
 
 #ifdef __APPLE__
-    data.is_macos = true;
-    data.is_unix = true;
+    data.macos = true;
+    data.unix = true;
 #endif
 
 #ifdef __FreeBSD__
-    data.is_freebsd = true;
-    data.is_unix = true;
+    data.freebsd = true;
+    data.unix = true;
 #endif
 
 #ifdef __ANDROID__
-    data.is_android = true;
-    data.is_unix = true;
+    data.android = true;
+    data.unix = true;
 #endif
 
 #ifdef __CYGWIN__
-    data.is_cygwin = true;
-    data.is_unix = true;
+    data.cygwin = true;
+    data.unix = true;
 #endif
 
 #ifdef __MINGW32__
-    data.is_mingw32 = true;
-    data.is_win32 = true;
-    data.is_windows = true;
+    data.mingw32 = true;
+    data.win32 = true;
+    data.windows = true;
 #endif
 
 #ifdef __MINGW64__
-    data.is_mingw64 = true;
-    data.is_win64 = true;
-    data.is_windows = true;
+    data.mingw64 = true;
+    data.win64 = true;
+    data.windows = true;
 #endif
 
 // Detect architecture using predefined macros
 #ifdef __x86_64__
-    data.is_x86_64 = true;
+    data.x86_64 = true;
 #endif
 
 #ifdef __i386__
-    data.is_i386 = true;
+    data.i386 = true;
 #endif
 
 #ifdef __arm__
-    data.is_arm = true;
+    data.arm = true;
 #endif
 
 #ifdef __aarch64__
-    data.is_aarch64 = true;
+    data.aarch64 = true;
 #endif
 
-    data.is_little_endian = IS_LITTLE_ENDIAN;
+    data.little_endian = IS_LITTLE_ENDIAN;
 
 }
 
@@ -2039,67 +2038,67 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
 
     // Check for Windows
     if (triple.isOSWindows()) {
-        data.is_windows = true;
+        data.windows = true;
         if (arhType == llvm::Triple::x86) {
-            data.is_win32 = true;
+            data.win32 = true;
         } else if (arhType == llvm::Triple::x86_64) {
-            data.is_win64 = true;
+            data.win64 = true;
         }
     }
 
     // Check for Linux
     if (triple.isOSLinux()) {
-        data.is_linux = true;
-        data.is_unix = true;
+        data.linux = true;
+        data.unix = true;
     }
 
     // Check for macOS
     if (triple.isMacOSX()) {
-        data.is_macos = true;
-        data.is_unix = true;
+        data.macos = true;
+        data.unix = true;
     }
 
     // Check for FreeBSD
     if (triple.isOSFreeBSD()) {
-        data.is_freebsd = true;
-        data.is_unix = true;
+        data.freebsd = true;
+        data.unix = true;
     }
 
     // Check for Android
     if (triple.isAndroid()) {
-        data.is_android = true;
-        data.is_unix = true;
+        data.android = true;
+        data.unix = true;
     }
 
     // Check for Cygwin
     if (triple.isOSCygMing()) {
-        data.is_cygwin = true;
-        data.is_unix = true;
+        data.cygwin = true;
+        data.unix = true;
     }
 
     if(triple.isArch64Bit()) {
-        data.is_64Bit = true;
+        data.is64Bit = true;
     }
 
     // Check for architecture
     switch(arhType) {
         case llvm::Triple::x86_64:
-            data.is_x86_64 = true;
+            data.x86_64 = true;
             break;
         case llvm::Triple::x86:
-            data.is_i386 = true;
+            data.i386 = true;
             break;
         case llvm::Triple::arm:
-            data.is_arm = true;
+            data.arm = true;
             break;
         case llvm::Triple::aarch64:
-            data.is_aarch64 = true;
+            data.aarch64 = true;
             break;
         default:
             break;
     }
 
-    data.is_little_endian = triple.isLittleEndian();
+    data.little_endian = triple.isLittleEndian();
 
 }
 
@@ -2142,57 +2141,57 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::stri
 
     // Determine architecture
     if (arch == "x86_64") {
-        data.is_x86_64 = true;
+        data.x86_64 = true;
     } else if (arch == "i386") {
-        data.is_i386 = true;
+        data.i386 = true;
     } else if (arch == "arm") {
-        data.is_arm = true;
+        data.arm = true;
     } else if (arch == "aarch64") {
-        data.is_aarch64 = true;
+        data.aarch64 = true;
     }
 
     // Determine operating system
     if (sys == "linux") {
-        data.is_linux = true;
-        data.is_unix = true;
+        data.linux = true;
+        data.unix = true;
     } else if (sys == "windows") {
-        data.is_win32 = true;
-        data.is_windows = true;
+        data.win32 = true;
+        data.windows = true;
     } else if (sys == "darwin") {
-        data.is_macos = true;
-        data.is_unix = true;
+        data.macos = true;
+        data.unix = true;
     } else if (sys == "freebsd") {
-        data.is_freebsd = true;
-        data.is_unix = true;
+        data.freebsd = true;
+        data.unix = true;
     } else if (sys == "android") {
-        data.is_android = true;
-        data.is_unix = true;
+        data.android = true;
+        data.unix = true;
     } else if (sys == "cygwin") {
-        data.is_cygwin = true;
-        data.is_unix = true;
+        data.cygwin = true;
+        data.unix = true;
     } else if (sys == "mingw32") {
-        data.is_mingw32 = true;
-        data.is_win32 = true;
-        data.is_windows = true;
+        data.mingw32 = true;
+        data.win32 = true;
+        data.windows = true;
     } else if (sys == "mingw64") {
-        data.is_win64 = true;
-        data.is_windows = true;
+        data.win64 = true;
+        data.windows = true;
     }
 
     if (arch == "x86_64" || arch == "i386" || arch == "aarch64") {
-        data.is_little_endian = true;
+        data.little_endian = true;
     } else if (arch == "arm") {
         if (target_triple.find("arm-be") != std::string::npos || abi == "be") {
-            data.is_little_endian = false;
+            data.little_endian = false;
         } else if (target_triple.find("arm-le") != std::string::npos || abi == "le") {
-            data.is_little_endian = true;
+            data.little_endian = true;
         } else {
-            data.is_little_endian = IS_LITTLE_ENDIAN;
+            data.little_endian = IS_LITTLE_ENDIAN;
         }
     } else if (arch.find("be") != std::string::npos) {
-        data.is_little_endian = false;
+        data.little_endian = false;
     } else {
-        data.is_little_endian = IS_LITTLE_ENDIAN;
+        data.little_endian = IS_LITTLE_ENDIAN;
     }
 
 }
@@ -2203,62 +2202,49 @@ BoolValue* boolValue(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool val
     return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
 }
 
-void set_def_test_value(GlobalContainer* container, bool value) {
-    auto& values = container->defThing.defValue.values;
-    auto found = values.find(chem::string_view("test"));
-    if(found != values.end()) {
-        found->second.value->as_bool_unsafe()->value = value;
-    }
+void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefThing& defThing, const TargetData& data) {
+    const auto boolType = typeBuilder.getBoolType();
+    defThing.declare_value(allocator, "tcc", boolType, boolValue(allocator, typeBuilder, data.tcc));
+    defThing.declare_value(allocator, "clang", boolType, boolValue(allocator, typeBuilder, data.clang));
+    defThing.declare_value(allocator, "lsp", boolType, boolValue(allocator, typeBuilder, data.lsp));
+    defThing.declare_value(allocator, "test", boolType, boolValue(allocator, typeBuilder, data.test));
+    defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, typeBuilder, data.debug));
+    defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, typeBuilder, data.debug_quick));
+    defThing.declare_value(allocator, "debug_complete", boolType, boolValue(allocator, typeBuilder, data.debug_complete));
+    defThing.declare_value(allocator, "release", boolType, boolValue(allocator, typeBuilder, data.release));
+    defThing.declare_value(allocator, "release_safe", boolType, boolValue(allocator, typeBuilder, data.release_safe));
+    defThing.declare_value(allocator, "release_small", boolType, boolValue(allocator, typeBuilder, data.release_small));
+    defThing.declare_value(allocator, "release_fast", boolType, boolValue(allocator, typeBuilder, data.release_fast));
+    defThing.declare_value(allocator, "little_endian", boolType, boolValue(allocator, typeBuilder, data.little_endian));
+    defThing.declare_value(allocator, "big_endian", boolType, boolValue(allocator, typeBuilder, data.big_endian));
+    defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, typeBuilder, data.is64Bit));
+    defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, typeBuilder, data.windows));
+    defThing.declare_value(allocator, "posix", boolType, boolValue(allocator, typeBuilder, data.posix));
+    defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, typeBuilder, data.win32));
+    defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, typeBuilder, data.win64));
+    defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, typeBuilder, data.linux));
+    defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, typeBuilder, data.macos));
+    defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, typeBuilder, data.freebsd));
+    defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, typeBuilder, data.unix));
+    defThing.declare_value(allocator, "gnu", boolType, boolValue(allocator, typeBuilder, data.gnu));
+    defThing.declare_value(allocator, "android", boolType, boolValue(allocator, typeBuilder, data.android));
+    defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, typeBuilder, data.cygwin));
+    defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, typeBuilder, data.mingw32));
+    defThing.declare_value(allocator, "x86_64", boolType, boolValue(allocator, typeBuilder, data.x86_64));
+    defThing.declare_value(allocator, "i386", boolType, boolValue(allocator, typeBuilder, data.i386));
+    defThing.declare_value(allocator, "arm", boolType, boolValue(allocator, typeBuilder, data.arm));
+    defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, typeBuilder, data.aarch64));
 }
 
-void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, const std::string& target_triple, bool test_env) {
-    auto& targetData = scope.target_data;
-    scope.prepare_target_data(targetData, target_triple);
+void create_target_data_in_def(GlobalInterpretScope& scope, DefThing& defThing, const TargetData& data) {
     // declaring native definitions like windows and stuff
     auto& allocator = scope.allocator;
     // we change the global interpret scope for each job, so we must redeclare def value
     scope.values["def"] = &defThing.defValue;
-    const auto boolType = new (allocator.allocate<BoolType>()) BoolType();
-    const auto mode = scope.mode;
-#ifdef LSP_BUILD
-    const auto lsp_build = true;
-#else
-    const auto lsp_build = false;
-#endif
-    auto& typeBuilder = scope.typeBuilder;
-    defThing.declare_value(allocator, "lsp", boolType, boolValue(allocator, typeBuilder, lsp_build));
-    defThing.declare_value(allocator, "using_tcc", boolType, boolValue(allocator, typeBuilder, false));
-    defThing.declare_value(allocator, "test", boolType, boolValue(allocator, typeBuilder, test_env));
-    defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, typeBuilder, is_debug(mode)));
-    defThing.declare_value(allocator, "debug_quick", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::DebugQuick));
-    defThing.declare_value(allocator, "debug_complete", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::DebugComplete));
-    defThing.declare_value(allocator, "release", boolType, boolValue(allocator, typeBuilder, is_release(mode)));
-    defThing.declare_value(allocator, "release_safe", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::ReleaseSafe));
-    defThing.declare_value(allocator, "release_small", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::ReleaseSmall));
-    defThing.declare_value(allocator, "release_fast", boolType, boolValue(allocator, typeBuilder, mode == OutputMode::ReleaseFast));
-    defThing.declare_value(allocator, "is_little_endian", boolType, boolValue(allocator, typeBuilder, targetData.is_little_endian));
-    defThing.declare_value(allocator, "is_big_endian", boolType, boolValue(allocator, typeBuilder, !targetData.is_little_endian));
-    defThing.declare_value(allocator, "is64Bit", boolType, boolValue(allocator, typeBuilder, targetData.is_64Bit));
-    defThing.declare_value(allocator, "windows", boolType, boolValue(allocator, typeBuilder, targetData.is_windows));
-    defThing.declare_value(allocator, "posix", boolType, boolValue(allocator, typeBuilder, !targetData.is_windows));
-    defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, typeBuilder, targetData.is_win32));
-    defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, typeBuilder, targetData.is_win64));
-    defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, typeBuilder, targetData.is_linux));
-    defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, typeBuilder, targetData.is_macos));
-    defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, typeBuilder, targetData.is_freebsd));
-    defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, typeBuilder, targetData.is_unix));
-    // TODO: get the right value for is_GNU for posix systems
-    defThing.declare_value(allocator, "gnu", boolType, boolValue(allocator, typeBuilder, targetData.is_unix));
-    defThing.declare_value(allocator, "android", boolType, boolValue(allocator, typeBuilder, targetData.is_android));
-    defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, typeBuilder, targetData.is_cygwin));
-    defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, typeBuilder, targetData.is_mingw32));
-    defThing.declare_value(allocator, "x86_64", boolType, boolValue(allocator, typeBuilder, targetData.is_x86_64));
-    defThing.declare_value(allocator, "i386", boolType, boolValue(allocator, typeBuilder, targetData.is_i386));
-    defThing.declare_value(allocator, "arm", boolType, boolValue(allocator, typeBuilder, targetData.is_arm));
-    defThing.declare_value(allocator, "aarch64", boolType, boolValue(allocator, typeBuilder, targetData.is_aarch64));
+    declare_def_values(allocator, scope.typeBuilder, defThing, data);
 }
 
-void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr, const std::string& target_triple, bool test_env) {
+void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalContainer* container_ptr, const TargetData& data) {
     auto& container = *container_ptr;
 
     // from previous (job / lsp request) global interpret scope, user may have introduced declarations into
@@ -2284,11 +2270,11 @@ void GlobalInterpretScope::rebind_container(SymbolResolver& resolver, GlobalCont
     // we recreate the target data, because the allocator disposes at the end of each job
     // and this method is called after disposal of the allocator when the job ends, and a new job starts
     // also the target data depends on the target, each target can have different variables
-    create_target_data_in_def(*this, container.defThing, target_triple, test_env);
+    create_target_data_in_def(*this, container.defThing, data);
 
 }
 
-GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver, const std::string& target_triple, bool test_env) {
+GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver, const TargetData& data) {
 
     auto& typeCache = resolver.comptime_scope.typeBuilder;
     const auto container_ptr = new GlobalContainer(typeCache);
@@ -2305,7 +2291,7 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     declarer.visit(&container.defThing.decl);
     declarer.visit(&container.defThing.defStmt);
 
-    create_target_data_in_def(*this, container.defThing, target_triple, test_env);
+    create_target_data_in_def(*this, container.defThing, data);
 
     return container_ptr;
 }
@@ -2322,15 +2308,15 @@ BoolValue* get_global_condition(GlobalContainer* container, const chem::string_v
     return nullptr;
 }
 
-bool set_global_condition(GlobalContainer* container, const chem::string_view& name, bool enable) {
-    const auto cond = get_global_condition(container, name);
-    if(cond) {
-        cond->value = enable;
-        return true;
-    } else {
-        return false;
-    }
-}
+//bool set_global_condition(GlobalContainer* container, const chem::string_view& name, bool enable) {
+//    const auto cond = get_global_condition(container, name);
+//    if(cond) {
+//        cond->value = enable;
+//        return true;
+//    } else {
+//        return false;
+//    }
+//}
 
 std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name) {
     const auto cond = get_global_condition(container, name);

@@ -1,7 +1,7 @@
 public type uint32_t = uint
 public type uint8_t = uchar
 
-if(def.is_big_endian) {
+if(def.big_endian) {
     func htole32(value : uint32_t) : uint32_t {
         return (((value & 0xFF000000) >> 24) | ((value & 0x00FF0000) >> 8)  | ((value & 0x0000FF00) << 8)  | ((value & 0x000000FF) << 24));
     }
@@ -27,7 +27,7 @@ public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t
     // for each 4 byte chunk of `key'
     for (i = -l; i != 0; ++i) {
         // next 4 byte chunk of `key'
-        if(def.is_big_endian) {
+        if(def.big_endian) {
             k = htole32(chunks[i]);
         } else {
             k = chunks[i];

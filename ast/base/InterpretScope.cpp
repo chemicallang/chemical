@@ -257,10 +257,6 @@ void InterpretScope::error(std::string_view err, Value* any) {
     global->interpret_error(err, any);
 }
 
-bool InterpretScope::isTarget64Bit() {
-    return global->target_data.is_64Bit;
-}
-
 void InterpretScope::print_values() {
     std::cout << "Values:" << std::endl;
     for (auto const &value: values) {

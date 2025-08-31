@@ -9,27 +9,38 @@
 #include "core/diag/Diagnostic.h"
 #include <string>
 
-struct ModIfCondition {
+enum class ModFileIfExprOp { And, Or };
 
-    chem::string_view if_condition;
-
-    bool is_negative = false;
-
+struct ModFileIfBase {
+    bool is_id;
 };
 
-struct ModFileSource : public ModIfCondition {
+struct ModFileIfId : public ModFileIfBase {
+    bool is_negative;
+    chem::string_view value;
+};
+
+struct ModFileIfExpr : public ModFileIfBase {
+    ModFileIfBase* left;
+    ModFileIfBase* right;
+    ModFileIfExprOp op;
+};
+
+struct ModFileSource {
 
     chem::string_view path;
 
+    ModFileIfBase* if_cond = nullptr;
+
 };
 
-enum class ModFileLinkLibKind { Name, File, DefaultLib };
+enum class ModFileLinkLibKind { Name, File };
 
 enum class ModFileLinkLibVisibility { Unknown };
 
 enum class ModFileLinkLibType { Unknown };
 
-struct ModFileLinkLib : public ModIfCondition {
+struct ModFileLinkLib {
 
     chem::string_view name;
 
@@ -38,6 +49,8 @@ struct ModFileLinkLib : public ModIfCondition {
     ModFileLinkLibVisibility visibility = ModFileLinkLibVisibility::Unknown;
 
     ModFileLinkLibType type = ModFileLinkLibType::Unknown;
+
+    ModFileIfBase* if_cond = nullptr;
 
 };
 

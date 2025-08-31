@@ -3619,6 +3619,18 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     }
 }
 
+void ToCAstVisitor::destruct_current_scope(Value* returnValue) {
+    int i = ((int) destructor->destruct_jobs.size()) - 1;
+    auto new_line_prev = destructor->new_line_before;
+    destructor->new_line_before = false;
+    while(i >= 0) {
+        destructor->destruct(destructor->destruct_jobs[i], returnValue);
+        i--;
+    }
+    destructor->new_line_before = new_line_prev;
+    destructor->destroy_current_scope = false;
+}
+
 void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
     const auto val = returnValue;
     const auto return_type = current_func_type->returnType;
@@ -3640,16 +3652,7 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
         write(';');
         new_line_and_indent();
     }
-    int i = ((int) destructor->destruct_jobs.size()) - 1;
-    auto new_line_prev = destructor->new_line_before;
-    destructor->new_line_before = false;
-    auto current_return = returnValue ? returnValue : nullptr;
-    while(i >= 0) {
-        destructor->destruct(destructor->destruct_jobs[i], current_return);
-        i--;
-    }
-    destructor->new_line_before = new_line_prev;
-    destructor->destroy_current_scope = false;
+    destruct_current_scope(returnValue);
     if(returnValue) {
 //        if(handle_return_after) {
             write("return");

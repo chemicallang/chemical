@@ -27,7 +27,11 @@ struct GlobalContainer;
 
 class TypeBuilder;
 
+struct ModFileIfBase;
+
 std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name);
+
+std::optional<bool> is_condition_enabled(GlobalContainer* container, ModFileIfBase* base);
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
 public:

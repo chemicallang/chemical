@@ -1993,16 +1993,16 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // get all the sources
     for(auto& src : modFileData.sources_list) {
-        if(src.if_condition.empty()) {
+        if(src.if_cond == nullptr) {
             module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
         } else {
-            const auto cond_result = is_condition_enabled(container, src.if_condition);
-            if(cond_result.has_value()) {
-                if(neg_it(src.is_negative, cond_result.value())) {
+            auto resolved = is_condition_enabled(container, src.if_cond);
+            if (resolved.has_value()) {
+                if(resolved.value()) {
                     module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
                 }
             } else {
-                std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "unknown condition '" << src.if_condition << "'" << std::endl;
+                std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << std::endl;
             }
         }
     }

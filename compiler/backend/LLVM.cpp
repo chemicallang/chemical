@@ -1279,6 +1279,27 @@ void Codegen::conditional_destruct(
     }
 }
 
+void destruct_current_scope(Codegen& gen, Value* returnValue, SourceLocation location) {
+    if(!gen.has_current_block_ended) {
+        const auto func_type = gen.current_func_type;
+        VariableIdentifier temp_id("", location, false);
+        int i = gen.destruct_nodes.size() - 1;
+        while(i >= 0) {
+            auto& nodePair = gen.destruct_nodes[i];
+            // before we send this node for destruction, we must emit an error
+            // if it's nested member has been moved somewhere, because we canot
+            temp_id.linked = nodePair.getInitializer();
+            if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
+                gen.conditional_destruct(nodePair, returnValue, location);
+            } else {
+                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer()->encoded_location(), location);
+            }
+            i--;
+        }
+        gen.destroy_current_scope = false;
+    }
+}
+
 void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
 
     auto& gen = *this;
@@ -1344,25 +1365,9 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
         }
     }
 
-    VariableIdentifier temp_id("", location, false);
+    // destruction of current scope
+    destruct_current_scope(gen, value, location);
 
-    // destruction
-    if(!gen.has_current_block_ended) {
-        int i = gen.destruct_nodes.size() - 1;
-        while(i >= 0) {
-            auto& nodePair = gen.destruct_nodes[i];
-            // before we send this node for destruction, we must emit an error
-            // if it's nested member has been moved somewhere, because we canot
-            temp_id.linked = nodePair.getInitializer();
-            if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-                gen.conditional_destruct(nodePair, value, location);
-            } else {
-                gen.error("cannot destruct uninit value at return because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer()->encoded_location(), location);
-            }
-            i--;
-        }
-        gen.destroy_current_scope = false;
-    }
     // return the return value calculated above
     if (value) {
         gen.CreateRet(return_value, location);
@@ -2034,4 +2039,9 @@ void LLVMBackendContext::mem_copy(Value* lhs, Value* rhs) {
     auto pointer = lhs->llvm_pointer(gen);
     auto val = rhs->llvm_value(gen, nullptr);
     gen.memcpy_struct(rhs->llvm_type(gen), pointer, val, rhs->encoded_location());
+}
+
+void LLVMBackendContext::destruct_call_site(SourceLocation location) {
+    auto& gen = *gen_ptr;
+    destruct_current_scope(gen, nullptr, location);
 }

@@ -43,6 +43,7 @@
 #include "core/source/LocationManager.h"
 #include "ast/base/TypeBuilder.h"
 #include "compiler/symres/DeclareTopLevel.h"
+#include "compiler/processor/ModuleFileData.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -1760,7 +1761,7 @@ public:
     ) : FunctionDeclaration(
             ZERO_LOC_ID("alignof_lambda_captured"),
             {cache.getUBigIntType(), ZERO_LOC},
-            true,
+            false,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
@@ -1783,6 +1784,30 @@ public:
     }
 };
 
+class InterpretDestructCallSite : public FunctionDeclaration {
+public:
+
+    explicit InterpretDestructCallSite(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("destruct_call_site"),
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        call_scope->global->backend_context->destruct_call_site(call->encoded_location());
+        return nullptr;
+    }
+
+};
 
 class MemNamespace : public Namespace {
 public:
@@ -1861,6 +1886,8 @@ public:
     InterpretSizeOfLambdaCaptured sizeof_lambda_captured;
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
+    InterpretDestructCallSite destruct_call_site;
+
     InterpretGetTests get_tests_fn;
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
 
@@ -1882,7 +1909,7 @@ public:
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
-        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this)
+        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -1892,7 +1919,8 @@ public:
             &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
-            &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured
+            &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
+            &destruct_call_site
         };
     }
 
@@ -2325,6 +2353,46 @@ std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem:
     } else {
         return std::nullopt;
     }
+}
+
+std::optional<bool> is_condition_enabled(GlobalContainer* container, ModFileIfBase* base) {
+    if(base == nullptr) return std::nullopt;
+    if(base->is_id) {
+        const auto if_id = (ModFileIfId*) base;
+        auto value = is_condition_enabled(container, if_id->value);
+        if(value.has_value()) {
+            if(if_id->is_negative) {
+                return !value.value();
+            }
+        }
+        return value;
+    } else {
+        const auto if_expr = (ModFileIfExpr*) base;
+        auto value = is_condition_enabled(container, if_expr->left);
+        if(value.has_value()) {
+            if(value.value() && if_expr->op == ModFileIfExprOp::Or) {
+                // value is true, in or expression, we do not need to resolve second
+                return true;
+            } else if(!value.value() && if_expr->op == ModFileIfExprOp::And) {
+                // value is false, in and expression, we do not need to resolve second
+                return false;
+            } else {
+                // resolve the second
+                auto second = is_condition_enabled(container, if_expr->right);
+                if(second.has_value()) {
+                    switch(if_expr->op) {
+                        case ModFileIfExprOp::And:
+                            // if its and, it means the first value was true, everything depends on the second value
+                            return second.value();
+                        case ModFileIfExprOp::Or:
+                            // if its or, it means the first value was false, everything depends on the second value
+                            return second.value();
+                    }
+                }
+            }
+        }
+    }
+    return std::nullopt;
 }
 
 void GlobalInterpretScope::dispose_container(GlobalContainer* container) {

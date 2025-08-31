@@ -103,9 +103,26 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 if(src.is_negative) {
                     output << '!';
                 }
-                output << "ctx.resolve_condition(job, \"" << src.if_condition << "\")) {\n\t";
+                output << "job.target." << src.if_condition << ") {\n";
             }
             output << "\tctx.add_path(mod, lab::rel_path_to(\"" << src.path << "\").to_view());\n";
+            if(has_if) {
+                output << "\t}\n";
+            }
+        }
+    }
+
+    if(!data.link_libs.empty()) {
+        for(auto& lib : data.link_libs) {
+            const auto has_if = !lib.if_condition.empty();
+            if(has_if) {
+                output << "if(";
+                if(lib.is_negative) {
+                    output << '!';
+                }
+                output << "job.target." << lib.if_condition << ") {\n";
+            }
+            output << "\tctx.link_system_lib(mod, \"" << lib.name << "\")\n";
             if(has_if) {
                 output << "\t}\n";
             }

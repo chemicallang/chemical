@@ -3386,7 +3386,7 @@ void ToCAstVisitor::prepare_translate() {
     declare_fat_pointer(*this);
     // declaring malloc function
     new_line_and_indent();
-    if(comptime_scope.target_data.is_win64) {
+    if(comptime_scope.target_data.win64) {
         write("extern void* malloc(unsigned long long size);\n");
     } else {
         write("extern void* malloc(unsigned long size);\n");

@@ -478,7 +478,7 @@ llvm::Function* Codegen::getMallocFn() {
         return previousFunc;
     } else {
         auto& data = comptime_scope.target_data;
-        const auto paramType = (data.is_win64 || data.is_64Bit) ? builder->getInt64Ty() : builder->getInt32Ty();
+        const auto paramType = (data.win64 || data.is64Bit) ? builder->getInt64Ty() : builder->getInt32Ty();
         const auto retTy = builder->getPtrTy();
         const auto type = llvm::FunctionType::get(retTy, { paramType }, false);
         return create_func(*this, "malloc", type, llvm::Function::LinkageTypes::ExternalLinkage);

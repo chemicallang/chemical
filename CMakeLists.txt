@@ -581,7 +581,6 @@ set(COMMON_SOURCES
         compiler/frontend/AnnotationController.h
         compiler/frontend/AnnotationController.cpp
         lang/libs/cstd/posix/io/spawn.ch
-        ast/utils/GlobalContainerFunctions.h
         ast/values/IfValue.h
         ast/values/SwitchValue.h
         ast/values/LoopValue.h

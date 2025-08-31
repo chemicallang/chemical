@@ -15,12 +15,13 @@
 
 GlobalInterpretScope::GlobalInterpretScope(
     OutputMode mode,
+    TargetData& target_data,
     BackendContext* context,
     LabBuildCompiler* buildCompiler,
     ASTAllocator& allocator,
     TypeBuilder& typeBuilder,
     LocationManager& loc_man
-) : ASTDiagnoser(loc_man), InterpretScope(nullptr, allocator, this), mode(mode),
+) : ASTDiagnoser(loc_man), InterpretScope(nullptr, allocator, this), mode(mode), target_data(target_data),
     backend_context(context), build_compiler(buildCompiler), allocator(allocator), typeBuilder(typeBuilder) {
 
 }

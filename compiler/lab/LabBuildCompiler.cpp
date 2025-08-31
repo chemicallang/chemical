@@ -980,7 +980,7 @@ void begin_job_print(LabJob* job) {
 
 }
 
-void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope& global, SymbolResolver& resolver, const std::string& target_triple) {
+void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope& global, SymbolResolver& resolver, const TargetData& data) {
     const auto verbose = compiler->options->verbose;
     if(compiler->container) {
         if(verbose) {
@@ -988,30 +988,18 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
         }
         // bind global container that contains namespaces like std and compiler
         // reusing it, if we created it before
-        global.rebind_container(resolver, compiler->container, target_triple, compiler->is_testing_env);
+        global.rebind_container(resolver, compiler->container, data);
     } else {
         if(verbose) {
             std::cout << "[lab] " << "creating comptime methods" << std::endl;
         }
         // allow user the compiler (namespace) functions in @comptime
         // we create the new global container here once
-        compiler->container = global.create_container(resolver, target_triple, compiler->is_testing_env);
+        compiler->container = global.create_container(resolver, data);
         if(verbose) {
             std::cout << "[lab] " << "created the global container" << std::endl;
         }
     }
-}
-
-void set_global_condition_reporting(LabBuildCompiler* compiler, const chem::string_view& name, bool value) {
-    if(!set_global_condition(compiler->container, name, value)) {
-#ifdef DEBUG
-        throw std::runtime_error("couldn't set global condition");
-#endif
-    }
-}
-
-void prepare_job_globals(LabBuildCompiler* compiler, GlobalInterpretScope& global, LabJob* job, bool using_tcc) {
-    set_global_condition_reporting(compiler, "using_tcc", using_tcc);
 }
 
 int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
@@ -1297,7 +1285,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->outMode, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // we hold the instantiated types inside this container
     InstantiationsContainer instContainer;
@@ -1317,7 +1305,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
-    create_or_rebind_container(this, global, resolver, job->target_triple.to_std_string());
+    create_or_rebind_container(this, global, resolver, job->target_data);
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -1528,7 +1516,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(options->outMode, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // generic instantiations types are stored here
     InstantiationsContainer instContainer;
@@ -1554,7 +1542,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(job->path_aliases);
 
-    create_or_rebind_container(this, global, resolver, job->target_triple.to_std_string());
+    create_or_rebind_container(this, global, resolver, job->target_data);
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -2525,9 +2513,14 @@ TCCState* LabBuildCompiler::built_lab_file(
         bool mod_file_source
 ) {
 
+    // this is host target data
+    // since we are generating code for the target system
+    // compiler specific target data is fine
+    auto targetData = create_target_data();
+
     // a global interpret scope required to evaluate compile time things
     // empty target triple, because we are targeting the current system
-    GlobalInterpretScope global(options->outMode, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(options->outMode, targetData, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // instantiations container holds the types
     InstantiationsContainer instContainer;
@@ -2552,7 +2545,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // creates or rebinds the global container
     // empty target triple (current system)
-    create_or_rebind_container(this, global, lab_resolver, "");
+    create_or_rebind_container(this, global, lab_resolver, targetData);
 
     // compiler interfaces the lab files imports
     ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);

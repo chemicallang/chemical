@@ -58,9 +58,9 @@ extern "C" {
 
     LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path);
 
-    bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface);
+    void BuildContextlink_system_lib(LabBuildContext* self, LabModule* module, chem::string_view* name);
 
-    bool BuildContextresolve_condition(LabBuildContext* self, LabJob* job, chem::string_view* condition);
+    bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface);
 
     void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path);
 

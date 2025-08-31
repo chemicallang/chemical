@@ -9,9 +9,7 @@
 #include "core/diag/Diagnostic.h"
 #include <string>
 
-struct ModFileSource {
-
-    chem::string_view path;
+struct ModIfCondition {
 
     chem::string_view if_condition;
 
@@ -19,7 +17,11 @@ struct ModFileSource {
 
 };
 
-typedef ModFileSource ModuleFileSource;
+struct ModFileSource : public ModIfCondition {
+
+    chem::string_view path;
+
+};
 
 enum class ModFileLinkLibKind { Name, File, DefaultLib };
 
@@ -27,7 +29,7 @@ enum class ModFileLinkLibVisibility { Unknown };
 
 enum class ModFileLinkLibType { Unknown };
 
-struct ModFileLinkLib {
+struct ModFileLinkLib : public ModIfCondition {
 
     chem::string_view name;
 
@@ -36,8 +38,6 @@ struct ModFileLinkLib {
     ModFileLinkLibVisibility visibility = ModFileLinkLibVisibility::Unknown;
 
     ModFileLinkLibType type = ModFileLinkLibType::Unknown;
-
-    chem::string_view if_condition;
 
 };
 
@@ -62,7 +62,12 @@ public:
     /**
      * sources list tells us directories or files included in compilation
      */
-    std::vector<ModuleFileSource> sources_list;
+    std::vector<ModFileSource> sources_list;
+
+    /**
+     * libraries user asked us to link for this module
+     */
+    std::vector<ModFileLinkLib> link_libs;
 
     /**
      * interface declarations in chemical.mod file allowing user to import

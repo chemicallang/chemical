@@ -65,6 +65,11 @@ struct LabModule {
     std::vector<chem::string> paths;
 
     /**
+     * system libraries that would be linked with this module
+     */
+    std::vector<chem::string> link_system_libs;
+
+    /**
      * these are interfaces (that contain functions)required by the module
      * which will be implemented by the compiler, to provide interaction between
      * module and compiler's api (cool, isn't it)

@@ -466,29 +466,28 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
         return false;
     }
 
-    // TODO: this is link
-//    data.sources_list.emplace_back();
-//    auto& source = data.sources_list.back();
-//
-//    // get the source path
-//    auto sourcePath = parseString(allocator);
-//    if(sourcePath.has_value()) {
-//        source.path = sourcePath.value();
-//    } else {
-//        error("expected a source path");
-//        return false;
-//    }
+    data.link_libs.emplace_back();
+    auto& link_lib = data.link_libs.back();
+
+    // get the library name
+    auto libName = parseString(allocator);
+    if(libName.has_value()) {
+        link_lib.name = libName.value();
+    } else {
+        error("expected a library name");
+        return false;
+    }
 
     // condition is required
-//    if(consumeToken(TokenType::IfKw)) {
-//        source.is_negative = consumeToken(TokenType::NotSym);
-//        auto id = consumeIdentifierOrKeyword();
-//        if(id) {
-//            source.if_condition = allocate_view(allocator, id->value);
-//        } else {
-//            error("expected if condition after if in source statement");
-//        }
-//    }
+    if(consumeToken(TokenType::IfKw)) {
+        link_lib.is_negative = consumeToken(TokenType::NotSym);
+        auto id = consumeIdentifierOrKeyword();
+        if(id) {
+            link_lib.if_condition = allocate_view(allocator, id->value);
+        } else {
+            error("expected if condition after if in source statement");
+        }
+    }
 
     return true;
 

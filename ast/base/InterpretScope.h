@@ -146,11 +146,6 @@ public:
     /**
      * get if it's 64bit
      */
-    bool isTarget64Bit();
-
-    /**
-     * get if it's 64bit
-     */
     inline constexpr bool isInterpret64Bit() {
         return sizeof(void*) == 8;
     }

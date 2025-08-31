@@ -41,6 +41,57 @@ void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string_vi
     }
 }
 
+void set_job_mode(TargetData& data, OutputMode mode) {
+    data.debug = is_debug(mode);
+    data.debug_quick = mode == OutputMode::DebugQuick;
+    data.debug_complete = mode == OutputMode::DebugComplete;
+    data.release = is_release(mode);
+    data.release_safe = mode == OutputMode::ReleaseSafe;
+    data.release_small = mode == OutputMode::ReleaseSmall;
+    data.release_fast = mode == OutputMode::ReleaseFast;
+}
+
+void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::string& target_triple) {
+    // setting if compiler is tcc
+    if(options->use_tcc) {
+        job->target_data.tcc = true;
+    } else {
+        switch(job->type) {
+            case LabJobType::JITExecutable:
+            case LabJobType::ToCTranslation:
+            case LabJobType::CBI:
+                // no need to initialize target triple
+                // keeping it empty, so host target triple is used
+                job->target_data.tcc = true;
+                break;
+            default:
+                job->target_data.tcc = false;
+                break;
+        }
+    }
+    // tiny cc doesn't support target triple
+    job->target_triple.clear();
+    if(!target_triple.empty()) {
+        job->target_triple.append(target_triple);
+    }
+    // setting the default output mode
+    job->mode = options->outMode;
+    set_job_mode(job->target_data, options->outMode);
+    // setting job specific variables
+#ifdef LSP_BUILD
+    job->target_data.lsp = true;
+#else
+    job->target_data.lsp = false;
+#endif
+    // we should allow changing this
+    job->target_data.test = false;
+
+}
+
+void initialize_job(LabJob* job, LabBuildCompilerOptions* options) {
+    initialize_job(job, options, options->target_triple);
+}
+
 void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases, std::string alias, std::string path) {
     const auto path_last = path.size() - 1;
     if(path[path_last] == '/') {
@@ -164,7 +215,7 @@ LabJob* LabBuildContext::translate_to_chemical(
         chem::string_view* out_path
 ) {
     auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"));
-    job->target_triple.append(compiler.options->target_triple);
+    initialize_job(job, compiler.options);
     executables.emplace_back(job);
     job->abs_path.append(*out_path);
     job->dependencies.emplace_back(module);
@@ -183,7 +234,7 @@ LabJob* LabBuildContext::translate_to_c(
         chem::string_view* out_path
 ) {
     auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name));
-    job->target_triple.append(compiler.options->target_triple);
+    initialize_job(job, compiler.options);
     executables.emplace_back(job);
     set_build_dir(job);
     job->abs_path.append(*out_path);
@@ -197,7 +248,7 @@ LabJob* LabBuildContext::build_exe(
         unsigned int dep_len
 ) {
     auto exe = new LabJob(LabJobType::Executable, chem::string(*name));
-    exe->target_triple.append(compiler.options->target_triple);
+    initialize_job(exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -215,7 +266,7 @@ LabJob* LabBuildContext::run_jit_exe(
         unsigned int dep_len
 ) {
     auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name));
-    // jit executables use the target triple of current system
+    initialize_job(exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto exe_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -233,7 +284,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
         unsigned int dep_len
 ) {
     auto exe = new LabJob(LabJobType::Library, chem::string(*name));
-    exe->target_triple.append(compiler.options->target_triple);
+    initialize_job(exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
     auto output_path = resolve_rel_child_path_str(exe->build_dir.to_view(), name->view());
@@ -255,7 +306,7 @@ LabJob* LabBuildContext::build_cbi(
         unsigned int dep_len
 ) {
     auto exe = new LabJobCBI(chem::string(*name));
-    // cbi jobs also use the current system target triple
+    initialize_job((LabJob*) exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);

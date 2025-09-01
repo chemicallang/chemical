@@ -2,7 +2,7 @@
 func addr2line_for_exec(exe_path : *char, addr_offset_hex : *char, out_buf : *char, out_sz : size_t) : int {
     /* Build command: addr2line -e <exe_path> -f -p <offset>  (we use -f -p to get function+file:line)
        We'll use popen to read output. */
-    char [4096]cmd;
+    var cmd : [4096]char;
     /* Quote exe_path minimally (not robust against quotes). This is simple and workable. */
     snprintf(cmd, sizeof(cmd), "addr2line -e \"%s\" -f -p %s", exe_path, addr_offset_hex);
     var fp = popen(cmd, "r");

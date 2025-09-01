@@ -301,7 +301,8 @@ public:
      */
     LabModule* create_module_for_dependency(
             LabBuildContext& context,
-            ModuleDependencyRecord& dependency
+            ModuleDependencyRecord& dependency,
+            LabJob* job
     );
 
     /**
@@ -318,7 +319,8 @@ public:
      */
     LabModule* build_module_from_mod_file(
             LabBuildContext& context,
-            const std::string_view& modFilePath
+            const std::string_view& modFilePath,
+            LabJob* job
     );
 
     /**
@@ -330,13 +332,14 @@ public:
             const std::string_view& path,
             ASTProcessor& processor,
             ToCAstVisitor& c_visitor,
-            bool mod_file_source
+            bool mod_file_source,
+            LabJob* job
     );
 
     /**
      * create a module out of mod file
      */
-    LabModule* built_mod_file(LabBuildContext& context, const std::string_view& path);
+    LabModule* built_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* job);
 
     /**
      * create a module out of a build.lab file
@@ -344,7 +347,8 @@ public:
     TCCState* built_lab_file(
             LabBuildContext& context,
             const std::string_view& path,
-            bool mod_file_source
+            bool mod_file_source,
+            LabJob* job
     );
 
     /**

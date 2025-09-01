@@ -1803,7 +1803,8 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 
 LabModule* LabBuildCompiler::create_module_for_dependency(
         LabBuildContext& context,
-        ModuleDependencyRecord& dependency
+        ModuleDependencyRecord& dependency,
+        LabJob* job
 ) {
 
     auto& module_path = dependency.module_dir_path;
@@ -1818,7 +1819,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // build lab file into a tcc state
         // TODO verify the build method signature in the build.lab file
-        const auto state = built_lab_file(context, buildLabPath, false);
+        const auto state = built_lab_file(context, buildLabPath, false, job);
 
         // emit a warning or error
         if(state == nullptr) {
@@ -1829,14 +1830,14 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
         TCCDeletor auto_del(state);
 
         // get the build method
-        auto build = (LabModule*(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+        auto build = (LabModule*(*)(LabBuildContext*, LabJob*)) tcc_get_symbol(state, "chemical_lab_build");
         if(!build) {
             std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
             return nullptr;
         }
 
         // call the root build.lab build's function
-        const auto modPtr = build(&context);
+        const auto modPtr = build(&context, job);
 
         // store the mod pointer in cache, so we don't need to build this build.lab again
         buildLabDependenciesCache[std::move(buildLabPath)] = modPtr;
@@ -1855,7 +1856,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
             }
 
             // build the mod file
-            const auto modPtr = built_mod_file(context, modFilePath);
+            const auto modPtr = built_mod_file(context, modFilePath, job);
 
             // store the module pointer in cache
             buildLabDependenciesCache[std::move(modFilePath)] = modPtr;
@@ -1931,7 +1932,8 @@ static bool neg_it(bool neg_flag, bool result) {
 
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
-        const std::string_view& modFilePathView
+        const std::string_view& modFilePathView,
+        LabJob* job
 ) {
 
     const auto verbose = options->verbose;
@@ -2040,7 +2042,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     // however we must build their build.lab or chemical.mod into a LabModule*
     for(auto& mod_ptr : buildLabModuleDependencies) {
         // get the module pointer
-        const auto modDependency = create_module_for_dependency(context, mod_ptr);
+        const auto modDependency = create_module_for_dependency(context, mod_ptr, job);
         if(modDependency == nullptr) {
             return nullptr;
         }
@@ -2071,7 +2073,8 @@ TCCState* LabBuildCompiler::built_lab_file(
         const std::string_view& path_view,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        bool mod_file_source
+        bool mod_file_source,
+        LabJob* job
 ) {
 
     auto& lab_processor = processor;
@@ -2195,7 +2198,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     for(auto& mod_ptr : buildLabModuleDependencies) {
 
         // get the module pointer
-        const auto mod = create_module_for_dependency(context, mod_ptr);
+        const auto mod = create_module_for_dependency(context, mod_ptr, job);
         if(mod == nullptr) {
             return nullptr;
         }
@@ -2451,7 +2454,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 }
 
-LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std::string_view& path) {
+LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* job) {
 
     // create a directory for lab processing and dependent modules
     // we'll call it 'lab' inside the build directory
@@ -2464,7 +2467,7 @@ LabModule* LabBuildCompiler::built_mod_file(LabBuildContext& context, const std:
 
     // call the function
     const auto result = build_module_from_mod_file(
-            context, path
+            context, path, job
     );
 
     return result;
@@ -2510,7 +2513,8 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
         const std::string_view& path,
-        bool mod_file_source
+        bool mod_file_source,
+        LabJob* job
 ) {
 
     // this is host target data
@@ -2565,7 +2569,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(
-            context, path, lab_processor, c_visitor, mod_file_source
+            context, path, lab_processor, c_visitor, mod_file_source, job
     );
 
     return state;
@@ -2590,8 +2594,13 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // mkdir the build directory
     create_dir(options->build_dir);
 
+    // create the final job
+    LabJob final_job(LabJobType::Executable, chem::string("main"), chem::string(""), chem::string(options->build_dir));
+    final_job.mode = options->outMode;
+    final_job.target_triple.append(options->target_triple);
+
     // get build lab file into a tcc state
-    const auto state = built_lab_file(context, path, false);
+    const auto state = built_lab_file(context, path, false, &final_job);
     if(!state) {
         return 1;
     }
@@ -2666,8 +2675,13 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     // mkdir the build directory
     create_dir(options->build_dir);
 
-    // get build lab file into a tcc state
-    const auto state = built_lab_file(context, path, true);
+    // create the final job
+    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
+    final_job.mode = options->outMode;
+    final_job.target_triple.append(options->target_triple);
+
+    // get chemical.mod file into a tcc state
+    const auto state = built_lab_file(context, path, true, &final_job);
     if(!state) {
         return 1;
     }
@@ -2681,7 +2695,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     _file_allocator.clear();
 
     // get the build method
-    auto build = (LabModule*(*)(LabBuildContext*)) tcc_get_symbol(state, "chemical_lab_build");
+    auto build = (LabModule*(*)(LabBuildContext*, LabJob*)) tcc_get_symbol(state, "chemical_lab_build");
     if(!build) {
         std::cerr << rang::fg::red << "[lab] couldn't get build function symbol in build.lab" << rang::fg::reset << std::endl;
         return 1;
@@ -2692,8 +2706,8 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     // if not cleared, these modules will interfere with modules created for executable
     context.storage.clear();
 
-    // call the root build.lab build's function
-    const auto main_module = build(&context);
+    // call the root chemical.mod build's function
+    const auto main_module = build(&context, &final_job);
 
     // lets compile any cbi jobs user may have specified
     for(auto& job : context.executables) {
@@ -2704,9 +2718,6 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
             }
         }
     }
-
-    // lets create a single job
-    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
 
     // check if user gave command to output ir or asm
     if(cmd) {

@@ -134,14 +134,6 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     }
 }
 
-LabModule* LabBuildContext::module_from_directory(const chem::string_view& path, const chem::string_view& scope_name, const chem::string_view& mod_name, chem::string& error_msg) {
-    // keeping it here
-    ModuleDependencyRecord dep(path.str());
-    // TODO we cannot get the error yet
-    // instead of returning error, create_module_for_dependency just prints it to stdcerr
-    return compiler.create_module_for_dependency(*this, dep);
-}
-
 LabModule* LabBuildContext::add_with_type(
         LabModuleType type,
         const chem::string_view& scope_name,

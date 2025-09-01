@@ -14,7 +14,7 @@
 
 struct LabModule;
 
-enum class LabJobStatus {
+enum class LabJobStatus : int {
     Pending = 0,
     Launched = 1,
     Success = 2,

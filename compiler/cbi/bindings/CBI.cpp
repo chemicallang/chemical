@@ -34,7 +34,6 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextset_cached", (void*) BuildContextset_cached },
         { "lab_BuildContextadd_path", (void*) BuildContextadd_path },
         { "lab_BuildContextadd_module", (void*) BuildContextadd_module },
-        { "lab_BuildContextmodule_from_directory", (void*) BuildContextmodule_from_directory },
         { "lab_BuildContextfiles_module", (void*) BuildContextfiles_module },
         { "lab_BuildContextchemical_dir_module", (void*) BuildContextchemical_dir_module },
         { "lab_BuildContextc_file_module", (void*) BuildContextc_file_module },

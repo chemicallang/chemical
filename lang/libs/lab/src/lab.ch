@@ -117,7 +117,8 @@ public struct BuildContext {
     func object_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module
 
     // would link this system library into the job of whoever consumes this module
-    func link_system_lib(&self, module : *mut Module, name : &std::string_view);
+    // the module parameter is optional
+    func link_system_lib(&self, job : *mut LabJob, name : &std::string_view, module : *mut Module = null);
 
     // adds the given compiler interface to the module
     // returns true if it succeeds

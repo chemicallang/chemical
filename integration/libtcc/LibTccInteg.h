@@ -41,4 +41,10 @@ std::optional<std::string> read_file_to_string(const char* file_path);
 
 int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode);
 
-int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects, TCCMode mode);
+int tcc_link_objects(
+        char* exe_path,
+        const std::string& outputFileName,
+        std::vector<chem::string>& objects,
+        std::vector<chem::string>& link_libs,
+        TCCMode mode
+);

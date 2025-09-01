@@ -55,7 +55,7 @@ extern "C" {
 
     LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path);
 
-    void BuildContextlink_system_lib(LabBuildContext* self, LabModule* module, chem::string_view* name);
+    void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::string_view* name, LabModule* module);
 
     bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface);
 

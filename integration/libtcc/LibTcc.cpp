@@ -244,7 +244,13 @@ int compile_c_file(char* exe_path, const char* c_file_path, const std::string& o
     }
 }
 
-int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects, TCCMode mode) {
+int tcc_link_objects(
+    char* exe_path,
+    const std::string& outputFileName,
+    std::vector<chem::string>& objects,
+    std::vector<chem::string>& link_libs,
+    TCCMode mode
+) {
 
     // creating a new tcc state
     const auto s = tcc_new_state(exe_path, outputFileName.data(), mode);
@@ -260,8 +266,14 @@ int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vec
     std::string command;
     for(auto& obj : objects) {
         if(tcc_add_file(s, obj.data()) == -1) {
-            std::cerr << "[Tcc] couldn't link " << obj << std::endl;
+            std::cerr << "[Tcc] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't add object '" << obj << "'" << std::endl;
             return 1;
+        }
+    }
+
+    for(auto& linkLib : link_libs) {
+        if(tcc_add_library(s, linkLib.data()) == -1) {
+            std::cerr << "[Tcc] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't link library '" << linkLib << "'" << std::endl;
         }
     }
 

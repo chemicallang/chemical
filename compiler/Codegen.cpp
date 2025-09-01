@@ -1541,6 +1541,7 @@ int link_objects(
     const std::string& bin_out,
     const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
     const std::vector<std::string>& flags, // passed to clang or lld,
+    const std::vector<std::string>& link_libs,
     const std::string_view& target_triple,
     bool use_lld,
     bool libc
@@ -1548,33 +1549,39 @@ int link_objects(
     if(use_lld) {
 
         // creating lld command
+        std::vector<std::string> command;
 
         // set output
 #if defined(_WIN32)
-        linkables.emplace_back("/OUT:"+bin_out);
+        command.emplace_back("/OUT:"+bin_out);
 #else
-        linkables.emplace_back("-o");
-        linkables.emplace_back("./"+bin_out);
+        command.emplace_back("-o");
+        command.emplace_back("./"+bin_out);
 #endif
 
         // link with standard libc (unless user opts out)
         if(!libc) {
 #if defined(_WIN32)
-            linkables.emplace_back("-defaultlib:libcmt");
+            command.emplace_back("-defaultlib:libcmt");
 #elif defined(__APPLE__)
-            linkables.emplace_back("-lc");
+            command.emplace_back("-lc");
 #elif defined(__linux__)
-            linkables.emplace_back("-lc");
+            command.emplace_back("-lc");
 #endif
         }
 
         // add user's linker flags
         for(const auto& flag : flags) {
-            linkables.emplace_back(flag);
+            command.emplace_back(flag);
+        }
+
+        // add libraries user asked us to link
+        for(const auto& lib : link_libs) {
+            command.emplace_back("-l" + lib);
         }
 
         // invoke lld to create executable
-        return invoke_lld(linkables, target_triple);
+        return invoke_lld(command, target_triple);
 
     } else {
         // use clang by default
@@ -1588,6 +1595,10 @@ int link_objects(
         }
         for(auto& linkable : linkables) {
             clang_flags.emplace_back(linkable);
+        }
+        // add libraries user asked us to link
+        for(const auto& lib : link_libs) {
+            clang_flags.emplace_back("-l" + lib);
         }
 #if defined(_WINDOWS)
     if(bin_out.ends_with(".dll")) {

@@ -58,12 +58,15 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
     } else {
         switch(job->type) {
             case LabJobType::JITExecutable:
-            case LabJobType::ToCTranslation:
             case LabJobType::CBI:
                 // no need to initialize target triple
                 // keeping it empty, so host target triple is used
                 job->target_data.tcc = true;
                 break;
+            // why is this commented
+            // when translating to C, we do not target tcc
+            // user has to explicitly provide --use-tcc to make that happen
+            // case LabJobType::ToCTranslation:
             default:
                 job->target_data.tcc = false;
                 break;

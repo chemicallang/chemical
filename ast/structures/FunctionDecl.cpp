@@ -151,9 +151,14 @@ llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
 }
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
-    for(const auto param : params) {
-        const auto ptr = gen.current_function->getArg(param->calculate_c_or_llvm_index(gen.current_func_type));
+    auto start = params.data();
+    const auto end = start + (params.size() - (isVariadic() ? 1 : 0));
+    while(start < end) {
+        const auto param = *start;
+        const auto index = param->calculate_c_or_llvm_index(gen.current_func_type);
+        const auto ptr = gen.current_function->getArg(index);
         gen.enqueue_destructible(param->type, param, ptr);
+        start++;
     }
 }
 

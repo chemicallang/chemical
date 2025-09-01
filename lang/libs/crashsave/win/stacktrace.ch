@@ -1,13 +1,3 @@
-func logf(fmt : *char, _ : any...) {
-    var buf : [2048]char;
-    var ap : va_list;
-    va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
-    va_end(ap);
-    fputs(buf, get_stderr());
-    fflush(get_stderr());
-}
-
 // type DWORD = ulong;
 public type UINT = uint;
 public type BOOL = int;
@@ -209,7 +199,8 @@ public type PGET_MODULE_BASE_ROUTINE64 = (ph : HANDLE, dw : DWORD64) => DWORD64;
 //TODO: @stdcall
 public type PTRANSLATE_ADDRESS_ROUTINE64 = (ph : HANDLE, ph2 : HANDLE, dw : DWORD64) => DWORD64
 
-@dllimport @stdcall public func StackWalk64(
+@extern @dllimport @stdcall
+public func StackWalk64(
     MachineType : DWORD,
     hProcess : HANDLE,
     hThread : HANDLE,
@@ -265,7 +256,8 @@ func load_process_modules_and_register_symbols(process : HANDLE) {
 }
 
 /* Correctly prepare SYMBOL_INFO buffer */
-func prepare_symbol_info_buffer(buffer : *mut char, si : PSYMBOL_INFO) {
+// TODO: crash here when si is used with typealias
+func prepare_symbol_info_buffer(buffer : *mut char, si : *mut _SYMBOL_INFO) {
     /* buffer must be at least sizeof(SYMBOL_INFO) + (MAX_SYM_NAME-1) */
     memset(buffer, 0, sizeof(SYMBOL_INFO) + MAX_SYM_NAME);
     si.MaxNameLen = MAX_SYM_NAME;
@@ -277,16 +269,17 @@ func prepare_symbol_info_buffer(buffer : *mut char, si : PSYMBOL_INFO) {
 func resolve_and_print_win(addr : DWORD64, idx : uint) {
     var proc : HANDLE = GetCurrentProcess();
     var buf_sym : char[sizeof(SYMBOL_INFO) + MAX_SYM_NAME];
-    var si : PSYMBOL_INFO = buf_sym as PSYMBOL_INFO;
+    // TODO: crash here when using typealias
+    var si : *mut _SYMBOL_INFO = buf_sym as *mut _SYMBOL_INFO;
     prepare_symbol_info_buffer(buf_sym, si);
     var disp : DWORD64 = 0;
     if (SymFromAddr(proc, addr, &disp, si)) {
         /* Print name + offset + pointer (pointer printing is optional; remove if undesired) */
-        logf("%02u: %s + 0x%llx [0x%llx]", idx, si.Name, disp as ubigint, addr as ubigint);
+        printf("%02u: %s + 0x%llx [0x%llx]", idx, si.Name, disp as ubigint, addr as ubigint);
     } else {
         var err : DWORD = GetLastError() as DWORD;
         var modBase : DWORD64 = SymGetModuleBase64(proc, addr);
-        logf("%02u: [0x%llx] (SymFromAddr failed err=%lu, module_base=0x%llx)", idx, addr as ubigint, err as ulong, modBase as ubigint);
+        printf("%02u: [0x%llx] (SymFromAddr failed err=%lu, module_base=0x%llx)", idx, addr as ubigint, err as ulong, modBase as ubigint);
     }
 
     var line : IMAGEHLP_LINE64;
@@ -294,9 +287,9 @@ func resolve_and_print_win(addr : DWORD64, idx : uint) {
     line.SizeOfStruct = sizeof(line);
     var disp32 : DWORD = 0;
     if (SymGetLineFromAddr64(proc, addr, &disp32, &line) && line.FileName) {
-        logf("  at %s:%lu\n", line.FileName, line.LineNumber as ulong);
+        printf("  at %s:%lu\n", line.FileName, line.LineNumber as ulong);
     } else {
-        logf("\n");
+        printf("\n");
     }
 }
 
@@ -315,12 +308,12 @@ func CrashHandlerException(ep_void : *mut void) : LONG {
     /* You can decide to return EXCEPTION_CONTINUE_SEARCH if IsDebuggerPresent() (not declared here) */
 
     // TODO:
-    // logf("%s: Program crashed\n", __FUNCTION__);
+    // printf("%s: Program crashed\n", __FUNCTION__);
 
     /* Initialize dbghelp */
     SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
     if (!SymInitialize(process, null, 0)) {
-        logf("SymInitialize failed (err=%lu)\n", GetLastError() as ulong);
+        printf("SymInitialize failed (err=%lu)\n", GetLastError() as ulong);
     } else {
         /* load modules */
         load_process_modules_and_register_symbols(process);
@@ -349,8 +342,7 @@ if(def.x86_64) {
     frame.AddrFrame.Offset = 0 as DWORD64;
     var imageType : DWORD = IMAGE_FILE_MACHINE_I386;
 }
-
-    logf("Dumping backtrace:\n");
+    printf("Dumping backtrace:\n");
     var i : uint = 0;
     while (StackWalk64(imageType, process, thread, &frame, ctx, null, SymFunctionTableAccess64, SymGetModuleBase64, null)) {
         if (frame.AddrPC.Offset == 0) break;

@@ -112,24 +112,24 @@ LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* modu
     return self->translate_to_chemical(module, output_path);
 }
 
-LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies, chem::string_view* output_path) {
-    return self->translate_to_c(name, dependencies->ptr, dependencies->size, output_path);
+LabJob* BuildContexttranslate_to_c(LabBuildContext* self, chem::string_view* name, chem::string_view* output_path) {
+    return self->translate_to_c(name, output_path);
 }
 
-LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
-    return self->build_exe(name, dependencies->ptr, dependencies->size);
+LabJob* BuildContextbuild_exe(LabBuildContext* self, chem::string_view* name) {
+    return self->build_exe(name);
 }
 
-LabJob* BuildContextrun_jit_exe(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
-    return self->run_jit_exe(name, dependencies->ptr, dependencies->size);
+LabJob* BuildContextrun_jit_exe(LabBuildContext* self, chem::string_view* name) {
+    return self->run_jit_exe(name);
 }
 
-LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
-    return self->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
+LabJob* BuildContextbuild_dynamic_lib(LabBuildContext* self, chem::string_view* name) {
+    return self->build_dynamic_lib(name);
 }
 
-LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name, ModuleSpan* dependencies) {
-    return self->build_cbi(name, dependencies->ptr, dependencies->size);
+LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name) {
+    return self->build_cbi(name);
 }
 
 void BuildContextset_environment_testing(LabBuildContext* self, bool value) {

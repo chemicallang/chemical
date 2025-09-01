@@ -22,7 +22,7 @@ func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *Module {
     if(did_once) return std_module;
     did_once = true;
 
-    var cbi = ctx.build_cbi(std::string_view("html"), [])
+    var cbi = ctx.build_cbi(std::string_view("html"))
     const job = cbi;
 
     // the cstd module

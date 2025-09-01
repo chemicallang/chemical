@@ -153,7 +153,7 @@ func build(ctx : *mut AppBuildContext) {
 
     if(do_c) {
         const output_dir = build_dir_path(ctx, std::string_view("ToCJob.dir/output.c"));
-        const job = ctx.translate_to_c(std::string_view("ToCJob"), [ ], output_dir.to_view())
+        const job = ctx.translate_to_c(std::string_view("ToCJob"), output_dir.to_view())
         ctx.add_module(job, get_main_module(ctx, job))
     }
 
@@ -161,7 +161,7 @@ func build(ctx : *mut AppBuildContext) {
     const exe_name = std::string_view("chemical-tests");
 
     if(do_dyn_lib) {
-        const job = ctx.build_dynamic_lib(exe_name, [ ]);
+        const job = ctx.build_dynamic_lib(exe_name);
         ctx.add_module(job, get_main_module(ctx, job))
         ctx.define(job, def);
         if(do_one_job) {
@@ -170,9 +170,10 @@ func build(ctx : *mut AppBuildContext) {
     }
 
     // lets run the jit executable
-    // ctx.run_jit_exe(exe_name, [ module ]);
+    // const jit_job = ctx.run_jit_exe(exe_name);
+    // ctx.add_module(jit_job, get_main_module(ctx, jit_job))
 
-    const exe_job = ctx.build_exe(exe_name, [ ])
+    const exe_job = ctx.build_exe(exe_name)
     ctx.add_module(exe_job, get_main_module(ctx, exe_job))
 
     ctx.define(exe_job, def);

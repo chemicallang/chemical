@@ -139,19 +139,19 @@ public struct BuildContext {
     func translate_to_chemical (&self, module : *mut Module, output_path : &std::string_view) : *mut LabJob;
 
     // translate a chemical module to c file
-    func translate_to_c (&self, name : &std::string_view, dependencies : std::span<*Module>, output_path : &std::string_view) : *mut LabJob
+    func translate_to_c (&self, name : &std::string_view, output_path : &std::string_view) : *mut LabJob
 
     // build executable using module dependencies
-    func build_exe (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
+    func build_exe (&self, name : &std::string_view) : *mut LabJob;
 
     // compiles and runs the given executables instantly using jit
-    func run_jit_exe (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
+    func run_jit_exe (&self, name : &std::string_view) : *mut LabJob;
 
     // build a dynamic library using executable dependencies
-    func build_dynamic_lib (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJob;
+    func build_dynamic_lib (&self, name : &std::string_view) : *mut LabJob;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    func build_cbi (&self, name : &std::string_view, dependencies : std::span<*Module>) : *mut LabJobCBI
+    func build_cbi (&self, name : &std::string_view) : *mut LabJobCBI
 
     // sets the environment to testing mode
     // which means def.test for next executables would return this value

@@ -347,48 +347,27 @@ public:
     /**
      * translate a chemical file to c
      */
-    LabJob* translate_to_c(
-            chem::string_view* name,
-            LabModule** dependencies,
-            unsigned int dep_len,
-            chem::string_view* out_path
-    );
+    LabJob* translate_to_c(chem::string_view* name, chem::string_view* out_path);
 
     /**
      * adds an executable entry that'll be built
      */
-    LabJob* build_exe(
-            chem::string_view* name,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
+    LabJob* build_exe(chem::string_view* name);
 
     /**
      * add a jit executable
      */
-    LabJob* run_jit_exe(
-            chem::string_view* name,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
+    LabJob* run_jit_exe(chem::string_view* name);
 
     /**
      * adds a library entry that'll be built
      */
-    LabJob* build_dynamic_lib(
-            chem::string_view* name,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
+    LabJob* build_dynamic_lib(chem::string_view* name);
 
     /**
      * adds a cbi entry that'll be built
      */
-    LabJob* build_cbi(
-            chem::string_view* name,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
+    LabJob* build_cbi(chem::string_view* name);
 
     /**
      * has this build argument

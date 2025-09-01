@@ -229,8 +229,6 @@ void LabBuildContext::set_build_dir(LabJob* job) {
 
 LabJob* LabBuildContext::translate_to_c(
         chem::string_view* name,
-        LabModule** dependencies,
-        unsigned int dep_len,
         chem::string_view* out_path
 ) {
     auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name));
@@ -238,14 +236,11 @@ LabJob* LabBuildContext::translate_to_c(
     executables.emplace_back(job);
     set_build_dir(job);
     job->abs_path.append(*out_path);
-    LabBuildContext::add_dependencies(job->dependencies, dependencies, dep_len);
     return job;
 }
 
 LabJob* LabBuildContext::build_exe(
-        chem::string_view* name,
-        LabModule** dependencies,
-        unsigned int dep_len
+        chem::string_view* name
 ) {
     auto exe = new LabJob(LabJobType::Executable, chem::string(*name));
     initialize_job(exe, compiler.options);
@@ -256,14 +251,11 @@ LabJob* LabBuildContext::build_exe(
     exe_path += ".exe";
 #endif
     exe->abs_path.append(exe_path);
-    LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
     return exe;
 }
 
 LabJob* LabBuildContext::run_jit_exe(
-        chem::string_view* name,
-        LabModule** dependencies,
-        unsigned int dep_len
+        chem::string_view* name
 ) {
     auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name));
     initialize_job(exe, compiler.options);
@@ -274,14 +266,11 @@ LabJob* LabBuildContext::run_jit_exe(
     exe_path += ".exe";
 #endif
     exe->abs_path.append(exe_path);
-    LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
     return exe;
 }
 
 LabJob* LabBuildContext::build_dynamic_lib(
-        chem::string_view* name,
-        LabModule** dependencies,
-        unsigned int dep_len
+        chem::string_view* name
 ) {
     auto exe = new LabJob(LabJobType::Library, chem::string(*name));
     initialize_job(exe, compiler.options);
@@ -296,20 +285,16 @@ LabJob* LabBuildContext::build_dynamic_lib(
         output_path += ".so";
 #endif
     exe->abs_path.append(output_path);
-    LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
     return exe;
 }
 
 LabJob* LabBuildContext::build_cbi(
-        chem::string_view* name,
-        LabModule** dependencies,
-        unsigned int dep_len
+        chem::string_view* name
 ) {
     auto exe = new LabJobCBI(chem::string(*name));
     initialize_job((LabJob*) exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
-    LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
     return exe;
 }
 

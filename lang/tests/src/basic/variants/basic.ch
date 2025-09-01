@@ -110,6 +110,15 @@ func <T> get_sum_gen(v : GenVar<T>) : T {
 struct VariantInheritedPoint {
     var a : int = 10
     var b : int = 20
+
+    func multiply(&self) : int {
+        return a * b;
+    }
+
+}
+
+func variant_inh_point_sum(p : *VariantInheritedPoint) : int {
+    return p.a + p.b;
 }
 
 variant InheriterOfPoint : VariantInheritedPoint {
@@ -334,5 +343,27 @@ func test_variants() {
         var i = VertexInheriter.Second(83)
         var Second(j) = i else unreachable
         return j == 83 && i.x == 98 && i.y == 97 && i.z == 96
+    })
+    test("inherited struct in variant can be passed to functions as pointers - 1", () => {
+        // lets test passing the struct only first
+        var p = VariantInheritedPoint { a : 34, b : 21 }
+        return variant_inh_point_sum(&p) == 55
+    })
+    test("inherited struct in variant can be passed to functions as pointers - 2", () => {
+        var p = InheriterOfPoint.First(65, 54)
+        p.a = 43
+        p.b = 13
+        return variant_inh_point_sum(&p) == 56
+    })
+    test("methods on inherited struct in variant can be called - 1", () => {
+        // lets test passing the struct only first
+        var p = VariantInheritedPoint { a : 15, b : 3 }
+        return p.multiply() == 45
+    })
+    test("methods on inherited struct in variant can be called - 2", () => {
+        var p = InheriterOfPoint.First(65, 54)
+        p.a = 8
+        p.b = 4
+        return p.multiply() == 32
     })
 }

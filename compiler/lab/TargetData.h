@@ -32,10 +32,10 @@ struct TargetData {
     bool windows = false;
     bool win32 = false;
     bool win64 = false;
-    bool linux = false;
+    bool isLinux = false;
     bool macos = false;
     bool freebsd = false;
-    bool unix = false;
+    bool isUnix = false;
     bool android = false;
     bool cygwin = false;
     bool mingw32 = false;
@@ -91,8 +91,8 @@ consteval TargetData create_target_data() {
     d.posix = !d.windows;
 
 #ifdef __linux__
-    d.linux = true;
-    d.unix = true;
+    d.isLinux = true;
+    d.isUnix = true;
 #endif
 
 #ifdef __APPLE__

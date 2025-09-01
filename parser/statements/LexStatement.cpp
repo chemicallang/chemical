@@ -74,6 +74,9 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
         case TokenType::PublicKw:
             token++;
             return parseTopLevelAccessSpecifiedDecl(global_allocator, AccessSpecifier::Public, comptime);
+        case TokenType::ProtectedKw:
+            token++;
+            return parseTopLevelAccessSpecifiedDecl(global_allocator, AccessSpecifier::Protected, comptime);
         case TokenType::PrivateKw:
             token++;
             return parseTopLevelAccessSpecifiedDecl(allocator, AccessSpecifier::Private, comptime);

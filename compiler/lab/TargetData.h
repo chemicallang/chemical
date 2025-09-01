@@ -11,6 +11,7 @@ struct TargetData {
     bool clang = false;
 
     // job specific
+    bool cbi = false;
     bool lsp = false;
     bool test = false;
     bool debug = false;

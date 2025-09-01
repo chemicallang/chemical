@@ -5,6 +5,7 @@ public struct TargetData {
     var clang : bool = false;
 
     // job specific
+    var cbi : bool = false;
     var lsp : bool = false;
     var test : bool = false;
     var debug : bool = false;

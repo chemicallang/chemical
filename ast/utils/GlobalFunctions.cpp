@@ -2299,6 +2299,7 @@ void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefTh
     const auto boolType = typeBuilder.getBoolType();
     defThing.declare_value(allocator, "tcc", boolType, boolValue(allocator, typeBuilder, data.tcc));
     defThing.declare_value(allocator, "clang", boolType, boolValue(allocator, typeBuilder, data.clang));
+    defThing.declare_value(allocator, "cbi", boolType, boolValue(allocator, typeBuilder, data.cbi));
     defThing.declare_value(allocator, "lsp", boolType, boolValue(allocator, typeBuilder, data.lsp));
     defThing.declare_value(allocator, "test", boolType, boolValue(allocator, typeBuilder, data.test));
     defThing.declare_value(allocator, "debug", boolType, boolValue(allocator, typeBuilder, data.debug));

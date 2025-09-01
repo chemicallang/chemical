@@ -36,3 +36,17 @@ public func get_stdout() : *mut FILE {
 public func get_stderr() : *mut FILE {
     return stderr;
 }
+
+/* Close a stream opened by popen and return the status of its child.
+
+   This function is a possible cancellation point and therefore not
+   marked with __THROW.  */
+@extern
+public func pclose(__stream : *mut FILE) : int
+
+/* Create a new stream connected to a pipe running the given command.
+
+   This function is a possible cancellation point and therefore not
+   marked with __THROW.  */
+@extern
+public func popen(__command : *char, __modes : *char) : *mut FILE

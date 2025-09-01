@@ -270,11 +270,11 @@ void take_include_options(LabModule& module, CmdOptions& options) {
 void take_linked_libs(LabJob& job, CmdOptions& options) {
     const auto& libs = options.data.find("library")->second.get_multi_opt_values();
     for(auto& lib : libs) {
-        job.linkables.emplace_back(chem::string::make_view(lib));
+        job.objects.emplace_back(chem::string::make_view(lib));
     }
     const auto& libs2 = options.data.find("l")->second.get_multi_opt_values();
     for(auto& lib : libs2) {
-        job.linkables.emplace_back(chem::string::make_view(lib));
+        job.objects.emplace_back(chem::string::make_view(lib));
     }
 }
 

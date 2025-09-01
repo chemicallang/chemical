@@ -38,7 +38,7 @@ void writeIfConditional(ModFileIfBase* if_base, std::ostream& output) {
         if(if_id->is_negative) {
             output << '!';
         }
-        output << "job.target.";
+        output << "__chx_job.target.";
         output << if_id->value;
     } else {
         const auto if_expr = (ModFileIfExpr*) if_base;
@@ -89,9 +89,9 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     // build method
-    output << "\npublic func build(ctx : *mut BuildContext, job : *LabJob) : *mut Module {\n";
+    output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *LabJob) : *mut Module {\n";
 
-    output << "\tconst __chx_already_exists = ctx.get_cached(job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
+    output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
 
     output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", [ ";
@@ -103,7 +103,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
                 writeAsIdentifier(stmt, i, output);
-                output << ".build(ctx, job), ";
+                output << ".build(ctx, __chx_job), ";
                 break;
             }
             default:
@@ -112,7 +112,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         i++;
     }
     output << "]);\n";
-    output << "\tctx.set_cached(job, mod)\n";
+    output << "\tctx.set_cached(__chx_job, mod)\n";
 
     if(!data.sources_list.empty()) {
         for(auto& src : data.sources_list) {
@@ -137,7 +137,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 writeIfConditional(lib.if_cond, output);
                 output << ") {\n\t";
             }
-            output << "\tctx.link_system_lib(mod, \"" << lib.name << "\")\n";
+            output << "\tctx.link_system_lib(__chx_job, \"" << lib.name << "\", mod)\n";
             if(has_if) {
                 output << "\t}\n";
             }

@@ -58,8 +58,8 @@ LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* s
     return self->obj_file_module(*scope_name, *name, path);
 }
 
-void BuildContextlink_system_lib(LabBuildContext* self, LabModule* module, chem::string_view* name) {
-    module->link_system_libs.emplace_back(*name);
+void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::string_view* name, LabModule* module) {
+    job->link_libs.emplace_back(*name);
 }
 
 bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface) {
@@ -144,7 +144,7 @@ bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_v
 }
 
 void BuildContextadd_object(LabBuildContext* self, LabJob* job, chem::string_view* path) {
-    job->linkables.emplace_back(*path);
+    job->objects.emplace_back(*path);
 }
 
 bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_view* alias, chem::string_view* path) {

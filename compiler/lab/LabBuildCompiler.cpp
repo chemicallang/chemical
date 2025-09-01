@@ -1183,7 +1183,7 @@ int LabBuildCompiler::launch_tcc_jit_exe(LabJob* job, std::vector<LabModule*>& d
     argv[argi++] = modebuf;
 
     // Add all linkables (these string_views must refer to stable storage)
-    for (const auto &sv : job->linkables) {
+    for (const auto &sv : job->objects) {
         if (argi + 2 >= MAX_ARGS) return -3; // too many args
         argv[argi++] = const_cast<char*>(sv.data());
     }
@@ -1212,7 +1212,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     }
 
     // add object files to link
-    for(const auto& dep : cbiJob->linkables) {
+    for(const auto& dep : cbiJob->objects) {
         if(tcc_add_file(state, dep.data()) == -1) {
             std::cerr << "[lab] " << rang::fg::red <<  "error:" << rang::fg::reset << " failed to add object file '" << dep <<  "' in compilation of cbi '" << job_name << '\'' << std::endl;
             tcc_delete(state);
@@ -1372,11 +1372,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             }
 
             // job object file that is already present
-            job->linkables.emplace_back(job_obj_path);
+            job->objects.emplace_back(job_obj_path);
             // including any object files from C file modules
             for(const auto mod : dependencies) {
                 if(mod->type == LabModuleType::CFile) {
-                    job->linkables.emplace_back(mod->object_path.to_chem_view());
+                    job->objects.emplace_back(mod->object_path.to_chem_view());
                 }
             }
 
@@ -1421,7 +1421,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                     if(!mod->has_changed.has_value() || mod->has_changed.value()) {
                         const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
                         if (c_res == 0) {
-                            job->linkables.emplace_back(mod->object_path.copy());
+                            job->objects.emplace_back(mod->object_path.copy());
                             continue;
                         } else if(c_res == 2) {
                             continue;
@@ -1429,13 +1429,13 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                             return 1;
                         }
                     } else {
-                        job->linkables.emplace_back(mod->object_path.copy());
+                        job->objects.emplace_back(mod->object_path.copy());
                         continue;
                     }
                 }
                 case LabModuleType::ObjFile:
                     for(auto& path : mod->paths) {
-                        exe->linkables.emplace_back(path.copy());
+                        exe->objects.emplace_back(path.copy());
                     }
                     continue;
                 default:
@@ -1459,7 +1459,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // add the job obj path to linkables
     if(do_compile) {
-        job->linkables.emplace_back(job_obj_path);
+        job->objects.emplace_back(job_obj_path);
     }
 
     // cbi and jit jobs are here
@@ -1591,7 +1591,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         // we need to return early so modules won't be parsed at all
 
         for(const auto mod : dependencies) {
-            job->linkables.emplace_back(mod->object_path.to_chem_view());
+            job->objects.emplace_back(mod->object_path.to_chem_view());
         }
 
         job->path_aliases = std::move(processor.path_handler.path_aliases);
@@ -1616,18 +1616,18 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
                 if(!mod->has_changed.has_value() || mod->has_changed.value()) {
                     const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
                     if(c_res == 0) {
-                        job->linkables.emplace_back(mod->object_path.copy());
+                        job->objects.emplace_back(mod->object_path.copy());
                         continue;
                     } else {
                         return 1;
                     }
                 } else {
-                    job->linkables.emplace_back(mod->object_path.copy());
+                    job->objects.emplace_back(mod->object_path.copy());
                     continue;
                 }
             }
             case LabModuleType::ObjFile:
-                job->linkables.emplace_back(mod->paths[0].copy());
+                job->objects.emplace_back(mod->paths[0].copy());
                 continue;
             default:
                 break;
@@ -1638,7 +1638,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             return 1;
         }
 
-        job->linkables.emplace_back(mod->object_path.copy());
+        job->objects.emplace_back(mod->object_path.copy());
 
     }
 
@@ -1661,14 +1661,15 @@ void print_failed_to_link(std::vector<chem::string>& linkables, const std::strin
 
 int link_objects_tcc(
         const std::string& comp_exe_path,
-        std::vector<chem::string>& linkables,
+        std::vector<chem::string>& objects,
+        std::vector<chem::string>& link_libs,
         const std::string& output_path,
         TCCMode mode
 ) {
     chem::string copy(comp_exe_path);
-    const auto link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables, mode);
+    const auto link_result = tcc_link_objects(copy.mutable_data(), output_path, objects, link_libs, mode);
     if(link_result != 0) {
-        print_failed_to_link(linkables, output_path);
+        print_failed_to_link(objects, output_path);
     }
     return link_result;
 }
@@ -1677,7 +1678,8 @@ int link_objects_tcc(
 
 int link_objects_linker(
         const std::string& comp_exe_path,
-        std::vector<chem::string>& linkables,
+        std::vector<chem::string>& objects,
+        std::vector<chem::string>& link_libs,
         const std::string& output_path,
         const std::string_view& target_triple,
         bool debug_info,
@@ -1686,8 +1688,8 @@ int link_objects_linker(
         bool verbose
 ) {
     std::vector<std::string> data;
-    for (auto& obj: linkables) {
-        data.emplace_back(obj.data());
+    for (auto& obj: objects) {
+        data.emplace_back(obj.to_view());
     }
     std::vector<std::string> flags;
     if(debug_info || is_debug_or_compl(mode)) {
@@ -1702,9 +1704,13 @@ int link_objects_linker(
     if(verbose) {
         flags.emplace_back("-v");
     }
-    const auto link_result = link_objects(data, output_path, comp_exe_path, flags, target_triple);
+    std::vector<std::string> libs;
+    for(auto& lib : link_libs) {
+        libs.emplace_back(lib.to_view());
+    }
+    const auto link_result = link_objects(data, output_path, comp_exe_path, flags, libs, target_triple);
     if(link_result != 0) {
-        print_failed_to_link(linkables, output_path);
+        print_failed_to_link(objects, output_path);
     }
     return link_result;
 }
@@ -1714,13 +1720,14 @@ int link_objects_linker(
 int link_objects_now(
     bool use_tcc,
     LabBuildCompilerOptions* options,
-    std::vector<chem::string>& linkables,
+    std::vector<chem::string>& objects,
+    std::vector<chem::string>& link_libs,
     const std::string& output_path,
     const std::string_view& target_triple
 ) {
     if(options->verbose) {
         std::cout << "[lab] linking objects ";
-        for(auto& obj : linkables) {
+        for(auto& obj : objects) {
             std::cout << '\'' << obj.to_view() << '\'' << ' ';
         }
         std::cout << "into " << output_path;
@@ -1728,12 +1735,12 @@ int link_objects_now(
     }
 #ifdef COMPILER_BUILD
     if(use_tcc) {
-        return link_objects_tcc(options->exe_path, linkables, output_path, to_tcc_mode(options->outMode, options->debug_info));
+        return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));
     } else {
-        return link_objects_linker(options->exe_path, linkables, output_path, target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose);
+        return link_objects_linker(options->exe_path, objects, link_libs, output_path, target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose);
     }
 #else
-    return link_objects_tcc(options->exe_path, linkables, output_path, to_tcc_mode(options->outMode, options->debug_info));
+    return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));
 #endif
 }
 
@@ -1743,7 +1750,7 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link_objects_now(use_tcc(job), options, job->linkables, job->abs_path.to_std_string(), job->target_triple.to_view());
+    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->abs_path.to_std_string(), job->target_triple.to_view());
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
@@ -1752,7 +1759,7 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link_objects_now(use_tcc(job), options, job->linkables, job->abs_path.to_std_string(), job->target_triple.to_view());
+    return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->abs_path.to_std_string(), job->target_triple.to_view());
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {

@@ -69,7 +69,12 @@ struct LabJob {
     /**
      * these are linkable object or bitcode files required by the job
      */
-    std::vector<chem::string> linkables;
+    std::vector<chem::string> objects;
+
+    /**
+     * the libraries to be linked (-l cmd param)
+     */
+    std::vector<chem::string> link_libs;
 
     /**
      * dependencies are the pointers to modules that this job depends on

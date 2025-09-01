@@ -889,6 +889,70 @@ public:
 
 };
 
+class InterpretDecodeLocation : public FunctionDeclaration {
+public:
+
+    explicit InterpretDecodeLocation(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
+        ZERO_LOC_ID("decode_location"),
+        {cache.getAnyType(), ZERO_LOC},
+        false,
+        parent,
+        ZERO_LOC,
+        AccessSpecifier::Public,
+        true
+    ) {
+        set_compiler_decl(true);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.empty()) {
+            call_scope->error("decode_location expects a single argument", call);
+            return nullptr;
+        }
+
+        const auto global = call_scope->global;
+        auto& typeBuilder = global->typeBuilder;
+
+        if(call->generic_list.size() != 1) {
+            call_scope->error("decode_location requires a single generic argument, the struct definition representing the test", call);
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), ZERO_LOC);
+        }
+
+        const auto elem_type = call->generic_list[0];
+        const auto test_def = elem_type->get_direct_linked_canonical_node();
+        if(!test_def || test_def->kind() != ASTNodeKind::StructDecl) {
+            call_scope->error("decode_location requires a single generic argument, the struct definition representing the test", call);
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), ZERO_LOC);
+        }
+        const auto decode_loc_def = test_def->as_struct_def_unsafe();
+
+        const auto argVal = call->values.back();
+        const auto arg = argVal->evaluated_value(*call_scope);
+        if(!arg || arg->kind() != ValueKind::UBigInt) {
+            call_scope->error("decode_location expects a u64 location argument", arg);
+            return nullptr;
+        }
+        const auto num = arg->get_number();
+
+        const auto decoded = global->loc_man.getLocation(num.value());
+        const auto loc = call->encoded_location();
+        const auto structValue = new (allocator.allocate<StructValue>()) StructValue(decode_loc_def->known_type(), decode_loc_def, decode_loc_def, loc);
+
+        auto filePathView = global->loc_man.getPathForFileId(decoded.fileId);
+        const auto filePathStr = new (allocator.allocate<StringValue>()) StringValue(chem::string_view(filePathView), typeBuilder.getStringType(), loc);
+        structValue->values.emplace("filename", StructMemberInitializer { "filename", filePathStr });
+
+        const auto lineNoVal = new (allocator.allocate<UIntValue>()) UIntValue(decoded.lineStart, typeBuilder.getUIntType(), loc);
+        structValue->values.emplace("line", StructMemberInitializer { "line", lineNoVal });
+
+        const auto charNoVal = new (allocator.allocate<UIntValue>()) UIntValue(decoded.charStart, typeBuilder.getUIntType(), loc);
+        structValue->values.emplace("character", StructMemberInitializer { "character", charNoVal });
+
+        return structValue;
+
+    }
+
+};
+
 class InterpretDefined : public FunctionDeclaration {
 public:
 
@@ -1868,6 +1932,7 @@ public:
     InterpretGetRawLocation get_raw_location;
     InterpretGetRawLocOf get_raw_loc_of;
     InterpretGetCallLoc get_call_loc;
+    InterpretDecodeLocation decode_location;
     InterpretGetLineNo get_line_no;
     InterpretGetCharacterNo get_char_no;
     InterpretGetCallerLineNo get_caller_line_no;
@@ -1905,7 +1970,7 @@ public:
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), satisfiesValueFn(cache, this), get_target_fn(cache, this),
         get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
-        get_call_loc(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
+        get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
@@ -1916,7 +1981,7 @@ public:
             &memNamespace, &ptrNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &satisfiesValueFn, &get_raw_location,
-            &get_raw_loc_of, &get_call_loc, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
+            &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,

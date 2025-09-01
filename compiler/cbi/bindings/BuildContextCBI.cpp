@@ -38,10 +38,6 @@ void BuildContextadd_module(LabBuildContext* self, LabJob* job, LabModule* modul
     job->dependencies.emplace_back(module);
 }
 
-LabModule* BuildContextmodule_from_directory(LabBuildContext* self, chem::string_view* path, chem::string_view* scope_name, chem::string_view* mod_name, chem::string* error_msg) {
-    return self->module_from_directory(*path, *scope_name, *mod_name, *error_msg);
-}
-
 LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
     return self->files_module(*scope_name, *name, path, path_len, dependencies->ptr, dependencies->size);
 }

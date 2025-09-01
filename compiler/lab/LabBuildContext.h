@@ -226,13 +226,6 @@ public:
     static void init_path_aliases(LabJob* job);
 
     /**
-     * the path to a directory is given, in which we can find a build.lab or a
-     * chemical.mod file, which is compiled to generate a Module*
-     * if error occurs we set it in error_msg and null is returned
-     */
-    LabModule* module_from_directory(const chem::string_view& path, const chem::string_view& scope_name, const chem::string_view& mod_name, chem::string& error_msg);
-
-    /**
      * adds the given module with type
      */
     LabModule* add_with_type(

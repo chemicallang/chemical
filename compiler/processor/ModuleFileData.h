@@ -8,29 +8,18 @@
 #include "ast/structures/FileScope.h"
 #include "core/diag/Diagnostic.h"
 #include <string>
+#include "ast/utils/IffyConditional.h"
 
-enum class ModFileIfExprOp { And, Or };
-
-struct ModFileIfBase {
-    bool is_id;
-};
-
-struct ModFileIfId : public ModFileIfBase {
-    bool is_negative;
-    chem::string_view value;
-};
-
-struct ModFileIfExpr : public ModFileIfBase {
-    ModFileIfBase* left;
-    ModFileIfBase* right;
-    ModFileIfExprOp op;
-};
+typedef IffyBase ModFileIfBase;
+typedef IffyCondId ModFileIfId;
+typedef IffyCondExpr ModFileIfExpr;
+typedef IffyExprOp ModFileIfExprOp;;
 
 struct ModFileSource {
 
     chem::string_view path;
 
-    ModFileIfBase* if_cond = nullptr;
+    IffyBase* if_cond = nullptr;
 
 };
 
@@ -50,7 +39,7 @@ struct ModFileLinkLib {
 
     ModFileLinkLibType type = ModFileLinkLibType::Unknown;
 
-    ModFileIfBase* if_cond = nullptr;
+    IffyBase* if_cond = nullptr;
 
 };
 

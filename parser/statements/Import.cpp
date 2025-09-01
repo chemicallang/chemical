@@ -78,9 +78,9 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
         }
     }
     if(consumeToken(TokenType::IfKw)) {
-        auto id = consumeIdentifierOrKeyword();
-        if(id) {
-            stmt->if_condition = allocate_view(allocator, id->value);
+        const auto iffy = parseIffyConditional(allocator);;
+        if(iffy) {
+            stmt->if_condition = iffy;
         } else {
             unexpected_error("expected if condition identifier in import statement");
         }

@@ -174,6 +174,11 @@ public:
     void consumeNewLines();
 
     /**
+     * an iffy conditional is used in import, source, link statements
+     */
+    IffyBase* parseIffyConditional(ASTAllocator& allocator);
+
+    /**
      * a package definition is parsed
      */
     bool parseModuleDefinition(ASTAllocator& allocator, ModuleFileData& data);

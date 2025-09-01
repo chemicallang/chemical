@@ -57,8 +57,13 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
         job->target_data.tcc = true;
     } else {
         switch(job->type) {
-            case LabJobType::JITExecutable:
             case LabJobType::CBI:
+                // no need to initialize target triple
+                // keeping it empty, so host target triple is used
+                job->target_data.tcc = true;
+                job->target_data.cbi = true;
+                break;
+            case LabJobType::JITExecutable:
                 // no need to initialize target triple
                 // keeping it empty, so host target triple is used
                 job->target_data.tcc = true;

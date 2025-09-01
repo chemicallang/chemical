@@ -20,11 +20,11 @@ func addr2line_for_exec(exe_path : *char, addr_offset_hex : *char, out_buf : *ch
 
 /* Get executable path into out[sz] (Linux /proc method) */
 func get_exec_path(out : *mut char, sz : size_t) : int {
-    var linkbuf [64]char;
+    var linkbuf : [64]char;
     snprintf(linkbuf, sizeof(linkbuf), "/proc/%d/exe", getpid() as int);
     var n = readlink(linkbuf, out, sz - 1);
     if (n < 0) return -1;
-    if (n >= (ssize_t)sz) n = sz - 1;
+    if (n >= sz as ssize_t) n = sz - 1;
     out[n] = '\0';
     return 0;
 }
@@ -47,7 +47,7 @@ func handle_crash_linux(sig : int) {
         return;
     }
 
-    for (int i = 1; i < size; ++i) {
+    for (var i : int = 1; i < size; ++i) {
         /* backtrace_symbols output typically contains "binary(+0xoffset) [0xaddr]" or similar.
          * We will try to extract the +0xoffset part; fallback to printing the pointer.
          */
@@ -65,7 +65,8 @@ func handle_crash_linux(sig : int) {
             if (*p == ')') { p_paren = p; break; }
             ++p;
         }
-        var offset_buf : char[64] = {0};
+        var offset_buf : [64]char;
+        memset(offset_buf, 0, sizeof(offset_buf))
         var got_offset : int = 0;
         if (p_plus && p_paren && p_paren > p_plus) {
             var offlen = (p_paren - p_plus - 1) as size_t;
@@ -76,7 +77,8 @@ func handle_crash_linux(sig : int) {
             }
         }
         if (got_offset) {
-            var resolved : [1024]char = {0};
+            var resolved : [1024]char;
+            memset(resolved, 0, sizeof(resolved))
             if (addr2line_for_exec(exe_path, offset_buf, resolved, sizeof(resolved)) == 0) {
                 printf("[%d] %s\n", i, resolved);
             } else {

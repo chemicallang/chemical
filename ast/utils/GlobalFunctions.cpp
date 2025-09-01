@@ -2141,32 +2141,32 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
 
     // Check for Linux
     if (triple.isOSLinux()) {
-        data.linux = true;
-        data.unix = true;
+        data.isLinux = true;
+        data.isUnix = true;
     }
 
     // Check for macOS
     if (triple.isMacOSX()) {
         data.macos = true;
-        data.unix = true;
+        data.isUnix = true;
     }
 
     // Check for FreeBSD
     if (triple.isOSFreeBSD()) {
         data.freebsd = true;
-        data.unix = true;
+        data.isUnix = true;
     }
 
     // Check for Android
     if (triple.isAndroid()) {
         data.android = true;
-        data.unix = true;
+        data.isUnix = true;
     }
 
     // Check for Cygwin
     if (triple.isOSCygMing()) {
         data.cygwin = true;
-        data.unix = true;
+        data.isUnix = true;
     }
 
     if(triple.isArch64Bit()) {

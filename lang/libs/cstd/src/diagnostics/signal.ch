@@ -51,14 +51,3 @@ public type sig_atomic_t = int
  * #define SIG_ERR // implementation defined
  * @see https://en.cppreference.com/w/c/program/SIG_ERR
  */
-
-/**
- * TODO these macros haven't been done
- * #define SIGTERM // implementation defined
- * #define SIGSEGV // implementation defined
- * #define SIGINT // implementation defined
- * #define SIGILL // implementation defined
- * #define SIGABRT // implementation defined
- * #define SIGFPE // implementation defined
- * @see https://en.cppreference.com/w/c/program/SIG_types
- */

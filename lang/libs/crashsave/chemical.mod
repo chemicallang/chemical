@@ -1,7 +1,10 @@
 module crashsave
 
 source "win" if windows && !tcc
-source "tcc" if tcc
+
+source "tcc/windows.ch" if tcc && windows
+source "tcc/posix.ch" if tcc && !windows
+
 
 import cstd
 import std

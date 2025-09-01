@@ -2066,8 +2066,8 @@ void prepare_executable_target_data(TargetData& data) {
     data.is64Bit = sizeof(void*) == 8;
 
 #ifdef __linux__
-    data.linux = true;
-    data.unix = true;
+    data.isLinux = true;
+    data.isUnix = true;
 #endif
 
 #ifdef __APPLE__
@@ -2245,23 +2245,23 @@ void GlobalInterpretScope::prepare_target_data(TargetData& data, const std::stri
 
     // Determine operating system
     if (sys == "linux") {
-        data.linux = true;
-        data.unix = true;
+        data.isLinux = true;
+        data.isUnix = true;
     } else if (sys == "windows") {
         data.win32 = true;
         data.windows = true;
     } else if (sys == "darwin") {
         data.macos = true;
-        data.unix = true;
+        data.isUnix = true;
     } else if (sys == "freebsd") {
         data.freebsd = true;
-        data.unix = true;
+        data.isUnix = true;
     } else if (sys == "android") {
         data.android = true;
-        data.unix = true;
+        data.isUnix = true;
     } else if (sys == "cygwin") {
         data.cygwin = true;
-        data.unix = true;
+        data.isUnix = true;
     } else if (sys == "mingw32") {
         data.mingw32 = true;
         data.win32 = true;
@@ -2316,10 +2316,10 @@ void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefTh
     defThing.declare_value(allocator, "posix", boolType, boolValue(allocator, typeBuilder, data.posix));
     defThing.declare_value(allocator, "win32", boolType, boolValue(allocator, typeBuilder, data.win32));
     defThing.declare_value(allocator, "win64", boolType, boolValue(allocator, typeBuilder, data.win64));
-    defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, typeBuilder, data.linux));
+    defThing.declare_value(allocator, "linux", boolType, boolValue(allocator, typeBuilder, data.isLinux));
     defThing.declare_value(allocator, "macos", boolType, boolValue(allocator, typeBuilder, data.macos));
     defThing.declare_value(allocator, "freebsd", boolType, boolValue(allocator, typeBuilder, data.freebsd));
-    defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, typeBuilder, data.unix));
+    defThing.declare_value(allocator, "unix", boolType, boolValue(allocator, typeBuilder, data.isUnix));
     defThing.declare_value(allocator, "gnu", boolType, boolValue(allocator, typeBuilder, data.gnu));
     defThing.declare_value(allocator, "android", boolType, boolValue(allocator, typeBuilder, data.android));
     defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, typeBuilder, data.cygwin));

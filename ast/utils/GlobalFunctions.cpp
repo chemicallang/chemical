@@ -2420,10 +2420,10 @@ std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem:
     }
 }
 
-std::optional<bool> is_condition_enabled(GlobalContainer* container, ModFileIfBase* base) {
+std::optional<bool> is_condition_enabled(GlobalContainer* container, IffyBase* base) {
     if(base == nullptr) return std::nullopt;
     if(base->is_id) {
-        const auto if_id = (ModFileIfId*) base;
+        const auto if_id = (IffyCondId*) base;
         auto value = is_condition_enabled(container, if_id->value);
         if(value.has_value()) {
             if(if_id->is_negative) {
@@ -2432,13 +2432,13 @@ std::optional<bool> is_condition_enabled(GlobalContainer* container, ModFileIfBa
         }
         return value;
     } else {
-        const auto if_expr = (ModFileIfExpr*) base;
+        const auto if_expr = (IffyCondExpr*) base;
         auto value = is_condition_enabled(container, if_expr->left);
         if(value.has_value()) {
-            if(value.value() && if_expr->op == ModFileIfExprOp::Or) {
+            if(value.value() && if_expr->op == IffyExprOp::Or) {
                 // value is true, in or expression, we do not need to resolve second
                 return true;
-            } else if(!value.value() && if_expr->op == ModFileIfExprOp::And) {
+            } else if(!value.value() && if_expr->op == IffyExprOp::And) {
                 // value is false, in and expression, we do not need to resolve second
                 return false;
             } else {
@@ -2446,10 +2446,10 @@ std::optional<bool> is_condition_enabled(GlobalContainer* container, ModFileIfBa
                 auto second = is_condition_enabled(container, if_expr->right);
                 if(second.has_value()) {
                     switch(if_expr->op) {
-                        case ModFileIfExprOp::And:
+                        case IffyExprOp::And:
                             // if its and, it means the first value was true, everything depends on the second value
                             return second.value();
-                        case ModFileIfExprOp::Or:
+                        case IffyExprOp::Or:
                             // if its or, it means the first value was false, everything depends on the second value
                             return second.value();
                     }

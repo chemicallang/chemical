@@ -442,14 +442,14 @@ ModFileIfBase* parseModFileId(BasicParser& parser, ASTAllocator& allocator) {
     }
 }
 
-ModFileIfBase* parseModIfConditional(BasicParser& parser, ASTAllocator& allocator) {
+IffyBase* BasicParser::parseIffyConditional(ASTAllocator& allocator) {
+
+    auto& parser = *this;
 
     auto first = parseModFileId(parser, allocator);
     if(!first) {
         return nullptr;
     }
-
-    auto& token = parser.token;
 
     const auto tok_type = token->type;
     const auto isLogicalAnd = tok_type == TokenType::LogicalAndSym;
@@ -541,7 +541,7 @@ bool BasicParser::parseSourceStmt(ASTAllocator& allocator, ModuleFileData& data)
     }
 
     if(consumeToken(TokenType::IfKw)) {
-        const auto cond = parseModIfConditional(*this, allocator);
+        const auto cond = parseIffyConditional(allocator);
         source.if_cond = cond;
         if(!cond) {
             error("expected condition after 'if' in source statement");
@@ -574,7 +574,7 @@ bool BasicParser::parseLinkStmt(ASTAllocator& allocator, ModuleFileData& data) {
 
     // condition is required
     if(consumeToken(TokenType::IfKw)) {
-        const auto cond = parseModIfConditional(*this, allocator);
+        const auto cond = parseIffyConditional(allocator);
         link_lib.if_cond = cond;
         if(!cond) {
             error("expected condition after 'if' in link statement");

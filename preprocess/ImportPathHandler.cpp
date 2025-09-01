@@ -259,7 +259,7 @@ void ImportPathHandler::figure_out_mod_dep_using_imports(
             if(!impStmt->filePath.empty() && impStmt->filePath.ends_with(".lab")) {
                 continue;
             }
-            if(!impStmt->if_condition.empty()) {
+            if(impStmt->if_condition != nullptr) {
                 auto enabled = is_condition_enabled(container, impStmt->if_condition);
                 if(enabled.has_value()) {
                     if(!enabled.value()) {

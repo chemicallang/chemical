@@ -269,7 +269,7 @@ llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<Cha
 llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
     const auto parent = values[index];
     const auto linked = parent->linked_node();
-    auto type = parent->create_type(gen.allocator);
+    auto type = parent->create_type(gen.allocator)->canonical();
     if(type) {
         auto type_kind = type->kind();
         if (type_kind == BaseTypeKind::Array && linked && linked->as_func_param()) {

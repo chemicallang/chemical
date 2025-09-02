@@ -1492,7 +1492,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
         }
     }
 
-    auto func_type = call->function_type(linker.allocator);
+    auto func_type = call->function_type();
     if (func_type && !func_type->data.signature_resolved) {
         linker.error("calling a function whose signature couldn't be resolved", call);
         return;
@@ -1532,7 +1532,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
 
 void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* call){
     auto& linker = visitor.linker;
-    auto func_type = call->function_type(linker.allocator);
+    auto func_type = call->function_type();
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < call->values.size()) {
@@ -1676,7 +1676,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     if(linked_kind != ASTNodeKind::VariantMember) {
         // if its not a variant, it should give us a function type to be valid
         // TODO: every function call type is being created using ast allocator
-        const auto func_type = call->function_type(resolver.allocator);
+        const auto func_type = call->function_type();
         if(!func_type) {
             resolver.error(call) << "cannot call a non function type";
             return false;

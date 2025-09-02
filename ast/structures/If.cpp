@@ -369,11 +369,6 @@ BaseType *IfStatement::known_type() {
     return last_val ? last_val->known_type() : nullptr;
 }
 
-BaseType* IfValue::create_type(ASTAllocator& allocator) {
-    auto last_val = stmt.get_value_node();
-    return last_val ? last_val->create_type(allocator) : nullptr;
-}
-
 ASTNode *IfValue::linked_node() {
     const auto known = stmt.known_type();
     return known ? known->linked_node() : nullptr;

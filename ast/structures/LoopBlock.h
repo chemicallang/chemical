@@ -43,8 +43,6 @@ public:
 
     Value* get_first_broken();
 
-    BaseType* create_type(ASTAllocator& allocator);
-
     BaseType* known_type() final;
 
 #ifdef COMPILER_BUILD

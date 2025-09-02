@@ -41,16 +41,6 @@ void NegativeValue::determine_type(TypeBuilder& typeBuilder) {
     );
 }
 
-BaseType* NegativeValue::create_type(ASTAllocator& allocator) {
-    const auto result = value->create_type(allocator);
-    const auto can = result->canonical();
-    if(can->kind() == BaseTypeKind::IntN) {
-        const auto intN = can->as_intn_type_unsafe();
-        return intN->to_signed(allocator);
-    }
-    return result;
-}
-
 Value* NegativeValue::evaluated_value(InterpretScope &scope) {
     const auto eval = value->evaluated_value(scope);
     const auto eval_kind = eval->val_kind();

@@ -31,8 +31,6 @@ public:
         return copied;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-
     ASTNode* linked_node() override;
 
 #ifdef COMPILER_BUILD

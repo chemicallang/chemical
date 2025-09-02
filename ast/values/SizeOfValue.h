@@ -28,10 +28,6 @@ public:
         return (UBigIntType*) Value::getType();
     }
 
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType();
-    }
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     SizeOfValue* copy(ASTAllocator& allocator) final {

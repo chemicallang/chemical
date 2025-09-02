@@ -185,9 +185,3 @@ bool LambdaFunction::has_destructor_for_capture() {
     }
     return false;
 }
-
-BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
-    auto func_type = FunctionType::copy(allocator);
-    func_type->setIsCapturing(!captureList.empty());
-    return func_type;
-}

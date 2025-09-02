@@ -41,10 +41,6 @@ public:
         return getType();
     }
 
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return getType()->copy(allocator);
-    }
-
     ASTNode *linked_node() final;
 
 #ifdef COMPILER_BUILD

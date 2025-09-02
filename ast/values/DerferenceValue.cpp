@@ -24,19 +24,6 @@ bool DereferenceValue::determine_type(TypeBuilder& typeBuilder) {
     }
 }
 
-BaseType* DereferenceValue::create_type(ASTAllocator& allocator) {
-    auto addr = value->create_type(allocator);
-    const auto addr_kind = addr->kind();
-    if(addr_kind == BaseTypeKind::Pointer) {
-        return ((PointerType*) addr)->type->copy(allocator);
-    } else if(addr_kind == BaseTypeKind::Reference) {
-        return ((ReferenceType*) addr)->type->copy(allocator);
-    } else {
-        // TODO cannot report error here, the type cannot be created because the linked type is not a pointer
-        return nullptr;
-    }
-}
-
 Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     const auto eval = value->evaluated_value(scope);
     const auto k = eval->val_kind();

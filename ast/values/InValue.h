@@ -57,10 +57,6 @@ public:
         return (BaseType*) &BoolType::instance;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType();
-    }
-
     Value* evaluated_value(InterpretScope &scope) override;
 
 #ifdef COMPILER_BUILD

@@ -76,13 +76,4 @@ public:
         }
     }
 
-    [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) final {
-        if(value > INT_MAX) {
-            return new (allocator.allocate<LongType>()) LongType();
-        } else {
-            return new (allocator.allocate<IntType>()) IntType();
-        }
-    }
-
 };

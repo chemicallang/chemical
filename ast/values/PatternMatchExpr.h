@@ -154,8 +154,6 @@ public:
 
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-
     VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     void copy_to_constructed(ASTAllocator& allocator, PatternMatchExpr* copied) {

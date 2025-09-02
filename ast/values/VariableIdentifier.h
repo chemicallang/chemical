@@ -98,6 +98,4 @@ public:
 
     VariableIdentifier *copy(ASTAllocator& allocator) final;
 
-    BaseType* create_type(ASTAllocator &allocator) final;
-
 };

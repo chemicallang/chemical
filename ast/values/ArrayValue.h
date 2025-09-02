@@ -126,8 +126,6 @@ public:
     [[nodiscard]]
     BaseType* element_type(ASTAllocator& allocator) const;
 
-    BaseType* create_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     void determine_type(ASTAllocator& allocator);

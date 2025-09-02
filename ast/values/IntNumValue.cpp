@@ -29,19 +29,3 @@ BaseType* IncDecValue::determine_type() {
         return type;
     }
 }
-
-BaseType* IncDecValue::create_type(ASTAllocator &allocator) {
-    const auto type = value->create_type(allocator);
-    const auto pure = type->canonical();
-    if(pure && pure->kind() == BaseTypeKind::Reference) {
-        const auto ref = pure->as_reference_type_unsafe();
-        const auto ref_type = ref->type->canonical();
-        if(BaseType::isLoadableReferencee(ref_type->kind())) {
-            return ref_type;
-        } else {
-            return ref;
-        }
-    } else {
-        return pure;
-    }
-}

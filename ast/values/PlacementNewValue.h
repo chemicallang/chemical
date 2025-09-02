@@ -34,8 +34,6 @@ public:
         return pNew;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-
     BaseType* known_type() override;
 
     ASTNode* linked_node() override {

@@ -254,11 +254,6 @@ public:
     static bool should_build_chain_type(std::vector<Value*>& chain, unsigned index);
 
     /**
-     * create a base type that represents the type of this value
-     */
-    virtual BaseType* create_type(ASTAllocator& allocator);
-
-    /**
      * is this value has a pointer type (includes strings)
      */
     [[nodiscard]]

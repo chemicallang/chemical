@@ -40,11 +40,6 @@ public:
         return new (allocator.allocate<UInt128Value>()) UInt128Value(low, high, getType(), encoded_location());
     }
 
-    [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UInt128Type>()) UInt128Type();
-    }
-
     unsigned int get_num_bits(bool is64Bit) final {
         return 128;
     }

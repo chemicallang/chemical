@@ -37,11 +37,6 @@ public:
         return new (allocator.allocate<UCharValue>()) UCharValue(value, getType(), encoded_location());
     }
 
-    [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UCharType>()) UCharType();
-    }
-
     bool is_unsigned() final {
         return true;
     }

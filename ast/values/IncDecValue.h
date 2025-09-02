@@ -37,8 +37,6 @@ public:
 
     BaseType* determine_type();
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     IncDecValue* copy(ASTAllocator &allocator) final {

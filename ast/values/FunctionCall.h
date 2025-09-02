@@ -51,16 +51,6 @@ public:
     /**
      * get function type from parent type
      */
-    FunctionType* func_type_from_parent_type(ASTAllocator& allocator, BaseType* parent_type);
-
-    /**
-     * get the function type
-     */
-    FunctionType* function_type(ASTAllocator& allocator);
-
-    /**
-     * get function type from parent type
-     */
     FunctionType* func_type_from_parent_type(BaseType* parent_type);
 
     /**
@@ -102,11 +92,6 @@ public:
     Value* evaluated_value(InterpretScope &scope) final;
 
     FunctionCall *copy(ASTAllocator& allocator) final;
-
-    /**
-     * this returns the return type of the function
-     */
-    BaseType* create_type(ASTAllocator& allocator) final;
 
     /**
      * if all generic arguments aren't given, for which default types also don't exist

@@ -27,10 +27,6 @@ public:
         return (UBigIntType*) Value::getType();
     }
 
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UBigIntType>()) UBigIntType();
-    }
-
     AlignOfValue* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<AlignOfValue>()) AlignOfValue(
                 for_type.copy(allocator),

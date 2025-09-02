@@ -56,8 +56,6 @@ public:
 
     BaseType* known_type() final;
 
-    BaseType* create_type(ASTAllocator &allocator) final;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     ASTNode* linked_node() override {

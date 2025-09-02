@@ -7,8 +7,6 @@
 class BoolType : public BaseType {
 public:
 
-    static const BoolType instance;
-
     /**
      * constructor
      */

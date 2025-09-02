@@ -611,7 +611,8 @@ llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
         value_loaded = loadInst;
         type = referred;
     }
-    const auto result = gen.operate(op, value, rhs, type, ((BaseType*) &ShortType::instance), value_loaded, rhs->llvm_value(gen, nullptr));
+    ShortType shortType;
+    const auto result = gen.operate(op, value, rhs, type, &shortType, value_loaded, rhs->llvm_value(gen, nullptr));
     const auto storeInst = gen.builder->CreateStore(result, value_pointer);
     gen.di.instr(storeInst, this);
     return post ? value_loaded : result;

@@ -10,8 +10,6 @@
 #include "ReferenceType.h"
 #include "IntNType.h"
 
-const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, ZERO_LOC);
-
 ASTNode *PointerType::linked_node() {
     return type->linked_node();
 }

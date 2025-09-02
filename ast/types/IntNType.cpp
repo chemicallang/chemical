@@ -25,18 +25,6 @@
 #include "ast/values/BoolValue.h"
 #include "NullPtrType.h"
 
-const IntType IntType::instance;
-const BigIntType BigIntType::instance;
-const Int128Type Int128Type::instance;
-const ShortType ShortType::instance;
-const UBigIntType UBigIntType::instance;
-const UInt128Type UInt128Type::instance;
-const UIntType UIntType::instance;
-const UShortType UShortType::instance;
-const LongType LongType::instance;
-const ULongType ULongType::instance;
-const NullPtrType NullPtrType::instance;
-
 bool BoolType::satisfies(BaseType *type) {
     switch(type->kind()) {
         case BaseTypeKind::Bool:

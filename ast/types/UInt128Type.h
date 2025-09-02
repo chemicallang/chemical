@@ -7,8 +7,6 @@
 class UInt128Type : public IntNType {
 public:
 
-    static const UInt128Type instance;
-
     /**
      * constructor
      */

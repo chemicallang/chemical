@@ -7,8 +7,6 @@
 class AnyType : public BaseType {
 public:
 
-    static const AnyType instance;
-
     inline constexpr AnyType() : BaseType(BaseTypeKind::Any) {
 
     }

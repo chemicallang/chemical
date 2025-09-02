@@ -7,8 +7,6 @@
 class NullPtrType : public BaseType {
 public:
 
-    static const NullPtrType instance;
-
     NullPtrType() : BaseType(BaseTypeKind::NullPtr) {
 
     }

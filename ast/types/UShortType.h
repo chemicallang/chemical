@@ -7,8 +7,6 @@
 class UShortType : public IntNType {
 public:
 
-    static const UShortType instance;
-
     /**
      * constructor
      */

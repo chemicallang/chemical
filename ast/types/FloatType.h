@@ -7,8 +7,6 @@
 class FloatType : public BaseType {
 public:
 
-    static const FloatType instance;
-
     /**
      * constructor
      */

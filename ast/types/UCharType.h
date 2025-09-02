@@ -7,8 +7,6 @@
 class UCharType : public IntNType {
 public:
 
-    static const UCharType instance;
-
     /**
      * constructor
      */

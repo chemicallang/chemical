@@ -149,6 +149,18 @@ func create_pair_point(x : int, y : int) : Point {
     return Point { x : x, y : y }
 }
 
+struct DefConsStruct {
+    var value : int
+    @make
+    func make() {
+        value = 897
+    }
+}
+
+struct DefConsContainer {
+    var d : DefConsStruct
+}
+
 func test_nodes() {
     test("global constant int", () => {
         return MyInt == 5;
@@ -890,6 +902,10 @@ func test_nodes() {
     test("access to members through typealias for struct works", () => {
         var p = Point { x : 23, y : 21 }
         return sum_ppoint(&p) == 44
+    })
+    test("struct with default constructor is automatically called when in struct value of container", () => {
+        var d = DefConsContainer {}
+        return d.d.value == 897
     })
 }
 

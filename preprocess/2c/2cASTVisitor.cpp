@@ -5696,20 +5696,10 @@ void default_initialize_inherited(ToCAstVisitor& visitor, VariablesContainer* de
     }
 }
 
-void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
+void default_initialize_struct_non_inh(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
 
     const auto cons = def->default_constructor_func();
     if(cons && !cons->is_generated_fn()) {
-
-        if (has_value_before) {
-            visitor.write(", ");
-        }
-        has_value_before = false;
-
-        visitor.new_line_and_indent(loc);
-        visitor.write('.');
-        visitor.write(def->name_view());
-        visitor.write(" = ");
 
         visitor.write("({ struct ");
         visitor.mangle(def);
@@ -5728,15 +5718,6 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
 
     } else {
 
-        if(has_value_before) {
-            visitor.write(", ");
-        }
-        has_value_before = false;
-
-        visitor.new_line_and_indent(loc);
-        visitor.write('.');
-        visitor.write(def->name_view());
-        visitor.write(" = ");
         visitor.write("(struct ");
         visitor.mangle(def);
         visitor.write(") { ");
@@ -5780,6 +5761,22 @@ void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContaine
 
         has_value_before = true;
     }
+
+}
+
+void default_initialize_struct(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, bool& has_value_before, SourceLocation loc) {
+
+    if (has_value_before) {
+        visitor.write(", ");
+    }
+    has_value_before = false;
+
+    visitor.new_line_and_indent(loc);
+    visitor.write('.');
+    visitor.write(def->name_view());
+    visitor.write(" = ");
+
+    default_initialize_struct_non_inh(visitor, def, has_value_before, loc);
 
 }
 
@@ -5847,7 +5844,22 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                 write(" = ");
                 accept_mutating_value(var->known_type(), defValue, false);
             } else if(!val->is_union()) {
-                error(val) << "no default value present for '" << var->name << "' in struct value";
+                const auto type = var->known_type();
+                const auto container = type->get_direct_linked_canonical_node();
+                if(container) {
+                    const auto child_def = container->as_struct_def();;
+                    if(child_def) {
+                        new_line_and_indent(val->encoded_location());
+                        write('.');
+                        write(var->name);
+                        write(" = ");
+                        default_initialize_struct_non_inh(*this, child_def, has_value_before, val->encoded_location());
+                    } else {
+                        error(val->encoded_location()) << "no default value present for '" << var->name << "' in struct value";
+                    }
+                } else {
+                    error(val->encoded_location()) << "no default value present for '" << var->name << "' in struct value";
+                }
             }
         }
     }

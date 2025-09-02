@@ -7,8 +7,6 @@
 class LongType : public IntNType {
 public:
 
-    static const LongType instance;
-
     /**
      * constructor
      */

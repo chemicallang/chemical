@@ -7,8 +7,6 @@
 class StringType : public BaseType {
 public:
 
-    static const StringType instance;
-
     /**
      * constructor
      */

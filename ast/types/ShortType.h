@@ -7,8 +7,6 @@
 class ShortType : public IntNType {
 public:
 
-    static const ShortType instance;
-
     /**
      * constructor
      */

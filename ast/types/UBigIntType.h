@@ -7,8 +7,6 @@
 class UBigIntType : public IntNType {
 public:
 
-    static const UBigIntType instance;
-
     /**
      * constructor
      */

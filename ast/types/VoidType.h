@@ -7,8 +7,6 @@
 class VoidType : public BaseType {
 public:
 
-    static const VoidType instance;
-
     /**
      * constructor
      */

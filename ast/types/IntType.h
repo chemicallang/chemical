@@ -7,8 +7,6 @@
 class IntType : public IntNType {
 public:
 
-    static const IntType instance;
-
     /**
      * constructor
      */

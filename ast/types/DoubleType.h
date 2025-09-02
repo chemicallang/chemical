@@ -7,8 +7,6 @@
 class DoubleType : public BaseType {
 public:
 
-    static const DoubleType instance;
-
     /**
      * constructor
      */

@@ -7,8 +7,6 @@
 class BigIntType : public IntNType {
 public:
 
-    static const BigIntType instance;
-
     constexpr BigIntType() : IntNType() {
 
     }

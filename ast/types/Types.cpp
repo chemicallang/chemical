@@ -17,15 +17,6 @@
 #include "ExpressionType.h"
 #include "ast/statements/Typealias.h"
 
-const AnyType AnyType::instance;
-const BoolType BoolType::instance;
-const CharType CharType::instance;
-const DoubleType DoubleType::instance;
-const FloatType FloatType::instance;
-const StringType StringType::instance;
-const UCharType UCharType::instance;
-const VoidType VoidType::instance;
-
 bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::String) {

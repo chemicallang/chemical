@@ -7,8 +7,6 @@
 class ULongType : public IntNType {
 public:
 
-    static const ULongType instance;
-
     /**
      * constructor
      */

@@ -285,7 +285,7 @@ void to_llvm_args(
 //        if(values[i]->value_type() == ValueType::Lambda) {
 //            auto expectedParam = func_type->params[i]->create_value_type();
 //            auto expectedFuncType = (FunctionType*) expectedParam.get();
-//            auto type = values[i]->create_type();
+//            auto type = values[i]->getType();
 //            auto funcType = (FunctionType*) type.get();
 //            if(expectedFuncType->isCapturing) {
 //                if(funcType->isCapturing) {
@@ -976,7 +976,7 @@ void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& dia
             const auto param = func->params[arg_offset];
             const auto param_type = param->type;
             const auto arg_type_loc = values[arg_offset]->encoded_location();
-            const auto arg_type = values[arg_offset]->create_type(allocator);
+            const auto arg_type = values[arg_offset]->getType();
             if(!arg_type) {
 #ifdef DEBUG
                 diagnoser.error(this) << "couldn't get arg type " << values[arg_offset]->representation() << " in function call " << representation();

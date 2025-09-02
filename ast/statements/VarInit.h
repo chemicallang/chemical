@@ -256,6 +256,10 @@ public:
         attrs.is_thread_local = local;
     }
 
+    inline bool is_linkage_public() {
+        return ::is_linkage_public(specifier());
+    }
+
     Value* holding_value() final {
         return value;
     }

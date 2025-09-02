@@ -29,13 +29,13 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     llvm::GlobalValue::LinkageTypes linkage;
     switch(specifier()) {
         case AccessSpecifier::Private:
-        case AccessSpecifier::Protected:
             linkage = llvm::GlobalValue::LinkageTypes::PrivateLinkage;
             break;
         case AccessSpecifier::Internal:
             linkage = llvm::GlobalValue::LinkageTypes::InternalLinkage;
             break;
         case AccessSpecifier::Public:
+        case AccessSpecifier::Protected:
             linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;
             break;
     }

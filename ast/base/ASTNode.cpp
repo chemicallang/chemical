@@ -472,10 +472,6 @@ bool ASTNode::set_specifier(AccessSpecifier spec) {
     }
 }
 
-bool ASTNode::is_exported() {
-    return specifier() == AccessSpecifier::Public;
-}
-
 bool ASTNode::set_comptime(bool value) {
     switch(kind()) {
         case ASTNodeKind::VarInitStmt:

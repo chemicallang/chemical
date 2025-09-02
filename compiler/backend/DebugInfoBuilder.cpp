@@ -429,7 +429,7 @@ void DebugInfoBuilder::declare(VarInitStatement *init, llvm::Value* val) {
             diCompileUnit->getFile(),
             location.start.line + 1,
             to_di_type(*this, init->known_type(), false),
-            !init->is_exported(),
+            !init->is_linkage_public(),
             init->value != nullptr,
             builder->createExpression()
         );

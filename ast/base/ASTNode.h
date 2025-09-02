@@ -189,11 +189,6 @@ public:
     bool set_specifier(AccessSpecifier spec);
 
     /**
-     * is this node's being exported outside this module
-     */
-    bool is_exported();
-
-    /**
      * makes node compile time
      * @return true if successful otherwise false
      */

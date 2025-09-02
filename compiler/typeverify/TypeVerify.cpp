@@ -6,7 +6,7 @@
 #include "ast/values/StructValue.h"
 
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocator, Value* value, BaseType* type) {
-    const auto val_type = value->create_type(allocator);
+    const auto val_type = value->getType();
     if(val_type) {
         diagnoser.error(value) << "value with type '" << val_type->representation() << "' does not satisfy type '" << type->representation() << "'";
     } else {

@@ -608,10 +608,10 @@ bool has_allocated_storage(Value* value) {
 
 void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value, SourceLocation location) {
     if(lhs) {
-        const auto lhsType = lhs->create_type(allocator)->canonical();
+        const auto lhsType = lhs->getType()->canonical();
         if (!assign_dyn_obj(rhs, lhsType, pointer, value, location)) {
 
-            const auto value_pure = rhs->create_type(allocator);
+            const auto value_pure = rhs->getType();
             const auto derefType = value_pure->getAutoDerefType(lhsType);
 
             // this handles the case where value is a reference, however

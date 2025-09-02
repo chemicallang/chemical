@@ -26,7 +26,7 @@ void TypeVerifier::VisitArrayValue(ArrayValue* val) {
 
 void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
     RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
-    auto func_type = call->function_type(allocator);
+    auto func_type = call->function_type();
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < call->values.size()) {

@@ -44,7 +44,7 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return Value::load_value(gen, create_type(gen.allocator), llvm_type(gen), llvm_pointer(gen), encoded_location());
+    return Value::load_value(gen, getType(), llvm_type(gen), llvm_pointer(gen), encoded_location());
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
@@ -59,15 +59,15 @@ bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<ll
 }
 
 bool IndexOperator::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    return create_type(gen.allocator)->linked_node()->add_child_index(gen, indexes, name);
+    return getType()->linked_node()->add_child_index(gen, indexes, name);
 }
 
 llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
-    return create_type(gen.allocator)->llvm_type(gen);
+    return getType()->llvm_type(gen);
 }
 
 llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) {
-    return create_type(gen.allocator)->llvm_chain_type(gen, chain, index);
+    return getType()->llvm_chain_type(gen, chain, index);
 }
 
 #endif

@@ -52,11 +52,6 @@ public:
         return false;
     }
 
-    [[nodiscard]]
-    BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<IntType>()) IntType();
-    }
-
     BaseType* known_type() final {
         return (BaseType*) &IntType::instance;
     }

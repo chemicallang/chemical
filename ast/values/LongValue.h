@@ -37,11 +37,6 @@ public:
         return new (allocator.allocate<LongValue>()) LongValue(value, getType(), encoded_location());
     }
 
-    [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<LongType>()) LongType();
-    }
-
     unsigned int get_num_bits(bool is64Bit) final {
         if(is64Bit) {
             return 64;

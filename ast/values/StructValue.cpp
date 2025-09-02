@@ -546,10 +546,6 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
     return struct_value;
 }
 
-BaseType* StructValue::create_type(ASTAllocator& allocator) {
-    return getRefType();
-}
-
 BaseType* StructValue::known_type() {
     return getRefType();
 }

@@ -53,10 +53,6 @@ public:
         );
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override {
-        return create_extraction_value_type(allocator, extractionKind);
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

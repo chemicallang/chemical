@@ -38,8 +38,6 @@ public:
 
     }
 
-    BaseType* create_type(ASTAllocator &allocator);
-
     inline Value* getCalculatedValue() {
         return calculated_value;
     }

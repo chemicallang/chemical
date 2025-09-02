@@ -9,10 +9,6 @@
 #include "ast/statements/VarInit.h"
 #include <iostream>
 
-BaseType* StringValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<StringType>()) StringType();
-}
-
 Value *StringValue::index(InterpretScope &scope, int i) {
 #ifdef DEBUG
     if (i < 0 || i >= value.size()) {

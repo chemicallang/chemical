@@ -26,10 +26,6 @@ llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;
 }
 
-BaseType* array_child_type(ArrayValue& value, ASTAllocator& allocator) {
-    return ((ArrayType*) value.create_type(allocator))->elem_type;
-}
-
 void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, BaseType* expected_type) {
     // filling array with values
     std::vector<llvm::Value*> idxList;
@@ -184,10 +180,6 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
         }
     }
     return elementType;
-}
-
-BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
-    return new (allocator.allocate<ArrayType>()) ArrayType({element_type(allocator), encoded_location()}, array_size());
 }
 
 BaseType* ArrayValue::known_type() {

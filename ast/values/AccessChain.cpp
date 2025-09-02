@@ -39,10 +39,6 @@ void AccessChain::relink_parent() {
     }
 }
 
-BaseType* AccessChain::create_type(ASTAllocator& allocator) {
-    return values[values.size() - 1]->create_type(allocator);
-}
-
 BaseType* AccessChain::known_type() {
     return values[values.size() - 1]->known_type();
 }

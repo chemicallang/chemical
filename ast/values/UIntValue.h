@@ -37,11 +37,6 @@ public:
         return new (allocator.allocate<UIntValue>()) UIntValue(value, getType(), encoded_location());
     }
 
-    [[nodiscard]]
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<UIntType>()) UIntType();
-    }
-
     bool is_unsigned() final {
         return true;
     }

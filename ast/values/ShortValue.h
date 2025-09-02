@@ -35,10 +35,6 @@ public:
         return new (allocator.allocate<ShortValue>()) ShortValue(value, getType(), encoded_location());
     }
 
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<ShortType>()) ShortType();
-    }
-
     unsigned int get_num_bits(bool is64Bit) final {
         return 16;
     }

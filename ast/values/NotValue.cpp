@@ -12,10 +12,6 @@ bool NotValue::primitive() {
     return false;
 }
 
-BaseType* NotValue::create_type(ASTAllocator &allocator) {
-    return value->create_type(allocator);
-}
-
 Value* NotValue::evaluated_value(InterpretScope &scope) {
     const auto val = value->evaluated_value(scope);
     if(val->val_kind() == ValueKind::Bool) {

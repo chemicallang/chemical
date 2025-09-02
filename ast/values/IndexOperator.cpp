@@ -101,20 +101,6 @@ void IndexOperator::determine_type(TypeBuilder& typeBuilder) {
     setType(current_type);
 }
 
-BaseType* IndexOperator::create_type(ASTAllocator& allocator) {
-    int i = (int) values.size();
-    auto current_type = parent_val->create_type(allocator);
-    while(i > 0) {
-        const auto childType = current_type->create_child_type(allocator);
-        if(!childType) {
-            return new (allocator.allocate<VoidType>()) VoidType();
-        }
-        current_type = childType;
-        i--;
-    }
-    return current_type;
-}
-
 ASTNode *IndexOperator::linked_node() {
     const auto value_type = known_type();
     return value_type ? value_type->linked_node() : nullptr;

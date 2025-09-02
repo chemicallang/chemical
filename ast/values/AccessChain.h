@@ -88,8 +88,6 @@ public:
 
     bool compile_time_computable() final;
 
-    BaseType* create_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     uint64_t byte_size(bool is64Bit) final;

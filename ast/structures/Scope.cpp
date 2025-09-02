@@ -135,10 +135,6 @@ Value* LoopBlock::get_first_broken() {
     return first_broken;
 }
 
-BaseType* LoopBlock::create_type(ASTAllocator& allocator) {
-    return get_first_broken()->create_type(allocator);
-}
-
 BaseType* LoopBlock::known_type() {
     return get_first_broken()->known_type();
 }

@@ -146,15 +146,6 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
     return parent->child(scope, value);
 }
 
-BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
-    if(linked) {
-        const auto type = linked->known_type();
-        return type ? type->copy(allocator) : new (allocator.allocate<VoidType>()) VoidType();;
-    } else {
-        return new (allocator.allocate<VoidType>()) VoidType();
-    }
-}
-
 void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op, SourceLocation location) {
 #ifdef DEBUG
     if (parent == nullptr) {

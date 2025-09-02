@@ -41,10 +41,6 @@ public:
         return (BaseType*) &BoolType::instance;
     }
 
-    BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<BoolType>()) BoolType();
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

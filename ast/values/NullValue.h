@@ -46,10 +46,6 @@ public:
 
 #endif
 
-    BaseType* create_type(ASTAllocator &allocator) final {
-        return new (allocator.allocate<NullPtrType>()) NullPtrType();
-    }
-
     BaseType* known_type() final {
         return (NullPtrType*) &NullPtrType::instance;
     }

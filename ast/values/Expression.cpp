@@ -93,42 +93,6 @@ void Expression::determine_type(TypeBuilder& typeBuilder) {
     setType(::determine_type(this, typeBuilder));
 }
 
-BaseType* Expression::create_type(ASTAllocator& allocator) {
-    if(operation >= Operation::IndexBooleanReturningStart && operation <= Operation::IndexBooleanReturningEnd) {
-        return new (allocator.allocate<BoolType>()) BoolType();
-    }
-    auto firstType = firstValue->create_type(allocator);
-    auto secondType = secondValue->create_type(allocator);
-    if(firstType == nullptr || secondType == nullptr) {
-        return nullptr;
-    }
-    const auto first = canonicalize_enum(firstType->canonical());
-    const auto second = canonicalize_enum(secondType->canonical());
-    const auto first_kind = first->kind();
-    const auto second_kind = second->kind();
-    // operation between integer and float/double results in float/double
-    if(first_kind == BaseTypeKind::IntN && (second_kind == BaseTypeKind::Float || second_kind == BaseTypeKind::Double)) {
-        return second;
-    } else if(second_kind == BaseTypeKind::IntN && (first_kind == BaseTypeKind::Float || first_kind == BaseTypeKind::Double)) {
-        return first;
-    }
-    // operation between two integers of different int n types results in int n type of higher bit width
-    if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
-        const auto first_intN = first->as_intn_type_unsafe();
-        const auto second_intN = second->as_intn_type_unsafe();
-        return first_intN->greater_than_in_bits(second_intN) ? first : second;
-    }
-    // addition or subtraction of integer value into a pointer
-    if((operation == Operation::Addition || operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {
-        return first;
-    }
-    // subtracting a pointer results in a ulong type
-    if(operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
-        return new (allocator.allocate<ULongType>()) ULongType();
-    }
-    return first;
-}
-
 BaseType* Expression::known_type() {
     return getType();
 }

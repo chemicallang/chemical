@@ -26,8 +26,6 @@ public:
 
 #endif
 
-    BaseType* create_type(ASTAllocator& allocator) final;
-
     Value *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(encoded_location());
     }

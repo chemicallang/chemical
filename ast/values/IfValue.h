@@ -35,8 +35,6 @@ public:
         return stmt.compile_time_computable();
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override;
-
     ASTNode* linked_node() override;
 
 #ifdef COMPILER_BUILD

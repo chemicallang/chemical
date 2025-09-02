@@ -84,8 +84,6 @@ public:
 
 #endif
 
-    BaseType* create_type(ASTAllocator &allocator) final;
-
     BaseType* known_type() final {
         return this;
     }

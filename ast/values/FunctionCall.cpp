@@ -357,7 +357,7 @@ llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
 }
 
 llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen) {
-    const auto func_type = function_type(gen.allocator);
+    const auto func_type = function_type();
     return func_type->llvm_func_type(gen);
 }
 
@@ -407,7 +407,7 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
 //    auto granny = grandpa->access_chain_pointer(gen, chain_values, destructibles, index - 2);
     const auto struct_ty = gen.fat_pointer_type();
 
-    auto func_type = function_type(gen.allocator);
+    auto func_type = function_type();
     llvm::Value* self_ptr = nullptr;
 
     if(func_type->has_self_param()) {
@@ -766,7 +766,7 @@ bool FunctionCall::store_in_parent(
         goto store_func_call;
     }
     {
-        auto func_type = function_type(gen.allocator);
+        auto func_type = function_type();
         if (func_type && func_type->returnType->isStructLikeType()) {
             goto store_func_call;
         }
@@ -828,7 +828,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         variant_call_initialize(gen, allocated, variant_type, variant_mem, this);
         return allocated;
     }
-    auto func_type = function_type(gen.allocator);
+    auto func_type = function_type();
     if(func_type->returnType->isStructLikeType()) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
@@ -868,37 +868,6 @@ void FunctionCall::access_chain_assign_value(
 
 uint64_t FunctionCall::byte_size(bool is64Bit) {
     return known_type()->byte_size(is64Bit);
-}
-
-FunctionType* FunctionCall::func_type_from_parent_type(ASTAllocator& allocator, BaseType* can_type) {
-    if(can_type->kind() == BaseTypeKind::CapturingFunction) {
-        return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
-    }
-    auto func_type = can_type->as_function_type();
-    const auto func_decl = safe_linked_func();
-    if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
-        const auto parent = func_decl->parent();
-        if(parent->kind() == ASTNodeKind::StructDecl) {
-            const auto struct_def = parent->as_struct_def_unsafe();
-            if (struct_def->generic_parent != nullptr) {
-                func_type->returnType = {new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(struct_def)), func_type->returnType.getLocation()};
-            }
-        } else if(parent->kind() == ASTNodeKind::VariantDecl) {
-            const auto variant_def = parent->as_variant_def_unsafe();
-            if (variant_def->generic_parent != nullptr) {
-                func_type->returnType = {new(allocator.allocate<GenericType>()) GenericType(new(allocator.allocate<LinkedType>()) LinkedType(variant_def)), func_type->returnType.getLocation()};
-            }
-        }
-    }
-    return func_type;
-}
-
-FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
-    if(!parent_val) return nullptr;
-    const auto type = parent_val->create_type(allocator);
-    if(!type) return nullptr;
-    const auto can_type = type->canonical();
-    return func_type_from_parent_type(allocator, can_type);
 }
 
 FunctionType* FunctionCall::func_type_from_parent_type(BaseType* can_type) {
@@ -1213,36 +1182,6 @@ FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
 
 VoidType* voidTy(ASTAllocator& allocator) {
     return new (allocator.allocate<VoidType>()) VoidType();
-}
-
-BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
-    if(!parent_val) return voidTy(allocator);
-    const auto linked = parent_val->linked_node();
-    if(linked) {
-        const auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::VariantMember) {
-            const auto mem = linked->as_variant_member_unsafe();
-            const auto def = mem->parent();
-            if(def->generic_parent != nullptr) {
-                const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(def), generic_list);
-                return gen_type;
-            } else {
-                return mem->known_type();
-            }
-        } else if(linked_kind == ASTNodeKind::FunctionDecl) {
-            const auto func_decl = linked->as_function_unsafe();
-            if(func_decl->is_constructor_fn() && func_decl->parent()) {
-                const auto struct_def = func_decl->parent()->as_struct_def();
-                if(struct_def->generic_parent != nullptr) {
-                    return new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(struct_def));
-                }
-            }
-        }
-    }
-    auto func_type = function_type(allocator);
-    if(!func_type) return voidTy(allocator);
-    auto pure_type = func_type->returnType->pure_type(allocator);
-    return pure_type;
 }
 
 FunctionType* get_func_type(BaseType* parent_type) {

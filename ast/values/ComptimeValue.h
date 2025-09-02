@@ -57,10 +57,6 @@ public:
         return value->known_type();
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override {
-        return value->create_type(allocator);
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

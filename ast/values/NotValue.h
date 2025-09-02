@@ -54,8 +54,6 @@ public:
         return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), getType(), encoded_location());
     }
 
-    BaseType* create_type(ASTAllocator &allocator) final;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     BaseType* known_type() final;

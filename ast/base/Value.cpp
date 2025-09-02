@@ -918,14 +918,6 @@ StructDefinition* Value::get_param_linked_struct() {
     return nullptr;
 }
 
-BaseType* Value::create_type(ASTAllocator& allocator) {
-#ifdef DEBUG
-    throw std::runtime_error("create_type called on base value");
-#else
-    return nullptr;
-#endif
-}
-
 bool Value::is_pointer() {
     const auto k = known_type()->kind();
     return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;

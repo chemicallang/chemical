@@ -54,10 +54,6 @@ public:
         return (BaseType*) &CharType::instance;
     }
 
-    BaseType* create_type(ASTAllocator& allocator) final {
-        return new (allocator.allocate<CharType>()) CharType();
-    }
-
     CharValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<CharValue>()) CharValue(value, getType(), encoded_location());
     }

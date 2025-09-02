@@ -35,8 +35,4 @@ public:
         return type;
     }
 
-    BaseType* create_type(ASTAllocator &allocator) override {
-        return type->copy(allocator);
-    }
-
 };

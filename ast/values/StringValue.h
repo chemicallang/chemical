@@ -63,6 +63,4 @@ public:
         return new (allocator.allocate<StringValue>()) StringValue(value, getType(), encoded_location());
     }
 
-    BaseType* create_type(ASTAllocator& allocator) final;
-
 };

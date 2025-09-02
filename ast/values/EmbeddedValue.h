@@ -43,13 +43,6 @@ public:
         );
     }
 
-    /**
-     * create the type
-     */
-    BaseType* create_type(ASTAllocator &allocator) override {
-        return getType()->copy(allocator);
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

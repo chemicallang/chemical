@@ -187,7 +187,3 @@ VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, 
         return nullptr;
     }
 }
-
-BaseType* PatternMatchExpr::create_type(ASTAllocator &allocator) {
-    return new (allocator.allocate<VoidType>()) VoidType();
-}

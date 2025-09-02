@@ -29,10 +29,6 @@ public:
         return copied;
     }
 
-    BaseType* create_type(ASTAllocator& allocator) final {
-        return stmt.create_type(allocator);
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) final;

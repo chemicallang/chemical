@@ -43,8 +43,6 @@ public:
 
     void determine_type();
 
-    BaseType* create_type(ASTAllocator& allocator) final;
-
     BaseType* known_type() final;
 
     ASTNode *linked_node() final {

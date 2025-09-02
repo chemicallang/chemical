@@ -347,13 +347,13 @@ llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     if(linked_kind == ASTNodeKind::VariantMember) {
         type = VariantDefinition::llvm_type_with_member(gen, linked->as_variant_member_unsafe());
     } else {
-        type = create_type(gen.allocator)->llvm_type(gen);
+        type = getType()->llvm_type(gen);
     }
     return type;
 }
 
 llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
-    return create_type(gen.allocator)->llvm_chain_type(gen, values, index);
+    return getType()->llvm_chain_type(gen, values, index);
 }
 
 llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen) {

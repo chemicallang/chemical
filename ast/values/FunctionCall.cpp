@@ -627,8 +627,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
         return returnedStruct;
     }
 
-    auto parent_type = parent_val->create_type(gen.allocator)->canonical();
-    const auto func_type = func_type_from_parent_type(gen.allocator, parent_type);
+    auto parent_type = parent_val->getType()->canonical();
+    const auto func_type = func_type_from_parent_type(parent_type);
     if(func_type->isCapturing()) {
         return call_capturing_lambda(gen, this, func_type, destructibles);
     }

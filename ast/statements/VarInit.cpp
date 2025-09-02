@@ -232,7 +232,7 @@ BaseType* VarInitStatement::get_or_create_type(ASTAllocator& allocator) {
     if(type) {
         return type;
     } else {
-        return value->create_type(allocator);
+        return value->getType();
     }
 }
 

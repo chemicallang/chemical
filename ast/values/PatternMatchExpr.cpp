@@ -148,7 +148,7 @@ BaseType* PatternMatchIdentifier::known_type() {
 }
 
 VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
-    const auto type = expression->create_type(allocator);
+    const auto type = expression->getType();
     if(!type) {
         diagnoser.error("couldn't resolve linked declaration", expression);
         return nullptr;

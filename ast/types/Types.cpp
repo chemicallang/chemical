@@ -72,7 +72,7 @@ bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignme
     if(result) {
         return true;
     } else {
-        auto type = value->create_type(allocator);
+        auto type = value->getType();
         if(type && type->kind() == BaseTypeKind::Literal) {
             return underlying->satisfies(((LiteralType*) type)->underlying);
         }

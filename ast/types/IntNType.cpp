@@ -74,7 +74,7 @@ bool IntNType::satisfies(BaseType *given) {
 
 bool IntNType::satisfies(ASTAllocator &allocator, Value *value, bool assignment) {
     const auto literal = value->isValueIntegerLiteral();
-    auto otherType = value->create_type(allocator);
+    auto otherType = value->getType();
     if(!otherType) return false;
     if(otherType->kind() == BaseTypeKind::Reference) {
         otherType = otherType->as_reference_type_unsafe()->type->canonical();

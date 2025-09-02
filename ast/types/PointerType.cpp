@@ -82,6 +82,6 @@ bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignmen
 }
 
 bool ReferenceType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
-    const auto val_type = value->create_type(allocator);
+    const auto val_type = value->getType();
     return val_type != nullptr && satisfies(val_type, value, assignment);
 }

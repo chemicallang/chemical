@@ -84,10 +84,6 @@ public:
 
 #endif
 
-    BaseType* known_type() final {
-        return this;
-    }
-
     /**
      * should generate a destructor for capture struct
      */

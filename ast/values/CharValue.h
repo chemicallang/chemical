@@ -50,10 +50,6 @@ public:
         return 1;
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &CharType::instance;
-    }
-
     CharValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<CharValue>()) CharValue(value, getType(), encoded_location());
     }

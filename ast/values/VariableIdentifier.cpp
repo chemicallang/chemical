@@ -137,10 +137,6 @@ Value *VariableIdentifier::child(InterpretScope &scope, const chem::string_view 
     }
 }
 
-BaseType* VariableIdentifier::known_type() {
-    return linked ? linked->known_type() : nullptr;
-}
-
 // will find value by this name in the parent
 Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
     return parent->child(scope, value);

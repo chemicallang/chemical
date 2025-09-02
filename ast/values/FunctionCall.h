@@ -63,11 +63,6 @@ public:
      */
     FunctionType* known_func_type();
 
-    /**
-     * known type of function call's return
-     */
-    BaseType* known_type() final;
-
     void determine_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**

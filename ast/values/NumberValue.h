@@ -68,12 +68,4 @@ public:
         return false;
     }
 
-    BaseType* known_type() final {
-        if(value > INT_MAX) {
-            return (BaseType*) &LongType::instance;
-        } else {
-            return (BaseType*) &IntType::instance;
-        }
-    }
-
 };

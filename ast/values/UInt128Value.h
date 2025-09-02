@@ -28,10 +28,6 @@ public:
         return (UInt128Type*) IntNumValue::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &UInt128Type::instance;
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return 16;
     }

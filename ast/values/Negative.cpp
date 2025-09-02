@@ -53,10 +53,6 @@ Value* NegativeValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-BaseType* NegativeValue::known_type() {
-    return value->known_type();
-}
-
 bool NegativeValue::primitive() {
     return value->primitive();
 }

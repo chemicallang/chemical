@@ -293,7 +293,7 @@ Value* SwitchStatement::get_value_node() {
 BaseType *SwitchStatement::known_type() {
     if(scopes.empty()) return nullptr;
     auto last_val = get_value_node();
-    return last_val ? last_val->known_type() : nullptr;
+    return last_val ? last_val->getType() : nullptr;
 }
 
 ASTNode *SwitchValue::linked_node() {
@@ -302,7 +302,7 @@ ASTNode *SwitchValue::linked_node() {
 }
 
 VariantDefinition* SwitchStatement::getVarDefFromExpr() {
-    const auto expr_type = expression->known_type();
+    const auto expr_type = expression->getType();
     if(expr_type) {
         const auto linked = expr_type->linked_node();
         if(linked) {

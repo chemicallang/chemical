@@ -43,8 +43,6 @@ public:
 
     void determine_type();
 
-    BaseType* known_type() final;
-
     ASTNode *linked_node() final {
         return value->linked_node();
     }

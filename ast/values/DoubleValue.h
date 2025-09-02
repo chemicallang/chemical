@@ -42,10 +42,6 @@ public:
 
 #endif
 
-    BaseType* known_type() final {
-        return (BaseType*) &DoubleType::instance;
-    }
-
     DoubleValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<DoubleValue>()) DoubleValue(value, getType(), encoded_location());
     }

@@ -36,8 +36,6 @@ public:
         setType(newValue->getType());
     }
 
-    BaseType* known_type() final;
-
     uint64_t byte_size(bool is64Bit) final;
 
     bool primitive() final;

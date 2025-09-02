@@ -54,8 +54,6 @@ public:
 
     DereferenceValue *copy(ASTAllocator& allocator) final;
 
-    BaseType* known_type() final;
-
     Value* evaluated_value(InterpretScope &scope) override;
 
     ASTNode* linked_node() override {

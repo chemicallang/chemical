@@ -420,8 +420,8 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
         linker.error("cannot assign to a non mutable value", lhs);
     }
     auto& func_type = *linker.current_func_type;
-    func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
-    func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
+    func_type.mark_moved_value(linker.allocator, value, lhs->getType(), linker, true);
+    func_type.mark_un_moved_lhs_value(lhs, lhs->getType());
 
 }
 
@@ -1997,7 +1997,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
     for(auto& value : values) {
         visit(value);
         if(i == 0 && !known_elem_type) {
-            known_elem_type = TypeLoc(value->known_type(), known_elem_type.getLocation());
+            known_elem_type = TypeLoc(value->getType(), known_elem_type.getLocation());
         }
         if(known_elem_type) {
             current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);

@@ -53,10 +53,6 @@ public:
         return inValue;
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &BoolType::instance;
-    }
-
     Value* evaluated_value(InterpretScope &scope) override;
 
 #ifdef COMPILER_BUILD

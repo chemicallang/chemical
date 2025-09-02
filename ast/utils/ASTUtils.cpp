@@ -107,6 +107,7 @@ ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& a
                 parent->values.emplace_back(values[i]);
                 i++;
             }
+            parent->setType(parent->values.back()->getType());
             return parent;
         }
     } else {

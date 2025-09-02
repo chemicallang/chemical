@@ -182,10 +182,6 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
     return elementType;
 }
 
-BaseType* ArrayValue::known_type() {
-    return getType();
-}
-
 void ArrayValue::determine_type(ASTAllocator& allocator) {
     getType()->elem_type = { element_type(allocator), encoded_location() };
 }

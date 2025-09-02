@@ -1069,7 +1069,7 @@ public:
         auto& typeBuilder = call_scope->global->typeBuilder;
         const auto val_one = call->values[0];
         const auto val_two = call->values[1];
-        const auto first_type = val_one->known_type();
+        const auto first_type = val_one->getType();
         if(first_type) {
             return get_bool(allocator, typeBuilder, first_type->satisfies(call_scope->allocator, val_two, false));
         } else {

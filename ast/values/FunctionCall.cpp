@@ -396,7 +396,7 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
 ) {
     auto grandpa = get_parent_from(parent_val);
     if(!grandpa) return { false, nullptr };
-    const auto known_t = grandpa->known_type();
+    const auto known_t = grandpa->getType();
     if(!known_t) return { false, nullptr };
     const auto pure_type = known_t->pure_type(gen.allocator);
     if(pure_type->kind() != BaseTypeKind::Dynamic) return { false, nullptr };
@@ -867,7 +867,7 @@ void FunctionCall::access_chain_assign_value(
 #endif
 
 uint64_t FunctionCall::byte_size(bool is64Bit) {
-    return known_type()->byte_size(is64Bit);
+    return getType()->byte_size(is64Bit);
 }
 
 FunctionType* FunctionCall::func_type_from_parent_type(BaseType* can_type) {
@@ -906,7 +906,7 @@ FunctionType* FunctionCall::known_func_type() {
     if(decl) {
         return decl->as_function_type();
     }
-    auto func_type = parent_val->known_type();
+    auto func_type = parent_val->getType();
     if(func_type->as_function_type()) {
         return (FunctionType*) func_type;
     } else {
@@ -915,7 +915,7 @@ FunctionType* FunctionCall::known_func_type() {
 }
 
 BaseType* FunctionCall::get_arg_type(unsigned int index) {
-    auto func_type = parent_val->known_type()->as_function_type();
+    auto func_type = parent_val->getType()->as_function_type();
     auto param = func_type->func_param_for_arg_at(index);
     return param->type;
 }
@@ -934,7 +934,7 @@ void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& dia
             const auto param_type = selfParam->type;
             const auto grandpa = get_parent_from(parent_val);
             if(grandpa) {
-                const auto arg_type = grandpa->known_type();
+                const auto arg_type = grandpa->getType();
                 if(arg_type) {
                     infer_types_by_args(diagnoser, parent_val->linked_node(), generic_list.size(), param_type, {arg_type, grandpa->encoded_location()}, inferred, this);
                 }
@@ -965,7 +965,7 @@ void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& dia
             while(i < values_size) {
                 const auto param_type = (member->values.begin() + i)->second->type;
                 const auto arg_type_loc = values[i]->encoded_location();
-                const auto arg_type = values[i]->known_type();
+                const auto arg_type = values[i]->getType();
                 if(arg_type) {
                     infer_types_by_args(diagnoser, member->parent(), generic_list.size(), param_type, {arg_type, arg_type_loc}, inferred, this);
                 }
@@ -982,7 +982,7 @@ void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<TypeLo
 }
 
 ASTNode *FunctionCall::linked_node() {
-    const auto known = known_type();
+    const auto known = getType();
     return known ? known->linked_node() : nullptr;
 }
 
@@ -1227,38 +1227,4 @@ void FunctionCall::determine_type(ASTAllocator& allocator, ASTDiagnoser& diagnos
             diagnoser.error(call) << "couldn't determine function type for the given call";
         }
     }
-}
-
-BaseType* FunctionCall::known_type() {
-    const auto parent_type = parent_val->known_type();
-    if(parent_type) {
-        switch(parent_type->kind()) {
-            case BaseTypeKind::Function: {
-                const auto type = ((FunctionType*) parent_type)->returnType->canonical();
-                return type;
-            }
-            case BaseTypeKind::Linked:{
-                const auto linked = (LinkedType*) parent_type;
-                const auto k = linked->linked->kind();
-                // decl call (constructors) variant member (variant call)
-                if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
-                    return parent_type;
-                } else if(k == ASTNodeKind::TypealiasStmt) {
-                    return linked->canonical();
-                }
-                break;
-            }
-            case BaseTypeKind::Generic: {
-                const auto gen_type = (GenericType*) parent_type;
-                const auto k = gen_type->referenced->linked->kind();
-                // decl call (constructors) variant member (variant call)
-                if(k == ASTNodeKind::VariantMember || k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl) {
-                    return parent_type;
-                }
-            }
-            default:
-                return nullptr;
-        }
-    }
-    return nullptr;
 }

@@ -235,13 +235,6 @@ public:
     StructDefinition* get_param_linked_struct();
 
     /**
-     * get the known type from linked node of this chain value
-     */
-    virtual BaseType* known_type() {
-        return nullptr;
-    }
-
-    /**
      * get the pure type from known type directly
      */
     BaseType* pure_type_ptr();
@@ -376,7 +369,7 @@ public:
      * load the given value, taking in to account structs
      */
     static llvm::Value* load_value(Codegen& gen, Value* value, llvm::Value* ptr) {
-        return load_value(gen, value->known_type(), value->llvm_type(gen), ptr, value->encoded_location());
+        return load_value(gen, value->getType(), value->llvm_type(gen), ptr, value->encoded_location());
     }
 
     /**

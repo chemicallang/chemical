@@ -184,7 +184,7 @@ llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
-    const auto known_type = lhs->known_type();
+    const auto known_type = lhs->getType();
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         const auto value = llvm_allocate(gen, "", nullptr);
         gen.assign_store(lhs, lhsPtr, this, value, encoded_location());
@@ -544,10 +544,6 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
 //        struct_value->generic_list.emplace_back(arg->copy(allocator));
 //    }
     return struct_value;
-}
-
-BaseType* StructValue::known_type() {
-    return getRefType();
 }
 
 Value *StructValue::child(InterpretScope &scope, const chem::string_view &name) {

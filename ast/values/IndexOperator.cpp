@@ -102,7 +102,7 @@ void IndexOperator::determine_type(TypeBuilder& typeBuilder) {
 }
 
 ASTNode *IndexOperator::linked_node() {
-    const auto value_type = known_type();
+    const auto value_type = getType();
     return value_type ? value_type->linked_node() : nullptr;
 }
 
@@ -167,9 +167,4 @@ IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
         op->values.emplace_back(value->copy(allocator));
     }
     return op;
-}
-
-BaseType* IndexOperator::known_type() {
-    auto value_type = parent_val->known_type();
-    return value_type ? value_type->known_child_type() : nullptr;
 }

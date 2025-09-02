@@ -25,10 +25,6 @@ public:
         return (UBigIntType*) IntNumValue::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &UBigIntType::instance;
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return 8;
     }

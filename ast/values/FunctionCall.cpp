@@ -222,7 +222,7 @@ llvm::Value* arg_value(
         }
 
         // get the value type
-        const auto val_type = value->create_type(gen.allocator);
+        const auto val_type = value->getType();
 
         // struct like type being created and sent to references
         if(pure_type->kind() == BaseTypeKind::Reference && should_destruct(value)) {

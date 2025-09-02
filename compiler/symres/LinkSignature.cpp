@@ -48,6 +48,7 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
     } else if(value->linked == nullptr) {
         linker.error(value) << "unresolved variable identifier, '" << value->value << "' not found";
         value->linked = (ASTNode*) linker.unresolved_decl;
+        value->setType(value->linked->known_type());
     }
 }
 
@@ -134,6 +135,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
             parent = child_linked;
         } else {
             child->linked = (ASTNode*) linker.unresolved_decl;
+            child->setType(child->linked->known_type());
             linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
             break;
         }

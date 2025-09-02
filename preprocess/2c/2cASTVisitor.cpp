@@ -1549,7 +1549,7 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     RecursiveValueVisitor::VisitFunctionCall(call);
 
     // get function type
-    const auto func_type = call->function_type(visitor.allocator);
+    const auto func_type = call->function_type();
 
     // functions that return struct are handled in this block of code
     if(!func_decl || !func_decl->is_comptime()) {
@@ -1805,7 +1805,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const chem::string_vie
         process_comp_time_call(parent->as_function_unsafe(), &call, identifier);
         return;
     } else {
-        auto func_type = call.function_type(visitor.allocator);
+        auto func_type = call.function_type();
         if(func_type) {
             auto linked = func_type->returnType->linked_node();
             if(linked) {
@@ -2015,7 +2015,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                 }
                 return;
             }
-            auto func_type = call->function_type(visitor.allocator);
+            auto func_type = call->function_type();
             if(func_type->returnType->isStructLikeType()) {
                 auto linked = func_type->returnType->linked_node();
                 if(linked->as_struct_def()) {
@@ -2064,7 +2064,7 @@ void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
     // get function type
-    const auto func_type = call->function_type(visitor.allocator);
+    const auto func_type = call->function_type();
 
     // functions that return struct are handled in this block of code
     if(destruct_call) {
@@ -2639,7 +2639,7 @@ void CValueDeclarationVisitor::VisitReturnStmt(ReturnStatement *stmt) {
 void CValueDeclarationVisitor::VisitFunctionCall(FunctionCall *call) {
     // replace all values that call implicit constructor with actual calls
 //    const auto size = call->values.size();
-//    auto func_type = call->function_type(visitor.allocator);
+//    auto func_type = call->function_type();
 //    if(func_type) {
 //        unsigned i = 0;
 //        while (i < size) {
@@ -5039,7 +5039,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Ch
     // and there's a next value meaning call().next <-- next identifier is accessed from returned struct of the function call
     // we need to check if the function returns a struct that has a destructor so we can generate code to destruct it properly
     const auto func_call = values[start]->as_func_call_unsafe();
-    const auto func_type = func_call->function_type(visitor.allocator);
+    const auto func_type = func_call->function_type();
     if(func_type) {
         const auto pure_return = func_type->returnType->pure_type(visitor.allocator);
         const auto memContainer = pure_return->get_members_container();
@@ -5211,7 +5211,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     const auto func_decl = ASTNode::isFunctionDecl(linked_kind) ? linked->as_function_unsafe() : nullptr;
     const auto parent_type = call->parent_val->getType();
     const auto canonical_parent = parent_type->canonical();
-    const auto func_type = call->function_type(allocator);
+    const auto func_type = call->function_type();
 
     // handling comptime functions
     if(func_decl && func_decl->is_comptime()) {

@@ -1699,6 +1699,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
 
         // update linkage of parent identifier
         parent_id->linked = new_link;
+        parent_id->setType(new_link->known_type());
         // instantiated function's return type is the call's type
         call->setType(new_link->returnType);
 

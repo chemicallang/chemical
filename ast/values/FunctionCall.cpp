@@ -901,6 +901,37 @@ FunctionType* FunctionCall::function_type(ASTAllocator& allocator) {
     return func_type_from_parent_type(allocator, can_type);
 }
 
+FunctionType* FunctionCall::func_type_from_parent_type(BaseType* can_type) {
+    if(can_type->kind() == BaseTypeKind::CapturingFunction) {
+        return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    auto func_type = can_type->as_function_type();
+//    const auto func_decl = safe_linked_func();
+//    if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
+//        const auto parent = func_decl->parent();
+//        if(parent->kind() == ASTNodeKind::StructDecl) {
+//            const auto struct_def = parent->as_struct_def_unsafe();
+//            if (struct_def->generic_parent != nullptr) {
+//                func_type->returnType = { struct_def->known_type(), func_type->returnType.getLocation() };
+//            }
+//        } else if(parent->kind() == ASTNodeKind::VariantDecl) {
+//            const auto variant_def = parent->as_variant_def_unsafe();
+//            if (variant_def->generic_parent != nullptr) {
+//                func_type->returnType = {variant_def->known_type(), func_type->returnType.getLocation()};
+//            }
+//        }
+//    }
+    return func_type;
+}
+
+FunctionType* FunctionCall::function_type() {
+    if(!parent_val) return nullptr;
+    const auto type = parent_val->getType();
+    if(!type) return nullptr;
+    const auto can_type = type->canonical();
+    return func_type_from_parent_type(can_type);
+}
+
 FunctionType* FunctionCall::known_func_type() {
     auto decl = safe_linked_func();
     if(decl) {

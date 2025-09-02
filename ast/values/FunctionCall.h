@@ -59,6 +59,16 @@ public:
     FunctionType* function_type(ASTAllocator& allocator);
 
     /**
+     * get function type from parent type
+     */
+    FunctionType* func_type_from_parent_type(BaseType* parent_type);
+
+    /**
+     * the replacement for function_type with allocator
+     */
+    FunctionType* function_type();
+
+    /**
      * get known func type
      */
     FunctionType* known_func_type();

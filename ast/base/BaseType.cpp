@@ -67,6 +67,9 @@ bool BaseType::isStructLikeType() {
                 case ASTNodeKind::UnnamedUnion:
                 case ASTNodeKind::VariantDecl:
                 case ASTNodeKind::UnionDecl:
+                case ASTNodeKind::GenericStructDecl:
+                case ASTNodeKind::GenericVariantDecl:
+                case ASTNodeKind::GenericUnionDecl:
                     return true;
                 case ASTNodeKind::TypealiasStmt:
                     return linked->as_typealias_unsafe()->actual_type->isStructLikeType();

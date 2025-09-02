@@ -1558,6 +1558,30 @@ bool link_call_gen_args(SymResLinkBody& visitor, FunctionCall* call) {
     return true;
 }
 
+void update_parent_val_linked(ChainValue* value, ASTNode* node, BaseType* type) {
+    switch(value->kind()) {
+        case ValueKind::Identifier:
+            value->as_identifier_unsafe()->linked = node;
+            value->as_identifier_unsafe()->setType(type);
+            return;
+        case ValueKind::AccessChain: {
+            const auto last = value->as_access_chain_unsafe()->values.back();
+#ifdef DEBUG
+            if(last->kind() != ValueKind::Identifier) {
+                throw std::runtime_error("this should always be an id");
+            }
+#endif
+            const auto id = last->as_identifier_unsafe();
+            id->linked = node;
+            id->setType(type);
+            value->setType(type);
+            return;
+        }
+        default:
+            return;
+    }
+}
+
 // can call a normal function
 // can call a generic function (after instantiation, we can determine the type)
 // can call a stored function pointer
@@ -1698,8 +1722,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         }
 
         // update linkage of parent identifier
-        parent_id->linked = new_link;
-        parent_id->setType(new_link->known_type());
+        update_parent_val_linked(parent_val, new_link, new_link->known_type());
         // instantiated function's return type is the call's type
         call->setType(new_link->returnType);
 

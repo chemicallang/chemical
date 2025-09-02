@@ -105,7 +105,16 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 defValue->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
             } else if(!isUnion) {
-                gen.error(this) << "expected a default value for '" << value->name << "'";
+                const auto type = value->known_type();
+                const auto node = type->get_direct_linked_canonical_node();
+                if (node->kind() == ASTNodeKind::StructDecl) {
+                    auto variable = container->variable_type_index(value->name);
+                    const auto decl = node->as_struct_def_unsafe();
+                    const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(variable.first) });
+                    gen.default_initialize_struct(decl, ptr, this);
+                } else {
+                    gen.error(this) << "expected a default value for '" << value->name << "'";
+                }
             }
         }
     }

@@ -31,8 +31,4 @@ public:
         );
     }
 
-    BaseType* known_type() override {
-        return type;
-    }
-
 };

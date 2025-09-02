@@ -366,7 +366,7 @@ Value* IfStatement::get_value_node() {
 
 BaseType *IfStatement::known_type() {
     auto last_val = get_value_node();
-    return last_val ? last_val->known_type() : nullptr;
+    return last_val ? last_val->getType() : nullptr;
 }
 
 ASTNode *IfValue::linked_node() {

@@ -70,8 +70,6 @@ public:
 
     void determine_type(TypeBuilder& typeBuilder);
 
-    BaseType* known_type() final;
-
     bool primitive() final;
 
     ASTNode* linked_node() final;

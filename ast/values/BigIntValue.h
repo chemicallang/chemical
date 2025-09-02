@@ -33,10 +33,6 @@ public:
         return new (allocator.allocate<BigIntValue>()) BigIntValue(value, getType(), encoded_location());
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &BigIntType::instance;
-    }
-
     unsigned int get_num_bits(bool is64Bit) final {
         return 64;
     }

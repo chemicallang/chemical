@@ -37,10 +37,6 @@ public:
         return 1;
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &BoolType::instance;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) final;

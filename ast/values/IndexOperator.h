@@ -51,8 +51,6 @@ public:
 
     void determine_type(TypeBuilder& typeBuilder);
 
-    BaseType* known_type() final;
-
 #ifdef COMPILER_BUILD
 
     llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);

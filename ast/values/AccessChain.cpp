@@ -39,10 +39,6 @@ void AccessChain::relink_parent() {
     }
 }
 
-BaseType* AccessChain::known_type() {
-    return values[values.size() - 1]->known_type();
-}
-
 bool AccessChain::primitive() {
     return false;
 }

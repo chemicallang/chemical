@@ -152,7 +152,7 @@ void LambdaFunction::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value 
     if(captureList.empty()) {
         gen.assign_store(lhs, lhsPtr, this, unpacked, encoded_location());
     } else {
-        const auto lhsType = lhs->known_type();
+        const auto lhsType = lhs->getType();
         const auto can = lhsType->canonical();
         if(can->kind() == BaseTypeKind::CapturingFunction) {
             gen.mutate_capturing_function(can, this, lhsPtr);

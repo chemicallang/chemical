@@ -21,7 +21,3 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
         return new (scope.allocate<NullValue>()) NullValue(scope.global->typeBuilder.getNullPtrType(), encoded_location());
     };
 }
-
-BaseType* NotValue::known_type() {
-    return value->known_type();
-}

@@ -32,10 +32,6 @@ public:
         return (FloatType*) Value::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &FloatType::instance;
-    }
-
     uint64_t byte_size(bool is64Bit) {
         return 4;
     }

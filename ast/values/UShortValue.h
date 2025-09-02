@@ -25,10 +25,6 @@ public:
         return (UShortType*) IntNumValue::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &UShortType::instance;
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return 2;
     }

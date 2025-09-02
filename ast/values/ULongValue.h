@@ -25,10 +25,6 @@ public:
         return (ULongType*) IntNumValue::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) (&ULongType::instance);
-    }
-
     uint64_t byte_size(bool is64Bit_) final {
         return is64Bit_ ? 8 : 4;
     }

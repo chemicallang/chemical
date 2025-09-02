@@ -126,8 +126,6 @@ public:
     [[nodiscard]]
     BaseType* element_type(ASTAllocator& allocator) const;
 
-    BaseType* known_type() final;
-
     void determine_type(ASTAllocator& allocator);
 
     ArrayValue *copy(ASTAllocator& allocator) final {

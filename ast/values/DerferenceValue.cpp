@@ -42,19 +42,8 @@ Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
     }
 }
 
-BaseType* DereferenceValue::known_type() {
-    auto addr = value->known_type();
-    if(addr->kind() == BaseTypeKind::Pointer) {
-        return ((PointerType*) addr)->type;
-    } else {
-        // TODO cannot report error here, the type cannot be created because the linked type is not a pointer
-        std::cerr << "DereferenceValue returning nullptr, because de-referenced type is not a pointer" << std::endl;
-        return nullptr;
-    }
-}
-
 DereferenceValue *DereferenceValue::copy(ASTAllocator& allocator) {
-    return new DereferenceValue(
+    return new (allocator.allocate<DereferenceValue>()) DereferenceValue(
             value->copy(allocator),
             getType(),
             encoded_location()

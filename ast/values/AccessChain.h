@@ -88,8 +88,6 @@ public:
 
     bool compile_time_computable() final;
 
-    BaseType* known_type() final;
-
     uint64_t byte_size(bool is64Bit) final;
 
 #ifdef COMPILER_BUILD

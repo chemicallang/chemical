@@ -55,8 +55,6 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* known_type() final;
-
     Value *child(InterpretScope &scope, const chem::string_view &name) final;
 
     // will find value by this name in the parent

@@ -29,8 +29,6 @@ public:
 
     }
 
-    BaseType* known_type() override;
-
     ASTNode* linked_node() override {
         return type->linked_node();
     }

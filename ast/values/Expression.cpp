@@ -93,10 +93,6 @@ void Expression::determine_type(TypeBuilder& typeBuilder) {
     setType(::determine_type(this, typeBuilder));
 }
 
-BaseType* Expression::known_type() {
-    return getType();
-}
-
 uint64_t Expression::byte_size(bool is64Bit) {
     return getType()->byte_size(is64Bit);
 }

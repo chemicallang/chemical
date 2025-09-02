@@ -588,7 +588,7 @@ void Expression::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_bl
 }
 
 llvm::Type *Expression::llvm_type(Codegen &gen) {
-    return known_type()->llvm_type(gen);
+    return getType()->llvm_type(gen);
 }
 
 bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {

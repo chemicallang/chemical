@@ -53,10 +53,6 @@ public:
         return eval;
     }
 
-    BaseType* known_type() override {
-        return value->known_type();
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;

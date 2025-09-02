@@ -52,8 +52,4 @@ public:
         return false;
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &IntType::instance;
-    }
-
 };

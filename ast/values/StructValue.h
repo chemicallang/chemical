@@ -174,8 +174,6 @@ public:
 
 #endif
 
-    BaseType* known_type() final;
-
     uint64_t byte_size(bool is64Bit) final {
         return definition->byte_size(is64Bit);
     }

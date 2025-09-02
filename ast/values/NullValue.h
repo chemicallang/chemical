@@ -46,8 +46,4 @@ public:
 
 #endif
 
-    BaseType* known_type() final {
-        return (NullPtrType*) &NullPtrType::instance;
-    }
-
 };

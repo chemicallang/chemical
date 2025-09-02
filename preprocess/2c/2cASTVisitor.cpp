@@ -682,7 +682,7 @@ std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* ty
         const auto dyn_type = ((DynamicType*) pure_type);
         const auto interface = dyn_type->linked_node()->as_interface_def();
         if(interface && type->isStructLikeType()) {
-            const auto linked = value->known_type();
+            const auto linked = value->getType();
             const auto def = linked->linked_struct_def();
             if(def) {
                 return { interface, def };

@@ -435,7 +435,7 @@ llvm::Value* Value::llvm_ret_value(Codegen& gen, Value* returnValue) {
  * called by assignment, to assign the current value to left hand side
  */
 void Value::llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs) {
-    const auto rhsValue = llvm_value(gen, lhs ? lhs->known_type() : nullptr);
+    const auto rhsValue = llvm_value(gen, lhs ? lhs->getType() : nullptr);
     gen.assign_store(lhs, lhsPtr, this, rhsValue, encoded_location());
 }
 
@@ -919,12 +919,12 @@ StructDefinition* Value::get_param_linked_struct() {
 }
 
 bool Value::is_pointer() {
-    const auto k = known_type()->kind();
+    const auto k = getType()->kind();
     return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
 }
 
 bool Value::is_pointer_or_ref() {
-    const auto k = known_type()->kind();
+    const auto k = getType()->kind();
     return k == BaseTypeKind::Pointer || k == BaseTypeKind::String || k == BaseTypeKind::Reference;
 }
 
@@ -1051,7 +1051,7 @@ Value* Value::scope_value(InterpretScope& scope) {
 }
 
 BaseType* Value::pure_type_ptr() {
-    return known_type()->canonical();
+    return getType()->canonical();
 }
 
 bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) {

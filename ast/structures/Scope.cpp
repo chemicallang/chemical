@@ -136,7 +136,7 @@ Value* LoopBlock::get_first_broken() {
 }
 
 BaseType* LoopBlock::known_type() {
-    return get_first_broken()->known_type();
+    return get_first_broken()->getType();
 }
 
 bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {

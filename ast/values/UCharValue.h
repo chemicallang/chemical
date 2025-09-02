@@ -25,10 +25,6 @@ public:
         return (UCharType*) IntNumValue::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &UCharType::instance;
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return 1;
     }

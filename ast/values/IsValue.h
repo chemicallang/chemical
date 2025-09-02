@@ -49,10 +49,6 @@ public:
      */
     std::optional<bool> get_comp_time_result();
 
-    BaseType* known_type() final {
-        return (BaseType*) &BoolType::instance;
-    }
-
     Value* evaluated_value(InterpretScope &scope) override;
 
 #ifdef COMPILER_BUILD

@@ -37,10 +37,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-    BaseType* known_type() final {
-        return getType();
-    }
-
     ASTNode *linked_node() final;
 
 #ifdef COMPILER_BUILD

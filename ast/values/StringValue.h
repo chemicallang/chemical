@@ -37,10 +37,6 @@ public:
         return (StringType*) Value::getType();
     }
 
-    BaseType* known_type() final {
-        return (BaseType*) &StringType::instance;
-    }
-
     uint64_t byte_size(bool is64Bit) final {
         return is64Bit ? 8 : 4;
     }

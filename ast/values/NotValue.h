@@ -56,6 +56,4 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
-    BaseType* known_type() final;
-
 };

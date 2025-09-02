@@ -128,10 +128,11 @@ LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name) {
     return self->build_cbi(name);
 }
 
-void BuildContextset_environment_testing(LabBuildContext* self, bool value) {
-    self->compiler.controller.ensure_test_resources();
-    self->compiler.is_testing_env = value;
-    // TODO: set the job environment as testing, which would produce the job as a testing executable
+void BuildContextset_environment_testing(LabBuildContext* self, LabJob* job, bool value) {
+    if(value) {
+        self->compiler.controller.ensure_test_resources();
+    }
+    job->target_data.test = value;
 }
 
 bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type) {

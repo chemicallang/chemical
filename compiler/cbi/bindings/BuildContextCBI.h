@@ -77,7 +77,7 @@ extern "C" {
 
     LabJob* BuildContextbuild_cbi(LabBuildContext* self, chem::string_view* name);
 
-    void BuildContextset_environment_testing(LabBuildContext* self, bool value);
+    void BuildContextset_environment_testing(LabBuildContext* self, LabJob* job, bool value);
 
     bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type);
 

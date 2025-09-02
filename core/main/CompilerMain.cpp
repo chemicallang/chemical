@@ -683,6 +683,7 @@ int compiler_main(int argc, char *argv[]) {
     const auto mode = get_output_mode(mode_opt, verbose);
 
     auto build_dir_opt = options.option_new("build-dir", "b");
+    // TODO: handle this parameter
     const auto is_testing_env = options.has_value("test");
 
     const auto is_lab_file = args[0].ends_with(".lab");
@@ -698,7 +699,7 @@ int compiler_main(int argc, char *argv[]) {
         LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
         CompilerBinder binder(argv[0]);
         LocationManager loc_man;
-        LabBuildCompiler compiler(loc_man, binder, &compiler_opts, is_testing_env);
+        LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
         compiler.set_cmd_options(&options);
 
         // Prepare compiler options
@@ -768,7 +769,7 @@ int compiler_main(int argc, char *argv[]) {
     LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
     CompilerBinder binder(argv[0]);
     LocationManager loc_man;
-    LabBuildCompiler compiler(loc_man, binder, &compiler_opts, is_testing_env);
+    LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
     compiler.set_cmd_options(&options);
 
     // set default compiler options

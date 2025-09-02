@@ -136,10 +136,9 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 LabBuildCompiler::LabBuildCompiler(
     LocationManager& loc_man,
     CompilerBinder& binder,
-    LabBuildCompilerOptions *options,
-    bool is_testing_env
-) : controller(is_testing_env), path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
-    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator), is_testing_env(is_testing_env)
+    LabBuildCompilerOptions *options
+) : path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
+    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator)
 {
 
 }

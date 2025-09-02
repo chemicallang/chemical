@@ -131,18 +131,12 @@ public:
     ASTAllocator* file_allocator;
 
     /**
-     * is testing environment
-     */
-    bool is_testing_env;
-
-    /**
      * constructor
      */
     explicit LabBuildCompiler(
         LocationManager& loc_man,
         CompilerBinder& binder,
-        LabBuildCompilerOptions* options,
-        bool is_testing_env
+        LabBuildCompilerOptions* options
     );
 
     /**

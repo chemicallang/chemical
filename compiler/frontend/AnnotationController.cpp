@@ -286,7 +286,7 @@ void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& arg
     // TODO:
 }
 
-AnnotationController::AnnotationController(bool is_env_testing) {
+AnnotationController::AnnotationController() {
 
     // initialize intrinsic annotations
     definitions = {
@@ -335,7 +335,7 @@ AnnotationController::AnnotationController(bool is_env_testing) {
     single_marked.reserve(32);
 
     // adding testing annotations
-    create_collector_annotation("test", is_env_testing ? 256 : 0);
+    create_collector_annotation("test", 0);
     create_single_marker_annotation("test.before_each");
     create_single_marker_annotation("test.after_each");
     create_marker_annotation("test.id");
@@ -351,7 +351,7 @@ AnnotationController::AnnotationController(bool is_env_testing) {
 }
 
 void AnnotationController::ensure_test_resources() {
-    get_collection(get_definition("test")->collection_id).nodes.reserve(256);
+    get_collection(get_definition("test")->collection_id).nodes.reserve(512);
 }
 
 void AnnotationController::mark_single(Parser& parser, ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {

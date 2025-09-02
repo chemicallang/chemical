@@ -180,7 +180,7 @@ BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
         if(values.empty()) {
             elementType = nullptr;
         } else {
-            elementType = {values[0]->create_type(allocator), encoded_location()};
+            elementType = {values[0]->getType(), encoded_location()};
         }
     }
     return elementType;

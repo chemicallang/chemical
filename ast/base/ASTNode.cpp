@@ -523,7 +523,7 @@ BaseType* ASTNode::get_stored_value_type(ASTAllocator& allocator, ASTNodeKind k)
             if (init->type) {
                 return init->type;
             } else {
-                return init->value->create_type(allocator);
+                return init->value->getType();
             }
         }
         default:

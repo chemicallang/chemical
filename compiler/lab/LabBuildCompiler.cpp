@@ -2181,9 +2181,6 @@ TCCState* LabBuildCompiler::built_lab_file(
     const auto buildLabObj = resolve_rel_child_path_str(labModDir, "build.lab.o");
     const auto buildLabTimestamp = resolve_rel_child_path_str(labModDir, "build.lab.dat");
 
-    // determine if build lab has changed
-    const auto has_buildLabChanged = determine_if_files_have_changed(this, module_files, buildLabObj, buildLabTimestamp);
-
     // module dependencies we determined from directly imported files
     std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
 
@@ -2237,6 +2234,9 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // since caching, determine if any file has changed
     if(caching) {
+
+        // determine if build lab has changed
+        const auto has_buildLabChanged = determine_if_files_have_changed(this, module_files, buildLabObj, buildLabTimestamp);
 
         // if not a single module has changed, we consider it true
         bool has_any_changed = false;

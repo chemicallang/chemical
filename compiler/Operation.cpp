@@ -16,8 +16,8 @@
 #include "ast/structures/EnumDeclaration.h"
 
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
-    auto firstType = lhs->create_type(allocator);
-    auto secondType = rhs->create_type(allocator);
+    auto firstType = lhs->getType();
+    auto secondType = rhs->getType();
     return operate(op, lhs, rhs, firstType->pure_type(allocator), secondType->pure_type(allocator));
 }
 

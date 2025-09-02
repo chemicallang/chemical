@@ -39,7 +39,7 @@ llvm::Value* SwitchValue::llvm_value(Codegen& gen, SwitchStatement& stmt, bool a
     bool auto_default_case = false;
 
     llvm::Value* expr_value = stmt.expression->llvm_value(gen);
-    const auto expr_type = stmt.expression->create_type(gen.allocator);
+    const auto expr_type = stmt.expression->getType();
     if(expr_type) {
 
         // automatic dereference
@@ -187,7 +187,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     bool auto_default_case = false;
 
     llvm::Value* expr_value = expression->llvm_value(gen);
-    const auto expr_type = expression->create_type(gen.allocator);
+    const auto expr_type = expression->getType();
     if(expr_type) {
 
         // automatic dereference

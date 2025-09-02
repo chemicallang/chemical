@@ -411,7 +411,7 @@ public:
             return nullptr;
         }
         const auto val = call->values[0];
-//        const auto val_type = val->create_type(allocator);
+//        const auto val_type = val->getType();
 //        const auto val_type_pure = val_type->pure_type(allocator);
 //        const auto val_type_kind = val_type_pure->kind();
 //        if(val_type_kind != BaseTypeKind::String && val_type_kind != BaseTypeKind::Array) {

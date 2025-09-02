@@ -273,9 +273,9 @@ void Codegen::createFunctionBlock(llvm::Function *fn) {
 llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
     switch (specifier) {
         case AccessSpecifier::Private:
-        case AccessSpecifier::Protected:
             return llvm::Function::PrivateLinkage;
         case AccessSpecifier::Public:
+        case AccessSpecifier::Protected:
             return llvm::Function::ExternalLinkage;
         case AccessSpecifier::Internal:
             return llvm::Function::InternalLinkage;

@@ -156,11 +156,22 @@ llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefin
     return llvm::ConstantStruct::get(vtable_type, llvm_pointers);
 }
 
+static llvm::GlobalValue::LinkageTypes to_linkage(AccessSpecifier specifier) {
+    switch(specifier) {
+        case AccessSpecifier::Public:
+        case AccessSpecifier::Protected:
+            return llvm::GlobalValue::ExternalLinkage;
+        case AccessSpecifier::Internal:
+        case AccessSpecifier::Private:
+            return llvm::GlobalValue::PrivateLinkage;
+    }
+}
+
 llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefinition* for_struct, bool declare_only) {
     // building vtable
     const auto constant = declare_only ? nullptr : llvm_build_vtable(gen, for_struct);
     const auto vtable_type = declare_only ? llvm_vtable_type(gen) : constant->getType();
-    const auto linkage = specifier() == AccessSpecifier::Public ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::InternalLinkage;
+    const auto linkage = to_linkage(specifier());
     ScratchString<128> temp_name;
     gen.mangler.mangle_vtable_name(temp_name, this, for_struct);
     auto table = new llvm::GlobalVariable(

@@ -80,7 +80,7 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
                     auto& stubEntry = func->getEntryBlock();
                     stubEntry.removeFromParent();
                 }
-                const auto final_specifier = interface->specifier() == AccessSpecifier::Public || specifier() == AccessSpecifier::Public ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
+                const auto final_specifier = is_linkage_public(interface->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
                 // change the function's linkage to internal
                 func->setLinkage(final_specifier);
                 gen.createFunctionBlock(func);

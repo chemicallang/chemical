@@ -12,4 +12,14 @@ enum class AccessSpecifier : uint8_t {
     Public
 };
 
+inline bool is_linkage_public(AccessSpecifier specifier) {
+    switch(specifier) {
+        case AccessSpecifier::Public:
+        case AccessSpecifier::Protected:
+            return true;
+        default:
+            return false;
+    }
+}
+
 std::string to_string(AccessSpecifier specifier);

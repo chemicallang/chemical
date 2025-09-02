@@ -401,7 +401,7 @@ public:
      * comptime functions or functions which have no usage do not exist
      */
     inline bool exists_at_runtime() {
-        return !is_comptime() && (has_usage() || is_exported_fast() || is_auto_called_func());
+        return !is_comptime() && (has_usage() || is_linkage_public() || is_auto_called_func());
     }
 
     ASTNode* get_parent() final {
@@ -463,6 +463,10 @@ public:
 
     bool is_exported_fast() {
         return specifier() == AccessSpecifier::Public;
+    }
+
+    inline bool is_linkage_public() {
+        return ::is_linkage_public(specifier());
     }
 
     LocatedIdentifier* get_func_name_id() final {

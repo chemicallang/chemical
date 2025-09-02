@@ -2713,7 +2713,7 @@ void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclarati
 }
 
 void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc) {
-    if(decl->body.has_value()) {
+    if(decl->body.has_value() && !decl->is_linkage_public()) {
         visitor.write("static ");
     }
     accept_func_return(visitor, retFunc->returnType);
@@ -2730,7 +2730,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl)
         func_that_returns_func_proto(visitor, decl, ret_func);
     } else {
         const auto ret_kind = decl->returnType->kind();
-        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
+        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_linkage_public());
         visitor.write('(');
         func_type_params(visitor, decl);
         visitor.write(')');
@@ -2890,7 +2890,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     const auto is_write_self_param = param && !overridden && should_void_pointer_to_self(param->type, param->name, 0, overrides);
     const auto func_parent = decl->parent();
-    const auto is_static = decl->body.has_value() && func_parent->specifier() != AccessSpecifier::Public;
+    const auto is_static = decl->body.has_value() && !is_linkage_public(func_parent->specifier());
     const auto decl_return_func_type = decl->returnType->as_function_type();
     if(decl_return_func_type != nullptr && !decl_return_func_type->isCapturing()) {
         tld->value_visitor->write("static ");
@@ -2915,8 +2915,8 @@ void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     early_declare_type(visitor, init_type);
     visitor.new_line_and_indent();
     const auto has_initializer = init->value != nullptr;
-    const auto is_exported = init->is_exported();
-    var_init_top_level(visitor, init, init_type, !is_exported, false, is_exported && (!has_initializer));
+    const auto is_link_public = init->is_linkage_public();
+    var_init_top_level(visitor, init, init_type, !is_link_public, false, is_link_public && !has_initializer);
 }
 
 void CTopLevelDeclarationVisitor::VisitIfStmt(IfStatement* stmt) {
@@ -3467,8 +3467,8 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
         }
         const auto init_type = init->known_type();
         new_line_and_indent(init->encoded_location());
-        const auto is_exported = init->is_exported();
-        var_init_top_level(*this, init, init_type, !is_exported, true, false);
+        const auto is_link_public = init->is_linkage_public();
+        var_init_top_level(*this, init, init_type, !is_link_public, true, false);
         return;
     }
     auto init_type = init->known_type();
@@ -4030,7 +4030,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     FunctionParam* param = !decl->params.empty() ? decl->params[0] : nullptr;
     unsigned i = 0;
     const auto interface = def && overrides ? def->get_overriding_interface(decl) : nullptr;
-    const auto is_static = decl->body.has_value() && (interface ? interface->specifier() != AccessSpecifier::Public : (def && def->specifier() != AccessSpecifier::Public));
+    const auto is_static = decl->body.has_value() && (interface ? !is_linkage_public(interface->specifier()) : (def && !is_linkage_public(def->specifier())));
     const auto is_write_self_param = param && should_void_pointer_to_self(param->type, param->name, 0, overrides) && interface && interface->is_static();
     const auto decl_ret_func = decl->returnType->as_function_type();
     if(decl_ret_func != nullptr && !decl_ret_func->isCapturing()) {

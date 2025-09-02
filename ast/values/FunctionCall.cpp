@@ -812,7 +812,7 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen, BaseType *type) {
 }
 
 bool FunctionCall::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    const auto type = create_type(gen.allocator);
+    const auto type = getType();
     const auto linked_node = type->linked_node();
     return linked_node->add_child_index(gen, indexes, name);
 }

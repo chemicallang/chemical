@@ -115,7 +115,7 @@ unsigned int Value::store_in_struct(
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
 
-        const auto value_pure = create_type(gen.allocator)->pure_type(gen.allocator);
+        const auto value_pure = getType()->canonical();
         const auto derefType = value_pure->getAutoDerefType(expected_type);
 
         llvm::Value* Val = value;
@@ -163,7 +163,7 @@ unsigned int Value::store_in_array(
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
 
-        const auto value_pure = create_type(gen.allocator)->pure_type(gen.allocator);
+        const auto value_pure = getType()->canonical();
         const auto derefType = value_pure->getAutoDerefType(expected_type);
 
         llvm::Value* Val = value;
@@ -230,7 +230,7 @@ bool should_use_chain_type(ASTAllocator& allocator, std::vector<ChainValue*>& va
     const auto total = values.size() - 1;
     while(i < total - 1) {
         auto& value = values[i];
-        auto base_type = value->create_type(allocator);
+        auto base_type = value->getType();
         auto node = base_type->get_direct_linked_node();
         if(node) {
             auto node_kind = node->kind();
@@ -565,7 +565,7 @@ bool Value::isValueRValue(ASTAllocator& allocator) {
         case ValueKind::AlignOfValue:
             return true;
         case ValueKind::FunctionCall:
-            return isTypeRValue(create_type(allocator));
+            return isTypeRValue(getType());
         case ValueKind::AccessChain:
             return as_access_chain_unsafe()->values.back()->isValueRValue(allocator);
         case ValueKind::Identifier:{
@@ -720,7 +720,7 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
         }
         case ValueKind::FunctionCall:{
             const auto call = as_func_call_unsafe();
-            const auto type = call->create_type(allocator);
+            const auto type = call->getType();
             return type->is_mutable();
         }
         case ValueKind::IndexOperator: {

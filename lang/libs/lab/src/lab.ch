@@ -159,7 +159,7 @@ public struct BuildContext {
     // also ensures that resources for testing are ready
     // call this with true, if you want to generate a testing executable
     // however compiler wasn't invoked with --test parameter
-    func set_environment_testing(&self, value : bool);
+    func set_environment_testing(&self, job : *mut LabJob, value : bool);
 
     // indexes a function from cbi, so it can be called when required
     func index_cbi_fn(&self, job : *mut LabJobCBI, key : &std::string_view, fn_name : &std::string_view, fn_type : CBIFunctionType) : bool

@@ -149,7 +149,7 @@ public:
      * @param is_env_testing required, during testing environment the testing collector
      * annotation is initialized with a large container so that annotations are collected quickly
      */
-    explicit AnnotationController(bool is_env_testing);
+    explicit AnnotationController();
 
 private:
 

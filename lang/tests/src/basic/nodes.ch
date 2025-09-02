@@ -71,6 +71,12 @@ struct Point : Calculator {
 
 }
 
+type PPoint = *Point
+
+func sum_ppoint(p : PPoint) : int {
+    return p.x + p.y
+}
+
 func give_point_ptr_sum(p : *Point) : int {
     return p.x + p.y;
 }
@@ -880,6 +886,10 @@ func test_nodes() {
             default => 98
         }
         return i == 98
+    })
+    test("access to members through typealias for struct works", () => {
+        var p = Point { x : 23, y : 21 }
+        return sum_ppoint(&p) == 44
     })
 }
 

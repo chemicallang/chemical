@@ -471,7 +471,7 @@ void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
         visit(array_value);
     }
     visit(identifier);
-    auto type = identifier->get_canonical_type(linker.allocator);
+    auto type = identifier->getType()->canonical();
     if(!type->is_pointer()) {
         linker.error("destruct cannot be called on a value that isn't a pointer", node);
         return;

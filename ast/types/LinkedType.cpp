@@ -121,7 +121,7 @@ bool LinkedType::satisfies(BaseType *other_impure) {
 }
 
 bool LinkedType::satisfies(ASTAllocator &allocator, Value *value, bool assignment) {
-    const auto valueType = value->create_type(allocator);
+    const auto valueType = value->getType();
     if(!valueType) return false;
     if(value->isValueIntegerLiteral()) {
         if(!linked) return false;

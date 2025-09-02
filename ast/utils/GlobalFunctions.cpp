@@ -1379,7 +1379,7 @@ public:
             call_scope->error("expected second argument to get_child_fn to be a string", call);
             return new(allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), 0);
         }
-        const auto type = call->values.front()->create_type(allocator);
+        const auto type = call->values.front()->getType();
         const auto linked = type->linked_node();
         if(linked && ASTNode::isMembersContainer(linked->kind())) {
             const auto container = linked->as_members_container_unsafe();

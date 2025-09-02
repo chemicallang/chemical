@@ -9,7 +9,7 @@ DestructData DestructStmt::get_data(ASTAllocator& allocator) {
 
     DestructData data {nullptr, nullptr,  0 };
 
-    auto created_type = identifier->create_type(allocator);
+    auto created_type = identifier->getType();
     auto pure_type = created_type->canonical();
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {

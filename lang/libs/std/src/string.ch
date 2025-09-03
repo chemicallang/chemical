@@ -301,6 +301,24 @@ public struct string : Hashable, Eq {
         }
     }
 
+    func mutable_data(&self) : *mut char {
+        switch(state) {
+            '0' => {
+                move_const_to_buffer();
+                return &mut storage.sso.buffer[0];
+            }
+            '1' => {
+                return &mut storage.sso.buffer[0];
+            }
+            '2' => {
+                return storage.heap.data;
+            }
+            default => {
+                return null;
+            }
+        }
+    }
+
     func clear(&mut self) {
         switch(state) {
             '0' => {

@@ -356,7 +356,7 @@ if(def.x86_64) {
 }
 
 /* Windows export to install handler via SetUnhandledExceptionFilter */
-public func install_crash_handler() {
+public func install_crash_handler(exe_path : *char, onCrash : () => void) {
     /* Install unhandled exception filter to our CrashHandlerException wrapper */
     SetUnhandledExceptionFilter(CrashHandlerException as LPTOP_LEVEL_EXCEPTION_FILTER);
     /* Optionally set console handler etc. (omitted) */

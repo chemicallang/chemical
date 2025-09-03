@@ -247,8 +247,8 @@ public:
     }
 
     inline std::string_view finalized_std_view() noexcept {
-        finalize();
-        return { data(), size() };
+        append_char('\0');
+        return { data(), size() - 1 };
     }
 
     inline std::string_view to_std_view() noexcept {

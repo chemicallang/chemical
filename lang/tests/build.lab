@@ -4,6 +4,7 @@ import "./submod2/build.lab" as submod2
 import "./submod3/build.lab" as submod3
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
+import "./libs/build.lab" as libsMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = ctx.build_path();
@@ -98,6 +99,25 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
 }
 
 func build(ctx : *mut AppBuildContext) {
+
+    const test_libs_arg = std::string_view("test-libs")
+    if(ctx.has_arg(test_libs_arg)) {
+        printf("got the test-libs-arg\n");
+        const exe_name = std::string_view("chemical-libs-tests");
+        const exe_job = ctx.build_exe(exe_name)
+        ctx.set_environment_testing(exe_job, true)
+        ctx.add_module(exe_job, libsMod.build(ctx, exe_job))
+        jc.ctx = ctx;
+        jc.job = exe_job;
+        ctx.on_finished((data : *void) => {
+            const jx = data as *mut JobAndContext
+            if(jx.job.status == LabJobStatus.Success) {
+                jx.ctx.launch_executable(jx.job.abs_path.to_view(), true);
+            }
+        }, &jc);
+        // only test the libs module
+        return;
+    }
 
     const debug = true;
     if(debug) {

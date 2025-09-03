@@ -54,7 +54,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
 }
 
 llvm::Value* VariantDefinition::ptr_to_type_int(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer) {
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(direct_inh_composed_structs(this)) };
+    std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(direct_inh_composed_structs(this)) };
     return gen.builder->CreateGEP(def_type, pointer, idxList, "",gen.inbounds);
 }
 
@@ -66,12 +66,12 @@ llvm::Value* VariantDefinition::load_type_int(Codegen &gen, llvm::Type* def_type
 }
 
 llvm::Value* VariantDefinition::get_member_pointer(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer) {
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)) };
+    std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)) };
     return gen.builder->CreateGEP(def_type, pointer, idxList, "", gen.inbounds);
 }
 
 llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Type* def_type, llvm::Value* pointer, VariantMemberParam* param) {
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
+    std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(this)), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
     return gen.builder->CreateGEP(def_type, pointer, idxList, "", gen.inbounds);
 }
 

@@ -532,11 +532,8 @@ void create_call_member_func(
 ) {
     auto arg = func->getArg(0);
     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
-    std::vector<llvm::Value*> args;
     auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
-    if(force_pass_self || decl->has_self_param()) {
-        args.emplace_back(element_ptr);
-    }
+    auto args = (force_pass_self || decl->has_self_param()) ? std::initializer_list<llvm::Value*> { element_ptr } : std::initializer_list<llvm::Value*> {};
     const auto callInst = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
     gen.di.instr(callInst, location);
 }
@@ -604,14 +601,11 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
         }
         auto selfArg = func->getArg(0);
         auto otherArg = func->getArg(1);
-        std::vector<llvm::Value*> args;
         std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
         auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), selfArg, idxList, index);
-        args.emplace_back(element_ptr);
         idxList.pop_back();
         auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), otherArg, idxList, index);
-        args.emplace_back(other_element_ptr);
-        const auto callInstr = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+        const auto callInstr = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), { element_ptr, other_element_ptr });
         gen.di.instr(callInstr, location);
     });
 
@@ -716,14 +710,11 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
                 if(container) {
                     auto def = mem->parent();
                     auto decl = container->copy_func();
-                    std::vector<llvm::Value*> args;
                     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
                     auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), struct_ptr, idxList, index);
-                    args.emplace_back(element_ptr);
                     idxList.pop_back();
                     auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), other_struct_pointer, idxList, index);
-                    args.emplace_back(other_element_ptr);
-                    const auto callInst = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+                    const auto callInst = gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), { element_ptr, other_element_ptr });
                     gen.di.instr(callInst, location);
                 }
             }
@@ -861,13 +852,14 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
             const auto destructor = type->get_destructor();
             if(destructor) {
                 const auto dtr_func_data = destructor->llvm_func(gen);
-                std::vector<llvm::Value*> args;
                 if(destructor->has_self_param()) {
-                    auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
-                    args.emplace_back(gep3);
+                    auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, {gen.builder->getInt32(0), gen.builder->getInt32(i)}, "", gen.inbounds);
+                    const auto callInst = gen.builder->CreateCall(dtr_func_data, std::initializer_list<llvm::Value*> { gep3 }, "");
+                    gen.di.instr(callInst, location);
+                } else {
+                    const auto callInst = gen.builder->CreateCall(dtr_func_data, {}, "");
+                    gen.di.instr(callInst, location);
                 }
-                const auto callInst = gen.builder->CreateCall(dtr_func_data, args, "");
-                gen.di.instr(callInst, location);
             }
             i++;
         }

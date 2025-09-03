@@ -315,9 +315,10 @@ void infer_types_by_args(
                 // directly linked generic param like func <T> add(param : T) or func add() : T
                 // so we have param type T which is linked with a generic type parameter and arg type the inferred type
                 const auto gen_param = linked->as_generic_type_param_unsafe();
-                if(is_node_parent_of(params_node, gen_param) && gen_param->param_index >= generic_list_size) {
+                auto& inferred_type = inferred[gen_param->param_index];
+                if(inferred_type == nullptr && is_node_parent_of(params_node, gen_param) && gen_param->param_index >= generic_list_size) {
                     // get the function argument for this arg_offset
-                    inferred[gen_param->param_index] = arg_type;
+                    inferred_type = arg_type;
                 }
             } else if(linked_kind == ASTNodeKind::StructDecl) {
                 // the arg type is a generic type like in a function return func copy() : MyVector<int> { return { 2 } }

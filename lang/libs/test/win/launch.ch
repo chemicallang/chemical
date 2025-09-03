@@ -18,8 +18,8 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
     // creating a pipe for communication with test process
     const hPipe = CreateNamedPipeA(
         pipeName.data(),
-        PIPE_ACCESS_DUPLEX,     // both read and write
-        PIPE_TYPE_MESSAGE |  PIPE_READMODE_MESSAGE | PIPE_WAIT, // message-based (not byte stream)
+        PIPE_ACCESS_DUPLEX as DWORD,     // both read and write
+        (PIPE_TYPE_MESSAGE |  PIPE_READMODE_MESSAGE | PIPE_WAIT) as DWORD, // message-based (not byte stream)
         1,
         1024, // output buffer size
         1024, // input buffer size
@@ -34,15 +34,15 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
     var ok = CreateProcessA(
         null,
-        cmd.data(),
+        cmd.mutable_data(),
         null,
         null,
         false, // do not inherit handles
         0,
         null,
         null, // inherits cwd
-        &si,
-        &pi
+        &mut si,
+        &mut pi
     )
 
     if(!ok) {
@@ -64,7 +64,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
     var buffer : char[2048];
     var bytesRead : DWORD;
     while(true) {
-        if (ReadFile(hPipe, &buffer[0], sizeof(buffer)-1, &bytesRead, null)) {
+        if (ReadFile(hPipe, &mut buffer[0], sizeof(buffer)-1, &mut bytesRead, null)) {
             if(bytesRead > 0) {
                 buffer[bytesRead] = '\0'; // null terminate
                 process_message(state, &mut buffer[0]);
@@ -91,10 +91,10 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
     }
 
     // Wait for process to finish
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    WaitForSingleObject(pi.hProcess, INFINITE as DWORD);
 
     var exitCode : DWORD;
-    if (GetExitCodeProcess(pi.hProcess, &exitCode)) {
+    if (GetExitCodeProcess(pi.hProcess, &mut exitCode)) {
         // set the exit code in state
         state.exitCode = exitCode;
         if(exitCode != 0 && !state.fn.pass_on_crash) {

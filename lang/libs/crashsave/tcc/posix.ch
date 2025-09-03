@@ -9,7 +9,7 @@ func segfault_handler(a : int) {
     tcc_backtrace("Backtrace")
 }
 
-public func install_crash_handler() {
+public func install_crash_handler(exe_path : *char, onCrash : () => void) {
     signal(SIGSEGV, segfault_handler);
     signal(SIGABRT, segfault_handler);
     signal(SIGFPE,  segfault_handler);

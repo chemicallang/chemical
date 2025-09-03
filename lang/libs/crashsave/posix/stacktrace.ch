@@ -97,7 +97,7 @@ func handle_crash_linux(sig : int) {
 }
 
 /* Install / disable utilities for Linux */
-public func install_crash_handler() {
+public func install_crash_handler(exe_path : *char, onCrash : () => void) {
     signal(SIGSEGV, handle_crash_linux);
     signal(SIGFPE, handle_crash_linux);
     signal(SIGILL, handle_crash_linux);

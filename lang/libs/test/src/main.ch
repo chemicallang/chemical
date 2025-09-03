@@ -640,7 +640,7 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
 
     // parse the command line
     var config = TestRunnerConfig()
-    parseCommand(config, argv, argv + argc)
+    parseCommand(config, argv + 1, argv + argc - 1)
 
     // run the tests (it knows which ones to run from configuration)
     run_tests(tests_view, *argv, config)
@@ -649,7 +649,7 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
 
 }
 
-public comptime func test_runner(argc : int, argv : **char) : int{
+public comptime func test_runner(argc : int, argv : **char) : int {
     var t = get_tests()
-    return intrinsics::wrap(run_test_runner(std::span<TestFunction>(t), argc, argv))
+    return intrinsics::wrap(run_test_runner(std::span<TestFunction>(t), argc, argv)) as int
 }

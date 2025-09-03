@@ -89,7 +89,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     // build method
-    output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *LabJob) : *mut Module {\n";
+    output << "\npublic func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {\n";
 
     output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";

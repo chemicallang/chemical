@@ -1479,15 +1479,18 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     if(job_type == LabJobType::ToCTranslation) {
         // skip compilation, only c translation required
-        writeToFile(job->abs_path.to_std_string(), {program.data(), program.size() - 1});
+        writeToFile(job->abs_path.to_std_string(), program);
         return 0;
     }
+
+    // TODO: place this behind a check
+    auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
+    writeToFile(out_path, program);
 
     // compiling the entire C to a single object file
     const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
     if (compile_c_result == 1) {
-        auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
-        writeToFile(out_path, {program.data(), program.size() - 1});
+        // TODO: also output the translation here into out_path
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_path << std::endl;
         return 1;
     }

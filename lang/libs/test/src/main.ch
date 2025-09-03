@@ -640,7 +640,7 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
 
     // parse the command line
     var config = TestRunnerConfig()
-    parseCommand(config, argv + 1, argv + argc - 1)
+    parseCommand(config, argv + 1, argv + argc)
 
     // run the tests (it knows which ones to run from configuration)
     run_tests(tests_view, *argv, config)

@@ -37,7 +37,7 @@ WorkspaceManager::WorkspaceManager(
 ) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()), handler(handler),
     global_allocator(10000), typeBuilder(global_allocator), pathHandler(compiler_exe_path()),
     context(modStorage, binder), pool((int) std::thread::hardware_concurrency()), tokenCache(10),
-    modFileData(10), anonFilesData(10), controller(false)
+    modFileData(10), anonFilesData(10), controller()
 {
 
 }
@@ -142,7 +142,7 @@ int WorkspaceManager::compile_cbi(LabJobCBI* job) {
 
     // setup stuff
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
-    LabBuildCompiler compiler(loc_man, binder, &options, false);
+    LabBuildCompiler compiler(loc_man, binder, &options);
     // this check for has_container protects us from disposing a container created
     // inside do_job (just a safety guard, although global_container should always be present)
     const auto has_container = global_container != nullptr;
@@ -193,7 +193,7 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
 
     // creating the compiler (static function, cannot reuse global contaienr)
     LabBuildCompilerOptions options(compiler_exe_path, "ide", build_dir, is64Bit);
-    LabBuildCompiler compiler(loc_man, binder, &options, false);
+    LabBuildCompiler compiler(loc_man, binder, &options);
 
     // creating context, this allows separation, we don't want to reuse
     // we do not want to share data between labs because lab files are very flexible
@@ -211,8 +211,11 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     // the allocators that will be used for all jobs
     compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
 
+    // the final arbitrary job created
+    LabJob final_job(LabJobType::Executable, chem::string("lsp_job"));
+
     // build the lab file to a tcc state
-    const auto state = compiler.built_lab_file(*context, lab_path, is_mod_source);
+    const auto state = compiler.built_lab_file(*context, lab_path, is_mod_source, &final_job);
 
     // auto delte the tcc state
     TCCDeletor auto_delete(state);

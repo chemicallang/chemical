@@ -446,7 +446,7 @@ void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_s
 
     // fast path, if container exists, rebind and return as fast as possible
     if(global_container) {
-        comptime_scope.rebind_container(resolver, global_container, false);
+        comptime_scope.rebind_container(resolver, global_container, create_target_data());
         return;
     }
 
@@ -455,12 +455,12 @@ void WorkspaceManager::bind_or_create_container(GlobalInterpretScope& comptime_s
 
     // maybe someone created the container, while we were waiting to acquire the lock
     if(global_container) {
-        comptime_scope.rebind_container(resolver, global_container, false);
+        comptime_scope.rebind_container(resolver, global_container, create_target_data());
         return;
     }
 
     // create the container
-    global_container = comptime_scope.create_container(resolver, false);
+    global_container = comptime_scope.create_container(resolver, create_target_data());
 
 }
 
@@ -613,7 +613,8 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
 
     // a comptime scope is required for comptime things
     // TODO use a output mode according properly
-    GlobalInterpretScope comptime_scope(OutputMode::Debug, "lsp", nullptr, nullptr, resolver_allocator, typeBuilder, loc_man);
+    auto t = create_target_data();
+    GlobalInterpretScope comptime_scope(OutputMode::Debug, t, nullptr, nullptr, resolver_allocator, typeBuilder, loc_man);
 
     // guard from multiple requests, we only process a single file
     std::lock_guard guard_process_file(process_file_mutex);

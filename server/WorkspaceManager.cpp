@@ -211,7 +211,7 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
     // the allocators that will be used for all jobs
     compiler.set_allocators(&_job_allocator, &_mod_allocator, &_file_allocator);
 
-    // the final arbitrary job created
+    // the final job created
     LabJob final_job(LabJobType::Executable, chem::string("lsp_job"));
 
     // build the lab file to a tcc state

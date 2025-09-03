@@ -2224,6 +2224,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
                         captured->name, captured->encoded_location(), false
                 );
                 identifier->linked = captured->linked;
+                identifier->setType(captured->linked->known_type());
                 // we must move the identifiers in capture list
                 prev_func_type->mark_moved_value(linker.allocator, identifier, captured->linked->known_type(), linker, false);
             }

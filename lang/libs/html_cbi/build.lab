@@ -11,19 +11,27 @@ using namespace std;
 
 var did_once = false;
 
-func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *Module {
+public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+
+    const __chx_already_exists = ctx.get_cached(user_job, "", "std");
+    if(__chx_already_exists != null) { return __chx_already_exists; };
 
     // the std module
-    var std_module = stdMod.build(ctx, job);
-    if(std_module == null) {
+    var user_std_module = stdMod.build(ctx, user_job);
+    if(user_std_module == null) {
         return null
     }
 
-    if(did_once) return std_module;
+    if(did_once) return user_std_module;
     did_once = true;
 
     var cbi = ctx.build_cbi(std::string_view("html"))
     const job = cbi;
+
+    var std_module = stdMod.build(ctx, job);
+    if(std_module == null) {
+        return null
+    }
 
     // the cstd module
     var cstd_module = cstdMod.build(ctx, job);
@@ -75,6 +83,6 @@ func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *Module {
         ctx.index_def_cbi_fn(cbi, std::string_view("html_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
     }
 
-    return std_module;
+    return user_std_module;
 
 }

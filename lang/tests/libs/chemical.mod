@@ -6,3 +6,4 @@ source "html"
 import cstd
 import std
 import test
+import html

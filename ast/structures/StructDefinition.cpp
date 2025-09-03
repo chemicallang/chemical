@@ -206,12 +206,8 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
 void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst, SourceLocation location) {
     auto func = destructor_func();
     if(func) {
-        std::vector<llvm::Value*> args;
-        if(func->has_self_param()) {
-            args.emplace_back(allocaInst);
-        }
         llvm::Function* func_data = func->llvm_func(gen);
-        const auto instr = gen.builder->CreateCall(func_data, args);
+        const auto instr = gen.builder->CreateCall(func_data, func->has_self_param() ? std::initializer_list<llvm::Value*> { allocaInst } : std::initializer_list<llvm::Value*> {});
         gen.di.instr(instr, location);
     }
 }

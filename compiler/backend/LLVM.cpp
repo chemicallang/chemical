@@ -691,7 +691,7 @@ llvm::Value* IsValue::llvm_value(Codegen &gen, BaseType* expected_type) {
             // loading the type integer from the variant
             const auto expr_value = value->llvm_value(gen);
             const auto def_type = variant_def->llvm_type(gen);
-            std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
+            std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
             const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
             const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
             gen.di.instr(loadInst, value);

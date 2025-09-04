@@ -79,10 +79,18 @@ public struct string : Hashable, Eq {
         return size() == 0
     }
 
+    func equals_with_len(&self, d : *char, l : size_t) : bool {
+        const self_size = size();
+        return self_size == l && strncmp(data(), d, self_size) == 0;
+    }
+
     @override
     func equals(&self, other : &string) : bool {
-        const self_size = size();
-        return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
+        return equals_with_len(other.data(), other.size());
+    }
+
+    func equals_view(&self, other : &std::string_view) : bool {
+        return equals_with_len(other.data(), other.size())
     }
 
     func move_const_to_buffer(&mut self) {
@@ -210,6 +218,10 @@ public struct string : Hashable, Eq {
     }
 
     func append_str(&mut self, value : *string) {
+        append_with_len(value.data(), value.size())
+    }
+
+    func append_view(&mut self, value : &std::string_view) {
         append_with_len(value.data(), value.size())
     }
 

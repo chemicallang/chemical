@@ -1461,20 +1461,6 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         job->objects.emplace_back(job_obj_path);
     }
 
-    // cbi and jit jobs are here
-    if(get_job_type == LabJobType::CBI) {
-        const auto cbiJob = (LabJobCBI*) job;
-        const auto jobDone = link_cbi_job(cbiJob, dependencies);
-        if(jobDone != 0) {
-            return jobDone;
-        }
-    } else if(get_job_type == LabJobType::JITExecutable) {
-        const auto status = launch_tcc_jit_exe(job, dependencies);
-        if(status != 0) {
-            return status;
-        }
-    }
-
     auto program = c_visitor.writer.finalized_std_view();
 
     if(job_type == LabJobType::ToCTranslation) {
@@ -1493,6 +1479,20 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         // TODO: also output the translation here into out_path
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_path << std::endl;
         return 1;
+    }
+
+    // cbi and jit jobs are here
+    if(get_job_type == LabJobType::CBI) {
+        const auto cbiJob = (LabJobCBI*) job;
+        const auto jobDone = link_cbi_job(cbiJob, dependencies);
+        if(jobDone != 0) {
+            return jobDone;
+        }
+    } else if(get_job_type == LabJobType::JITExecutable) {
+        const auto status = launch_tcc_jit_exe(job, dependencies);
+        if(status != 0) {
+            return status;
+        }
     }
 
     exe->path_aliases = std::move(processor.path_handler.path_aliases);

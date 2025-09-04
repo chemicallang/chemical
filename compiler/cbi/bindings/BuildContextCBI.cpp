@@ -58,6 +58,10 @@ LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* s
     return self->obj_file_module(*scope_name, *name, path);
 }
 
+void BuildContextput_job_before(LabBuildContext* self, LabJob* newJob, LabJob* existingJob) {
+    self->put_job_before(newJob, existingJob);
+}
+
 void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::string_view* name, LabModule* module) {
     job->link_libs.emplace_back(*name);
 }

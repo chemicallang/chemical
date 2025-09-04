@@ -323,6 +323,11 @@ public:
     }
 
     /**
+     * puts the given job before the existing job
+     */
+    void put_job_before(LabJob* newJob, LabJob* existingJob);
+
+    /**
      * translate a c file to chemical
      */
     LabJob* translate_to_chemical(

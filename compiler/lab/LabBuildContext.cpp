@@ -210,6 +210,35 @@ LabModule* LabBuildContext::files_module(
     return mod;
 }
 
+void LabBuildContext::put_job_before(LabJob* newJob, LabJob* existingJob) {
+    // lets first remove the job (scanning backwards)
+    auto& v = executables;
+    if (newJob == existingJob) return; // nothing to do
+    int newIdx = -1; // index of the newJob we found (the one to potentially move)
+    // single pass from back to front
+    for (int i = static_cast<int>(v.size()) - 1; i >= 0; --i) {
+        if (v[i].get() == existingJob) {
+            if (newIdx == -1) {
+                // we found existingJob before any newJob -> do nothing
+                return;
+            } else {
+                // found existingInt and we have a candidate newInt at newIdx
+                auto val = v[newIdx].release();
+                v.erase(v.begin() + newIdx);   // remove the saved newInt
+                // newIdx > i by construction (we found newInt while scanning from the back),
+                // so erasing at newIdx does not change index i.
+                v.insert(v.begin() + i, std::unique_ptr<LabJob>(val));  // put it before existingInt at index i
+                return;
+            }
+        }
+        // record the first newInt we encounter (closest to the back)
+        if (newIdx == -1 && v[i].get() == newJob) {
+            newIdx = i;
+        }
+    }
+    // finished loop: either we never saw newJob, or we saw it but never found existingJob afterward.
+}
+
 LabJob* LabBuildContext::translate_to_chemical(
         LabModule* module,
         chem::string_view* out_path

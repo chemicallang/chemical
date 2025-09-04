@@ -13,11 +13,10 @@ var did_once = false;
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
 
-    const __chx_already_exists = ctx.get_cached(user_job, "", "std");
-    if(__chx_already_exists != null) { return __chx_already_exists; };
+    const already_std = ctx.get_cached(user_job, "", "std");
 
     // the std module
-    var user_std_module = stdMod.build(ctx, user_job);
+    var user_std_module = if(already_std != null) already_std else stdMod.build(ctx, user_job);
     if(user_std_module == null) {
         return null
     }
@@ -27,6 +26,9 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
 
     var cbi = ctx.build_cbi(std::string_view("css"))
     const job = cbi;
+
+    // makes sure this job is done before the user_job
+    ctx.put_job_before(job, user_job)
 
     var std_module = stdMod.build(ctx, job);
     if(std_module == null) {

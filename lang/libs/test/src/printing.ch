@@ -240,7 +240,10 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
                 }
             }
 
-            printf("  [%s%u%s] ", status_color, s.exitCode as uint, col_reset());
+            printf("  ");
+            if(s.exitCode != 0) {
+                printf("[%s%u%s] ", status_color, s.exitCode as uint, col_reset());
+            }
             printf("%s%s%s\n", status_color, status_text, col_reset());
 
             /* Print logs, if any */

@@ -1351,8 +1351,7 @@ public:
 class InterpretGetChildFunction : public FunctionDeclaration {
 public:
 
-    FunctionParam param;
-    FunctionParam methodParam;
+    FunctionParam nameParam;
 
     explicit InterpretGetChildFunction(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_child_fn"),
@@ -1362,27 +1361,29 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, 0),
-       methodParam("method", { cache.getStringType(), ZERO_LOC }, 1, nullptr, false, this, 0)
+    ), nameParam("name", { cache.getStringType(), ZERO_LOC }, 1, nullptr, false, this, 0)
    {
         set_compiler_decl(true);
-        params = { &param, &methodParam };
+        params = { &nameParam };
     };
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        if(call->values.size() != 2) {
-            call_scope->error("error, get_child_fn expects two arguments", call);
+        if(call->values.size() != 1) {
+            call_scope->error("get_child_fn expects a single argument", call);
             return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), 0);
         }
-        const auto nameVal = call->values[1]->evaluated_value(*call_scope);
+        if(call->generic_list.size() == 0) {
+            call_scope->error("get_child_fn expects a single generic argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), 0);
+        }
+        const auto nameVal = call->values[0]->evaluated_value(*call_scope);
         if(nameVal->val_kind() != ValueKind::String) {
             call_scope->error("expected second argument to get_child_fn to be a string", call);
             return new(allocator.allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), 0);
         }
-        const auto type = call->values.front()->getType();
-        const auto linked = type->linked_node();
-        if(linked && ASTNode::isMembersContainer(linked->kind())) {
-            const auto container = linked->as_members_container_unsafe();
+        auto type = call->generic_list.front();
+        const auto container = type->get_members_container();
+        if(container) {
             const auto value = container->direct_child_function(nameVal->get_the_string());
             if(value) {
                 const auto id = new(allocator.allocate<VariableIdentifier>()) VariableIdentifier(value->name_view(), value->known_type(), 0, true);

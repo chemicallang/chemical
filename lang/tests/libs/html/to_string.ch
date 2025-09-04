@@ -54,3 +54,26 @@ func attribute_on_element_works(env : &mut TestEnv) {
     }
     html_equals(env, page.toStringHtmlOnly(), "<div><div id=\"something\">Normal Text</div></div>");
 }
+
+@test
+func multiple_children_in_root_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <div>First Child</div>
+            <div>Second Child</div>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><div>First Child</div><div>Second Child</div></div>");
+}
+
+@test
+func self_closing_tag_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <input type="text" />
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><input type=\"text\"/></div>");
+}

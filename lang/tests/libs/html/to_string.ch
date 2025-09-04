@@ -1,6 +1,5 @@
-public func html_equals(env : &mut TestEnv, page : &mut HtmlPage, view : &std::string_view) {
+public func html_equals(env : &mut TestEnv, str : &std::string, view : &std::string_view) {
 
-    var str = page.toStringHtmlOnly()
     if(str.equals_view(view)) {
         return;
     }
@@ -18,12 +17,18 @@ public func html_equals(env : &mut TestEnv, page : &mut HtmlPage, view : &std::s
 }
 
 @test
-func basic_html_structure_works(env : &mut TestEnv) {
+func text_in_root_element_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        Normal Text}
+    html_equals(env, page.toStringHtmlOnly(), "Normal Text");
+}
 
+@test
+func element_in_root_element_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>Normal Text</div>
     }
-    html_equals(env, page, "<div>Normal Text</div>");
-
+    html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
 }

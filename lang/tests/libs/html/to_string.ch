@@ -79,6 +79,17 @@ func self_closing_tag_work(env : &mut TestEnv) {
 }
 
 @test
+func attribute_without_value_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <input type="text" disabled/>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><input type=\"text\" disabled/></div>");
+}
+
+@test
 func can_handle_comments(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {

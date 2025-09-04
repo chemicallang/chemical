@@ -65,6 +65,13 @@ public struct HtmlPage {
         return str;
     }
 
+    func toStringHtmlOnly(&self) : std::string {
+        var str = std::string()
+        str.reserve(pageHtml.size())
+        str.append_with_len(pageHtml.data(), pageHtml.size())
+        return str;
+    }
+
     func htmlToString(&self, linkedStylesheet : &std::string_view) : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageHtml.size() + 80)

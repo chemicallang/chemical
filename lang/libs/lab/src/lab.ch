@@ -116,6 +116,9 @@ public struct BuildContext {
     // a single .o file
     func object_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module
 
+    // put the given before the existing job, so it is done before it
+    func put_job_before(&self, newJob : *mut LabJob, existingJob : *mut LabJob);
+
     // would link this system library into the job of whoever consumes this module
     // the module parameter is optional
     func link_system_lib(&self, job : *mut LabJob, name : &std::string_view, module : *mut Module = null);

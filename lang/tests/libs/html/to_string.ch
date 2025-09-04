@@ -79,6 +79,18 @@ func self_closing_tag_work(env : &mut TestEnv) {
 }
 
 @test
+func optional_fwd_slash_in_self_closing(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <input type="text">
+            <br>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><input type=\"text\"/><br/></div>");
+}
+
+@test
 func attribute_without_value_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {

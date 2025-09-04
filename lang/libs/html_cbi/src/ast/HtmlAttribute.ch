@@ -34,6 +34,7 @@ struct HtmlAttribute {
 
     var name : std::string_view
 
+    // when null, it means a boolean attribute
     var value : *AttributeValue
 
 }

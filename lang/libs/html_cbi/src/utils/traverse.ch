@@ -9,7 +9,21 @@ func traverse_child(child : *mut HtmlChild, data : *void, traverse : (data : *vo
 }
 
 func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) : bool {
+
     var i = 0;
+    const attrsTotal = element.attributes.size()
+    while(i < attrsTotal) {
+        const attr = element.attributes.get(i as size_t)
+        if(attr.value != null && attr.value.kind == AttributeValueKind.Chemical) {
+            const value = attr.value as *mut ChemicalAttributeValue
+            if(!traverse(data, value.value)) {
+                return false;
+            }
+        }
+        i++;
+    }
+
+    i = 0;
     const total = element.children.size()
     while(i < total) {
         const child = element.children.get(i as size_t)

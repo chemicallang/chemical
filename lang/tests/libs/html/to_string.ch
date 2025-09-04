@@ -100,3 +100,23 @@ func can_handle_comments(env : &mut TestEnv) {
     }
     html_equals(env, page.toStringHtmlOnly(), "<div><div>Normal Text</div></div>");
 }
+
+@test
+func chemical_value_in_text_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var text = "Normal"
+    #html {
+        <div>{text} Text</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
+}
+
+@test
+func chemical_value_in_attribute_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var idValue = "something"
+    #html {
+        <div id={idValue}>Normal Text</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div id=\"something\">Normal Text</div>");
+}

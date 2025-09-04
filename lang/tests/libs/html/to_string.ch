@@ -152,11 +152,45 @@ func chem_string_value_in_text_works(env : &mut TestEnv) {
     html_equals(env, page.toStringHtmlOnly(), "<div>NormalText</div>");
 }
 
+func ret_str_for_html(cond : bool) : *char {
+    if(cond) {
+        return "abc"
+    } else {
+        return "xyz"
+    }
+}
+
+@test
+func chem_string_value_call_in_text_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>ABC={ret_str_for_html(true)},XYZ={ret_str_for_html(false)}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>ABC=abc,XYZ=xyz</div>");
+}
+
+@test
+func chem_char_value_in_text_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>Normal{' '}Text</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
+}
+
+// func ret_char_for_html(cond : bool) : char {
+//     if(cond) {
+//         return 'a'
+//     } else {
+//         return 'b'
+//     }
+// }
+//
 // @test
-// func chem_character_value_in_text_works(env : &mut TestEnv) {
+// func chem_char_value_call_in_text_works(env : &mut TestEnv) {
 //     var page = HtmlPage()
 //     #html {
-//         <div>Normal{' '}Text</div>
+//         <div>A={ret_char_for_html(true)},B={ret_char_for_html(false)}</div>
 //     }
-//     html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
+//     html_equals(env, page.toStringHtmlOnly(), "<div>A=a,B=b</div>");
 // }

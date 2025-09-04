@@ -32,6 +32,20 @@ func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut Functi
     return call;
 }
 
+func (converter : &mut ASTConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var name = std::string_view("append_html_char")
+    var node = converter.support.appendHtmlCharFn
+    var id = builder.make_identifier(name, node, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
 func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : size_t) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -57,10 +71,6 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
         args.push(builder.make_ubigint_value(len, location));
     }
     return call;
-}
-
-func (converter : &mut ASTConverter) make_expr_chain_of(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call(value, 0);
 }
 
 func (converter : &mut ASTConverter) make_chain_of(str : &mut std::string) : *mut FunctionCallNode {
@@ -100,12 +110,25 @@ func get_string_val(builder : *mut ASTBuilder) : *mut StringValue {
 
 func (converter : &mut ASTConverter) put_wrapped_chemical_value_in(value : *mut Value) {
     const builder = converter.builder
-    var chain = converter.make_expr_chain_of(value);
+    var chain = converter.make_value_call(value, 0);
     converter.vec.push(chain)
 }
 
-func is_func_call_ret_void(builder : *mut ASTBuilder, call : *mut FunctionCall) : bool {
-    return call.getType().getKind() == BaseTypeKind.Void
+func (converter : &mut ASTConverter) put_wrapped_chemical_char_value_in(value : *mut Value) {
+    const builder = converter.builder
+    var chain = converter.make_char_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_func_call_value(call : *mut FunctionCall, value : *mut Value) {
+    switch(call.getType().getKind()) {
+        BaseTypeKind.Void => {
+            converter.put_wrapping(value);
+        }
+        default => {
+            converter.put_wrapped_chemical_value_in(value);
+        }
+    }
 }
 
 func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Value) {
@@ -123,20 +146,14 @@ func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Valu
         const size = values.size();
         const last = values.get(size - 1)
         if(last.getKind() == ValueKind.FunctionCall) {
-            if(is_func_call_ret_void(builder, last as *mut FunctionCall)) {
-                converter.put_wrapping(value);
-            } else {
-                converter.put_wrapped_chemical_value_in(value);
-            }
+            converter.put_func_call_value(last as *mut FunctionCall, value)
         } else {
             converter.put_wrapped_chemical_value_in(value);
         }
     } else if(kind == ValueKind.FunctionCall) {
-        if(is_func_call_ret_void(builder, value as *mut FunctionCall)) {
-            converter.put_wrapping(value);
-        } else {
-            converter.put_wrapped_chemical_value_in(value);
-        }
+        converter.put_func_call_value(value as *mut FunctionCall, value)
+    } else if(kind == ValueKind.Char) {
+        converter.put_wrapped_chemical_char_value_in(value)
     } else {
         converter.put_wrapped_chemical_value_in(value);
     }

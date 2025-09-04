@@ -128,9 +128,9 @@ func chemical_value_in_text_works(env : &mut TestEnv) {
     var page = HtmlPage()
     var text = "Normal"
     #html {
-        <div>{text} Text</div>
+        <div>{text}Text</div>
     }
-    html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
+    html_equals(env, page.toStringHtmlOnly(), "<div>NormalText</div>");
 }
 
 @test
@@ -142,3 +142,21 @@ func chemical_value_in_attribute_works(env : &mut TestEnv) {
     }
     html_equals(env, page.toStringHtmlOnly(), "<div id=\"something\">Normal Text</div>");
 }
+
+@test
+func chem_string_value_in_text_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{"Normal"}Text</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>NormalText</div>");
+}
+
+// @test
+// func chem_character_value_in_text_works(env : &mut TestEnv) {
+//     var page = HtmlPage()
+//     #html {
+//         <div>Normal{' '}Text</div>
+//     }
+//     html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
+// }

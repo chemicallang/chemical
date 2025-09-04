@@ -61,7 +61,11 @@ struct CTStructGetChild {
 }
 
 comptime func give_me_some_sum() : (a : int, b : int) => int {
-    return intrinsics::get_child_fn(CTStructGetChild, "fake_sum") as (a : int, b : int) => int;
+    return intrinsics::get_child_fn<CTStructGetChild>("fake_sum") as (a : int, b : int) => int;
+}
+
+comptime func <T> give_me_gen_sum() : (a : int, b : int) => int {
+    return intrinsics::get_child_fn<T>("fake_sum") as (a : int, b : int) => int;
 }
 
 comptime func comptime_primitive() : int {
@@ -239,12 +243,19 @@ func test_comptime() {
         var sum_fn = return_runtime_sum();
         return sum_fn(66, 2) == 68;
     })
-    test("comptime functions can return child of a struct", () => {
+    test("comptime function get_child_fn can return child of a struct - 1", () => {
         var sum_fn = give_me_some_sum();
         return sum_fn(9, 4) == 73;
     })
-    test("comptime functions can return child of a struct", () => {
+    test("comptime function get_child_fn can return child of a struct - 2", () => {
         return give_me_some_sum()(9, 3) == 72;
+    })
+    test("comptime function get_child_fn can return child of a struct - 3", () => {
+        var sum_fn = give_me_gen_sum<CTStructGetChild>();
+        return sum_fn(9, 4) == 73;
+    })
+    test("comptime function get_child_fn can return child of a struct - 4", () => {
+        return give_me_gen_sum<CTStructGetChild>()(9, 3) == 72;
     })
     test("module scope is as expected", () => {
         var scope_name = std::string_view(intrinsics::get_module_scope())

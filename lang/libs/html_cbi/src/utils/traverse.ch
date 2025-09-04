@@ -1,16 +1,20 @@
+func traverse_child(child : *mut HtmlChild, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) : bool {
+    if(child.kind == HtmlChildKind.Element) {
+        const elem = child as *HtmlElement
+        return traverse_element(elem, data, traverse)
+    } else if(child.kind == HtmlChildKind.ChemicalValue) {
+        const elem = child as *HtmlChemValueChild;
+        return traverse(data, elem.value)
+    }
+}
+
 func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) : bool {
     var i = 0;
     const total = element.children.size()
     while(i < total) {
         const child = element.children.get(i as size_t)
-        if(child.kind == HtmlChildKind.Element) {
-            const elem = child as *HtmlElement
-            traverse_element(elem, data, traverse)
-        } else if(child.kind == HtmlChildKind.ChemicalValue) {
-            const elem = child as *HtmlChemValueChild;
-            if(!traverse(data, elem.value)) {
-                return false;
-            }
+        if(!traverse_child(child, data, traverse)) {
+            return false;
         }
         i++;
     }
@@ -19,6 +23,6 @@ func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *
 
 func traverse_root(root : *mut HtmlRoot, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
     if(root.element != null) {
-        traverse_element(root.element, data, traverse);
+        traverse_child(root.element, data, traverse);
     }
 }

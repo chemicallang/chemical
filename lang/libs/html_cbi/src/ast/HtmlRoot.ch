@@ -1,7 +1,7 @@
 
 struct HtmlRoot {
 
-    var element : *mut HtmlElement
+    var element : *mut HtmlChild
 
     var parent : *mut ASTNode
 

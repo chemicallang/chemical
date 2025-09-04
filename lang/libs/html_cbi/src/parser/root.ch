@@ -1,6 +1,6 @@
 
 func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
-    var rootElement = parseElement(parser, builder);
+    var rootElement = parseElementChild(parser, builder);
     if(rootElement == null) {
         parser.error("expected a root element for #html");
     }

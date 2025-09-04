@@ -32,3 +32,25 @@ func element_in_root_element_works(env : &mut TestEnv) {
     }
     html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
 }
+
+@test
+func nested_element_in_root_element_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <div>Normal Text</div>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><div>Normal Text</div></div>");
+}
+
+@test
+func attribute_on_element_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <div id="something">Normal Text</div>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><div id=\"something\">Normal Text</div></div>");
+}

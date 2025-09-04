@@ -1,14 +1,18 @@
 
 func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
-    var rootElement = parseElementChild(parser, builder);
-    if(rootElement == null) {
-        parser.error("expected a root element for #html");
-    }
     var root = builder.allocate<HtmlRoot>()
     new (root) HtmlRoot {
-        element : rootElement,
+        children : std::vector<*mut HtmlChild>(),
         parent : parser.getParentNode(),
         support : SymResSupport {}
+    }
+    while(true) {
+        var child = parseElementChild(parser, builder);
+        if(child != null) {
+            root.children.push(child)
+        } else {
+            break;
+        }
     }
     return root;
 }

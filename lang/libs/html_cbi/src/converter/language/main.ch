@@ -252,8 +252,14 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
 }
 
 func (converter : &mut ASTConverter) convertHtmlRoot(root : *mut HtmlRoot) {
-    if(root.element != null) {
-        converter.convertHtmlChild(root.element);
+    if(!root.children.empty()) {
+        var i = 0;
+        const total = root.children.size();
+        while(i < total) {
+            const child = root.children.get(i as size_t)
+            converter.convertHtmlChild(child);
+            i++;
+        }
         if(!converter.str.empty()) {
             converter.put_chain_in();
         }

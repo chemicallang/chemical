@@ -139,6 +139,7 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
         }
     }
     const t = getNextToken2(html, lexer);
+    // printf("created token : %.*s with type %d\n", t.value.size(), t.value.data(), t.type);
     return t;
 }
 

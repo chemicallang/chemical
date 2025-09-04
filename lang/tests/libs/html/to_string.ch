@@ -6,12 +6,14 @@ public func html_equals(env : &mut TestEnv, str : &std::string, view : &std::str
 
     env.error("equals failure");
 
-    var expected = std::string("expected:");
+    var expected = std::string("expected:\"");
     expected.append_view(view)
+    expected.append('"');
     env.info(expected.data())
 
-    var got = std::string("got:");
+    var got = std::string("got:\"");
     got.append_string(str)
+    got.append('"');
     env.info(got.data())
 
 }
@@ -22,6 +24,14 @@ func text_in_root_element_works(env : &mut TestEnv) {
     #html {
         Normal Text}
     html_equals(env, page.toStringHtmlOnly(), "Normal Text");
+}
+
+@test
+func multiple_elements_in_root_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        Normal Text<div>is</div>Here}
+    html_equals(env, page.toStringHtmlOnly(), "Normal Text<div>is</div>Here");
 }
 
 @test

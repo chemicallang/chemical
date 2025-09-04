@@ -110,10 +110,11 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         return comment;
 
     } else if(current.type == TokenType.DeclarationStart) {
-     // TODO handle this case
-     return null;
+
+        // TODO handle this case
+        return null;
+
     } else {
-        parser.error("unknown symbol, expected text or element");
         return null;
     }
 

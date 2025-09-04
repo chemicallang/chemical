@@ -6,6 +6,20 @@ func traverse_child(child : *mut HtmlChild, data : *void, traverse : (data : *vo
         const elem = child as *HtmlChemValueChild;
         return traverse(data, elem.value)
     }
+    return true;
+}
+
+func traverse_children(children : &mut std::vector<*mut HtmlChild>, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) : bool {
+    var i = 0;
+    const total = children.size()
+    while(i < total) {
+        const child = children.get(i as size_t)
+        if(!traverse_child(child, data, traverse)) {
+            return false;
+        }
+        i++;
+    }
+    return true;
 }
 
 func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) : bool {
@@ -23,20 +37,13 @@ func traverse_element(element : *HtmlElement, data : *void, traverse : (data : *
         i++;
     }
 
-    i = 0;
-    const total = element.children.size()
-    while(i < total) {
-        const child = element.children.get(i as size_t)
-        if(!traverse_child(child, data, traverse)) {
-            return false;
-        }
-        i++;
+    if(!traverse_children(element.children, data, traverse)) {
+        return false;
     }
+
     return true;
 }
 
 func traverse_root(root : *mut HtmlRoot, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-    if(root.element != null) {
-        traverse_child(root.element, data, traverse);
-    }
+    traverse_children(root.children, data, traverse)
 }

@@ -77,3 +77,15 @@ func self_closing_tag_work(env : &mut TestEnv) {
     }
     html_equals(env, page.toStringHtmlOnly(), "<div><input type=\"text\"/></div>");
 }
+
+@test
+func can_handle_comments(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            <!-- This is a comment -->
+            <div>Normal Text</div>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div><div>Normal Text</div></div>");
+}

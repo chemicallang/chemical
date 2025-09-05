@@ -203,41 +203,7 @@ func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *
 }
 
 func (converter : &mut ASTConverter) put_chemical_value_in(value : *mut Value) {
-    var str = &converter.str
-    var builder = converter.builder
-    var parent = converter.parent
-    var vec = converter.vec
-
-    switch(value.getKind()) {
-        ValueKind.AccessChain => {
-            const chain = value as *mut AccessChain
-            const values = chain.get_values();
-            const size = values.size();
-            const last = values.get(size - 1)
-            if(last.getKind() == ValueKind.FunctionCall) {
-                const call = last as *mut FunctionCall;
-                converter.put_by_type(call.getType(), value)
-            } else {
-                converter.put_by_type(value.getType(), value);
-            }
-        }
-        ValueKind.FunctionCall => {
-            const call = value as *mut FunctionCall;
-            converter.put_by_type(call.getType(), value)
-        }
-        ValueKind.Char, ValueKind.UChar => {
-            converter.put_wrapped_chemical_char_value_in(value)
-        }
-        ValueKind.Float => {
-            converter.put_wrapped_chemical_float_value_in(value)
-        }
-        ValueKind.Double => {
-            converter.put_wrapped_chemical_double_value_in(value)
-        }
-        default => {
-            converter.put_by_type(value.getType(), value)
-        }
-    }
+    converter.put_by_type(value.getType(), value)
 }
 
 func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttribute) {

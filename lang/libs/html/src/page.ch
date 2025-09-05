@@ -23,6 +23,22 @@ public struct HtmlPage {
         pageHtml.append(value)
     }
 
+    func append_html_integer(&mut self, value : bigint) {
+        pageHtml.append_integer(value)
+    }
+
+    func append_html_uinteger(&mut self, value : ubigint) {
+        pageHtml.append_uinteger(value)
+    }
+
+    func append_html_float(&mut self, value : float) {
+        pageHtml.append_float(value, 3)
+    }
+
+    func append_html_double(&mut self, value : double) {
+        pageHtml.append_double(value, 3)
+    }
+
     func append_css(&mut self, value : *char, len : size_t, hash : size_t) {
         if(!doneClasses.contains(hash)) {
             doneClasses.insert(hash, true)

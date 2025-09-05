@@ -3,7 +3,27 @@ using namespace std;
 
 // The Base Structs
 
-public struct IntNType : BaseType {}
+public enum IntNTypeKind {
+    Char,
+    Short,
+    Int,
+    Long,
+    BigInt,
+    Int128,
+
+    UChar,
+    UShort,
+    UInt,
+    ULong,
+    UBigInt,
+    UInt128
+};
+
+public struct IntNType : BaseType {
+
+    func get_intn_type_kind(&self) : IntNTypeKind
+
+}
 
 // The Types
 
@@ -11,7 +31,7 @@ public struct AnyType : BaseType {}
 
 public struct ArrayType : BaseType {}
 
-public struct BigIntType : BaseType {}
+public struct BigIntType : IntNType {}
 
 public struct BoolType : BaseType {}
 
@@ -31,11 +51,11 @@ public struct GenericType : BaseType {
 
 }
 
-public struct Int128Type : BaseType {}
+public struct Int128Type : IntNType {}
 
-public struct IntType : BaseType {}
+public struct IntType : IntNType {}
 
-public struct CharType : BaseType {}
+public struct CharType : IntNType {}
 
 public struct LinkedType : BaseType {}
 
@@ -43,27 +63,27 @@ public struct LinkedValueType : BaseType {}
 
 public struct LiteralType : BaseType {}
 
-public struct LongType : BaseType {}
+public struct LongType : IntNType {}
 
 public struct PointerType : BaseType {}
 
 public struct ReferenceType : BaseType {}
 
-public struct ShortType : BaseType {}
+public struct ShortType : IntNType {}
 
 public struct StringType : BaseType {}
 
-public struct UBigIntType : BaseType {}
+public struct UBigIntType : IntNType {}
 
-public struct UCharType : BaseType {}
+public struct UCharType : IntNType {}
 
-public struct UInt128Type : BaseType {}
+public struct UInt128Type : IntNType {}
 
-public struct UIntType : BaseType {}
+public struct UIntType : IntNType {}
 
-public struct ULongType : BaseType {}
+public struct ULongType : IntNType {}
 
-public struct UShortType : BaseType {}
+public struct UShortType : IntNType {}
 
 public struct VoidType : BaseType {}
 

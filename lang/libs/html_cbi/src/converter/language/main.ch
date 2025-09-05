@@ -46,6 +46,34 @@ func (converter : &mut ASTConverter) make_char_value_call(value : *mut Value) : 
     return call;
 }
 
+func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var id = builder.make_identifier(fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
+func (converter : &mut ASTConverter) make_integer_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_html_integer"), converter.support.appendHtmlIntFn)
+}
+
+func (converter : &mut ASTConverter) make_uinteger_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_html_uinteger"), converter.support.appendHtmlUIntFn)
+}
+
+func (converter : &mut ASTConverter) make_float_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_html_float"), converter.support.appendHtmlFloatFn)
+}
+
+func (converter : &mut ASTConverter) make_double_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_html_double"), converter.support.appendHtmlDoubleFn)
+}
+
 func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : size_t) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -120,10 +148,53 @@ func (converter : &mut ASTConverter) put_wrapped_chemical_char_value_in(value : 
     converter.vec.push(chain)
 }
 
-func (converter : &mut ASTConverter) put_func_call_value(call : *mut FunctionCall, value : *mut Value) {
-    switch(call.getType().getKind()) {
+func (converter : &mut ASTConverter) put_wrapped_chemical_integer_value_in(value : *mut Value) {
+    const builder = converter.builder
+    var chain = converter.make_integer_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_uinteger_value_in(value : *mut Value) {
+    const builder = converter.builder
+    var chain = converter.make_uinteger_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_float_value_in(value : *mut Value) {
+    const builder = converter.builder
+    var chain = converter.make_float_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_double_value_in(value : *mut Value) {
+    const builder = converter.builder
+    var chain = converter.make_double_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *mut Value) {
+    switch(type.getKind()) {
         BaseTypeKind.Void => {
             converter.put_wrapping(value);
+        }
+        BaseTypeKind.IntN => {
+            const intN = type as *mut IntNType;
+            const kind = intN.get_intn_type_kind()
+            if(kind == IntNTypeKind.Char || kind == IntNTypeKind.UChar) {
+                converter.put_wrapped_chemical_char_value_in(value)
+            } else if(kind <= IntNTypeKind.Int128) {
+                // signed
+                converter.put_wrapped_chemical_integer_value_in(value)
+            } else {
+                // unsigned
+                converter.put_wrapped_chemical_uinteger_value_in(value)
+            }
+        }
+        BaseTypeKind.Float => {
+            converter.put_wrapped_chemical_float_value_in(value)
+        }
+        BaseTypeKind.Double => {
+            converter.put_wrapped_chemical_double_value_in(value)
         }
         default => {
             converter.put_wrapped_chemical_value_in(value);
@@ -131,31 +202,41 @@ func (converter : &mut ASTConverter) put_func_call_value(call : *mut FunctionCal
     }
 }
 
-func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Value) {
+func (converter : &mut ASTConverter) put_chemical_value_in(value : *mut Value) {
     var str = &converter.str
     var builder = converter.builder
     var parent = converter.parent
     var vec = converter.vec
 
-    var value = value_ptr;
-
-    const kind = value.getKind();
-    if(kind == ValueKind.AccessChain) {
-        const chain = value as *mut AccessChain
-        const values = chain.get_values();
-        const size = values.size();
-        const last = values.get(size - 1)
-        if(last.getKind() == ValueKind.FunctionCall) {
-            converter.put_func_call_value(last as *mut FunctionCall, value)
-        } else {
-            converter.put_wrapped_chemical_value_in(value);
+    switch(value.getKind()) {
+        ValueKind.AccessChain => {
+            const chain = value as *mut AccessChain
+            const values = chain.get_values();
+            const size = values.size();
+            const last = values.get(size - 1)
+            if(last.getKind() == ValueKind.FunctionCall) {
+                const call = last as *mut FunctionCall;
+                converter.put_by_type(call.getType(), value)
+            } else {
+                converter.put_by_type(value.getType(), value);
+            }
         }
-    } else if(kind == ValueKind.FunctionCall) {
-        converter.put_func_call_value(value as *mut FunctionCall, value)
-    } else if(kind == ValueKind.Char) {
-        converter.put_wrapped_chemical_char_value_in(value)
-    } else {
-        converter.put_wrapped_chemical_value_in(value);
+        ValueKind.FunctionCall => {
+            const call = value as *mut FunctionCall;
+            converter.put_by_type(call.getType(), value)
+        }
+        ValueKind.Char, ValueKind.UChar => {
+            converter.put_wrapped_chemical_char_value_in(value)
+        }
+        ValueKind.Float => {
+            converter.put_wrapped_chemical_float_value_in(value)
+        }
+        ValueKind.Double => {
+            converter.put_wrapped_chemical_double_value_in(value)
+        }
+        default => {
+            converter.put_by_type(value.getType(), value)
+        }
     }
 }
 

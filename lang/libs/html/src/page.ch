@@ -58,10 +58,6 @@ public struct HtmlPage {
         pageHtml.append_char_ptr(value);
     }
 
-    func append(&mut self, value : char) {
-        pageHtml.append(value);
-    }
-
     func toString(&self) : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + 80)
@@ -85,6 +81,13 @@ public struct HtmlPage {
         var str = std::string()
         str.reserve(pageHtml.size())
         str.append_with_len(pageHtml.data(), pageHtml.size())
+        return str;
+    }
+
+    func toStringCssOnly(&self) : std::string {
+        var str = std::string()
+        str.reserve(pageCss.size())
+        str.append_with_len(pageCss.data(), pageCss.size())
         return str;
     }
 

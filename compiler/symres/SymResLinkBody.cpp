@@ -404,7 +404,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
             break;
     }
 
-    auto id = lhs->as_identifier();
+    auto id = lhs->get_single_id();
     if(id) {
         auto linked = id->linked;
         auto linked_kind = linked->kind();

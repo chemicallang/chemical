@@ -32,6 +32,11 @@ func pass_r_val_to_ref(value : int) : bool {
     return take_ref_to_r_val(value)
 }
 
+func assign_to_param(value : int) : int {
+    value = value + 7;
+    return value;
+}
+
 func test_parameters() {
 
     test("taking address of parameters works", () => {
@@ -52,6 +57,9 @@ func test_parameters() {
     })
     test("passing r value function params to references works", () => {
         return pass_r_val_to_ref(812)
+    })
+    test("assignment to parameters works", () => {
+        return assign_to_param(10) == 17
     })
 
 }

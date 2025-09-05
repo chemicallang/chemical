@@ -174,6 +174,11 @@ public:
     }
 
     /**
+     * get as a single identifier, regardless if wrapped in access chain
+     */
+    VariableIdentifier* get_single_id();
+
+    /**
      * last identifier of this chain value
      */
     VariableIdentifier* get_last_id();

@@ -92,7 +92,7 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
                 break;
             } else {
                 // skip the current token
-                error("skipped due to invalid syntax before it", token->position);
+                // error("skipped due to invalid syntax before it", token->position);
                 token++;
                 continue;
             }

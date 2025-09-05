@@ -612,6 +612,10 @@ ASTNode* BaseTypegetLinkedNode(BaseType* type) {
     return type->linked_node();
 }
 
+int IntNTypeget_intn_type_kind(IntNType* type) {
+    return static_cast<int>(type->IntNKind());
+}
+
 // Other methods
 
 std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type) {

@@ -178,22 +178,22 @@ func chem_char_value_in_text_works(env : &mut TestEnv) {
     html_equals(env, page.toStringHtmlOnly(), "<div>Normal Text</div>");
 }
 
-// func ret_char_for_html(cond : bool) : char {
-//     if(cond) {
-//         return 'a'
-//     } else {
-//         return 'b'
-//     }
-// }
-//
-// @test
-// func chem_char_value_call_in_text_works(env : &mut TestEnv) {
-//     var page = HtmlPage()
-//     #html {
-//         <div>A={ret_char_for_html(true)},B={ret_char_for_html(false)}</div>
-//     }
-//     html_equals(env, page.toStringHtmlOnly(), "<div>A=a,B=b</div>");
-// }
+func ret_char_for_html(cond : bool) : char {
+    if(cond) {
+        return 'a'
+    } else {
+        return 'b'
+    }
+}
+
+@test
+func chem_char_value_call_in_text_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>A={ret_char_for_html(true)},B={ret_char_for_html(false)}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>A=a,B=b</div>");
+}
 
 func my_component(page : &mut HtmlPage) {
     #html {
@@ -211,4 +211,80 @@ func call_void_returning_components_in_html(env : &mut TestEnv) {
         </div>
     }
     html_equals(env, page.toStringHtmlOnly(), "<div id=\"p\"><div>From Component</div><div id=\"c\">C</div></div>");
+}
+
+@test
+func integer_values_in_html_automatically_converted(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{128}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>128</div>");
+}
+
+@test
+func integer_values_in_html_automatically_converted2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var value : int = 128
+    #html {
+        <div>{value}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>128</div>");
+}
+
+@test
+func uinteger_values_in_html_automatically_converted(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{128u}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>128</div>");
+}
+
+@test
+func uinteger_values_in_html_automatically_converted2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var value : uint = 128
+    #html {
+        <div>{value}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>128</div>");
+}
+
+@test
+func floating_values_in_html_automatically_converted(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{876.123f}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>876.123</div>");
+}
+
+@test
+func floating_values_in_html_automatically_converted2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var value = 876.123f
+    #html {
+        <div>{value}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>876.123</div>");
+}
+
+@test
+func double_values_in_html_automatically_converted(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{876.123}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>876.123</div>");
+}
+
+@test
+func double_values_in_html_automatically_converted2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var value = 876.123
+    #html {
+        <div>{value}</div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div>876.123</div>");
 }

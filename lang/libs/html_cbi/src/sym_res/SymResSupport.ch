@@ -8,4 +8,12 @@ struct SymResSupport {
 
     var appendHtmlFn : *mut ASTNode = null
 
+    var appendHtmlIntFn : *mut ASTNode = null
+
+    var appendHtmlUIntFn : *mut ASTNode = null
+
+    var appendHtmlFloatFn : *mut ASTNode = null
+
+    var appendHtmlDoubleFn : *mut ASTNode = null
+
 }

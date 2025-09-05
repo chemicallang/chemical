@@ -29,6 +29,8 @@ extern "C" {
 
     ASTNode* BaseTypegetLinkedNode(BaseType* type);
 
+    int IntNTypeget_intn_type_kind(IntNType* type);
+
     std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type);
 
     Value* AccessChainas_value(AccessChain* chain);

@@ -331,7 +331,13 @@ llvm::Value *IntNumValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return gen.builder->CreateNeg(value->llvm_value(gen));
+    const auto llvmValue = value->llvm_value(gen);
+    const auto ty = llvmValue->getType();
+    if(ty->isFloatingPointTy()) {
+        return gen.builder->CreateFNeg(llvmValue);
+    } else {
+        return gen.builder->CreateNeg(llvmValue);
+    }
 }
 
 llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {

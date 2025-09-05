@@ -110,6 +110,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
             return builder->CreateSDiv(final, sdivRhs, "", true);
         }
     }
+
     auto is_unsigned = [&firstType, &secondType, this, first] () -> bool {
         auto firstKind = firstType->kind();
         auto secondKind = secondType->kind();
@@ -142,9 +143,10 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         }
     }
 
-    const auto firstTypeFloating = firstTypeKind == BaseTypeKind::Float || firstTypeKind == BaseTypeKind::Double;
-    const auto secondTypeFloating = secondTypeKind == BaseTypeKind::Float || secondTypeKind == BaseTypeKind::Double;
-    const auto is_floating = firstTypeFloating || secondTypeFloating;
+    // determine floatingness from the *LLVM* types after any casts/promotions
+    const auto firstTypeFloating = lhs->getType()->isFloatingPointTy();
+    const auto secondTypeFloating = rhs->getType()->isFloatingPointTy();
+    const bool is_floating = firstTypeFloating || secondTypeFloating;
 
     // operation between integer and float values
     // promoting integer values to floats to perform the operation

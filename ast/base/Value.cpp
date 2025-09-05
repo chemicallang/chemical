@@ -1130,6 +1130,19 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
     return false;
 }
 
+VariableIdentifier* Value::get_single_id() {
+    switch(kind()) {
+        case ValueKind::AccessChain: {
+            auto& values = as_access_chain_unsafe()->values;
+            return values.size() == 1 ? values.back()->as_identifier() : nullptr;
+        }
+        case ValueKind::Identifier:
+            return as_identifier_unsafe();
+        default:
+            return nullptr;
+    }
+}
+
 VariableIdentifier* Value::get_last_id() {
     switch(kind()) {
         case ValueKind::AccessChain:

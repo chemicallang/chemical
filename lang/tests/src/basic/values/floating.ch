@@ -49,5 +49,17 @@ func test_floating_expr() {
         var result = 4 + 1.5;
         return result == 5.5;
     });
+    test("negative value on doubles works", () => {
+        var a = 4.23
+        var b = -a
+        var c = b as int
+        return c == -4
+    })
+    test("negative value on floats works", () => {
+        var a = 4.23f
+        var b = -a
+        var c = b as int
+        return c == -4
+    })
     // TODO test when float is passed to var arg function, it's converted to a double first
 }

@@ -65,7 +65,7 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
     }
     auto arg = gen.current_function->getArg(index);
     if (arg) {
-        if(has_address_taken()) {
+        if(has_address_taken() || get_has_assignment()) {
             const auto pure = type->pure_type(gen.allocator);
             if(pure->kind() == BaseTypeKind::Pointer || pure->isIntegerLikeStorage()) {
                 const auto allocaInstr = gen.llvm.CreateAlloca(pure->llvm_type(gen), this);
@@ -84,12 +84,13 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
 
 llvm::Value *FunctionParam::llvm_load(Codegen& gen, SourceLocation location) {
     if (gen.current_function != nullptr) {
+        const auto arg = llvm_pointer(gen);
         if(pointer) {
             const auto loadInstr = gen.builder->CreateLoad(type->llvm_type(gen), pointer);
             gen.di.instr(loadInstr, location);
             return loadInstr;
         } else {
-            return llvm_pointer(gen);
+            return arg;
         }
     } else {
         gen.error("cannot provide pointer to a function parameter when not generating code for a function", this);

@@ -225,6 +225,208 @@ public struct string : Hashable, Eq {
         append_with_len(value.data(), value.size())
     }
 
+    // Append an *unsigned* 64-bit integer quickly.
+    func append_uinteger(&mut self, value : ubigint) {
+        // fast path for zero
+        if(value == 0) {
+            append('0');
+            return;
+        }
+
+        // temporary buffer for digits (max 20 digits for u64)
+        var buf : [20]char;
+        var bi : int = 0;
+        while(value != 0) {
+            const digit = (value % 10) as uint;
+            buf[bi] = ('0' as int + digit as int) as char;
+            bi = bi + 1;
+            value = value / 10;
+        }
+
+        const old_len = size();
+        const add = bi as size_t;
+        ensure_mut(old_len + add + 1);
+        var p = mutable_data();
+
+        var i : size_t = 0;
+        while(i < add) {
+            // write reversed from buf
+            p[old_len + i] = buf[add - 1 - i];
+            i = i + 1;
+        }
+        p[old_len + add] = '\0';
+
+        if(state == '1') {
+            storage.sso.length = (old_len + add) as uchar;
+        } else {
+            storage.heap.length = old_len + add;
+        }
+    }
+
+    // Append a *signed* 64-bit integer quickly. Handles INT64_MIN safely.
+    func append_integer(&mut self, value : bigint) {
+        if(value < 0) {
+            append('-');
+            // handle INT64_MIN safely by using the trick: -(value + 1) then +1
+            var tmp = value + 1; // still negative or zero
+            var uv = (0 as ubigint);
+            if(tmp < 0) {
+                uv = (-(tmp)) as ubigint;
+                uv = uv + 1;
+            } else {
+                // value was -1 -> tmp == 0 -> uv = 1
+                uv = 1;
+            }
+            append_uinteger(uv);
+        } else {
+            append_uinteger(value as ubigint);
+        }
+    }
+
+    // Simple, fast (but not fully IEEE-perfect) conversion that supports a
+    // configurable precision. Uses integer rounding of fractional part.
+    func append_double(&mut self, value : double, precision : int) {
+        // clamp precision to reasonable bounds
+        if(precision < 0) {
+            precision = 6;
+        } else if(precision > 18) {
+            precision = 18;
+        }
+
+        // handle NaN
+        if(value != value) {
+            append_with_len("nan", 3);
+            return;
+        }
+
+        // handle infinities
+        const pInf = 0x7FF0000000000000 as double
+        if(value > pInf) {
+            append_with_len("inf", 3);
+            return;
+        }
+        const nInf = 0xFFF0000000000000 as double
+        if(value < nInf) {
+            append_with_len("-inf", 4);
+            return;
+        }
+
+        var v = value;
+        if(v < 0.0) {
+            append('-');
+            v = -v;
+        }
+
+        // integer part
+        var int_part = (v as bigint);
+        append_integer(int_part);
+
+        if(precision == 0) {
+            return;
+        }
+
+        append('.');
+
+        // fractional part scaled and rounded
+        var frac = v - (int_part as double);
+        var pow10_d : double = 1.0;
+        var pow10_u : ubigint = 1;
+        var pi : int = 0;
+        while(pi < precision) {
+            pow10_d = pow10_d * 10.0;
+            pow10_u = pow10_u * 10;
+            pi = pi + 1;
+        }
+
+        // add rounding
+        var scaled = (frac * pow10_d + 0.5) as ubigint;
+
+        // rounding may carry into integer part
+        if(scaled >= pow10_u) {
+            // increment integer part by 1
+            // remove previously appended integer and re-append incremented value
+            // simplest approach: compute new integer and replace tail.
+            // We'll compute current total length and roll back integer characters.
+
+            // find length of integer we appended: convert int_part+1 to string in temp
+            var new_int = int_part + 1;
+            // remove the integer we appended before the '.'
+            // compute pos where '.' is: size() currently = previous size
+            var dot_pos = size();
+            // backtrack: find start index of integer by scanning backwards until non-digit or start
+            var si : size_t = 0;
+            if(state == '1') {
+                si = 0;
+                // sso case: scan
+                var idx = dot_pos;
+                while(idx > 0 && get(idx - 1) >= '0' && get(idx - 1) <= '9') {
+                    idx = idx - 1;
+                }
+                si = idx;
+            } else {
+                si = 0;
+                var idx2 = dot_pos;
+                while(idx2 > 0 && get(idx2 - 1) >= '0' && get(idx2 - 1) <= '9') {
+                    idx2 = idx2 - 1;
+                }
+                si = idx2;
+            }
+            // truncate back to si
+            if(state == '1') {
+                storage.sso.buffer[si] = '\0';
+                storage.sso.length = si as uchar;
+            } else {
+                storage.heap.data[si] = '\0';
+                storage.heap.length = si;
+            }
+            // append new integer
+            append_integer(new_int);
+            // append '.' again (we removed it too)
+            append('.');
+            scaled = 0; // fractional part became zero after carry
+        }
+
+        // write fractional part with zero-padding to precision
+        // scaled is in [0, pow10_u)
+        // we need to write exactly 'precision' digits (with leading zeros)
+        // convert scaled to string into temporary buffer
+        var frac_buf : [20]char;
+        var fbi : int = 0;
+        if(scaled == 0) {
+            // write zeros
+            var z = 0;
+            while(z < precision) {
+                append('0');
+                z = z + 1;
+            }
+            return;
+        }
+        var tmp = scaled;
+        while(tmp != 0) {
+            const d = (tmp % 10) as ubigint;
+            frac_buf[fbi] = ('0' as int + d as int) as char;
+            fbi = fbi + 1;
+            tmp = tmp / 10;
+        }
+        // number of leading zeros needed
+        var leading = precision - fbi;
+        var zi = 0;
+        while(zi < leading) {
+            append('0');
+            zi = zi + 1;
+        }
+        // append reversed frac_buf
+        var fj = 0;
+        while(fj < fbi) {
+            append(frac_buf[fbi - 1 - fj]);
+            fj = fj + 1;
+        }
+    }
+
+    func append_float(&mut self, value : float, precision : int) {
+        append_double(value as double, precision);
+    }
+
     func copy(&mut self) : string {
         return substring(0, size())
     }

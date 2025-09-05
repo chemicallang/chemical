@@ -194,3 +194,21 @@ func chem_char_value_in_text_works(env : &mut TestEnv) {
 //     }
 //     html_equals(env, page.toStringHtmlOnly(), "<div>A=a,B=b</div>");
 // }
+
+func my_component(page : &mut HtmlPage) {
+    #html {
+        <div>From Component</div>
+    }
+}
+
+@test
+func call_void_returning_components_in_html(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div id="p">
+            {my_component(page)}
+            <div id="c">C</div>
+        </div>
+    }
+    html_equals(env, page.toStringHtmlOnly(), "<div id=\"p\"><div>From Component</div><div id=\"c\">C</div></div>");
+}

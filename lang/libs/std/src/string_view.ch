@@ -55,7 +55,7 @@ public namespace std {
 
         @override
         func hash(&self) : uint {
-            return fnv1a_hash_32(_data);
+            return fnv1_hash_view(self) as uint
         }
 
     }

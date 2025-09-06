@@ -213,13 +213,13 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
     var vec = converter.vec
 
     str.append(' ')
-    str.append_with_len(attr.name.data(), attr.name.size())
+    str.append_view(attr.name)
     if(attr.value != null) {
         str.append('=')
         switch(attr.value.kind) {
             AttributeValueKind.Text, AttributeValueKind.Number => {
                 const value = attr.value as *mut TextAttributeValue
-                str.append_with_len(value.text.data(), value.text.size())
+                str.append_view(value.text)
             }
             AttributeValueKind.Chemical => {
                 str.append('"');
@@ -262,12 +262,12 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
     switch(child.kind) {
         HtmlChildKind.Text => {
             var text = child as *mut HtmlText
-            str.append_with_len(text.value.data(), text.value.size());
+            str.append_view(text.value);
         }
         HtmlChildKind.Element => {
             var element = child as *mut HtmlElement
             str.append('<')
-            str.append_with_len(element.name.data(), element.name.size())
+            str.append_view(element.name)
 
             // putting attributes
             var a : uint = 0;
@@ -296,7 +296,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             if(!element.isSelfClosing) {
                 str.append('<')
                 str.append('/')
-                str.append_with_len(element.name.data(), element.name.size())
+                str.append_view(element.name)
                 str.append('>')
             }
 

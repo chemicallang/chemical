@@ -75,6 +75,11 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
             const last = lin_data.color_stop_list.last_ptr()
             cssParser.parseLinearColorStop(parser, builder, last.stop)
 
+            const t2 = parser.getToken()
+            if(t2.type == TokenType.Comma) {
+                parser.increment()
+            }
+
             while(true) {
                 lin_data.color_stop_list.push(LinearColorStopWHint())
                 const stop = lin_data.color_stop_list.last_ptr()
@@ -102,7 +107,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
     if(next2.type == TokenType.RParen) {
         parser.increment()
     } else {
-        parser.error("expected a ')' after 'url'");
+        parser.error("expected a ')' after 'linear-gradient'");
     }
 
 }
@@ -163,14 +168,17 @@ func (cssParser : &mut CSSParser) parseBackgroundImageInto(
             }
             comptime_fnv1_hash("linear-gradient") => {
                 parser.increment()
+                image.is_url = false;
                 cssParser.parseLinearGradient(parser, builder, image.gradient)
             }
             comptime_fnv1_hash("radial-gradient") => {
                 parser.increment()
+                image.is_url = false;
                 cssParser.parseRadialGradient(parser, builder, image.gradient)
             }
             comptime_fnv1_hash("conic-gradient") => {
                 parser.increment()
+                image.is_url = false;
                 cssParser.parseConicGradient(parser, builder, image.gradient)
             }
         }

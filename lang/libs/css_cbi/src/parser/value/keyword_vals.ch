@@ -1254,7 +1254,7 @@ func (parser : &mut Parser) wrong_val_kw_err(prop : &std::string_view) {
 }
 
 func (token : &mut Token) fnv1() : size_t {
-    return fnv1_hash(token.value.data())
+    return fnv1_hash_view(token.value)
 }
 
 func (cssParser : &mut CSSParser) parseFontWeight(

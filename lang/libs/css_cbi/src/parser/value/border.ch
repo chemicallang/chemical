@@ -1,6 +1,6 @@
 
-func getLineStyleKeyword(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getLineStyleKeyword(view : &std::string_view) : CSSKeywordKind {
+    switch(fnv1_hash_view(view)) {
         comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
@@ -54,7 +54,7 @@ func (cssParser : &mut CSSParser) parseBorder(
                 }
             }
             TokenType.Identifier => {
-                const style = getLineStyleKeyword(token.value.data())
+                const style = getLineStyleKeyword(token.value)
                 if(style != CSSKeywordKind.Unknown) {
                     parser.increment()
                     alloc_value_keyword(builder, border.style, style, token.value)

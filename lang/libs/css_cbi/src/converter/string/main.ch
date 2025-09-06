@@ -328,12 +328,26 @@ func writeFontWeight(ptr : &CSSFontWeight, str : &mut std::string) {
     }
 }
 
+func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) {
+    const first = family.families.data();
+    var start = first
+    const end = start + family.families.size()
+    while(start != end) {
+        if(start != first) {
+            str.append(',');
+        }
+        str.append_with_len(start.data(), start.size())
+        start++
+    }
+}
+
 func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
     writeFontStyle(ptr.style, str)
 
     if(ptr.fontVariant.kind != CSSKeywordKind.Unknown) {
-        str.append_with_len(ptr.fontVariant.value.data(), ptr.fontVariant.value.size())
+        str.append(' ');
+        str.append_view(ptr.fontVariant.value)
     }
 
     writeFontWeight(ptr.weight, str)
@@ -353,15 +367,10 @@ func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
         writeValue(ptr.lineHeight, str)
     }
 
-    var fmSize = ptr.family.families.size()
-    var i : uint = 0
-    while(i < fmSize) {
-        const fm = ptr.family.families.get_ptr(i)
-        str.append(',')
-        str.append(' ')
-        str.append_with_len(fm.data(), fm.size())
-        i++;
+    if(!ptr.family.families.empty()) {
+        str.append(' ');
     }
+    writeFontFamilyData(ptr.family, str)
 
 }
 
@@ -747,6 +756,29 @@ func writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::s
 
 }
 
+func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
+
+    if(url.is_source) {
+        str.append_view(std::string_view("src"))
+    } else {
+        str.append_view(std::string_view("url"))
+    }
+    str.append('(');
+    str.append_view(url.value)
+    str.append(')');
+
+}
+
+func writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {
+
+    if(ptr.is_url) {
+        writeBackgroundImageUrl(ptr.url, str)
+    } else {
+        // TODO: gradient
+    }
+
+}
+
 func writeValue(value : &mut CSSValue, str : &mut std::string) {
     switch(value.kind) {
 
@@ -796,6 +828,13 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             var ptr = value.data as *mut CSSFontValueData
             writeFontValueData(*ptr, str)
+
+        }
+
+        CSSValueKind.FontFamily => {
+
+            var ptr = value.data as *mut CSSFontFamily
+            writeFontFamilyData(*ptr, str)
 
         }
 
@@ -886,6 +925,18 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             const ptr = value.data as *mut CSSTransitionValueData
             writeTransition(*ptr, str)
+        }
+
+        CSSValueKind.BackgroundImage => {
+
+            const ptr = value.data as *mut MultipleBackgroundImageData
+            var start = ptr.images.data()
+            const end = start + ptr.images.size()
+            while(start != end) {
+                writeBackgroundImageData(*start, str)
+                start++;
+            }
+
         }
 
         default => {

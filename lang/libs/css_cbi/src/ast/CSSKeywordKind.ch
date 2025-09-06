@@ -461,4 +461,10 @@ enum CSSKeywordKind {
     SelfBlock,
     SelfInline,
 
+    // hue interpolation method
+    Shorter,
+    Longer,
+    Increasing,
+    Decreasing
+
 }

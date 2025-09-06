@@ -81,7 +81,7 @@ func parseFontKeywordValues(
     }
 }
 
-func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, font : &mut CSSFontValueData) {
+func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, family : &mut CSSFontFamily) {
     // parsing the font family
     while(true) {
         const token = parser.getToken()
@@ -90,7 +90,7 @@ func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, fon
 
                 parser.increment()
 
-                font.family.families.push(builder.allocate_view(token.value))
+                family.families.push(builder.allocate_view(token.value))
 
                 // optionally increment the comma
                 parser.incrementToken(TokenType.Comma)
@@ -163,6 +163,22 @@ func (cssParser : &mut CSSParser) parseFont(
         parser.error("expected a font size after the font keyword values");
     }
 
-    parser.parseFontFamiliesList(builder, *font)
+    parser.parseFontFamiliesList(builder, font.family)
+
+}
+
+func (cssParser : &mut CSSParser) parseFontFamily(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+
+    var family = builder.allocate<CSSFontFamily>();
+    new (family) CSSFontFamily()
+
+    value.kind = CSSValueKind.FontFamily
+    value.data = family
+
+    parser.parseFontFamiliesList(builder, *family)
 
 }

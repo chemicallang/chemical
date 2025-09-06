@@ -1,6 +1,6 @@
 
-func getLengthKind(str : *char) : CSSLengthKind {
-    switch(fnv1_hash(str)) {
+func getLengthKind(view : &std::string_view) : CSSLengthKind {
+    switch(fnv1_hash_view(view)) {
         comptime_fnv1_hash("px") => {
             return CSSLengthKind.LengthPX
         }
@@ -79,7 +79,7 @@ func parseLengthKindSafe(parser : *mut Parser, builder : *mut ASTBuilder) : CSSL
         parser.increment();
         return CSSLengthKind.LengthPERCENTAGE
     } else if(token.type == TokenType.Identifier) {
-        const k = getLengthKind(token.value.data())
+        const k = getLengthKind(token.value)
         if(k != CSSLengthKind.Unknown) {
             parser.increment();
         }
@@ -96,7 +96,7 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
         return CSSLengthKind.LengthPERCENTAGE
     } else if(token.type == TokenType.Identifier) {
         parser.increment();
-        const kind = getLengthKind(token.value.data())
+        const kind = getLengthKind(token.value)
         if(kind != CSSLengthKind.Unknown) {
             return kind;
         } else {

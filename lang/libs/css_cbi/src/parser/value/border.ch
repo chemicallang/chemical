@@ -15,8 +15,8 @@ func getLineStyleKeyword(view : &std::string_view) : CSSKeywordKind {
     }
 }
 
-func getLineWidthKeyword(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getLineWidthKeyword(view : &std::string_view) : CSSKeywordKind {
+    switch(fnv1_hash_view(view)) {
         comptime_fnv1_hash("thin") => { return CSSKeywordKind.None }
         comptime_fnv1_hash("medium") => { return CSSKeywordKind.Hidden }
         comptime_fnv1_hash("thick") => { return CSSKeywordKind.Dotted }
@@ -64,7 +64,7 @@ func (cssParser : &mut CSSParser) parseBorder(
                     has_style = true;
                     continue;
                 } else {
-                    const width = getLineWidthKeyword(token.value.data());
+                    const width = getLineWidthKeyword(token.value);
                     if(width != CSSKeywordKind.Unknown) {
                         parser.increment()
                         alloc_value_keyword(builder, border.width, width, token.value)

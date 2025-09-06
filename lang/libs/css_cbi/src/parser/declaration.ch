@@ -1,6 +1,6 @@
 
-func getCSSGlobalKeywordKind(ptr : *char) : CSSKeywordKind {
-    switch(fnv1_hash(ptr)) {
+func getCSSGlobalKeywordKind(view : &std::string_view) : CSSKeywordKind {
+    switch(fnv1_hash_view(view)) {
         comptime_fnv1_hash("inherit") => {
             return CSSKeywordKind.Inherit;
         }
@@ -48,7 +48,7 @@ func (cssParser : &mut CSSParser) parseValue(
 
     const valueTok = parser.getToken();
     if(valueTok.type == TokenType.Identifier) {
-        const globalKind = getCSSGlobalKeywordKind(valueTok.value.data());
+        const globalKind = getCSSGlobalKeywordKind(valueTok.value);
         if(globalKind != CSSKeywordKind.Unknown) {
             parser.increment();
             var kw_value = builder.allocate<CSSKeywordValueData>();

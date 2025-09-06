@@ -9,7 +9,7 @@ func (cssParser : &mut CSSParser) parseAtRule(om : &mut CSSOM, parser : *mut Par
 
     const next = parser.getToken()
     if(next.type == TokenType.Identifier) {
-        switch(fnv1_hash(next.value.data())) {
+        switch(fnv1_hash_view(next.value)) {
             comptime_fnv1_hash("global") => {
                 om.global = cssParser.parseGlobalBlock(parser, builder)
                 return true;

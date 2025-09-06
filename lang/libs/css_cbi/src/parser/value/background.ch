@@ -50,6 +50,9 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
     const lin_data = builder.allocate<LinearGradientData>()
     new (lin_data) LinearGradientData()
 
+    data.kind = CSSGradientKind.Linear
+    data.data = lin_data;
+
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
         if(!parser.parseLengthInto(builder, lin_data.angle)) {
@@ -113,6 +116,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
     }
 
     const next3 = parser.getToken()
+    parser.error("TODO: Not yet implemented");
 
     const next2 = parser.getToken()
     if(next2.type == TokenType.RParen) {
@@ -132,6 +136,7 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
     }
 
     const next3 = parser.getToken()
+    parser.error("TODO: Not yet implemented");
 
     const next2 = parser.getToken()
     if(next2.type == TokenType.RParen) {

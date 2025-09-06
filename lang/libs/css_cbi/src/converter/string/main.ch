@@ -168,94 +168,73 @@ func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Valu
 func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
     switch(kind) {
         CSSLengthKind.LengthPX => {
-            var view = std::string_view("px")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("px"))
         }
         CSSLengthKind.LengthEM => {
-            var view = std::string_view("em")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("em"))
         }
         CSSLengthKind.LengthREM => {
-            var view = std::string_view("rem")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("rem"))
         }
         CSSLengthKind.LengthVH => {
-            var view = std::string_view("vh")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("vh"))
         }
         CSSLengthKind.LengthVW => {
-            var view = std::string_view("vw")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("vw"))
         }
         CSSLengthKind.LengthVMIN => {
-            var view = std::string_view("vmin")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("vmin"))
         }
         CSSLengthKind.LengthVMAX => {
-            var view = std::string_view("vmax")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("vmax"))
         }
         CSSLengthKind.LengthPERCENTAGE => {
             str.append('%')
         }
         CSSLengthKind.LengthCM => {
-            var view = std::string_view("cm")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("cm"))
         }
         CSSLengthKind.LengthMM => {
-            var view = std::string_view("mm")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("mm"))
         }
         CSSLengthKind.LengthIN => {
-            var view = std::string_view("in")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("in"))
         }
         CSSLengthKind.LengthPT => {
-            var view = std::string_view("pt")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("pt"))
         }
         CSSLengthKind.LengthPC => {
-            var view = std::string_view("pc")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("pc"))
         }
         CSSLengthKind.LengthCH => {
-            var view = std::string_view("ch")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("ch"))
         }
         CSSLengthKind.LengthEX => {
-            var view = std::string_view("ex")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("ex"))
         }
         CSSLengthKind.LengthS => {
             str.append('s')
         }
         CSSLengthKind.LengthMS => {
-            var view = std::string_view("ms")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("ms"))
         }
         CSSLengthKind.LengthHZ => {
-            var view = std::string_view("hz")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("hz"))
         }
         CSSLengthKind.LengthKHZ => {
-            var view = std::string_view("khz")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("khz"))
         }
         CSSLengthKind.LengthDEG => {
-            var view = std::string_view("deg")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("deg"))
         }
         CSSLengthKind.LengthRAD => {
-            var view = std::string_view("rad")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("rad"))
         }
         CSSLengthKind.LengthGRAD => {
-            var view = std::string_view("grad")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("grad"))
         }
         CSSLengthKind.LengthTURN => {
-            var view = std::string_view("turn")
-            str.append_with_len(view.data(), view.size())
+            str.append_view(std::string_view("turn"))
         }
         default => {
             return false;
@@ -266,7 +245,7 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
 
 func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
     // writing the length
-    str.append_with_len(ptr.value.data(), ptr.value.size())
+    str.append_view(ptr.value)
     // writing the unit
     if(ptr.kind != CSSLengthKind.None && !writeUnitOfKind(str, ptr.kind)) {
         printf("unknown unit")
@@ -296,7 +275,7 @@ func writeBorderRadiusValueData(ptr : &mut CSSBorderRadiusValueData, str : &mut 
     }
 
     if(ptr.next != null) {
-        str.append_with_len(" / ", 3)
+        str.append_view(std::string_view(" / "))
         writeBorderRadiusValueData(*ptr.next, str)
     }
 
@@ -306,10 +285,10 @@ func writeFontStyle(ptr : &CSSFontStyle, str : &mut std::string) {
     switch(ptr) {
         None => {}
         Keyword(keyword) => {
-            str.append_with_len(keyword.value.data(), keyword.value.size())
+            str.append_view(keyword.value)
         }
         Oblique(view) => {
-            str.append_with_len(view.data(), view.size())
+            str.append_view(view)
         }
     }
 }
@@ -319,11 +298,11 @@ func writeFontWeight(ptr : &CSSFontWeight, str : &mut std::string) {
         None => {}
         Keyword(keyword) => {
             str.append(' ')
-            str.append_with_len(keyword.value.data(), keyword.value.size())
+            str.append_view(keyword.value)
         }
         Absolute(view) => {
             str.append(' ')
-            str.append_with_len(view.data(), view.size())
+            str.append_view(view)
         }
     }
 }
@@ -336,7 +315,7 @@ func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) {
         if(start != first) {
             str.append(',');
         }
-        str.append_with_len(start.data(), start.size())
+        str.append_view(*start)
         start++
     }
 }
@@ -354,7 +333,7 @@ func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
     if(ptr.stretch.kind != CSSKeywordKind.Unknown) {
         str.append(' ')
-        str.append_with_len(ptr.stretch.value.data(), ptr.stretch.value.size())
+        str.append_view(ptr.stretch.value)
     }
 
     if(ptr.size.kind != CSSValueKind.Unknown) {
@@ -405,8 +384,7 @@ func writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut st
 func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std::string) {
 
     if(value.inset) {
-        const inset = std::string_view("inset")
-        str.append_with_len(inset.data(), inset.size())
+        str.append_view(std::string_view("inset"))
     }
 
     if(value.offsetX.kind != CSSValueKind.Unknown) {
@@ -450,8 +428,7 @@ func writeLengthOrNone(len : &mut CSSLengthValueData, str : &mut std::string) {
         }
         CSSLengthKind.None => {
             if(len.value.empty()) {
-                const view = std::string_view("none")
-                str.append_with_len(view.data(), view.size())
+                str.append_view(std::string_view("none"))
             } else {
                 writeLength(len, str);
             }
@@ -530,56 +507,47 @@ func writeOKLCHData(ptr : &mut CSSOKLCHColorData, str : &mut std::string) {
 func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
     switch(ptr.kind) {
         CSSColorKind.RGB => {
-            const rgbL = std::string_view("rgb(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("rgb("))
             writeRGBData(*ptr.value.rgbData, str)
             str.append(')')
         }
         CSSColorKind.RGBA => {
-           const rgbL = std::string_view("rgba(")
-           str.append_with_len(rgbL.data(), rgbL.size())
+           str.append_view(std::string_view("rgba("))
            writeRGBData(*ptr.value.rgbData, str)
            str.append(')')
         }
         CSSColorKind.HSL => {
-            const rgbL = std::string_view("hsl(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("hsl("))
             writeHSLData(*ptr.value.hslData, str)
             str.append(')')
         }
         CSSColorKind.HSLA => {
-            const rgbL = std::string_view("hsla(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("hsla("))
             writeHSLData(*ptr.value.hslData, str)
             str.append(')')
         }
         CSSColorKind.HWB => {
-            const rgbL = std::string_view("hwb(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("hwb("))
             writeHWBData(*ptr.value.hwbData, str)
             str.append(')')
         }
         CSSColorKind.LAB => {
-            const rgbL = std::string_view("lab(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("lab("))
             writeLABData(*ptr.value.labData, str)
             str.append(')')
         }
         CSSColorKind.LCH => {
-            const rgbL = std::string_view("lch(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("lch("))
             writeLCHData(*ptr.value.lchData, str)
             str.append(')')
         }
         CSSColorKind.OKLAB => {
-            const rgbL = std::string_view("oklab(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("oklab("))
             writeOKLABData(*ptr.value.oklabData, str)
             str.append(')')
         }
         CSSColorKind.OKLCH => {
-            const rgbL = std::string_view("oklch(")
-            str.append_with_len(rgbL.data(), rgbL.size())
+            str.append_view(std::string_view("oklch("))
             writeOKLCHData(*ptr.value.oklchData, str)
             str.append(')')
         }
@@ -592,7 +560,7 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
         }
 
         default => {
-            str.append_with_len(ptr.value.view.data(), ptr.value.view.size())
+            str.append_view(ptr.value.view)
         }
 
     }
@@ -640,18 +608,17 @@ func writeCubicBezierEasing(ptr : &mut CSSCubicBezierEasingData, str : &mut std:
 func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
     writeLength(ptr.step, str)
     str.append(' ')
-    str.append_with_len(ptr.position.value.data(), ptr.position.value.size())
+    str.append_view(ptr.position.value)
 }
 
 func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
     switch(ptr.kind) {
         CSSKeywordKind.Ease, CSSKeywordKind.EaseIn, CSSKeywordKind.EaseOut,
         CSSKeywordKind.EaseInOut, CSSKeywordKind.StepStart, CSSKeywordKind.StepEnd => {
-            str.append_with_len(ptr.data.keyword.value.data(), ptr.data.keyword.value.size())
+            str.append_view(ptr.data.keyword.value)
         }
         CSSKeywordKind.Linear => {
-            const call = std::string_view("linear")
-            str.append_with_len(call.data(), call.size())
+            str.append_view(std::string_view("linear"))
             if(ptr.data.linear != null) {
                 str.append('(')
                 writeLinearEasing(*ptr.data.linear, str)
@@ -659,14 +626,12 @@ func writeEasing(ptr : &mut CSSEasingFunction, str : &mut std::string) {
             }
         }
         CSSKeywordKind.CubicBezier => {
-            const call = std::string_view("cubic-bezier(")
-            str.append_with_len(call.data(), call.size())
+            str.append_view(std::string_view("cubic-bezier("))
             writeCubicBezierEasing(*ptr.data.bezier, str)
             str.append(')')
         }
         CSSKeywordKind.Steps => {
-            const call = std::string_view("steps(")
-            str.append_with_len(call.data(), call.size())
+            str.append_view(std::string_view("steps("))
             writeStepsEasing(*ptr.data.steps, str)
             str.append(')')
         }
@@ -678,7 +643,7 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
     var has_value_before = false;
 
     if(!ptr.property.empty()) {
-        str.append_with_len(ptr.property.data(), ptr.property.size())
+        str.append_view(ptr.property)
         has_value_before = true;
     }
 
@@ -715,7 +680,7 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
         } else {
             has_value_before = true;
         }
-        str.append_with_len(ptr.behavior.value.data(), ptr.behavior.value.size())
+        str.append_view(ptr.behavior.value)
     }
 
     if(ptr.next != null) {
@@ -739,14 +704,12 @@ func writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::strin
 
 func writeTransformValueData(ptr : &mut CSSTransformValueData, str : &mut std::string) {
 
-    const name = &ptr.transformFunction.value
-    str.append_with_len(name.data(), name.size())
+    str.append_view(ptr.transformFunction.value)
     str.append('(')
     if(ptr.node != null) {
         writeTransformNode(*ptr.node, str)
     } else {
-        const noneKw = std::string_view("none")
-        str.append_with_len(noneKw.data(), noneKw.size())
+        str.append_view(std::string_view("none"))
     }
     str.append(')')
     if(ptr.next != null) {
@@ -771,6 +734,10 @@ func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
 
 func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
 
+    writeLength(data.angle, str)
+
+
+
 }
 
 func writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
@@ -788,20 +755,17 @@ func writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::st
     } else {
         switch(ptr.gradient.kind) {
             CSSGradientKind.Linear => {
-                const linearStr = std::string_view("linear-gradient(")
-                str.append_with_len(linearStr.data(), linearStr.size())
+                str.append_view(std::string_view("linear-gradient("))
                 writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Radial => {
-                const radialStr = std::string_view("radial-gradient(")
-                str.append_with_len(radialStr.data(), radialStr.size())
+                str.append_view(std::string_view("radial-gradient("))
                 writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Conic => {
-                const conicStr = std::string_view("conic-gradient(")
-                str.append_with_len(conicStr.data(), conicStr.size())
+                str.append_view(std::string_view("conic-gradient("))
                 writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
                 str.append(')')
             }
@@ -833,7 +797,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
         CSSValueKind.Keyword => {
             var ptr = value.data as *mut CSSKeywordValueData
-            str.append_with_len(ptr.value.data(), ptr.value.size())
+            str.append_view(ptr.value)
             return;
         }
 
@@ -852,7 +816,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
         CSSValueKind.SingleLengthFunctionCall => {
             const ptr = value.data as *SingleLengthFuncCall
-            str.append_with_len(ptr.name.value.data(), ptr.name.value.size())
+            str.append_view(ptr.name.value)
             str.append('(')
             writeLength(ptr.length, str)
             str.append(')')
@@ -908,8 +872,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             if(ptr.isEmpty()) {
 
-                const none = std::string_view("none")
-                str.append_with_len(none.data(), none.size())
+                str.append_view(std::string_view("none"))
 
             } else {
 
@@ -925,8 +888,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             if(ptr.isEmpty()) {
 
-                const none = std::string_view("none")
-                str.append_with_len(none.data(), none.size())
+                str.append_view(std::string_view("none"))
 
             } else {
 
@@ -940,8 +902,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             const ptr = value.data as *mut CSSTransformValueData
             if(ptr.node == null && ptr.transformFunction.kind != CSSKeywordKind.Perspective) {
-                const noneStr = std::string_view("none")
-                str.append_with_len(noneStr.data(), noneStr.size())
+                str.append_view(std::string_view("none"))
             } else {
                 writeTransformValueData(*ptr, str)
             }
@@ -985,8 +946,7 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
     const builder = converter.builder
     const str = &converter.str;
 
-    const propertyName = decl.property.name.data()
-    str.append_with_len(propertyName, decl.property.name.size())
+    str.append_view(decl.property.name)
     str.append(':')
 
     // if(!str.empty()) {

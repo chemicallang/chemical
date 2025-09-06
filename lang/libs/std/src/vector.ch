@@ -83,6 +83,10 @@ public struct vector<T> {
         return data_ptr;
     }
 
+    func last_ptr(&self) : *mut T {
+        return data_ptr + (data_size - 1);
+    }
+
     func remove(&mut self, index : size_t) {
         const s = data_size;
         const last = s - 1;

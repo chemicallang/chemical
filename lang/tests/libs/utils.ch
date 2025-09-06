@@ -10,7 +10,7 @@ public func view_equals(env : &mut TestEnv, str : &std::string_view, view : &std
     expected.append('"');
     env.info(expected.data())
 
-    var got = std::string("got:\"");
+    var got = std::string("got     :\"");
     got.append_view(str)
     got.append('"');
     env.info(got.data())

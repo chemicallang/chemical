@@ -232,6 +232,48 @@ struct CSSFontValueData {
 
 }
 
+struct UrlData {
+
+    var value : std::string_view
+
+    var is_source : bool = false;
+
+}
+
+struct BackgroundImageData {
+
+    var is_url : bool = true;
+
+    var url : UrlData
+
+    var gradient : GradientData
+
+    @make
+    func make() {
+        url = UrlData()
+        gradient = GradientData()
+    }
+
+}
+
+struct MultipleBackgroundImageData {
+
+    var images : std::vector<BackgroundImageData>
+
+}
+
+struct CSSBackgroundLayerData {
+
+    var attachment : CSSKeywordValueData
+
+}
+
+struct CSSBackgroundValueData {
+
+    var layers : std::vector<CSSBackgroundLayerData>
+
+}
+
 struct CSSLinearEasingPoint {
 
     // the duration point

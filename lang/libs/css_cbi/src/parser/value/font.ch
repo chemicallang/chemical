@@ -54,7 +54,7 @@ func parseFontKeywordValues(
         if(i == 0) {
             hash = first_val_hash
         } else {
-            hash = fnv1_hash(token.value.data())
+            hash = fnv1_hash_view(token.value)
         }
         const kind = parseFontValueKeywordKind(builder, font, token.value, hash)
         if(kind == CSSKeywordKind.Oblique) {
@@ -126,7 +126,7 @@ func (cssParser : &mut CSSParser) parseFont(
     var first_val_hash : size_t = 0;
     const firstTok = parser.getToken()
     if(firstTok.type == TokenType.Identifier) {
-        first_val_hash = fnv1_hash(firstTok.value.data())
+        first_val_hash = fnv1_hash_view(firstTok.value)
         const sysKw = getSystemFamilyNameKeywordKind(first_val_hash)
         if(sysKw != CSSKeywordKind.Unknown) {
             parser.increment()

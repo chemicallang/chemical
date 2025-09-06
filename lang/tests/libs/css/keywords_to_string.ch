@@ -100,3 +100,64 @@ func transition_timing_function_property_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "transition-timing-function:ease;transition-timing-function:linear;transition-timing-function:ease-in;transition-timing-function:ease-out;transition-timing-function:ease-in-out;transition-timing-function:step-start;transition-timing-function:step-end;");
 }
+
+@test
+func vector_effect_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        vector-effect:none;
+        vector-effect:non-scaling-stroke;
+    }
+    css_equals(env, page.toStringCssOnly(), "vector-effect:none;vector-effect:non-scaling-stroke;");
+}
+
+@test
+func forced_color_adjust_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        forced-color-adjust:auto;
+        forced-color-adjust:none;
+    }
+    css_equals(env, page.toStringCssOnly(), "forced-color-adjust:auto;forced-color-adjust:none;");
+}
+
+@test
+func color_scheme_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color-scheme:light;
+        color-scheme:dark;
+    }
+    css_equals(env, page.toStringCssOnly(), "color-scheme:light;color-scheme:dark;");
+}
+
+@test
+func print_color_adjust_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        print-color-adjust:economy;
+        print-color-adjust:exact;
+    }
+    css_equals(env, page.toStringCssOnly(), "print-color-adjust:economy;print-color-adjust:exact;");
+}
+
+@test
+func overscroll_behavior_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overscroll-behavior:auto;
+        overscroll-behavior:contain;
+        overscroll-behavior:none;
+    }
+    css_equals(env, page.toStringCssOnly(), "overscroll-behavior:auto;overscroll-behavior:contain;overscroll-behavior:none;");
+}
+
+@test
+func page_orientation_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        page-orientation:portrait;
+        page-orientation:landscape;
+    }
+    css_equals(env, page.toStringCssOnly(), "page-orientation:portrait;page-orientation:landscape;");
+}

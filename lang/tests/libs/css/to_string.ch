@@ -1,4 +1,15 @@
 @test
+func global_values_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color:inherit;
+        color:initial;
+        color:unset;
+    }
+    css_equals(env, page.toStringCssOnly(), "color:inherit;color:initial;color:unset;");
+}
+
+@test
 func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

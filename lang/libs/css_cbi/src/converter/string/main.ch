@@ -769,12 +769,46 @@ func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
 
 }
 
+func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
+
+}
+
+func writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
+
+}
+
+func writeConicGradientData(data : &mut ConicGradientData, str : &mut std::string) {
+
+}
+
 func writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {
 
     if(ptr.is_url) {
         writeBackgroundImageUrl(ptr.url, str)
     } else {
-        // TODO: gradient
+        switch(ptr.gradient.kind) {
+            CSSGradientKind.Linear => {
+                const linearStr = std::string_view("linear-gradient(")
+                str.append_with_len(linearStr.data(), linearStr.size())
+                writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
+                str.append(')')
+            }
+            CSSGradientKind.Radial => {
+                const radialStr = std::string_view("radial-gradient(")
+                str.append_with_len(radialStr.data(), radialStr.size())
+                writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
+                str.append(')')
+            }
+            CSSGradientKind.Conic => {
+                const conicStr = std::string_view("conic-gradient(")
+                str.append_with_len(conicStr.data(), conicStr.size())
+                writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
+                str.append(')')
+            }
+            default => {
+                // Unknown or not a gradient
+            }
+        }
     }
 
 }

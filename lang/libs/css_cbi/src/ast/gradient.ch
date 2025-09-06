@@ -1,4 +1,4 @@
-enum GradientKind {
+enum CSSGradientKind {
     None,
     Linear,
     Radial,
@@ -18,7 +18,7 @@ struct LinearColorStop {
 
 struct LinearColorStopWHint {
 
-    var length : CSSValue
+    var hint : CSSValue
 
     var stop : LinearColorStop
 
@@ -26,7 +26,7 @@ struct LinearColorStopWHint {
 
 struct LinearGradientData {
 
-    var angle : int
+    var angle : CSSLengthValueData
 
     var to : CSSKeywordValueData
 
@@ -122,7 +122,7 @@ struct ConicGradientData {
 
 struct GradientData {
 
-    var kind : GradientKind = GradientKind.None
+    var kind : CSSGradientKind = CSSGradientKind.None
 
     var data : *mut void = null
 

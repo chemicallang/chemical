@@ -99,16 +99,25 @@ func background_image_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "background-image:url(\"img.png\");");
 }
 
-/**
 @test
 func background_image_with_linear_gradient_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-image: linear-gradient(black, white);
     }
-    css_equals(env, page.toStringCssOnly(), "background-image:linear-gradient(black, white);");
+    css_equals(env, page.toStringCssOnly(), "background-image:linear-gradient(black,white);");
 }
 
+@test
+func background_image_with_linear_gradient_works2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background-image: linear-gradient(red 0%, orange 10%, orange 30%, yellow 50%, yellow 70%, green 90%, green 100%);
+    }
+    css_equals(env, page.toStringCssOnly(), "background-image:linear-gradient(red 0%,orange 10%,orange 30%,yellow 50%,yellow 70%,green 90%,green 100%);");
+}
+
+/**
 @test
 func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
     var page = HtmlPage()

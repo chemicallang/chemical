@@ -736,7 +736,29 @@ func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::str
 
     writeLength(data.angle, str)
 
+    if(data.to.kind != CSSKeywordKind.Unknown) {
+        str.append_view(std::string_view("to "))
+        str.append_view(data.to.value)
+    }
 
+    var start = data.color_stop_list.data()
+    const end = start + data.color_stop_list.size()
+    while(start != end) {
+
+        writeValue(start.hint, str)
+
+        writeValue(start.stop.color, str)
+
+        if(start.stop.length.kind != CSSValueKind.Unknown) {
+            str.append(' ');
+            writeValue(start.stop.length, str)
+        }
+
+        start++;
+
+        if(start != end) str.append(',');
+
+    }
 
 }
 

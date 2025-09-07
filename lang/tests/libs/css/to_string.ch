@@ -19,6 +19,28 @@ func chemical_dynamic_values_work(env : &mut TestEnv) {
 }
 
 @test
+func chemical_dynamic_values_work2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var condition = true
+    var color = if(condition) "green" else "blue"
+    #css {
+        color:{color};
+    }
+    css_equals(env, page.toStringCssOnly(), "color:green;");
+}
+
+@test
+func chemical_dynamic_values_work3(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var condition = false
+    var color = if(condition) "green" else "blue"
+    #css {
+        color:{color};
+    }
+    css_equals(env, page.toStringCssOnly(), "color:blue;");
+}
+
+@test
 func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

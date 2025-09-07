@@ -234,3 +234,50 @@ func (cssParser : &mut CSSParser) parseTransition(
     }
 
 }
+
+func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
+        parser : *mut Parser,
+        builder : *mut ASTBuilder,
+        value : &mut CSSValue
+) {
+    const token = parser.getToken();
+    if(token.type == TokenType.Identifier) {
+
+        const easing = builder.allocate<CSSEasingFunction>()
+        new (easing) CSSEasingFunction()
+
+        value.data = easing
+        value.kind = CSSValueKind.TransitionTimingFunction
+
+        const hash = token.fnv1();
+        const kind = getAnimationTimingFunctionKeywordKind(hash)
+        if(kind != CSSKeywordKind.Unknown) {
+            parser.increment()
+            easing.kind = kind
+            if(kind == CSSKeywordKind.Linear) {
+                const next = parser.getToken()
+                if(next.type == TokenType.LParen) {
+                    // parse linear function
+                    easing.data.linear = parser.parseLinearEasingPoints(builder)
+                    easing.kind = CSSKeywordKind.Linear
+                } else {
+                    easing.data.linear = null
+                }
+            } else {
+                easing.data.keyword = CSSKeywordValueData { kind : kind, value : builder.allocate_view(token.value) }
+            }
+        } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
+            parser.increment()
+            easing.data.bezier = parser.parseCubicBezierCall(builder)
+            easing.kind = CSSKeywordKind.CubicBezier
+        } else if(hash == comptime_fnv1_hash("steps")) {
+            parser.increment()
+            easing.data.steps = parser.parseStepsFnCall(builder)
+            easing.kind = CSSKeywordKind.Steps
+        } else {
+            parser.error("unknown identifier given");
+        }
+    } else {
+        parser.error("expected an identifier for transition-timing-function");
+    }
+}

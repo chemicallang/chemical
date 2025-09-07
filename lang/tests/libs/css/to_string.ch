@@ -304,6 +304,15 @@ func transform_many_functions_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "transform:translate(10px,20px) rotate(30deg) scale(1.1,0.9) skewX(10deg);");
 }
 
+@test
+func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transition-timing-function: steps(4, end);
+    }
+    css_equals(env, page.toStringCssOnly(), "transition-timing-function:steps(4,end);");
+}
+
 /**
 
 @test
@@ -313,15 +322,6 @@ func font_shorthand_full_works(env : &mut TestEnv) {
         font: italic small-caps 600 18px/1.4 \"Open Sans\", Arial, sans-serif;
     }
     css_equals(env, page.toStringCssOnly(), "font:italic small-caps 600 18px/1.4 \"Open Sans\",Arial,sans-serif;");
-}
-
-@test
-func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        transition-timing-function: steps(4, end);
-    }
-    css_equals(env, page.toStringCssOnly(), "transition-timing-function:steps(4,end);");
 }
 
 @test

@@ -20,6 +20,7 @@ enum CSSValueKind {
     BoxShadow,
     TextShadow,
     Transition,
+    TransitionTimingFunction,
     Transform,
 
     BackgroundImage,

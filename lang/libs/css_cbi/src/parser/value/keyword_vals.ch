@@ -3180,24 +3180,6 @@ func (cssParser : &mut CSSParser) parseImageOrientation(
     alloc_value_keyword(builder, value, kind, token.value)
 }
 
-func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
-        parser : *mut Parser,
-        builder : *mut ASTBuilder,
-        value : &mut CSSValue
-) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("transition-timing-function")
-        return;
-    }
-    const kind = getTransitionTimingFunctionKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("transition-timing-function")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
-}
-
 
 func (cssParser : &mut CSSParser) parseVectorEffect(
         parser : *mut Parser,

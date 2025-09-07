@@ -639,7 +639,7 @@ func writeCubicBezierEasing(ptr : &mut CSSCubicBezierEasingData, str : &mut std:
 
 func writeStepsEasing(ptr : &mut CSSStepsEasingData, str : &mut std::string) {
     writeLength(ptr.step, str)
-    str.append(' ')
+    str.append(',')
     str.append_view(ptr.position.value)
 }
 
@@ -1059,6 +1059,13 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
             const ptr = value.data as *mut CSSTransitionValueData
             writeTransition(*ptr, str)
+        }
+
+        CSSValueKind.TransitionTimingFunction => {
+
+            const ptr = value.data as *mut CSSEasingFunction
+            writeEasing(*ptr, str)
+
         }
 
         CSSValueKind.BackgroundImage => {

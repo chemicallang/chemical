@@ -138,6 +138,15 @@ func test_passing_array(arr : []int, size : int) : int {
     return sum;
 }
 
+func func_ret_void() {
+    var i = 0
+    i++
+}
+
+func call_func_ret_void() {
+    return func_ret_void()
+}
+
 func test_functions() {
     test("struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
@@ -221,5 +230,9 @@ func test_functions() {
     test_parameters();
     test("arrays can be passed to functions", () => {
         return test_passing_array([11, 87, 245, 3, 23], 5) == 369;
+    })
+    test("functions returning void can be returned in functions returning void", () => {
+        call_func_ret_void();
+        return true;
     })
 }

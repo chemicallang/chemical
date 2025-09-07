@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <charconv>
+#include <type_traits>
 
 /**
  * this exists to abstract away and keep separate everything we need
@@ -20,35 +21,37 @@ protected:
     char* buf_;
     size_t cap_;
     size_t pos_;
+    bool owned_; // true if buf_ was malloc'd / is owned and may be freed / realloc'd
 
 public:
 
     /**
      * this can be used to create a buffered writer from a stack allocated array
      */
-    explicit BufferedWriter(char* buf, size_t cap) noexcept : buf_(buf), cap_(cap), pos_(0) {
-
+    explicit BufferedWriter(char* buf, size_t cap) noexcept
+            : buf_(buf), cap_(cap), pos_(0), owned_(false)
+    {
     }
 
     // Default 4 MiB initial cap
     explicit BufferedWriter(size_t initial_capacity = (4 << 20)) noexcept
-            : buf_(nullptr), cap_(0), pos_(0)
+            : buf_(nullptr), cap_(0), pos_(0), owned_(false)
     {
         if (initial_capacity == 0) initial_capacity = (4 << 20);
         buf_ = static_cast<char*>(std::malloc(initial_capacity));
-        if (buf_) cap_ = initial_capacity;
+        if (buf_) { cap_ = initial_capacity; owned_ = true; }
     }
 
     BufferedWriter(BufferedWriter&& o) noexcept
-            : buf_(o.buf_), cap_(o.cap_), pos_(o.pos_)
+            : buf_(o.buf_), cap_(o.cap_), pos_(o.pos_), owned_(o.owned_)
     {
-        o.buf_ = nullptr; o.cap_ = 0; o.pos_ = 0;
+        o.buf_ = nullptr; o.cap_ = 0; o.pos_ = 0; o.owned_ = false;
     }
     BufferedWriter& operator=(BufferedWriter&& o) noexcept {
         if (this != &o) {
-            if (buf_) std::free(buf_);
-            buf_ = o.buf_; cap_ = o.cap_; pos_ = o.pos_;
-            o.buf_ = nullptr; o.cap_ = 0; o.pos_ = 0;
+            if (owned_ && buf_) std::free(buf_);
+            buf_ = o.buf_; cap_ = o.cap_; pos_ = o.pos_; owned_ = o.owned_;
+            o.buf_ = nullptr; o.cap_ = 0; o.pos_ = 0; o.owned_ = false;
         }
         return *this;
     }
@@ -57,22 +60,34 @@ public:
     BufferedWriter& operator=(const BufferedWriter&) = delete;
 
     ~BufferedWriter() noexcept {
-        if (buf_) std::free(buf_);
+        if (owned_ && buf_) std::free(buf_);
     }
 
     // Reserve at least new_capacity (may allocate). Returns true on success.
     bool reserve_total(size_t new_capacity) noexcept {
         if (new_capacity <= cap_) return true;
-        char* nb = static_cast<char*>(std::realloc(buf_, new_capacity));
-        if (!nb) return false;
-        buf_ = nb;
-        cap_ = new_capacity;
-        return true;
+        if (owned_) {
+            // we own the buffer -> realloc is fine and fast
+            char* nb = static_cast<char*>(std::realloc(buf_, new_capacity));
+            if (!nb) return false;
+            buf_ = nb;
+            cap_ = new_capacity;
+            return true;
+        } else {
+            // buffer not owned (e.g. stack-provided) -> must allocate new heap buffer and copy
+            char* nb = static_cast<char*>(std::malloc(new_capacity));
+            if (!nb) return false;
+            if (pos_ > 0) std::memcpy(nb, buf_, pos_);
+            buf_ = nb;
+            cap_ = new_capacity;
+            owned_ = true;
+            return true;
+        }
     }
 
     // Ensure there's space for extra bytes (pos_ + extra <= cap_).
     // If not, grows buffer using doubling strategy until it fits.
-    // Returns true on success (might allocate), false on allocation failure.
+    // Aborts on allocation failure (same behavior as original ensure_total_capacity_for).
     void ensure_total_capacity_for(size_t extra) noexcept {
         size_t need = pos_ + extra;
         if (need <= cap_) return;
@@ -83,14 +98,29 @@ public:
             if (want > (SIZE_MAX / 2)) { want = need; break; }
             want *= 2;
         }
-        char* nb = static_cast<char*>(std::realloc(buf_, want));
-        if (!nb) {
-            printf("couldn't allocate memory %zu", extra);
-            abort();
-            return;
+
+        if (owned_) {
+            char* nb = static_cast<char*>(std::realloc(buf_, want));
+            if (!nb) {
+                std::printf("couldn't allocate memory %zu", extra);
+                std::abort();
+                return;
+            }
+            buf_ = nb;
+            cap_ = want;
+        } else {
+            // allocate new heap buffer, copy existing content, flip to owned
+            char* nb = static_cast<char*>(std::malloc(want));
+            if (!nb) {
+                std::printf("couldn't allocate memory %zu", extra);
+                std::abort();
+                return;
+            }
+            if (pos_ > 0) std::memcpy(nb, buf_, pos_);
+            buf_ = nb;
+            cap_ = want;
+            owned_ = true;
         }
-        buf_ = nb;
-        cap_ = want;
     }
 
     // --- Appends (grow if necessary). Return true on success ---
@@ -334,10 +364,5 @@ public:
     }
     inline operator std::string_view() const noexcept {
         return std::string_view(data(), size());
-    }
-    inline ~ScratchString() {
-        if(buf_ == &my_buf_[0]) {
-            buf_ = nullptr;
-        }
     }
 };

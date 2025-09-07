@@ -126,6 +126,15 @@ func background_image_with_linear_gradient_works3(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "background-image:linear-gradient(45deg,red 0 50%,blue 50% 100%);");
 }
 
+@test
+func background_image_with_linear_gradient_works4(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background-image: linear-gradient(to left top, blue, red);
+    }
+    css_equals(env, page.toStringCssOnly(), "background-image:linear-gradient(to left top,blue,red);");
+}
+
 /**
 @test
 func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {

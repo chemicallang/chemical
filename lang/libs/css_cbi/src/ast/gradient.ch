@@ -30,7 +30,9 @@ struct LinearGradientData {
 
     var angle : CSSLengthValueData
 
-    var to : CSSKeywordValueData
+    var to1 : CSSKeywordValueData
+
+    var to2 : CSSKeywordValueData
 
     var color_stop_list : std::vector<LinearColorStopWHint>
 

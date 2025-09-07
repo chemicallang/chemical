@@ -739,9 +739,17 @@ func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::str
         str.append(',');
     }
 
-    if(data.to.kind != CSSKeywordKind.Unknown) {
+    if(data.to1.kind != CSSKeywordKind.Unknown) {
         str.append_view(std::string_view("to "))
-        str.append_view(data.to.value)
+        str.append_view(data.to1.value)
+
+        if(data.to2.kind != CSSKeywordKind.Unknown) {
+            str.append(' ');
+            str.append_view(data.to2.value)
+        }
+
+        str.append(',');
+
     }
 
     var start = data.color_stop_list.data()

@@ -3,6 +3,7 @@ enum CSSValueKind {
     Unknown,
 
     Multiple,
+    Pair,
     ChemicalValue,
 
     // keywords like auto

@@ -67,12 +67,21 @@ func (parser : &mut Parser) parseCubicBezierCall(builder : *mut ASTBuilder) : *C
     if(!parser.parseNumberInto(builder, bezier.x1)) {
         parser.error("expected a number for x1 in bezier-curve");
     }
+
+    parser.consume(TokenType.Comma)
+
     if(!parser.parseNumberInto(builder, bezier.y1)) {
         parser.error("expected a number for y1 in bezier-curve");
     }
+
+    parser.consume(TokenType.Comma)
+
     if(!parser.parseNumberInto(builder, bezier.x2)) {
         parser.error("expected a number for x2 in bezier-curve");
     }
+
+    parser.consume(TokenType.Comma)
+
     if(!parser.parseNumberInto(builder, bezier.y2)) {
         parser.error("expected a number for y2 in bezier-curve");
     }

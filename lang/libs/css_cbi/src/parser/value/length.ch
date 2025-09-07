@@ -112,7 +112,8 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
 
 func (parser : &mut Parser) parseLengthInto(
     builder : *mut ASTBuilder,
-    length : &mut CSSLengthValueData
+    length : &mut CSSLengthValueData,
+    required_unit : bool = true
 ) : bool {
     const token = parser.getToken();
     switch(token.type) {
@@ -126,7 +127,11 @@ func (parser : &mut Parser) parseLengthInto(
                 if(token.value.equals("0")) {
                     length.kind = CSSLengthKind.None
                 } else {
-                    parser.error("expected a unit after number");
+                    if(required_unit) {
+                        parser.error("expected a unit after number");
+                    } else {
+                        length.kind = CSSLengthKind.None
+                    }
                 }
             }
             return true;

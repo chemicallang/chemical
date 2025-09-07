@@ -68,7 +68,8 @@ func alloc_value_length_raw(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue,
-    view : &std::string_view
+    view : &std::string_view,
+    required_unit : bool = true
 ) {
     var number_value = builder.allocate<CSSLengthValueData>()
     new (number_value) CSSLengthValueData {
@@ -82,7 +83,11 @@ func alloc_value_length_raw(
         if(view.equals("0")) {
             number_value.kind = CSSLengthKind.None
         } else {
-            parser.error("expected a unit after the number");
+            if(required_unit) {
+                parser.error("expected a unit after the number");
+            } else {
+                number_value.kind = CSSLengthKind.None
+            }
         }
     }
     value.kind = CSSValueKind.Length

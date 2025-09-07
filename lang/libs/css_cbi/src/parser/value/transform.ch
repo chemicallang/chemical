@@ -50,16 +50,12 @@ func (cssParser : &mut CSSParser) parseTransform(
                     }
                     if(parser.parseNumberOrLengthInto(builder, node.length)) {
 
-                        if(parser.incrementToken(TokenType.Comma)) {
+                        parser.incrementToken(TokenType.Comma)
 
-                            const nextNode = builder.allocate<CSSTransformLengthNode>();
-                            new (nextNode) CSSTransformLengthNode()
-                            node.next = nextNode;
-                            node = nextNode
-
-                        } else {
-                            break;
-                        }
+                        const nextNode = builder.allocate<CSSTransformLengthNode>();
+                        new (nextNode) CSSTransformLengthNode()
+                        node.next = nextNode;
+                        node = nextNode
 
                     } else {
                         break;

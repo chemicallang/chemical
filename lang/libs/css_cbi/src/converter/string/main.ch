@@ -726,9 +726,8 @@ func writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::strin
 
     writeLength(ptr.length, str)
 
-    if(ptr.next != null) {
+    if(ptr.next != null && ptr.next.length.kind != CSSLengthKind.Unknown) {
         str.append(',')
-        str.append(' ')
         writeTransformNode(*ptr.next, str)
     }
 

@@ -14,6 +14,8 @@ struct LinearColorStop {
 
     var length : CSSValue
 
+    var optSecLength : CSSValue
+
 }
 
 struct LinearColorStopWHint {

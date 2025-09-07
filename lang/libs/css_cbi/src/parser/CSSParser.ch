@@ -12,11 +12,7 @@ struct CSSParser {
 
     var valueFnMap : ValueParserMap
 
-    /**
-     * if NOT has dynamic values, we will automatically put
-     * class name that is hashed and prefixed with 'h'
-     */
-    var has_dynamic_values : bool = false
+    var dyn_values : std::vector<*mut Value>
 
     func isColor(&self, color : &std::string_view) : bool {
         return colorMap.isColor(color);

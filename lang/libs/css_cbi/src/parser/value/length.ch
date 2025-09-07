@@ -196,6 +196,10 @@ func (cssParser : &mut CSSParser) parseLength(
             alloc_value_length(parser, builder, value, token.value)
             return true;
         }
+        TokenType.LBrace => {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return true;
+        }
         default => {
             return false;
         }
@@ -213,6 +217,10 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
         TokenType.Number => {
             parser.increment();
             alloc_value_num_length(parser, builder, value, token.value)
+            return true;
+        }
+        TokenType.LBrace => {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
         default => {
@@ -242,6 +250,10 @@ func (cssParser : &mut CSSParser) parseNumberOrAuto(
                 return false;
             }
         }
+        TokenType.LBrace => {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return true;
+        }
         default => {
             return false;
         }
@@ -268,6 +280,10 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
             } else {
                 return false;
             }
+        }
+        TokenType.LBrace => {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return true;
         }
         default => {
             return false;

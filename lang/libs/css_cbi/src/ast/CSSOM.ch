@@ -8,16 +8,19 @@ struct CSSOM {
 
     var parent : *mut ASTNode
 
-    // if NOT has dynamic values, we will automatically put
-    // class name that is hashed and prefixed with 'h'
-    var has_dynamic_values : bool
-
     var declarations : std::vector<*mut CSSDeclaration>
+
+    // chemical values
+    var dyn_values : std::vector<*mut Value>
 
     var className : std::string_view
 
     var global : GlobalBlock
 
     var support : SymResSupport
+
+    func has_dynamic_values(&self) : bool {
+        return !dyn_values.empty()
+    }
 
 }

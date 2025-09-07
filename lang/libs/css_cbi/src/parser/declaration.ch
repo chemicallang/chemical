@@ -39,6 +39,28 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
     }
 }
 
+func (cssParser : &mut CSSParser) parseChemValueAfterLBrace(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+) {
+    parser.increment();
+    const chem_value = parser.parseExpression(builder)
+    if(chem_value != null) {
+        value.kind = CSSValueKind.ChemicalValue
+        value.data = chem_value
+        cssParser.dyn_values.push(chem_value)
+    } else {
+        parser.error("no expression found in braces");
+    }
+    const next = parser.getToken()
+    if(next.type == ChemicalTokenType.RBrace) {
+        parser.increment();
+    } else {
+        parser.error("expected a '}' after the chemical expression");
+    }
+}
+
 func (cssParser : &mut CSSParser) parseValue(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -61,21 +83,7 @@ func (cssParser : &mut CSSParser) parseValue(
             return;
         }
     } else if(valueTok.type == TokenType.LBrace) {
-        parser.increment();
-        const chem_value = parser.parseExpression(builder)
-        if(chem_value != null) {
-            value.kind = CSSValueKind.ChemicalValue
-            value.data = chem_value
-        } else {
-            parser.error("no expression found in braces");
-        }
-        const next = parser.getToken()
-        if(next.type == ChemicalTokenType.RBrace) {
-            cssParser.has_dynamic_values = true;
-            parser.increment();
-        } else {
-            parser.error("expected a '}' after the chemical expression");
-        }
+        cssParser.parseChemValueAfterLBrace(parser, builder, value)
         return;
     }
 

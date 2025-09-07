@@ -1067,7 +1067,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const str = &converter.str
     var size = om.declarations.size()
     if(size > 0) {
-        if(om.has_dynamic_values) {
+        if(om.has_dynamic_values()) {
             const hash = generate_random_32bit();
             var className : char[10] = [];
             className[0] = '.'
@@ -1091,7 +1091,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
             converter.put_char_chain('}')
         } else {
             // end the string here
-            if(!om.has_dynamic_values) {
+            if(!om.has_dynamic_values()) {
                 // calculate the hash before making any changes
                 const hash = fnv1a_hash_32(str.data());
                 const totalView = allocate_view_with_classname(builder, *str, hash)

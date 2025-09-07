@@ -292,7 +292,7 @@ func transform_multiple_functions_works(env : &mut TestEnv) {
     #css {
         transform: translate(10px, 20px) rotate(45deg) scale(1.2);
     }
-    css_equals(env, page.toStringCssOnly(), "transform:translate(10px 20px) rotate(45deg) scale(1.2);");
+    css_equals(env, page.toStringCssOnly(), "transform:translate(10px,20px) rotate(45deg) scale(1.2);");
 }
 
 @test
@@ -301,7 +301,7 @@ func transform_many_functions_works(env : &mut TestEnv) {
     #css {
         transform: translate(10px 20px) rotate(30deg) scale(1.1, 0.9) skewX(10deg);
     }
-    css_equals(env, page.toStringCssOnly(), "transform:translate(10px 20px) rotate(30deg) scale(1.1,0.9) skewX(10deg);");
+    css_equals(env, page.toStringCssOnly(), "transform:translate(10px,20px) rotate(30deg) scale(1.1,0.9) skewX(10deg);");
 }
 
 /**

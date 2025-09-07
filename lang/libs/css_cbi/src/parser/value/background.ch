@@ -34,7 +34,9 @@ func (cssParser : &mut CSSParser) parseLinearColorStop(parser : *mut Parser, bui
     if(!cssParser.parseCSSColor(parser, builder, stop.color)) {
         return false;
     }
-    cssParser.parseLength(parser, builder, stop.length)
+    if(cssParser.parseLength(parser, builder, stop.length)) {
+        cssParser.parseLength(parser, builder, stop.optSecLength)
+    }
     return true;
 }
 
@@ -55,9 +57,36 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
 
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
+
         if(!parser.parseLengthInto(builder, lin_data.angle)) {
             parser.error("expected length for angle");
         }
+
+        const t2 = parser.getToken()
+        if(t2.type == TokenType.Comma) {
+            parser.increment()
+        }
+
+        while(true) {
+            lin_data.color_stop_list.push(LinearColorStopWHint())
+            const stop = lin_data.color_stop_list.last_ptr()
+
+            // optional hint
+            cssParser.parseLength(parser, builder, stop.hint)
+
+            if(!cssParser.parseLinearColorStop(parser, builder, stop.stop)) {
+                break;
+            }
+
+            const t = parser.getToken()
+            if(t.type == TokenType.Comma) {
+                parser.increment()
+            } else {
+                break;
+            }
+
+        }
+
     } else if(token.type == TokenType.Identifier) {
         if(token.value.equals("to")) {
             parser.increment()

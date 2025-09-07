@@ -735,6 +735,9 @@ func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
 func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
 
     writeLength(data.angle, str)
+    if(data.angle.kind != CSSLengthKind.Unknown) {
+        str.append(',');
+    }
 
     if(data.to.kind != CSSKeywordKind.Unknown) {
         str.append_view(std::string_view("to "))
@@ -750,8 +753,15 @@ func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::str
         writeValue(start.stop.color, str)
 
         if(start.stop.length.kind != CSSValueKind.Unknown) {
+
             str.append(' ');
             writeValue(start.stop.length, str)
+
+            if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+                str.append(' ');
+                writeValue(start.stop.optSecLength, str)
+            }
+
         }
 
         start++;

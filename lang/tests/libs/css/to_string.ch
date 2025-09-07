@@ -219,7 +219,7 @@ func complex_shadow_spread_and_inset_works(env : &mut TestEnv) {
     #css {
         box-shadow: 0 2px 6px -1px rgba(0,0,0,0.3), inset 0 -3px 0 0 rgba(255,255,255,0.1);
     }
-    css_equals(env, page.toStringCssOnly(), "box-shadow:0 2px 6px -1px rgba(0,0,0,0.3),inset 0 -3px 0 0 rgba(255,255,255,0.1);");
+    css_equals(env, page.toStringCssOnly(), "box-shadow:0 2px 6px -1px rgba(0 0 0 / 0.3),inset 0 -3px 0 0 rgba(255 255 255 / 0.1);");
 }
 
 @test
@@ -237,7 +237,7 @@ func text_shadow_multi_layer_works(env : &mut TestEnv) {
     #css {
         text-shadow: 0 1px 0 #fff, 0 2px 3px rgba(0,0,0,0.4);
     }
-    css_equals(env, page.toStringCssOnly(), "text-shadow:0 1px 0 #fff,0 2px 3px rgba(0,0,0,0.4);");
+    css_equals(env, page.toStringCssOnly(), "text-shadow:0 1px 0 #fff,0 2px 3px rgba(0 0 0 / 0.4);");
 }
 
 @test

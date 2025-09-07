@@ -934,6 +934,15 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             }
         }
 
+        CSSValueKind.Pair => {
+
+            const pair = value.data as *mut CSSValuePair
+            converter.writeValue(pair.first)
+            str.append(' ');
+            converter.writeValue(pair.second)
+
+        }
+
         CSSValueKind.Keyword => {
             var ptr = value.data as *mut CSSKeywordValueData
             str.append_view(ptr.value)

@@ -162,6 +162,14 @@ struct CSSColorValueData {
 
 }
 
+struct CSSValuePair {
+
+    var first : CSSValue
+
+    var second : CSSValue
+
+}
+
 struct CSSMultipleValues {
 
     var values : std::vector<CSSValue>

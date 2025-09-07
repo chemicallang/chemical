@@ -127,6 +127,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("ruby-position"), CSSParser::parseRubyPosition)
     map.put(std::string_view("justify-self"), CSSParser::parseJustifySelf)
     map.put(std::string_view("contain"), CSSParser::parseContain)
+    map.put(std::string_view("gap"), CSSParser::parseGap)
     map.put(std::string_view("overscroll-behavior"), CSSParser::parseOverscrollBehavior)
     map.put(std::string_view("overscroll-behavior-x"), CSSParser::parseOverscrollBehavior)
     map.put(std::string_view("overscroll-behavior-y"), CSSParser::parseOverscrollBehavior)

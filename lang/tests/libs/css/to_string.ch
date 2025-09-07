@@ -313,6 +313,25 @@ func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "transition-timing-function:steps(4,end);");
 }
 
+@test
+func gap_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        gap: 10px 20px;
+    }
+    css_equals(env, page.toStringCssOnly(), "gap:10px 20px;");
+}
+
+@test
+func row_and_column_gap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        row-gap: 8px;
+        column-gap: 12px;
+    }
+    css_equals(env, page.toStringCssOnly(), "row-gap:8px;column-gap:12px;");
+}
+
 /**
 
 @test
@@ -367,25 +386,6 @@ func width_with_calc_works(env : &mut TestEnv) {
         width: calc(100% - 20px);
     }
     css_equals(env, page.toStringCssOnly(), "width:calc(100% - 20px);");
-}
-
-@test
-func gap_shorthand_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        gap: 10px 20px;
-    }
-    css_equals(env, page.toStringCssOnly(), "gap:10px 20px;");
-}
-
-@test
-func row_and_column_gap_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        row-gap: 8px;
-        column-gap: 12px;
-    }
-    css_equals(env, page.toStringCssOnly(), "row-gap:8px;column-gap:12px;");
 }
 
 @test

@@ -178,6 +178,7 @@ func (cssParser : &mut CSSParser) parseTransition(
                     if(next.type == TokenType.LParen) {
                         // parse linear function
                         transition.easing.data.linear = parser.parseLinearEasingPoints(builder)
+                        transition.easing.kind = CSSKeywordKind.Linear
                     } else {
                         transition.easing.data.linear = null
                     }
@@ -187,9 +188,11 @@ func (cssParser : &mut CSSParser) parseTransition(
             } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
                 parser.increment()
                 transition.easing.data.bezier = parser.parseCubicBezierCall(builder)
+                transition.easing.kind = CSSKeywordKind.CubicBezier
             } else if(hash == comptime_fnv1_hash("step")) {
                 parser.increment()
                 transition.easing.data.steps = parser.parseStepsFnCall(builder)
+                transition.easing.kind = CSSKeywordKind.Steps
             } else if(transition.property.empty()) {
                 parser.increment()
                 transition.property = builder.allocate_view(token.value)

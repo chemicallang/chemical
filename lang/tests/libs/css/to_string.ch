@@ -192,7 +192,7 @@ func transition_multiple_properties_works(env : &mut TestEnv) {
     #css {
         transition: opacity 250ms ease-in, transform 400ms cubic-bezier(0.2,0.8,0.2,1);
     }
-    css_equals(env, page.toStringCssOnly(), "transition:opacity 250ms ease-in,transform 400ms cubic-bezier(0.2,0.8,0.2,1);");
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 250ms ease-in,transform cubic-bezier(0.2,0.8,0.2,1) 400ms;");
 }
 
 @test

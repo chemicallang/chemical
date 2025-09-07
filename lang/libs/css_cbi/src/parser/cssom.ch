@@ -3,8 +3,8 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
     var root = builder.allocate<CSSOM>()
     new (root) CSSOM {
         parent : parser.getParentNode(),
-        has_dynamic_values : false,
         declarations : std::vector<*mut CSSDeclaration>(),
+        dyn_values : std::vector<*mut Value>(),
         className : std::string_view(),
         global : GlobalBlock(),
         support : SymResSupport()
@@ -18,7 +18,7 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
             break;
         }
     }
-    root.has_dynamic_values = cssParser.has_dynamic_values;
+    root.dyn_values = std::replace(cssParser.dyn_values, std::vector<*mut Value>());
     cssParser.parseAtRule(*root, parser, builder)
     return root;
 }

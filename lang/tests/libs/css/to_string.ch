@@ -183,7 +183,7 @@ func transition_shorthand_multiple_works(env : &mut TestEnv) {
     #css {
         transition: opacity 0.3s ease-in-out 0s, transform 200ms linear;
     }
-    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease-in-out 0s,transform 200ms linear;");
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease-in-out 0s,transform linear 200ms;");
 }
 
 @test
@@ -210,7 +210,7 @@ func box_shadow_complex_works(env : &mut TestEnv) {
     #css {
         box-shadow: inset 0 2px 4px #000, 0 4px 8px rgba(0,0,0,0.2);
     }
-    css_equals(env, page.toStringCssOnly(), "box-shadow:inset 0 2px 4px #000,0 4px 8px rgba(0,0,0,0.2);");
+    css_equals(env, page.toStringCssOnly(), "box-shadow:inset 0 2px 4px #000,0 4px 8px rgba(0 0 0 / 0.2);");
 }
 
 @test

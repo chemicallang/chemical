@@ -79,6 +79,43 @@ func (converter : &mut ASTConverter) make_expr_chain_of(value : *mut Value) : *m
     return converter.make_value_chain(value, 0);
 }
 
+func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var id = builder.make_identifier(fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
+func (converter : &mut ASTConverter) make_char_ptr_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_css_char_ptr"), converter.support.appendCssCharPtrFn)
+}
+
+func (converter : &mut ASTConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_css_char"), converter.support.appendCssCharFn)
+}
+
+func (converter : &mut ASTConverter) make_integer_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_css_integer"), converter.support.appendCssIntFn)
+}
+
+func (converter : &mut ASTConverter) make_uinteger_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_css_uinteger"), converter.support.appendCssUIntFn)
+}
+
+func (converter : &mut ASTConverter) make_float_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_css_float"), converter.support.appendCssFloatFn)
+}
+
+func (converter : &mut ASTConverter) make_double_value_call(value : *mut Value) : *mut FunctionCallNode {
+    return converter.make_value_call_with(value, std::string_view("append_css_double"), converter.support.appendCssDoubleFn)
+}
+
+
 func (converter : &mut ASTConverter) make_chain_of_view(view : &std::string_view) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -123,11 +160,6 @@ func (converter : &mut ASTConverter) put_wrapping(value : *mut Value) {
     const builder = converter.builder
     const wrapped = builder.make_value_wrapper(value, converter.parent)
     converter.vec.push(wrapped);
-}
-
-func (converter : &mut ASTConverter) put_wrapped_chemical_value_in(value : *mut Value) {
-    var chain = converter.make_expr_chain_of(value);
-    converter.vec.push(chain)
 }
 
 func is_func_call_ret_void(builder : *mut ASTBuilder, call : *mut FunctionCall) : bool {
@@ -320,7 +352,7 @@ func writeFontFamilyData(family : &mut CSSFontFamily, str : &mut std::string) {
     }
 }
 
-func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
     writeFontStyle(ptr.style, str)
 
@@ -338,12 +370,12 @@ func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
     if(ptr.size.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(ptr.size, str)
+        converter.writeValue(ptr.size)
     }
 
     if(ptr.lineHeight.kind != CSSValueKind.Unknown) {
         str.append('/')
-        writeValue(ptr.lineHeight, str)
+        converter.writeValue(ptr.lineHeight)
     }
 
     if(!ptr.family.families.empty()) {
@@ -353,35 +385,35 @@ func writeFontValueData(ptr : &CSSFontValueData, str : &mut std::string) {
 
 }
 
-func writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeTextShadowValueData(value : &mut CSSTextShadowValueData, str : &mut std::string) {
 
     if(value.offsetX.kind != CSSValueKind.Unknown) {
-        writeValue(value.offsetX, str)
+        converter.writeValue(value.offsetX)
     }
 
     if(value.offsetY.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.offsetY, str)
+        converter.writeValue(value.offsetY)
     }
 
     if(value.blurRadius.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.blurRadius, str)
+        converter.writeValue(value.blurRadius)
     }
 
     if(value.color.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.color, str)
+        converter.writeValue(value.color)
     }
 
     if(value.next != null) {
         str.append(',')
-        writeTextShadowValueData(*value.next, str)
+        converter.writeTextShadowValueData(*value.next, str)
     }
 
 }
 
-func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std::string) {
 
     if(value.inset) {
         str.append_view(std::string_view("inset"))
@@ -391,32 +423,32 @@ func writeBoxShadowValueData(value : &mut CSSBoxShadowValueData, str : &mut std:
         if(value.inset) {
             str.append(' ')
         }
-        writeValue(value.offsetX, str)
+        converter.writeValue(value.offsetX)
     }
 
     if(value.offsetY.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.offsetY, str)
+        converter.writeValue(value.offsetY)
     }
 
     if(value.blurRadius.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.blurRadius, str)
+        converter.writeValue(value.blurRadius)
     }
 
     if(value.spreadRadius.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.spreadRadius, str)
+        converter.writeValue(value.spreadRadius)
     }
 
     if(value.color.kind != CSSValueKind.Unknown) {
         str.append(' ')
-        writeValue(value.color, str)
+        converter.writeValue(value.color)
     }
 
     if(value.next != null) {
         str.append(',')
-        writeBoxShadowValueData(*value.next, str)
+        converter.writeBoxShadowValueData(*value.next, str)
     }
 
 }
@@ -732,7 +764,7 @@ func writeBackgroundImageUrl(url : &mut UrlData, str : &mut std::string) {
 
 }
 
-func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::string) {
 
     writeLength(data.angle, str)
     if(data.angle.kind != CSSLengthKind.Unknown) {
@@ -756,18 +788,18 @@ func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::str
     const end = start + data.color_stop_list.size()
     while(start != end) {
 
-        writeValue(start.hint, str)
+        converter.writeValue(start.hint)
 
-        writeValue(start.stop.color, str)
+        converter.writeValue(start.stop.color)
 
         if(start.stop.length.kind != CSSValueKind.Unknown) {
 
             str.append(' ');
-            writeValue(start.stop.length, str)
+            converter.writeValue(start.stop.length)
 
             if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
                 str.append(' ');
-                writeValue(start.stop.optSecLength, str)
+                converter.writeValue(start.stop.optSecLength)
             }
 
         }
@@ -780,15 +812,15 @@ func writeLinearGradientData(data : &mut LinearGradientData, str : &mut std::str
 
 }
 
-func writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
 
 }
 
-func writeConicGradientData(data : &mut ConicGradientData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeConicGradientData(data : &mut ConicGradientData, str : &mut std::string) {
 
 }
 
-func writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {
+func (converter : &mut ASTConverter) writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {
 
     if(ptr.is_url) {
         writeBackgroundImageUrl(ptr.url, str)
@@ -796,17 +828,17 @@ func writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::st
         switch(ptr.gradient.kind) {
             CSSGradientKind.Linear => {
                 str.append_view(std::string_view("linear-gradient("))
-                writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
+                converter.writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Radial => {
                 str.append_view(std::string_view("radial-gradient("))
-                writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
+                converter.writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
                 str.append(')')
             }
             CSSGradientKind.Conic => {
                 str.append_view(std::string_view("conic-gradient("))
-                writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
+                converter.writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
                 str.append(')')
             }
             default => {
@@ -817,7 +849,75 @@ func writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::st
 
 }
 
-func writeValue(value : &mut CSSValue, str : &mut std::string) {
+func (converter : &mut ASTConverter) put_wrapped_chemical_value_in(value : *mut Value) {
+    const chain = converter.make_char_ptr_value_call(value)
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_char_value_in(value : *mut Value) {
+    var chain = converter.make_char_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_integer_value_in(value : *mut Value) {
+    var chain = converter.make_integer_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_uinteger_value_in(value : *mut Value) {
+    var chain = converter.make_uinteger_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_float_value_in(value : *mut Value) {
+    var chain = converter.make_float_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_wrapped_chemical_double_value_in(value : *mut Value) {
+    var chain = converter.make_double_value_call(value);
+    converter.vec.push(chain)
+}
+
+func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *mut Value) {
+    switch(type.getKind()) {
+        BaseTypeKind.Void => {
+            converter.put_wrapping(value);
+        }
+        BaseTypeKind.IntN => {
+            const intN = type as *mut IntNType;
+            const kind = intN.get_intn_type_kind()
+            if(kind == IntNTypeKind.Char || kind == IntNTypeKind.UChar) {
+                converter.put_wrapped_chemical_char_value_in(value)
+            } else if(kind <= IntNTypeKind.Int128) {
+                // signed
+                converter.put_wrapped_chemical_integer_value_in(value)
+            } else {
+                // unsigned
+                converter.put_wrapped_chemical_uinteger_value_in(value)
+            }
+        }
+        BaseTypeKind.Float => {
+            converter.put_wrapped_chemical_float_value_in(value)
+        }
+        BaseTypeKind.Double => {
+            converter.put_wrapped_chemical_double_value_in(value)
+        }
+        default => {
+            converter.put_wrapped_chemical_value_in(value);
+        }
+    }
+}
+
+func (converter : &mut ASTConverter) str_ref() : &mut std::string {
+    return converter.str;
+}
+
+func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
+
+    // make this a reference
+    var str = converter.str_ref()
+
     switch(value.kind) {
 
         CSSValueKind.Multiple => {
@@ -827,7 +927,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
             const last = size - 1;
             while(i < size) {
                 const value_ptr = ptr.values.get_ptr(i);
-                writeValue(*value_ptr, str)
+                converter.writeValue(*value_ptr)
                 if(i < last) {
                     str.append(' ');
                 }
@@ -865,7 +965,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
         CSSValueKind.Font => {
 
             var ptr = value.data as *mut CSSFontValueData
-            writeFontValueData(*ptr, str)
+            converter.writeFontValueData(*ptr, str)
 
         }
 
@@ -885,7 +985,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             // width
             if(ptr.width.kind != CSSValueKind.Unknown) {
-                writeValue(ptr.width, str)
+                converter.writeValue(ptr.width)
                 if(has_style) {
                     str.append(' ')
                 }
@@ -893,7 +993,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             // style
             if(has_style) {
-                writeValue(ptr.style, str)
+                converter.writeValue(ptr.style)
                 if(has_color) {
                     str.append(' ')
                 }
@@ -901,7 +1001,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             // color
             if(has_color) {
-                writeValue(ptr.color, str)
+                converter.writeValue(ptr.color)
             }
 
         }
@@ -916,7 +1016,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             } else {
 
-                writeBoxShadowValueData(*ptr, str)
+                converter.writeBoxShadowValueData(*ptr, str)
 
             }
 
@@ -932,7 +1032,7 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
 
             } else {
 
-                writeTextShadowValueData(*ptr, str)
+                converter.writeTextShadowValueData(*ptr, str)
 
             }
 
@@ -968,9 +1068,17 @@ func writeValue(value : &mut CSSValue, str : &mut std::string) {
             var start = ptr.images.data()
             const end = start + ptr.images.size()
             while(start != end) {
-                writeBackgroundImageData(*start, str)
+                converter.writeBackgroundImageData(*start, str)
                 start++;
             }
+
+        }
+
+        CSSValueKind.ChemicalValue => {
+
+            converter.put_chain_in();
+            const ptr = value.data as *mut Value
+            converter.put_by_type(ptr.getType(), ptr)
 
         }
 
@@ -997,7 +1105,7 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
 
     // put_char_chain(resolver, builder, vec, parent, '\"');
 
-    writeValue(decl.value, *str)
+    converter.writeValue(decl.value)
 
     str.append(';')
 
@@ -1056,10 +1164,6 @@ public func rand() : int;
 
 func generate_random_32bit() : uint32_t {
     return (rand() as uint32_t << 16) | rand() as uint32_t;
-}
-
-func (converter : &mut ASTConverter) str_ref() : &mut std::string {
-    return converter.str;
 }
 
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {

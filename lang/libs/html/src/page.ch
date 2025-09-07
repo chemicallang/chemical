@@ -54,8 +54,20 @@ public struct HtmlPage {
         pageCss.append(value)
     }
 
-    func append_char_ptr(&mut self, value : *char) {
-        pageHtml.append_char_ptr(value);
+    func append_css_integer(&mut self, value : bigint) {
+        pageCss.append_integer(value)
+    }
+
+    func append_css_uinteger(&mut self, value : ubigint) {
+        pageCss.append_uinteger(value)
+    }
+
+    func append_css_float(&mut self, value : float) {
+        pageCss.append_float(value, 3)
+    }
+
+    func append_css_double(&mut self, value : double) {
+        pageCss.append_double(value, 3)
     }
 
     func toString(&self) : std::string {

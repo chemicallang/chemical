@@ -40,6 +40,27 @@ func (cssParser : &mut CSSParser) parseLinearColorStop(parser : *mut Parser, bui
     return true;
 }
 
+func (cssParser : &mut CSSParser) parseColorStopList(parser : *mut Parser, builder : *mut ASTBuilder, lin_data : *mut LinearGradientData) {
+    while(true) {
+        lin_data.color_stop_list.push(LinearColorStopWHint())
+        const stop = lin_data.color_stop_list.last_ptr()
+
+        // optional hint
+        cssParser.parseLength(parser, builder, stop.hint)
+
+        if(!cssParser.parseLinearColorStop(parser, builder, stop.stop)) {
+            break;
+        }
+
+        const t = parser.getToken()
+        if(t.type == TokenType.Comma) {
+            parser.increment()
+        } else {
+            break;
+        }
+    }
+}
+
 func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData) {
 
     const next = parser.getToken()
@@ -67,37 +88,39 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
             parser.increment()
         }
 
-        while(true) {
-            lin_data.color_stop_list.push(LinearColorStopWHint())
-            const stop = lin_data.color_stop_list.last_ptr()
-
-            // optional hint
-            cssParser.parseLength(parser, builder, stop.hint)
-
-            if(!cssParser.parseLinearColorStop(parser, builder, stop.stop)) {
-                break;
-            }
-
-            const t = parser.getToken()
-            if(t.type == TokenType.Comma) {
-                parser.increment()
-            } else {
-                break;
-            }
-
-        }
+        cssParser.parseColorStopList(parser, builder, lin_data)
 
     } else if(token.type == TokenType.Identifier) {
         if(token.value.equals("to")) {
             parser.increment()
+
             const sidCorner = parser.getToken()
             const kind = getSideOrCornerKeywordKind(sidCorner.fnv1())
             if(kind != CSSKeywordKind.Unknown) {
-                lin_data.to.kind = kind
-                lin_data.to.value = builder.allocate_view(sidCorner.value)
+                parser.increment()
+                lin_data.to1.kind = kind
+                lin_data.to1.value = builder.allocate_view(sidCorner.value)
             } else {
                 parser.error("expected a side or corner from 'left', 'right', 'top', 'bottom'");
             }
+
+            const nSid = parser.getToken()
+            if(nSid.type != TokenType.Comma) {
+                const kind = getSideOrCornerKeywordKind(nSid.fnv1())
+                if(kind != CSSKeywordKind.Unknown) {
+                    parser.increment()
+                    lin_data.to2.kind = kind
+                    lin_data.to2.value = builder.allocate_view(nSid.value)
+                }
+            }
+
+            const t2 = parser.getToken()
+            if(t2.type == TokenType.Comma) {
+                parser.increment()
+            }
+
+            cssParser.parseColorStopList(parser, builder, lin_data)
+
         } else {
 
             lin_data.color_stop_list.push(LinearColorStopWHint())
@@ -109,25 +132,8 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
                 parser.increment()
             }
 
-            while(true) {
-                lin_data.color_stop_list.push(LinearColorStopWHint())
-                const stop = lin_data.color_stop_list.last_ptr()
+            cssParser.parseColorStopList(parser, builder, lin_data)
 
-                // optional hint
-                cssParser.parseLength(parser, builder, stop.hint)
-
-                if(!cssParser.parseLinearColorStop(parser, builder, stop.stop)) {
-                    break;
-                }
-
-                const t = parser.getToken()
-                if(t.type == TokenType.Comma) {
-                    parser.increment()
-                } else {
-                    break;
-                }
-
-            }
         }
     }
 

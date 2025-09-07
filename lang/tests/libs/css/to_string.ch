@@ -9,12 +9,11 @@ func global_values_work(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "color:inherit;color:initial;color:unset;");
 }
 
-// TODO:
 @test
 func chemical_dynamic_values_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
-        color:red;
+        color:{"red"};
     }
     css_equals(env, page.toStringCssOnly(), "color:red;");
 }

@@ -60,6 +60,23 @@ func (cssParser : &mut CSSParser) parseValue(
             value.data = kw_value;
             return;
         }
+    } else if(valueTok.type == TokenType.LBrace) {
+        parser.increment();
+        const chem_value = parser.parseExpression(builder)
+        if(chem_value != null) {
+            value.kind = CSSValueKind.ChemicalValue
+            value.data = chem_value
+        } else {
+            parser.error("no expression found in braces");
+        }
+        const next = parser.getToken()
+        if(next.type == ChemicalTokenType.RBrace) {
+            cssParser.has_dynamic_values = true;
+            parser.increment();
+        } else {
+            parser.error("expected a '}' after the chemical expression");
+        }
+        return;
     }
 
     const parserFn = cssParser.getParserFor(propertyName);

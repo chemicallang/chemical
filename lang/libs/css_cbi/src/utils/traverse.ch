@@ -1,29 +1,27 @@
 func traverse_decl(
     decl : *mut CSSDeclaration,
-    resolver : *mut SymbolResolver,
-    loc : ubigint
+    data : *void,
+    traverse : (data : *void, item : *mut ASTAny) => bool
 ) {
-
-    // TODO css value kind should be chemical value to proceed
-
+    if(decl.value.kind == CSSValueKind.ChemicalValue) {
+        traverse(data, decl.value.data as *mut ASTAny);
+    }
 }
 
 func traverse_multi_decls(
     vec : &std::vector<*mut CSSDeclaration>,
-    resolver : *mut SymbolResolver,
-    loc : ubigint
+    data : *void,
+    traverse : (data : *void, item : *mut ASTAny) => bool
 ) {
-
-    var i = 0
-    const total = vec.size()
-    while(i < total) {
-        const decl = vec.get(i as size_t)
-        traverse_decl(decl, resolver, loc)
-        i++;
+    var start = vec.data()
+    const end = start + vec.size()
+    while(start != end) {
+        const decl = *start;
+        traverse_decl(decl, data, traverse)
+        start++
     }
-
 }
 
 func traverse_cssom(om : *mut CSSOM, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-    // TODO: currently we do not have any chemical items in the om
+    traverse_multi_decls(om.declarations, data, traverse)
 }

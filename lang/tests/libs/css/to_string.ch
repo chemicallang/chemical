@@ -271,7 +271,7 @@ func margin_all_sides_explicit_works(env : &mut TestEnv) {
 func font_family_multiple_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
-        font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     }
     css_equals(env, page.toStringCssOnly(), "font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;");
 }

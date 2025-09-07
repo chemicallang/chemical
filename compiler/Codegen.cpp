@@ -1025,8 +1025,13 @@ void Codegen::CreateRet(llvm::Value *value, SourceLocation location) {
             }
         }
 #endif
-        const auto retInst = builder->CreateRet(value);
-        di.instr(retInst, location);
+        if(value && value->getType()->isVoidTy()) {
+            const auto retInst = builder->CreateRet(nullptr);
+            di.instr(retInst, location);
+        } else {
+            const auto retInst = builder->CreateRet(value);
+            di.instr(retInst, location);
+        }
         has_current_block_ended = true;
     }
 }

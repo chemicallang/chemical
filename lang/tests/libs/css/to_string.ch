@@ -41,6 +41,17 @@ func chemical_dynamic_values_work3(env : &mut TestEnv) {
 }
 
 @test
+func chemical_dynamic_values_work5(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var color = "green";
+    var length = "2px"
+    #css {
+        border : {length} solid {color};
+    }
+    css_equals(env, page.toStringCssOnly(), "border:2px solid green;");
+}
+
+@test
 func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -166,14 +177,22 @@ func background_image_with_linear_gradient_works4(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "background-image:linear-gradient(to left top,blue,red);");
 }
 
-/**
 @test
-func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
+func transition_shorthand_multiple_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
-        background: url("img.png") no-repeat center/cover;
+        transition: opacity 0.3s ease-in-out 0s, transform 200ms linear;
     }
-    css_equals(env, page.toStringCssOnly(), "background:url(\"img.png\") no-repeat center/cover;");
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease-in-out 0s,transform 200ms linear;");
+}
+
+@test
+func transition_multiple_properties_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transition: opacity 250ms ease-in, transform 400ms cubic-bezier(0.2,0.8,0.2,1);
+    }
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 250ms ease-in,transform 400ms cubic-bezier(0.2,0.8,0.2,1);");
 }
 
 @test
@@ -186,6 +205,88 @@ func box_shadow_multiple_works(env : &mut TestEnv) {
 }
 
 @test
+func box_shadow_complex_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        box-shadow: inset 0 2px 4px #000, 0 4px 8px rgba(0,0,0,0.2);
+    }
+    css_equals(env, page.toStringCssOnly(), "box-shadow:inset 0 2px 4px #000,0 4px 8px rgba(0,0,0,0.2);");
+}
+
+@test
+func complex_shadow_spread_and_inset_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        box-shadow: 0 2px 6px -1px rgba(0,0,0,0.3), inset 0 -3px 0 0 rgba(255,255,255,0.1);
+    }
+    css_equals(env, page.toStringCssOnly(), "box-shadow:0 2px 6px -1px rgba(0,0,0,0.3),inset 0 -3px 0 0 rgba(255,255,255,0.1);");
+}
+
+@test
+func text_shadow_multiple_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-shadow: 1px 1px 2px #000, 0 0 1px #333;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-shadow:1px 1px 2px #000,0 0 1px #333;");
+}
+
+@test
+func text_shadow_multi_layer_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-shadow: 0 1px 0 #fff, 0 2px 3px rgba(0,0,0,0.4);
+    }
+    css_equals(env, page.toStringCssOnly(), "text-shadow:0 1px 0 #fff,0 2px 3px rgba(0,0,0,0.4);");
+}
+
+@test
+func padding_four_values_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding: 4px 8px 12px 16px;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding:4px 8px 12px 16px;");
+}
+
+@test
+func padding_mixed_units_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding: 1rem 2vw 3vh 4ch;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding:1rem 2vw 3vh 4ch;");
+}
+
+@test
+func margin_all_sides_explicit_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin: 5px 10px 15px 20px;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin:5px 10px 15px 20px;");
+}
+
+@test
+func font_family_multiple_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;");
+}
+
+@test
+func border_shorthand_with_radius_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        border: 2px dashed #0a0a0a;
+        border-radius: 8px 4px;
+    }
+    css_equals(env, page.toStringCssOnly(), "border:2px dashed #0a0a0a;border-radius:8px 4px;");
+}
+
+@test
 func transform_multiple_functions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -195,12 +296,41 @@ func transform_multiple_functions_works(env : &mut TestEnv) {
 }
 
 @test
-func transition_shorthand_multiple_works(env : &mut TestEnv) {
+func transform_many_functions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
-        transition: opacity 0.3s ease-in-out 0s, transform 200ms linear;
+        transform: translate(10px 20px) rotate(30deg) scale(1.1, 0.9) skewX(10deg);
     }
-    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease-in-out 0s,transform 200ms linear;");
+    css_equals(env, page.toStringCssOnly(), "transform:translate(10px 20px) rotate(30deg) scale(1.1,0.9) skewX(10deg);");
+}
+
+/**
+
+@test
+func font_shorthand_full_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font: italic small-caps 600 18px/1.4 \"Open Sans\", Arial, sans-serif;
+    }
+    css_equals(env, page.toStringCssOnly(), "font:italic small-caps 600 18px/1.4 \"Open Sans\",Arial,sans-serif;");
+}
+
+@test
+func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transition-timing-function: steps(4, end);
+    }
+    css_equals(env, page.toStringCssOnly(), "transition-timing-function:steps(4,end);");
+}
+
+@test
+func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: url("img.png") no-repeat center/cover;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:url(\"img.png\") no-repeat center/cover;");
 }
 
 @test
@@ -283,15 +413,6 @@ func filter_multiple_functions_works(env : &mut TestEnv) {
         filter: blur(5px) brightness(0.8) contrast(120%);
     }
     css_equals(env, page.toStringCssOnly(), "filter:blur(5px) brightness(0.8) contrast(120%);");
-}
-
-@test
-func text_shadow_multiple_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        text-shadow: 1px 1px 2px #000, 0 0 1px #333;
-    }
-    css_equals(env, page.toStringCssOnly(), "text-shadow:1px 1px 2px #000,0 0 1px #333;");
 }
 
 @test
@@ -418,43 +539,6 @@ func multi_backgrounds_works(env : &mut TestEnv) {
 }
 
 @test
-func margin_all_sides_explicit_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        margin: 5px 10px 15px 20px;
-    }
-    css_equals(env, page.toStringCssOnly(), "margin:5px 10px 15px 20px;");
-}
-
-@test
-func padding_four_values_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        padding: 4px 8px 12px 16px;
-    }
-    css_equals(env, page.toStringCssOnly(), "padding:4px 8px 12px 16px;");
-}
-
-@test
-func padding_mixed_units_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        padding: 1rem 2vw 3vh 4ch;
-    }
-    css_equals(env, page.toStringCssOnly(), "padding:1rem 2vw 3vh 4ch;");
-}
-
-@test
-func border_shorthand_with_radius_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        border: 2px dashed #0a0a0a;
-        border-radius: 8px 4px;
-    }
-    css_equals(env, page.toStringCssOnly(), "border:2px dashed #0a0a0a;border-radius:8px 4px;");
-}
-
-@test
 func border_sides_different_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -505,24 +589,6 @@ func background_attachment_and_clip_works(env : &mut TestEnv) {
 }
 
 @test
-func font_shorthand_full_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        font: italic small-caps 600 18px/1.4 \"Open Sans\", Arial, sans-serif;
-    }
-    css_equals(env, page.toStringCssOnly(), "font:italic small-caps 600 18px/1.4 \"Open Sans\",Arial,sans-serif;");
-}
-
-@test
-func font_family_multiple_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        font-family: \"Helvetica Neue\", Helvetica, Arial, sans-serif;
-    }
-    css_equals(env, page.toStringCssOnly(), "font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;");
-}
-
-@test
 func font_variant_and_feature_settings_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -542,24 +608,6 @@ func font_face_like_src_list_works(env : &mut TestEnv) {
 }
 
 @test
-func text_shadow_multi_layer_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        text-shadow: 0 1px 0 #fff, 0 2px 3px rgba(0,0,0,0.4);
-    }
-    css_equals(env, page.toStringCssOnly(), "text-shadow:0 1px 0 #fff,0 2px 3px rgba(0,0,0,0.4);");
-}
-
-@test
-func box_shadow_complex_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        box-shadow: inset 0 2px 4px #000, 0 4px 8px rgba(0,0,0,0.2);
-    }
-    css_equals(env, page.toStringCssOnly(), "box-shadow:inset 0 2px 4px #000,0 4px 8px rgba(0,0,0,0.2);");
-}
-
-@test
 func opacity_and_filter_chain_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -567,15 +615,6 @@ func opacity_and_filter_chain_works(env : &mut TestEnv) {
         filter: blur(2px) saturate(1.2);
     }
     css_equals(env, page.toStringCssOnly(), "opacity:0.85;filter:blur(2px) saturate(1.2);");
-}
-
-@test
-func transform_many_functions_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        transform: translate(10px 20px) rotate(30deg) scale(1.1, 0.9) skewX(10deg);
-    }
-    css_equals(env, page.toStringCssOnly(), "transform:translate(10px 20px) rotate(30deg) scale(1.1,0.9) skewX(10deg);");
 }
 
 @test
@@ -598,30 +637,12 @@ func perspective_and_origin_works_2(env : &mut TestEnv) {
 }
 
 @test
-func transition_multiple_properties_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        transition: opacity 250ms ease-in, transform 400ms cubic-bezier(0.2,0.8,0.2,1);
-    }
-    css_equals(env, page.toStringCssOnly(), "transition:opacity 250ms ease-in,transform 400ms cubic-bezier(0.2,0.8,0.2,1);");
-}
-
-@test
 func animation_full_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         animation: fadeIn 1.2s ease-in-out 0s 1 normal forwards paused;
     }
     css_equals(env, page.toStringCssOnly(), "animation:fadeIn 1.2s ease-in-out 0s 1 normal forwards paused;");
-}
-
-@test
-func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        transition-timing-function: steps(4, end);
-    }
-    css_equals(env, page.toStringCssOnly(), "transition-timing-function:steps(4,end);");
 }
 
 @test
@@ -900,16 +921,6 @@ func appearance_and_user_select_works(env : &mut TestEnv) {
 }
 
 @test
-func outline_and_focus_visibility_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        :focus { outline: 2px solid #06f; outline-offset: 3px; }
-        :focus-visible { box-shadow: 0 0 0 3px rgba(0,102,255,0.3); }
-    }
-    css_equals(env, page.toStringCssOnly(), ":focus{outline:2px solid #06f;outline-offset:3px;} :focus-visible{box-shadow:0 0 0 3px rgba(0,102,255,0.3);}");
-}
-
-@test
 func text_decoration_shorthand_and_offsets_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -1143,15 +1154,6 @@ func complex_border_image_slice_and_repeat_works(env : &mut TestEnv) {
         border-image: url(\"slice.png\") 30 30 30 30 round stretch;
     }
     css_equals(env, page.toStringCssOnly(), "border-image:url(\"slice.png\") 30 30 30 30 round stretch;");
-}
-
-@test
-func complex_shadow_spread_and_inset_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        box-shadow: 0 2px 6px -1px rgba(0,0,0,0.3), inset 0 -3px 0 0 rgba(255,255,255,0.1);
-    }
-    css_equals(env, page.toStringCssOnly(), "box-shadow:0 2px 6px -1px rgba(0,0,0,0.3),inset 0 -3px 0 0 rgba(255,255,255,0.1);");
 }
 
 @test

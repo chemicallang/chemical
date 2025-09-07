@@ -33,6 +33,10 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             parser.increment();
             return;
         }
+        TokenType.LBrace => {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return;
+        }
         default => {
             parser.error("unknown value token with data");
         }
@@ -82,9 +86,6 @@ func (cssParser : &mut CSSParser) parseValue(
             value.data = kw_value;
             return;
         }
-    } else if(valueTok.type == TokenType.LBrace) {
-        cssParser.parseChemValueAfterLBrace(parser, builder, value)
-        return;
     }
 
     const parserFn = cssParser.getParserFor(propertyName);

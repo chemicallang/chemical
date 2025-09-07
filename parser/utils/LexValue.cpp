@@ -52,8 +52,9 @@
 #include "ast/types/LinkedValueType.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/AccessChain.h"
+#include "preprocess/2c/BufferedWriter.h"
 
-bool read_escapable_char(const char** currentPtrPtr, const char* end, std::string& str) {
+bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchString<128>& str) {
 
     // load the current character
     const auto currentPtr = *currentPtrPtr;
@@ -64,7 +65,7 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, std::strin
 
     if(current != 'x') {
         const auto next = escaped_char(current);
-        str.append(1, next);
+        str.append_char(next);
         return next != current || next == '\\' || next == '\'' || next == '"';
     } else {
 
@@ -81,10 +82,10 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, std::strin
         if(next == '1' && nextNext == 'b') {
             // set current ptr next to \x1b| <-- here (at pipe)
             *currentPtrPtr = nextNextPtr + 1;
-            str.append(1, '\x1b');
+            str.append_char('\x1b');
             return true;
         } else {
-            str.append(1, current);
+            str.append_char(current);
             return false;
         }
     }
@@ -93,7 +94,7 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, std::strin
 // returns whether the escape sequence is known or not
 // if unknown reads it into the string without escaping it
 chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, const chem::string_view& value) {
-    std::string str;
+    ScratchString<128> str;
 
     // start and end
     auto currentPtr = value.data();
@@ -112,12 +113,12 @@ chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, con
                 }
             }
         } else {
-            str.append(1, current);
+            str.append_char(current);
             currentPtr++;
         }
     }
 
-    return parser.allocate_view(allocator, chem::string_view(str));
+    return parser.allocate_view(allocator, str.to_chem_view());
 
 }
 

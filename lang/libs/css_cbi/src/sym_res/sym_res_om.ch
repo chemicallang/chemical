@@ -28,6 +28,12 @@ func sym_res_root(
         return false;
     }
 
+    const appendCssNhFn = page.child("append_css_nh");
+    if(appendCssNhFn == null) {
+        resolver.error("'append_css_nh' function is required on 'page' for css to work", loc);
+        return false;
+    }
+
     const appendCssIntFn = page.child("append_css_integer");
     if(appendCssIntFn == null) {
         resolver.error("'append_css_integer' function is required on 'page' for css to work", loc);
@@ -57,6 +63,7 @@ func sym_res_root(
     support.appendCssCharFn = appendCssCharFn
     support.appendCssCharPtrFn = appendCssCharPtrFn
     support.appendCssFn = appendCssFn
+    support.appendCssNhFn = appendCssNhFn
     support.appendCssIntFn = appendCssIntFn;
     support.appendCssUIntFn = appendCssUIntFn;
     support.appendCssFloatFn = appendCssFloatFn;

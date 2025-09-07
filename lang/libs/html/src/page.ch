@@ -46,6 +46,12 @@ public struct HtmlPage {
         }
     }
 
+    // append css no hash
+    // used by dynamic values to insert css no matter what (by randomizing class name)
+    func append_css_nh(&mut self, value : *char, len : size_t) {
+        pageCss.append_with_len(value, len)
+    }
+
     func append_css_char_ptr(&mut self, value : *char) {
         pageCss.append_char_ptr(value);
     }

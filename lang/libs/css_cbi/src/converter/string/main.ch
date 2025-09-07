@@ -56,13 +56,13 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
     if(len == 0) {
         name = std::string_view("append_css_char_ptr")
     } else {
-        name = std::string_view("append_css")
+        name = std::string_view("append_css_nh")
     }
     var node : *mut ASTNode
     if(len == 0) {
         node = support.appendCssCharPtrFn
     } else {
-        node = support.appendCssFn
+        node = support.appendCssNhFn
     }
     var id = builder.make_identifier(name, node, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
@@ -1080,6 +1080,10 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             const ptr = value.data as *mut Value
             converter.put_by_type(ptr.getType(), ptr)
 
+        }
+
+        CSSValueKind.Unknown => {
+            // do nothing
         }
 
         default => {

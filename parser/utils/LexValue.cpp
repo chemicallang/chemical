@@ -53,6 +53,19 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/AccessChain.h"
 #include "preprocess/2c/BufferedWriter.h"
+#include "ast/values/ExpressiveString.h"
+
+bool is_escaped_self(char self) {
+    switch(self) {
+        case '\\':
+        case '\'':
+        case '"':
+        case '{':
+            return true;
+        default:
+            return false;
+    }
+}
 
 bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchString<128>& str) {
 
@@ -66,7 +79,7 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchStr
     if(current != 'x') {
         const auto next = escaped_char(current);
         str.append_char(next);
-        return next != current || next == '\\' || next == '\'' || next == '"';
+        return next != current || is_escaped_self(next);
     } else {
 
         // load next
@@ -122,6 +135,66 @@ chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, con
 
 }
 
+void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* str) {
+    while(true) {
+        auto& t = *parser.token;
+        if(t.type == TokenType::String) {
+            str->values.emplace_back(
+                    new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, parser, t.value), parser.typeBuilder.getStringType(), parser.loc_single(t))
+            );
+        } else if(t.type == TokenType::StringExprStart) {
+            parser.token++;
+            const auto expr = parser.parseExpression(allocator, true);
+            if(expr) {
+                str->values.emplace_back(expr);
+            } else {
+                parser.error("expected expression between the braces");
+            }
+            if(parser.token->type == TokenType::StringExprEnd) {
+                continue;
+            } else {
+                parser.error("expected '}' for ending the expression inside string");
+            }
+        } else if(t.type == TokenType::StringExprEnd) {
+            if(t.value.size() > 1) {
+                // skipping the first r-brace
+                chem::string_view view(t.value.data() + 1, t.value.size() - 1);
+                str->values.emplace_back(
+                        new(allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, parser, view), parser.typeBuilder.getStringType(), parser.loc_single(t))
+                );
+            }
+        } else {
+            break;
+        }
+        parser.token++;
+    }
+}
+
+Value* parseExpressiveString(Parser& parser, ASTAllocator& allocator) {
+    auto& f = *parser.token;
+    if(f.type == TokenType::String) {
+        parser.token++;
+        auto escaped = escaped_view(allocator, parser, f.value);
+        auto& next = *parser.token;
+        if(next.type != TokenType::StringExprStart) {
+            return new (allocator.allocate<StringValue>()) StringValue(escaped, parser.typeBuilder.getStringType(), parser.loc_single(f));
+        } else {
+            const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
+            str->values.emplace_back(
+                new (allocator.allocate<StringValue>()) StringValue(escaped, parser.typeBuilder.getStringType(), parser.loc_single(f))
+            );
+            parseStringExpr(parser, allocator, str);
+            return str;
+        }
+    } else if(f.type == TokenType::StringExprStart) {
+        const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
+        parseStringExpr(parser, allocator, str);
+        return str;
+    } else {
+        return nullptr;
+    }
+}
+
 Value* Parser::parseCharValue(ASTAllocator& allocator) {
     auto& t = *token;
     if(t.type == TokenType::Char) {
@@ -162,8 +235,8 @@ Value* Parser::parseStringValue(ASTAllocator& allocator) {
     auto& t = *token;
     switch(t.type) {
         case TokenType::String:
-            token++;
-            return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), typeBuilder.getStringType(), loc_single(t));
+        case TokenType::StringExprStart:
+            return parseExpressiveString(*this, allocator);
         case TokenType::MultilineString:
             token++;
             return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
@@ -658,6 +731,7 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
         case TokenType::Char:
             return (Value*) parseCharValue(allocator);
         case TokenType::String:
+        case TokenType::StringExprStart:
         case TokenType::MultilineString:
             return (Value*) parseStringValue(allocator);
         case TokenType::LogicalOrSym:

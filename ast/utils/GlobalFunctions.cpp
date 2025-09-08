@@ -22,6 +22,8 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/ExtractionValue.h"
+#include "ast/values/ExpressiveString.h"
+#include "ast/values/BlockValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/FunctionCall.h"
@@ -44,6 +46,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "compiler/symres/DeclareTopLevel.h"
 #include "compiler/processor/ModuleFileData.h"
+#include "ast/statements/AccessChainNode.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -1874,6 +1877,267 @@ public:
 
 };
 
+class ChildFnCache {
+private:
+    ASTNode* parent;
+    ASTNode* writeStr = nullptr;
+    ASTNode* writeChar = nullptr;
+    ASTNode* writeUChar = nullptr;
+    ASTNode* writeShort = nullptr;
+    ASTNode* writeUShort = nullptr;
+    ASTNode* writeInt = nullptr;
+    ASTNode* writeUInt = nullptr;
+    ASTNode* writeLong = nullptr;
+    ASTNode* writeULong = nullptr;
+    ASTNode* writeBigInt = nullptr;
+    ASTNode* writeUBigInt = nullptr;
+    ASTNode* writeFloat = nullptr;
+    ASTNode* writeDouble = nullptr;
+public:
+    ChildFnCache(ASTNode* node) : parent(node) {
+
+    }
+    ASTNode* getWriteStr() {
+        if(writeStr == nullptr) {
+            writeStr = parent->child("writeStr");
+        }
+        return writeStr;
+    }
+    ASTNode* getWriteChar() {
+        if(writeChar == nullptr) {
+            writeChar = parent->child("writeChar");
+        }
+        return writeChar;
+    }
+    ASTNode* getWriteUChar() {
+        if(writeUChar == nullptr) {
+            writeUChar = parent->child("writeUChar");
+        }
+        return writeUChar;
+    }
+    ASTNode* getWriteShort() {
+        if(writeShort == nullptr) {
+            writeShort = parent->child("writeShort");
+        }
+        return writeShort;
+    }
+    ASTNode* getWriteUShort() {
+        if(writeUShort == nullptr) {
+            writeUShort = parent->child("writeUShort");
+        }
+        return writeUShort;
+    }
+    ASTNode* getWriteInt() {
+        if(writeInt == nullptr) {
+            writeInt = parent->child("writeInt");
+        }
+        return writeInt;
+    }
+    ASTNode* getWriteUInt() {
+        if(writeUInt == nullptr) {
+            writeUInt = parent->child("writeUInt");
+        }
+        return writeUInt;
+    }
+    ASTNode* getWriteLong() {
+        if(writeLong == nullptr) {
+            writeLong = parent->child("writeLong");
+        }
+        return writeLong;
+    }
+    ASTNode* getWriteULong() {
+        if(writeULong == nullptr) {
+            writeULong = parent->child("writeULong");
+        }
+        return writeULong;
+    }
+    ASTNode* getWriteBigInt() {
+        if(writeBigInt == nullptr) {
+            writeBigInt = parent->child("writeBigInt");
+        }
+        return writeBigInt;
+    }
+    ASTNode* getWriteUBigInt() {
+        if(writeUBigInt == nullptr) {
+            writeUBigInt = parent->child("writeUBigInt");
+        }
+        return writeUBigInt;
+    }
+    ASTNode* getWriteFloat() {
+        if(writeFloat == nullptr) {
+            writeFloat = parent->child("writeFloat");
+        }
+        return writeFloat;
+    }
+    ASTNode* getWriteDouble() {
+        if(writeDouble == nullptr) {
+            writeDouble = parent->child("writeDouble");
+        }
+        return writeDouble;
+    }
+};
+
+class InterpretPutStrExpr : public FunctionDeclaration {
+public:
+
+    explicit InterpretPutStrExpr(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("put_str_expr"),
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    ASTNode* write_call(
+        TypeBuilder& typeBuilder,
+        ASTAllocator& allocator,
+        VariableIdentifier* selfId,
+        Value* argument,
+        ASTNode* function_node,
+        chem::string_view function_name,
+        ASTNode* parent_node,
+        SourceLocation loc
+    ) {
+        const auto child_type = function_node->known_type();
+        const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(child_type, loc);
+        const auto write_call = new (allocator.allocate<FunctionCall>()) FunctionCall(chain, typeBuilder.getVoidType(), loc);
+        write_call->values.emplace_back(argument);
+        chain->values.emplace_back(selfId);
+        const auto childId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
+                function_name, child_type, loc
+        );
+        childId->linked = function_node;
+        childId->setType(child_type);
+        chain->values.emplace_back(childId);
+        const auto wrapper = new (allocator.allocate<AccessChainNode>()) AccessChainNode(loc, parent_node);
+        wrapper->chain.setType(typeBuilder.getVoidType());
+        wrapper->chain.values.emplace_back(write_call);
+        return wrapper;
+    }
+
+    ASTNode* process_value(
+            ChildFnCache& cache,
+            TypeBuilder& typeBuilder,
+            Value* val,
+            VariableIdentifier* selfId,
+            ASTAllocator& allocator,
+            ASTNode* parent_node,
+            SourceLocation loc
+    ) {
+        const auto t = val->getType()->canonical();
+        if(t->isStringType()) {
+            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStr(), "writeStr", parent_node, loc);
+        } else {
+            if(t->kind() == BaseTypeKind::IntN) {
+                switch(t->as_intn_type_unsafe()->IntNKind()) {
+                    case IntNTypeKind::Char:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteChar(), "writeChar", parent_node, loc);
+                    case IntNTypeKind::UChar:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUChar(), "writeUChar", parent_node, loc);
+                    case IntNTypeKind::Short:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteShort(), "writeShort", parent_node, loc);
+                    case IntNTypeKind::UShort:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUShort(), "writeUShort", parent_node, loc);
+                    case IntNTypeKind::Int:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteInt(), "writeInt", parent_node, loc);
+                    case IntNTypeKind::UInt:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUInt(), "writeUInt", parent_node, loc);
+                    case IntNTypeKind::Long:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteLong(), "writeLong", parent_node, loc);
+                    case IntNTypeKind::ULong:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteULong(), "writeULong", parent_node, loc);
+                    case IntNTypeKind::BigInt:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteBigInt(), "writeBigInt", parent_node, loc);
+                    case IntNTypeKind::UBigInt:
+                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUBigInt(), "writeUBigInt", parent_node, loc);
+                    default:
+#ifdef DEBUG
+                    throw std::runtime_error("unexpected branch1: intrinsics::put_str_expr");
+#endif
+                        return nullptr;
+                }
+            } else if(t->kind() == BaseTypeKind::Float) {
+                return write_call(typeBuilder, allocator, selfId, val, cache.getWriteFloat(), "writeFloat", parent_node, loc);
+            } else if(t->kind() == BaseTypeKind::Double) {
+                return write_call(typeBuilder, allocator, selfId, val, cache.getWriteDouble(), "writeDouble", parent_node, loc);
+            } else {
+                return nullptr;
+            }
+        }
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+
+        auto& typeBuilder = call_scope->global->typeBuilder;
+
+        const auto first = call->values[0]->evaluated_value(*call_scope);
+        const auto second = call->values[1]->evaluated_value(*call_scope);
+
+        const auto loc = call->encoded_location();
+        const auto parent_type = call_scope->global->current_func_type;
+        const auto func = parent_type->as_function();
+        ASTNode* parent_node = func ? func : parent_type->get_parent();
+        const auto blkValue = new (allocator.allocate<BlockValue>()) BlockValue(parent_node, loc);
+
+        if(second->kind() != ValueKind::ExpressiveString && second->kind() != ValueKind::String) {
+            call_scope->error("unknown value being passed to intrinsics::put_str_expr", second);
+            return blkValue;
+        }
+
+        const auto node = first->getType()->get_direct_linked_canonical_node();
+        if(!node) {
+            call_scope->error("couldn't evaluate the self argument in intrinsics::put_str_expr", first);
+            return blkValue;
+        }
+
+        // initializing the struct using a var init
+        const auto init = new (allocator.allocate<VarInitStatement>()) VarInitStatement(
+            false, false, ZERO_LOC_ID("__chx_sev"), nullptr, first, parent_node, loc
+        );
+        blkValue->scope.nodes.emplace_back(init);
+
+        // access to the struct
+        const auto initId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
+            "__chx_sev", first->getType(), loc
+        );
+        initId->linked = init;
+        initId->setType(init->known_type());
+
+        // function cache stores the pointers
+        ChildFnCache fnCache(node);
+
+        // creating the method calls by going over each value
+        if(second->kind() == ValueKind::ExpressiveString) {
+            const auto str = second->as_expressive_str_unsafe();
+            for (const auto val: str->values) {
+                const auto wrapper = process_value(fnCache, typeBuilder, val, initId, allocator, parent_node, loc);
+                if(wrapper == nullptr) {
+                    call_scope->error("unknown value being used in expressive string", wrapper);
+                } else {
+                    blkValue->scope.nodes.emplace_back(wrapper);
+                }
+            }
+        } else {
+            const auto wrapper = process_value(fnCache, typeBuilder, second, initId, allocator, parent_node, loc);
+            if(wrapper == nullptr) {
+                call_scope->error("unknown value being used in expressive string", wrapper);
+            } else {
+                blkValue->scope.nodes.emplace_back(wrapper);
+            }
+        }
+
+        return blkValue;
+    }
+
+};
+
 class MemNamespace : public Namespace {
 public:
 
@@ -1953,6 +2217,7 @@ public:
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
     InterpretDestructCallSite destruct_call_site;
+    InterpretPutStrExpr put_str_expr;
 
     InterpretGetTests get_tests_fn;
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
@@ -1975,7 +2240,7 @@ public:
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
-        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this)
+        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this), put_str_expr(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -1986,7 +2251,7 @@ public:
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
-            &destruct_call_site
+            &destruct_call_site, &put_str_expr
         };
     }
 

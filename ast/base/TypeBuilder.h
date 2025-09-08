@@ -33,8 +33,8 @@ private:
     UShortType* uShortType;
     VoidType* voidType;
     NullPtrType* nullPtrType;
-
     PointerType* ptrToVoid;
+    ExpressiveStringType* expr_str_type;
 
 public:
 
@@ -203,6 +203,13 @@ public:
      */
     PointerType* getPtrToVoid() {
         return ptrToVoid;
+    }
+
+    /**
+     * get ExpressiveStringType
+     */
+    ExpressiveStringType* getExprStrType() {
+        return expr_str_type;
     }
 
 };

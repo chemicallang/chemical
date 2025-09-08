@@ -50,10 +50,8 @@ public:
     }
 
     Value* copy(ASTAllocator &allocator) override {
-#ifdef DEBUG
-       throw std::runtime_error("block value cannot be copied");
-#endif
-        const auto blockVal = new (allocator.allocate<BlockValue>()) BlockValue(scope.shallow_copy(), getType());
+        const auto blockVal = new (allocator.allocate<BlockValue>()) BlockValue(Scope{scope.parent(), scope.encoded_location()}, getType());
+        scope.copy_into(blockVal->scope, allocator, scope.parent());
         blockVal->calculated_value = calculated_value;
         return blockVal;
     }

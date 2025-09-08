@@ -83,6 +83,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/ExpressiveString.h"
 //#include "ast/values/BigIntValue.h"
 //#include "ast/values/BoolValue.h"
 //#include "ast/values/CharValue.h"
@@ -573,6 +574,12 @@ public:
 
     inline void VisitLoopValue(LoopValue* value) {
         VisitLoopBlock(&value->stmt);
+    }
+
+    inline void VisitExpressiveString(ExpressiveString* value) {
+        for(auto& child_val : value->values) {
+            visit_it(child_val);
+        }
     }
 
 };

@@ -240,6 +240,16 @@ public:
     bool isIntegerLikeStorage();
 
     /**
+     * check if this is a char type
+     */
+    bool isCharType();
+
+    /**
+     * check if this is a string type
+     */
+    bool isStringType();
+
+    /**
      * will make the type mutable, completely pointer type, linked type, generic type
      * everything inside will become mutable, as if you wrote mut keyword before the type
      */
@@ -701,6 +711,11 @@ public:
     inline CapturingFunctionType* as_capturing_func_type_unsafe() {
         CHECK_CAST(BaseTypeKind::CapturingFunction);
         return (CapturingFunctionType*) this;
+    }
+
+    inline ExpressiveStringType* as_expressive_str_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::ExpressiveString);
+        return (ExpressiveStringType*) this;
     }
 
 };

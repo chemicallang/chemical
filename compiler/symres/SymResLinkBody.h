@@ -264,4 +264,6 @@ public:
         VisitVariableIdentifier(value, true);
     }
 
+    void VisitExpressiveString(ExpressiveString* value);
+
 };

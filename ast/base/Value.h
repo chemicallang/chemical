@@ -1157,4 +1157,9 @@ public:
         return ((LoopValue*) this);
     }
 
+    inline ExpressiveString* as_expressive_str_unsafe() {
+        CHECK_CAST(ValueKind::ExpressiveString);
+        return ((ExpressiveString*) this);
+    }
+
 };

@@ -71,6 +71,8 @@ enum class ValueKind : uint8_t {
     DestructValue,
     EmbeddedValue,
 
+    ExpressiveString,
+
     IntNStart = Char,
     IntNEnd = NumberValue,
 

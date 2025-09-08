@@ -348,6 +348,8 @@ public:
 
     void VisitLoopValue(LoopValue* value);
 
+    void VisitExpressiveString(ExpressiveString* value);
+
     // Types
 
     void VisitAnyType(AnyType* type);

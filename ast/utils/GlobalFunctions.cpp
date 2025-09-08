@@ -1880,6 +1880,7 @@ public:
 class ChildFnCache {
 private:
     ASTNode* parent;
+    ASTNode* writeStrNoLen = nullptr;
     ASTNode* writeStr = nullptr;
     ASTNode* writeChar = nullptr;
     ASTNode* writeUChar = nullptr;
@@ -1896,6 +1897,12 @@ private:
 public:
     ChildFnCache(ASTNode* node) : parent(node) {
 
+    }
+    ASTNode* getWriteStrNoLen() {
+        if(writeStrNoLen == nullptr) {
+            writeStrNoLen = parent->child("writeStrNoLen");
+        }
+        return writeStrNoLen;
     }
     ASTNode* getWriteStr() {
         if(writeStr == nullptr) {
@@ -2003,12 +2010,16 @@ public:
         ASTNode* function_node,
         chem::string_view function_name,
         ASTNode* parent_node,
-        SourceLocation loc
+        SourceLocation loc,
+        Value* second_arg = nullptr
     ) {
         const auto child_type = function_node->known_type();
         const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(child_type, loc);
         const auto write_call = new (allocator.allocate<FunctionCall>()) FunctionCall(chain, typeBuilder.getVoidType(), loc);
         write_call->values.emplace_back(argument);
+        if(second_arg) {
+            write_call->values.emplace_back(second_arg);
+        }
         chain->values.emplace_back(selfId);
         const auto childId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
                 function_name, child_type, loc
@@ -2033,7 +2044,13 @@ public:
     ) {
         const auto t = val->getType()->canonical();
         if(t->isStringType()) {
-            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStr(), "writeStr", parent_node, loc);
+            if(val->kind() == ValueKind::String) {
+                const auto str = val->as_string_unsafe();
+                const auto sizeVal = new (allocator.allocate<UBigIntValue>()) UBigIntValue(str->length, typeBuilder.getUBigIntType(), loc);
+                return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStr(), "writeStr", parent_node, loc, sizeVal);
+            } else {
+                return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStrNoLen(), "writeStrNoLen", parent_node, loc);
+            }
         } else {
             if(t->kind() == BaseTypeKind::IntN) {
                 switch(t->as_intn_type_unsafe()->IntNKind()) {

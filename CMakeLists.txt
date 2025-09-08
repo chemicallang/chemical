@@ -588,6 +588,8 @@ set(COMMON_SOURCES
         integration/libtcc/TCCMode.h
         preprocess/2c/BufferedWriter.h
         ast/utils/IffyConditional.h
+        ast/values/ExpressiveString.h
+        ast/types/ExpressiveStringType.h
 )
 
 # Chemical LSP Executable Target

@@ -202,6 +202,13 @@ enum class TokenType {
     // a number, doesn't include the negative sign
     Number,
 
+    // an expression inside string starts with the following token
+    // "this is here -> {expr}"
+    // it's a '{', where the end is '}' but we call these explicitly expr start and end
+    // so not to mistake between them during parsing
+    StringExprStart,
+    StringExprEnd,
+
     IndexKwStart = ForKw,
     IndexKwEnd = ConstKw,
 

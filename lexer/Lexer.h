@@ -40,6 +40,11 @@ struct LexerState {
      */
     bool user_mode = false;
 
+    /**
+     * when true, we are parsing a nested expression
+     */
+    bool str_expr = false;
+
 };
 
 /**

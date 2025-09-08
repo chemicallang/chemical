@@ -423,6 +423,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitExpressiveString(ExpressiveString* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     // Types begin here
 
     inline void VisitAnyType(AnyType* type) {
@@ -514,6 +518,10 @@ public:
     }
 
     inline void VisitCapturingFunctionType(CapturingFunctionType* type) {
+        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
+    }
+
+    inline void VisitExpressiveStringType(ExpressiveStringType* type) {
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
@@ -874,6 +882,9 @@ public:
             case ValueKind::EmbeddedValue:
                 static_cast<Derived*>(this)->VisitEmbeddedValue((EmbeddedValue*) value);
                 return;
+            case ValueKind::ExpressiveString:
+                static_cast<Derived*>(this)->VisitExpressiveString((ExpressiveString*) value);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: value kind in non recursive visitor";
@@ -955,6 +966,9 @@ public:
                 return;
             case BaseTypeKind::CapturingFunction:
                 static_cast<Derived*>(this)->VisitCapturingFunctionType((CapturingFunctionType*) type);
+                return;
+            case BaseTypeKind::ExpressiveString:
+                static_cast<Derived*>(this)->VisitExpressiveStringType((ExpressiveStringType*) type);
                 return;
 #ifdef DEBUG
             default:
@@ -1266,6 +1280,9 @@ public:
     inline void VisitByPtrTypeNoNullCheck(DestructValue* value) {
         static_cast<Derived*>(this)->VisitDestructValue(value);
     }
+    inline void VisitByPtrTypeNoNullCheck(ExpressiveString* value) {
+        static_cast<Derived*>(this)->VisitExpressiveString(value);
+    }
     inline void VisitByPtrTypeNoNullCheck(AnyType* type) {
         static_cast<Derived*>(this)->VisitAnyType(type);
     }
@@ -1329,6 +1346,10 @@ public:
     inline void VisitByPtrTypeNoNullCheck(ExpressionType* type) {
         static_cast<Derived*>(this)->VisitExpressionType(type);
     }
+    inline void VisitByPtrTypeNoNullCheck(ExpressiveStringType* type) {
+        static_cast<Derived*>(this)->VisitExpressiveStringType(type);
+    }
+
 
     template<typename Thing>
     inline void VisitByPtrType(Thing* thing) {

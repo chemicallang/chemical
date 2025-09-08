@@ -23,6 +23,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/NullPtrType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ExpressiveStringType.h"
 
 void TypeBuilder::initialize() {
 
@@ -48,5 +49,6 @@ void TypeBuilder::initialize() {
     voidType = new (allocator.allocate<VoidType>()) VoidType();
     nullPtrType = new (allocator.allocate<NullPtrType>()) NullPtrType();
     ptrToVoid = new (allocator.allocate<PointerType>()) PointerType(voidType, true);
+    expr_str_type = new (allocator.allocate<ExpressiveStringType>()) ExpressiveStringType();
 
 }

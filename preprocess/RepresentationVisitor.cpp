@@ -25,6 +25,7 @@
 #include "ast/values/ValueNode.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/IsValue.h"
+#include "ast/values/ExpressiveString.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/TryCatch.h"
@@ -738,6 +739,12 @@ void RepresentationVisitor::VisitSwitchValue(SwitchValue* value) {
 
 void RepresentationVisitor::VisitLoopValue(LoopValue* value) {
     VisitLoopBlock(&value->stmt);
+}
+
+void RepresentationVisitor::VisitExpressiveString(ExpressiveString* value) {
+    for(auto val : value->values) {
+        visit(val);
+    }
 }
 
 void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {

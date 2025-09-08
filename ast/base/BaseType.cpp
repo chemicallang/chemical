@@ -330,6 +330,22 @@ bool BaseType::isIntegerLikeStorage() {
     }
 }
 
+bool BaseType::isCharType() {
+    if(kind() != BaseTypeKind::IntN) return false;
+    return as_intn_type_unsafe()->IntNKind() == IntNTypeKind::Char;
+}
+
+bool BaseType::isStringType() {
+    switch(kind()) {
+        case BaseTypeKind::String:
+            return true;
+        case BaseTypeKind::Pointer:
+            return as_pointer_type_unsafe()->type->isCharType();
+        default:
+            return false;
+    }
+}
+
 bool BaseType::make_mutable() {
     switch(kind()) {
         case BaseTypeKind::Pointer: {

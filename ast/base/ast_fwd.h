@@ -202,6 +202,8 @@ class ExtractionValue;
 
 class EmbeddedValue;
 
+class ExpressiveString;
+
 class AddrOfValue;
 
 class RetStructParamValue;
@@ -283,6 +285,8 @@ class LongType;
 class PointerType;
 
 class ReferenceType;
+
+class ExpressiveStringType;
 
 class LinkedType;
 

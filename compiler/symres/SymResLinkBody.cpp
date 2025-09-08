@@ -2453,3 +2453,9 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         }
     }
 }
+
+void SymResLinkBody::VisitExpressiveString(ExpressiveString* value) {
+    for(auto& val : value->values) {
+        visit(val);
+    }
+}

@@ -544,10 +544,9 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                                 child_type = TypeLoc(new(allocator.allocate<StringType>()) StringType(), loc_single(token));
                             } else {
                                 child_type = parseTypeLoc(allocator);
-                            }
-
-                            if (!child_type) {
-                                error("expected a child type for literal type");
+                                if (!child_type) {
+                                    error("expected a child type for literal type");
+                                }
                             }
 
                             auto literalTy = TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(child_type), loc_single(typeToken));

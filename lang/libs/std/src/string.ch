@@ -210,7 +210,7 @@ public struct string : Hashable, Eq {
     }
 
     comptime func append_expr(&self, expr : any) {
-        return intrinsics::wrap(intrinsics::expr_str_block_value(StringStream { str : self }, expr))
+        return intrinsics::wrap(intrinsics::expr_str_block_value(StringStream { str : self }, expr)) as void
     }
 
     func append_char_ptr(&mut self, value : *char) {
@@ -598,7 +598,7 @@ struct StringStream : Stream {
 
     @override
     func writeUChar(&self, value : uchar) {
-        str.append(value)
+        str.append(value as char)
     }
 
     @override

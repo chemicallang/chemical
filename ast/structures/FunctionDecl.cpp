@@ -422,6 +422,9 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 }
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
+    if(!exists_at_runtime()) {
+        return;
+    }
     external_declare_fn(gen, this);
 }
 

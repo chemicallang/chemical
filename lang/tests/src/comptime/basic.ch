@@ -152,6 +152,16 @@ comptime func give_caller_line_no() : ubigint {
     return intrinsics::get_caller_line_no();
 }
 
+struct comptime_func_container {
+    comptime func give_arg(&self, arg : int) : int {
+        return arg;
+    }
+}
+
+func (container : &comptime_func_container) give_arg2(arg : int) : int {
+    return arg;
+}
+
 func test_comptime() {
     test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -266,5 +276,13 @@ func test_comptime() {
         var module_name = std::string_view(intrinsics::get_module_name())
         var exp_module_name = std::string_view("main")
         return module_name.equals(exp_module_name)
+    })
+    test("comptime member functions can return arguments", () => {
+        var c = comptime_func_container {}
+        return c.give_arg(33) == 33
+    })
+    test("comptime extension functions can return arguments", () => {
+        var c = comptime_func_container {}
+        return c.give_arg2(67) == 67
     })
 }

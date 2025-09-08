@@ -2002,6 +2002,34 @@ public:
         set_compiler_decl(true);
     }
 
+    ASTNode* write_obj_call(
+            TypeBuilder& typeBuilder,
+            ASTAllocator& allocator,
+            VariableIdentifier* selfId,
+            Value* argument,
+            ASTNode* function_node,
+            chem::string_view function_name,
+            ASTNode* parent_node,
+            SourceLocation loc
+    ) {
+        const auto child_type = function_node->known_type();
+        const auto chain = new (allocator.allocate<AccessChain>()) AccessChain(child_type, loc);
+        const auto write_call = new (allocator.allocate<FunctionCall>()) FunctionCall(chain, typeBuilder.getVoidType(), loc);
+        write_call->values.emplace_back(selfId);
+        // TODO: unsafe cast to chain value
+        chain->values.emplace_back((ChainValue*) argument);
+        const auto childId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
+                function_name, child_type, loc
+        );
+        childId->linked = function_node;
+        childId->setType(child_type);
+        chain->values.emplace_back(childId);
+        const auto wrapper = new (allocator.allocate<AccessChainNode>()) AccessChainNode(loc, parent_node);
+        wrapper->chain.setType(typeBuilder.getVoidType());
+        wrapper->chain.values.emplace_back(write_call);
+        return wrapper;
+    }
+
     ASTNode* write_call(
         TypeBuilder& typeBuilder,
         ASTAllocator& allocator,
@@ -2052,40 +2080,50 @@ public:
                 return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStrNoLen(), "writeStrNoLen", parent_node, loc);
             }
         } else {
-            if(t->kind() == BaseTypeKind::IntN) {
-                switch(t->as_intn_type_unsafe()->IntNKind()) {
-                    case IntNTypeKind::Char:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteChar(), "writeChar", parent_node, loc);
-                    case IntNTypeKind::UChar:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUChar(), "writeUChar", parent_node, loc);
-                    case IntNTypeKind::Short:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteShort(), "writeShort", parent_node, loc);
-                    case IntNTypeKind::UShort:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUShort(), "writeUShort", parent_node, loc);
-                    case IntNTypeKind::Int:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteInt(), "writeInt", parent_node, loc);
-                    case IntNTypeKind::UInt:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUInt(), "writeUInt", parent_node, loc);
-                    case IntNTypeKind::Long:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteLong(), "writeLong", parent_node, loc);
-                    case IntNTypeKind::ULong:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteULong(), "writeULong", parent_node, loc);
-                    case IntNTypeKind::BigInt:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteBigInt(), "writeBigInt", parent_node, loc);
-                    case IntNTypeKind::UBigInt:
-                        return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUBigInt(), "writeUBigInt", parent_node, loc);
-                    default:
+            switch(t->kind()) {
+                case BaseTypeKind::IntN:
+                    switch(t->as_intn_type_unsafe()->IntNKind()) {
+                        case IntNTypeKind::Char:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteChar(), "writeChar", parent_node, loc);
+                        case IntNTypeKind::UChar:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUChar(), "writeUChar", parent_node, loc);
+                        case IntNTypeKind::Short:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteShort(), "writeShort", parent_node, loc);
+                        case IntNTypeKind::UShort:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUShort(), "writeUShort", parent_node, loc);
+                        case IntNTypeKind::Int:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteInt(), "writeInt", parent_node, loc);
+                        case IntNTypeKind::UInt:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUInt(), "writeUInt", parent_node, loc);
+                        case IntNTypeKind::Long:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteLong(), "writeLong", parent_node, loc);
+                        case IntNTypeKind::ULong:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteULong(), "writeULong", parent_node, loc);
+                        case IntNTypeKind::BigInt:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteBigInt(), "writeBigInt", parent_node, loc);
+                        case IntNTypeKind::UBigInt:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUBigInt(), "writeUBigInt", parent_node, loc);
+                        default:
 #ifdef DEBUG
-                    throw std::runtime_error("unexpected branch1: intrinsics::put_str_expr");
+                            throw std::runtime_error("unexpected branch1: intrinsics::put_str_expr");
 #endif
-                        return nullptr;
+                            return nullptr;
+                    }
+                case BaseTypeKind::Float:
+                    return write_call(typeBuilder, allocator, selfId, val, cache.getWriteFloat(), "writeFloat", parent_node, loc);
+                case BaseTypeKind::Double:
+                    return write_call(typeBuilder, allocator, selfId, val, cache.getWriteDouble(), "writeDouble", parent_node, loc);
+                case BaseTypeKind::Linked:
+                case BaseTypeKind::Generic: {
+                    const auto node = t->get_direct_linked_canonical_node();
+                    if(!node) return nullptr;
+                    const auto child = node->child("stream");
+                    if(!child) return nullptr;
+                    // TODO: verify the method signature at some point
+                    return write_obj_call(typeBuilder, allocator, selfId, val, child, "stream", parent_node, loc);
                 }
-            } else if(t->kind() == BaseTypeKind::Float) {
-                return write_call(typeBuilder, allocator, selfId, val, cache.getWriteFloat(), "writeFloat", parent_node, loc);
-            } else if(t->kind() == BaseTypeKind::Double) {
-                return write_call(typeBuilder, allocator, selfId, val, cache.getWriteDouble(), "writeDouble", parent_node, loc);
-            } else {
-                return nullptr;
+                default:
+                    return nullptr;
             }
         }
     }
@@ -2136,7 +2174,7 @@ public:
             for (const auto val: str->values) {
                 const auto wrapper = process_value(fnCache, typeBuilder, val, initId, allocator, parent_node, loc);
                 if(wrapper == nullptr) {
-                    call_scope->error("unknown value being used in expressive string", wrapper);
+                    call_scope->error("unknown value being used in expressive string", val);
                 } else {
                     blkValue->scope.nodes.emplace_back(wrapper);
                 }
@@ -2144,7 +2182,7 @@ public:
         } else {
             const auto wrapper = process_value(fnCache, typeBuilder, second, initId, allocator, parent_node, loc);
             if(wrapper == nullptr) {
-                call_scope->error("unknown value being used in expressive string", wrapper);
+                call_scope->error("unknown value being used in expressive string", second);
             } else {
                 blkValue->scope.nodes.emplace_back(wrapper);
             }

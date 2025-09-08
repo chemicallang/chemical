@@ -758,6 +758,13 @@ bool is_value_type_pointer_like(Value* value) {
                 }
                 return type->kind() != BaseTypeKind::Dynamic && type->isStructLikeType();
             }
+            case ASTNodeKind::StructMember:{
+                const auto type = linked->as_struct_member_unsafe()->type;
+                if(type->is_reference()) {
+                    return true;
+                }
+                return false;
+            }
             case ASTNodeKind::VarInitStmt: {
                 const auto type = linked->as_var_init_unsafe();
                 const auto known_ty = type->known_type();

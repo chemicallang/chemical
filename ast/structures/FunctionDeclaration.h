@@ -457,14 +457,6 @@ public:
         return decl;
     }
 
-    bool is_exported() {
-        return specifier() == AccessSpecifier::Public;
-    }
-
-    bool is_exported_fast() {
-        return specifier() == AccessSpecifier::Public;
-    }
-
     inline bool is_linkage_public() {
         return ::is_linkage_public(specifier());
     }

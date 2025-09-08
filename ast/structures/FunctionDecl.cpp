@@ -1114,8 +1114,10 @@ Value *FunctionDeclaration::call(
     if(self_param) {
         fn_scope->declare(self_param->name, parent);
     }
-    auto i = self_param ? 1 : 0;
-    while (i < params.size()) {
+    auto i = 0;
+    while (i < call_args.size()) {
+        const auto param = func_param_for_arg_at(i);
+        if(!param) break;
         Value* param_val;
         if(evaluate_refs) {
             param_val = call_args[i]->scope_value(*call_scope);
@@ -1126,7 +1128,7 @@ Value *FunctionDeclaration::call(
                 param_val = call_args[i]->scope_value(*call_scope);
             }
         }
-        fn_scope->declare(params[i]->name, param_val);
+        fn_scope->declare(param->name, param_val);
         i++;
     }
     fn_scope->interpret(&body.value());

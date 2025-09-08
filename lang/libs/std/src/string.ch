@@ -209,6 +209,10 @@ public struct string : Hashable, Eq {
         }
     }
 
+    comptime func append_expr(&self, expr : any) {
+        return intrinsics::wrap(intrinsics::expr_str_block_value(StringStream { str : self }, expr))
+    }
+
     func append_char_ptr(&mut self, value : *char) {
         append_with_len(value, strlen(value));
     }
@@ -569,6 +573,82 @@ public struct string : Hashable, Eq {
         if(state == '2') {
             dealloc storage.heap.data;
         }
+    }
+
+}
+
+struct StringStream : Stream {
+
+    var str : &std::string
+
+    @override
+    func writeStr(&self, value : *char, length : ubigint) {
+        str.append_with_len(value, length)
+    }
+
+    @override
+    func writeStrNoLen(&self, value : *char) {
+        str.append_with_len(value, strlen(value))
+    }
+
+    @override
+    func writeChar(&self, value : char) {
+        str.append(value)
+    }
+
+    @override
+    func writeUChar(&self, value : uchar) {
+        str.append(value)
+    }
+
+    @override
+    func writeShort(&self, value : short) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeUShort(&self, value : ushort) {
+        str.append_uinteger(value)
+    }
+
+    @override
+    func writeInt(&self, value : int) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeUInt(&self, value : uint) {
+        str.append_uinteger(value)
+    }
+
+    @override
+    func writeLong(&self, value : long) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeULong(&self, value : ulong) {
+        str.append_uinteger(value)
+    }
+
+    @override
+    func writeBigInt(&self, value : bigint) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeUBigInt(&self, value : ubigint) {
+        str.append_uinteger(value)
+    }
+
+    @override
+    func writeFloat(&self, value : float) {
+        str.append_double(value as double, 3)
+    }
+
+    @override
+    func writeDouble(&self, value : double) {
+        str.append_double(value as double, 3)
     }
 
 }

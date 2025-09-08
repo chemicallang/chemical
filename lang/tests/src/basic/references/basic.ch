@@ -52,6 +52,13 @@ struct ReferenceCastedMethod {
     }
 }
 
+struct ref_mem_call {
+    var thing : &ReferenceCastedMethod
+    func get_sum(&self) : int {
+        return thing.sum()
+    }
+}
+
 func <T> call_on_casted_ref(ref : &T) : int {
     if(T is ReferenceCastedMethod) {
         const ref2 = ref as &ReferenceCastedMethod
@@ -194,5 +201,10 @@ func test_references() {
         var i = 98;
         var p = RefPassRet { ref : i }
         return *p.give3() == 98
+    })
+    test("calling method on stored reference passes self pointer correctly", () => {
+        var thing = ReferenceCastedMethod { a : 23, b : 6 }
+        var r = ref_mem_call { thing : thing }
+        return r.get_sum() == 29
     })
 }

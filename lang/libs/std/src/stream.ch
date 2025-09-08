@@ -330,6 +330,10 @@ public struct CommandLineStream : Stream {
 
 }
 
+public comptime func print(expr : any) : any {
+    return intrinsics::wrap(intrinsics::expr_str_block_value(CommandLineStream{}, expr))
+}
+
 public comptime func println(expr : any) : any {
-    return intrinsics::wrap(intrinsics::put_str_expr(CommandLineStream{}, expr))
+    return intrinsics::wrap(intrinsics::expr_str_block_value(CommandLineStream{}, expr, '\n'))
 }

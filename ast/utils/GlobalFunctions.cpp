@@ -1984,14 +1984,14 @@ public:
     }
 };
 
-class InterpretPutStrExpr : public FunctionDeclaration {
+class InterpretExprStrBlockValue : public FunctionDeclaration {
 public:
 
-    explicit InterpretPutStrExpr(
+    explicit InterpretExprStrBlockValue(
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("put_str_expr"),
+            ZERO_LOC_ID("expr_str_block_value"),
             {cache.getVoidType(), ZERO_LOC},
             false,
             parent_node,
@@ -2131,24 +2131,29 @@ public:
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 
         auto& typeBuilder = call_scope->global->typeBuilder;
+        const auto loc = call->encoded_location();
+
+        if(call->values.size() < 2) {
+            call_scope->error("intrinsics::expr_str_block_value expects two arguments", call);
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc);
+        }
 
         const auto first = call->values[0]->evaluated_value(*call_scope);
         const auto second = call->values[1]->evaluated_value(*call_scope);
 
-        const auto loc = call->encoded_location();
         const auto parent_type = call_scope->global->current_func_type;
         const auto func = parent_type->as_function();
         ASTNode* parent_node = func ? func : parent_type->get_parent();
         const auto blkValue = new (allocator.allocate<BlockValue>()) BlockValue(parent_node, loc);
 
         if(second->kind() != ValueKind::ExpressiveString && second->kind() != ValueKind::String) {
-            call_scope->error("unknown value being passed to intrinsics::put_str_expr", second);
+            call_scope->error("unknown value being passed to intrinsics::expr_str_block_value", second);
             return blkValue;
         }
 
         const auto node = first->getType()->get_direct_linked_canonical_node();
         if(!node) {
-            call_scope->error("couldn't evaluate the self argument in intrinsics::put_str_expr", first);
+            call_scope->error("couldn't evaluate the self argument in intrinsics::expr_str_block_value", first);
             return blkValue;
         }
 
@@ -2186,6 +2191,20 @@ public:
             } else {
                 blkValue->scope.nodes.emplace_back(wrapper);
             }
+        }
+
+        // additional arguments
+        auto start = call->values.data() + 2;
+        const auto end = call->values.data() + call->values.size();
+        while(start != end) {
+            const auto value = *start;
+            const auto wrapper = process_value(fnCache, typeBuilder, value, initId, allocator, parent_node, loc);
+            if(wrapper == nullptr) {
+                call_scope->error("unknown value being used in expressive string", value);
+            } else {
+                blkValue->scope.nodes.emplace_back(wrapper);
+            }
+            start++;
         }
 
         return blkValue;
@@ -2272,7 +2291,7 @@ public:
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
     InterpretDestructCallSite destruct_call_site;
-    InterpretPutStrExpr put_str_expr;
+    InterpretExprStrBlockValue expr_str_blk_val;
 
     InterpretGetTests get_tests_fn;
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
@@ -2295,7 +2314,8 @@ public:
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
-        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this), put_str_expr(cache, this)
+        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this),
+        expr_str_blk_val(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -2306,7 +2326,7 @@ public:
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
-            &destruct_call_site, &put_str_expr
+            &destruct_call_site, &expr_str_blk_val
         };
     }
 

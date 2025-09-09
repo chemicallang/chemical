@@ -678,21 +678,38 @@ bool FunctionTypeBody::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value
     switch(value.val_kind()) {
         case ValueKind::AccessChain:{
             const auto chain = value.as_access_chain_unsafe();
-            // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
-            if(un_move_chain(chain)) {
-                // setting true, to indicate that value was moved before, and this should not be destructed
-                chain->set_is_moved(true);
-                return true;
+            if(chain->values.size() == 1 && chain->values.front()->kind() == ValueKind::Identifier) {
+                const auto id = chain->values.back()->as_identifier_unsafe();
+                if(un_move_id(id)) {
+                    chain->set_is_moved(true);
+                    id->is_moved = true;
+                    return true;
+                } else {
+                    chain->set_is_moved(false);
+                    id->is_moved = false;
+                }
             } else {
-                // setting false, to indicate that value is not moved, and this should be destructed
-                chain->set_is_moved(false);
+                // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
+                // we set this to true, so assignment doesn't destruct before the store
+                if (un_move_chain(chain)) {
+                    // setting true, to indicate that value was moved before, and this should not be destructed
+                    // we set this to true, so assignment doesn't destruct before the store
+                    chain->set_is_moved(true);
+                    return true;
+                } else {
+                    // setting false, to indicate that value is not moved, and this should be destructed
+                    chain->set_is_moved(false);
+                }
             }
             break;
         }
         case ValueKind::Identifier: {
             const auto id = value.as_identifier_unsafe();
+            // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
+            // we set this to true, so assignment doesn't destruct before the store
             if(un_move_id(id)) {
                 // setting true, to indicate that value was moved before, and this should not be destructed
+                // we set this to true, so assignment doesn't destruct before the store
                 id->is_moved = true;
                 return true;
             } else {

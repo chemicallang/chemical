@@ -197,22 +197,25 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
         results.benchmark_begin();
     }
 
+    // compile c to tcc state
     auto s = compile_c_to_tcc_state(exe_path, program, outputFileName, jit, mode);
     if(!s) {
         return 1;
     }
 
-    if(jit) {
-        std::vector<char*> argv;
-        argv.emplace_back(exe_path);
-        tcc_run(s, 1, argv.data());
-    } else {
-        tcc_output_file(s, outputFileName.data());
+    // output the file
+    const auto out_res = tcc_output_file(s, outputFileName.data());
+    if (out_res == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't output file '" << outputFileName << '\'' << std::endl;
+        tcc_delete(s);
+        return -1;
     }
 
-    /* delete the state */
+    // delete the state
     tcc_delete(s);
 
+    // end the benchmarks
     if(benchmark) {
         results.benchmark_end();
         std::cout << "[Tcc] " << results.representation() << std::endl;

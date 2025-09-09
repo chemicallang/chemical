@@ -61,6 +61,14 @@ void Parser::parseAccessChain(ASTAllocator& allocator, std::vector<ChainValue*>&
 
 }
 
+Value* Parser::singlify_chain(AccessChain* chain) {
+    if(chain->values.size() == 1) {
+        return chain->values.back();
+    } else {
+        return chain;
+    }
+}
+
 Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     auto id = consumeIdentifierOrKeyword();
@@ -78,6 +86,8 @@ Value* Parser::parseAccessChain(ASTAllocator& allocator, bool parseStruct) {
 
     const auto structVal = parseAccessChainAfterId(allocator, chain->values, id->position, parseStruct);
 
+    // TODO: use singlify chain here, this causes a bug in the c translation
+    //  that bug must be fixed, so C output is same with and without access chain wrap
     return structVal ? structVal : chain;
 
 }

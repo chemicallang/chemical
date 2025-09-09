@@ -110,9 +110,15 @@ std::optional<Operation> Parser::parseAssignmentOperator() {
     }
 }
 
-inline AccessChain* from_values(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values) {
-    const auto loc = chain_values.front()->encoded_location();
-    return new (allocator.allocate<AccessChain>()) AccessChain(std::move(chain_values), loc);
+inline Value* from_values(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values) {
+    if(chain_values.size() == 1) {
+        const auto b = chain_values.back();
+        chain_values.pop_back();
+        return b;
+    } else {
+        const auto loc = chain_values.front()->encoded_location();
+        return new(allocator.allocate<AccessChain>()) AccessChain(std::move(chain_values), loc);
+    }
 }
 
 ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {

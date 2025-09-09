@@ -22,7 +22,7 @@ public struct string : Hashable, Eq {
     var state : char
 
     @constructor
-    comptime func make(value : literal<string>) {
+    comptime func make(value : %literal_string) {
         return intrinsics::wrap(constructor(value, intrinsics::size(value)))
     }
 
@@ -209,7 +209,7 @@ public struct string : Hashable, Eq {
         }
     }
 
-    comptime func append_expr(&self, expr : any) {
+    comptime func append_expr(&self, expr : %expressive_string) {
         return intrinsics::wrap(intrinsics::expr_str_block_value(StringStream { str : self }, expr)) as void
     }
 

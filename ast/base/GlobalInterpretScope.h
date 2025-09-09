@@ -14,6 +14,7 @@
 #include "compiler/lab/TargetData.h"
 #include "TypeLoc.h"
 #include "compiler/OutputMode.h"
+#include "ast/utils/GlobalContainerAPI.h"
 
 class BackendContext;
 
@@ -28,10 +29,6 @@ struct GlobalContainer;
 class TypeBuilder;
 
 struct IffyBase;
-
-std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name);
-
-std::optional<bool> is_condition_enabled(GlobalContainer* container, IffyBase* base);
 
 class GlobalInterpretScope final : public InterpretScope, public ASTDiagnoser {
 public:

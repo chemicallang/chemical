@@ -447,7 +447,65 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 return { type, loc };
             } else {
                 error("expected a type after the qualifier");
-                return {nullptr, ZERO_LOC};;
+                return {nullptr, ZERO_LOC};
+            }
+        }
+        case TokenType::ModSym:{
+            const auto loc = loc_single(token);
+            token++;
+            auto& t = *token;
+            if(Token::isKeywordOrId(t.type)) {
+                token++;
+            } else {
+                error("expected a identifier / type after ");
+                return {nullptr, loc};
+            }
+            constexpr auto hashFn = std::hash<chem::string_view>();
+            switch(hashFn(t.value)) {
+                case hashFn("expressive_string"):
+                    return { (BaseType*) typeBuilder.getExprStrType(), loc };
+                case hashFn("literal_string"):
+                    return { typeBuilder.getStringType(), loc };
+                case hashFn("literal"): {
+                    if (!consumeToken(TokenType::LessThanSym)) {
+                        unexpected_error("expected '<' for literal type");
+                    }
+                    auto child_type = parseTypeLoc(allocator);
+                    if (!child_type) {
+                        error("expected a child type for literal type");
+                    }
+                    auto literalTy = TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(child_type), loc);
+                    if (!consumeToken(TokenType::GreaterThanSym)) {
+                        unexpected_error("expected '>' for literal type");
+                    }
+                    return literalTy;
+                }
+                case hashFn("capture"): {
+                    if (!consumeToken(TokenType::LessThanSym)) {
+                        unexpected_error("expected '<' for capture type");
+                    }
+                    auto child_type = parseTypeLoc(allocator);
+                    if(!child_type) {
+                        unexpected_error("expected a function type for capturing function type");
+                    }
+                    if(!consumeToken(TokenType::CommaSym)) {
+                        unexpected_error("expected a comma");
+                    }
+                    auto instance_type = parseTypeLoc(allocator);
+                    if(!instance_type) {
+                        unexpected_error("expected a instance type for capturing function type");
+                    }
+                    const auto captureTy = new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
+                            child_type, instance_type
+                    );
+                    if (!consumeToken(TokenType::GreaterThanSym)) {
+                        unexpected_error("expected '>' for capture type");
+                    }
+                    return {captureTy, loc};
+                }
+                default:
+                    error("unknown magic type given");
+                    return {nullptr, loc};
             }
         }
         default:
@@ -530,67 +588,9 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
 
             } else {
 
-                if(token->type == TokenType::LessThanSym) {
-                    auto hash = std::hash<chem::string_view>();
-                    switch (hash(typeToken->value)) {
-                        case hash("literal"): {
+                const auto namedLinkedType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
+                type = parseGenericTypeAfterId(allocator, namedLinkedType);
 
-                            token++;
-
-                            TypeLoc child_type(nullptr);
-
-                            if (token->type == TokenType::Identifier && token->value == "string") {
-                                token++;
-                                child_type = TypeLoc(new(allocator.allocate<StringType>()) StringType(), loc_single(token));
-                            } else {
-                                child_type = parseTypeLoc(allocator);
-                                if (!child_type) {
-                                    error("expected a child type for literal type");
-                                }
-                            }
-
-                            auto literalTy = TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(child_type), loc_single(typeToken));
-
-                            if (!consumeToken(TokenType::GreaterThanSym)) {
-                                unexpected_error("expected '>' for literal type");
-                            }
-
-                            type = literalTy;
-
-                            break;
-                        }
-                        case hash("capture"): {
-                            token++;
-                            auto child_type = parseTypeLoc(allocator);
-                            if(!child_type) {
-                                unexpected_error("expected a function type for capturing function type");
-                            }
-                            if(!consumeToken(TokenType::CommaSym)) {
-                                unexpected_error("expected a comma");
-                            }
-                            auto instance_type = parseTypeLoc(allocator);
-                            if(!instance_type) {
-                                unexpected_error("expected a instance type for capturing function type");
-                            }
-
-                            type = new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
-                                child_type, instance_type
-                            );
-
-                            if (!consumeToken(TokenType::GreaterThanSym)) {
-                                unexpected_error("expected '>' for capture type");
-                            }
-                            break;
-                        }
-                        default:
-                            const auto namedLinkedType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
-                            type = parseGenericTypeAfterId(allocator, namedLinkedType);
-                            break;
-                    }
-                } else {
-                    const auto namedLinkedType = new(allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, typeToken->value));
-                    type = parseGenericTypeAfterId(allocator, namedLinkedType);
-                }
             }
             break;
     }

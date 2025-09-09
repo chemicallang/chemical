@@ -475,6 +475,11 @@ public:
     LinkedType* ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values);
 
     /**
+     * if chain contains a single value, take that.
+     */
+    Value* singlify_chain(AccessChain* chain);
+
+    /**
      * after an identifier has been consumed
      * we call this method to lex an access chain after it
      * identifier .element1.element2.element3

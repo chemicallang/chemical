@@ -71,7 +71,12 @@ std::ostream& operator<<(std::ostream& os, const LabModule& mod) {
 
 TCCMode to_tcc_mode(OutputMode mode, bool debug_info) {
     if(debug_info) {
-        return TCCMode::Debug;
+        switch(mode) {
+            case OutputMode::DebugComplete:
+                return TCCMode::DebugComplete;
+            default:
+                return TCCMode::Debug;
+        }
     }
     switch(mode) {
         case OutputMode::Debug:

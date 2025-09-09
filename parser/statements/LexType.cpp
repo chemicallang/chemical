@@ -465,7 +465,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 case hashFn("expressive_string"):
                     return { (BaseType*) typeBuilder.getExprStrType(), loc };
                 case hashFn("literal_string"):
-                    return { typeBuilder.getStringType(), loc };
+                    return TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(typeBuilder.getStringType()), loc);
                 case hashFn("literal"): {
                     if (!consumeToken(TokenType::LessThanSym)) {
                         unexpected_error("expected '<' for literal type");

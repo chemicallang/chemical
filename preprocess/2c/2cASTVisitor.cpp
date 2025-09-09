@@ -924,15 +924,21 @@ VariableIdentifier* get_single_id(Value* value) {
 
 std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer);
 
-void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
+void set_ref_drop_flag(ToCAstVisitor& visitor, Value* value, bool drop_or_not) {
     const auto id = get_single_id(value);
     if(id) {
         const auto flag = get_drop_flag(*visitor.destructor, id->linked);
         if(flag) {
             visitor.write(*flag);
-            visitor.write(" = false;");
+            visitor.write(" = ");
+            visitor.write(drop_or_not ? "true" : "false");
+            visitor.write(';');
         }
     }
+}
+
+void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
+    set_ref_drop_flag(visitor, value, false);
 }
 
 bool isRef(ToCAstVisitor& visitor, Value* value) {
@@ -1959,11 +1965,14 @@ void destruct_assign_lhs(ToCAstVisitor& visitor, Value* lhs, FunctionDeclaration
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     auto type = assign->lhs->getType()->canonical();
-    // assignment to a reference, automatic dereferencing
-    if(type->kind() == BaseTypeKind::Reference) {
-        visitor.write('*');
-    }
-    if(!assign->lhs->is_ref_moved()) {
+    const auto was_lhs_moved = assign->lhs->is_ref_moved();
+    if(was_lhs_moved) {
+        // do not destruct, because previously the lhs was moved (we are reinitializing it)
+        // which means we need to set the drop flag to true again
+        set_ref_drop_flag(visitor, assign->lhs, true);
+        visitor.new_line_and_indent();
+    } else {
+        // destruct it
         if(type->kind() == BaseTypeKind::CapturingFunction) {
             const auto destr = type->as_capturing_func_type_unsafe()->instance_type->get_destructor();
             if(destr) {
@@ -1975,6 +1984,10 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
                 destruct_assign_lhs(visitor, assign->lhs, destr);
             }
         }
+    }
+    // assignment to a reference, automatic dereferencing
+    if(type->kind() == BaseTypeKind::Reference) {
+        visitor.write('*');
     }
     const auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;

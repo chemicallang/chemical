@@ -23,7 +23,7 @@ struct Pair66 {
     }
 
     @constructor
-    comptime func pair1(d : literal<int>) {
+    comptime func pair1(d : %literal<int>) {
         return Pair66 {
             a : d / 2
             b : d / 2
@@ -93,7 +93,7 @@ comptime func call_struct_func() : int {
     return x.sum();
 }
 
-comptime func determine_str_len(str : literal<string>) : ubigint {
+comptime func determine_str_len(str : %literal_string) : ubigint {
     return intrinsics::size(str);
 }
 

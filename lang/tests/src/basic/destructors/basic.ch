@@ -210,7 +210,7 @@ var my_string_destr_count : int = 0
 struct my_string {
 
     @constructor
-    comptime func make(value : literal<string>) {
+    comptime func make(value : %literal_string) {
         return intrinsics::wrap(constructor(value, intrinsics::size(value)))
     }
 

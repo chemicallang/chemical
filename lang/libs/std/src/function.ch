@@ -75,6 +75,6 @@ public struct default_function_instance {
 
 }
 
-public type function<T, M = default_function_instance> = capture<T, M>;
+public type function<T, M = default_function_instance> = %capture<T, M>;
 
 }

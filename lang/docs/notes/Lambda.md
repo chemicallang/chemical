@@ -150,6 +150,6 @@ struct function_instance {
     
 }
 
-type function<T, M = function_instance> = capture<T, M>;
+type function<T, M = function_instance> = %capture<T, M>;
 
 ```

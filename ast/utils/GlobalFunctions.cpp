@@ -47,6 +47,8 @@
 #include "compiler/symres/DeclareTopLevel.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "ast/statements/AccessChainNode.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/GenericTypeDecl.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -2784,18 +2786,9 @@ std::optional<bool> is_condition_enabled(GlobalContainer* container, IffyBase* b
                 // value is false, in and expression, we do not need to resolve second
                 return false;
             } else {
-                // resolve the second
-                auto second = is_condition_enabled(container, if_expr->right);
-                if(second.has_value()) {
-                    switch(if_expr->op) {
-                        case IffyExprOp::And:
-                            // if its and, it means the first value was true, everything depends on the second value
-                            return second.value();
-                        case IffyExprOp::Or:
-                            // if its or, it means the first value was false, everything depends on the second value
-                            return second.value();
-                    }
-                }
+                // in 'and', first is true, depends on second (true if second is true, false if second is false)
+                // in 'or' , first is false, depends on second (true if second is true, false if second is false)
+                return is_condition_enabled(container, if_expr->right);
             }
         }
     }

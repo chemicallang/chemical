@@ -590,6 +590,7 @@ set(COMMON_SOURCES
         ast/utils/IffyConditional.h
         ast/values/ExpressiveString.h
         ast/types/ExpressiveStringType.h
+        ast/utils/GlobalContainerAPI.h
 )
 
 # Chemical LSP Executable Target

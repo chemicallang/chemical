@@ -2,5 +2,5 @@ module test_lib_common
 
 source "src"
 
-import test
+import test_env
 import std

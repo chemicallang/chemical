@@ -1,5 +1,5 @@
 @test
-func text_in_root_element_works(env : &mut TestEnv) {
+public func text_in_root_element_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         Normal Text}
@@ -7,7 +7,7 @@ func text_in_root_element_works(env : &mut TestEnv) {
 }
 
 @test
-func multiple_elements_in_root_work(env : &mut TestEnv) {
+public func multiple_elements_in_root_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         Normal Text<div>is</div>Here}
@@ -15,7 +15,7 @@ func multiple_elements_in_root_work(env : &mut TestEnv) {
 }
 
 @test
-func element_in_root_element_works(env : &mut TestEnv) {
+public func element_in_root_element_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>Normal Text</div>
@@ -24,7 +24,7 @@ func element_in_root_element_works(env : &mut TestEnv) {
 }
 
 @test
-func nested_element_in_root_element_works(env : &mut TestEnv) {
+public func nested_element_in_root_element_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -35,7 +35,7 @@ func nested_element_in_root_element_works(env : &mut TestEnv) {
 }
 
 @test
-func attribute_on_element_works(env : &mut TestEnv) {
+public func attribute_on_element_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -46,7 +46,7 @@ func attribute_on_element_works(env : &mut TestEnv) {
 }
 
 @test
-func multiple_children_in_root_work(env : &mut TestEnv) {
+public func multiple_children_in_root_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -58,7 +58,7 @@ func multiple_children_in_root_work(env : &mut TestEnv) {
 }
 
 @test
-func self_closing_tag_work(env : &mut TestEnv) {
+public func self_closing_tag_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -69,7 +69,7 @@ func self_closing_tag_work(env : &mut TestEnv) {
 }
 
 @test
-func optional_fwd_slash_in_self_closing(env : &mut TestEnv) {
+public func optional_fwd_slash_in_self_closing(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -81,7 +81,7 @@ func optional_fwd_slash_in_self_closing(env : &mut TestEnv) {
 }
 
 @test
-func attribute_without_value_works(env : &mut TestEnv) {
+public func attribute_without_value_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -92,7 +92,7 @@ func attribute_without_value_works(env : &mut TestEnv) {
 }
 
 @test
-func can_handle_comments(env : &mut TestEnv) {
+public func can_handle_comments(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>
@@ -104,7 +104,7 @@ func can_handle_comments(env : &mut TestEnv) {
 }
 
 @test
-func chemical_value_in_text_works(env : &mut TestEnv) {
+public func chemical_value_in_text_works(env : &mut TestEnv) {
     var page = HtmlPage()
     var text = "Normal"
     #html {
@@ -114,7 +114,7 @@ func chemical_value_in_text_works(env : &mut TestEnv) {
 }
 
 @test
-func chemical_value_in_attribute_works(env : &mut TestEnv) {
+public func chemical_value_in_attribute_works(env : &mut TestEnv) {
     var page = HtmlPage()
     var idValue = "something"
     #html {
@@ -124,7 +124,7 @@ func chemical_value_in_attribute_works(env : &mut TestEnv) {
 }
 
 @test
-func chem_string_value_in_text_works(env : &mut TestEnv) {
+public func chem_string_value_in_text_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>{"Normal"}Text</div>
@@ -141,7 +141,7 @@ func ret_str_for_html(cond : bool) : *char {
 }
 
 @test
-func chem_string_value_call_in_text_works(env : &mut TestEnv) {
+public func chem_string_value_call_in_text_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>ABC={ret_str_for_html(true)},XYZ={ret_str_for_html(false)}</div>
@@ -150,7 +150,7 @@ func chem_string_value_call_in_text_works(env : &mut TestEnv) {
 }
 
 @test
-func chem_char_value_in_text_works(env : &mut TestEnv) {
+public func chem_char_value_in_text_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>Normal{' '}Text</div>
@@ -167,7 +167,7 @@ func ret_char_for_html(cond : bool) : char {
 }
 
 @test
-func chem_char_value_call_in_text_works(env : &mut TestEnv) {
+public func chem_char_value_call_in_text_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>A={ret_char_for_html(true)},B={ret_char_for_html(false)}</div>
@@ -182,7 +182,7 @@ func my_component(page : &mut HtmlPage) {
 }
 
 @test
-func call_void_returning_components_in_html(env : &mut TestEnv) {
+public func call_void_returning_components_in_html(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div id="p">
@@ -194,7 +194,7 @@ func call_void_returning_components_in_html(env : &mut TestEnv) {
 }
 
 @test
-func integer_values_in_html_automatically_converted(env : &mut TestEnv) {
+public func integer_values_in_html_automatically_converted(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>{128}</div>
@@ -203,7 +203,7 @@ func integer_values_in_html_automatically_converted(env : &mut TestEnv) {
 }
 
 @test
-func integer_values_in_html_automatically_converted2(env : &mut TestEnv) {
+public func integer_values_in_html_automatically_converted2(env : &mut TestEnv) {
     var page = HtmlPage()
     var value : int = 128
     #html {
@@ -213,7 +213,7 @@ func integer_values_in_html_automatically_converted2(env : &mut TestEnv) {
 }
 
 @test
-func uinteger_values_in_html_automatically_converted(env : &mut TestEnv) {
+public func uinteger_values_in_html_automatically_converted(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>{128u}</div>
@@ -222,7 +222,7 @@ func uinteger_values_in_html_automatically_converted(env : &mut TestEnv) {
 }
 
 @test
-func uinteger_values_in_html_automatically_converted2(env : &mut TestEnv) {
+public func uinteger_values_in_html_automatically_converted2(env : &mut TestEnv) {
     var page = HtmlPage()
     var value : uint = 128
     #html {
@@ -232,7 +232,7 @@ func uinteger_values_in_html_automatically_converted2(env : &mut TestEnv) {
 }
 
 @test
-func floating_values_in_html_automatically_converted(env : &mut TestEnv) {
+public func floating_values_in_html_automatically_converted(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>{876.123f}</div>
@@ -241,7 +241,7 @@ func floating_values_in_html_automatically_converted(env : &mut TestEnv) {
 }
 
 @test
-func floating_values_in_html_automatically_converted2(env : &mut TestEnv) {
+public func floating_values_in_html_automatically_converted2(env : &mut TestEnv) {
     var page = HtmlPage()
     var value = 876.123f
     #html {
@@ -251,7 +251,7 @@ func floating_values_in_html_automatically_converted2(env : &mut TestEnv) {
 }
 
 @test
-func double_values_in_html_automatically_converted(env : &mut TestEnv) {
+public func double_values_in_html_automatically_converted(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <div>{876.123}</div>
@@ -260,7 +260,7 @@ func double_values_in_html_automatically_converted(env : &mut TestEnv) {
 }
 
 @test
-func double_values_in_html_automatically_converted2(env : &mut TestEnv) {
+public func double_values_in_html_automatically_converted2(env : &mut TestEnv) {
     var page = HtmlPage()
     var value = 876.123
     #html {

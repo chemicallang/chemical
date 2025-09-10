@@ -1,5 +1,5 @@
 @test
-func global_values_work(env : &mut TestEnv) {
+public func global_values_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color:inherit;
@@ -10,7 +10,7 @@ func global_values_work(env : &mut TestEnv) {
 }
 
 @test
-func chemical_dynamic_values_work(env : &mut TestEnv) {
+public func chemical_dynamic_values_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color:{"red"};
@@ -19,7 +19,7 @@ func chemical_dynamic_values_work(env : &mut TestEnv) {
 }
 
 @test
-func chemical_dynamic_values_work2(env : &mut TestEnv) {
+public func chemical_dynamic_values_work2(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = true
     var color = if(condition) "green" else "blue"
@@ -30,7 +30,7 @@ func chemical_dynamic_values_work2(env : &mut TestEnv) {
 }
 
 @test
-func chemical_dynamic_values_work3(env : &mut TestEnv) {
+public func chemical_dynamic_values_work3(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = false
     var color = if(condition) "green" else "blue"
@@ -41,7 +41,7 @@ func chemical_dynamic_values_work3(env : &mut TestEnv) {
 }
 
 @test
-func chemical_dynamic_values_work5(env : &mut TestEnv) {
+public func chemical_dynamic_values_work5(env : &mut TestEnv) {
     var page = HtmlPage()
     var color = "green";
     var length = "2px"
@@ -52,7 +52,7 @@ func chemical_dynamic_values_work5(env : &mut TestEnv) {
 }
 
 @test
-func color_property_with_hex_color_works(env : &mut TestEnv) {
+public func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color : #e3e3e3;
@@ -61,7 +61,7 @@ func color_property_with_hex_color_works(env : &mut TestEnv) {
 }
 
 @test
-func color_property_with_named_color_works(env : &mut TestEnv) {
+public func color_property_with_named_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color : red;
@@ -70,7 +70,7 @@ func color_property_with_named_color_works(env : &mut TestEnv) {
 }
 
 @test
-func color_property_with_rgb_color_works(env : &mut TestEnv) {
+public func color_property_with_rgb_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color : rgb(0, 0, 0);
@@ -79,7 +79,7 @@ func color_property_with_rgb_color_works(env : &mut TestEnv) {
 }
 
 @test
-func border_property_works(env : &mut TestEnv) {
+public func border_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border : 1px solid red;
@@ -88,7 +88,7 @@ func border_property_works(env : &mut TestEnv) {
 }
 
 @test
-func border_radius_property_works(env : &mut TestEnv) {
+public func border_radius_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-radius : 4px;
@@ -97,7 +97,7 @@ func border_radius_property_works(env : &mut TestEnv) {
 }
 
 @test
-func margin_shorthand_works(env : &mut TestEnv) {
+public func margin_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         margin: 10px 20px 30px 40px;
@@ -106,7 +106,7 @@ func margin_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func padding_shorthand_works(env : &mut TestEnv) {
+public func padding_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         padding: 1rem 2rem;
@@ -115,7 +115,7 @@ func padding_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func font_shorthand_works(env : &mut TestEnv) {
+public func font_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font: italic small-caps bold 16px/1.5 "Open Sans", Arial, sans-serif;
@@ -124,7 +124,7 @@ func font_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func font_family_with_fallbacks_works(env : &mut TestEnv) {
+public func font_family_with_fallbacks_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font-family: "Times New Roman", Georgia, serif;
@@ -133,7 +133,7 @@ func font_family_with_fallbacks_works(env : &mut TestEnv) {
 }
 
 @test
-func background_image_works(env : &mut TestEnv) {
+public func background_image_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-image: url("img.png");
@@ -142,7 +142,7 @@ func background_image_works(env : &mut TestEnv) {
 }
 
 @test
-func background_image_with_linear_gradient_works(env : &mut TestEnv) {
+public func background_image_with_linear_gradient_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-image: linear-gradient(black, white);
@@ -151,7 +151,7 @@ func background_image_with_linear_gradient_works(env : &mut TestEnv) {
 }
 
 @test
-func background_image_with_linear_gradient_works2(env : &mut TestEnv) {
+public func background_image_with_linear_gradient_works2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-image: linear-gradient(red 0%, orange 10%, orange 30%, yellow 50%, yellow 70%, green 90%, green 100%);
@@ -160,7 +160,7 @@ func background_image_with_linear_gradient_works2(env : &mut TestEnv) {
 }
 
 @test
-func background_image_with_linear_gradient_works3(env : &mut TestEnv) {
+public func background_image_with_linear_gradient_works3(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-image: linear-gradient(45deg, red 0 50%, blue 50% 100%);
@@ -169,7 +169,7 @@ func background_image_with_linear_gradient_works3(env : &mut TestEnv) {
 }
 
 @test
-func background_image_with_linear_gradient_works4(env : &mut TestEnv) {
+public func background_image_with_linear_gradient_works4(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-image: linear-gradient(to left top, blue, red);
@@ -178,7 +178,7 @@ func background_image_with_linear_gradient_works4(env : &mut TestEnv) {
 }
 
 @test
-func transition_shorthand_multiple_works(env : &mut TestEnv) {
+public func transition_shorthand_multiple_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transition: opacity 0.3s ease-in-out 0s, transform 200ms linear;
@@ -187,7 +187,7 @@ func transition_shorthand_multiple_works(env : &mut TestEnv) {
 }
 
 @test
-func transition_multiple_properties_works(env : &mut TestEnv) {
+public func transition_multiple_properties_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transition: opacity 250ms ease-in, transform 400ms cubic-bezier(0.2,0.8,0.2,1);
@@ -196,7 +196,7 @@ func transition_multiple_properties_works(env : &mut TestEnv) {
 }
 
 @test
-func box_shadow_multiple_works(env : &mut TestEnv) {
+public func box_shadow_multiple_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         box-shadow: 0 2px 4px #000000, 0 1px 3px #111111;
@@ -205,7 +205,7 @@ func box_shadow_multiple_works(env : &mut TestEnv) {
 }
 
 @test
-func box_shadow_complex_works(env : &mut TestEnv) {
+public func box_shadow_complex_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         box-shadow: inset 0 2px 4px #000, 0 4px 8px rgba(0,0,0,0.2);
@@ -214,7 +214,7 @@ func box_shadow_complex_works(env : &mut TestEnv) {
 }
 
 @test
-func complex_shadow_spread_and_inset_works(env : &mut TestEnv) {
+public func complex_shadow_spread_and_inset_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         box-shadow: 0 2px 6px -1px rgba(0,0,0,0.3), inset 0 -3px 0 0 rgba(255,255,255,0.1);
@@ -223,7 +223,7 @@ func complex_shadow_spread_and_inset_works(env : &mut TestEnv) {
 }
 
 @test
-func text_shadow_multiple_works(env : &mut TestEnv) {
+public func text_shadow_multiple_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-shadow: 1px 1px 2px #000, 0 0 1px #333;
@@ -232,7 +232,7 @@ func text_shadow_multiple_works(env : &mut TestEnv) {
 }
 
 @test
-func text_shadow_multi_layer_works(env : &mut TestEnv) {
+public func text_shadow_multi_layer_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-shadow: 0 1px 0 #fff, 0 2px 3px rgba(0,0,0,0.4);
@@ -241,7 +241,7 @@ func text_shadow_multi_layer_works(env : &mut TestEnv) {
 }
 
 @test
-func padding_four_values_works(env : &mut TestEnv) {
+public func padding_four_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         padding: 4px 8px 12px 16px;
@@ -250,7 +250,7 @@ func padding_four_values_works(env : &mut TestEnv) {
 }
 
 @test
-func padding_mixed_units_works(env : &mut TestEnv) {
+public func padding_mixed_units_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         padding: 1rem 2vw 3vh 4ch;
@@ -259,7 +259,7 @@ func padding_mixed_units_works(env : &mut TestEnv) {
 }
 
 @test
-func margin_all_sides_explicit_works(env : &mut TestEnv) {
+public func margin_all_sides_explicit_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         margin: 5px 10px 15px 20px;
@@ -268,7 +268,7 @@ func margin_all_sides_explicit_works(env : &mut TestEnv) {
 }
 
 @test
-func font_family_multiple_works(env : &mut TestEnv) {
+public func font_family_multiple_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -277,7 +277,7 @@ func font_family_multiple_works(env : &mut TestEnv) {
 }
 
 @test
-func border_shorthand_with_radius_works(env : &mut TestEnv) {
+public func border_shorthand_with_radius_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border: 2px dashed #0a0a0a;
@@ -287,7 +287,7 @@ func border_shorthand_with_radius_works(env : &mut TestEnv) {
 }
 
 @test
-func transform_multiple_functions_works(env : &mut TestEnv) {
+public func transform_multiple_functions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transform: translate(10px, 20px) rotate(45deg) scale(1.2);
@@ -296,7 +296,7 @@ func transform_multiple_functions_works(env : &mut TestEnv) {
 }
 
 @test
-func transform_many_functions_works(env : &mut TestEnv) {
+public func transform_many_functions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transform: translate(10px 20px) rotate(30deg) scale(1.1, 0.9) skewX(10deg);
@@ -305,7 +305,7 @@ func transform_many_functions_works(env : &mut TestEnv) {
 }
 
 @test
-func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
+public func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transition-timing-function: steps(4, end);
@@ -314,7 +314,7 @@ func transition_timing_function_keywords_and_params_works(env : &mut TestEnv) {
 }
 
 @test
-func gap_shorthand_works(env : &mut TestEnv) {
+public func gap_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         gap: 10px 20px;
@@ -323,7 +323,7 @@ func gap_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func row_and_column_gap_works(env : &mut TestEnv) {
+public func row_and_column_gap_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         row-gap: 8px;
@@ -335,7 +335,7 @@ func row_and_column_gap_works(env : &mut TestEnv) {
 /**
 
 @test
-func font_shorthand_full_works(env : &mut TestEnv) {
+public func font_shorthand_full_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font: italic small-caps 600 18px/1.4 \"Open Sans\", Arial, sans-serif;
@@ -344,7 +344,7 @@ func font_shorthand_full_works(env : &mut TestEnv) {
 }
 
 @test
-func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
+public func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: url("img.png") no-repeat center/cover;
@@ -353,7 +353,7 @@ func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
 }
 
 @test
-func grid_template_columns_repeat_works(env : &mut TestEnv) {
+public func grid_template_columns_repeat_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         grid-template-columns: repeat(3, 1fr);
@@ -362,7 +362,7 @@ func grid_template_columns_repeat_works(env : &mut TestEnv) {
 }
 
 @test
-func flex_shorthand_works(env : &mut TestEnv) {
+public func flex_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         flex: 1 0 auto;
@@ -371,7 +371,7 @@ func flex_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func outline_with_color_and_width_works(env : &mut TestEnv) {
+public func outline_with_color_and_width_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         outline: 1px solid #ff0000;
@@ -380,7 +380,7 @@ func outline_with_color_and_width_works(env : &mut TestEnv) {
 }
 
 @test
-func width_with_calc_works(env : &mut TestEnv) {
+public func width_with_calc_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         width: calc(100% - 20px);
@@ -389,7 +389,7 @@ func width_with_calc_works(env : &mut TestEnv) {
 }
 
 @test
-func background_linear_gradient_works(env : &mut TestEnv) {
+public func background_linear_gradient_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: linear-gradient(45deg, #ff0000 0%, #0000ff 100%);
@@ -398,7 +398,7 @@ func background_linear_gradient_works(env : &mut TestEnv) {
 }
 
 @test
-func animation_shorthand_complex_works(env : &mut TestEnv) {
+public func animation_shorthand_complex_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         animation: slide 3s cubic-bezier(0.4,0,0.2,1) 0.5s 2 reverse both running;
@@ -407,7 +407,7 @@ func animation_shorthand_complex_works(env : &mut TestEnv) {
 }
 
 @test
-func filter_multiple_functions_works(env : &mut TestEnv) {
+public func filter_multiple_functions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         filter: blur(5px) brightness(0.8) contrast(120%);
@@ -416,7 +416,7 @@ func filter_multiple_functions_works(env : &mut TestEnv) {
 }
 
 @test
-func clip_path_polygon_works(env : &mut TestEnv) {
+public func clip_path_polygon_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
@@ -425,7 +425,7 @@ func clip_path_polygon_works(env : &mut TestEnv) {
 }
 
 @test
-func list_style_shorthand_works(env : &mut TestEnv) {
+public func list_style_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         list-style: square inside url("bullet.png");
@@ -434,7 +434,7 @@ func list_style_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func columns_shorthand_works(env : &mut TestEnv) {
+public func columns_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         columns: 200px 3;
@@ -443,7 +443,7 @@ func columns_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func grid_template_rows_and_columns_works(env : &mut TestEnv) {
+public func grid_template_rows_and_columns_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         grid-template-columns: 1fr 2fr 100px;
@@ -453,7 +453,7 @@ func grid_template_rows_and_columns_works(env : &mut TestEnv) {
 }
 
 @test
-func min_max_width_height_works(env : &mut TestEnv) {
+public func min_max_width_height_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         min-width: 320px;
@@ -465,7 +465,7 @@ func min_max_width_height_works(env : &mut TestEnv) {
 }
 
 @test
-func transform_origin_three_values_works(env : &mut TestEnv) {
+public func transform_origin_three_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transform-origin: 10px 20px 5px;
@@ -474,7 +474,7 @@ func transform_origin_three_values_works(env : &mut TestEnv) {
 }
 
 @test
-func perspective_and_origin_works(env : &mut TestEnv) {
+public func perspective_and_origin_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         perspective: 500px;
@@ -484,7 +484,7 @@ func perspective_and_origin_works(env : &mut TestEnv) {
 }
 
 @test
-func background_with_position_and_size_works(env : &mut TestEnv) {
+public func background_with_position_and_size_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: url("hero.jpg") no-repeat 20% 30%/contain;
@@ -493,7 +493,7 @@ func background_with_position_and_size_works(env : &mut TestEnv) {
 }
 
 @test
-func object_position_multiple_values_works(env : &mut TestEnv) {
+public func object_position_multiple_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         object-position: 10% 90%;
@@ -502,7 +502,7 @@ func object_position_multiple_values_works(env : &mut TestEnv) {
 }
 
 @test
-func text_decoration_shorthand_works(env : &mut TestEnv) {
+public func text_decoration_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-decoration: underline dotted #ff8800 2px;
@@ -511,7 +511,7 @@ func text_decoration_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func border_image_shorthand_works(env : &mut TestEnv) {
+public func border_image_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-image: url("frame.png") 30 30 stretch round;
@@ -520,7 +520,7 @@ func border_image_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func unicode_range_and_font_face_like_value_simulation_works(env : &mut TestEnv) {
+public func unicode_range_and_font_face_like_value_simulation_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         // simulate a multi-part property value often seen in font-face / @supports contexts
@@ -530,7 +530,7 @@ func unicode_range_and_font_face_like_value_simulation_works(env : &mut TestEnv)
 }
 
 @test
-func multi_backgrounds_works(env : &mut TestEnv) {
+public func multi_backgrounds_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: url("a.png") left top no-repeat, linear-gradient(180deg,#fff 0%,#eee 100%);
@@ -539,7 +539,7 @@ func multi_backgrounds_works(env : &mut TestEnv) {
 }
 
 @test
-func border_sides_different_works(env : &mut TestEnv) {
+public func border_sides_different_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-top: 1px solid red;
@@ -551,7 +551,7 @@ func border_sides_different_works(env : &mut TestEnv) {
 }
 
 @test
-func background_multiple_layers_with_positions_works(env : &mut TestEnv) {
+public func background_multiple_layers_with_positions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: url("a.png") left top no-repeat, url("b.png") right bottom repeat;
@@ -560,7 +560,7 @@ func background_multiple_layers_with_positions_works(env : &mut TestEnv) {
 }
 
 @test
-func background_gradient_and_image_works(env : &mut TestEnv) {
+public func background_gradient_and_image_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: linear-gradient(90deg,#fff 0%,#ddd 100%), url("bg.jpg") center/cover;
@@ -569,7 +569,7 @@ func background_gradient_and_image_works(env : &mut TestEnv) {
 }
 
 @test
-func background_position_and_size_works(env : &mut TestEnv) {
+public func background_position_and_size_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-position: 20% 30%;
@@ -579,7 +579,7 @@ func background_position_and_size_works(env : &mut TestEnv) {
 }
 
 @test
-func background_attachment_and_clip_works(env : &mut TestEnv) {
+public func background_attachment_and_clip_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-attachment: fixed;
@@ -589,7 +589,7 @@ func background_attachment_and_clip_works(env : &mut TestEnv) {
 }
 
 @test
-func font_variant_and_feature_settings_works(env : &mut TestEnv) {
+public func font_variant_and_feature_settings_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font-variant: small-caps;
@@ -599,7 +599,7 @@ func font_variant_and_feature_settings_works(env : &mut TestEnv) {
 }
 
 @test
-func font_face_like_src_list_works(env : &mut TestEnv) {
+public func font_face_like_src_list_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         src: url(\"font.woff2\") format(\"woff2\"), url(\"font.woff\") format(\"woff\");
@@ -608,7 +608,7 @@ func font_face_like_src_list_works(env : &mut TestEnv) {
 }
 
 @test
-func opacity_and_filter_chain_works(env : &mut TestEnv) {
+public func opacity_and_filter_chain_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         opacity: 0.85;
@@ -618,7 +618,7 @@ func opacity_and_filter_chain_works(env : &mut TestEnv) {
 }
 
 @test
-func transform_origin_three_values_works_2(env : &mut TestEnv) {
+public func transform_origin_three_values_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transform-origin: 10px 20px 2px;
@@ -627,7 +627,7 @@ func transform_origin_three_values_works_2(env : &mut TestEnv) {
 }
 
 @test
-func perspective_and_origin_works_2(env : &mut TestEnv) {
+public func perspective_and_origin_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         perspective: 800px;
@@ -637,7 +637,7 @@ func perspective_and_origin_works_2(env : &mut TestEnv) {
 }
 
 @test
-func animation_full_shorthand_works(env : &mut TestEnv) {
+public func animation_full_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         animation: fadeIn 1.2s ease-in-out 0s 1 normal forwards paused;
@@ -646,7 +646,7 @@ func animation_full_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func grid_template_with_named_areas_and_repeat_works(env : &mut TestEnv) {
+public func grid_template_with_named_areas_and_repeat_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         grid-template-columns: repeat(3, minmax(100px, 1fr));
@@ -656,7 +656,7 @@ func grid_template_with_named_areas_and_repeat_works(env : &mut TestEnv) {
 }
 
 @test
-func grid_gap_and_areas_works(env : &mut TestEnv) {
+public func grid_gap_and_areas_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         gap: 12px 18px;
@@ -666,7 +666,7 @@ func grid_gap_and_areas_works(env : &mut TestEnv) {
 }
 
 @test
-func grid_column_row_span_works(env : &mut TestEnv) {
+public func grid_column_row_span_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         grid-column: 1 / span 2;
@@ -676,7 +676,7 @@ func grid_column_row_span_works(env : &mut TestEnv) {
 }
 
 @test
-func flex_shorthand_with_basis_grow_shrink_works_2(env : &mut TestEnv) {
+public func flex_shorthand_with_basis_grow_shrink_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         flex: 2 1 150px;
@@ -685,7 +685,7 @@ func flex_shorthand_with_basis_grow_shrink_works_2(env : &mut TestEnv) {
 }
 
 @test
-func flex_flow_and_wrap_works(env : &mut TestEnv) {
+public func flex_flow_and_wrap_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         flex-flow: row wrap;
@@ -695,7 +695,7 @@ func flex_flow_and_wrap_works(env : &mut TestEnv) {
 }
 
 @test
-func order_and_flex_basis_auto_works(env : &mut TestEnv) {
+public func order_and_flex_basis_auto_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         order: 3;
@@ -705,7 +705,7 @@ func order_and_flex_basis_auto_works(env : &mut TestEnv) {
 }
 
 @test
-func object_fit_and_position_works(env : &mut TestEnv) {
+public func object_fit_and_position_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         object-fit: cover;
@@ -715,7 +715,7 @@ func object_fit_and_position_works(env : &mut TestEnv) {
 }
 
 @test
-func columns_shorthand_and_gap_works_2(env : &mut TestEnv) {
+public func columns_shorthand_and_gap_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         columns: 200px 4;
@@ -725,7 +725,7 @@ func columns_shorthand_and_gap_works_2(env : &mut TestEnv) {
 }
 
 @test
-func column_rule_and_span_works(env : &mut TestEnv) {
+public func column_rule_and_span_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         column-rule: 1px dashed #666;
@@ -735,7 +735,7 @@ func column_rule_and_span_works(env : &mut TestEnv) {
 }
 
 @test
-func list_style_full_shorthand_works_2(env : &mut TestEnv) {
+public func list_style_full_shorthand_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         list-style: square outside url(\"bullet.png\");
@@ -744,7 +744,7 @@ func list_style_full_shorthand_works_2(env : &mut TestEnv) {
 }
 
 @test
-func counter_style_and_symbols_works(env : &mut TestEnv) {
+public func counter_style_and_symbols_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         counter-reset: section 1;
@@ -754,7 +754,7 @@ func counter_style_and_symbols_works(env : &mut TestEnv) {
 }
 
 @test
-func table_layout_and_border_collapse_works(env : &mut TestEnv) {
+public func table_layout_and_border_collapse_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         table-layout: fixed;
@@ -764,7 +764,7 @@ func table_layout_and_border_collapse_works(env : &mut TestEnv) {
 }
 
 @test
-func caption_side_and_empty_cells_works(env : &mut TestEnv) {
+public func caption_side_and_empty_cells_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         caption-side: bottom;
@@ -774,7 +774,7 @@ func caption_side_and_empty_cells_works(env : &mut TestEnv) {
 }
 
 @test
-func list_marker_and_image_settings_works(env : &mut TestEnv) {
+public func list_marker_and_image_settings_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         list-style-image: url(\"marker.svg\");
@@ -783,7 +783,7 @@ func list_marker_and_image_settings_works(env : &mut TestEnv) {
 }
 
 @test
-func outline_and_offset_works(env : &mut TestEnv) {
+public func outline_and_offset_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         outline: 3px solid rgba(255,0,0,0.5);
@@ -793,7 +793,7 @@ func outline_and_offset_works(env : &mut TestEnv) {
 }
 
 @test
-func resize_and_overflow_values_works(env : &mut TestEnv) {
+public func resize_and_overflow_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         resize: both;
@@ -805,7 +805,7 @@ func resize_and_overflow_values_works(env : &mut TestEnv) {
 }
 
 @test
-func clip_path_circle_works(env : &mut TestEnv) {
+public func clip_path_circle_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         clip-path: circle(50% at 50% 50%);
@@ -814,7 +814,7 @@ func clip_path_circle_works(env : &mut TestEnv) {
 }
 
 @test
-func clip_path_polygon_works_2(env : &mut TestEnv) {
+public func clip_path_polygon_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         clip-path: polygon(0 0,100% 0,100% 100%,0 100%);
@@ -823,7 +823,7 @@ func clip_path_polygon_works_2(env : &mut TestEnv) {
 }
 
 @test
-func mask_and_mask_composite_works(env : &mut TestEnv) {
+public func mask_and_mask_composite_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         mask-image: linear-gradient(180deg, rgba(0,0,0,1), rgba(0,0,0,0));
@@ -833,7 +833,7 @@ func mask_and_mask_composite_works(env : &mut TestEnv) {
 }
 
 @test
-func mix_blend_mode_and_background_blend_modes_works(env : &mut TestEnv) {
+public func mix_blend_mode_and_background_blend_modes_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         mix-blend-mode: multiply;
@@ -843,7 +843,7 @@ func mix_blend_mode_and_background_blend_modes_works(env : &mut TestEnv) {
 }
 
 @test
-func object_fit_and_multivalue_object_position_works(env : &mut TestEnv) {
+public func object_fit_and_multivalue_object_position_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         object-fit: contain;
@@ -853,7 +853,7 @@ func object_fit_and_multivalue_object_position_works(env : &mut TestEnv) {
 }
 
 @test
-func speak_and_voice_family_simulation_works(env : &mut TestEnv) {
+public func speak_and_voice_family_simulation_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         speak: normal;
@@ -863,7 +863,7 @@ func speak_and_voice_family_simulation_works(env : &mut TestEnv) {
 }
 
 @test
-func filter_complex_chain_works_2(env : &mut TestEnv) {
+public func filter_complex_chain_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         filter: grayscale(100%) sepia(30%) hue-rotate(90deg) drop-shadow(2px 4px 6px #222);
@@ -872,7 +872,7 @@ func filter_complex_chain_works_2(env : &mut TestEnv) {
 }
 
 @test
-func image_rendering_and_sizing_works(env : &mut TestEnv) {
+public func image_rendering_and_sizing_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         image-rendering: crisp-edges;
@@ -882,7 +882,7 @@ func image_rendering_and_sizing_works(env : &mut TestEnv) {
 }
 
 @test
-func object_viewbox_and_position_works(env : &mut TestEnv) {
+public func object_viewbox_and_position_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         vector-effect: non-scaling-stroke;
@@ -891,7 +891,7 @@ func object_viewbox_and_position_works(env : &mut TestEnv) {
 }
 
 @test
-func caret_color_and_selection_color_works(env : &mut TestEnv) {
+public func caret_color_and_selection_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         caret-color: #ff0;
@@ -901,7 +901,7 @@ func caret_color_and_selection_color_works(env : &mut TestEnv) {
 }
 
 @test
-func placeholder_and_form_control_simulation_works(env : &mut TestEnv) {
+public func placeholder_and_form_control_simulation_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         input::placeholder { color: #999; opacity: 0.8; }
@@ -911,7 +911,7 @@ func placeholder_and_form_control_simulation_works(env : &mut TestEnv) {
 }
 
 @test
-func appearance_and_user_select_works(env : &mut TestEnv) {
+public func appearance_and_user_select_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         -webkit-appearance: none;
@@ -921,7 +921,7 @@ func appearance_and_user_select_works(env : &mut TestEnv) {
 }
 
 @test
-func text_decoration_shorthand_and_offsets_works(env : &mut TestEnv) {
+public func text_decoration_shorthand_and_offsets_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-decoration: underline dashed #ff8800 2px;
@@ -932,7 +932,7 @@ func text_decoration_shorthand_and_offsets_works(env : &mut TestEnv) {
 }
 
 @test
-func letter_spacing_and_word_spacing_works(env : &mut TestEnv) {
+public func letter_spacing_and_word_spacing_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         letter-spacing: 0.02em;
@@ -942,7 +942,7 @@ func letter_spacing_and_word_spacing_works(env : &mut TestEnv) {
 }
 
 @test
-func line_height_and_text_indent_works(env : &mut TestEnv) {
+public func line_height_and_text_indent_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         line-height: 1.6;
@@ -952,7 +952,7 @@ func line_height_and_text_indent_works(env : &mut TestEnv) {
 }
 
 @test
-func white_space_and_word_break_works(env : &mut TestEnv) {
+public func white_space_and_word_break_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         white-space: pre-wrap;
@@ -962,7 +962,7 @@ func white_space_and_word_break_works(env : &mut TestEnv) {
 }
 
 @test
-func hyphens_and_text_wrap_works(env : &mut TestEnv) {
+public func hyphens_and_text_wrap_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         hyphens: auto;
@@ -972,7 +972,7 @@ func hyphens_and_text_wrap_works(env : &mut TestEnv) {
 }
 
 @test
-func writing_mode_and_text_orientation_works(env : &mut TestEnv) {
+public func writing_mode_and_text_orientation_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         writing-mode: vertical-rl;
@@ -982,7 +982,7 @@ func writing_mode_and_text_orientation_works(env : &mut TestEnv) {
 }
 
 @test
-func text_emphasis_and_mark_works(env : &mut TestEnv) {
+public func text_emphasis_and_mark_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-emphasis: filled dot #f00;
@@ -992,7 +992,7 @@ func text_emphasis_and_mark_works(env : &mut TestEnv) {
 }
 
 @test
-func column_count_and_fill_works(env : &mut TestEnv) {
+public func column_count_and_fill_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         column-count: 3;
@@ -1002,7 +1002,7 @@ func column_count_and_fill_works(env : &mut TestEnv) {
 }
 
 @test
-func scroll_snap_points_and_align_works(env : &mut TestEnv) {
+public func scroll_snap_points_and_align_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         scroll-snap-type: x mandatory;
@@ -1012,7 +1012,7 @@ func scroll_snap_points_and_align_works(env : &mut TestEnv) {
 }
 
 @test
-func resize_observer_and_svg_viewbox_like_values_works(env : &mut TestEnv) {
+public func resize_observer_and_svg_viewbox_like_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         view-transition-name: hero;
@@ -1022,7 +1022,7 @@ func resize_observer_and_svg_viewbox_like_values_works(env : &mut TestEnv) {
 }
 
 @test
-func background_blend_modes_multilayer_works(env : &mut TestEnv) {
+public func background_blend_modes_multilayer_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background-blend-mode: normal, multiply;
@@ -1031,7 +1031,7 @@ func background_blend_modes_multilayer_works(env : &mut TestEnv) {
 }
 
 @test
-func paint_order_and_mix_blend_works(env : &mut TestEnv) {
+public func paint_order_and_mix_blend_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         paint-order: stroke fill markers;
@@ -1041,7 +1041,7 @@ func paint_order_and_mix_blend_works(env : &mut TestEnv) {
 }
 
 @test
-func filter_function_with_comma_and_space_variants_works(env : &mut TestEnv) {
+public func filter_function_with_comma_and_space_variants_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         filter: drop-shadow(2px 4px 6px #222), blur(3px);
@@ -1050,7 +1050,7 @@ func filter_function_with_comma_and_space_variants_works(env : &mut TestEnv) {
 }
 
 @test
-func vendor_prefixed_properties_and_multiple_values_works(env : &mut TestEnv) {
+public func vendor_prefixed_properties_and_multiple_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         -webkit-text-stroke: 1px #000;
@@ -1060,7 +1060,7 @@ func vendor_prefixed_properties_and_multiple_values_works(env : &mut TestEnv) {
 }
 
 @test
-func media_query_simulation_in_css_block_works(env : &mut TestEnv) {
+public func media_query_simulation_in_css_block_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         @media (min-width: 600px) { .col { width: calc(50% - 10px); } }
@@ -1069,7 +1069,7 @@ func media_query_simulation_in_css_block_works(env : &mut TestEnv) {
 }
 
 @test
-func logical_properties_and_values_works(env : &mut TestEnv) {
+public func logical_properties_and_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         margin-inline: 1rem 2rem;
@@ -1079,7 +1079,7 @@ func logical_properties_and_values_works(env : &mut TestEnv) {
 }
 
 @test
-func inset_shorthand_and_absolute_positioning_works(env : &mut TestEnv) {
+public func inset_shorthand_and_absolute_positioning_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         position: absolute;
@@ -1089,7 +1089,7 @@ func inset_shorthand_and_absolute_positioning_works(env : &mut TestEnv) {
 }
 
 @test
-func clip_and_rect_and_old_syntax_works(env : &mut TestEnv) {
+public func clip_and_rect_and_old_syntax_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         clip: rect(0px, 100px, 200px, 0px);
@@ -1098,7 +1098,7 @@ func clip_and_rect_and_old_syntax_works(env : &mut TestEnv) {
 }
 
 @test
-func calc_with_nested_operations_works(env : &mut TestEnv) {
+public func calc_with_nested_operations_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         width: calc(100% - (2 * 1rem) - 20px);
@@ -1107,7 +1107,7 @@ func calc_with_nested_operations_works(env : &mut TestEnv) {
 }
 
 @test
-func multi_value_custom_property_and_fallback_works(env : &mut TestEnv) {
+public func multi_value_custom_property_and_fallback_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         --card-padding: 1rem 2rem;
@@ -1117,7 +1117,7 @@ func multi_value_custom_property_and_fallback_works(env : &mut TestEnv) {
 }
 
 @test
-func svg_stroke_and_fill_properties_with_multiple_values_works(env : &mut TestEnv) {
+public func svg_stroke_and_fill_properties_with_multiple_values_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         stroke-dasharray: 5 3 2;
@@ -1127,7 +1127,7 @@ func svg_stroke_and_fill_properties_with_multiple_values_works(env : &mut TestEn
 }
 
 @test
-func text_overflow_and_multi_part_clamping_works(env : &mut TestEnv) {
+public func text_overflow_and_multi_part_clamping_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-overflow: ellipsis;
@@ -1139,7 +1139,7 @@ func text_overflow_and_multi_part_clamping_works(env : &mut TestEnv) {
 }
 
 @test
-func multi_value_background_properties_with_gradients_and_positions_works(env : &mut TestEnv) {
+public func multi_value_background_properties_with_gradients_and_positions_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: linear-gradient(45deg,#f00 0%,#0f0 50%,#00f 100%) center/80% no-repeat, url(\"texture.png\") repeat;
@@ -1148,7 +1148,7 @@ func multi_value_background_properties_with_gradients_and_positions_works(env : 
 }
 
 @test
-func complex_border_image_slice_and_repeat_works(env : &mut TestEnv) {
+public func complex_border_image_slice_and_repeat_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-image: url(\"slice.png\") 30 30 30 30 round stretch;
@@ -1157,7 +1157,7 @@ func complex_border_image_slice_and_repeat_works(env : &mut TestEnv) {
 }
 
 @test
-func gradient_repeating_and_conic_variants_works(env : &mut TestEnv) {
+public func gradient_repeating_and_conic_variants_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: repeating-linear-gradient(0deg,#000 0 5px,#fff 5px 10px), conic-gradient(from 45deg, #f00, #0f0 50%, #00f);
@@ -1166,7 +1166,7 @@ func gradient_repeating_and_conic_variants_works(env : &mut TestEnv) {
 }
 
 @test
-func gradient_position_sizes_and_percentages_works(env : &mut TestEnv) {
+public func gradient_position_sizes_and_percentages_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         background: linear-gradient(135deg, rgba(255,0,0,0.8) 10%, rgba(0,0,255,0.6) 90%) center/60% no-repeat;
@@ -1175,7 +1175,7 @@ func gradient_position_sizes_and_percentages_works(env : &mut TestEnv) {
 }
 
 @test
-func color_function_hsl_and_hsla_works(env : &mut TestEnv) {
+public func color_function_hsl_and_hsla_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color: hsl(120 50% 50%);
@@ -1185,7 +1185,7 @@ func color_function_hsl_and_hsla_works(env : &mut TestEnv) {
 }
 
 @test
-func rgb_space_normalization_and_alpha_works(env : &mut TestEnv) {
+public func rgb_space_normalization_and_alpha_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color: rgb(255, 128, 64);
@@ -1195,7 +1195,7 @@ func rgb_space_normalization_and_alpha_works(env : &mut TestEnv) {
 }
 
 @test
-func complex_cursor_and_hotspot_works(env : &mut TestEnv) {
+public func complex_cursor_and_hotspot_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         cursor: url(\"cursor.png\") 4 12, pointer;
@@ -1204,7 +1204,7 @@ func complex_cursor_and_hotspot_works(env : &mut TestEnv) {
 }
 
 @test
-func multi_value_border_radius_shorthand_works(env : &mut TestEnv) {
+public func multi_value_border_radius_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-radius: 10px 20px 30px 40px / 5px 6px 7px 8px;
@@ -1213,7 +1213,7 @@ func multi_value_border_radius_shorthand_works(env : &mut TestEnv) {
 }
 
 @test
-func complex_calc_and_clamp_and_min_max_works(env : &mut TestEnv) {
+public func complex_calc_and_clamp_and_min_max_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         width: clamp(300px, calc(50% + 2rem), 800px);
@@ -1223,7 +1223,7 @@ func complex_calc_and_clamp_and_min_max_works(env : &mut TestEnv) {
 }
 
 @test
-func animation_and_transition_combined_properties_works(env : &mut TestEnv) {
+public func animation_and_transition_combined_properties_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transition: transform 150ms cubic-bezier(0.4,0,0.2,1);
@@ -1233,7 +1233,7 @@ func animation_and_transition_combined_properties_works(env : &mut TestEnv) {
 }
 
 @test
-func multiple_font_variation_settings_works(env : &mut TestEnv) {
+public func multiple_font_variation_settings_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font-variation-settings: \"wght\" 700, \"slnt\" -10;
@@ -1242,7 +1242,7 @@ func multiple_font_variation_settings_works(env : &mut TestEnv) {
 }
 
 @test
-func backdrop_filter_and_blend_works(env : &mut TestEnv) {
+public func backdrop_filter_and_blend_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         backdrop-filter: blur(6px) brightness(0.9);
@@ -1251,7 +1251,7 @@ func backdrop_filter_and_blend_works(env : &mut TestEnv) {
 }
 
 @test
-func scrollbar_color_and_width_works(env : &mut TestEnv) {
+public func scrollbar_color_and_width_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         scrollbar-color: #888 #222;
@@ -1261,7 +1261,7 @@ func scrollbar_color_and_width_works(env : &mut TestEnv) {
 }
 
 @test
-func safe_area_inset_and_env_vars_works(env : &mut TestEnv) {
+public func safe_area_inset_and_env_vars_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         padding-top: env(safe-area-inset-top, 20px);

@@ -1,5 +1,5 @@
 @test
-func border_style_property_works(env : &mut TestEnv) {
+public func border_style_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-style : none;
@@ -17,7 +17,7 @@ func border_style_property_works(env : &mut TestEnv) {
 }
 
 @test
-func animation_timing_function_property_works(env : &mut TestEnv) {
+public func animation_timing_function_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         animation-timing-function : ease;
@@ -32,7 +32,7 @@ func animation_timing_function_property_works(env : &mut TestEnv) {
 }
 
 @test
-func mask_border_mode_property_works(env : &mut TestEnv) {
+public func mask_border_mode_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         mask-border-mode:alpha;
@@ -42,7 +42,7 @@ func mask_border_mode_property_works(env : &mut TestEnv) {
 }
 
 @test
-func mask_border_repeat_property_works(env : &mut TestEnv) {
+public func mask_border_repeat_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         mask-border-repeat:stretch;
@@ -54,7 +54,7 @@ func mask_border_repeat_property_works(env : &mut TestEnv) {
 }
 
 @test
-func text_decoration_skip_ink_property_works(env : &mut TestEnv) {
+public func text_decoration_skip_ink_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-decoration-skip-ink:auto;
@@ -64,7 +64,7 @@ func text_decoration_skip_ink_property_works(env : &mut TestEnv) {
 }
 
 @test
-func text_underline_position_property_works(env : &mut TestEnv) {
+public func text_underline_position_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         text-underline-position:auto;
@@ -77,7 +77,7 @@ func text_underline_position_property_works(env : &mut TestEnv) {
 }
 
 @test
-func font_optical_sizing_property_works(env : &mut TestEnv) {
+public func font_optical_sizing_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         font-optical-sizing:auto;
@@ -87,7 +87,7 @@ func font_optical_sizing_property_works(env : &mut TestEnv) {
 }
 
 @test
-func transition_timing_function_property_works(env : &mut TestEnv) {
+public func transition_timing_function_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         transition-timing-function:ease;
@@ -102,7 +102,7 @@ func transition_timing_function_property_works(env : &mut TestEnv) {
 }
 
 @test
-func vector_effect_property_works(env : &mut TestEnv) {
+public func vector_effect_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         vector-effect:none;
@@ -112,7 +112,7 @@ func vector_effect_property_works(env : &mut TestEnv) {
 }
 
 @test
-func forced_color_adjust_property_works(env : &mut TestEnv) {
+public func forced_color_adjust_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         forced-color-adjust:auto;
@@ -122,7 +122,7 @@ func forced_color_adjust_property_works(env : &mut TestEnv) {
 }
 
 @test
-func color_scheme_property_works(env : &mut TestEnv) {
+public func color_scheme_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         color-scheme:light;
@@ -132,7 +132,7 @@ func color_scheme_property_works(env : &mut TestEnv) {
 }
 
 @test
-func print_color_adjust_property_works(env : &mut TestEnv) {
+public func print_color_adjust_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         print-color-adjust:economy;
@@ -142,7 +142,7 @@ func print_color_adjust_property_works(env : &mut TestEnv) {
 }
 
 @test
-func overscroll_behavior_property_works(env : &mut TestEnv) {
+public func overscroll_behavior_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         overscroll-behavior:auto;
@@ -153,7 +153,7 @@ func overscroll_behavior_property_works(env : &mut TestEnv) {
 }
 
 @test
-func page_orientation_property_works(env : &mut TestEnv) {
+public func page_orientation_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         page-orientation:portrait;

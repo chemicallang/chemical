@@ -290,8 +290,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& passed_allocator, Ac
     // all member functions (inside structs/variants), must allocate prototypes on global allocator
     // because they can be used with imported public generic structs, which may declare them in another modules (not because of usage)
     // because generics don't check whether the type being used with it is valid in another module
-    // once we can be sure which instantiations of generics are being used in module, we can eliminate this check
-    auto& allocator = member ? global_allocator : body_allocator;
+    auto& allocator = global_allocator;
 
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(LocatedIdentifier(""), { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
     annotate(decl);

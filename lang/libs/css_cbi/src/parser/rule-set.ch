@@ -24,7 +24,7 @@ func (cssParser : &mut CSSParser) parseCSSRuleSet(
     if(lb.type == TokenType.LBrace) {
         parser.increment()
     } else {
-        parser.error("expected a '{' after the selector(s) for rule");
+        parser.error("expected a '\{' after the selector(s) for rule");
         return set
     }
 

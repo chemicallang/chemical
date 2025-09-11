@@ -11,6 +11,18 @@ char SourceProviderreadCharacter(SourceProvider* provider)  {
     return provider->readCharacter();
 }
 
+uint32_t SourceProviderreadCodePoint(SourceProvider* provider) {
+    return provider->readCodePoint();
+}
+
+uint32_t SourceProviderutf8_decode_peek(SourceProvider* provider, size_t *out_len) {
+    return provider->utf8_decode_peek(*out_len);
+}
+
+void SourceProviderincrementCodepoint(SourceProvider* provider, uint32_t cp, size_t len) {
+    provider->incrementCodepoint(cp, len);
+}
+
 bool SourceProvidereof(SourceProvider* provider)  {
     return provider->eof();
 }

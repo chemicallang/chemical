@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CBIUtils.h"
+#include <cstdint>
 
 class SourceProvider;
 
@@ -11,6 +12,12 @@ extern "C" {
     void SourceProviderincrement(SourceProvider* provider);
 
     char SourceProviderreadCharacter(SourceProvider* provider);
+
+    uint32_t SourceProviderreadCodePoint(SourceProvider* provider);
+
+    uint32_t SourceProviderutf8_decode_peek(SourceProvider* provider, size_t *out_len);
+
+    void SourceProviderincrementCodepoint(SourceProvider*, uint32_t cp, size_t len);
 
     bool SourceProvidereof(SourceProvider* provider);
 

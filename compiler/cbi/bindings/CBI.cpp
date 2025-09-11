@@ -76,6 +76,9 @@ const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {
 const std::pair<chem::string_view, void*> SourceProviderSymMap[] = {
         { "compiler_SourceProviderincrement", (void*) SourceProviderincrement },
         { "compiler_SourceProviderreadCharacter", (void*) SourceProviderreadCharacter },
+        { "compiler_SourceProviderreadCodePoint", (void*) SourceProviderreadCodePoint },
+        { "compiler_SourceProviderutf8_decode_peek", (void*) SourceProviderutf8_decode_peek },
+        { "compiler_SourceProviderincrementCodepoint", (void*) SourceProviderincrementCodepoint },
         { "compiler_SourceProvidereof", (void*) SourceProvidereof },
         { "compiler_SourceProviderpeek", (void*) SourceProviderpeek },
         { "compiler_SourceProviderincrement_char", (void*) SourceProviderincrement_char },

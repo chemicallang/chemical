@@ -4655,7 +4655,9 @@ void write_switch_expr(ToCAstVisitor& visitor, SwitchStatement* statement) {
             }
             if (variant) {
                 // turn on the active iteration of the variant
+                visitor.write('(');
                 visitor.visit(statement->expression);
+                visitor.write(')');
                 write_accessor(visitor, statement->expression, nullptr);
                 visitor.write(variant_type_variant_name);
             } else {
@@ -5982,7 +5984,9 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 const auto var = linked->as_variant_case_var_unsafe();
                 const auto expr = var->parent()->expression;
                 const auto var_mem = var->member_param->parent();
+                write('(');
                 visit(expr);
+                write(')');
                 write_accessor(*this, expr, identifier);
                 write(var_mem->name);
                 write('.');
@@ -6123,7 +6127,14 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
     if(elseKind == PatternElseExprKind::Unreachable || elseKind == PatternElseExprKind::Return) {
         const auto type = value->expression->getType();
         visit(type);
-        write('*');
+        switch (type->canonical()->kind()) {
+            case BaseTypeKind::Reference:
+            case BaseTypeKind::Pointer:
+                break;
+            default:
+                write('*');
+                break;
+        }
     } else if(elseKind == PatternElseExprKind::DefValue) {
         visit(value->param_names[0]->member_param->type);
     }
@@ -6147,7 +6158,14 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
         auto varName2 = get_local_temp_var_name();
         write("({ ");
         visit(type);
-        write('*');
+        switch (type->canonical()->kind()) {
+            case BaseTypeKind::Reference:
+            case BaseTypeKind::Pointer:
+                break;
+            default:
+                write('*');
+                break;
+        }
         write(' ');
         write(varName2);
         write(" = ");

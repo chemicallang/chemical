@@ -220,6 +220,41 @@ ASTNode* BaseType::get_direct_linked_canonical_node() {
     };
 }
 
+ASTNode* BaseType::get_linked_node(bool include_ptr_or_ref) {
+    switch(kind()) {
+        case BaseTypeKind::Linked:
+            return as_linked_type_unsafe()->linked;
+        case BaseTypeKind::Generic:
+            return as_generic_type_unsafe()->referenced->linked;
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
+            return linked_node();
+        case BaseTypeKind::Pointer:
+            if(include_ptr_or_ref) {
+                return as_pointer_type_unsafe()->type->get_linked_node(false);
+            } else {
+                return nullptr;
+            }
+        case BaseTypeKind::Reference:
+            if(include_ptr_or_ref) {
+                return as_reference_type_unsafe()->type->get_linked_node(false);
+            } else {
+                return nullptr;
+            }
+        default:
+            return nullptr;
+    }
+}
+
+ASTNode* BaseType::get_linked_canonical_node(bool include_ptr_or_ref) {
+    const auto n = get_linked_node(include_ptr_or_ref);
+    if(n && n->kind() == ASTNodeKind::TypealiasStmt) {
+        return n->as_typealias_unsafe()->actual_type->get_linked_canonical_node(include_ptr_or_ref);
+    } else {
+        return n;
+    };
+}
+
 ASTNode* BaseType::get_ref_or_linked_node() {
     switch(kind()) {
         case BaseTypeKind::Linked:

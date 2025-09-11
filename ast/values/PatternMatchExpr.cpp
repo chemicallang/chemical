@@ -153,7 +153,7 @@ VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, 
         diagnoser.error("couldn't resolve linked declaration", expression);
         return nullptr;
     }
-    const auto linked_node = type->get_direct_linked_canonical_node();
+    const auto linked_node = type->get_linked_canonical_node();
     if(!linked_node) {
         diagnoser.error("couldn't resolve linked declaration", expression);
         return nullptr;

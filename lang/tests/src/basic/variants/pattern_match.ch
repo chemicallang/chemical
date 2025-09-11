@@ -178,4 +178,40 @@ func test_variant_pattern_matching() {
             return true;
         }
     })
+    test("pointer to variant works in pattern match expression - 1", () => {
+        var o = PMOpt1.Some(32)
+        var ptr = &mut o
+        var Some(value) = ptr else -1
+        return value == 32
+    })
+    test("pointer to variant works in pattern match expression - 2", () => {
+        var o = PMOpt1.Some(32)
+        var ptr = &mut o
+        var Some(value) = ptr else return false
+        return value == 32
+    })
+    test("pointer to variant works in pattern match expression - 3", () => {
+        var o = PMOpt1.Some(32)
+        var ptr = &mut o
+        var Some(value) = ptr else unreachable
+        return value == 32
+    })
+    test("pointer to variant dereferenced works in pattern match expression - 1", () => {
+        var o = PMOpt1.Some(23)
+        var ptr = &mut o
+        var Some(value) = *ptr else -1
+        return value == 23
+    })
+    test("pointer to variant dereferenced works in pattern match expression - 2", () => {
+        var o = PMOpt1.Some(23)
+        var ptr = &mut o
+        var Some(value) = *ptr else return false
+        return value == 23
+    })
+    test("pointer to variant dereferenced works in pattern match expression - 3", () => {
+        var o = PMOpt1.Some(23)
+        var ptr = &mut o
+        var Some(value) = *ptr else unreachable
+        return value == 23
+    })
 }

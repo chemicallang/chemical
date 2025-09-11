@@ -279,19 +279,46 @@ public:
      * reads whitespaces, returns how many whitespaces were read
      * doesn't read newlines
      */
-    unsigned int readWhitespaces();
+    unsigned int readWhitespaces() noexcept {
+        unsigned int whitespaces = 0;
+        while(true) {
+            switch(peek()) {
+                case ' ':
+                    increment();
+                    whitespaces++;
+                    continue;
+                case '\t':
+                    increment();
+                    whitespaces += 4;
+                    continue;
+                default:
+                    return whitespaces;
+            }
+        }
+    }
 
     /**
      * skips whitespaces, this doesn't include new lines
      * characters ' ', '\t' are skipped
      */
-    void skipWhitespaces();
+    void skipWhitespaces() noexcept {
+        while(true) {
+            switch(peek()) {
+                case ' ':
+                case '\t':
+                    increment();
+                    continue;
+                default:
+                    return;
+            }
+        }
+    }
 
     /**
      * @return whether there's a newline at current position
      */
     [[nodiscard]]
-    inline bool hasNewLine() const {
+    inline bool hasNewLine() const noexcept {
         const auto p = peek();
         return p == '\n' || p == '\r';
     }
@@ -299,12 +326,39 @@ public:
     /**
      * @return whether new line characters were read
      */
-    bool readNewLineChars();
+    bool readNewLineChars() noexcept {
+        switch(peek()) {
+            case '\n':
+                increment();
+                return true;
+            case '\r':
+                // consuming the \r
+                increment();
+                // consume also the next \n
+                if (peek() == '\n') increment();
+                return true;
+            default:
+                return false;
+        }
+    }
 
     /**
      * reads all whitespaces along with new lines
      */
-    void readWhitespacesAndNewLines();
+    void readWhitespacesAndNewLines() noexcept {
+        while(true) {
+            switch(peek()) {
+                case ' ':
+                case '\t':
+                case '\n':
+                case '\r':
+                    increment();
+                    continue;
+                default:
+                    return;
+            }
+        }
+    }
 
     /**
      * get the position of the stream, which you can restore later

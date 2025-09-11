@@ -200,7 +200,6 @@ set(COMMON_SOURCES
         parser/values/StructValue.cpp
         ast/values/StructValue.h
         ast/types/LinkedType.h
-        stream/SourceProviderImpl.cpp
         ast/structures/FunctionDecl.cpp
         ast/utils/GlobalFunctions.cpp
         core/diag/Diagnostic.cpp

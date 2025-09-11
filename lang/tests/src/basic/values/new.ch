@@ -24,6 +24,11 @@ namespace MultiIdStrTyCon {
     }
 }
 
+variant OptIntPlNew {
+    Some(value : int)
+    None()
+}
+
 func test_new() {
 
     // test new
@@ -124,6 +129,15 @@ func test_new() {
         var result = ptr.a == 12 && ptr.b == 43
         dealloc ptr
         return result;
+    })
+
+    test("placement new works with variant calls", () => {
+        var ptr = new OptIntPlNew
+        new (ptr) OptIntPlNew.Some(763)
+        var Some(value) = *ptr else return false
+        var result = value
+        dealloc ptr
+        return value == 763
     })
 
 }

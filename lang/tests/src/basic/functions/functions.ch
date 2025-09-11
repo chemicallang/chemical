@@ -228,6 +228,7 @@ func test_functions() {
     test_name_overriding();
     test_name_overriding_in_struct();
     test_parameters();
+    test_unicode()
     test("arrays can be passed to functions", () => {
         return test_passing_array([11, 87, 245, 3, 23], 5) == 369;
     })

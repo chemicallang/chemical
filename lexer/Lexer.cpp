@@ -49,6 +49,8 @@ const auto NewlineCStr = "\n";
 const auto NewlineRCStr = "\r";
 const auto NewlineWinCStr = "\r\n";
 
+const auto AnnotMacroStartErr = "annotation or macro must start with a valid character that is not a digit";
+
 constexpr chem::string_view view_str(const char* c_str) {
     return { c_str };
 }
@@ -154,10 +156,198 @@ inline chem::string_view view_from(SourceProvider& provider, const char* data) {
     return { data, static_cast<std::size_t>(provider.current_data() - data) };
 }
 
+// ---------- ascii helpers ---------------
+static inline bool is_ascii_digit(char c) {
+    return c >= '0' && c <= '9';
+}
+static inline bool is_ascii_letter_or_digit(char c) {
+    return (c >= 'a' && c <= 'z') || is_ascii_digit(c) || (c >= 'A' && c <= 'Z');
+}
+
+// ---------- helpers (fast inline checks) ----------
+static inline bool is_ascii_digit(uint32_t cp) {
+    return cp >= '0' && cp <= '9';
+}
+static inline bool is_ascii_letter_or_digit(uint32_t cp) {
+    return  (cp >= 'a' && cp <= 'z') || is_ascii_digit(cp) || (cp >= 'A' && cp <= 'Z');
+}
+static inline bool is_ascii_letter_or_underscore(uint32_t cp) noexcept {
+    return (cp == '_') || (cp >= 'A' && cp <= 'Z') || (cp >= 'a' && cp <= 'z');
+}
+static inline bool is_ascii_letter_digit_or_underscore(uint32_t cp) noexcept {
+    return is_ascii_letter_or_underscore(cp) || is_ascii_digit(cp);
+}
+
+// ---------- noncharacter, private-use, surrogate checks ----------
+static inline bool is_noncharacter(uint32_t cp) noexcept {
+    // Range U+FDD0..U+FDEF
+    if (cp >= 0xFDD0 && cp <= 0xFDEF) return true;
+    // Values whose low 16 bits are 0xFFFE or 0xFFFF are noncharacters:
+    // U+FFFE, U+FFFF, U+1FFFE, U+1FFFF, ..., U+10FFFE, U+10FFFF
+    if ((cp & 0xFFFE) == 0xFFFE && cp >= 0xFFFE && cp <= 0x10FFFF) return true;
+    return false;
+}
+
+static inline bool is_private_use(uint32_t cp) noexcept {
+    // BMP private use area and planes 15/16
+    if (cp >= 0xE000 && cp <= 0xF8FF) return true;
+    if (cp >= 0xF0000 && cp <= 0xFFFFD) return true;
+    if (cp >= 0x100000 && cp <= 0x10FFFD) return true;
+    return false;
+}
+
+static inline bool is_surrogate(uint32_t cp) noexcept {
+    return (cp >= 0xD800 && cp <= 0xDFFF);
+}
+
+// ---------- blacklists: controls, separators, punctuation, symbol-like ----------
+static inline bool is_control_or_format(uint32_t cp) noexcept {
+    // C0/C1 control characters
+    if (cp <= 0x1F) return true;
+    if (cp >= 0x7F && cp <= 0x9F) return true;
+    // Some format chars that are dangerous / invisible (we disallow)
+    // (Exceptions: we allow ZERO WIDTH NON-JOINER (U+200C) and ZERO WIDTH JOINER (U+200D) below)
+    if ((cp >= 0x200E && cp <= 0x200F) || // LRM/RLM
+        (cp >= 0x202A && cp <= 0x202E) || // bidi overrides
+        (cp >= 0x2060 && cp <= 0x206F)    // invisible format / control-like
+            ) return true;
+    return false;
+}
+
+static inline bool is_space_separator(uint32_t cp) noexcept {
+    // various space separators (Unicode Zs)
+    if (cp == 0x00A0) return true;
+    if (cp == 0x1680) return true;
+    if (cp >= 0x2000 && cp <= 0x200A) return true;
+    if (cp == 0x2028 || cp == 0x2029) return true; // line/paragraph separator
+    if (cp == 0x202F) return true;
+    if (cp == 0x205F) return true;
+    if (cp == 0x3000) return true; // ideographic space
+    return false;
+}
+
+static inline bool is_punctuation_or_symbol_block(uint32_t cp) noexcept {
+    // block-level blacklists for punctuation/symbols (non-exhaustive but broad)
+    // NOTE: we intentionally do NOT blacklist the Letterlike Symbols block (2100..214F)
+    // because some languages expect characters there to be allowed. Adjust if you want.
+    if (cp >= 0x2000 && cp <= 0x206F) return true; // General Punctuation
+    if (cp >= 0x2E00 && cp <= 0x2E7F) return true; // Supplemental Punctuation
+    if (cp >= 0x3000 && cp <= 0x303F) return true; // CJK Symbols and Punctuation
+    if (cp >= 0x2190 && cp <= 0x21FF) return true; // Arrows
+    if (cp >= 0x2200 && cp <= 0x22FF) return true; // Mathematical Operators
+    if (cp >= 0x2300 && cp <= 0x23FF) return true; // Misc Technical
+    if (cp >= 0x2460 && cp <= 0x24FF) return true; // Enclosed Alphanumerics
+    if (cp >= 0x2500 && cp <= 0x257F) return true; // Box Drawing
+    if (cp >= 0x25A0 && cp <= 0x25FF) return true; // Geometric Shapes
+    if (cp >= 0x2600 && cp <= 0x26FF) return true; // Misc Symbols
+    if (cp >= 0x2700 && cp <= 0x27BF) return true; // Dingbats
+    if (cp >= 0x2B00 && cp <= 0x2BFF) return true; // Misc Symbols & Arrows
+    if (cp >= 0x1F000 && cp <= 0x1F9FF) return true; // many emoji/pictographs (covers several emoji ranges)
+    if (cp >= 0x1FA70 && cp <= 0x1FAFF) return true; // Symbols & Pictographs Extended-A
+    if (cp >= 0x2300 && cp <= 0x23FF) return true; // Misc Technical (repeat ok)
+    if (cp >= 0xFE00 && cp <= 0xFE0F) return false; // variation selectors: treat specially (allow combination)
+    // Currency symbols
+    if (cp >= 0x20A0 && cp <= 0x20CF) return true;
+    return false;
+}
+
+// ---------- digits detection (common script digit ranges) ----------
+static inline bool is_unicode_digit_common(uint32_t cp) noexcept {
+    // ASCII digits handled via ASCII fast path; here handle common non-ASCII digit blocks.
+    // This covers the vast majority of scripts' decimal digits; extend with generator for full coverage.
+    if (cp >= 0x0660 && cp <= 0x0669) return true; // Arabic-Indic
+    if (cp >= 0x06F0 && cp <= 0x06F9) return true; // Extended Arabic-Indic
+    if (cp >= 0x07C0 && cp <= 0x07C9) return true; // NKo digits
+    if (cp >= 0x0966 && cp <= 0x096F) return true; // Devanagari
+    if (cp >= 0x09E6 && cp <= 0x09EF) return true; // Bengali
+    if (cp >= 0x0A66 && cp <= 0x0A6F) return true; // Gurmukhi
+    if (cp >= 0x0AE6 && cp <= 0x0AEF) return true; // Gujarati
+    if (cp >= 0x0B66 && cp <= 0x0B6F) return true; // Oriya
+    if (cp >= 0x0BE6 && cp <= 0x0BEF) return true; // Tamil
+    if (cp >= 0x0C66 && cp <= 0x0C6F) return true; // Telugu
+    if (cp >= 0x0CE6 && cp <= 0x0CEF) return true; // Kannada
+    if (cp >= 0x0D66 && cp <= 0x0D6F) return true; // Malayalam
+    if (cp >= 0x0E50 && cp <= 0x0E59) return true; // Thai
+    if (cp >= 0x0ED0 && cp <= 0x0ED9) return true; // Lao
+    if (cp >= 0x0F20 && cp <= 0x0F29) return true; // Tibetan
+    if (cp >= 0x1040 && cp <= 0x1049) return true; // Myanmar
+    if (cp >= 0x17E0 && cp <= 0x17E9) return true; // Khmer
+    if (cp >= 0x1810 && cp <= 0x1819) return true; // Mongolian
+    if (cp >= 0x1946 && cp <= 0x194F) return true; // Limbu
+    if (cp >= 0x19D0 && cp <= 0x19D9) return true; // New Tai Lue
+    if (cp >= 0x1A80 && cp <= 0x1A89) return true; // Tai Tham
+    if (cp >= 0x1B50 && cp <= 0x1B59) return true; // Balinese
+    if (cp >= 0x1BB0 && cp <= 0x1BB9) return true; // Sundanese
+    if (cp >= 0xFF10 && cp <= 0xFF19) return true; // Fullwidth digits
+    // There are more numeric ranges; add via offline generator if you want absolute coverage.
+    return false;
+}
+
+// ---------- Zero-width exceptions allowed in continuation ----------
+static inline bool is_zero_width_joiner_or_non_joiner(uint32_t cp) noexcept {
+    return (cp == 0x200C || cp == 0x200D);
+}
+
+// ---------- Top-level predicates (blacklist strategy) ----------
+static inline bool isIdentifierStart(uint32_t cp) noexcept {
+    // 1) ASCII fast-path: very common and must be super-fast
+    if (cp < 0x80) {
+        return is_ascii_letter_or_underscore(cp);
+    }
+
+    // invalid scalar checks
+    if (cp > 0x10FFFF) return false;
+    if (is_surrogate(cp)) return false;
+    if (is_noncharacter(cp)) return false;
+    if (is_private_use(cp)) return false;
+    if (is_control_or_format(cp)) return false;
+    if (is_space_separator(cp)) return false;
+
+    // 2) Disallow symbol/punctuation heavy blocks (emoji, math, arrows, dingbats, etc.)
+    if (is_punctuation_or_symbol_block(cp)) return false;
+
+    // 3) Reject digits as start (covers many scripts)
+    // ASCII digits were handled in the ASCII fast-path.
+    if (is_unicode_digit_common(cp)) return false;
+
+    // If we reached here, it's not in the disallowed blacklists above -> allow.
+    // This accepts letters from pretty much any script, combining marks (rare at start),
+    // many letterlike symbols that some languages expect, etc.
+    return true;
+}
+
+static inline bool isIdentifierContinue(uint32_t cp) noexcept {
+    // 1) ASCII fast-path
+    if (cp < 0x80) {
+        return is_ascii_letter_digit_or_underscore(cp);
+    }
+
+    // invalid scalar checks
+    if (cp > 0x10FFFF) return false;
+    if (is_surrogate(cp)) return false;
+    if (is_noncharacter(cp)) return false;
+    if (is_private_use(cp)) return false;
+    if (is_control_or_format(cp)) return false;
+    if (is_space_separator(cp)) return false;
+
+    // 2) Reject symbol/punctuation heavy blocks
+    if (is_punctuation_or_symbol_block(cp)) return false;
+
+    // 3) Allow zero-width joiner / non-joiner (useful in some scripts)
+    if (is_zero_width_joiner_or_non_joiner(cp)) return true;
+
+    // 4) Combining marks and other diacritics are allowed (they are not blacklisted above),
+    //    and many digit ranges are allowed in continuation (we accept them by default).
+    //    The only digits explicitly denied are in the start check — continuation accepts digits.
+
+    // If we reached here, accept.
+    return true;
+}
+
 void read_digits(SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
-        if(next != '\0' && std::isdigit(next)) {
+        if(next != '\0' && is_ascii_digit(next)) {
             provider.increment();
         } else {
             return;
@@ -168,7 +358,7 @@ void read_digits(SourceProvider& provider) {
 void read_alpha_or_digits(SourceProvider& provider) {
     while(true) {
         auto next = provider.peek();
-        if(next != '\0' && std::isalnum(next)) {
+        if(next != '\0' && is_ascii_letter_or_digit(next)) {
             provider.increment();
         } else {
             return;
@@ -381,10 +571,11 @@ bool read_char_in_quotes(SourceProvider& provider) {
 }
 
 void read_id(SourceProvider& provider) {
+    std::size_t len;
     while(true) {
-        auto p = provider.peek();
-        if(p != '\0' && (p == '_' || std::isalnum(p))) {
-            provider.increment();
+        auto cp = provider.utf8_decode_peek(len);
+        if(cp != 0u && isIdentifierContinue(cp)) {
+            provider.incrementCodepoint(cp, len);
         } else {
             return;
         }
@@ -392,22 +583,24 @@ void read_id(SourceProvider& provider) {
 }
 
 void read_annotation_id(SourceProvider& provider) {
+    std::size_t len;
     while(true) {
-        const auto p = provider.peek();
-        switch(p) {
-            case '\0':
+        const auto cp = provider.utf8_decode_peek(len);
+        switch(cp) {
             case '_':
             case '.':
             case ':':
-                provider.increment();
+                provider.incrementCodepoint(cp, len);
                 break;
             default:
-                if(std::isalnum(p)) {
-                    provider.increment();
+                if(isIdentifierContinue(cp)) {
+                    provider.incrementCodepoint(cp, len);
                 } else {
                     return;
                 }
                 break;
+            case '\0':
+                return;
         }
     }
 }
@@ -435,8 +628,8 @@ Token Lexer::getNextToken() {
         }
     }
     const auto curr_data_ptr = provider.current_data();
-    const auto current = provider.readCharacter();
-    switch(current) {
+    const auto cp = provider.readCodePoint();
+    switch(cp) {
         case '\0':
             return Token(TokenType::EndOfFile, { "", 0 }, pos);
         case '{':
@@ -515,10 +708,18 @@ Token Lexer::getNextToken() {
         case ';':
             return Token(TokenType::SemiColonSym, view_str(SemiColOpCStr), pos);
         case '@': {
+            const auto first = provider.readCodePoint();
+            if(!isIdentifierStart(first)) {
+                diagnoser.diagnostic(AnnotMacroStartErr, chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+            }
             read_annotation_id(provider);
             return Token(TokenType::Annotation, view_from(provider, curr_data_ptr), pos);
         }
         case '#': {
+            const auto first = provider.readCodePoint();
+            if(!isIdentifierStart(first)) {
+                diagnoser.diagnostic(AnnotMacroStartErr, chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+            }
             read_annotation_id(provider);
             auto hashed_view = view_from(provider, curr_data_ptr);
             auto view = chem::string_view((hashed_view.data() + 1), hashed_view.size() - 1);
@@ -673,10 +874,10 @@ Token Lexer::getNextToken() {
         default:
             break;
     }
-    if(std::isdigit(current)) {
+    if(is_ascii_digit(cp)) {
         read_number(provider);
         return Token(TokenType::Number, view_from(provider, curr_data_ptr), pos);
-    } else if(current == '_' || std::isalpha(current)) {
+    } else if(isIdentifierStart(cp)) {
         read_id(provider);
         auto view = view_from(provider, curr_data_ptr);
         auto found = keywords.find(view);

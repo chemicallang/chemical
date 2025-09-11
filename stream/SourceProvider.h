@@ -177,10 +177,10 @@ public:
         std::size_t len = 0;
         char32_t cp = utf8_decode_peek(len);
         if (len == 0) return 0; // EOF
-        handleCodepointRead(cp); // increment line number
         const auto rem = static_cast<std::size_t>(end_ - data_);
         const auto step = (len <= rem) ? len : rem;
         data_ += step;
+        handleCodepointRead(cp); // increment line number
         return cp;
     }
 

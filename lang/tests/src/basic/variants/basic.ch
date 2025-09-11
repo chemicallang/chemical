@@ -366,4 +366,19 @@ func test_variants() {
         p.b = 4
         return p.multiply() == 32
     })
+    test("pointer to variant works in switch pattern match", () => {
+        var p = new OptVariant
+        new (p) OptVariant.Some(765)
+        var result : int = 0
+        switch(p) {
+            Some(a) => {
+                result = a;
+            }
+            None() => {
+
+            }
+        }
+        dealloc p
+        return result == 765
+    })
 }

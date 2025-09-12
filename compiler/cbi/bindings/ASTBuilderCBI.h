@@ -88,13 +88,13 @@ extern "C" {
 
     ArrayValue* ASTBuildermake_array_value(ASTBuilder* builder, BaseType* type, uint64_t location);
 
-    BigIntValue* ASTBuildermake_bigint_value(ASTBuilder* builder, long long value, uint64_t location);
+    IntNumValue* ASTBuildermake_bigint_value(ASTBuilder* builder, long long value, uint64_t location);
 
     BoolValue* ASTBuildermake_bool_value(ASTBuilder* builder, bool value, uint64_t location);
 
     CastedValue* ASTBuildermake_casted_value(ASTBuilder* builder, Value* value, BaseType* type, uint64_t location);
 
-    CharValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location);
+IntNumValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location);
 
     DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, uint64_t location);
 
@@ -110,9 +110,9 @@ extern "C" {
 
     IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location);
 
-    Int128Value* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location);
+    IntNumValue* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location);
 
-    IntValue* ASTBuildermake_int_value(ASTBuilder* builder, int value, uint64_t location);
+    IntNumValue* ASTBuildermake_int_value(ASTBuilder* builder, int value, uint64_t location);
 
     IsValue* ASTBuildermake_is_value(ASTBuilder* builder, Value* value, BaseType* type, bool is_negating, uint64_t location);
 
@@ -120,7 +120,7 @@ extern "C" {
 
     CapturedVariable* ASTBuildermake_captured_variable(ASTBuilder* builder, chem::string_view* name, unsigned int index, bool capture_by_ref, bool mutable_ref, long value, uint64_t location);
 
-    LongValue* ASTBuildermake_long_value(ASTBuilder* builder, long value, uint64_t location);
+    IntNumValue* ASTBuildermake_long_value(ASTBuilder* builder, long value, uint64_t location);
 
     NegativeValue* ASTBuildermake_negative_value(ASTBuilder* builder, Value* value, uint64_t location);
 
@@ -128,9 +128,9 @@ extern "C" {
 
     NullValue* ASTBuildermake_null_value(ASTBuilder* builder, uint64_t location);
 
-    NumberValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location);
+    IntNumValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location);
 
-    ShortValue* ASTBuildermake_short_value(ASTBuilder* builder, short value, uint64_t location);
+    IntNumValue* ASTBuildermake_short_value(ASTBuilder* builder, short value, uint64_t location);
 
     SizeOfValue* ASTBuildermake_sizeof_value(ASTBuilder* builder, BaseType* type, uint64_t location);
 
@@ -138,17 +138,17 @@ extern "C" {
 
     StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, BaseType* ref, ASTNode* parent_node, uint64_t location);
 
-    UBigIntValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location);
+    IntNumValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location);
 
-    UCharValue* ASTBuildermake_uchar_value(ASTBuilder* builder, unsigned char value, uint64_t location);
+    IntNumValue* ASTBuildermake_uchar_value(ASTBuilder* builder, unsigned char value, uint64_t location);
 
-    UInt128Value* ASTBuildermake_uint128_value(ASTBuilder* builder, uint64_t low, uint64_t high, uint64_t location);
+    IntNumValue* ASTBuildermake_uint128_value(ASTBuilder* builder, uint64_t low, uint64_t high, uint64_t location);
 
-    UIntValue* ASTBuildermake_uint_value(ASTBuilder* builder, unsigned int value, uint64_t location);
+    IntNumValue* ASTBuildermake_uint_value(ASTBuilder* builder, unsigned int value, uint64_t location);
 
-    ULongValue* ASTBuildermake_ulong_value(ASTBuilder* builder, unsigned long value, uint64_t location);
+    IntNumValue* ASTBuildermake_ulong_value(ASTBuilder* builder, unsigned long value, uint64_t location);
 
-    UShortValue* ASTBuildermake_ushort_value(ASTBuilder* builder, unsigned short value, uint64_t location);
+    IntNumValue* ASTBuildermake_ushort_value(ASTBuilder* builder, unsigned short value, uint64_t location);
 
     BlockValue* ASTBuildermake_block_value(ASTBuilder* builder, ASTNode* parent_node, uint64_t location);
 

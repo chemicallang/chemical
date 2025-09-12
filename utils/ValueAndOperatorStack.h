@@ -8,7 +8,6 @@
 
 #include "parser/Parser.h"
 #include "ast/values/Expression.h"
-#include "ast/values/CharValue.h"
 
 class ValueAndOperatorStack {
 public:

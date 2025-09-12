@@ -25,7 +25,6 @@
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "IntValue.h"
 
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* expected_type) {
 

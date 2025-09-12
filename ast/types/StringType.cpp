@@ -1,7 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "StringType.h"
-#include "CharType.h"
+#include "IntNType.h"
 
 const CharType instance;
 

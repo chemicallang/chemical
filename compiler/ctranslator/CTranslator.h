@@ -24,7 +24,7 @@ class TypeBuilder;
  *
  * this expects a builtin type of the same kind, which is being used to index it on vector type_makers
  */
-typedef BaseType*(*CTypeMakerFn)(ASTAllocator&, clang::BuiltinType*, SourceLocation location);
+typedef BaseType*(*CTypeMakerFn)(TypeBuilder& typeBuilder, ASTAllocator&, clang::BuiltinType*, SourceLocation location);
 
 /**
  * Node maker fn

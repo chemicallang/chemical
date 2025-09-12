@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "EnumDeclaration.h"
-#include "ast/types/IntType.h"
 #include "ast/types/LinkedType.h"
 
 BaseType* EnumMember::known_type() {

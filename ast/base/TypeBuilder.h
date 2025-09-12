@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ASTAllocator.h"
+#include "ast/types/IntNType.h"
 
 /**
  * type builder helps build ast, in future it may serve
@@ -12,25 +13,41 @@
 class TypeBuilder {
 private:
 
+    // c like integer types
+    I8Type i8Type = I8Type();
+    I16Type i16Type = I16Type();
+    I32Type i32Type = I32Type();
+    I64Type i64Type = I64Type();
+    Int128Type int128Type = Int128Type();
+
+    U8Type u8Type = U8Type();
+    U16Type u16Type = U16Type();
+    U32Type u32Type = U32Type();
+    U64Type u64Type = U64Type();
+    UInt128Type uInt128Type = UInt128Type();
+
+    // c like integer types
+    CharType charType = CharType();
+    ShortType shortType = ShortType();
+    IntType intType = IntType();
+    LongType longType = LongType();
+    BigIntType bigIntType = BigIntType();
+
+    // c like unsigned integer types
+    UCharType uCharType = UCharType();
+    UShortType uShortType = UShortType();
+    UIntType uIntType = UIntType();
+    ULongType uLongType = ULongType();
+    UBigIntType uBigIntType = UBigIntType();
+
+    // other types
     AnyType* anyType;
-    BigIntType* bigIntType;
     BoolType* boolType;
-    CharType* charType;
     DoubleType* doubleType;
     Float128Type* float128Type;
     FloatType* floatType;
-    Int128Type* int128Type;
-    IntType* intType;
     LongDoubleType* longDoubleType;
-    LongType* longType;
-    ShortType* shortType;
     StringType* stringType;
-    UBigIntType* uBigIntType;
-    UCharType* uCharType;
-    UInt128Type* uInt128Type;
-    UIntType* uIntType;
-    ULongType* uLongType;
-    UShortType* uShortType;
     VoidType* voidType;
     NullPtrType* nullPtrType;
     PointerType* ptrToVoid;
@@ -43,7 +60,10 @@ public:
     /**
      * constructor
      */
-    inline TypeBuilder(ASTAllocator& allocator) : allocator(allocator) {
+    inline TypeBuilder(
+            ASTAllocator& allocator
+    ) : allocator(allocator)
+    {
         initialize();
     }
 
@@ -52,17 +72,99 @@ public:
      */
     void initialize();
 
+    // -------------------------------
+    // -- Chemical Integer Types --
+    // -------------------------------
+
+    inline I8Type* getI8Type() noexcept { return &i8Type; }
+    inline I16Type* getI16Type() noexcept { return &i16Type; }
+    inline I32Type* getI32Type() noexcept { return &i32Type; }
+    inline I64Type* getI64Type() noexcept { return &i64Type; }
+    inline Int128Type* getInt128Type() noexcept { return &int128Type; }
+
+    inline U8Type* getU8Type() noexcept { return &u8Type; }
+    inline U16Type* getU16Type() noexcept { return &u16Type; }
+    inline U32Type* getU32Type() noexcept { return &u32Type; }
+    inline U64Type* getU64Type() noexcept { return &u64Type; }
+    inline UInt128Type* getUInt128Type() noexcept { return &uInt128Type; }
+
+    // -------------------------------
+    // -- C Like Integer Types --
+    // -------------------------------
+
+    inline CharType* getCharType() noexcept { return &charType; }
+    inline ShortType* getShortType() noexcept { return &shortType; }
+    inline IntType* getIntType() noexcept { return &intType; }
+    inline LongType* getLongType() noexcept { return &longType; }
+    inline BigIntType* getBigIntType() noexcept { return &bigIntType; }
+
+    inline UCharType* getUCharType() noexcept { return &uCharType; }
+    inline UShortType* getUShortType() noexcept { return &uShortType; }
+    inline UIntType* getUIntType() noexcept { return &uIntType; }
+    inline ULongType* getULongType() noexcept { return &uLongType; }
+    inline UBigIntType* getUBigIntType() noexcept { return &uBigIntType; }
+
+    /**
+     * method to get int n type for given bit width and signedness
+     */
+    IntNType* getIntNType(unsigned int bitWidth, bool isUnsigned) noexcept {
+        switch(bitWidth) {
+            case 8:
+                return isUnsigned ? (IntNType*) getU8Type() : (IntNType*) getI8Type();
+            case 16:
+                return isUnsigned ? (IntNType*) getU16Type() : (IntNType*) getI16Type();
+            case 32:
+            default:
+                return isUnsigned ? (IntNType*) getU32Type() : (IntNType*) getI32Type();
+            case 64:
+                return isUnsigned ? (IntNType*) getU64Type() : (IntNType*) getI64Type();
+            case 128:
+                return isUnsigned ? (IntNType*) getInt128Type() : (IntNType*) getUInt128Type();
+        }
+    }
+
+    /**
+     * method to get int n type for given int n type kind
+     */
+    IntNType* getIntNType(IntNTypeKind kind) noexcept {
+        switch(kind) {
+            case IntNTypeKind::Char: return getCharType();
+            case IntNTypeKind::Short: return getShortType();
+            case IntNTypeKind::Int: return getIntType();
+            case IntNTypeKind::Long: return getLongType();
+            case IntNTypeKind::BigInt: return getBigIntType();
+            case IntNTypeKind::Int128: return getInt128Type();
+            case IntNTypeKind::I8: return getI8Type();
+            case IntNTypeKind::I16: return getI16Type();
+            case IntNTypeKind::I32: return getI32Type();
+            case IntNTypeKind::I64: return getI64Type();
+            case IntNTypeKind::UChar: return getUCharType();
+            case IntNTypeKind::UShort: return getUShortType();
+            case IntNTypeKind::UInt: return getUIntType();
+            case IntNTypeKind::ULong: return getULongType();
+            case IntNTypeKind::UBigInt: return getUBigIntType();
+            case IntNTypeKind::UInt128: return getUInt128Type();
+            case IntNTypeKind::U8: return getU8Type();
+            case IntNTypeKind::U16: return getU16Type();
+            case IntNTypeKind::U32: return getU32Type();
+            case IntNTypeKind::U64: return getU64Type();
+            default:
+#ifdef DEBUG
+                abort();
+#endif
+                return getIntType();
+        }
+    }
+
+    // -------------------------------
+    // -- Other Types --
+    // -------------------------------
+
     /**
      * get AnyType
      */
-    AnyType* getAnyType() {
+    inline AnyType* getAnyType() const noexcept {
         return anyType;
-    }
-    /**
-     * get BigIntType
-     */
-    BigIntType* getBigIntType() {
-        return bigIntType;
     }
 
     /**
@@ -70,13 +172,6 @@ public:
      */
     BoolType* getBoolType() {
         return boolType;
-    }
-
-    /**
-     * get CharType
-     */
-    CharType* getCharType() {
-        return charType;
     }
 
     /**
@@ -100,19 +195,6 @@ public:
         return floatType;
     }
 
-    /**
-     * get Int128Type
-     */
-    Int128Type* getInt128Type() {
-        return int128Type;
-    }
-
-    /**
-     * get IntType
-     */
-    IntType* getIntType() {
-        return intType;
-    }
 
     /**
      * get LongDoubleType
@@ -122,66 +204,10 @@ public:
     }
 
     /**
-     * get LongType
-     */
-    LongType* getLongType() {
-        return longType;
-    }
-
-    /**
-     * get ShortType
-     */
-    ShortType* getShortType() {
-        return shortType;
-    }
-
-    /**
      * get StringType
      */
     StringType* getStringType() {
         return stringType;
-    }
-
-    /**
-     * get UBigIntType
-     */
-    UBigIntType* getUBigIntType() {
-        return uBigIntType;
-    }
-
-    /**
-     * get UCharType
-     */
-    UCharType* getUCharType() {
-        return uCharType;
-    }
-
-    /**
-     * get UInt128Type
-     */
-    UInt128Type* getUInt128Type() {
-        return uInt128Type;
-    }
-
-    /**
-     * get UIntType
-     */
-    UIntType* getUIntType() {
-        return uIntType;
-    }
-
-    /**
-     * get ULongType
-     */
-    ULongType* getULongType() {
-        return uLongType;
-    }
-
-    /**
-     * get UShortType
-     */
-    UShortType* getUShortType() {
-        return uShortType;
     }
 
     /**

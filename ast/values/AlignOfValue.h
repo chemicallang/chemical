@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "ast/values/UBigIntValue.h"
+#include "ast/base/Value.h"
+#include "ast/values/IntNumValue.h"
 
 /**
  * will determine the size of a given type

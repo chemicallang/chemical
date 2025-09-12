@@ -8,7 +8,7 @@
 
 #include <utility>
 
-#include "ast/values/CharValue.h"
+#include "ast/base/Value.h"
 #include "ast/types/StringType.h"
 #include "std/chem_string_view.h"
 

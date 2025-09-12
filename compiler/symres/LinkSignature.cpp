@@ -353,7 +353,7 @@ void TopLevelLinkSignature::VisitArrayType(ArrayType* type) {
     if(arr_size_val == nullptr) return;
     const auto evaluated = arr_size_val->evaluated_value(linker.comptime_scope);
     if(evaluated == nullptr) return;
-    const auto number = evaluated->get_the_number();
+    const auto number = evaluated->get_number();
     if(number.has_value()) {
         type->set_array_size(number.value());
     }

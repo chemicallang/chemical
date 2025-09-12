@@ -16,9 +16,6 @@ class TypeBuilder;
 
 BaseType* create_extraction_value_type(TypeBuilder& builder, ExtractionKind kind);
 
-[[deprecated]]
-BaseType* create_extraction_value_type(ASTAllocator& builder, ExtractionKind kind);
-
 class ExtractionValue : public Value {
 public:
 

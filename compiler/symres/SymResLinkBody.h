@@ -181,8 +181,6 @@ public:
 
     void VisitFunctionCall(FunctionCall* value);
 
-    void VisitNumberValue(NumberValue* value);
-
     void VisitEmbeddedValue(EmbeddedValue* value);
 
     void VisitComptimeValue(ComptimeValue* value);

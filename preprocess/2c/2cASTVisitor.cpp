@@ -59,30 +59,17 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
-#include "ast/types/BigIntType.h"
 #include "ast/types/BoolType.h"
-#include "ast/types/CharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
-#include "ast/types/Int128Type.h"
 #include "ast/types/IntNType.h"
-#include "ast/types/IntType.h"
 #include "ast/types/LiteralType.h"
-#include "ast/types/LongType.h"
-#include "ast/types/ShortType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
-#include "ast/types/UBigIntType.h"
-#include "ast/types/UInt128Type.h"
-#include "ast/types/UIntType.h"
 #include "ast/types/ComplexType.h"
-#include "ast/types/ULongType.h"
-#include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/CapturingFunctionType.h"
-#include "ast/values/UShortValue.h"
 #include "ast/values/VariableIdentifier.h"
-#include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/BlockValue.h"
@@ -94,10 +81,7 @@
 #include "ast/values/ValueNode.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
-#include "ast/values/BigIntValue.h"
 #include "ast/values/BoolValue.h"
-#include "ast/values/CharValue.h"
-#include "ast/values/UCharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/ExtractionValue.h"
@@ -105,28 +89,20 @@
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/IndexOperator.h"
-#include "ast/values/Int128Value.h"
 #include "ast/values/IntNumValue.h"
-#include "ast/values/LongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/NullValue.h"
-#include "ast/values/NumberValue.h"
-#include "ast/values/ShortValue.h"
 #include "ast/values/StringValue.h"
-#include "ast/values/UBigIntValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/values/NewTypedValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/PatternMatchExpr.h"
-#include "ast/values/UInt128Value.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/InValue.h"
-#include "ast/values/UIntValue.h"
-#include "ast/values/ULongValue.h"
 #include "preprocess/utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
@@ -1919,7 +1895,7 @@ public:
     void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, MembersContainer* linked, FunctionDeclaration* destructor);
 
     void destruct_arr(const chem::string_view& self_name, int array_size, MembersContainer* linked, FunctionDeclaration* destructor) {
-        IntValue siz(array_size, visitor.comptime_scope.typeBuilder.getIntType(), ZERO_LOC);
+        IntNumValue siz(array_size, visitor.comptime_scope.typeBuilder.getIntType(), ZERO_LOC);
         destruct_arr_ptr(self_name, &siz, linked, destructor);
     }
 
@@ -4463,7 +4439,7 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     nested_value = prev_nested;
 
     if(data.destructor_func != nullptr) {
-        UBigIntValue siz_val(data.array_size, comptime_scope.typeBuilder.getUBigIntType(), ZERO_LOC);
+        IntNumValue siz_val(data.array_size, comptime_scope.typeBuilder.getUBigIntType(), ZERO_LOC);
         if (stmt->is_array) {
             destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
         } else {
@@ -5593,48 +5569,16 @@ void ToCAstVisitor::VisitTryStmt(TryCatch *statement) {
     write("[TryCatch_UNIMPLEMENTED]");
 }
 
-void ToCAstVisitor::VisitIntValue(IntValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitBigIntValue(BigIntValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitLongValue(LongValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitShortValue(ShortValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitUBigIntValue(UBigIntValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitUIntValue(UIntValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitULongValue(ULongValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitUShortValue(UShortValue *val) {
-    writer << val->value;
-}
-
-void ToCAstVisitor::VisitInt128Value(Int128Value *val) {
-    writer << val->get_num_value();
-}
-
-void ToCAstVisitor::VisitUInt128Value(UInt128Value *val) {
-    writer << val->get_num_value();
-}
-
-void ToCAstVisitor::VisitNumberValue(NumberValue *numValue) {
-    writer << numValue->get_num_value();
+void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
+    const auto type = value->getType()->IntNKind();
+    const auto is_char = type == IntNTypeKind::Char || type == IntNTypeKind::UChar;
+    if(is_char) {
+        write('\'');
+        write_escape_encoded(writer, value->value);
+        write('\'');
+    } else {
+        writer << value->value;
+    }
 }
 
 void ToCAstVisitor::VisitFloatValue(FloatValue *val) {
@@ -5647,18 +5591,6 @@ void ToCAstVisitor::VisitFloatValue(FloatValue *val) {
 
 void ToCAstVisitor::VisitDoubleValue(DoubleValue *val) {
     writer << val->value;
-}
-
-void ToCAstVisitor::VisitCharValue(CharValue *val) {
-    write('\'');
-    write_escape_encoded(writer, val->value);
-    write('\'');
-}
-
-void ToCAstVisitor::VisitUCharValue(UCharValue *val) {
-    write('\'');
-    write_escape_encoded(writer, (char) val->value);
-    write('\'');
 }
 
 void ToCAstVisitor::VisitStringValue(StringValue *val) {

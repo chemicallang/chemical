@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
-#include "ast/types/IntType.h"
 
 struct EnumMemberAttributes {
     bool deprecated;

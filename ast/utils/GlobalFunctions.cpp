@@ -10,11 +10,9 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
-#include "ast/values/IntValue.h"
-#include "ast/values/UIntValue.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
-#include "ast/values/UBigIntValue.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/WrapValue.h"
 #include "ast/values/RetStructParamValue.h"
@@ -35,13 +33,12 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
-#include "ast/types/UBigIntType.h"
 #include "ast/types/AnyType.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/Version.h"
-#include "ast/types/UIntType.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/IntNType.h"
 #include "core/source/LocationManager.h"
 #include "ast/base/TypeBuilder.h"
 #include "compiler/symres/DeclareTopLevel.h"
@@ -191,7 +188,7 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorSize::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new (allocator.allocate<IntValue>()) IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), call_scope->global->typeBuilder.getIntType(), ZERO_LOC);
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), call_scope->global->typeBuilder.getIntType(), ZERO_LOC);
     }
 
 
@@ -435,11 +432,11 @@ public:
         }
         switch(val_kind) {
             case ValueKind::String:
-                return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value->get_the_string().size(), call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->get_the_string().size(), call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
             case ValueKind::ArrayValue:
-                return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->as_array_value()->array_size(), call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
             default:
-                return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
         }
     }
 };
@@ -647,7 +644,7 @@ public:
                     supports = call_scope->global->backend_context->supports(CompilerFeatureKind::Float128);
                 }
             } else {
-                const auto number = eval->get_the_number();
+                const auto number = eval->get_number();
                 if (number.has_value()) {
                     supports = call_scope->global->backend_context->supports((CompilerFeatureKind) (int) number.value());
                 }
@@ -718,7 +715,7 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
     }
 
 };
@@ -744,7 +741,7 @@ public:
         }
         const auto first_arg = call->values[0];
         const auto first_arg_eval = first_arg ? first_arg->evaluated_value(*call_scope) : first_arg;
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(first_arg_eval->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(first_arg_eval->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
     }
 
 };
@@ -767,7 +764,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->encoded_location());
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.lineStart + 1, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
     }
 
 };
@@ -788,7 +785,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->encoded_location());
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.charStart + 1, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
     }
 
 };
@@ -821,9 +818,9 @@ public:
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
             const auto loc = global->loc_man.getLocation(runtime_call->encoded_location());
-            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.lineStart + 1, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.lineStart + 1, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
         } else {
-            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
         }
     }
 
@@ -848,9 +845,9 @@ public:
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
             const auto loc = global->loc_man.getLocation(runtime_call->encoded_location());
-            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(loc.charStart + 1, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.charStart + 1, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
         } else {
-            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
         }
     }
 
@@ -877,7 +874,7 @@ public:
         }
         const auto argVal = call->values.back();
         const auto arg = argVal->evaluated_value(*call_scope);
-        if(!arg || arg->kind() < ValueKind::IntNStart || arg->kind() > ValueKind::IntNEnd) {
+        if(!arg || arg->kind() != ValueKind::IntN) {
             call_scope->error("get_call_loc expects a integer argument", arg);
             return nullptr;
         }
@@ -886,10 +883,10 @@ public:
         const auto call_number = num.value();
         const auto stack_size = global->call_stack.size();
         if(stack_size == 0) {
-            return new (allocator.allocate<UBigIntValue>()) UBigIntValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
         }
         const auto final_call = call_number > stack_size ? global->call_stack.front() : global->call_stack[stack_size - 1 - call_number];
-        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(final_call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(final_call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
     }
 
 };
@@ -932,7 +929,7 @@ public:
 
         const auto argVal = call->values.back();
         const auto arg = argVal->evaluated_value(*call_scope);
-        if(!arg || arg->kind() != ValueKind::UBigInt) {
+        if(!arg || arg->kind() != ValueKind::IntN) {
             call_scope->error("decode_location expects a u64 location argument", arg);
             return nullptr;
         }
@@ -946,10 +943,10 @@ public:
         const auto filePathStr = new (allocator.allocate<StringValue>()) StringValue(chem::string_view(filePathView), typeBuilder.getStringType(), loc);
         structValue->values.emplace("filename", StructMemberInitializer { "filename", filePathStr });
 
-        const auto lineNoVal = new (allocator.allocate<UIntValue>()) UIntValue(decoded.lineStart, typeBuilder.getUIntType(), loc);
+        const auto lineNoVal = new (allocator.allocate<IntNumValue>()) IntNumValue(decoded.lineStart, typeBuilder.getUIntType(), loc);
         structValue->values.emplace("line", StructMemberInitializer { "line", lineNoVal });
 
-        const auto charNoVal = new (allocator.allocate<UIntValue>()) UIntValue(decoded.charStart, typeBuilder.getUIntType(), loc);
+        const auto charNoVal = new (allocator.allocate<IntNumValue>()) IntNumValue(decoded.charStart, typeBuilder.getUIntType(), loc);
         structValue->values.emplace("character", StructMemberInitializer { "character", charNoVal });
 
         return structValue;
@@ -1210,12 +1207,12 @@ public:
             return nullptr;
         }
         const auto eval_value = call->values.back()->evaluated_value(*call_scope);
-        if(eval_value == nullptr || eval_value->kind() != ValueKind::UBigInt) {
+        if(eval_value == nullptr || eval_value->kind() != ValueKind::IntN) {
             call_scope->error("couldn't evaluate value in get_loc_file_path", call);
             return nullptr;
         }
         auto& loc_man = call_scope->global->loc_man;
-        auto location = loc_man.getLocation(eval_value->as_ubigint_unsafe()->value);
+        auto location = loc_man.getLocation(eval_value->as_int_num_value_unsafe()->value);
         auto fileId = loc_man.getPathForFileId(location.fileId);
         return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileId.data(), fileId.size()), call_scope->global->typeBuilder.getStringType(), call->encoded_location());
     }
@@ -1595,7 +1592,7 @@ public:
                         }
                     }
                 }
-                const auto idVal = new (allocator.allocate<IntValue>()) IntValue(testId, typeBuilder.getIntType(), call->encoded_location());
+                const auto idVal = new (allocator.allocate<IntNumValue>()) IntNumValue(testId, typeBuilder.getIntType(), call->encoded_location());
                 value->values.emplace("id", StructMemberInitializer{"id", idVal});
 
                 // name
@@ -1631,10 +1628,10 @@ public:
                 // timeout
                 const auto timeArgs = controller.get_args(node.node, "test.timeout");
                 unsigned timeout = 1000 * 60 * 60 * 1; // 1 hour
-                if(timeArgs && !timeArgs->empty() && (*timeArgs)[0]->kind() == ValueKind::UInt) {
-                    timeout = (*timeArgs)[0]->get_the_uint();
+                if(timeArgs && !timeArgs->empty() && (*timeArgs)[0]->kind() == ValueKind::IntN) {
+                    timeout = (*timeArgs)[0]->as_int_num_value_unsafe()->value;
                 }
-                const auto timeoutVal = new (allocator.allocate<UIntValue>()) UIntValue(timeout, typeBuilder.getUIntType(), call->encoded_location());
+                const auto timeoutVal = new (allocator.allocate<IntNumValue>()) IntNumValue(timeout, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("timeout", StructMemberInitializer{"timeout", timeoutVal});
 
                 // retry
@@ -1653,7 +1650,7 @@ public:
                         }
                     }
                 }
-                const auto retryVal = new (allocator.allocate<UIntValue>()) UIntValue(retries, typeBuilder.getUIntType(), call->encoded_location());
+                const auto retryVal = new (allocator.allocate<IntNumValue>()) IntNumValue(retries, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("retry", StructMemberInitializer{"retry", retryVal});
 
                 // pass on crash
@@ -1668,9 +1665,9 @@ public:
 
                 // line number + char number
                 const auto locData = global.loc_man.getLocation(decl->encoded_location());
-                const auto lineNumValue = new (allocator.allocate<UIntValue>()) UIntValue(locData.lineStart, typeBuilder.getUIntType(), call->encoded_location());
+                const auto lineNumValue = new (allocator.allocate<IntNumValue>()) IntNumValue(locData.lineStart, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("lineNum", StructMemberInitializer{"lineNum", lineNumValue});
-                const auto charNumValue = new (allocator.allocate<UIntValue>()) UIntValue(locData.charStart, typeBuilder.getUIntType(), call->encoded_location());
+                const auto charNumValue = new (allocator.allocate<IntNumValue>()) IntNumValue(locData.charStart, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("charNum", StructMemberInitializer{"charNum", charNumValue});
 
                 i++;
@@ -2076,7 +2073,7 @@ public:
         if(t->isStringType()) {
             if(val->kind() == ValueKind::String) {
                 const auto str = val->as_string_unsafe();
-                const auto sizeVal = new (allocator.allocate<UBigIntValue>()) UBigIntValue(str->length, typeBuilder.getUBigIntType(), loc);
+                const auto sizeVal = new (allocator.allocate<IntNumValue>()) IntNumValue(str->length, typeBuilder.getUBigIntType(), loc);
                 return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStr(), "writeStr", parent_node, loc, sizeVal);
             } else {
                 return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStrNoLen(), "writeStrNoLen", parent_node, loc);

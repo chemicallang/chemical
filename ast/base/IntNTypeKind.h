@@ -9,6 +9,11 @@ enum class IntNTypeKind {
     BigInt,
     Int128,
 
+    I8,
+    I16,
+    I32,
+    I64,
+
     UChar,
     UShort,
     UInt,
@@ -16,9 +21,37 @@ enum class IntNTypeKind {
     UBigInt,
     UInt128,
 
-    SignedStart = Char,
-    SignedEnd = Int128,
+    U8,
+    U16,
+    U32,
+    U64,
+
     UnsignedStart = UChar,
-    UnsignedEnd = UInt128
 
 };
+
+inline constexpr bool is_unsigned(IntNTypeKind kind) {
+    return kind >= IntNTypeKind::UnsignedStart;
+}
+
+inline constexpr IntNTypeKind to_signed(IntNTypeKind kind) {
+    if(!is_unsigned(kind)) return kind;
+    return static_cast<IntNTypeKind>(static_cast<int>(kind) - static_cast<int>(IntNTypeKind::UnsignedStart));
+}
+
+inline constexpr IntNTypeKind determine_output(IntNTypeKind first, IntNTypeKind second) {
+    if(is_unsigned(first) && is_unsigned(second) || (!is_unsigned(first) && !is_unsigned(second))) {
+        return first > second ? first : second;
+    } else {
+        // one is signed, one is unsigned
+        if(is_unsigned(first)) {
+            // first is unsigned
+            const auto signedFirst = to_signed(first);
+            return signedFirst > second ? signedFirst : second;
+        } else {
+            // second is unsigned
+            const auto signedSecond = to_signed(second);
+            return signedSecond > first ? signedSecond : first;
+        }
+    }
+}

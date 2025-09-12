@@ -12,32 +12,24 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
-#include "ast/types/UCharType.h"
-#include "ast/types/Int128Type.h"
-#include "ast/types/UInt128Type.h"
 #include "ast/statements/Assignment.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/Expression.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/BoolValue.h"
-#include "ast/values/UCharValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
-#include "ast/values/IntValue.h"
-#include "ast/values/UInt128Value.h"
-#include "ast/values/LongValue.h"
-#include "ast/values/ULongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/BlockValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/VariantCaseVariable.h"
-#include "ast/values/Int128Value.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
@@ -54,11 +46,6 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"
-#include "ast/values/UIntValue.h"
-#include "ast/values/ShortValue.h"
-#include "ast/values/UShortValue.h"
-#include "ast/values/BigIntValue.h"
-#include "ast/values/UBigIntValue.h"
 #include "ast/values/EmbeddedValue.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/UnionDef.h"
@@ -79,7 +66,6 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/values/CastedValue.h"
-#include "ast/values/NumberValue.h"
 #include "ast/structures/InitBlock.h"
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/ValueWrapperNode.h"
@@ -272,8 +258,8 @@ ArrayValue* ASTBuildermake_array_value(ASTBuilder* builder, BaseType* type, uint
     return new (builder->allocate<ArrayValue>()) ArrayValue({type, location}, location, *builder->allocator);
 }
 
-BigIntValue* ASTBuildermake_bigint_value(ASTBuilder* builder, long long value, uint64_t location) {
-    return new (builder->allocate<BigIntValue>()) BigIntValue(value, builder->typeBuilder.getBigIntType(), location);
+IntNumValue* ASTBuildermake_bigint_value(ASTBuilder* builder, long long value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getBigIntType(), location);
 }
 
 BoolValue* ASTBuildermake_bool_value(ASTBuilder* builder, bool value, uint64_t location) {
@@ -284,8 +270,8 @@ CastedValue* ASTBuildermake_casted_value(ASTBuilder* builder, Value* value, Base
     return new (builder->allocate<CastedValue>()) CastedValue(value, {type, location}, location);
 }
 
-CharValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location) {
-    return new (builder->allocate<CharValue>()) CharValue(value, builder->typeBuilder.getCharType(), location);
+IntNumValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getCharType(), location);
 }
 
 DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, uint64_t location) {
@@ -330,12 +316,13 @@ IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, ChainValue* pa
     return new (builder->allocate<IndexOperator>()) IndexOperator(parent_val, location);
 }
 
-Int128Value* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location) {
-    return new (builder->allocate<Int128Value>()) Int128Value(mag, is_neg, builder->typeBuilder.getInt128Type(), location);
+IntNumValue* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location) {
+    // TODO: is_neg ignored
+    return new (builder->allocate<IntNumValue>()) IntNumValue(mag, builder->typeBuilder.getInt128Type(), location);
 }
 
-IntValue* ASTBuildermake_int_value(ASTBuilder* builder, int value, uint64_t location) {
-    return new (builder->allocate<IntValue>()) IntValue(value, builder->typeBuilder.getIntType(), location);
+IntNumValue* ASTBuildermake_int_value(ASTBuilder* builder, int value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getIntType(), location);
 }
 
 IsValue* ASTBuildermake_is_value(ASTBuilder* builder, Value* value, BaseType* type, bool is_negating, uint64_t location) {
@@ -351,8 +338,8 @@ CapturedVariable* ASTBuildermake_captured_variable(ASTBuilder* builder, chem::st
     return new (builder->allocate<CapturedVariable>()) CapturedVariable(*name, index, capture_by_ref, mutable_ref, nullptr, location);
 }
 
-LongValue* ASTBuildermake_long_value(ASTBuilder* builder, long value, uint64_t location) {
-    return new (builder->allocate<LongValue>()) LongValue(value, builder->typeBuilder.getLongType(), location);
+IntNumValue* ASTBuildermake_long_value(ASTBuilder* builder, long value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getLongType(), location);
 }
 
 NegativeValue* ASTBuildermake_negative_value(ASTBuilder* builder, Value* value, uint64_t location) {
@@ -367,12 +354,16 @@ NullValue* ASTBuildermake_null_value(ASTBuilder* builder, uint64_t location) {
     return new (builder->allocate<NullValue>()) NullValue(builder->typeBuilder.getNullPtrType(), location);
 }
 
-NumberValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location) {
-    return new (builder->allocate<NumberValue>()) NumberValue(value, location);
+IntNumValue* ASTBuildermake_number_value(ASTBuilder* builder, uint64_t value, uint64_t location) {
+    if(value < INT32_MAX) {
+        return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getI32Type(), location);
+    } else {
+        return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getI64Type(), location);
+    }
 }
 
-ShortValue* ASTBuildermake_short_value(ASTBuilder* builder, short value, uint64_t location) {
-    return new (builder->allocate<ShortValue>()) ShortValue(value, builder->typeBuilder.getShortType(), location);
+IntNumValue* ASTBuildermake_short_value(ASTBuilder* builder, short value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getShortType(), location);
 }
 
 SizeOfValue* ASTBuildermake_sizeof_value(ASTBuilder* builder, BaseType* type, uint64_t location) {
@@ -388,28 +379,29 @@ StructValue* ASTBuildermake_struct_value(ASTBuilder* builder, BaseType* ref, AST
     return new (builder->allocate<StructValue>()) StructValue(ref, location);
 }
 
-UBigIntValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location) {
-    return new (builder->allocate<UBigIntValue>()) UBigIntValue(value, builder->typeBuilder.getUBigIntType(), location);
+IntNumValue* ASTBuildermake_ubigint_value(ASTBuilder* builder, unsigned long long value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getUBigIntType(), location);
 }
 
-UCharValue* ASTBuildermake_uchar_value(ASTBuilder* builder, unsigned char value, uint64_t location) {
-    return new (builder->allocate<UCharValue>()) UCharValue(value, builder->typeBuilder.getUCharType(), location);
+IntNumValue* ASTBuildermake_uchar_value(ASTBuilder* builder, unsigned char value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getUCharType(), location);
 }
 
-UInt128Value* ASTBuildermake_uint128_value(ASTBuilder* builder, uint64_t low, uint64_t high, uint64_t location) {
-    return new (builder->allocate<UInt128Value>()) UInt128Value(low, high, builder->typeBuilder.getUInt128Type(), location);
+IntNumValue* ASTBuildermake_uint128_value(ASTBuilder* builder, uint64_t low, uint64_t high, uint64_t location) {
+    // TODO: high ignored
+    return new (builder->allocate<IntNumValue>()) IntNumValue(low, builder->typeBuilder.getUInt128Type(), location);
 }
 
-UIntValue* ASTBuildermake_uint_value(ASTBuilder* builder, unsigned int value, uint64_t location) {
-    return new (builder->allocate<UIntValue>()) UIntValue(value, builder->typeBuilder.getUIntType(), location);
+IntNumValue* ASTBuildermake_uint_value(ASTBuilder* builder, unsigned int value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getUIntType(), location);
 }
 
-ULongValue* ASTBuildermake_ulong_value(ASTBuilder* builder, unsigned long value, uint64_t location) {
-    return new (builder->allocate<ULongValue>()) ULongValue(value, builder->typeBuilder.getULongType(), location);
+IntNumValue* ASTBuildermake_ulong_value(ASTBuilder* builder, unsigned long value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getULongType(), location);
 }
 
-UShortValue* ASTBuildermake_ushort_value(ASTBuilder* builder, unsigned short value, uint64_t location) {
-    return new (builder->allocate<UShortValue>()) UShortValue(value, builder->typeBuilder.getUShortType(), location);
+IntNumValue* ASTBuildermake_ushort_value(ASTBuilder* builder, unsigned short value, uint64_t location) {
+    return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getUShortType(), location);
 }
 
 BlockValue* ASTBuildermake_block_value(ASTBuilder* builder, ASTNode* parent_node, uint64_t location) {

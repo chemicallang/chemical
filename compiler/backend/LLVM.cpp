@@ -14,8 +14,6 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/BoolType.h"
 #include "LLVMBackendContext.h"
-#include "ast/types/CharType.h"
-#include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/Float128Type.h"
@@ -32,7 +30,6 @@
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/ComplexType.h"
 #include "ast/values/BoolValue.h"
-#include "ast/values/CharValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/FloatValue.h"
@@ -41,7 +38,6 @@
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
-#include "ast/values/ShortValue.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/SizeOfValue.h"
@@ -116,14 +112,6 @@ llvm::Type *ArrayType::llvm_param_type(Codegen &gen) {
 
 llvm::Type *BoolType::llvm_type(Codegen &gen) {
     return gen.builder->getInt1Ty();
-}
-
-llvm::Type *CharType::llvm_type(Codegen &gen) {
-    return gen.builder->getInt8Ty();
-}
-
-llvm::Type *UCharType::llvm_type(Codegen &gen) {
-    return gen.builder->getInt8Ty();
 }
 
 llvm::Type *DoubleType::llvm_type(Codegen &gen) {
@@ -296,14 +284,6 @@ llvm::Type *BoolValue::llvm_type(Codegen &gen) {
 
 llvm::Value *BoolValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getInt1(value);
-}
-
-llvm::Type *CharValue::llvm_type(Codegen &gen) {
-    return gen.builder->getInt8Ty();
-}
-
-llvm::Value *CharValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return gen.builder->getInt8((int) value);
 }
 
 llvm::Type *DoubleValue::llvm_type(Codegen &gen) {
@@ -603,7 +583,7 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     auto type = value->getType()->pure_type(gen.allocator);
-    const auto rhs = new (gen.allocator.allocate<ShortValue>()) ShortValue(1, gen.comptime_scope.typeBuilder.getShortType(), encoded_location());
+    const auto rhs = new (gen.allocator.allocate<IntNumValue>()) IntNumValue(1, gen.comptime_scope.typeBuilder.getShortType(), encoded_location());
     auto value_pointer = value->llvm_pointer(gen);
     // TODO loading the value after pointer, value is not being loaded using the pointer we have
     auto value_loaded = value->llvm_value(gen);

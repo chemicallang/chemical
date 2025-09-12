@@ -139,7 +139,7 @@ double operate(Operation op, double first, double second) {
     }
 }
 
-ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
+bool is_bool_output(Operation op) {
     switch(op) {
         case Operation::IsEqual:
         case Operation::IsNotEqual:
@@ -147,14 +147,14 @@ ValueKind determine_output(Operation op, ValueKind first, ValueKind second) {
         case Operation::GreaterThanOrEqual:
         case Operation::LessThan:
         case Operation::LessThanOrEqual:
-            return ValueKind::Bool;
+            return true;
         default:
-            return first > second ? first : second;
+            return false;
     }
 }
 
 inline bool is_int_n(ValueKind k) {
-    return k >= ValueKind::IntNStart && k <= ValueKind::IntNEnd;
+    return k == ValueKind::IntN;
 }
 
 inline BoolValue* pack_bool(InterpretScope& scope, bool value, SourceLocation location) {
@@ -173,12 +173,21 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
         const auto first = (IntNumValue*) fEvl;
         const auto second = (IntNumValue*) sEvl;
         const auto answer = operate(operation, first->get_num_value(), second->get_num_value());
-        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, location);
+        if(is_bool_output(operation)) {
+            return pack_bool(scope, answer, location);
+        } else {
+            return pack_by_kind(scope, determine_output(first->getType()->IntNKind(), second->getType()->IntNKind()), answer, location);
+        }
     } else if(fKind == ValueKind::Double || fKind == ValueKind::Float || sKind == ValueKind::Double || sKind == ValueKind::Float) {
         const auto first = get_double_value(fEvl, fKind);
         const auto second = get_double_value(sEvl, sKind);
         const auto answer = operate(operation, first, second);
-        return pack_by_kind(scope, determine_output(operation, fKind, sKind), answer, location);
+        if(is_bool_output(operation)) {
+            return pack_bool(scope, (bool) answer, location);
+        } else {
+            const auto both_float = fKind == ValueKind::Float && sKind == ValueKind::Float;
+            return pack_by_kind(scope, both_float ? ValueKind::Float : ValueKind::Double, answer, location);
+        }
     } else if(fKind == ValueKind::NullValue || sKind == ValueKind::NullValue) {
         // comparison with null, a == null or null == a
         switch (operation) {

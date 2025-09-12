@@ -6545,9 +6545,6 @@ void ToCAstVisitor::VisitIntNType(IntNType *type) {
         case IntNTypeKind::Char:
             write("char");
             return;
-        case IntNTypeKind::SChar:
-            write("signed char");
-            return;
         case IntNTypeKind::Short:
             write("short");
             return;

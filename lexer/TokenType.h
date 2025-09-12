@@ -50,7 +50,6 @@ enum class TokenType {
 
     // C like integer types
     CharKw,
-    SCharKw,
     ShortKw,
     IntKw,
     LongKw,

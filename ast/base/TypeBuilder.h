@@ -28,7 +28,6 @@ private:
 
     // c like integer types
     CharType charType = CharType();
-    SCharType sCharType = SCharType();
     ShortType shortType = ShortType();
     IntType intType = IntType();
     LongType longType = LongType();
@@ -94,7 +93,6 @@ public:
     // -------------------------------
 
     inline CharType* getCharType() noexcept { return &charType; }
-    inline SCharType* getSCharType() noexcept { return &sCharType; }
     inline ShortType* getShortType() noexcept { return &shortType; }
     inline IntType* getIntType() noexcept { return &intType; }
     inline LongType* getLongType() noexcept { return &longType; }
@@ -131,7 +129,6 @@ public:
     IntNType* getIntNType(IntNTypeKind kind) noexcept {
         switch(kind) {
             case IntNTypeKind::Char: return getCharType();
-            case IntNTypeKind::SChar: return getSCharType();
             case IntNTypeKind::Short: return getShortType();
             case IntNTypeKind::Int: return getIntType();
             case IntNTypeKind::Long: return getLongType();

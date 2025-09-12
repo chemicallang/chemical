@@ -6,7 +6,7 @@
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int8_t = char
+public type int8_t = schar
 
 /**
  * signed integer type with width of
@@ -16,7 +16,7 @@ public type int8_t = char
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int16_t = short
+public type int16_t = i16
 
 /**
  * signed integer type with width of
@@ -26,7 +26,7 @@ public type int16_t = short
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int32_t = int
+public type int32_t = i32
 
 /**
  * signed integer type with width of
@@ -36,7 +36,7 @@ public type int32_t = int
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int64_t = bigint
+public type int64_t = i64
 
 /**
  * fastest signed integer type with width of
@@ -76,7 +76,7 @@ public type int_fast64_t = bigint
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int_least8_t = char
+public type int_least8_t = schar
 
 /**
  * smallest signed integer type with width of
@@ -128,7 +128,7 @@ if(def.windows) {
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type uint8_t = uchar
+public type uint8_t = u8
 
 /**
  * unsigned integer type with width of
@@ -137,7 +137,7 @@ public type uint8_t = uchar
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type uint16_t = ushort
+public type uint16_t = u16
 
 /**
  * unsigned integer type with width of
@@ -146,7 +146,7 @@ public type uint16_t = ushort
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type uint32_t = uint
+public type uint32_t = u32
 
 /**
  * unsigned integer type with width of
@@ -155,7 +155,7 @@ public type uint32_t = uint
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type uint64_t = ubigint
+public type uint64_t = u64
 
 /**
  * fastest unsigned integer type with width of

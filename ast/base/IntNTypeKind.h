@@ -3,10 +3,11 @@
 enum class IntNTypeKind {
 
     Char,
+    SChar,    // explicitly signed char
     Short,
     Int,
     Long,
-    BigInt,
+    LongLong,
     Int128,
 
     I8,
@@ -18,7 +19,7 @@ enum class IntNTypeKind {
     UShort,
     UInt,
     ULong,
-    UBigInt,
+    ULongLong,
     UInt128,
 
     U8,

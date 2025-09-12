@@ -34,11 +34,11 @@ public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t
         }
         // encode next 4 byte chunk of `key'
         k *= c1;
-        k = (k << r1) | (k >> (32 - r1));
+        k = (k << r1) | (k >> (32u - r1));
         k *= c2;
         // append to hash
         h ^= k;
-        h = (h << r2) | (h >> (32 - r2));
+        h = (h << r2) | (h >> (32u - r2));
         h = h * m + n;
     }
     k = 0;
@@ -49,7 +49,7 @@ public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t
             k ^= (tail[1] << 8);
             k ^= tail[0];
             k *= c1;
-            k = (k << r1) | (k >> (32 - r1));
+            k = (k << r1) | (k >> (32u - r1));
             k *= c2;
             h ^= k;
         }
@@ -57,14 +57,14 @@ public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t
             k ^= (tail[1] << 8);
             k ^= tail[0];
             k *= c1;
-            k = (k << r1) | (k >> (32 - r1));
+            k = (k << r1) | (k >> (32u - r1));
             k *= c2;
             h ^= k;
         }
         1 => {
             k ^= tail[0];
             k *= c1;
-            k = (k << r1) | (k >> (32 - r1));
+            k = (k << r1) | (k >> (32u - r1));
             k *= c2;
             h ^= k;
         }

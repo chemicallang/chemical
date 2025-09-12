@@ -432,7 +432,7 @@ void CTranslator::init_type_makers() {
         return typeBuilder.getULongType();
     };
     type_makers[ZigClangBuiltinTypeULongLong] = [](TypeBuilder& typeBuilder, ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
-        return typeBuilder.getUBigIntType();
+        return typeBuilder.getU64Type();
     };
     type_makers[ZigClangBuiltinTypeUInt128] = [](TypeBuilder& typeBuilder, ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
         return typeBuilder.getUInt128Type();
@@ -454,7 +454,7 @@ void CTranslator::init_type_makers() {
         return typeBuilder.getLongType();
     };
     type_makers[ZigClangBuiltinTypeLongLong] = [](TypeBuilder& typeBuilder, ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
-        return typeBuilder.getBigIntType();
+        return typeBuilder.getI64Type();
     };
     type_makers[ZigClangBuiltinTypeInt128] = [](TypeBuilder& typeBuilder, ASTAllocator& allocator, clang::BuiltinType*, SourceLocation location) -> BaseType* {
         return typeBuilder.getInt128Type();

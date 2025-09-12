@@ -791,7 +791,7 @@ Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
     auto type = parseTypeLoc(allocator);
     if(type) {
         auto last = token;
-        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, typeBuilder.getUBigIntType(), loc(tok, last));
+        auto value = new (allocator.allocate<SizeOfValue>()) SizeOfValue(type, typeBuilder.getU64Type(), loc(tok, last));
         const auto last_type = last->type;
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
@@ -817,7 +817,7 @@ Value* Parser::parseAlignOfValue(ASTAllocator& allocator) {
     auto type = parseTypeLoc(allocator);
     if(type) {
         auto last = token;
-        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, typeBuilder.getUBigIntType(), loc(tok, last));
+        auto value = new (allocator.allocate<AlignOfValue>()) AlignOfValue(type, typeBuilder.getU64Type(), loc(tok, last));
         const auto last_type = last->type;
         if((first_type == TokenType::LBrace && last_type == TokenType::RBrace) || (first_type == TokenType::LParen && last_type == TokenType::RParen)) {
             token++;
@@ -894,15 +894,15 @@ ValueNode* Parser::parseValueNode(ASTAllocator& allocator) {
 
 const auto unk_bit_width_err = "unknown bit width given for a number";
 
-Value* allocate_number_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, unsigned long long value, SourceLocation location) {
+Value* allocate_number_value(ASTAllocator& alloc, TypeBuilder& typeBuilder, uint64_t value, SourceLocation location) {
     if(value > INT_MAX) {
         if(value > LONG_MAX) {
-            return new(alloc.allocate<IntNumValue>()) IntNumValue((long long) value, typeBuilder.getBigIntType(), location);
+            return new(alloc.allocate<IntNumValue>()) IntNumValue(value, typeBuilder.getU64Type(), location);
         } else {
-            return new(alloc.allocate<IntNumValue>()) IntNumValue((long) value, typeBuilder.getLongType(), location);
+            return new(alloc.allocate<IntNumValue>()) IntNumValue(value, typeBuilder.getLongType(), location);
         }
     } else {
-        return new (alloc.allocate<IntNumValue>()) IntNumValue((int) value, typeBuilder.getIntType(), location);
+        return new (alloc.allocate<IntNumValue>()) IntNumValue(value, typeBuilder.getIntType(), location);
     }
 }
 
@@ -999,36 +999,36 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
             case 8:
                 if(is_unsigned) {
                     const auto num_value = parse_num(value, suffix_index, strtoul);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getUCharType(), location), num_value.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getU8Type(), location), num_value.error };
                 } else {
                     const auto num_value = parse_num(value, suffix_index, strtol);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getCharType(), location), num_value.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getI8Type(), location), num_value.error };
                 }
             case 16:
                 if(is_unsigned) {
                     const auto num_val = parse_num(value, suffix_index, strtoul);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned short) num_val.result, typeBuilder.getUShortType(), location), num_val.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned short) num_val.result, typeBuilder.getU16Type(), location), num_val.error };
                 } else {
                     const auto num_value = parse_num(value, suffix_index, strtol);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((short) num_value.result, typeBuilder.getShortType(), location), num_value.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((short) num_value.result, typeBuilder.getI16Type(), location), num_value.error };
                 }
                 break;
             case 32:
                 if(is_unsigned) {
                     const auto num_val = parse_num(value, suffix_index, strtoul);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned int) num_val.result, typeBuilder.getUIntType(), location), num_val.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned int) num_val.result, typeBuilder.getU32Type(), location), num_val.error };
                 } else {
                     const auto num_val = parse_num(value, suffix_index, strtol);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((int) num_val.result, typeBuilder.getIntType(), location), num_val.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((int) num_val.result, typeBuilder.getI32Type(), location), num_val.error };
                 }
                 break;
             case 64:
                 if(is_unsigned) {
                     const auto num_val = parse_num(value, suffix_index, strtoull);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned long long) num_val.result, typeBuilder.getUBigIntType(), location), num_val.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned long long) num_val.result, typeBuilder.getU64Type(), location), num_val.error };
                 } else {
                     const auto num_val = parse_num(value, suffix_index, strtoll);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((long long) num_val.result, typeBuilder.getBigIntType(), location), num_val.error };
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((long long) num_val.result, typeBuilder.getI64Type(), location), num_val.error };
                 }
                 break;
             case 128:

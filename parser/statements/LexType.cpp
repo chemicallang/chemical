@@ -519,6 +519,9 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
         case TokenType::CharKw:
             type = typeBuilder.getCharType();
             break;
+        case TokenType::SCharKw:
+            type = typeBuilder.getSCharType();
+            break;
         case TokenType::UCharKw:
             type = typeBuilder.getUCharType();
             break;
@@ -530,6 +533,32 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
             break;
         case TokenType::LongdoubleKw:
             type = typeBuilder.getLongDoubleType();
+            break;
+        case TokenType::I8Kw:
+            type = typeBuilder.getI8Type();
+            break;
+        case TokenType::I16Kw:
+            type = typeBuilder.getI16Type();
+            break;
+        case TokenType::I32Kw:
+            type = typeBuilder.getI32Type();
+            break;
+        case TokenType::I64Kw:
+        case TokenType::BigIntKw:
+            type = typeBuilder.getI64Type();
+            break;
+        case TokenType::U8Kw:
+            type = typeBuilder.getU8Type();
+            break;
+        case TokenType::U16Kw:
+            type = typeBuilder.getU16Type();
+            break;
+        case TokenType::U32Kw:
+            type = typeBuilder.getU32Type();
+            break;
+        case TokenType::U64Kw:
+        case TokenType::UBigIntKw:
+            type = typeBuilder.getU64Type();
             break;
         case TokenType::IntKw:
             type = typeBuilder.getIntType();
@@ -546,19 +575,19 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
         case TokenType::LongKw:
             type = typeBuilder.getLongType();
             break;
+        case TokenType::LongLongKw:
+            type = typeBuilder.getLongLongType();
+            break;
         case TokenType::ULongKw:
             type = typeBuilder.getULongType();
             break;
-        case TokenType::BigintKw:
-            type = typeBuilder.getBigIntType();
-            break;
-        case TokenType::UBigintKw:
-            type = typeBuilder.getUBigIntType();
+        case TokenType::ULongLongKw:
+            type = typeBuilder.getULongLongType();
             break;
         case TokenType::Int128Kw:
             type = typeBuilder.getInt128Type();
             break;
-        case TokenType::Uint128Kw:
+        case TokenType::UInt128Kw:
             type = typeBuilder.getUInt128Type();
             break;
         case TokenType::Float128Kw:

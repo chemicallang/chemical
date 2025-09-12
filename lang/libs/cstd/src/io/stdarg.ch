@@ -6,8 +6,9 @@
  * @param parmN	-	the named parameter preceding the first variable parameter
  * @see https://en.cppreference.com/w/c/variadic/va_start
  */
-@extern
-public func va_start(ap : va_list, parmN : any... );
+public comptime func va_start(ap : va_list, parmN : any... ) {
+    // TODO: macro
+}
 
 /**
  * TODO macro
@@ -22,13 +23,15 @@ public func va_start(ap : va_list, parmN : any... );
  * @param src	-	the source va_list that will be used to initialize dest
  * @see https://en.cppreference.com/w/c/variadic/va_copy
  */
-@extern
-public func va_copy(dest : va_list, src : va_list);
+public comptime func va_copy(dest : va_list, src : va_list) {
+    // TODO: macro
+}
 
 /**
  * The va_end macro performs cleanup for an ap object initialized by a call to va_start or va_copy. va_end may modify ap so that it is no longer usable.
  * If there is no corresponding call to va_start or va_copy, or if va_end is not called before a function that calls va_start or va_copy returns, the behavior is undefined.
  * @param ap	-	an instance of the va_list type to clean up
  */
-@extern
-public func va_end(ap : va_list);
+public comptime func va_end(ap : va_list) {
+    // TODO: macro
+}

@@ -41,23 +41,43 @@ enum class TokenType {
     PrivateKw,
     ProtectedKw,
     InternalKw,
+
+    // chemical integer types
+    I8Kw,
+    I16Kw,
+    I32Kw,
+    I64Kw,
+
+    // C like integer types
     CharKw,
+    SCharKw,
     ShortKw,
     IntKw,
     LongKw,
-    BigintKw,
+    LongLongKw,
+    BigIntKw,
+    Int128Kw,
+
+    // chemical integer types (unsigned)
+    U8Kw,
+    U16Kw,
+    U32Kw,
+    U64Kw,
+
+    // C like integer types (unsigned)
     UCharKw,
     UShortKw,
     UIntKw,
     ULongKw,
-    UBigintKw,
+    ULongLongKw,
+    UBigIntKw,
+    UInt128Kw,
+
     BoolKw,
     AnyKw,
     DoubleKw,
     LongdoubleKw,
     FloatKw,
-    Int128Kw,
-    Uint128Kw,
     Float128Kw,
     VoidKw,
     SizeOfKw,

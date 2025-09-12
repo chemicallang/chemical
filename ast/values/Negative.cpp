@@ -22,10 +22,18 @@ BaseType* to_signed(TypeBuilder& typeBuilder, IntNType* type) {
             return (BaseType*) typeBuilder.getIntType();
         case IntNTypeKind::ULong:
             return (BaseType*) typeBuilder.getLongType();
-        case IntNTypeKind::UBigInt:
-            return (BaseType*) typeBuilder.getBigIntType();
+        case IntNTypeKind::ULongLong:
+            return (BaseType*) typeBuilder.getLongLongType();
         case IntNTypeKind::UInt128:
             return (BaseType*) typeBuilder.getInt128Type();
+        case IntNTypeKind::U8:
+            return (BaseType*) typeBuilder.getI8Type();
+        case IntNTypeKind::U16:
+            return (BaseType*) typeBuilder.getI16Type();
+        case IntNTypeKind::U32:
+            return (BaseType*) typeBuilder.getI32Type();
+        case IntNTypeKind::U64:
+            return (BaseType*) typeBuilder.getI64Type();
         default:
             return type;
     }

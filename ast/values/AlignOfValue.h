@@ -18,14 +18,14 @@ public:
      */
     constexpr AlignOfValue(
             TypeLoc for_type,
-            UBigIntType* type,
+            U64Type* type,
             SourceLocation location
     ) : Value(ValueKind::AlignOfValue, type, location), for_type(for_type) {
 
     }
 
-    UBigIntType* getType() {
-        return (UBigIntType*) Value::getType();
+    U64Type* getType() {
+        return (U64Type*) Value::getType();
     }
 
     AlignOfValue* copy(ASTAllocator& allocator) final {

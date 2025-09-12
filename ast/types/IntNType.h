@@ -80,9 +80,7 @@ public:
             case IntNTypeKind::Long:
             case IntNTypeKind::ULong:
                 return is64Bit ? 64 : 32;
-            case IntNTypeKind::BigInt:
             case IntNTypeKind::I64:
-            case IntNTypeKind::UBigInt:
             case IntNTypeKind::U64:
                 return 64;
             case IntNTypeKind::Int128:
@@ -120,9 +118,7 @@ public:
             case IntNTypeKind::Long:
             case IntNTypeKind::ULong:
                 return is64Bit ? 8 : 4;
-            case IntNTypeKind::BigInt:
             case IntNTypeKind::I64:
-            case IntNTypeKind::UBigInt:
             case IntNTypeKind::U64:
                 return 8;
             case IntNTypeKind::Int128:
@@ -264,6 +260,9 @@ class UInt128Type : public IntNType { public:
 class CharType : public IntNType { public:
     inline constexpr CharType() : IntNType(IntNTypeKind::Char) {}
 };
+class SCharType : public IntNType { public:
+    inline constexpr SCharType() : IntNType(IntNTypeKind::SChar) {}
+};
 class ShortType : public IntNType { public:
     inline constexpr ShortType() : IntNType(IntNTypeKind::Short) {}
 };
@@ -273,8 +272,8 @@ class IntType : public IntNType { public:
 class LongType : public IntNType { public:
     inline constexpr LongType() : IntNType(IntNTypeKind::Long) {}
 };
-class BigIntType : public IntNType { public:
-    inline constexpr BigIntType() : IntNType(IntNTypeKind::BigInt) {}
+class LongLongType : public IntNType { public:
+    inline constexpr LongLongType() : IntNType(IntNTypeKind::LongLong) {}
 };
 
 class UCharType : public IntNType { public:
@@ -289,6 +288,6 @@ class UIntType : public IntNType { public:
 class ULongType : public IntNType { public:
     inline constexpr ULongType() : IntNType(IntNTypeKind::ULong) {}
 };
-class UBigIntType : public IntNType { public:
-    inline constexpr UBigIntType() : IntNType(IntNTypeKind::UBigInt) {}
+class ULongLongType : public IntNType { public:
+    inline constexpr ULongLongType() : IntNType(IntNTypeKind::ULongLong) {}
 };

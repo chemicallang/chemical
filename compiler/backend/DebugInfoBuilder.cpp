@@ -143,7 +143,19 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
             const auto intNType = type->as_intn_type_unsafe();
             const auto num_bits = intNType->num_bits(di.gen.is64Bit);
             switch(intNType->IntNKind()) {
+                case IntNTypeKind::I8:
+                    return di.builder->createBasicType("i8", num_bits, llvm::dwarf::DW_ATE_signed_char);
+                case IntNTypeKind::I16:
+                    return di.builder->createBasicType("i16", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::I32:
+                    return di.builder->createBasicType("i32", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::I64:
+                    return di.builder->createBasicType("i64", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::Int128:
+                    return di.builder->createBasicType("int128", num_bits, llvm::dwarf::DW_ATE_signed);
                 case IntNTypeKind::Char:
+                    return di.builder->createBasicType("char", num_bits, llvm::dwarf::DW_ATE_signed_char);
+                case IntNTypeKind::SChar:
                     return di.builder->createBasicType("char", num_bits, llvm::dwarf::DW_ATE_signed_char);
                 case IntNTypeKind::Short:
                     return di.builder->createBasicType("short", num_bits, llvm::dwarf::DW_ATE_signed);
@@ -151,10 +163,18 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
                     return di.builder->createBasicType("int", num_bits, llvm::dwarf::DW_ATE_signed);
                 case IntNTypeKind::Long:
                     return di.builder->createBasicType("long", num_bits, llvm::dwarf::DW_ATE_signed);
-                case IntNTypeKind::BigInt:
-                    return di.builder->createBasicType("bigint", num_bits, llvm::dwarf::DW_ATE_signed);
-                case IntNTypeKind::Int128:
-                    return di.builder->createBasicType("int128", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::LongLong:
+                    return di.builder->createBasicType("longlong", num_bits, llvm::dwarf::DW_ATE_signed);
+                case IntNTypeKind::U8:
+                    return di.builder->createBasicType("u8", num_bits, llvm::dwarf::DW_ATE_unsigned_char);
+                case IntNTypeKind::U16:
+                    return di.builder->createBasicType("u16", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::U32:
+                    return di.builder->createBasicType("u32", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::U64:
+                    return di.builder->createBasicType("u64", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::UInt128:
+                    return di.builder->createBasicType("uint128", num_bits, llvm::dwarf::DW_ATE_unsigned);
                 case IntNTypeKind::UChar:
                     return di.builder->createBasicType("uchar", num_bits, llvm::dwarf::DW_ATE_unsigned_char);
                 case IntNTypeKind::UShort:
@@ -163,10 +183,8 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
                     return di.builder->createBasicType("uint", num_bits, llvm::dwarf::DW_ATE_unsigned);
                 case IntNTypeKind::ULong:
                     return di.builder->createBasicType("ulong", num_bits, llvm::dwarf::DW_ATE_unsigned);
-                case IntNTypeKind::UBigInt:
-                    return di.builder->createBasicType("ubigint", num_bits, llvm::dwarf::DW_ATE_unsigned);
-                case IntNTypeKind::UInt128:
-                    return di.builder->createBasicType("int128", num_bits, llvm::dwarf::DW_ATE_unsigned);
+                case IntNTypeKind::ULongLong:
+                    return di.builder->createBasicType("ulonglong", num_bits, llvm::dwarf::DW_ATE_unsigned);
             }
         }
         case BaseTypeKind::Float:

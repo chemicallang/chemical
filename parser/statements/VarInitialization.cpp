@@ -186,7 +186,7 @@ ASTNode* Parser::parseVarInitializationTokens(
 
     // equal sign
     if (!consumeToken(TokenType::EqualSym)) {
-        if(!allowDeclarations) {
+        if(!allowDeclarations || is_const) {
             error("expected an = sign for the initialization of the variable");
             return stmt;
         } else if(stmt->type) {

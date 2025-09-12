@@ -5577,7 +5577,50 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
         write_escape_encoded(writer, value->value);
         write('\'');
     } else {
-        writer << value->value;
+        switch(type) {
+            case IntNTypeKind::I8:
+            case IntNTypeKind::Char:
+                writer << (int8_t) value->value;
+                break;
+            case IntNTypeKind::I16:
+            case IntNTypeKind::Short:
+                writer << (int16_t) value->value;
+                break;
+            case IntNTypeKind::I32:
+            case IntNTypeKind::Int:
+                writer << (int32_t) value->value;
+                break;
+            case IntNTypeKind::I64:
+            case IntNTypeKind::Long:
+            case IntNTypeKind::BigInt:
+                writer << (int64_t) value->value;
+                break;
+            case IntNTypeKind::Int128:
+                // TODO: handle int128
+                writer << (int64_t) value->value;
+                break;
+            case IntNTypeKind::U8:
+            case IntNTypeKind::UChar:
+                writer << (uint8_t) value->value;
+                break;
+            case IntNTypeKind::U16:
+            case IntNTypeKind::UShort:
+                writer << (uint16_t) value->value;
+                break;
+            case IntNTypeKind::U32:
+            case IntNTypeKind::UInt:
+                writer << (uint32_t) value->value;
+                break;
+            case IntNTypeKind::U64:
+            case IntNTypeKind::ULong:
+            case IntNTypeKind::UBigInt:
+                writer << (uint64_t) value->value;
+                break;
+            case IntNTypeKind::UInt128:
+                // TODO: handle int128
+                writer << (uint64_t) value->value;
+                break;
+        }
     }
 }
 

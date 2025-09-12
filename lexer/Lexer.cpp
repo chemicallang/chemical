@@ -106,7 +106,6 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
 
                 // C like Signed Integer Types
                 { "char", TokenType::CharKw },
-                { "schar", TokenType::SCharKw },
                 { "short", TokenType::ShortKw },
                 { "int", TokenType::IntKw },
                 { "long", TokenType::LongKw },

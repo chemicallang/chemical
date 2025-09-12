@@ -3,7 +3,6 @@
 enum class IntNTypeKind {
 
     Char,
-    SChar,    // explicitly signed char
     Short,
     Int,
     Long,

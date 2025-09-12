@@ -519,9 +519,6 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
         case TokenType::CharKw:
             type = typeBuilder.getCharType();
             break;
-        case TokenType::SCharKw:
-            type = typeBuilder.getSCharType();
-            break;
         case TokenType::UCharKw:
             type = typeBuilder.getUCharType();
             break;

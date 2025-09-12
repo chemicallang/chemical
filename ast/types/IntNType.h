@@ -260,9 +260,6 @@ class UInt128Type : public IntNType { public:
 class CharType : public IntNType { public:
     inline constexpr CharType() : IntNType(IntNTypeKind::Char) {}
 };
-class SCharType : public IntNType { public:
-    inline constexpr SCharType() : IntNType(IntNTypeKind::SChar) {}
-};
 class ShortType : public IntNType { public:
     inline constexpr ShortType() : IntNType(IntNTypeKind::Short) {}
 };

@@ -6,7 +6,7 @@
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int8_t = schar
+public type int8_t = i8
 
 /**
  * signed integer type with width of
@@ -76,7 +76,7 @@ public type int_fast64_t = bigint
  * @see https://en.cppreference.com/w/c/types/integer
  */
 @extern
-public type int_least8_t = schar
+public type int_least8_t = i8
 
 /**
  * smallest signed integer type with width of

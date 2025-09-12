@@ -155,8 +155,6 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
                     return di.builder->createBasicType("int128", num_bits, llvm::dwarf::DW_ATE_signed);
                 case IntNTypeKind::Char:
                     return di.builder->createBasicType("char", num_bits, llvm::dwarf::DW_ATE_signed_char);
-                case IntNTypeKind::SChar:
-                    return di.builder->createBasicType("char", num_bits, llvm::dwarf::DW_ATE_signed_char);
                 case IntNTypeKind::Short:
                     return di.builder->createBasicType("short", num_bits, llvm::dwarf::DW_ATE_signed);
                 case IntNTypeKind::Int:

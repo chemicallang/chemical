@@ -46,7 +46,6 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
-#include "ast/values/NumberValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
@@ -330,22 +329,12 @@ bool is_assignable(Value* lhs) {
         case ValueKind::SizeOfValue:
         case ValueKind::AlignOfValue:
         case ValueKind::String:
-        case ValueKind::NumberValue:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
+        case ValueKind::IntN:
         case ValueKind::IfValue:
         case ValueKind::SwitchValue:
         case ValueKind::LoopValue:
         case ValueKind::VariantCase:
         case ValueKind::Bool:
-        case ValueKind::Char:
-        case ValueKind::UChar:
         case ValueKind::Float:
         case ValueKind::Double:
         case ValueKind::NullValue:
@@ -1776,10 +1765,6 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     link_call_without_parent(*this, call, exp_type, true);
 }
 
-void SymResLinkBody::VisitNumberValue(NumberValue* value) {
-    // DOES NOTHING AT THE MOMENT
-}
-
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
     auto traverser = linker.binder.findHook(value->name, CBIFunctionType::TraversalValue);
     if(traverser) {
@@ -1818,7 +1803,7 @@ void SymResLinkBody::VisitArrayType(ArrayType* arrType) {
     if(arrType->array_size_value) {
         visit(arrType->array_size_value);
         const auto evaluated = arrType->array_size_value->evaluated_value(linker.comptime_scope);
-        const auto number = evaluated->get_the_number();
+        const auto number = evaluated->get_number();
         if(number.has_value()) {
             arrType->set_array_size(number.value());
             return;

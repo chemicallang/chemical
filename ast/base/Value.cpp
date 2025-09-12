@@ -7,19 +7,11 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
-#include "ast/values/IntValue.h"
 #include "ast/values/BoolValue.h"
-#include "ast/values/BigIntValue.h"
-#include "ast/values/UBigIntValue.h"
-#include "ast/values/Int128Value.h"
 #include "ast/values/Negative.h"
-#include "ast/values/UInt128Value.h"
-#include "ast/values/ShortValue.h"
 #include "ast/values/NullValue.h"
-#include "ast/values/UShortValue.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/values/Expression.h"
-#include "ast/values/UCharValue.h"
-#include "ast/values/NumberValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
@@ -31,7 +23,6 @@
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
-#include "ast/values/UIntValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/IndexOperator.h"
@@ -465,17 +456,7 @@ void ChainValue::access_chain_assign_value(
 bool Value::isValueKindRValue(ValueKind kind) {
     switch(kind) {
         case ValueKind::Bool:
-        case ValueKind::NumberValue:
-        case ValueKind::Char:
-        case ValueKind::UChar:
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
+        case ValueKind::IntN:
         case ValueKind::Double:
         case ValueKind::Float:
         case ValueKind::NegativeValue:
@@ -513,17 +494,7 @@ bool isTypeRValue(BaseType* type) {
 bool Value::isValueIntegerLiteral() {
     switch(kind()) {
         case ValueKind::Bool:
-        case ValueKind::NumberValue:
-        case ValueKind::Char:
-        case ValueKind::UChar:
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
+        case ValueKind::IntN:
             return true;
         default:
             return false;
@@ -533,17 +504,7 @@ bool Value::isValueIntegerLiteral() {
 bool Value::isValueLiteral() {
     switch(kind()) {
         case ValueKind::Bool:
-        case ValueKind::NumberValue:
-        case ValueKind::Char:
-        case ValueKind::UChar:
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
+        case ValueKind::IntN:
         case ValueKind::Double:
         case ValueKind::Float:
             return true;
@@ -555,17 +516,7 @@ bool Value::isValueLiteral() {
 bool Value::isValueRValue(ASTAllocator& allocator) {
     switch(kind()) {
         case ValueKind::Bool:
-        case ValueKind::NumberValue:
-        case ValueKind::Char:
-        case ValueKind::UChar:
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
+        case ValueKind::IntN:
         case ValueKind::Double:
         case ValueKind::Float:
         case ValueKind::NegativeValue:
@@ -876,46 +827,6 @@ Value* Value::find_in(InterpretScope& scope, Value* parent) {
     return nullptr;
 }
 
-IntNumValue* IntNumValue::create_number(ASTAllocator& alloc, TypeBuilder& typeBuilder, unsigned int bitWidth, bool is_signed, uint64_t value, SourceLocation location) {
-    switch(bitWidth) {
-        case 8:
-            if(is_signed) {
-                return new (alloc.allocate<CharValue>()) CharValue((char) value, typeBuilder.getCharType(), location);
-            } else {
-                return new (alloc.allocate<UCharValue>()) UCharValue((unsigned char) value, typeBuilder.getUCharType(), location);
-            }
-        case 16:
-            if(is_signed) {
-                return new (alloc.allocate<ShortValue>()) ShortValue((short) value, typeBuilder.getShortType(), location);
-            } else {
-                return new (alloc.allocate<UShortValue>()) UShortValue((unsigned short) value, typeBuilder.getUShortType(), location);
-            }
-        case 32:
-            if(is_signed) {
-                return new (alloc.allocate<IntValue>()) IntValue((int) value, typeBuilder.getIntType(), location);
-            } else {
-                return new (alloc.allocate<UIntValue>()) UIntValue((unsigned int) value, typeBuilder.getUIntType(), location);
-            }
-        case 64:
-            if(is_signed) {
-                return new (alloc.allocate<BigIntValue>()) BigIntValue((long long) value, typeBuilder.getBigIntType(), location);
-            } else {
-                return new (alloc.allocate<UBigIntValue>()) UBigIntValue((unsigned long long) value, typeBuilder.getUBigIntType(), location);
-            }
-        case 128:
-            if(is_signed) {
-                return new (alloc.allocate<Int128Value>()) Int128Value(value, false, typeBuilder.getInt128Type(), location);
-            } else {
-                return new (alloc.allocate<UInt128Value>()) UInt128Value(value, false, typeBuilder.getUInt128Type(), location);
-            }
-        default:
-#ifdef DEBUG
-            throw std::runtime_error("value couldn't be created");
-#endif
-            return nullptr;
-    }
-}
-
 StructDefinition* Value::get_param_linked_struct() {
     const auto linked = linked_node();
     if(!linked) return nullptr;
@@ -943,52 +854,12 @@ Value* Value::copy(ASTAllocator& allocator) {
     return nullptr;
 }
 
-unsigned Value::get_the_uint() {
-    return ((UIntValue*) this)->value;
-}
-
-char Value::get_the_char() {
-    return ((CharValue*) this)->value;
-}
-
 bool Value::get_the_bool() {
     return ((BoolValue*) this)->value;
 }
 
 const chem::string_view& Value::get_the_string() {
     return ((StringValue*) this)->value;
-}
-
-std::optional<uint64_t> Value::get_the_number() {
-    switch(val_kind()) {
-        case ValueKind::Short:
-        case ValueKind::UShort:
-        case ValueKind::Int:
-        case ValueKind::UInt:
-        case ValueKind::Long:
-        case ValueKind::ULong:
-        case ValueKind::BigInt:
-        case ValueKind::UBigInt:
-        case ValueKind::NumberValue:
-            return ((IntNumValue*) this)->get_num_value();
-        default:
-            return std::nullopt;
-    }
-}
-
-int Value::get_the_int() {
-    switch(val_kind()) {
-        case ValueKind::Int:
-            return ((IntValue*) this)->value;
-        case ValueKind::NumberValue:
-            return (int) ((NumberValue*) this)->value;
-        default:
-#ifdef DEBUG
-            throw std::runtime_error("unknown value for as_int");
-#endif
-            std::cerr << "unknown value for as_int" << std::endl;
-            return -1;
-    }
 }
 
 std::optional<uint64_t> Value::get_number() {

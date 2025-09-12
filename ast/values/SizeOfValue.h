@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ast/values/UBigIntValue.h"
+#include "ast/types/IntNType.h"
 #include "ast/base/TypeLoc.h"
 
 /**

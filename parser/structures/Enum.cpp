@@ -5,11 +5,9 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/base/TypeBuilder.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/EnumMember.h"
-#include "ast/values/IntValue.h"
-#include "ast/values/NumberValue.h"
-#include "ast/types/IntType.h"
 #include "parser/utils/parse_num.h"
 
 EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
@@ -47,7 +45,7 @@ EnumDeclaration* Parser::parseEnumStructureTokens(ASTAllocator& passed_allocator
                 return decl;
             }
         } else {
-            decl->underlying_type = {new(allocator.allocate<IntType>()) IntType(), loc};
+            decl->underlying_type = { typeBuilder.getIntType(), loc};
         }
 
         if(!consumeToken(TokenType::LBrace)) {

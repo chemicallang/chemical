@@ -17,7 +17,6 @@
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "ast/values/IntValue.h"
 #include "ast/types/LinkedType.h"
 #include "compiler/mangler/NameMangler.h"
 

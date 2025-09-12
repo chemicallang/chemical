@@ -2,9 +2,8 @@
 
 #include "parser/Parser.h"
 #include "ast/statements/Assignment.h"
-#include "ast/values/IntValue.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/values/NullValue.h"
-#include "ast/values/NumberValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/AccessChainNode.h"

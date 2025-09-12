@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/IntNType.h"
 
 class TypeBuilder;
 
@@ -10,7 +11,7 @@ double get_double_value(Value* value, ValueKind k);
 
 Value* pack_by_kind(InterpretScope& scope, ValueKind kind, double value, SourceLocation location);
 
-Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, SourceLocation location);
+Value* pack_by_kind(InterpretScope& scope, IntNTypeKind kind, uint64_t value, SourceLocation location);
 
 /**
  * This class is the base class for integer type value
@@ -19,6 +20,11 @@ Value* pack_by_kind(InterpretScope& scope, ValueKind kind, uint64_t value, Sourc
  */
 class IntNumValue : public Value {
 public:
+
+    /**
+     * value can be stored in these 32 bits
+     */
+    uint64_t value;
 
     /**
      * create a int num value
@@ -35,32 +41,63 @@ public:
     /**
      * constructor
      */
-    inline constexpr IntNumValue(ValueKind k, SourceLocation loc) noexcept : Value(k, loc) {
+    inline constexpr IntNumValue(
+            uint64_t value,
+            SourceLocation loc
+    ) noexcept : Value(ValueKind::IntN, loc), value(value) {
 
     }
 
     /**
      * constructor
      */
-    inline constexpr IntNumValue(ValueKind k, BaseType* type, SourceLocation loc) noexcept : Value(k, type, loc) {
+    inline constexpr IntNumValue(
+            uint64_t value,
+            IntNType* type,
+            SourceLocation loc
+    ) noexcept : Value(ValueKind::IntN, type, loc), value(value) {
 
     }
 
     /**
+     * get the intn type of the value
+     */
+    [[nodiscard]]
+    inline IntNType* getType() noexcept { return (IntNType*) Value::getType(); }
+
+    /**
+     * get the bytesize for this intn value
+     */
+    [[nodiscard]]
+    inline uint64_t byte_size(bool is64Bit) final { return getType()->byte_size(is64Bit); }
+
+    /**
      * provide the number of bits used by this value
      */
-    virtual unsigned int get_num_bits(bool is64Bit) = 0;
+    [[nodiscard]]
+    inline unsigned int get_num_bits(bool is64Bit) noexcept { return getType()->num_bits(is64Bit); }
 
     /**
      * get number value
      */
     [[nodiscard]]
-    virtual uint64_t get_num_value() const = 0;
+    inline uint64_t get_num_value() const noexcept { return value; }
 
     /**
      * return if this is a unsigned value
      */
-    virtual bool is_unsigned() = 0;
+    [[nodiscard]]
+    inline bool is_unsigned() noexcept { return getType()->is_unsigned(); }
+
+    /**
+     * copy this value
+     */
+    [[nodiscard]]
+    Value* copy(ASTAllocator &allocator) override {
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(
+            value, getType(), encoded_location()
+        );
+    }
 
 #ifdef COMPILER_BUILD
 

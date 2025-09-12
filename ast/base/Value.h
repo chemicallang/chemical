@@ -499,8 +499,7 @@ public:
      * is an int num value, this includes referenced values
      */
     bool is_value_int_n() {
-        auto k = val_kind();
-        return k >= ValueKind::IntNStart && k <= ValueKind::IntNEnd;
+        return kind() == ValueKind::IntN;
     }
 
     /**
@@ -559,11 +558,6 @@ public:
     }
 
     /**
-     * a function to be overridden by char values to return actual values
-     */
-    char get_the_char();
-
-    /**
      * a function to be overridden by bool values to return actual values
      */
     bool get_the_bool();
@@ -575,25 +569,10 @@ public:
     const chem::string_view& get_the_string();
 
     /**
-     * get any number from the type
-     */
-    std::optional<uint64_t> get_the_number();
-
-    /**
-     * a function to be overridden by values that can return int
-     */
-    int get_the_int();
-
-    /**
      * get number value if this value is any interger
      * otherwise nullopt
      */
     std::optional<uint64_t> get_number();
-
-    /**
-     * will return a unsigned int representation
-     */
-    unsigned get_the_uint();
 
     /**
      * a function to be overridden by values that can return float
@@ -614,52 +593,8 @@ public:
     // ------- isValue methods begin here ---------
     // --------------------------------------------
 
-    static constexpr inline bool isInt(ValueKind k) {
-        return k == ValueKind::Int;
-    }
-
-    static constexpr inline bool isUInt(ValueKind k) {
-        return k == ValueKind::UInt;
-    }
-
-    static constexpr inline bool isChar(ValueKind k) {
-        return k == ValueKind::Char;
-    }
-
-    static constexpr inline bool isUChar(ValueKind k) {
-        return k == ValueKind::UChar;
-    }
-
-    static constexpr inline bool isShort(ValueKind k) {
-        return k == ValueKind::Short;
-    }
-
-    static constexpr inline bool isUShort(ValueKind k) {
-        return k == ValueKind::UShort;
-    }
-
-    static constexpr inline bool isLong(ValueKind k) {
-        return k == ValueKind::Long;
-    }
-
-    static constexpr inline bool isULong(ValueKind k) {
-        return k == ValueKind::ULong;
-    }
-
-    static constexpr inline bool isBigInt(ValueKind k) {
-        return k == ValueKind::BigInt;
-    }
-
-    static constexpr inline bool isUBigInt(ValueKind k) {
-        return k == ValueKind::UBigInt;
-    }
-
-    static constexpr inline bool isInt128(ValueKind k) {
-        return k == ValueKind::Int128;
-    }
-
-    static constexpr inline bool isUInt128(ValueKind k) {
-        return k == ValueKind::UInt128;
+    static constexpr inline bool isIntN(ValueKind k) {
+        return k == ValueKind::IntN;
     }
 
     static constexpr inline bool isFloat(ValueKind k) {
@@ -712,10 +647,6 @@ public:
 
     static constexpr inline bool isLoopValue(ValueKind k) {
         return k == ValueKind::LoopValue;
-    }
-
-    static constexpr inline bool isNumberValue(ValueKind k) {
-        return k == ValueKind::NumberValue;
     }
 
     static constexpr inline bool isNewValue(ValueKind k) {
@@ -782,54 +713,6 @@ public:
     // ------- as_value methods begin here ---------
     // --------------------------------------------
 
-    inline IntValue* as_int_value() {
-        return isInt(val_kind()) ? ((IntValue*) this) : nullptr;
-    }
-
-    inline UIntValue* as_uint_value() {
-        return isUInt(val_kind()) ? ((UIntValue*) this) : nullptr;
-    }
-
-    inline CharValue* as_char_value() {
-        return isChar(val_kind()) ? ((CharValue*) this) : nullptr;
-    }
-
-    inline UCharValue* as_uchar() {
-        return isUChar(val_kind()) ? ((UCharValue*) this) : nullptr;
-    }
-
-    inline ShortValue* as_short() {
-        return isShort(val_kind()) ? ((ShortValue*) this) : nullptr;
-    }
-
-    inline UShortValue* as_ushort() {
-        return isUShort(val_kind()) ? ((UShortValue*) this) : nullptr;
-    }
-
-    inline LongValue* as_long() {
-        return isLong(val_kind()) ? ((LongValue*) this) : nullptr;
-    }
-
-    inline ULongValue* as_ulong() {
-        return isULong(val_kind()) ? ((ULongValue*) this) : nullptr;
-    }
-
-    inline BigIntValue* as_bigint() {
-        return isBigInt(val_kind()) ? ((BigIntValue*) this) : nullptr;
-    }
-
-    inline UBigIntValue* as_ubigint() {
-        return isUBigInt(val_kind()) ? ((UBigIntValue*) this) : nullptr;
-    }
-
-    inline Int128Value* as_int128() {
-        return isInt128(val_kind()) ? ((Int128Value*) this) : nullptr;
-    }
-
-    inline UInt128Value* as_uint128() {
-        return isUInt128(val_kind()) ? ((UInt128Value*) this) : nullptr;
-    }
-
     inline FloatValue* as_float_value() {
         return isFloat(val_kind()) ? ((FloatValue*) this) : nullptr;
     }
@@ -860,10 +743,6 @@ public:
 
     inline LambdaFunction* as_lambda_func() {
         return isLambdaFunc(val_kind()) ? ((LambdaFunction*) this) : nullptr;
-    }
-
-    inline NumberValue* as_number_value() {
-        return isNumberValue(val_kind()) ? ((NumberValue*) this) : nullptr;
     }
 
     inline AccessChain* as_access_chain() {
@@ -942,69 +821,9 @@ public:
     // ------- as_value_unsafe methods begin here ---------
     // --------------------------------------------
 
-    inline IntValue* as_int_unsafe() {
-        CHECK_CAST(ValueKind::Int);
-        return ((IntValue*) this);
-    }
-
-    inline UIntValue* as_uint_unsafe() {
-        CHECK_CAST(ValueKind::UInt);
-        return ((UIntValue*) this);
-    }
-
-    inline CharValue* as_char_unsafe() {
-        CHECK_CAST(ValueKind::Char);
-        return ((CharValue*) this);
-    }
-
-    inline UCharValue* as_uchar_unsafe() {
-        CHECK_CAST(ValueKind::UChar);
-        return ((UCharValue*) this);
-    }
-
-    inline ShortValue* as_short_unsafe() {
-        CHECK_CAST(ValueKind::Short);
-        return ((ShortValue*) this);
-    }
-
-    inline UShortValue* as_ushort_unsafe() {
-        CHECK_CAST(ValueKind::UShort);
-        return ((UShortValue*) this);
-    }
-
-    inline LongValue* as_long_unsafe() {
-        CHECK_CAST(ValueKind::Long);
-        return ((LongValue*) this);
-    }
-
-    inline ULongValue* as_ulong_unsafe() {
-        CHECK_CAST(ValueKind::ULong);
-        return ((ULongValue*) this);
-    }
-
-    inline BigIntValue* as_bigint_unsafe() {
-        CHECK_CAST(ValueKind::BigInt);
-        return ((BigIntValue*) this);
-    }
-
-    inline UBigIntValue* as_ubigint_unsafe() {
-        CHECK_CAST(ValueKind::UBigInt);
-        return ((UBigIntValue*) this);
-    }
-
     inline IntNumValue* as_int_num_value_unsafe() {
-        CHECK_COND(kind() >= ValueKind::IntNStart && kind() <= ValueKind::IntNEnd);
+        CHECK_CAST(ValueKind::IntN);
         return ((IntNumValue*) this);
-    }
-
-    inline Int128Value* as_int128_unsafe() {
-        CHECK_CAST(ValueKind::Int128);
-        return ((Int128Value*) this);
-    }
-
-    inline UInt128Value* as_uint128_unsafe() {
-        CHECK_CAST(ValueKind::UInt128);
-        return ((UInt128Value*) this);
     }
 
     inline FloatValue* as_float_unsafe() {
@@ -1045,11 +864,6 @@ public:
     inline LambdaFunction* as_lambda_func_unsafe() {
         CHECK_CAST(ValueKind::LambdaFunc);
         return ((LambdaFunction*) this);
-    }
-
-    inline NumberValue* as_number_value_unsafe() {
-        CHECK_CAST(ValueKind::NumberValue);
-        return ((NumberValue*) this);
     }
 
     inline IsValue* as_is_value_unsafe() {

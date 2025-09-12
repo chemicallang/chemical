@@ -207,55 +207,7 @@ public:
 
     // ---------- Values ----------
 
-    inline void VisitCharValue(CharValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitShortValue(ShortValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitIntValue(IntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitLongValue(LongValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitBigIntValue(BigIntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitInt128Value(Int128Value* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitUCharValue(UCharValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitUShortValue(UShortValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitUIntValue(UIntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitULongValue(ULongValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitUBigIntValue(UBigIntValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitUInt128Value(UInt128Value* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
-    inline void VisitNumberValue(NumberValue* value) {
+    inline void VisitIntNValue(IntNumValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
@@ -720,44 +672,8 @@ public:
 
     void VisitValueNoNullCheck(Value* value) {
         switch(value->kind()) {
-            case ValueKind::Char:
-                static_cast<Derived*>(this)->VisitCharValue((CharValue*) value);
-                return;
-            case ValueKind::Short:
-                static_cast<Derived*>(this)->VisitShortValue((ShortValue*) value);
-                return;
-            case ValueKind::Int:
-                static_cast<Derived*>(this)->VisitIntValue((IntValue*) value);
-                return;
-            case ValueKind::Long:
-                static_cast<Derived*>(this)->VisitLongValue((LongValue*) value);
-                return;
-            case ValueKind::BigInt:
-                static_cast<Derived*>(this)->VisitBigIntValue((BigIntValue*) value);
-                return;
-            case ValueKind::Int128:
-                static_cast<Derived*>(this)->VisitInt128Value((Int128Value*) value);
-                return;
-            case ValueKind::UChar:
-                static_cast<Derived*>(this)->VisitUCharValue((UCharValue*) value);
-                return;
-            case ValueKind::UShort:
-                static_cast<Derived*>(this)->VisitUShortValue((UShortValue*) value);
-                return;
-            case ValueKind::UInt:
-                static_cast<Derived*>(this)->VisitUIntValue((UIntValue*) value);
-                return;
-            case ValueKind::ULong:
-                static_cast<Derived*>(this)->VisitULongValue((ULongValue*) value);
-                return;
-            case ValueKind::UBigInt:
-                static_cast<Derived*>(this)->VisitUBigIntValue((UBigIntValue*) value);
-                return;
-            case ValueKind::UInt128:
-                static_cast<Derived*>(this)->VisitUInt128Value((UInt128Value*) value);
-                return;
-            case ValueKind::NumberValue:
-                static_cast<Derived*>(this)->VisitNumberValue((NumberValue*) value);
+            case ValueKind::IntN:
+                static_cast<Derived*>(this)->VisitIntNValue((IntNumValue*) value);
                 return;
             case ValueKind::Float:
                 static_cast<Derived*>(this)->VisitFloatValue((FloatValue*) value);
@@ -1130,44 +1046,8 @@ public:
     inline void VisitByPtrTypeNoNullCheck(VariantCaseVariable* node) {
         static_cast<Derived*>(this)->VisitVariantCaseVariable(node);
     }
-    inline void VisitByPtrTypeNoNullCheck(CharValue* value) {
+    inline void VisitByPtrTypeNoNullCheck(IntNumValue* value) {
         static_cast<Derived*>(this)->VisitCharValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(ShortValue* value) {
-        static_cast<Derived*>(this)->VisitShortValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(IntValue* value) {
-        static_cast<Derived*>(this)->VisitIntValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(LongValue* value) {
-        static_cast<Derived*>(this)->VisitLongValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(BigIntValue* value) {
-        static_cast<Derived*>(this)->VisitBigIntValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(Int128Value* value) {
-        static_cast<Derived*>(this)->VisitInt128Value(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(UCharValue* value) {
-        static_cast<Derived*>(this)->VisitUCharValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(UShortValue* value) {
-        static_cast<Derived*>(this)->VisitUShortValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(UIntValue* value) {
-        static_cast<Derived*>(this)->VisitUIntValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(ULongValue* value) {
-        static_cast<Derived*>(this)->VisitULongValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(UBigIntValue* value) {
-        static_cast<Derived*>(this)->VisitUBigIntValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(UInt128Value* value) {
-        static_cast<Derived*>(this)->VisitUInt128Value(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(NumberValue* value) {
-        static_cast<Derived*>(this)->VisitNumberValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(FloatValue* value) {
         static_cast<Derived*>(this)->VisitFloatValue(value);

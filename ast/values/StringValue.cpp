@@ -2,7 +2,7 @@
 
 #include "StringValue.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/CharType.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/types/ArrayType.h"
@@ -16,5 +16,5 @@ Value *StringValue::index(InterpretScope &scope, int i) {
         " of length " << std::to_string(value.size());
     }
 #endif
-    return new CharValue(value[i], scope.global->typeBuilder.getCharType(), encoded_location());
+    return new (scope.allocate<IntNumValue>()) IntNumValue(value[i], scope.global->typeBuilder.getCharType(), encoded_location());
 }

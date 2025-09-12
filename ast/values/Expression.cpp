@@ -7,10 +7,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/base/ASTNode.h"
 #include "ast/types/BoolType.h"
-#include "ast/types/LongType.h"
-#include "ast/types/ULongType.h"
 #include "ast/values/DoubleValue.h"
-#include "ast/values/NumberValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
@@ -28,24 +25,24 @@ inline BaseType* canonicalize_enum(BaseType* type) {
 
 void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
-        if(Value::isNumberValue(firstValue->val_kind())) {
+        if(firstValue->val_kind() == ValueKind::IntN) {
             auto value = ((IntNumValue*)firstValue)->get_num_value();
             firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
-        } else if(Value::isNumberValue(secondValue->val_kind())){
+        } else if(secondValue->val_kind() == ValueKind::IntN){
             auto value = ((IntNumValue*)secondValue)->get_num_value();
             secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
         }
     }
     const auto first = getEnumDecl(firstType);
-    if(first) {
-        const auto second = secondValue->as_number_value();
+    if(first && secondValue->kind() == ValueKind::IntN) {
+        const auto second = secondValue->as_int_num_value_unsafe();
         if(second) {
             secondValue = first->get_underlying_integer_type()->create(allocator, typeBuilder, second->value, secondValue->encoded_location());
         }
     } else {
         const auto second = getEnumDecl(secondType);
-        if(second) {
-            const auto firstVal = firstValue->as_number_value();
+        if(second && firstValue->kind() == ValueKind::IntN) {
+            const auto firstVal = firstValue->as_int_num_value_unsafe();
             if(firstVal) {
                 firstValue = second->get_underlying_integer_type()->create(allocator, typeBuilder, firstVal->value, firstValue->encoded_location());
             }

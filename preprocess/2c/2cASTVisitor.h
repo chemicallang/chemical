@@ -693,31 +693,7 @@ public:
 
     // Values
 
-    void VisitCharValue(CharValue* value);
-
-    void VisitShortValue(ShortValue* value);
-
-    void VisitIntValue(IntValue* value);
-
-    void VisitLongValue(LongValue* value);
-
-    void VisitBigIntValue(BigIntValue* value);
-
-    void VisitInt128Value(Int128Value* value);
-
-    void VisitUCharValue(UCharValue* value);
-
-    void VisitUShortValue(UShortValue* value);
-
-    void VisitUIntValue(UIntValue* value);
-
-    void VisitULongValue(ULongValue* value);
-
-    void VisitUBigIntValue(UBigIntValue* value);
-
-    void VisitUInt128Value(UInt128Value* value);
-
-    void VisitNumberValue(NumberValue* value);
+    void VisitIntNValue(IntNumValue* value);
 
     void VisitFloatValue(FloatValue* value);
 

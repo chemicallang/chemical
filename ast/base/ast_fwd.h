@@ -136,35 +136,11 @@ class EmbeddedNode;
 
 class Value;
 
-class IntValue;
-
-class BigIntValue;
-
-class LongValue;
-
-class ShortValue;
-
-class UBigIntValue;
-
 class IntNumValue;
-
-class UIntValue;
-
-class UCharValue;
-
-class ULongValue;
-
-class UShortValue;
 
 class FloatValue;
 
-class Int128Value;
-
-class UInt128Value;
-
 class DoubleValue;
-
-class CharValue;
 
 class StringValue;
 
@@ -175,8 +151,6 @@ class IncDecValue;
 class ArrayValue;
 
 class StructValue;
-
-class UnnamedStructValue;
 
 class VariableIdentifier;
 
@@ -233,8 +207,6 @@ class NegativeValue;
 class NotValue;
 
 class NullValue;
-
-class NumberValue;
 
 class SizeOfValue;
 
@@ -315,8 +287,6 @@ class UIntType;
 class ULongType;
 
 class UShortType;
-
-class TypeType;
 
 class VoidType;
 

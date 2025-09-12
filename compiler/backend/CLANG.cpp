@@ -36,20 +36,9 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FloatValue.h"
-#include "ast/values/BigIntValue.h"
-#include "ast/values/UBigIntValue.h"
-#include "ast/values/UShortValue.h"
-#include "ast/values/UCharValue.h"
-#include "ast/values/LongValue.h"
-#include "ast/values/ULongValue.h"
-#include "ast/values/Int128Value.h"
-#include "ast/values/UInt128Value.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/VariableIdentifier.h"
-#include "ast/values/IntValue.h"
-#include "ast/values/UIntValue.h"
-#include "ast/values/ShortValue.h"
-#include "ast/values/NumberValue.h"
 #include "compiler/ClangCodegen.h"
 #include <clang/AST/Decl.h>
 #include <clang/AST/Mangle.h>
@@ -166,7 +155,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
             auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
             const auto type_maker = type_makers[builtIn->getKind()];
             if(type_maker) {
-                return type_maker(allocator, builtIn, ZERO_LOC);
+                return type_maker(typeBuilder, allocator, builtIn, ZERO_LOC);
             } else {
                 error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
                 return nullptr;

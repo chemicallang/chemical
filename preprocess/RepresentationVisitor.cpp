@@ -53,32 +53,18 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
-#include "ast/types/BigIntType.h"
 #include "ast/types/BoolType.h"
-#include "ast/types/CharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
-#include "ast/types/Int128Type.h"
-#include "ast/values/UCharValue.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/CapturingFunctionType.h"
-#include "ast/types/IntType.h"
-#include "ast/types/LongType.h"
 #include "ast/types/LinkedType.h"
-#include "ast/types/ShortType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/ComplexType.h"
-#include "ast/types/UBigIntType.h"
-#include "ast/types/UInt128Type.h"
-#include "ast/types/UIntType.h"
 #include "ast/types/LiteralType.h"
-#include "ast/types/ULongType.h"
-#include "ast/types/UShortType.h"
 #include "ast/types/VoidType.h"
-#include "ast/values/UShortValue.h"
 #include "ast/values/VariableIdentifier.h"
-#include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/LambdaFunction.h"
@@ -87,26 +73,16 @@
 #include "ast/values/StructValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
-#include "ast/values/BigIntValue.h"
 #include "ast/values/BoolValue.h"
-#include "ast/values/CharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/IndexOperator.h"
-#include "ast/values/Int128Value.h"
 #include "ast/values/IntNumValue.h"
-#include "ast/values/LongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/NullValue.h"
-#include "ast/values/NumberValue.h"
-#include "ast/values/ShortValue.h"
 #include "ast/values/StringValue.h"
-#include "ast/values/UBigIntValue.h"
-#include "ast/values/UInt128Value.h"
-#include "ast/values/UIntValue.h"
-#include "ast/values/ULongValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/IfValue.h"
@@ -588,48 +564,16 @@ void RepresentationVisitor::VisitPlacementNewNode(PlacementNewNode* node) {
     visit(&node->value);
 }
 
-void RepresentationVisitor::VisitIntValue(IntValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitBigIntValue(BigIntValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitLongValue(LongValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitShortValue(ShortValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitUBigIntValue(UBigIntValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitUIntValue(UIntValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitULongValue(ULongValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitUShortValue(UShortValue *val) {
-    write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitInt128Value(Int128Value *val) {
-    write_str(std::to_string(val->get_num_value()));
-}
-
-void RepresentationVisitor::VisitUInt128Value(UInt128Value *val) {
-    write_str(std::to_string(val->get_num_value()));
-}
-
-void RepresentationVisitor::VisitNumberValue(NumberValue *numValue) {
-    write_str(std::to_string(numValue->get_num_value()));
+void RepresentationVisitor::VisitIntNValue(IntNumValue* value) {
+    const auto type = value->getType()->IntNKind();
+    const auto is_char = type == IntNTypeKind::Char || type == IntNTypeKind::UChar;
+    if(is_char && !interpret_representation) {
+        if(!interpret_representation) write('\'');
+        write_escape_encoded(output, (char) value->value);
+        if(!interpret_representation) write('\'');
+    } else {
+        write_str(std::to_string(value->value));
+    }
 }
 
 void RepresentationVisitor::VisitFloatValue(FloatValue *val) {
@@ -638,12 +582,6 @@ void RepresentationVisitor::VisitFloatValue(FloatValue *val) {
 
 void RepresentationVisitor::VisitDoubleValue(DoubleValue *val) {
     write_str(std::to_string(val->value));
-}
-
-void RepresentationVisitor::VisitCharValue(CharValue *val) {
-    if(!interpret_representation) write('\'');
-    write_escape_encoded(output, val->value);
-    if(!interpret_representation) write('\'');
 }
 
 void RepresentationVisitor::VisitStringValue(StringValue *val) {
@@ -1124,10 +1062,6 @@ void RepresentationVisitor::VisitUnionDecl(UnionDef *def) {
 void RepresentationVisitor::VisitThrowStmt(ThrowStatement *throwStmt) {
     write("throw ");
     write("TODO");
-}
-
-void RepresentationVisitor::VisitUCharValue(UCharValue *charVal) {
-    write(charVal->value);
 }
 
 void RepresentationVisitor::VisitUnionType(UnionType *unionType) {

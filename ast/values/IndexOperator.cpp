@@ -12,6 +12,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/IntNumValue.h"
 #include "ast/base/InterpretScope.h"
 #include "PointerValue.h"
 
@@ -116,7 +117,7 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
     switch(value->val_kind()) {
         case ValueKind::String: {
             const auto str = value->as_string_unsafe();
-            return new (scope.allocate<CharValue>()) CharValue(str->value[index.value()], scope.global->typeBuilder.getCharType(), location);
+            return new (scope.allocate<IntNumValue>()) IntNumValue(str->value[index.value()], scope.global->typeBuilder.getCharType(), location);
         }
         case ValueKind::ArrayValue: {
             const auto arr = value->as_array_value_unsafe();
@@ -150,14 +151,11 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     if (values.size() > 1) {
         scope.error("Index operator only supports a single integer index at the moment", this);
     }
-#ifdef DEBUG
-    try {
-        return parent->index(scope, value->evaluated_value(scope)->get_the_int());
-    } catch (...) {
-        scope.error("[InterpretError] index operator only support's integer indexes at the moment", this);
+    const auto eval = value->evaluated_value(scope);
+    const auto num_value = eval->get_number();
+    if(num_value.has_value()) {
+        return parent->index(scope, num_value.value());
     }
-#endif
-    parent->index(scope, value->evaluated_value(scope)->get_the_int());
     return nullptr;
 }
 

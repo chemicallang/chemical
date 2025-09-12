@@ -141,12 +141,10 @@ set(COMMON_SOURCES
         parser/structures/DoWhile.cpp
         ast/base/Value.h
         ast/utils/Operation.h
-        ast/values/IntValue.h
         ast/values/StringValue.h
         ast/values/Expression.h
         ast/values/FloatValue.h
         ast/values/DoubleValue.h
-        ast/values/CharValue.h
         ast/base/ASTNode.h
         ast/statements/VarInit.h
         ast/statements/Assignment.h
@@ -191,7 +189,6 @@ set(COMMON_SOURCES
         ast/types/StringType.h
         ast/types/DoubleType.h
         ast/types/BoolType.h
-        ast/types/CharType.h
         ast/types/ArrayType.h
         ast/types/VoidType.h
         ast/types/AnyType.h
@@ -274,30 +271,12 @@ set(COMMON_SOURCES
         ast/structures/ImplDefinition.cpp
         ast/values/NullValue.h
         ast/values/NullValue.cpp
-        ast/values/UIntValue.h
         ast/values/IntNumValue.h
-        ast/values/ShortValue.h
-        ast/values/UShortValue.h
-        ast/values/LongValue.h
-        ast/values/ULongValue.h
-        ast/values/BigIntValue.h
-        ast/values/UBigIntValue.h
         ast/types/StructType.h
         ast/types/StructType.cpp
-        ast/types/IntType.h
-        ast/types/UIntType.h
-        ast/types/ShortType.h
-        ast/types/UShortType.h
-        ast/types/UBigIntType.h
-        ast/types/BigIntType.h
-        ast/types/ULongType.h
-        ast/values/NumberValue.h
-        ast/values/NumberValue.cpp
         ast/structures/EnumDecl.cpp
         ast/structures/EnumMember.h
         ast/structures/CapturedVariable.h
-        ast/values/UInt128Value.h
-        ast/values/Int128Value.h
         utils/StringHelpers.h
         utils/StringHelpers.cpp
         ast/statements/Break.cpp

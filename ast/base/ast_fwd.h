@@ -220,8 +220,6 @@ class AnyType;
 
 class ArrayType;
 
-class BigIntType;
-
 class BoolType;
 
 class CharType;
@@ -250,9 +248,19 @@ class UnionType;
 
 class Int128Type;
 
+class I8Type;
+
+class I16Type;
+
+class I32Type;
+
+class I64Type;
+
 class IntType;
 
 class LongType;
+
+class LongLongType;
 
 class PointerType;
 
@@ -276,15 +284,23 @@ class StringType;
 
 class StructType;
 
-class UBigIntType;
-
 class UInt128Type;
 
 class LiteralType;
 
+class U8Type;
+
+class U16Type;
+
+class U32Type;
+
+class U64Type;
+
 class UIntType;
 
 class ULongType;
+
+class ULongLongType;
 
 class UShortType;
 

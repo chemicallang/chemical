@@ -764,6 +764,36 @@ void RepresentationVisitor::VisitBoolType(BoolType *func) {
 
 void RepresentationVisitor::VisitIntNType(IntNType *type) {
     switch(type->IntNKind()) {
+        case IntNTypeKind::I8:
+            write("i8");
+            return;
+        case IntNTypeKind::I16:
+            write("i16");
+            return;
+        case IntNTypeKind::I32:
+            write("i32");
+            return;
+        case IntNTypeKind::I64:
+            write("i64");
+            return;
+        case IntNTypeKind::Int128:
+            write("int128");
+            return;
+        case IntNTypeKind::U8:
+            write("u8");
+            return;
+        case IntNTypeKind::U16:
+            write("u16");
+            return;
+        case IntNTypeKind::U32:
+            write("u32");
+            return;
+        case IntNTypeKind::U64:
+            write("u64");
+            return;
+        case IntNTypeKind::UInt128:
+            write("uint128");
+            return;
         case IntNTypeKind::Char:
             write("char");
             return;
@@ -776,11 +806,8 @@ void RepresentationVisitor::VisitIntNType(IntNType *type) {
         case IntNTypeKind::Long:
             write("long");
             return;
-        case IntNTypeKind::BigInt:
-            write("bigint");
-            return;
-        case IntNTypeKind::Int128:
-            write("int128");
+        case IntNTypeKind::LongLong:
+            write("longlong");
             return;
         case IntNTypeKind::UChar:
             write("uchar");
@@ -794,11 +821,8 @@ void RepresentationVisitor::VisitIntNType(IntNType *type) {
         case IntNTypeKind::ULong:
             write("ulong");
             return;
-        case IntNTypeKind::UBigInt:
-            write("ubigint");
-            return;
-        case IntNTypeKind::UInt128:
-            write("uint128");
+        case IntNTypeKind::ULongLong:
+            write("ulonglong");
             return;
     }
 }

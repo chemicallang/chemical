@@ -98,19 +98,36 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
 
                 // Types
 
-                // Signed Integer Types
+                // chemical signed integer types
+                { "i8", TokenType::I8Kw },
+                { "i16", TokenType::I16Kw },
+                { "i32", TokenType::I32Kw },
+                { "i64", TokenType::I64Kw },
+
+                // C like Signed Integer Types
                 { "char", TokenType::CharKw },
+                { "schar", TokenType::SCharKw },
                 { "short", TokenType::ShortKw },
                 { "int", TokenType::IntKw },
                 { "long", TokenType::LongKw },
-                { "bigint", TokenType::BigintKw },
+                { "longlong", TokenType::LongLongKw },
+                // TODO: bigint type deprecated
+                { "bigint", TokenType::BigIntKw },
 
-                // Unsigned Integer Types
+                // chemical unsigned integer types
+                { "u8", TokenType::U8Kw },
+                { "u16", TokenType::U16Kw },
+                { "u32", TokenType::U32Kw },
+                { "u64", TokenType::U64Kw },
+
+                // C like Unsigned Integer Types
                 { "uchar", TokenType::UCharKw },
                 { "ushort", TokenType::UShortKw },
                 { "uint", TokenType::UIntKw },
                 { "ulong", TokenType::ULongKw },
-                { "ubigint", TokenType::UBigintKw },
+                { "ulonglong", TokenType::ULongLongKw },
+                // TODO: ubigint type deprecated
+                { "ubigint", TokenType::UBigIntKw },
 
                 // Other Types
                 { "bool", TokenType::BoolKw },
@@ -119,7 +136,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "longdouble", TokenType::LongdoubleKw },
                 { "float", TokenType::FloatKw },
                 { "int128", TokenType::Int128Kw },
-                { "uint128", TokenType::Uint128Kw },
+                { "uint128", TokenType::UInt128Kw },
                 { "float128", TokenType::Float128Kw },
                 { "void", TokenType::VoidKw },
 

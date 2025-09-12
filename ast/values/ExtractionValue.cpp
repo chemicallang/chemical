@@ -13,6 +13,6 @@ BaseType* create_extraction_value_type(TypeBuilder& builder, ExtractionKind kind
             return builder.getPtrToVoid();
         case ExtractionKind::SizeOfLambdaCaptured:
         case ExtractionKind::AlignOfLambdaCaptured:
-            return builder.getUBigIntType();
+            return builder.getU64Type();
     }
 }

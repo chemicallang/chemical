@@ -4,19 +4,31 @@ using namespace std;
 // The Base Structs
 
 public enum IntNTypeKind {
+
     Char,
     Short,
     Int,
     Long,
-    BigInt,
+    LongLong,
     Int128,
+
+    I8,
+    I16,
+    I32,
+    I64,
 
     UChar,
     UShort,
     UInt,
     ULong,
-    UBigInt,
-    UInt128
+    ULongLong,
+    UInt128,
+
+    U8,
+    U16,
+    U32,
+    U64,
+
 };
 
 public struct IntNType : BaseType {
@@ -31,7 +43,15 @@ public struct AnyType : BaseType {}
 
 public struct ArrayType : BaseType {}
 
-public struct BigIntType : IntNType {}
+public struct I8Type : IntNType {}
+public struct I16Type : IntNType {}
+public struct I32Type : IntNType {}
+public struct I64Type : IntNType {}
+
+public struct U8Type : IntNType {}
+public struct U16Type : IntNType {}
+public struct U32Type : IntNType {}
+public struct U64Type : IntNType {}
 
 public struct BoolType : BaseType {}
 
@@ -416,11 +436,57 @@ public struct ASTBuilder {
 
     func make_array_type(&self, elem_type : *BaseType, array_size : int, location : ubigint) : *mut ArrayType
 
-    func make_bigint_type(&self, location : ubigint) : *mut BigIntType
+    // chemical integer types
+
+    func get_i8_type(&self) : *mut I8Type;
+
+    func get_i16_type(&self) : *mut I16Type;
+
+    func get_i32_type(&self) : *mut I32Type;
+
+    func get_i64_type(&self) : *mut I64Type;
+
+    func get_i128_type(&self) : *mut I64Type;
+
+    // chemical integer types (unsigned)
+
+    func get_u8_type(&self) : *mut U8Type;
+
+    func get_u16_type(&self) : *mut U16Type;
+
+    func get_u32_type(&self) : *mut U32Type;
+
+    func get_u64_type(&self) : *mut U64Type;
+
+    func get_u128_type(&self) : *mut U64Type;
+
+    // c like integer types
+
+    func get_char_type(&self) : *mut CharType
+
+    func get_short_type(&self) : *mut ShortType
+
+    func get_int_type(&self) : *mut IntType
+
+    func get_long_type(&self) : *mut LongType
+
+    func get_longlong_type(&self) : *mut LongLongType
+
+    // c like integer types (unsigned)
+
+    func get_uchar_type(&self) : *mut UCharType;
+
+    func get_ushort_type(&self) : *mut UShortType;
+
+    func get_uint_type(&self) : *mut UIntType;
+
+    func get_ulong_type(&self) : *mut ULongType;
+
+    func get_ulonglong_type(&self) : *mut ULongLongType;
+
+    // other types
 
     func make_bool_type(&self, location : ubigint) : *mut BoolType
-
-    func make_char_type(&self, location : ubigint) : *mut CharType
 
     func make_double_type(&self, location : ubigint) : *mut DoubleType
 
@@ -431,10 +497,6 @@ public struct ASTBuilder {
     func make_func_type(&self, returnType : *BaseType, isVariadic : bool, isCapturing : bool, parent : *ASTNode, location : ubigint) : *mut FunctionType
 
     func make_generic_type(&self, linkedType : *LinkedType) : *mut GenericType
-
-    func make_int128_type(&self, location : ubigint) : *mut Int128Type
-
-    func make_int_type(&self, location : ubigint) : *mut IntType
 
     func make_linked_type(&self, type : &string_view, linked : *ASTNode, location : ubigint) : *mut LinkedType
 
@@ -448,21 +510,7 @@ public struct ASTBuilder {
 
     func make_reference_type(&self, child_type : *BaseType, location : ubigint) : *mut ReferenceType
 
-    func make_short_type(&self, location : ubigint) : *mut ShortType
-
     func make_string_type(&self, location : ubigint) : *mut StringType
-
-    func make_ubigint_type(&self, location : ubigint) : *mut UBigIntType
-
-    func make_uchar_type(&self, location : ubigint) : *mut UCharType
-
-    func make_uint128_type(&self, location : ubigint) : *mut UInt128Type
-
-    func make_uint_type(&self, location : ubigint) : *mut UIntType
-
-    func make_ulong_type(&self, location : ubigint) : *mut ULongType
-
-    func make_ushort_type(&self, location : ubigint) : *mut UShortType
 
     func make_void_type(&self, location : ubigint) : *mut VoidType
 

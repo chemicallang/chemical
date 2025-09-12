@@ -28,17 +28,18 @@ private:
 
     // c like integer types
     CharType charType = CharType();
+    SCharType sCharType = SCharType();
     ShortType shortType = ShortType();
     IntType intType = IntType();
     LongType longType = LongType();
-    BigIntType bigIntType = BigIntType();
+    LongLongType longLongType = LongLongType();
 
     // c like unsigned integer types
     UCharType uCharType = UCharType();
     UShortType uShortType = UShortType();
     UIntType uIntType = UIntType();
     ULongType uLongType = ULongType();
-    UBigIntType uBigIntType = UBigIntType();
+    ULongLongType uLongLongType = ULongLongType();
 
     // other types
     AnyType* anyType;
@@ -93,16 +94,17 @@ public:
     // -------------------------------
 
     inline CharType* getCharType() noexcept { return &charType; }
+    inline SCharType* getSCharType() noexcept { return &sCharType; }
     inline ShortType* getShortType() noexcept { return &shortType; }
     inline IntType* getIntType() noexcept { return &intType; }
     inline LongType* getLongType() noexcept { return &longType; }
-    inline BigIntType* getBigIntType() noexcept { return &bigIntType; }
+    inline LongLongType* getLongLongType() noexcept { return &longLongType; }
 
     inline UCharType* getUCharType() noexcept { return &uCharType; }
     inline UShortType* getUShortType() noexcept { return &uShortType; }
     inline UIntType* getUIntType() noexcept { return &uIntType; }
     inline ULongType* getULongType() noexcept { return &uLongType; }
-    inline UBigIntType* getUBigIntType() noexcept { return &uBigIntType; }
+    inline ULongLongType* getULongLongType() noexcept { return &uLongLongType; }
 
     /**
      * method to get int n type for given bit width and signedness
@@ -129,10 +131,11 @@ public:
     IntNType* getIntNType(IntNTypeKind kind) noexcept {
         switch(kind) {
             case IntNTypeKind::Char: return getCharType();
+            case IntNTypeKind::SChar: return getSCharType();
             case IntNTypeKind::Short: return getShortType();
             case IntNTypeKind::Int: return getIntType();
             case IntNTypeKind::Long: return getLongType();
-            case IntNTypeKind::BigInt: return getBigIntType();
+            case IntNTypeKind::LongLong: return getLongLongType();
             case IntNTypeKind::Int128: return getInt128Type();
             case IntNTypeKind::I8: return getI8Type();
             case IntNTypeKind::I16: return getI16Type();
@@ -142,7 +145,7 @@ public:
             case IntNTypeKind::UShort: return getUShortType();
             case IntNTypeKind::UInt: return getUIntType();
             case IntNTypeKind::ULong: return getULongType();
-            case IntNTypeKind::UBigInt: return getUBigIntType();
+            case IntNTypeKind::ULongLong: return getULongLongType();
             case IntNTypeKind::UInt128: return getUInt128Type();
             case IntNTypeKind::U8: return getU8Type();
             case IntNTypeKind::U16: return getU16Type();

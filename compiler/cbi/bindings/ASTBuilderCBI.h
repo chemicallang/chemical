@@ -28,11 +28,7 @@ extern "C" {
 
     ArrayType* ASTBuildermake_array_type(ASTBuilder* builder, BaseType* elem_type, int array_size, uint64_t location);
 
-    BigIntType* ASTBuildermake_bigint_type(ASTBuilder* builder, uint64_t location);
-
     BoolType* ASTBuildermake_bool_type(ASTBuilder* builder, uint64_t location);
-
-    CharType* ASTBuildermake_char_type(ASTBuilder* builder, uint64_t location);
 
     DoubleType* ASTBuildermake_double_type(ASTBuilder* builder, uint64_t location);
 
@@ -44,37 +40,41 @@ extern "C" {
 
     GenericType* ASTBuildermake_generic_type(ASTBuilder* builder, LinkedType* linkedType);
 
-    Int128Type* ASTBuildermake_int128_type(ASTBuilder* builder, uint64_t location);
-
-    IntType* ASTBuildermake_int_type(ASTBuilder* builder, uint64_t location);
-
     LinkedType* ASTBuildermake_linked_type(ASTBuilder* builder, chem::string_view* type, ASTNode* linked, uint64_t location);
 
     LinkedValueType* ASTBuildermake_linked_value_type(ASTBuilder* builder, Value* value, uint64_t location);
 
     LiteralType* ASTBuildermake_literal_type(ASTBuilder* builder, BaseType* child_type, uint64_t location);
 
-    LongType* ASTBuildermake_long_type(ASTBuilder* builder, uint64_t location);
-
     PointerType* ASTBuildermake_ptr_type(ASTBuilder* builder, BaseType* child_type, uint64_t location);
 
     ReferenceType* ASTBuildermake_reference_type(ASTBuilder* builder, BaseType* child_type, uint64_t location);
 
-    ShortType* ASTBuildermake_short_type(ASTBuilder* builder, uint64_t location);
+    CharType* ASTBuilderget_char_type(ASTBuilder* builder);
+    ShortType* ASTBuilderget_short_type(ASTBuilder* builder);
+    IntType* ASTBuilderget_int_type(ASTBuilder* builder);
+    LongType* ASTBuilderget_long_type(ASTBuilder* builder);
+    LongLongType* ASTBuilderget_longlong_type(ASTBuilder* builder);
+
+    UCharType* ASTBuilderget_uchar_type(ASTBuilder* builder);
+    UShortType* ASTBuilderget_ushort_type(ASTBuilder* builder);
+    UIntType* ASTBuilderget_uint_type(ASTBuilder* builder);
+    ULongType* ASTBuilderget_ulong_type(ASTBuilder* builder);
+    ULongLongType* ASTBuilderget_ulonglong_type(ASTBuilder* builder);
+
+    I8Type* ASTBuilderget_i8_type(ASTBuilder* builder);
+    I16Type* ASTBuilderget_i16_type(ASTBuilder* builder);
+    I32Type* ASTBuilderget_i32_type(ASTBuilder* builder);
+    I64Type* ASTBuilderget_i64_type(ASTBuilder* builder);
+    Int128Type* ASTBuilderget_i128_type(ASTBuilder* builder);
+
+    U8Type* ASTBuilderget_u8_type(ASTBuilder* builder);
+    U16Type* ASTBuilderget_u16_type(ASTBuilder* builder);
+    U32Type* ASTBuilderget_u32_type(ASTBuilder* builder);
+    U64Type* ASTBuilderget_u64_type(ASTBuilder* builder);
+    UInt128Type* ASTBuilderget_u128_type(ASTBuilder* builder);
 
     StringType* ASTBuildermake_string_type(ASTBuilder* builder, uint64_t location);
-
-    UBigIntType* ASTBuildermake_ubigint_type(ASTBuilder* builder, uint64_t location);
-
-    UCharType* ASTBuildermake_uchar_type(ASTBuilder* builder, uint64_t location);
-
-    UInt128Type* ASTBuildermake_uint128_type(ASTBuilder* builder, uint64_t location);
-
-    UIntType* ASTBuildermake_uint_type(ASTBuilder* builder, uint64_t location);
-
-    ULongType* ASTBuildermake_ulong_type(ASTBuilder* builder, uint64_t location);
-
-    UShortType* ASTBuildermake_ushort_type(ASTBuilder* builder, uint64_t location);
 
     VoidType* ASTBuildermake_void_type(ASTBuilder* builder, uint64_t location);
 
@@ -94,7 +94,7 @@ extern "C" {
 
     CastedValue* ASTBuildermake_casted_value(ASTBuilder* builder, Value* value, BaseType* type, uint64_t location);
 
-IntNumValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location);
+    IntNumValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location);
 
     DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, uint64_t location);
 

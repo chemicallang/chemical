@@ -3378,6 +3378,7 @@ void declare_fat_pointer(ToCAstVisitor& visitor) {
 void ToCAstVisitor::prepare_translate() {
     write("#include <stdbool.h>\n");
     write("#include <stddef.h>\n");
+    write("#include <stdint.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(*this);
     // declaring malloc function
@@ -4439,7 +4440,7 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     nested_value = prev_nested;
 
     if(data.destructor_func != nullptr) {
-        IntNumValue siz_val(data.array_size, comptime_scope.typeBuilder.getUBigIntType(), ZERO_LOC);
+        IntNumValue siz_val(data.array_size, comptime_scope.typeBuilder.getU64Type(), ZERO_LOC);
         if (stmt->is_array) {
             destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
         } else {
@@ -5592,7 +5593,7 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
                 break;
             case IntNTypeKind::I64:
             case IntNTypeKind::Long:
-            case IntNTypeKind::BigInt:
+            case IntNTypeKind::LongLong:
                 writer << (int64_t) value->value;
                 break;
             case IntNTypeKind::Int128:
@@ -5613,7 +5614,7 @@ void ToCAstVisitor::VisitIntNValue(IntNumValue* value) {
                 break;
             case IntNTypeKind::U64:
             case IntNTypeKind::ULong:
-            case IntNTypeKind::UBigInt:
+            case IntNTypeKind::ULongLong:
                 writer << (uint64_t) value->value;
                 break;
             case IntNTypeKind::UInt128:
@@ -6511,8 +6512,41 @@ void ToCAstVisitor::VisitGenericType(GenericType *gen_type) {
 
 void ToCAstVisitor::VisitIntNType(IntNType *type) {
     switch(type->IntNKind()) {
+        case IntNTypeKind::I8:
+            write("int8_t");
+            return;
+        case IntNTypeKind::I16:
+            write("int16_t");
+            return;
+        case IntNTypeKind::I32:
+            write("int32_t");
+            return;
+        case IntNTypeKind::I64:
+            write("int64_t");
+            return;
+        case IntNTypeKind::Int128:
+            write("__int128");
+            return;
+        case IntNTypeKind::U8:
+            write("uint8_t");
+            return;
+        case IntNTypeKind::U16:
+            write("uint16_t");
+            return;
+        case IntNTypeKind::U32:
+            write("uint32_t");
+            return;
+        case IntNTypeKind::U64:
+            write("uint64_t");
+            return;
+        case IntNTypeKind::UInt128:
+            write("unsigned __int128");
+            return;
         case IntNTypeKind::Char:
             write("char");
+            return;
+        case IntNTypeKind::SChar:
+            write("signed char");
             return;
         case IntNTypeKind::Short:
             write("short");
@@ -6523,11 +6557,8 @@ void ToCAstVisitor::VisitIntNType(IntNType *type) {
         case IntNTypeKind::Long:
             write("long");
             return;
-        case IntNTypeKind::BigInt:
+        case IntNTypeKind::LongLong:
             write("long long");
-            return;
-        case IntNTypeKind::Int128:
-            write("__int128");
             return;
         case IntNTypeKind::UChar:
             write("unsigned char");
@@ -6541,11 +6572,8 @@ void ToCAstVisitor::VisitIntNType(IntNType *type) {
         case IntNTypeKind::ULong:
             write("unsigned long");
             return;
-        case IntNTypeKind::UBigInt:
+        case IntNTypeKind::ULongLong:
             write("unsigned long long");
-            return;
-        case IntNTypeKind::UInt128:
-            write("unsigned __int128");
             return;
     }
 

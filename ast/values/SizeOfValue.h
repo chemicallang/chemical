@@ -18,14 +18,14 @@ public:
      */
     constexpr SizeOfValue(
         TypeLoc for_type,
-        UBigIntType* type,
+        U64Type* type,
         SourceLocation location
     ) : Value(ValueKind::SizeOfValue, type, location), for_type(for_type) {
 
     }
 
-    inline UBigIntType* getType() const noexcept {
-        return (UBigIntType*) Value::getType();
+    inline U64Type* getType() const noexcept {
+        return (U64Type*) Value::getType();
     }
 
     Value* evaluated_value(InterpretScope &scope) override;

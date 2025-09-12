@@ -397,7 +397,7 @@ public:
 
     explicit InterpretSize(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("size"),
-            {cache.getUBigIntType(), ZERO_LOC},
+            {cache.getU64Type(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -432,11 +432,11 @@ public:
         }
         switch(val_kind) {
             case ValueKind::String:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->get_the_string().size(), call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->get_the_string().size(), call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
             case ValueKind::ArrayValue:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->as_array_value()->array_size(), call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(value->as_array_value()->array_size(), call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
             default:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
         }
     }
 };
@@ -715,7 +715,7 @@ public:
         set_compiler_decl(true);
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getU64Type(), call->encoded_location());
     }
 
 };
@@ -741,7 +741,7 @@ public:
         }
         const auto first_arg = call->values[0];
         const auto first_arg_eval = first_arg ? first_arg->evaluated_value(*call_scope) : first_arg;
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(first_arg_eval->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(first_arg_eval->encoded_location().encoded, call_scope->global->typeBuilder.getU64Type(), call->encoded_location());
     }
 
 };
@@ -749,7 +749,7 @@ public:
 class InterpretGetLineNo : public FunctionDeclaration {
 public:
 
-    UBigIntType uIntType;
+    U64Type uIntType;
 
     explicit InterpretGetLineNo() : FunctionDeclaration(
             ZERO_LOC_ID("get_line_no"),
@@ -764,7 +764,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->encoded_location());
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.lineStart + 1, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.lineStart + 1, call_scope->global->typeBuilder.getU64Type(), call->encoded_location());
     }
 
 };
@@ -785,7 +785,7 @@ public:
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         const auto loc = call_scope->global->loc_man.getLocation(call->encoded_location());
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.charStart + 1, call_scope->global->typeBuilder.getUBigIntType(), call->encoded_location());
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.charStart + 1, call_scope->global->typeBuilder.getU64Type(), call->encoded_location());
     }
 
 };
@@ -818,9 +818,9 @@ public:
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
             const auto loc = global->loc_man.getLocation(runtime_call->encoded_location());
-            return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.lineStart + 1, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.lineStart + 1, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
         } else {
-            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
         }
     }
 
@@ -845,9 +845,9 @@ public:
         const auto runtime_call = get_runtime_call(global);
         if(runtime_call) {
             const auto loc = global->loc_man.getLocation(runtime_call->encoded_location());
-            return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.charStart + 1, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(loc.charStart + 1, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
         } else {
-            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(0, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
         }
     }
 
@@ -883,10 +883,10 @@ public:
         const auto call_number = num.value();
         const auto stack_size = global->call_stack.size();
         if(stack_size == 0) {
-            return new (allocator.allocate<IntNumValue>()) IntNumValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+            return new (allocator.allocate<IntNumValue>()) IntNumValue(call->encoded_location().encoded, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
         }
         const auto final_call = call_number > stack_size ? global->call_stack.front() : global->call_stack[stack_size - 1 - call_number];
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(final_call->encoded_location().encoded, call_scope->global->typeBuilder.getUBigIntType(), ZERO_LOC);
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(final_call->encoded_location().encoded, call_scope->global->typeBuilder.getU64Type(), ZERO_LOC);
     }
 
 };
@@ -1792,7 +1792,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("sizeof_lambda_captured"),
-            {cache.getUBigIntType(), ZERO_LOC},
+            {cache.getU64Type(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
@@ -1827,7 +1827,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("alignof_lambda_captured"),
-            {cache.getUBigIntType(), ZERO_LOC},
+            {cache.getU64Type(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1881,6 +1881,18 @@ private:
     ASTNode* parent;
     ASTNode* writeStrNoLen = nullptr;
     ASTNode* writeStr = nullptr;
+
+    // chemical types
+    ASTNode* writeI8 = nullptr;
+    ASTNode* writeI16 = nullptr;
+    ASTNode* writeI32 = nullptr;
+    ASTNode* writeI64 = nullptr;
+    ASTNode* writeU8 = nullptr;
+    ASTNode* writeU16 = nullptr;
+    ASTNode* writeU32 = nullptr;
+    ASTNode* writeU64 = nullptr;
+
+    // c like types
     ASTNode* writeChar = nullptr;
     ASTNode* writeUChar = nullptr;
     ASTNode* writeShort = nullptr;
@@ -1889,8 +1901,8 @@ private:
     ASTNode* writeUInt = nullptr;
     ASTNode* writeLong = nullptr;
     ASTNode* writeULong = nullptr;
-    ASTNode* writeBigInt = nullptr;
-    ASTNode* writeUBigInt = nullptr;
+    ASTNode* writeLongLong = nullptr;
+    ASTNode* writeULongLong = nullptr;
     ASTNode* writeFloat = nullptr;
     ASTNode* writeDouble = nullptr;
 public:
@@ -1908,6 +1920,54 @@ public:
             writeStr = parent->child("writeStr");
         }
         return writeStr;
+    }
+    ASTNode* getWriteI8() {
+        if(writeI8 == nullptr) {
+            writeI8 = parent->child("writeI8");
+        }
+        return writeI8;
+    }
+    ASTNode* getWriteI16() {
+        if(writeI16 == nullptr) {
+            writeI16 = parent->child("writeI16");
+        }
+        return writeI16;
+    }
+    ASTNode* getWriteI32() {
+        if(writeI32 == nullptr) {
+            writeI32 = parent->child("writeI32");
+        }
+        return writeI32;
+    }
+    ASTNode* getWriteI64() {
+        if(writeI64 == nullptr) {
+            writeI64 = parent->child("writeI64");
+        }
+        return writeI64;
+    }
+    ASTNode* getWriteU8() {
+        if(writeU8 == nullptr) {
+            writeU8 = parent->child("writeU8");
+        }
+        return writeU8;
+    }
+    ASTNode* getWriteU16() {
+        if(writeU16 == nullptr) {
+            writeU16 = parent->child("writeU16");
+        }
+        return writeU16;
+    }
+    ASTNode* getWriteU32() {
+        if(writeU32 == nullptr) {
+            writeU32 = parent->child("writeU32");
+        }
+        return writeU32;
+    }
+    ASTNode* getWriteU64() {
+        if(writeU64 == nullptr) {
+            writeU64 = parent->child("writeU64");
+        }
+        return writeU64;
     }
     ASTNode* getWriteChar() {
         if(writeChar == nullptr) {
@@ -1957,17 +2017,17 @@ public:
         }
         return writeULong;
     }
-    ASTNode* getWriteBigInt() {
-        if(writeBigInt == nullptr) {
-            writeBigInt = parent->child("writeBigInt");
+    ASTNode* getWriteLongLong() {
+        if(writeLongLong == nullptr) {
+            writeLongLong = parent->child("writeLongLong");
         }
-        return writeBigInt;
+        return writeLongLong;
     }
-    ASTNode* getWriteUBigInt() {
-        if(writeUBigInt == nullptr) {
-            writeUBigInt = parent->child("writeUBigInt");
+    ASTNode* getWriteULongLong() {
+        if(writeULongLong == nullptr) {
+            writeULongLong = parent->child("writeULongLong");
         }
-        return writeUBigInt;
+        return writeULongLong;
     }
     ASTNode* getWriteFloat() {
         if(writeFloat == nullptr) {
@@ -2073,7 +2133,7 @@ public:
         if(t->isStringType()) {
             if(val->kind() == ValueKind::String) {
                 const auto str = val->as_string_unsafe();
-                const auto sizeVal = new (allocator.allocate<IntNumValue>()) IntNumValue(str->length, typeBuilder.getUBigIntType(), loc);
+                const auto sizeVal = new (allocator.allocate<IntNumValue>()) IntNumValue(str->length, typeBuilder.getU64Type(), loc);
                 return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStr(), "writeStr", parent_node, loc, sizeVal);
             } else {
                 return write_call(typeBuilder, allocator, selfId, val, cache.getWriteStrNoLen(), "writeStrNoLen", parent_node, loc);
@@ -2082,6 +2142,23 @@ public:
             switch(t->kind()) {
                 case BaseTypeKind::IntN:
                     switch(t->as_intn_type_unsafe()->IntNKind()) {
+                        case IntNTypeKind::I8:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteI8(), "writeI8", parent_node, loc);
+                        case IntNTypeKind::I16:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteI16(), "writeI16", parent_node, loc);
+                        case IntNTypeKind::I32:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteI32(), "writeI32", parent_node, loc);
+                        case IntNTypeKind::I64:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteI64(), "writeI64", parent_node, loc);
+                        case IntNTypeKind::U8:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteU8(), "writeU8", parent_node, loc);
+                        case IntNTypeKind::U16:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteU16(), "writeU16", parent_node, loc);
+                        case IntNTypeKind::U32:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteU32(), "writeU32", parent_node, loc);
+                        case IntNTypeKind::U64:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteU64(), "writeU64", parent_node, loc);
+                        // handling c like types
                         case IntNTypeKind::Char:
                             return write_call(typeBuilder, allocator, selfId, val, cache.getWriteChar(), "writeChar", parent_node, loc);
                         case IntNTypeKind::UChar:
@@ -2098,10 +2175,10 @@ public:
                             return write_call(typeBuilder, allocator, selfId, val, cache.getWriteLong(), "writeLong", parent_node, loc);
                         case IntNTypeKind::ULong:
                             return write_call(typeBuilder, allocator, selfId, val, cache.getWriteULong(), "writeULong", parent_node, loc);
-                        case IntNTypeKind::BigInt:
-                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteBigInt(), "writeBigInt", parent_node, loc);
-                        case IntNTypeKind::UBigInt:
-                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteUBigInt(), "writeUBigInt", parent_node, loc);
+                        case IntNTypeKind::LongLong:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteLongLong(), "writeLongLong", parent_node, loc);
+                        case IntNTypeKind::ULongLong:
+                            return write_call(typeBuilder, allocator, selfId, val, cache.getWriteULongLong(), "writeULongLong", parent_node, loc);
                         default:
 #ifdef DEBUG
                             throw std::runtime_error("unexpected branch1: intrinsics::put_str_expr");

@@ -1,24 +1,6 @@
 public enum ValueKind {
 
-    // integer types
-    // signed integer types
-    Char,
-    Short,
-    Int,
-    Long,
-    BigInt,
-    Int128,
-    // unsigned integer types
-    UChar,
-    UShort,
-    UInt,
-    ULong,
-    UBigInt,
-    UInt128,
-    // unsigned integers end
-    NumberValue,
-    // integer number values end here
-
+    IntN,
     Float,
     Double,
     Bool,
@@ -59,7 +41,8 @@ public enum ValueKind {
     ExtractionValue,
     WrapValue,
 
-    DestructValue,
     EmbeddedValue,
+
+    ExpressiveString,
 
 }

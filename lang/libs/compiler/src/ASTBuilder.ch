@@ -85,6 +85,8 @@ public struct LiteralType : BaseType {}
 
 public struct LongType : IntNType {}
 
+public struct LongLongType : IntNType {}
+
 public struct PointerType : BaseType {}
 
 public struct ReferenceType : BaseType {}
@@ -102,6 +104,8 @@ public struct UInt128Type : IntNType {}
 public struct UIntType : IntNType {}
 
 public struct ULongType : IntNType {}
+
+public struct ULongLongType : IntNType {}
 
 public struct UShortType : IntNType {}
 

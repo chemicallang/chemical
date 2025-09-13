@@ -115,13 +115,13 @@ struct check_gen_multi_typed<T> {
 }
 
 func <T> gen_ret_func(value : T) : T {
-    if(T is char || T is uchar) {
+    if(T is char || T is uchar || T is i8 || T is u8) {
         return value + 1
-    } else if(T is short || T is ushort) {
+    } else if(T is short || T is ushort || T is i16 || T is u16) {
         return value + 2
-    } else if(T is int || T is uint) {
+    } else if(T is int || T is uint || T is i32 || T is u32) {
         return value + 4
-    } else if(T is bigint || T is ubigint) {
+    } else if(T is longlong || T is ulonglong || T is i64 || T is u64) {
         return value + 8
     } else {
         return value + 0
@@ -335,6 +335,18 @@ func test_basic_generics() {
     })
     test("generic functions call the right instantiation - 4", () => {
         return gen_ret_func(0i64) == 8 && gen_ret_func(0ui64) == 8
+    })
+    test("generic functions call the right instantiation - 5", () => {
+        return gen_ret_func(0 as char) == 1 && gen_ret_func(0 as uchar) == 1
+    })
+    test("generic functions call the right instantiation - 6", () => {
+        return gen_ret_func(0 as short) == 2 && gen_ret_func(0 as ushort) == 2
+    })
+    test("generic functions call the right instantiation - 7", () => {
+        return gen_ret_func(0 as int) == 4 && gen_ret_func(0 as uint) == 4
+    })
+    test("generic functions call the right instantiation - 8", () => {
+        return gen_ret_func(0 as longlong) == 8 && gen_ret_func(0 as ulonglong) == 8
     })
     // duplicating tests so when generic implementations are reused based on types
     // we test that correct implementations are called still.

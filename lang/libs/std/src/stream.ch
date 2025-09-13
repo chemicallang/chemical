@@ -115,21 +115,20 @@ public struct CommandLineStream : Stream {
         }
 
         // NaN
-        if(value != value) {
+        if(std::dbl_is_nan(value)) {
             out_buf[0] = 'n'; out_buf[1] = 'a'; out_buf[2] = 'n';
             return 3;
         }
 
         // infinities (use bit-pattern comparisons like your example)
-        const pInf = 0x7FF0000000000000 as double;
-        if(value > pInf) {
-            out_buf[0] = 'i'; out_buf[1] = 'n'; out_buf[2] = 'f';
-            return 3;
-        }
-        const nInf = 0xFFF0000000000000 as double;
-        if(value < nInf) {
-            out_buf[0] = '-'; out_buf[1] = 'i'; out_buf[2] = 'n'; out_buf[3] = 'f';
-            return 4;
+        if(std::dbl_is_inf(value)) {
+            if(std::dbl_is_neg(value)) {
+                out_buf[0] = '-'; out_buf[1] = 'i'; out_buf[2] = 'n'; out_buf[3] = 'f';
+                return 4;
+            } else {
+                out_buf[0] = 'i'; out_buf[1] = 'n'; out_buf[2] = 'f';
+                return 3;
+            }
         }
 
         var dst_i : size_t = 0;

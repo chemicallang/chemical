@@ -40,17 +40,7 @@ public:
     Value* evaluate(ASTAllocator& allocator, GlobalInterpretScope* comptime_scope) {
         InterpretScope scope(nullptr, allocator, comptime_scope);
         // replacing
-        const auto eval = value->evaluated_value(scope);
-        if(!eval) {
-            return nullptr;
-        }
-        // move the allocated values from interpret scope to the allocator
-        // so they are destroyed when the allocator is destroyed
-        for(const auto val : scope.allocated) {
-            allocator.store_ptr(val);
-        }
-        scope.allocated.clear();
-        return eval;
+        return value->evaluated_value(scope);
     }
 
 #ifdef COMPILER_BUILD

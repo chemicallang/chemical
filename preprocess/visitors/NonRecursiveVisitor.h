@@ -363,10 +363,6 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
-    inline void VisitDestructValue(DestructValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
     inline void VisitExtractionValue(ExtractionValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -789,9 +785,6 @@ public:
             case ValueKind::WrapValue:
                 static_cast<Derived*>(this)->VisitWrapValue((WrapValue*) value);
                 return;
-            case ValueKind::DestructValue:
-                static_cast<Derived*>(this)->VisitDestructValue((DestructValue*) value);
-                return;
             case ValueKind::ExtractionValue:
                 static_cast<Derived*>(this)->VisitExtractionValue((ExtractionValue*) value);
                 return;
@@ -1156,9 +1149,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(WrapValue* value) {
         static_cast<Derived*>(this)->VisitWrapValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(DestructValue* value) {
-        static_cast<Derived*>(this)->VisitDestructValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(ExpressiveString* value) {
         static_cast<Derived*>(this)->VisitExpressiveString(value);

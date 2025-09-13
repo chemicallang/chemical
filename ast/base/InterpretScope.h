@@ -31,10 +31,6 @@ using value_iterator = value_map::iterator;
 class FunctionType;
 
 class InterpretScope {
-protected:
-
-    ASTAny* allocate_released(std::size_t obj_size, std::size_t alignment);
-
 public:
 
     /**
@@ -59,12 +55,6 @@ public:
     ASTAllocator& allocator;
 
     /**
-     * the pointers allocated by this scope, we call destruct
-     * on these pointers when the scope dies
-     */
-    std::vector<ASTAny*> allocated;
-
-    /**
      * constructor
      */
     explicit InterpretScope(
@@ -82,7 +72,6 @@ public:
 
     /**
      * deleted copy constructor
-     * @param copy
      */
     InterpretScope(const InterpretScope& copy) = delete;
 
@@ -92,14 +81,8 @@ public:
      */
     template<typename T>
     FORCE_INLINE T* allocate() {
-        static_assert(std::is_base_of<ASTAny, T>::value, "T must derived from ASTAny");
-        return (T*) allocate_released(sizeof(T), alignof(T));
+        return allocator.allocate<T>();
     }
-
-    /**
-     * this function is called when this scope is destructed
-     */
-    void add_destructor(void* data, void(*destruct)(void* data));
 
     /**
      * declares a value with this name in current scope
@@ -174,6 +157,6 @@ public:
      * Values that want to be deleted when the scope ends
      * must be deleted in the destructor
      */
-    virtual ~InterpretScope();
+    virtual ~InterpretScope() = default;
 
 };

@@ -2051,7 +2051,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("expr_str_block_value"),
-            {cache.getVoidType(), ZERO_LOC},
+            {cache.getI32Type(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -2214,13 +2214,17 @@ public:
             return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc);
         }
 
-        const auto first = call->values[0]->evaluated_value(*call_scope);
-        const auto second = call->values[1]->evaluated_value(*call_scope);
+        const auto first = call->values[0]->evaluated_value(*call_scope)->copy(allocator);
+        const auto second = call->values[1]->evaluated_value(*call_scope)->copy(allocator);
 
         const auto parent_type = call_scope->global->current_func_type;
         const auto func = parent_type->as_function();
         ASTNode* parent_node = func ? func : parent_type->get_parent();
         const auto blkValue = new (allocator.allocate<BlockValue>()) BlockValue(parent_node, loc);
+
+        // returning a integer value
+        const auto ZeroNum = new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getI32Type(), loc);
+        blkValue->setCalculatedValue(ZeroNum);
 
         if(second->kind() != ValueKind::ExpressiveString && second->kind() != ValueKind::String) {
             call_scope->error("unknown value being passed to intrinsics::expr_str_block_value", second);

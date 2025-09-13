@@ -91,7 +91,7 @@ public:
     Value* value; ///< The value being assigned to the identifier.
 
 #ifdef COMPILER_BUILD
-    llvm::Value *llvm_ptr;
+    llvm::Value *llvm_ptr = nullptr;
 #endif
 
     /**

@@ -230,6 +230,7 @@ const auto print_cst_desc = "print representation of the cst";
 const auto print_ig_desc = "print representation of the import graph";
 const auto verbose_desc = "verbose enables complete logging";
 const auto debug_info_desc = "should debug information be emitted";
+const auto link_lib_desc = "link a library";
 const auto ignore_errors_desc = "ignore certain errors during compilation";
 const auto lto_desc = "enable link time optimization";
 const auto assertions_desc = "enable assertions for checking of generated code";
@@ -502,6 +503,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
             CmdOption("verbose", "v", CmdOptionType::NoValue, verbose_desc),
             CmdOption("", "g", CmdOptionType::NoValue, debug_info_desc),
+            CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_desc),
             CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue, ignore_errors_desc),
             CmdOption("lto", CmdOptionType::NoValue, lto_desc),
             CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
@@ -863,6 +865,10 @@ int compiler_main(int argc, char *argv[]) {
         job.target_triple.append(target);
     }
     set_options_for_main_job(options, job, module, dependencies);
+    auto link_libs = options.data.find("library")->second.get_multi_opt_values();
+    for(auto& lib : link_libs) {
+        job.link_libs.emplace_back(chem::string::make_view(lib));
+    }
 
     // checking if user requires ll, asm output at default location for the module
     const auto has_ll = options.has_value("out-ll-all");

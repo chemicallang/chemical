@@ -1085,7 +1085,7 @@ void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
         // TODO this can be improved
         // currently every return is first initialized in the current scope
         // then every return is copied to the call scope
-        interpretReturn = value->evaluated_value(func_scope)->copy(callScope->allocator);
+        interpretReturn = value->evaluated_value(func_scope);
     }
     body->stopInterpretOnce();
 }
@@ -1122,11 +1122,11 @@ Value *FunctionDeclaration::call(
         if(evaluate_refs) {
             param_val = call_args[i]->scope_value(*call_scope);
         } else {
-            if(call_args[i]->reference()) {
-                param_val = call_args[i]->copy(allocator);
-            } else {
+//            if(call_args[i]->reference()) {
+//                param_val = call_args[i]->copy(allocator);
+//            } else {
                 param_val = call_args[i]->scope_value(*call_scope);
-            }
+//            }
         }
         fn_scope->declare(param->name, param_val);
         i++;

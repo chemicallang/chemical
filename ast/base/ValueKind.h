@@ -50,7 +50,6 @@ enum class ValueKind : uint8_t {
     ExtractionValue,
     WrapValue,
 
-    DestructValue,
     EmbeddedValue,
 
     ExpressiveString,

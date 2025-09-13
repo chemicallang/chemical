@@ -822,6 +822,10 @@ Value* evaluate_comptime_func(
     visitor.comptime_scope.current_func_type = visitor.current_func_type;
     auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, get_parent_from(call->parent_val), false);
     visitor.comptime_scope.current_func_type = prev;
+    // put all diagnostics for this function inside the diagnoser
+    auto& diags = visitor.comptime_scope.diagnostics;
+    visitor.diagnostics.insert(visitor.diagnostics.end(), diags.begin(), diags.end());
+    visitor.comptime_scope.reset_diagnostics();
     if(!value) {
         visitor.error("comptime function call didn't return anything", call);
         return nullptr;

@@ -85,10 +85,21 @@ public:
     static void print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& path, const chem::string_view& tag);
 
     /**
+     * print the diagnostics, uses contained file path
+     */
+    static void print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& tag);
+
+    /**
      * would print diagnostics to console
      */
     void print_diagnostics(const chem::string_view& path, const chem::string_view& tag) {
         print_diagnostics(diagnostics, path, tag);
+    }
+    /**
+     * would print diagnostics to console
+     */
+    void print_diagnostics(const chem::string_view& tag) {
+        print_diagnostics(diagnostics, tag);
     }
 
 };

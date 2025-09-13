@@ -38,7 +38,18 @@ void Diagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const chem::st
     if(!diagnostics.empty()) {
         for (const auto &err: diagnostics) {
             const auto use_cerr = err.severity.has_value() && err.severity.value() == DiagSeverity::Error;
-            err.ansi(use_cerr ? std::cerr : std::cout, path, tag) << '\n';
+            err.ansi(use_cerr ? std::cerr : std::cout, err.path_url.has_value() ? chem::string_view(err.path_url.value()) : path, tag) << '\n';
+        }
+        std::cout << std::flush;
+        std::cerr << std::flush;
+    }
+}
+
+void Diagnoser::print_diagnostics(std::vector<Diag>& diagnostics, const chem::string_view& tag) {
+    if(!diagnostics.empty()) {
+        for (const auto &err: diagnostics) {
+            const auto use_cerr = err.severity.has_value() && err.severity.value() == DiagSeverity::Error;
+            err.ansi(use_cerr ? std::cerr : std::cout, err.path_url.has_value() ? chem::string_view(err.path_url.value()) : "", tag) << '\n';
         }
         std::cout << std::flush;
         std::cerr << std::flush;

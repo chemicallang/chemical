@@ -579,6 +579,12 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
         comptime_scope.current_func_type = current_func_type;
         auto ret = decl->call(&comptime_scope, allocator, call, get_parent_from(call->parent_val), false);
         comptime_scope.current_func_type = prev;
+
+        // put all diagnostics for this function inside the diagnoser
+        auto& diags = comptime_scope.diagnostics;
+        diagnostics.insert(diagnostics.end(), diags.begin(), diags.end());
+        comptime_scope.reset_diagnostics();
+
         if(!ret) {
 //            warn("compile time function didn't return a value", decl);
             evaluated_func_calls[call] = nullptr;

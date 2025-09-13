@@ -2,6 +2,37 @@ public namespace std {
 
 public comptime const STR_BUFF_SIZE = 16;
 
+union u64_double_union {
+    var u : u64
+    var d : double
+}
+
+func dbl_bits(x : double) : u64 {
+    var u : u64_double_union;
+    u.d = x;
+    return u.u;
+}
+func dbl_from_bits(b : u64) : double {
+    var u : u64_double_union;
+    u.u = b;
+    return u.d;
+}
+comptime const DBL_EXP_MASK = 0x7FF0000000000000u64
+comptime const DBL_FRAC_MASK = 0x000FFFFFFFFFFFFFu64
+comptime const DBL_SIGN_MASK = 0x8000000000000000u64
+
+func dbl_is_nan(x : double) : bool {
+    var b = dbl_bits(x);
+    return ((b & DBL_EXP_MASK) == DBL_EXP_MASK) && ((b & DBL_FRAC_MASK) != 0);
+}
+func dbl_is_inf(x : double) : bool {
+    var b = dbl_bits(x);
+    return ((b & DBL_EXP_MASK) == DBL_EXP_MASK) && ((b & DBL_FRAC_MASK) == 0);
+}
+func dbl_is_neg(x : double) : bool {
+    return ((dbl_bits(x) & DBL_SIGN_MASK) != 0);
+}
+
 public struct string : Hashable, Eq {
 
     union {
@@ -298,20 +329,18 @@ public struct string : Hashable, Eq {
         }
 
         // handle NaN
-        if(value != value) {
-            append_with_len("nan", 3);
+        if(dbl_is_nan(value)) {
+            append_view(std::string_view("nan"))
             return;
         }
 
         // handle infinities
-        const pInf = 0x7FF0000000000000 as double
-        if(value > pInf) {
-            append_with_len("inf", 3);
-            return;
-        }
-        const nInf = 0xFFF0000000000000 as double
-        if(value < nInf) {
-            append_with_len("-inf", 4);
+        if(dbl_is_inf(value)) {
+            if(dbl_is_neg(value)) {
+                append_view(std::string_view("-inf"))
+            } else {
+                append_view(std::string_view("inf"))
+            }
             return;
         }
 

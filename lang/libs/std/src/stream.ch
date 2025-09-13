@@ -4,6 +4,22 @@ public interface Stream {
 
     func writeStrNoLen(&self, value : *char);
 
+    func writeI8(&self, value : i8);
+
+    func writeI16(&self, value : i16);
+
+    func writeI32(&self, value : i32);
+
+    func writeI64(&self, value : i64);
+
+    func writeU8(&self, value : u8);
+
+    func writeU16(&self, value : u16);
+
+    func writeU32(&self, value : u32);
+
+    func writeU64(&self, value : u64);
+
     func writeChar(&self, value : char)
 
     func writeUChar(&self, value : uchar)
@@ -20,9 +36,9 @@ public interface Stream {
 
     func writeULong(&self, value : ulong);
 
-    func writeBigInt(&self, value : bigint);
+    func writeLongLong(&self, value : longlong);
 
-    func writeUBigInt(&self, value : ubigint);
+    func writeULongLong(&self, value : ulonglong);
 
     func writeFloat(&self, value : float);
 
@@ -237,6 +253,58 @@ public struct CommandLineStream : Stream {
     // --- Stream methods -----------------------------------------------
 
     @override
+    func writeI8(&self, value : i8) {
+        fwrite(&value, 1, 1, get_stdout());
+    }
+
+    @override
+    func writeI16(&self, value : i16) {
+        var buf : char[32];
+        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
+        fwrite(&buf[0], 1, len, get_stdout());
+    }
+
+    @override
+    func writeI32(&self, value : i32) {
+        var buf : char[32];
+        var len = self.i64_to_chars(&mut buf[0], (value as bigint));
+        fwrite(&buf[0], 1, len, get_stdout());
+    }
+
+    @override
+    func writeI64(&self, value : i64) {
+        var buf : char[64];
+        var len = self.i64_to_chars(&mut buf[0], value);
+        fwrite(&buf[0], 1, len, get_stdout());
+    }
+
+    @override
+    func writeU8(&self, value : u8) {
+        fwrite(&value, 1, 1, get_stdout());
+    }
+
+    @override
+    func writeU16(&self, value : u16) {
+        var buf : char[32];
+        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
+        fwrite(&buf[0], 1, len, get_stdout());
+    }
+
+    @override
+    func writeU32(&self, value : u32) {
+        var buf : char[32];
+        var len = self.u64_to_chars(&mut buf[0], (value as ubigint));
+        fwrite(&buf[0], 1, len, get_stdout());
+    }
+
+    @override
+    func writeU64(&self, value : u64) {
+        var buf : char[64];
+        var len = self.u64_to_chars(&mut buf[0], value);
+        fwrite(&buf[0], 1, len, get_stdout());
+    }
+
+    @override
     func writeStr(&self, value : *char, length : ubigint) {
         fwrite(value, 1, length, get_stdout());
     }
@@ -299,14 +367,14 @@ public struct CommandLineStream : Stream {
     }
 
     @override
-    func writeBigInt(&self, value : bigint) {
+    func writeLongLong(&self, value : longlong) {
         var buf : char[64];
         var len = self.i64_to_chars(&mut buf[0], value);
         fwrite(&buf[0], 1, len, get_stdout());
     }
 
     @override
-    func writeUBigInt(&self, value : ubigint) {
+    func writeULongLong(&self, value : ulonglong) {
         var buf : char[64];
         var len = self.u64_to_chars(&mut buf[0], value);
         fwrite(&buf[0], 1, len, get_stdout());

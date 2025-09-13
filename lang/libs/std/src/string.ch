@@ -582,6 +582,46 @@ struct StringStream : Stream {
     var str : &std::string
 
     @override
+    func writeI8(&self, value : i8) {
+        str.append(value)
+    }
+
+    @override
+    func writeI16(&self, value : i16) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeI32(&self, value : i32) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeI64(&self, value : i64) {
+        str.append_integer(value)
+    }
+
+    @override
+    func writeU8(&self, value : u8) {
+        str.append(value as char)
+    }
+
+    @override
+    func writeU16(&self, value : u16) {
+        str.append_uinteger(value)
+    }
+
+    @override
+    func writeU32(&self, value : u32) {
+        str.append_uinteger(value)
+    }
+
+    @override
+    func writeU64(&self, value : u64) {
+        str.append_uinteger(value)
+    }
+
+    @override
     func writeStr(&self, value : *char, length : ubigint) {
         str.append_with_len(value, length)
     }
@@ -632,12 +672,12 @@ struct StringStream : Stream {
     }
 
     @override
-    func writeBigInt(&self, value : bigint) {
+    func writeLongLong(&self, value : longlong) {
         str.append_integer(value)
     }
 
     @override
-    func writeUBigInt(&self, value : ubigint) {
+    func writeULongLong(&self, value : ulonglong) {
         str.append_uinteger(value)
     }
 

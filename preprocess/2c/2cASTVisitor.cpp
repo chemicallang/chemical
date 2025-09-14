@@ -4192,7 +4192,7 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
 
 void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
-    const auto linked_interface = def->interface_type->linked_node()->as_interface_def();
+    const auto linked_interface = def->interface_type->linked_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
     for(auto& func : def->instantiated_functions()) {
         contained_func_decl(*this, func, overrides,linked_struct);

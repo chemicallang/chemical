@@ -651,6 +651,14 @@ ASTNode* provide_child(BaseType* type, const chem::string_view& name) {
     return provider ? provider->child(name) : nullptr;
 }
 
+ASTNode* provide_child(BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
+    const auto provider = child_provider(type);
+    if(!provider) return nullptr;
+    // safe direct recursive data structures (recursion check)
+    if(provider == type_parent) return nullptr;
+    return provider->child(name);
+}
+
 // get inherited or direct child from a members container (like struct gives)
 ASTNode* container_child(MembersContainer* decl, const chem::string_view& name) {
     // TODO: this function should resolve the child in a single check
@@ -660,7 +668,7 @@ ASTNode* container_child(MembersContainer* decl, const chem::string_view& name) 
     } else if (!decl->inherited.empty()) {
         for (auto& inherits : decl->inherited) {
             if (inherits.specifier == AccessSpecifier::Public) {
-                const auto thing = provide_child(inherits.type, name);
+                const auto thing = provide_child(inherits.type, name, decl);
                 if (thing) return thing;
             }
         }

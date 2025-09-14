@@ -44,7 +44,7 @@ public:
         declare_union_functions(def);
     }
 
-    void declare_interface(InterfaceDefinition* interface);
+    void declare_interface(InterfaceDefinition* interface, bool external_declare);
 
     void declare_variant_def_only(VariantDefinition* def);
 

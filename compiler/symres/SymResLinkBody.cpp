@@ -1207,6 +1207,13 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
     if(struct_linked) {
         struct_linked->redeclare_inherited_members(linker);
         struct_linked->redeclare_variables_and_functions(linker);
+
+        // make struct adopt all the methods of interface
+        // this should be done when the struct has been linked
+        // if its body is being linked, we don't want to call the methods in interface
+        if(!overrides_interface) {
+            struct_linked->adopt(linked);
+        }
     }
     LinkMembersContainerNoScope(node);
     linker.scope_end();

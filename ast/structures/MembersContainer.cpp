@@ -812,15 +812,19 @@ bool VariablesContainer::does_override(InterfaceDefinition* interface) {
 
 void VariablesContainer::adopt(MembersContainer* definition) {
     for(auto& inherits : definition->inherited) {
-        adopt((MembersContainer*) inherits.type->linked_node());
+        // adopt inherited container
+        const auto container = inherits.type->get_members_container();
+        if(container) adopt(container);
     }
     for(const auto node : definition->evaluated_nodes()) {
         switch(node->kind()) {
             case ASTNodeKind::FunctionDecl:
-                indexes[node->as_function_unsafe()->name_view()] = node;
+                // will not overwrite any existing function with same name
+                indexes.try_emplace(node->as_function_unsafe()->name_view(), node);
                 break;
             case ASTNodeKind::GenericFuncDecl:
-                indexes[node->as_gen_func_decl_unsafe()->master_impl->name_view()] = node;
+                // will not overwrite any existing function with same name
+                indexes.try_emplace(node->as_gen_func_decl_unsafe()->master_impl->name_view(), node);
                 break;
             default:
                 break;

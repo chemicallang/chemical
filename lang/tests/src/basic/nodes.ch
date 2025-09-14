@@ -180,6 +180,17 @@ struct DefConsContainer {
     var d : DefConsStruct
 }
 
+// --------- interface existence test (with dyn methods and zero implementation) start -------
+// testing if an interface can exist with dynamic methods and having zero implementations
+interface ZeroImplTestInterface {
+    func sum(&self) : int
+}
+
+func call_it(z : dyn ZeroImplTestInterface) {
+    z.sum();
+}
+// --------- interface existence test (with dyn methods and zero implementation) end -------
+
 func test_nodes() {
     test("global constant int", () => {
         return MyInt == 5;

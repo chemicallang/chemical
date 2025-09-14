@@ -5300,8 +5300,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                 if (interface) {
                     // Dynamic dispatch
                     // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
-                    auto first = interface->users.begin();
-                    auto first_def = first->first;
                     write('(');
                     write('(');
                     vtable_type_name(*this, interface);

@@ -327,7 +327,7 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
                 tld.VisitGenericTypeDecl(node->as_gen_type_decl_unsafe());
                 break;
             case ASTNodeKind::InterfaceDecl:
-                tld.VisitInterfaceDecl(node->as_interface_def_unsafe());
+                tld.declare_interface(node->as_interface_def_unsafe(), true);
                 break;
             case ASTNodeKind::NamespaceDecl:
                 external_declare(node->as_namespace_unsafe()->nodes);
@@ -3200,30 +3200,26 @@ void CTopLevelDeclarationVisitor::VisitVariantDecl(VariantDefinition *def) {
     declare_variant_iterations(def);
 }
 
-void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition, bool declare_only) {
+void vtable_type_name(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
+    visitor.write("__chx_");
+    visitor.mangle(interface);
+    visitor.write("_vt_t");
+}
+
+void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
     visitor.new_line_and_indent();
-    if(declare_only) {
-        visitor.write("extern ");
-    }
-    visitor.write("const");
-    visitor.write(' ');
-    visitor.write("struct");
-    visitor.space();
-    visitor.write('{');
+    visitor.write("typedef struct ");
+    vtable_type_name(visitor, interface);
+    visitor.write(" {");
     visitor.indentation_level += 1;
-
-    const auto prev_active = interface->active_user;
-    interface->active_user = definition;
-
+    interface->active_user = nullptr;
     // type pointers
     for(auto& func : interface->instantiated_functions()) {
         auto self_param = func->get_self_param();
         if(self_param) {
             visitor.new_line_and_indent();
             func_type_with_id_no_params(visitor, func, func->name_view());
-            visitor.write("struct ");
-            node_name(visitor, definition);
-            visitor.write('*');
+            visitor.write("void*");
             visitor.space();
             visitor.write(self_param->name);
             func_type_params(visitor, func, 1, true);
@@ -3231,33 +3227,44 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
             visitor.write(';');
         }
     }
-
     visitor.indentation_level -=1;
     visitor.new_line_and_indent();
     visitor.write('}');
     visitor.space();
+    vtable_type_name(visitor, interface);
+    visitor.write(';');
+}
+
+void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+
+    visitor.new_line_and_indent();
+    visitor.write("const");
+    visitor.space();
+    vtable_type_name(visitor, interface);
+
+    const auto prev_active = interface->active_user;
+    interface->active_user = definition;
+
+    visitor.space();
     vtable_name(visitor, interface, definition);
-    if(!declare_only) {
-        visitor.write(" = ");
-        visitor.write('{');
-        visitor.indentation_level += 1;
+    visitor.write(" = ");
+    visitor.write('{');
+    visitor.indentation_level += 1;
 
-        // func pointer values
-        for (auto& func: interface->instantiated_functions()) {
-            if (func->has_self_param()) {
-                visitor.new_line_and_indent();
-                visitor.mangle(func);
-                visitor.write(',');
-            }
+    // func pointer values
+    for (auto& func: interface->instantiated_functions()) {
+        if (func->has_self_param()) {
+            visitor.new_line_and_indent();
+            visitor.mangle(func);
+            visitor.write(',');
         }
-
-        visitor.indentation_level -= 1;
-        visitor.new_line_and_indent();
-        visitor.write('}');
     }
 
-    interface->active_user = prev_active;
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
 
+    interface->active_user = prev_active;
     visitor.write(';');
 }
 
@@ -3270,45 +3277,52 @@ static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefin
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
+void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bool external_declare) {
     const auto is_static = def->is_static();
-    for (auto& func: def->instantiated_functions()) {
-        if(is_static || !func->has_self_param()) {
-            declare_contained_func(this, func, false);
-        }
-    }
-//#ifdef COMPILER_BUILD
-//    if(!def->vtable_pointers.empty()) {
-//        // this only occurs because when we generate interface with both backends without re-parsing, this module
-//        visitor.error("interface has already vtable pointers generated, suspected interface being used in both backends", def);
-//#ifdef DEBUG
-//        throw std::runtime_error("interface being used in both backends c and llvm");
-//#endif
-//    }
-//#endif
-    if(!is_static) {
-        for (auto& use: def->users) {
-            def->active_user = use.first;
-            for (auto& func: def->instantiated_functions()) {
-                if (func->has_self_param()) {
-                    declare_contained_func(this, func, false, use.first);
-                }
+    if(!external_declare) {
+        for (auto& func: def->instantiated_functions()) {
+            if(is_static || !func->has_self_param()) {
+                declare_contained_func(this, func, false);
             }
         }
+    }
+    if(!is_static) {
         def->active_user = nullptr;
+        if(!external_declare) {
+            create_v_table_type(visitor, def);
+        }
         // either create or declare the vtable, depending on whether it has been declared before
         for(auto& user : def->users) {
             const auto linked_struct = user.first;
             if(linked_struct) {
+
+                // checking if vtable implementation exists or not
 #ifdef COMPILER_BUILD
                 auto vtable_done = def->vtable_pointers.find(linked_struct);
                 const auto has_vtable_impl = vtable_done != def->vtable_pointers.end();
 #else
                 const auto has_vtable_impl = user.second;
 #endif
+
+                // if it doesn't exit emit a vtable struct
                 if(!has_vtable_impl) {
-                    create_v_table(visitor, def, linked_struct, false);
+
+                    // declare contained functions for each implementation
+                    for (auto& use: def->users) {
+                        def->active_user = use.first;
+                        for (auto& func: def->instantiated_functions()) {
+                            if (func->has_self_param()) {
+                                declare_contained_func(this, func, false, use.first);
+                            }
+                        }
+                    }
+                    def->active_user = nullptr;
+
+                    // create the v table for each implementation
+                    create_v_table(visitor, def, linked_struct);
                 }
+
+                // setting it true, that vtable implementation exists
 #ifdef COMPILER_BUILD
                 if(!has_vtable_impl) {
                     def->vtable_pointers[linked_struct] = nullptr;
@@ -3324,7 +3338,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
-    declare_interface(def);
+    declare_interface(def, false);
 }
 
 void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
@@ -3385,6 +3399,10 @@ void ToCAstVisitor::prepare_translate() {
         write("extern void* malloc(unsigned long size);\n");
     }
     write("extern void free(void* block);\n");
+    write("#pragma clang diagnostic ignored \"-Wincompatible-function-pointer-types\"\n"
+          "#pragma GCC diagnostic ignored \"-Wincompatible-function-pointer-types\"\n"
+          "#pragma warning(disable:4057)\n"
+      );
     write("#if defined(_MSC_VER)\n"
           "    #define __chem_stdcall __stdcall\n"
           "    #define __chem_dllimport __declspec((dllimport))\n"
@@ -5279,17 +5297,14 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
             auto pure_grandpa = grandpaType->pure_type(allocator);
             if (pure_grandpa && pure_grandpa->kind() == BaseTypeKind::Dynamic) {
                 const auto interface = pure_grandpa->linked_node()->as_interface_def();
-                if (interface && !interface->users.empty()) {
+                if (interface) {
                     // Dynamic dispatch
                     // ((typeof(PhoneSmartPhone)*) phone.second)->call(phone.first);
                     auto first = interface->users.begin();
                     auto first_def = first->first;
                     write('(');
                     write('(');
-                    write("typeof");
-                    write('(');
-                    vtable_name(*this, interface, first_def);
-                    write(')');
+                    vtable_type_name(*this, interface);
                     write('*');
                     write(')');
                     space();
@@ -5311,12 +5326,8 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                     func_call_args(*this, call, func_type);
                     write(')');
                 } else {
-                    if (!interface) {
-                        write("[Dynamic Dispatch used with type other than interface]");
-                        error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());
-                    } else {
-                        write("[Dynamic Dispatch Interface has no known users]");
-                    }
+                    write("[Dynamic Dispatch used with type other than interface]");
+                    error("Dynamic Dispatch used with a type other than interface", pure_grandpa->linked_node());
                 }
                 return;
             }

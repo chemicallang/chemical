@@ -256,6 +256,10 @@ bool MembersContainer::getAllMembersDefaultInitialized() {
         variables_initialized = false;
         const auto container = var->known_type()->get_members_container();
         if(container) {
+            if(container == this) {
+                // self composition (recursion)
+                continue;
+            }
             if(!container->getAllMembersDefaultInitialized()) {
                 final_def_initialized = false;
             }
@@ -267,6 +271,10 @@ bool MembersContainer::getAllMembersDefaultInitialized() {
     // check if all inherited members are default initialized
     for(auto& inh : inherited) {
         const auto container = inh.type->get_members_container();
+        if(container == this) {
+            // self inheritance (recursion)
+            continue;
+        }
         const auto initialized = container->getAllMembersDefaultInitialized();
         if(!initialized) {
             final_def_initialized = false;

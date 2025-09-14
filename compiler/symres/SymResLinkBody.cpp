@@ -813,45 +813,51 @@ void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
     }
 }
 
+bool link_self_type(SymbolResolver& linker, LinkedType* linked_type, FunctionParam* param) {
+    auto parent_node = param->parent();
+    auto parent_kind = parent_node->kind();
+    ASTNode* parent;
+    if (parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
+        const auto p = parent_node->parent();
+        if (p) {
+            parent_node = p;
+            parent_kind = p->kind();
+        }
+    }
+    switch (parent_kind) {
+        case ASTNodeKind::ImplDecl:
+            parent = parent_node->as_impl_def_unsafe()->struct_type->get_direct_linked_canonical_node();
+            break;
+        case ASTNodeKind::StructDecl: {
+            const auto def = parent_node->as_struct_def_unsafe();
+            parent = def->generic_parent ? (ASTNode*) def->generic_parent : parent_node;
+            break;
+        }
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::InterfaceDecl:
+            parent = parent_node;
+            break;
+        default:
+            parent = nullptr;
+            break;
+    }
+    if (!parent) {
+        linker.error("couldn't get self / other implicit parameter type", param);
+        return false;
+    }
+    linked_type->linked = parent;
+    return true;
+}
+
 bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
     if(name == "self" || name == "other") { // name and other means pointers to parent node
-        const auto ptr_type = ((ReferenceType*) type.getType());
-        auto& linked_type_ref = ptr_type->type;
-        const auto linked_type = ((LinkedType*) linked_type_ref);
-        auto parent_node = parent();
-        auto parent_kind = parent_node->kind();
-        ASTNode* parent;
-        if(parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
-            const auto p = parent_node->parent();
-            if(p) {
-                parent_node = p;
-                parent_kind = p->kind();
-            }
+        if(type->kind() == BaseTypeKind::Reference) {
+            return link_self_type(linker, type->as_reference_type_unsafe()->type->as_linked_type_unsafe(), this);
+        } else {
+            // must be a direct self
+            return link_self_type(linker, type->as_linked_type_unsafe(), this);
         }
-        switch(parent_kind) {
-            case ASTNodeKind::ImplDecl:
-                parent = parent_node->as_impl_def_unsafe()->struct_type->get_direct_linked_canonical_node();
-                break;
-            case ASTNodeKind::StructDecl: {
-                const auto def = parent_node->as_struct_def_unsafe();
-                parent = def->generic_parent ? (ASTNode*) def->generic_parent : parent_node;
-                break;
-            }
-            case ASTNodeKind::VariantDecl:
-            case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::InterfaceDecl:
-                parent = parent_node;
-                break;
-            default:
-                parent = nullptr;
-                break;
-        }
-        if(!parent) {
-            linker.error("couldn't get self / other implicit parameter type", this);
-            return false;
-        }
-        linked_type->linked = parent;
-        return true;
     } else {
         auto found = linker.find(name);
         if(found) {

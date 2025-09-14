@@ -156,8 +156,21 @@ bool Parser::parseParameterList(
     do {
         consumeNewLines();
         if(lexImplicitParams) {
-            auto ampersand = consumeOfType(TokenType::AmpersandSym);
-            if (ampersand) {
+            auto& t = *token;
+            if(t.type == TokenType::SelfKw) {
+                token++;
+                const auto linkedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, t.value), nullptr);
+#ifdef LSP_BUILD
+                id->linked = linkedType;
+#endif
+                const auto loc = loc_single(t);
+                auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, t.value), TypeLoc(linkedType, loc), index, nullptr, true, parent_node, loc);
+                parameters.emplace_back(param);
+                index++;
+                continue;
+            } else if(t.type == TokenType::AmpersandSym) {
+                token++;
+                auto ampersand = &t;
                 auto is_mutable = consumeToken(TokenType::MutKw); // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {

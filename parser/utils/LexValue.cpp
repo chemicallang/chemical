@@ -755,6 +755,7 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::Char:
             return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
         case TokenType::String:
+        case TokenType::StringExprStart:
         case TokenType::MultilineString:
             return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
         case TokenType::LogicalOrSym:

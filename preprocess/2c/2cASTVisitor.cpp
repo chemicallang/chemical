@@ -3324,14 +3324,6 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
-    // forward declaring the structs of users, because currently we only need to use them
-    // as pointers, even if user returns a struct, the function only takes a pointer (to memcpy)
-    for(auto& use : def->users) {
-        new_line_and_indent();
-        write("struct ");
-        node_name(visitor, use.first);
-        write(';');
-    }
     declare_interface(def);
 }
 

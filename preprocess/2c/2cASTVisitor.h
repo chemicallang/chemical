@@ -179,11 +179,6 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
-     * current members container to which functions belong
-     */
-    MembersContainer* current_members_container = nullptr;
-
-    /**
      * allocator
      */
     ASTAllocator& allocator;

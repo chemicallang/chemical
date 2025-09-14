@@ -3417,7 +3417,6 @@ void ToCAstVisitor::reset() {
     evaluated_func_calls.clear();
     destructible_refs.clear();
     current_func_type = nullptr;
-    current_members_container = nullptr;
     indentation_level = 0;
     local_temp_var_i = 0;
     nested_value = false;
@@ -4194,6 +4193,30 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
     const auto linked_interface = def->interface_type->linked_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
+    // generate default implementations for functions in interface (which weren't overridden)
+    if(linked_struct && !linked_struct->does_override(linked_interface)) {
+        linked_interface->active_user = linked_struct;
+        for (auto& func: linked_interface->instantiated_functions()) {
+            if (!def->contains_func(func->name_view())) {
+                contained_func_decl(*this, func, false, linked_struct);
+            }
+        }
+        linked_interface->active_user = nullptr;
+        // cover also the inherited interfaces
+        for (auto& inherits: linked_interface->inherited) {
+            const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
+            if (overridden) {
+                overridden->active_user = linked_struct;
+                for (auto& func: overridden->instantiated_functions()) {
+                    if (!def->contains_func(func->name_view())) {
+                        contained_func_decl(*this, func, false, linked_struct);
+                    }
+                }
+                overridden->active_user = nullptr;
+            }
+        }
+    }
+    // overridden functions
     for(auto& func : def->instantiated_functions()) {
         contained_func_decl(*this, func, overrides,linked_struct);
     }
@@ -4327,8 +4350,6 @@ static void contained_union_functions(ToCAstVisitor& visitor, UnionDef* def) {
 }
 
 void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
-    auto prev_members_container = current_members_container;
-    current_members_container = def;
     for (auto& inherits: def->inherited) {
         const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
         if (overridden) {
@@ -4342,7 +4363,6 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
         }
     }
     contained_struct_functions(*this, def);
-    current_members_container = prev_members_container;
 }
 
 void ToCAstVisitor::VisitGenericStructDecl(GenericStructDecl* node) {
@@ -4392,8 +4412,6 @@ void ToCAstVisitor::VisitVariantDecl(VariantDefinition* def) {
 }
 
 void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
-    auto prev_members_container = current_members_container;
-    current_members_container = def;
     for (auto& inherits: def->inherited) {
         const auto overridden = inherits.type->linked_node()->as_interface_def();
         if (overridden) {
@@ -4405,7 +4423,6 @@ void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
         }
     }
     contained_union_functions(*this, def);
-    current_members_container = prev_members_container;
 }
 
 void ToCAstVisitor::VisitNamespaceDecl(Namespace *ns) {

@@ -827,48 +827,49 @@ Token Lexer::getNextToken() {
             }
         }
         case '"':
-            if(provider.peek() == '"') {
-                provider.increment();
-                if(provider.peek() == '"') {
+            switch(provider.peek()) {
+                case '"':
                     provider.increment();
-                    // here the multiline string begins
-                    const auto start = provider.current_data();
-                    const auto end = read_multi_line_string(provider);
-                    return Token(TokenType::MultilineString, chem::string_view(start, end - start), pos);
-                } else {
-                    // empty string
-                    return Token(TokenType::String, view_str(EmptyCStr), pos);
-                }
-            } else if(provider.peek() == '{') {
-                provider.increment();
-                // string expression found
-                if(str_expr) {
-                    diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
-                } else {
-                    str_expr = true;
-                }
-                return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
-            } else {
-                // single line string
-                const auto start = provider.current_data();
-                const auto ended = read_quoted_string2(provider);
-                if(ended.has_value()) {
-                    if(ended.value()) {
-                        // found double quotes
-                        str_expr = false;
+                    if(provider.peek() == '"') {
+                        provider.increment();
+                        // here the multiline string begins
+                        const auto start = provider.current_data();
+                        const auto end = read_multi_line_string(provider);
+                        return Token(TokenType::MultilineString, chem::string_view(start, end - start), pos);
                     } else {
-                        // string expression found
-                        if(str_expr) {
-                            diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
-                        } else {
-                            str_expr = true;
-                        }
+                        // empty string
+                        return Token(TokenType::String, view_str(EmptyCStr), pos);
                     }
-                } else {
-                    diagnoser.diagnostic("no ending quotes for the single line string", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
-                }
-                const auto end = provider.current_data() - (ended.has_value() && ended.value() ? 1 : 0);
-                return Token(TokenType::String, chem::string_view(start, end - start), pos);
+                case '{':
+                    provider.increment();
+                    // string expression found
+                    if(str_expr) {
+                        diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                    } else {
+                        str_expr = true;
+                    }
+                    return Token(TokenType::StringExprStart, view_str(LBraceCStr), pos);
+                default:
+                    // single line string
+                    const auto start = provider.current_data();
+                    const auto ended = read_quoted_string2(provider);
+                    if(ended.has_value()) {
+                        if(ended.value()) {
+                            // found double quotes
+                            str_expr = false;
+                        } else {
+                            // string expression found
+                            if(str_expr) {
+                                diagnoser.diagnostic("nested string expressions aren't allowed", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                            } else {
+                                str_expr = true;
+                            }
+                        }
+                    } else {
+                        diagnoser.diagnostic("no ending quotes for the single line string", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                    }
+                    const auto end = provider.current_data() - (ended.has_value() && ended.value() ? 1 : 0);
+                    return Token(TokenType::String, chem::string_view(start, end - start), pos);
             }
         case ' ':
         case '\t':

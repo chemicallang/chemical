@@ -56,7 +56,6 @@ func test_strings() {
         var second = string("I have 33 apples")
         return first.equals(second);
     })
-    /**
     test("appending expressive string into std::string, i32 - 2", () => {
         var first = string("")
         var count = 65
@@ -64,7 +63,6 @@ func test_strings() {
         var second = string("65 apples I have, said Yoda")
         return first.equals(second);
     })
-    **/
     test("appending expressive string into std::string, *char - 3", () => {
         var first = string("")
         var my_str = "something of value"

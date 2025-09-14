@@ -109,6 +109,25 @@ impl Summer for Point {
     }
 }
 
+interface DefFuncInterface {
+    func sum(&self) : int
+    func double_sum(&self) : int {
+        return sum() * 2;
+    }
+}
+
+struct DefFuncStruct {
+    var a : int
+    var b : int
+}
+
+impl DefFuncInterface for DefFuncStruct {
+    @override
+    func sum(&self) : int {
+        return a + b;
+    }
+}
+
 @direct_init
 struct DefaultInitStruct {
 
@@ -303,6 +322,10 @@ func test_nodes() {
     test("default implementation in interface works when not overridden", () => {
         var p = Point { x : 20, y : 10 }
         return p.dividePDefault() == 2
+    })
+    test("default implementation in interface works when in implementation", () => {
+        var s = DefFuncStruct { a : 6, b : 3 }
+        return s.double_sum() == 18
     })
     test("overridden implementation in interface works when overridden", () => {
         var p = Point { x : 20, y : 10 }

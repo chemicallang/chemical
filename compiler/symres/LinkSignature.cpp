@@ -149,7 +149,7 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
 
 void TopLevelLinkSignature::VisitExpression(Expression* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitExpression(value);
-    value->determine_type(linker.comptime_scope.typeBuilder);
+    value->determine_type(linker.comptime_scope.typeBuilder, linker);
     if(!linker.comptime_context) {
         linker.error("cannot evaluate expression at runtime outside function body", value);
     }

@@ -246,3 +246,42 @@ bool is_assoc_left_to_right(Operation op) {
             return true;
     }
 }
+
+OperatorImplInformation operator_impl_info(Operation op) {
+    switch(op) {
+        case Operation::Addition:
+            return { .name = "add" };
+        case Operation::Subtraction:
+            return { .name = "sub" };
+        case Operation::Multiplication:
+            return { .name = "mul" };
+        case Operation::Division:
+            return { .name = "div" };
+        case Operation::Modulus:
+            return { .name = "rem" };
+        case Operation::BitwiseAND:
+            return { .name = "bitand" };
+        case Operation::BitwiseOR:
+            return { .name = "bitor" };
+        case Operation::BitwiseXOR:
+            return { .name = "bitxor" };
+        case Operation::LeftShift:
+            return { .name = "shl" };
+        case Operation::RightShift:
+            return { .name = "shr" };
+        case Operation::IsEqual:
+            return { .name = "eq" };
+        case Operation::IsNotEqual:
+            return { .name = "ne" };
+        case Operation::GreaterThan:
+            return { .name = "gt" };
+        case Operation::LessThan:
+            return { .name = "lt" };
+        case Operation::GreaterThanOrEqual:
+            return { .name = "gte" };
+        case Operation::LessThanOrEqual:
+            return { .name = "lte" };
+        default:
+            return { .name = "" };
+    }
+}

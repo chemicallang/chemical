@@ -6061,96 +6061,54 @@ void ToCAstVisitor::VisitAlignOfValue(AlignOfValue *align_of) {
     write(')');
 }
 
-struct OperatorImplInformation {
-    chem::string_view name;
-};
-
-OperatorImplInformation operator_impl_info(Operation op) {
-    switch(op) {
-        case Operation::Addition:
-            return { .name = "add" };
-        case Operation::Subtraction:
-            return { .name = "sub" };
-        case Operation::Multiplication:
-            return { .name = "mul" };
-        case Operation::Division:
-            return { .name = "div" };
-        case Operation::Modulus:
-            return { .name = "rem" };
-        case Operation::BitwiseAND:
-            return { .name = "bitand" };
-        case Operation::BitwiseOR:
-            return { .name = "bitor" };
-        case Operation::BitwiseXOR:
-            return { .name = "bitxor" };
-        case Operation::LeftShift:
-            return { .name = "shl" };
-        case Operation::RightShift:
-            return { .name = "shr" };
-        case Operation::IsEqual:
-            return { .name = "eq" };
-        case Operation::IsNotEqual:
-            return { .name = "ne" };
-        case Operation::GreaterThan:
-            return { .name = "gt" };
-        case Operation::LessThan:
-            return { .name = "lt" };
-        case Operation::GreaterThanOrEqual:
-            return { .name = "gte" };
-        case Operation::LessThanOrEqual:
-            return { .name = "lte" };
-        default:
-            return { .name = "" };
-    }
-}
-
 void overload_expr_operator(ToCAstVisitor& visitor, MembersContainer* container, Expression* expr) {
     auto info = operator_impl_info(expr->operation);
-    if(!info.name.empty()) {
-        const auto child = container->child(info.name);
-        if (child) {
-            if (child->kind() == ASTNodeKind::FunctionDecl) {
-                const auto func = child->as_function_unsafe();
-                if(func->returnType->isStructLikeType()) {
-                    visitor.write("({ ");
-                    auto temp_name = visitor.get_local_temp_var_name();
-                    visitor.visit(func->returnType);
-                    visitor.space();
-                    visitor.write(temp_name);
-                    visitor.write("; ");
-                    visitor.mangle(child->as_function_unsafe());
-                    visitor.write("(&");
-                    visitor.write(temp_name);
-                    visitor.write(", ");
-                    visitor.accept_mutating_value(func->params[0]->known_type(), expr->firstValue, false);
-                    visitor.write(", ");
-                    visitor.accept_mutating_value(func->params[1]->known_type(), expr->secondValue, false);
-                    visitor.write("); ");
-                    visitor.write(temp_name);
-                    visitor.write("; })");
-                } else {
-                    visitor.mangle(child->as_function_unsafe());
-                    visitor.write('(');
-                    visitor.accept_mutating_value(func->params[0]->known_type(), expr->firstValue, false);
-                    visitor.write(", ");
-                    visitor.accept_mutating_value(func->params[1]->known_type(), expr->secondValue, false);
-                    visitor.write(')');
-                }
-                return;
-            } else {
-                visitor.write("0");
-                visitor.error("declaration cannot be used as implementation of operator", expr->firstValue);
-                return;
-            }
-        } else {
-            visitor.write("0");
-            visitor.error("no operator implementation exists for value", expr->firstValue);
-            return;
-        }
-    } else {
-        visitor.write("0");
+    if(info.name.empty()) {
+        visitor.write('0');
         visitor.error("operator cannot be overloaded", expr);
         return;
+    }
+    const auto child = container->child(info.name);
+    if (!child) {
+        visitor.write('0');
+        visitor.error("no operator implementation exists for value", expr->firstValue);
+        return;
+    }
+    if (child->kind() != ASTNodeKind::FunctionDecl) {
+        visitor.write('0');
+        visitor.error("declaration cannot be used as implementation of operator", expr->firstValue);
+        return;
+    }
+    const auto func = child->as_function_unsafe();
+    if(func->params.size() != 2) {
+        visitor.write('0');
+        visitor.error("invalid function signature when overloading operator", expr);
+        return;
+    }
+    if(func->returnType->isStructLikeType()) {
+        visitor.write("({ ");
+        auto temp_name = visitor.get_local_temp_var_name();
+        visitor.visit(func->returnType);
+        visitor.space();
+        visitor.write(temp_name);
+        visitor.write("; ");
+        visitor.mangle(child->as_function_unsafe());
+        visitor.write("(&");
+        visitor.write(temp_name);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[0]->known_type(), expr->firstValue, false);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[1]->known_type(), expr->secondValue, false);
+        visitor.write("); ");
+        visitor.write(temp_name);
+        visitor.write("; })");
+    } else {
+        visitor.mangle(child->as_function_unsafe());
+        visitor.write('(');
+        visitor.accept_mutating_value(func->params[0]->known_type(), expr->firstValue, false);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[1]->known_type(), expr->secondValue, false);
+        visitor.write(')');
     }
 }
 
@@ -6166,25 +6124,10 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     // referenced or direct linked canonical node
     const auto linked = first_type->get_linked_canonical_node(true, false);
     if(linked) {
-        switch(linked->kind()) {
-            case ASTNodeKind::StructDecl:
-            case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::VariantDecl:
-            case ASTNodeKind::InterfaceDecl:
-            case ASTNodeKind::ImplDecl:
-                overload_expr_operator(*this, linked->as_members_container_unsafe(), expr);
-                return;
-            case ASTNodeKind::TypealiasStmt: {
-                const auto container = linked->as_typealias_unsafe()->actual_type->get_members_container();
-                if(container) {
-                    overload_expr_operator(*this, container, expr);
-                    return;
-                } else {
-                    break;
-                }
-            }
-            default:
-                break;
+        const auto container = linked->get_members_container();
+        if(container) {
+            overload_expr_operator(*this, linked->as_members_container_unsafe(), expr);
+            return;
         }
     }
 

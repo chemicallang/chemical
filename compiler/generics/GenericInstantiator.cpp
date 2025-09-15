@@ -438,7 +438,7 @@ void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
 
 void GenericInstantiator::VisitExpression(Expression *expr) {
     RecursiveVisitor<GenericInstantiator>::VisitExpression(expr);
-    expr->determine_type(typeBuilder);
+    expr->determine_type(typeBuilder, diagnoser);
 }
 
 void GenericInstantiator::VisitIndexOperator(IndexOperator* value) {

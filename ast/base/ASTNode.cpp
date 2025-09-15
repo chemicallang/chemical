@@ -164,13 +164,18 @@ std::string ASTNode::representation() {
 }
 
 MembersContainer* ASTNode::get_members_container() {
-    const auto k = kind();
-    if(isMembersContainer(k)) {
-        return (MembersContainer*) this;
-    } else if(k == ASTNodeKind::TypealiasStmt) {
-        return ((TypealiasStatement*) this)->actual_type->get_members_container();
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::ImplDecl:
+            return (MembersContainer*) this;
+        case ASTNodeKind::TypealiasStmt:
+            return ((TypealiasStatement*) this)->actual_type->get_members_container();
+        default:
+            return nullptr;
     }
-    return nullptr;
 }
 
 LocatedIdentifier* ASTNode::get_located_id() {

@@ -303,13 +303,13 @@ public:
     /**
      * get any node linked (pointed to, referenced, direct)
      */
-    ASTNode* get_linked_node(bool include_ptr_or_ref = true);
+    ASTNode* get_linked_node(bool include_ref = true, bool include_ptr = true);
 
     /**
      * get any node linked (pointed to, referenced, direct)
      * (canonical means no typealias)
      */
-    ASTNode* get_linked_canonical_node(bool include_ptr_or_ref = true);
+    ASTNode* get_linked_canonical_node(bool include_ref = true, bool include_ptr = true);
 
     /**
      * get direct or referenced linked node, type should be Struct or Struct&

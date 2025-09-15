@@ -220,7 +220,7 @@ ASTNode* BaseType::get_direct_linked_canonical_node() {
     };
 }
 
-ASTNode* BaseType::get_linked_node(bool include_ptr_or_ref) {
+ASTNode* BaseType::get_linked_node(bool include_ref, bool include_ptr) {
     switch(kind()) {
         case BaseTypeKind::Linked:
             return as_linked_type_unsafe()->linked;
@@ -230,14 +230,14 @@ ASTNode* BaseType::get_linked_node(bool include_ptr_or_ref) {
         case BaseTypeKind::Union:
             return linked_node();
         case BaseTypeKind::Pointer:
-            if(include_ptr_or_ref) {
-                return as_pointer_type_unsafe()->type->get_linked_node(false);
+            if(include_ptr) {
+                return as_pointer_type_unsafe()->type->get_linked_node(false, false);
             } else {
                 return nullptr;
             }
         case BaseTypeKind::Reference:
-            if(include_ptr_or_ref) {
-                return as_reference_type_unsafe()->type->get_linked_node(false);
+            if(include_ref) {
+                return as_reference_type_unsafe()->type->get_linked_node(false, false);
             } else {
                 return nullptr;
             }
@@ -246,10 +246,10 @@ ASTNode* BaseType::get_linked_node(bool include_ptr_or_ref) {
     }
 }
 
-ASTNode* BaseType::get_linked_canonical_node(bool include_ptr_or_ref) {
-    const auto n = get_linked_node(include_ptr_or_ref);
+ASTNode* BaseType::get_linked_canonical_node(bool include_ref, bool include_ptr) {
+    const auto n = get_linked_node(include_ref, include_ptr);
     if(n && n->kind() == ASTNodeKind::TypealiasStmt) {
-        return n->as_typealias_unsafe()->actual_type->get_linked_canonical_node(include_ptr_or_ref);
+        return n->as_typealias_unsafe()->actual_type->get_linked_canonical_node(include_ref, include_ptr);
     } else {
         return n;
     };

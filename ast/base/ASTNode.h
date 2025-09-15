@@ -283,7 +283,7 @@ public:
     }
 
     /**
-     * get members container (if this node is one, or if linked with one)
+     * get members container (takes into account type aliases)
      */
     MembersContainer* get_members_container();
 

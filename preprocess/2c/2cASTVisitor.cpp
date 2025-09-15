@@ -596,9 +596,12 @@ void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const chem::s
 }
 
 bool should_void_pointer_to_self(BaseType* type, const chem::string_view& id, unsigned index, bool overrides) {
-    if(index == 0 && type->kind() == BaseTypeKind::Reference && ((ReferenceType*) type)->type->kind() == BaseTypeKind::Linked && (id == "self" || id == "this")) {
-        if(((PointerType*) type)->type->linked_node()->as_interface_def() || (((PointerType*) type)->type->linked_node()->as_struct_def() && overrides)) {
-            return true;
+    if(index == 0 && type->kind() == BaseTypeKind::Reference) {
+        const auto ref_type = type->as_reference_type_unsafe();
+        if(ref_type->type->kind() == BaseTypeKind::Linked && (id == "self" || id == "this")) {
+            if(ref_type->type->linked_node()->as_interface_def() || (ref_type->type->linked_node()->as_struct_def() && overrides)) {
+                return true;
+            }
         }
     }
     return false;

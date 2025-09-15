@@ -388,27 +388,24 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
         ASTNode* final_decl = decl;
 
         auto prev_parent_node = parent_node;
-        parent_node = decl;
 
         if(token->type == TokenType::LessThanSym) {
 
-            std::vector<GenericTypeParameter*> gen_params;
+            const auto gen_decl = new(allocator.allocate<GenericStructDecl>()) GenericStructDecl(
+                    decl, prev_parent_node, loc_single(identifier)
+            );
 
-            parseGenericParametersList(allocator, gen_params);
+            parent_node = gen_decl;
 
-            if (!gen_params.empty()) {
+            parseGenericParametersList(allocator, gen_decl->generic_params);
 
-                const auto gen_decl = new(allocator.allocate<GenericStructDecl>()) GenericStructDecl(
-                        decl, parent_node, loc_single(identifier)
-                );
+            decl->generic_parent = gen_decl;
 
-                decl->generic_parent = gen_decl;
+            final_decl = gen_decl;
 
-                gen_decl->generic_params = std::move(gen_params);
+        } else {
 
-                final_decl = gen_decl;
-
-            }
+            parent_node = decl;
 
         }
 

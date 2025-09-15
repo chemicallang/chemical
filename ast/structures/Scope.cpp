@@ -6,6 +6,12 @@
 #include "ast/structures/InitBlock.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericImplDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
@@ -145,7 +151,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     auto& values = initializers;
     if(linked_kind == ASTNodeKind::UnionDecl) {
         if(values.size() != 1) {
-            diagnoser.error(this) << "union '" << definition->name_view() << "' must be initialized with a single member value";
+            diagnoser.error(this) << "union must be initialized with a single member value";
             return false;
         } else {
             return true;
@@ -173,8 +179,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
         }
         if(!missing.empty()) {
             for (auto& miss: missing) {
-                diagnoser.error(this) <<
-                        "couldn't find value for member '" << miss << "' for initializing struct '" << definition->name_view() << "'";
+                diagnoser.error(this) << "couldn't find value for member '" << miss << "' for initializing struct";
             }
             return true;
         }
@@ -182,7 +187,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-ExtendableMembersContainerNode* InitBlock::getContainer() {
+MembersContainer* InitBlock::getContainer() {
     auto func = parent()->as_function();
     if(!func) {
         return nullptr;
@@ -194,5 +199,24 @@ ExtendableMembersContainerNode* InitBlock::getContainer() {
     if(!parent) {
         return nullptr;
     }
-    return parent->as_extendable_members_container_unsafe();
+    switch(parent->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::ImplDecl:
+            return parent->as_extendable_members_container_unsafe();
+        case ASTNodeKind::GenericUnionDecl:
+            return parent->as_gen_union_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericStructDecl:
+            return parent->as_gen_struct_def_unsafe()->master_impl;
+        case ASTNodeKind::GenericInterfaceDecl:
+            return parent->as_gen_interface_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericVariantDecl:
+            return parent->as_gen_variant_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericImplDecl:
+            return parent->as_gen_impl_decl_unsafe()->master_impl;
+        default:
+            return nullptr;
+    }
 }

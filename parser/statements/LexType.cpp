@@ -331,12 +331,35 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
 
 }
 
-MembersContainer* find_container_parent(ASTNode* parent) {
+ASTNode* find_self_node(ASTNode* parent) {
     if(parent == nullptr) return nullptr;
-    if(ASTNode::isMembersContainer(parent->kind())) {
-        return parent->as_members_container_unsafe();
-    } else {
-        return find_container_parent(parent->parent());
+    switch(parent->kind()) {
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericTypeParam:
+        case ASTNodeKind::IfStmt:
+        case ASTNodeKind::ComptimeBlock:
+        case ASTNodeKind::UnsafeBlock:
+            return find_self_node(parent->parent());
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+
+        // impl decl probably requires special treatment
+        case ASTNodeKind::ImplDecl:
+        case ASTNodeKind::GenericImplDecl:
+
+            return parent;
+
+
+        default:
+            return nullptr;
     }
 }
 
@@ -357,7 +380,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
         case TokenType::SelfKw: {
             const auto self_tok = token;
             token++;
-            const auto parent = find_container_parent(parent_node);
+            const auto parent = find_self_node(parent_node);
             if(parent) {
                 const auto ty = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Self"), (ASTNode*) parent);
                 return { ty, loc_single(self_tok)};

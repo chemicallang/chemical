@@ -36,29 +36,26 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
 #endif
 
         auto prev_parent_node = parent_node;
-        parent_node = decl;
 
         ASTNode* finalDecl = decl;
 
         if(token->type == TokenType::LessThanSym) {
 
-            std::vector<GenericTypeParameter*> gen_params;
+            const auto gen_decl = new(allocator.allocate<GenericInterfaceDecl>()) GenericInterfaceDecl(
+                    decl, prev_parent_node, loc_single(id)
+            );
 
-            parseGenericParametersList(allocator, gen_params);
+            parent_node = gen_decl;
 
-            if (!gen_params.empty()) {
+            parseGenericParametersList(allocator, gen_decl->generic_params);
 
-                const auto gen_decl = new(allocator.allocate<GenericInterfaceDecl>()) GenericInterfaceDecl(
-                        decl, parent_node, loc_single(id)
-                );
+            decl->generic_parent = gen_decl;
 
-                gen_decl->generic_params = std::move(gen_params);
+            finalDecl = gen_decl;
 
-                decl->generic_parent = gen_decl;
+        } else {
 
-                finalDecl = gen_decl;
-
-            }
+            parent_node = decl;
 
         }
 
@@ -79,6 +76,7 @@ ASTNode* Parser::parseInterfaceStructureTokens(ASTAllocator& passed_allocator, A
             return finalDecl;
         }
 
+        parent_node = finalDecl;
         parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false);
         parent_node = prev_parent_node;
 

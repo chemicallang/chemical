@@ -204,7 +204,7 @@ void RepresentationVisitor::VisitAssignmentStmt(AssignStatement *stmt) {
     visit(stmt->lhs);
     if (stmt->assOp != Operation::Assignment) {
         write(' ');
-        write_str(to_string(stmt->assOp));
+        write(to_string(stmt->assOp));
         write("= ");
     } else {
         write(" = ");
@@ -642,7 +642,7 @@ void RepresentationVisitor::VisitExpression(Expression *expr) {
     nested_value = true;
     visit(expr->firstValue);
     space();
-    write_str(to_string(expr->operation));
+    write(to_string(expr->operation));
     space();
     visit(expr->secondValue);
     nested_value = false;

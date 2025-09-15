@@ -9,6 +9,7 @@
 #include "ASTAny.h"
 #include "ast/utils/Operation.h"
 #include <vector>
+#include <optional>
 #include "DebugCast.h"
 #include "ASTAllocator.h"
 

@@ -6,9 +6,8 @@
 
 #pragma once
 
-#include <string>
+#include "std/chem_string_view.h"
 #include <cstdint>
-#include <optional>
 
 /**
  * @brief Enum class representing operations between two expressions.
@@ -100,7 +99,7 @@ enum class Operation : uint8_t {
     IndexBooleanReturningEnd=LogicalOR,
 };
 
-std::string to_string(Operation operation);
+chem::string_view to_string(Operation operation);
 
 /**
  * This returns the precedence of the given operation

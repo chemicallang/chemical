@@ -2039,11 +2039,7 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
 void SymResLinkBody::VisitExpression(Expression* value) {
     visit(value->firstValue);
     visit(value->secondValue);
-    // ast allocator is being used
-    // it's unknown when this expression should be disposed
-    // file level / module level allocator should be used, when this expression belongs to a function
-    // or decl that is private or internal, however that is hard to determine
-    value->determine_type(linker.comptime_scope.typeBuilder);
+    value->determine_type(linker.comptime_scope.typeBuilder, linker);
 }
 
 void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {

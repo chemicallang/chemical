@@ -9,6 +9,8 @@
 #include "ast/types/BoolType.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/NullValue.h"
+#include "compiler/ASTDiagnoser.h"
+#include "ast/structures/MembersContainer.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
@@ -50,7 +52,7 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
     }
 }
 
-BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder) {
+BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
     if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
         return typeBuilder.getBoolType();
     }
@@ -59,7 +61,37 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder) {
     if(firstType == nullptr || secondType == nullptr) {
         return nullptr;
     }
-    const auto first = firstType->canonical()->canonicalize_enum();
+
+    // check if its overloading operator
+    const auto first_canonical = firstType->canonical();
+    // TODO: enable this when inline if support is done
+//    const auto node = first_canonical->get_linked_canonical_node(true, false);
+//    if(node) {
+//        const auto container = node->get_members_container();
+//        if(container) {
+//            const auto op_info = operator_impl_info(expr->operation);
+//            if(op_info.name.empty()) {
+//                // this operator cannot be overloaded
+//                diagnoser.error("cannot override this operator", expr);
+//                return (BaseType*) typeBuilder.getVoidType();
+//            }
+//            const auto child_node = container->child(op_info.name);
+//            if(!child_node || child_node->kind() != ASTNodeKind::FunctionDecl) {
+//                diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
+//                return (BaseType*) typeBuilder.getVoidType();
+//            }
+//            const auto func = child_node->as_function_unsafe();
+//            if(func->params.size() != 2) {
+//                // since this expression has two values, we always expect two parameters
+//                diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+//                return (BaseType*) typeBuilder.getVoidType();
+//            }
+//            // yes, its overloading an operator
+//            return func->returnType;
+//        }
+//    }
+
+    const auto first = first_canonical->canonicalize_enum();
     const auto second = secondType->canonical()->canonicalize_enum();
     const auto first_kind = first->kind();
     const auto second_kind = second->kind();
@@ -86,8 +118,8 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder) {
     return first;
 }
 
-void Expression::determine_type(TypeBuilder& typeBuilder) {
-    setType(::determine_type(this, typeBuilder));
+void Expression::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
+    setType(::determine_type(this, typeBuilder, diagnoser));
 }
 
 uint64_t Expression::byte_size(bool is64Bit) {

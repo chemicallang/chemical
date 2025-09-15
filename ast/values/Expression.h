@@ -68,7 +68,7 @@ public:
 
 #endif
 
-    void determine_type(TypeBuilder& typeBuilder);
+    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser);
 
     bool primitive() final;
 

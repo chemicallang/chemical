@@ -43,11 +43,17 @@ public interface Hashable {
 
 }
 
+comptime func <T> knuth_hash_runtime(value : T) : uint {
+    return intrinsics::wrap(value * KnuthsMultiplicativeConstant) as uint
+}
+
 comptime func <T> hash(value : T) : uint {
     if(T is char || T is uchar || T is &char || T is &uchar) {
         return intrinsics::wrap(value as uint) as uint
-    } else if(T is short || T is ushort) {
-        return intrinsics::wrap(value * KnuthsMultiplicativeConstant) as uint
+    } else if(T is short) {
+        return knuth_hash_runtime<short>(value)
+    } else if(T is ushort) {
+        return knuth_hash_runtime<ushort>(value)
     } else if(intrinsics::satisfies<*any, T>()) {
         return intrinsics::wrap(murmurhash(value as *char, sizeof(T), 0)) as uint
     } else if(is_type_number<T>()) {

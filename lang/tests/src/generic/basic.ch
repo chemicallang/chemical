@@ -217,6 +217,25 @@ namespace gen_container_ns {
     }
 }
 
+interface GenAddTestInterface<Output, Rhs = Self> {
+    func add(&self, rhs : Rhs) : Output
+}
+
+struct GenAddTestStruct : GenAddTestInterface<GenAddTestStruct, GenAddTestStruct> {
+
+    var a : int
+    var b : int
+
+    @override
+    func add(&self, rhs : GenAddTestStruct) : GenAddTestStruct {
+        return GenAddTestStruct {
+            a : a + rhs.a,
+            b : b + rhs.b
+        }
+    }
+
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -527,5 +546,10 @@ func test_basic_generics() {
     test("generic can exist inside namespaces - 3", () => {
         var x = gen_container_ns::contained_ns_gen<bigint> { x : 10 }
         return x.size() == 8
+    })
+    test("generic interface with self parameters works", () => {
+        var a = GenAddTestStruct { a : 84, b : 84 }
+        var s = a.add(GenAddTestStruct { a : 3, b : 5 })
+        return s.a == 87 && s.b == 89 && a.a == 84 && a.b == 84
     })
 }

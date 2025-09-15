@@ -36,7 +36,7 @@ public:
         return blk;
     }
 
-    ExtendableMembersContainerNode* getContainer();
+    MembersContainer* getContainer();
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 

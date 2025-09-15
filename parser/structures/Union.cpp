@@ -69,27 +69,27 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
         identifier->linked = decl;
 #endif
 
+        auto prev_parent_node = parent_node;
+
         ASTNode* finalDecl = decl;
 
         if(token->type == TokenType::LessThanSym) {
 
-            std::vector<GenericTypeParameter*> gen_params;
+            const auto gen_decl = new(allocator.allocate<GenericUnionDecl>()) GenericUnionDecl(
+                    decl, prev_parent_node, loc_single(identifier)
+            );
 
-            parseGenericParametersList(allocator, gen_params);
+            parent_node = gen_decl;
 
-            if (!gen_params.empty()) {
+            parseGenericParametersList(allocator, gen_decl->generic_params);
 
-                const auto gen_decl = new(allocator.allocate<GenericUnionDecl>()) GenericUnionDecl(
-                        decl, parent_node, loc_single(identifier)
-                );
+            decl->generic_parent = gen_decl;
 
-                gen_decl->generic_params = std::move(gen_params);
+            finalDecl = gen_decl;
 
-                decl->generic_parent = gen_decl;
+        } else {
 
-                finalDecl = gen_decl;
-
-            }
+            parent_node = decl;
 
         }
 
@@ -97,9 +97,6 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& passed_allocator, Acces
             error("expected a '{' for union block");
             return finalDecl;
         }
-
-        auto prev_parent_node = parent_node;
-        parent_node = decl;
 
         parseContainerMembersInto(decl, passed_allocator, AccessSpecifier::Public, false);
 

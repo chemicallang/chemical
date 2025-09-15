@@ -825,14 +825,23 @@ bool link_self_type(SymbolResolver& linker, LinkedType* linked_type, FunctionPar
         }
     }
     switch (parent_kind) {
-        case ASTNodeKind::ImplDecl:
-            parent = parent_node->as_impl_def_unsafe()->struct_type->get_direct_linked_canonical_node();
-            break;
-        case ASTNodeKind::StructDecl: {
-            const auto def = parent_node->as_struct_def_unsafe();
-            parent = def->generic_parent ? (ASTNode*) def->generic_parent : parent_node;
+        case ASTNodeKind::ImplDecl: {
+            const auto struct_type = parent_node->as_impl_def_unsafe()->struct_type;
+            parent = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
             break;
         }
+        case ASTNodeKind::GenericImplDecl: {
+            const auto struct_type = parent_node->as_gen_impl_decl_unsafe()->master_impl->struct_type;
+            parent = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
+            break;
+        }
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericVariantDecl:
+            parent = parent_node;
+            break;
+        case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::InterfaceDecl:
@@ -1253,9 +1262,9 @@ void SymResLinkBody::VisitLoopBlock(LoopBlock* node) {
 }
 
 void SymResLinkBody::VisitInitBlock(InitBlock* node) {
-    auto mems_container = node->getContainer();
-    if(!mems_container) {
-        linker.error("unexpected init block", node);
+    const auto p = node->parent();
+    if(!(p->kind() == ASTNodeKind::FunctionDecl && p->as_function_unsafe()->is_constructor_fn())) {
+        linker.error("unexpected init block, must be present in a function only", node);
         return;
     }
     for(auto& in : node->initializers) {

@@ -12,6 +12,8 @@ if(def.win64) {
     public type size_t = ulong
 }
 
+public type usize = size_t
+
 @extern
 public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int
 

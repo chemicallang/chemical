@@ -64,32 +64,31 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
 
     // check if its overloading operator
     const auto first_canonical = firstType->canonical();
-    // TODO: enable this when inline if support is done
-//    const auto node = first_canonical->get_linked_canonical_node(true, false);
-//    if(node) {
-//        const auto container = node->get_members_container();
-//        if(container) {
-//            const auto op_info = operator_impl_info(expr->operation);
-//            if(op_info.name.empty()) {
-//                // this operator cannot be overloaded
-//                diagnoser.error("cannot override this operator", expr);
-//                return (BaseType*) typeBuilder.getVoidType();
-//            }
-//            const auto child_node = container->child(op_info.name);
-//            if(!child_node || child_node->kind() != ASTNodeKind::FunctionDecl) {
-//                diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
-//                return (BaseType*) typeBuilder.getVoidType();
-//            }
-//            const auto func = child_node->as_function_unsafe();
-//            if(func->params.size() != 2) {
-//                // since this expression has two values, we always expect two parameters
-//                diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
-//                return (BaseType*) typeBuilder.getVoidType();
-//            }
-//            // yes, its overloading an operator
-//            return func->returnType;
-//        }
-//    }
+    const auto node = first_canonical->get_linked_canonical_node(true, false);
+    if(node) {
+        const auto container = node->get_members_container();
+        if(container) {
+            const auto op_info = operator_impl_info(expr->operation);
+            if(op_info.name.empty()) {
+                // this operator cannot be overloaded
+                diagnoser.error("cannot override this operator", expr);
+                return (BaseType*) typeBuilder.getVoidType();
+            }
+            const auto child_node = container->child(op_info.name);
+            if(!child_node || child_node->kind() != ASTNodeKind::FunctionDecl) {
+                diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
+                return (BaseType*) typeBuilder.getVoidType();
+            }
+            const auto func = child_node->as_function_unsafe();
+            if(func->params.size() != 2) {
+                // since this expression has two values, we always expect two parameters
+                diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+                return (BaseType*) typeBuilder.getVoidType();
+            }
+            // yes, its overloading an operator
+            return func->returnType;
+        }
+    }
 
     const auto first = first_canonical->canonicalize_enum();
     const auto second = secondType->canonical()->canonicalize_enum();

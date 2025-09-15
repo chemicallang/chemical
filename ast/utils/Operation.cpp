@@ -4,10 +4,9 @@
 // Created by Waqas Tahir on 01/03/2024.
 //
 
-#include <string>
 #include "Operation.h"
 
-std::string to_string(Operation operation) {
+chem::string_view to_string(Operation operation) {
     switch (operation) {
         case Operation::Grouping:
             return "()";
@@ -108,7 +107,7 @@ std::string to_string(Operation operation) {
         case Operation::InclusiveORWith:
             return "|=";
         default:
-            return "[to_string::" + std::to_string((unsigned int) operation) + "]"; // Handle unknown operation
+            return "";
     }
 }
 

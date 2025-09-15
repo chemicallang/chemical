@@ -1978,7 +1978,12 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     visitor.nested_value = prev_nested;
     visitor.write(' ');
     if(assign->assOp != Operation::Assignment) {
-        visitor.write_str(to_string(assign->assOp));
+        auto op_view = to_string(assign->assOp);
+        if(op_view.empty()) {
+            visitor.write("[UNKNOWN_OPERATION_1]");
+        } else {
+            visitor.write(op_view);
+        }
     }
     visitor.write('=');
     visitor.write(' ');
@@ -6061,26 +6066,29 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     auto prev_nested = nested_value;
     nested_value = true;
 
+    // getting types
+    const auto first_type = expr->firstValue->getType()->canonical();
+    const auto second_type = expr->secondValue->getType()->canonical();
+
     // automatic dereferencing the first value
-    const auto first_type = expr->firstValue->getType();
-    const auto first_pure = first_type->pure_type(allocator);
-    if(first_pure->getLoadableReferredType() != nullptr) {
+    if(first_type->getLoadableReferredType() != nullptr) {
         write('*');
     }
-
     visit(expr->firstValue);
 
     space();
-    write_str(to_string(expr->operation));
+    auto view = to_string(expr->operation);
+    if(view.empty()) {
+        write("[UNKNOWN_OPERATION_2]");
+    } else {
+        write(view);
+    }
     space();
 
     // automatic dereferencing the second value
-    const auto second_type = expr->secondValue->getType();
-    const auto second_pure = second_type->pure_type(allocator);
-    if(second_pure->getLoadableReferredType() != nullptr) {
+    if(second_type->getLoadableReferredType() != nullptr) {
         write('*');
     }
-
     visit(expr->secondValue);
 
     nested_value = prev_nested;

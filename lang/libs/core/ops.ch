@@ -34,10 +34,6 @@ interface Neg<Output> {
     func neg(self) : Output
 }
 
-interface UnaryPlus<Output> {
-    func plus(self) : Output
-}
-
 // Compound Assignment
 
 interface AddAssign<Rhs = Self> {
@@ -111,7 +107,25 @@ interface PartialOrd<OrderingP = Ordering, Rhs = Self> {
 }
 
 interface Ord : PartialOrd {
+
     func cmp(&self, other : &Self) : Ordering;
+
+    func lt(&self, other : &Self) : bool {
+        return cmp(other) == Ordering.Less
+    }
+
+    func lte(&self, other : &Self) : bool {
+        return cmp(other) in Ordering.Less, Ordering.Equal
+    }
+
+    func gt(&self, other : &Self) : bool {
+        return cmp(other) == Ordering.Greater
+    }
+
+    func gte(&self, other : &Self) : bool {
+        return cmp(other) in Ordering.Greater, Ordering.Equal
+    }
+
 }
 
 // Indexing

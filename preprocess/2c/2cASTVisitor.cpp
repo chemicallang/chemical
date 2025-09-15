@@ -6091,6 +6091,14 @@ OperatorImplInformation operator_impl_info(Operation op) {
             return { .name = "eq" };
         case Operation::IsNotEqual:
             return { .name = "ne" };
+        case Operation::GreaterThan:
+            return { .name = "gt" };
+        case Operation::LessThan:
+            return { .name = "lt" };
+        case Operation::GreaterThanOrEqual:
+            return { .name = "gte" };
+        case Operation::LessThanOrEqual:
+            return { .name = "lte" };
         default:
             return { .name = "" };
     }

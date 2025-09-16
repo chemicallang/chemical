@@ -2244,7 +2244,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
     visit(negValue->getValue());
     // determine type for negative value
-    negValue->determine_type(linker.comptime_scope.typeBuilder);
+    negValue->determine_type(linker.comptime_scope.typeBuilder, linker);
 }
 
 void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
@@ -2281,7 +2281,7 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
     // determine the type of not value
-    value->setType(value->getValue()->getType());
+    value->determine_type(linker);
 }
 
 void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {

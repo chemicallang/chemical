@@ -225,7 +225,7 @@ void TopLevelLinkSignature::VisitLambdaFunction(LambdaFunction* value) {
 void TopLevelLinkSignature::VisitNegativeValue(NegativeValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNegativeValue(value);
     // determine type for negative value
-    value->determine_type(linker.comptime_scope.typeBuilder);
+    value->determine_type(linker.comptime_scope.typeBuilder, linker);
 }
 
 void TopLevelLinkSignature::VisitUnsafeValue(UnsafeValue* value) {
@@ -266,7 +266,7 @@ void TopLevelLinkSignature::VisitPlacementNewValue(PlacementNewValue* value) {
 void TopLevelLinkSignature::VisitNotValue(NotValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitNotValue(value);
     // determine the type of not value
-    value->setType(value->getValue()->getType());
+    value->determine_type(linker);
     if(!linker.comptime_context) {
         linker.error(RUNTIME_EVAL_ERR, value);
     }

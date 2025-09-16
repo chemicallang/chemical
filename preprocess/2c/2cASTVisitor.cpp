@@ -6366,14 +6366,62 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
     write("})");
 }
 
+void call_single_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value, const chem::string_view& name) {
+    // user trynna overload the operator
+    const auto child = container->child(name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(value) << "expected operator implementation with name '" << name << '\'';
+        return;
+    }
+    if(child->kind() != ASTNodeKind::FunctionDecl) {
+        visitor.write('0');
+        visitor.error(value) << "expected operator implementation with name '" << name << "' to be a function";
+        return;
+    }
+    const auto func = child->as_function_unsafe();
+    if(func->params.size() != 1) {
+        visitor.write('0');
+        visitor.error(value) << "operator implementation with name '" << name << "' must have exactly a single parameter";
+        return;
+    }
+    visitor.mangle(func);
+    visitor.write('(');
+    visitor.accept_mutating_value(func->params[0]->known_type(), value, false);
+    visitor.write(')');
+}
+
 void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {
+    const auto val = negValue->getValue();
+    const auto type = val->getType();
+    // check if operator is overloaded
+    const auto node = type->get_linked_canonical_node(true, false);
+    if(node) {
+        const auto container = node->get_members_container();
+        if(container) {
+            call_single_arg_operator(*this, container, val, "neg");
+            return;
+        }
+    }
+    // normal flow
     write('-');
-    visit(negValue->getValue());
+    visit(val);
 }
 
 void ToCAstVisitor::VisitNotValue(NotValue *notValue) {
+    const auto val = notValue->getValue();
+    const auto type = val->getType();
+    // check if operator is overloaded
+    const auto node = type->get_linked_canonical_node(true, false);
+    if(node) {
+        const auto container = node->get_members_container();
+        if(container) {
+            call_single_arg_operator(*this, container, val, "not");
+            return;
+        }
+    }
     write('!');
-    visit(notValue->getValue());
+    visit(val);
 }
 
 void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {

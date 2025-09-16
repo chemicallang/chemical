@@ -228,7 +228,7 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
 
 bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResolver& resolver) {
     auto& value = id->value;
-    const auto child = provide_child(parent, value);
+    const auto child = provide_child(nullptr, parent, value, nullptr);
     if(child) {
         id->linked = child;
         id->setType(child->known_type());

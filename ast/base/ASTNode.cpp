@@ -53,6 +53,7 @@
 #include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
 #include "ChildResolution.h"
+#include "ChildResolutionNodes.h"
 
 #if !defined(DEBUG) && defined(COMPILER_BUILD)
 #include "compiler/Codegen.h"
@@ -600,18 +601,25 @@ ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
     return found != container->indexes.end() ? found->second : nullptr;
 }
 
-ASTNode* direct_child_provider(BaseType* type) {
+ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent);
+
+// exclusive method for linked type
+ASTNode* child_provider_linked_type(ChildResolver* resolver, LinkedType* type, const chem::string_view& name, ASTNode* type_parent) {
+    const auto linked = type->linked;
+    if(linked->kind() == ASTNodeKind::TypealiasStmt) {
+        return provide_child(resolver, linked->as_typealias_unsafe()->actual_type, name, type_parent);
+    } else {
+        if(linked == type_parent) return nullptr;
+        return linked->child(name);
+    }
+}
+
+ASTNode* direct_child_provider(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
     switch(type->kind()) {
-        case BaseTypeKind::Linked: {
-            const auto linked = type->as_linked_type_unsafe()->linked;
-            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
-                return direct_child_provider(linked->as_typealias_unsafe()->actual_type);
-            } else {
-                return linked;
-            }
-        }
+        case BaseTypeKind::Linked:
+            return child_provider_linked_type(resolver, type->as_linked_type_unsafe(), name, type_parent);
         case BaseTypeKind::Generic:
-            return direct_child_provider(type->as_generic_type_unsafe()->referenced);
+            return child_provider_linked_type(resolver, type->as_generic_type_unsafe()->referenced, name, type_parent);
         default:
             return nullptr;
     }
@@ -620,66 +628,83 @@ ASTNode* direct_child_provider(BaseType* type) {
 // *dyn Phone <--- allowed ? NO (needs a dereference)
 // dyn *Phone <--- allowed ? NO
 // dyn Phone <---- allowed ? YES
-ASTNode* child_provider(BaseType* type) {
+ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
     switch(type->kind()) {
-        case BaseTypeKind::Pointer:
-            return direct_child_provider(type->as_pointer_type_unsafe()->type);
-        case BaseTypeKind::Reference:
-            return direct_child_provider(type->as_reference_type_unsafe()->type);
-        case BaseTypeKind::Linked: {
-            const auto linked = type->as_linked_type_unsafe()->linked;
-            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
-                return child_provider(linked->as_typealias_unsafe()->actual_type);
+        case BaseTypeKind::IntN: {
+            if(resolver) {
+                auto& map = resolver->primitive_types_children;
+                auto found = map.find(PrimitiveTypeFunctionKey{name, type});
+                if(found == map.end()) return nullptr;
+                return found->second;
             } else {
-                return linked;
+                return nullptr;
             }
         }
+        case BaseTypeKind::Pointer:{
+            const auto child = direct_child_provider(resolver, type->as_pointer_type_unsafe()->type, name, type_parent);
+            if(child) {
+                return child;
+            } else {
+                if(resolver) {
+                    return resolver->find_container_of(type->as_pointer_type_unsafe(), name);
+                } else {
+                    return nullptr;
+                }
+            }
+        }
+        case BaseTypeKind::Reference:{
+            const auto child = direct_child_provider(resolver, type->as_reference_type_unsafe()->type, name, type_parent);
+            if(child) {
+                return child;
+            } else {
+                if(resolver) {
+                    return resolver->find_container_of(type->as_reference_type_unsafe(), name);
+                } else {
+                    return nullptr;
+                }
+            }
+        }
+        case BaseTypeKind::Linked:
+            return child_provider_linked_type(resolver, type->as_linked_type_unsafe(), name, type_parent);
         case BaseTypeKind::Generic:
-            return child_provider(type->as_generic_type_unsafe()->referenced);
+            return child_provider_linked_type(resolver, type->as_generic_type_unsafe()->referenced, name, type_parent);
         case BaseTypeKind::Dynamic:
-            return direct_child_provider(type->as_dynamic_type_unsafe()->referenced);
-        case BaseTypeKind::Struct:
-            return type->as_struct_type_unsafe();
-        case BaseTypeKind::Union:
-            return type->as_union_type_unsafe();
+            return direct_child_provider(resolver, type->as_dynamic_type_unsafe()->referenced, name, type_parent);
+        case BaseTypeKind::Struct: {
+            const auto node = type->as_struct_type_unsafe();
+            if(node == type_parent) return nullptr;
+            return node->child(name);
+        }
+        case BaseTypeKind::Union: {
+            const auto node = type->as_union_type_unsafe();
+            if(node == type_parent) return nullptr;
+            return node->child(name);
+        }
         case BaseTypeKind::Function:
-            return child_provider(type->as_function_type_unsafe()->returnType);
+            return provide_child(resolver, type->as_function_type_unsafe()->returnType, name, type_parent);
         case BaseTypeKind::CapturingFunction:
-            return child_provider(type->as_capturing_func_type_unsafe()->func_type);
+            return provide_child(resolver, type->as_capturing_func_type_unsafe()->func_type->as_function_type_unsafe()->returnType, name, type_parent);
         default:
             return nullptr;
     }
 }
 
-ASTNode* provide_child(BaseType* type, const chem::string_view& name) {
-    const auto provider = child_provider(type);
-    return provider ? provider->child(name) : nullptr;
-}
-
-ASTNode* provide_child(BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
-    const auto provider = child_provider(type);
-    if(!provider) return nullptr;
-    // safe direct recursive data structures (recursion check)
-    if(provider == type_parent) return nullptr;
-    return provider->child(name);
-}
-
-ASTNode* provide_child(ChainValue* parent, const chem::string_view& name) {
+ASTNode* provide_child(ChildResolver* resolver, ChainValue* parent, const chem::string_view& name, ASTNode* type_parent) {
     switch(parent->kind()) {
         case ValueKind::Identifier:
             return parent->as_identifier_unsafe()->linked->child(name);
         case ValueKind::AccessChain:
-            return provide_child(parent->as_access_chain_unsafe()->values.back(), name);
+            return provide_child(resolver, parent->as_access_chain_unsafe()->values.back(), name, type_parent);
         case ValueKind::FunctionCall:
         case ValueKind::IndexOperator:
-            return provide_child(parent->getType(), name);
+            return provide_child(resolver, parent->getType(), name, type_parent);
         default:
             return nullptr;
     }
 }
 
 // get inherited or direct child from a members container (like struct gives)
-ASTNode* container_child(MembersContainer* decl, const chem::string_view& name) {
+ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl, const chem::string_view& name) {
     // TODO: this function should resolve the child in a single check
     auto node = ::child(decl, name);
     if (node) {
@@ -687,7 +712,7 @@ ASTNode* container_child(MembersContainer* decl, const chem::string_view& name) 
     } else if (!decl->inherited.empty()) {
         for (auto& inherits : decl->inherited) {
             if (inherits.specifier == AccessSpecifier::Public) {
-                const auto thing = provide_child(inherits.type, name, decl);
+                const auto thing = provide_child(resolver, inherits.type, name, decl);
                 if (thing) return thing;
             }
         }
@@ -695,25 +720,25 @@ ASTNode* container_child(MembersContainer* decl, const chem::string_view& name) 
     return nullptr;
 }
 
-ASTNode* ASTNode::child(const chem::string_view &name) {
+ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) noexcept {
     switch(kind()) {
         case ASTNodeKind::VarInitStmt: {
             const auto stmt = as_var_init_unsafe();
             if (stmt->type) {
-                return provide_child(stmt->type, name);
+                return provide_child(resolver, stmt->type, name, this);
             } else if (stmt->value) {
-                return provide_child(stmt->value->getType(), name);
+                return provide_child(resolver, stmt->value->getType(), name, this);
             }
             return nullptr;
         }
         case ASTNodeKind::FunctionParam: {
             const auto param = as_func_param_unsafe();
-            return provide_child(param->type, name);
+            return provide_child(resolver, param->type, name, nullptr);
         }
         case ASTNodeKind::GenericTypeParam: {
             const auto param = as_generic_type_param_unsafe();
             const auto linked = param->active_linked();
-            return linked ? linked->child(name) : (param->at_least_type ? provide_child(param->at_least_type, name) : nullptr);
+            return linked ? linked->child(name) : (param->at_least_type ? provide_child(resolver, param->at_least_type, name, this) : nullptr);
         }
         case ASTNodeKind::EnumDecl: {
             const auto decl = as_enum_decl_unsafe();
@@ -725,10 +750,8 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
                 return mem->second;
             }
         }
-        case ASTNodeKind::StructMember: {
-            const auto mem = as_struct_member_unsafe();
-            return provide_child(mem->type, name);
-        }
+        case ASTNodeKind::StructMember:
+            return provide_child(resolver, as_struct_member_unsafe()->type, name, this);
         case ASTNodeKind::NamespaceDecl: {
             const auto ns = as_namespace_unsafe();
             auto node = ns->extended.find(name);
@@ -739,7 +762,7 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
         }
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
-            return container_child(as_members_container_unsafe(), name);
+            return container_child(resolver, as_members_container_unsafe(), name);
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->linked->child(name);
         case ASTNodeKind::GenericStructDecl:
@@ -757,7 +780,7 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
         case ASTNodeKind::EmbeddedNode:
             return as_embedded_node_unsafe()->child_res_fn(as_embedded_node_unsafe(), const_cast<chem::string_view*>(&name));
         case ASTNodeKind::TypealiasStmt: {
-            return provide_child(as_typealias_unsafe()->actual_type, name);
+            return provide_child(resolver, as_typealias_unsafe()->actual_type, name, this);
         }
         case ASTNodeKind::ImportStmt:
             return ::child(as_import_stmt_unsafe(), name);
@@ -765,7 +788,7 @@ ASTNode* ASTNode::child(const chem::string_view &name) {
         case ASTNodeKind::UnionDecl:
             return ::child(as_members_container_unsafe(), name);
         case ASTNodeKind::VariantMemberParam: {
-            return provide_child(as_variant_member_param_unsafe()->type, name);
+            return provide_child(resolver, as_variant_member_param_unsafe()->type, name, this);
         }
         case ASTNodeKind::StructType:
         case ASTNodeKind::UnionType:

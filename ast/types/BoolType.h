@@ -24,8 +24,12 @@ public:
         return type->kind() == BaseTypeKind::Bool;
     }
 
-    virtual BoolType* copy(ASTAllocator& allocator) const {
-        return new (allocator.allocate<BoolType>()) BoolType();
+    BoolType* copy(ASTAllocator& allocator) final {
+        // why does this return itself (without copying)
+        // because the type exists in type builder
+        // it is initialized once in the type builder
+        // this will never be copied
+        return this;
     }
 
 #ifdef COMPILER_BUILD

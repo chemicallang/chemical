@@ -23,7 +23,7 @@ public:
     bool satisfies(BaseType *type) final;
 
     [[nodiscard]]
-    DynamicType* copy(ASTAllocator& allocator) const final {
+    DynamicType* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator));
     }
 

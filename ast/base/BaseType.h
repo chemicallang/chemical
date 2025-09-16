@@ -123,7 +123,7 @@ public:
      * copy the type, along with linked node
      * this copy function performs a deep copy, so it should be used with care
      */
-    virtual BaseType *copy(ASTAllocator& allocator) const = 0;
+    virtual BaseType *copy(ASTAllocator& allocator) = 0;
 
     /**
      * is this type a reference to the given node

@@ -7,7 +7,13 @@
 #include <memory>
 #include "ast/structures/VariablesContainer.h"
 
-class StructType : public BaseType, public ASTNode, public VariablesContainer {
+class StructTypeCopy : public BaseType {
+public:
+    using BaseType::BaseType;
+    BaseType* copy(ASTAllocator &allocator) override;
+};
+
+class StructType : public StructTypeCopy, public ASTNode, public VariablesContainer {
 public:
 
     chem::string_view name;
@@ -19,16 +25,12 @@ public:
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::StructType, parent, location), BaseType(BaseTypeKind::Struct), name(name) {
+    ) : ASTNode(ASTNodeKind::StructType, parent, location), StructTypeCopy(BaseTypeKind::Struct), name(name) {
 
     }
 
     VariablesContainer* as_variables_container() override {
         return this;
-    }
-
-    BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<StructType>()) StructType(name, parent(), ASTNode::encoded_location());
     }
 
     bool equals(StructType *type);

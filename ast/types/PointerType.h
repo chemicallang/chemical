@@ -48,7 +48,7 @@ public:
     }
 
     [[nodiscard]]
-    PointerType *copy(ASTAllocator& allocator) const final {
+    PointerType *copy(ASTAllocator& allocator) final {
         return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), is_mutable);
     }
 

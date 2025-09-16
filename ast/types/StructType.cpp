@@ -31,3 +31,8 @@ bool StructType::satisfies(BaseType *type) {
             return false;
     }
 }
+
+BaseType* StructTypeCopy::copy(ASTAllocator& allocator) {
+    const auto type = (StructType*) this;
+    return new (allocator.allocate<StructType>()) StructType(type->name, type->parent(), type->encoded_location());
+}

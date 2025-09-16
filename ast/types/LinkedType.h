@@ -58,7 +58,7 @@ public:
     bool satisfies(ASTAllocator &allocator, Value *value, bool assignment) override;
 
     [[nodiscard]]
-    LinkedType *copy(ASTAllocator& allocator) const {
+    LinkedType *copy(ASTAllocator& allocator) override {
         return new (allocator.allocate<LinkedType>()) LinkedType(linked);
     }
 

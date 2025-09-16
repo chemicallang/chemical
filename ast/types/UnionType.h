@@ -7,11 +7,15 @@
 #include "ast/structures/BaseDefMember.h"
 #include "ast/structures/VariablesContainer.h"
 
-class UnionType : public BaseType, public ASTNode, public VariablesContainer {
+class UnionTypeCopy : public BaseType {
+    using BaseType::BaseType;
+    BaseType * copy(ASTAllocator &allocator) override;
+};
+
+class UnionType : public UnionTypeCopy, public ASTNode, public VariablesContainer {
 public:
 
     chem::string_view name;
-
 
     /**
      * constructor
@@ -20,7 +24,7 @@ public:
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnionType, parent, location), BaseType(BaseTypeKind::Union), name(name) {
+    ) : ASTNode(ASTNodeKind::UnionType, parent, location), UnionTypeCopy(BaseTypeKind::Union), name(name) {
 
     }
 
@@ -34,10 +38,6 @@ public:
 
     bool is_same(BaseType *type) final {
         return BaseType::kind() == type->kind() && equals(static_cast<UnionType *>(type));
-    }
-
-    BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<UnionType>()) UnionType(name, parent(), ASTNode::encoded_location());
     }
 
     VariablesContainer * as_variables_container() override {

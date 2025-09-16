@@ -27,7 +27,7 @@ public:
     }
 
     [[nodiscard]]
-    LiteralType* copy(ASTAllocator& allocator) const final {
+    LiteralType* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator));
     }
 

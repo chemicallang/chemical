@@ -27,8 +27,12 @@ public:
     }
 
     [[nodiscard]]
-    DoubleType *copy(ASTAllocator& allocator) const final {
-        return new (allocator.allocate<DoubleType>()) DoubleType();
+    DoubleType *copy(ASTAllocator& allocator) final {
+        // why does this return itself (without copying)
+        // because the type exists in type builder
+        // it is initialized once in the type builder
+        // this will never be copied
+        return this;
     }
 
 #ifdef COMPILER_BUILD

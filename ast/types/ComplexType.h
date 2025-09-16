@@ -31,7 +31,7 @@ public:
     }
 
     [[nodiscard]]
-    ComplexType *copy(ASTAllocator& allocator) const final {
+    ComplexType *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<ComplexType>()) ComplexType(elem_type);
     }
 

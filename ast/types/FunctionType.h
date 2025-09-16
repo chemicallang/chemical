@@ -217,7 +217,7 @@ public:
     bool satisfies(BaseType *type) override;
 
     [[nodiscard]]
-    FunctionType* copy(ASTAllocator& allocator) const final;
+    FunctionType* copy(ASTAllocator& allocator) override;
 
 #ifdef COMPILER_BUILD
 

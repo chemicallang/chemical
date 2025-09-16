@@ -36,7 +36,7 @@ public:
             secondType->is_same(type->as_expr_type_unsafe()->secondType);
     }
 
-    BaseType* copy(ASTAllocator &allocator) const override {
+    BaseType* copy(ASTAllocator &allocator) final {
         return new (allocator.allocate<ExpressionType>()) ExpressionType(
                 firstType->copy(allocator),
                 secondType->copy(allocator),

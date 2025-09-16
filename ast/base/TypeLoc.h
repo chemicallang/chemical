@@ -74,7 +74,7 @@ public:
      * copy this type on allocator
      */
     constexpr inline TypeLoc copy(ASTAllocator& allocator) const noexcept {
-        return { type_->copy(allocator), loc_ };
+        return { const_cast<BaseType*>(type_)->copy(allocator), loc_ };
     }
 
 };

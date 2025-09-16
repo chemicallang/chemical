@@ -54,6 +54,7 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/utils/GenericUtils.h"
 #include "NodeSymbolDeclarer.h"
+#include "ast/base/ChildResolution.h"
 
 void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     SymResLinkBody linker(resolver);
@@ -227,26 +228,18 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
 
 bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResolver& resolver) {
     auto& value = id->value;
-    // TODO: use get type to get the type of parent value
-    // TODO: then use child on type, we have dedicated functions for this
-    auto linked_node = parent->linked_node();
-    if(linked_node) {
-        const auto child = linked_node->child(value);
-        if(child) {
-            id->linked = child;
-            id->setType(child->known_type());
-            id->process_linked(&resolver, resolver.current_func_type);
-            return true;
-        } else {
-            id->linked = resolver.unresolved_decl;
-            id->setType(resolver.unresolved_decl->known_type());
-            resolver.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
-        }
+    const auto child = provide_child(parent, value);
+    if(child) {
+        id->linked = child;
+        id->setType(child->known_type());
+        id->process_linked(&resolver, resolver.current_func_type);
+        return true;
     } else {
         id->linked = resolver.unresolved_decl;
-        resolver.error(id) << "unresolved child '" << value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
+        id->setType(resolver.unresolved_decl->known_type());
+        resolver.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
+        return false;
     }
-    return false;
 }
 
 void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, bool assignment) {

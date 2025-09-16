@@ -26,6 +26,8 @@ const auto DotOpCStr = ".";
 const auto TripleDotCStr = "...";
 const auto CommaOpCStr = ",";
 const auto SemiColOpCStr = ";";
+const auto DollarCStr = "$";
+const auto QuestionMarkCStr = "?";
 const auto ColonOpCStr = ":";
 const auto LogAndOpCStr = "&&";
 const auto LogOrOpCStr = "||";
@@ -723,6 +725,10 @@ Token Lexer::getNextToken() {
             return Token(TokenType::CommaSym, view_str(CommaOpCStr), pos);
         case ';':
             return Token(TokenType::SemiColonSym, view_str(SemiColOpCStr), pos);
+        case '$':
+            return Token(TokenType::DollarSym, view_str(DollarCStr), pos);
+        case '?':
+            return Token(TokenType::QuestionMarkSym, view_str(QuestionMarkCStr), pos);
         case '@': {
             const auto first = provider.readCodePoint();
             if(!isIdentifierStart(first)) {

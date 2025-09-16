@@ -35,7 +35,9 @@ public:
         setType(newValue->getType());
     }
 
-    BaseType* determine_type();
+    chem::string_view get_overloaded_func_name();
+
+    BaseType* determine_type(ASTDiagnoser& diagnoser);
 
     Value* evaluated_value(InterpretScope &scope) override;
 

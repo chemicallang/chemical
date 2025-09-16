@@ -4859,27 +4859,68 @@ void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
     writer << member->parent()->direct_child_index(member->name);
 }
 
+void call_inc_dec_operator(ToCAstVisitor& visitor, MembersContainer* container, IncDecValue* value) {
+    // user trynna overload the operator
+    const auto name = value->get_overloaded_func_name();
+    const auto child = container->child(name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(value) << "expected operator implementation with name '" << name << '\'';
+        return;
+    }
+    if(child->kind() != ASTNodeKind::FunctionDecl) {
+        visitor.write('0');
+        visitor.error(value) << "expected operator implementation with name '" << name << "' to be a function";
+        return;
+    }
+    const auto func = child->as_function_unsafe();
+    if(func->params.size() != 1) {
+        visitor.write('0');
+        visitor.error(value) << "operator implementation with name '" << name << "' must have exactly a single parameter";
+        return;
+    }
+    visitor.mangle(func);
+    visitor.write('(');
+    visitor.accept_mutating_value(func->params[0]->known_type(), value->getValue(), false);
+    visitor.write(')');
+}
+
 void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
+
+    const auto val = value->getValue();
+    const auto type = val->getType();
+
+    // check if user is overloading the operator
+    const auto node = type->get_linked_canonical_node(true, false);
+    if(node) {
+        const auto container = node->get_members_container();
+        if(container) {
+            call_inc_dec_operator(*this, container, value);
+            return;
+        }
+    }
+
+    // normal flow
     if(!value->post) {
         write(value->increment ? "++" : "--");
     }
-    const auto type = value->getValue()->getType();
     if(type && type->pure_type(allocator)->getLoadableReferredType() != nullptr) {
         if(value->post) {
             write('(');
         }
         write('*');
-        visit(value->getValue());
+        visit(val);
         if(value->post) {
             write(')');
             write(value->increment ? "++" : "--");
         }
         return;
     }
-    visit(value->getValue());
+    visit(val);
     if(value->post) {
         write(value->increment ? "++" : "--");
     }
+
 }
 
 void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func_call) {

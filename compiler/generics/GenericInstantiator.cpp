@@ -420,7 +420,7 @@ void GenericInstantiator::VisitComptimeValue(ComptimeValue* value) {
 void GenericInstantiator::VisitIncDecValue(IncDecValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitIncDecValue(value);
     // type can change due to generics
-    value->setType(value->determine_type());
+    value->setType(value->determine_type(diagnoser));
 }
 
 void GenericInstantiator::VisitAddrOfValue(AddrOfValue* value) {

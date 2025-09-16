@@ -1812,7 +1812,7 @@ void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     visit(value->getValue(), expected_type);
     // type determined at symbol resolution must be set
-    value->setType(value->determine_type());
+    value->setType(value->determine_type(linker));
 }
 
 void SymResLinkBody::VisitVariantCase(VariantCase* value) {

@@ -34,6 +34,20 @@ interface Neg<Output> {
     func neg(self) : Output
 }
 
+interface Increment {
+    // ++x
+    func inc_pre(&mut self) : &Self;
+    // x++
+    func inc_post(&mut self) : Self;
+}
+
+interface Decrement {
+    // --x
+    func dec_pre(&mut self) : &Self;
+    // x--
+    func dec_post(&mut self) : Self;
+}
+
 // Compound Assignment
 
 interface AddAssign<Rhs = Self> {

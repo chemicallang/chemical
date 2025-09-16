@@ -189,7 +189,7 @@ void TopLevelLinkSignature::VisitDereferenceValue(DereferenceValue* value) {
 
 void TopLevelLinkSignature::VisitIncDecValue(IncDecValue* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIncDecValue(value);
-    value->setType(value->determine_type());
+    value->setType(value->determine_type(linker));
     if(!linker.comptime_context) {
         linker.error("cannot increment or decrement value at runtime outside function body", value);
     }

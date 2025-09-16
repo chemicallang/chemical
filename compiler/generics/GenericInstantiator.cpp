@@ -448,7 +448,7 @@ void GenericInstantiator::VisitIndexOperator(IndexOperator* value) {
 
 void GenericInstantiator::VisitNegativeValue(NegativeValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitNegativeValue(value);
-    value->determine_type(typeBuilder);
+    value->determine_type(typeBuilder, diagnoser);
 }
 
 void GenericInstantiator::VisitUnsafeValue(UnsafeValue* value) {
@@ -469,7 +469,7 @@ void GenericInstantiator::VisitPlacementNewValue(PlacementNewValue *value) {
 
 void GenericInstantiator::VisitNotValue(NotValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitNotValue(value);
-    value->setType(value->getValue()->getType());
+    value->determine_type(diagnoser);
 }
 
 static bool embedded_traverse(void* data, ASTAny* item) {

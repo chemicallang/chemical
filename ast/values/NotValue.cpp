@@ -4,6 +4,8 @@
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/base/ASTNode.h"
+#include "ast/structures/MembersContainer.h"
 #include "NotValue.h"
 #include "BoolValue.h"
 #include "NullValue.h"
@@ -20,4 +22,31 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
         scope.error("couldn't evaluate as value didn't return a boolean value", this);
         return new (scope.allocate<NullValue>()) NullValue(scope.global->typeBuilder.getNullPtrType(), encoded_location());
     };
+}
+
+void NotValue::determine_type(ASTDiagnoser& diagnoser) {
+    const auto type = getValue()->getType();
+    // check if operator is overloaded
+    const auto node = type->get_linked_canonical_node(true, false);
+    if(node) {
+        const auto container = node->get_members_container();
+        if(container) {
+            const auto child = container->child("not");
+            if(!child || child->kind() != ASTNodeKind::FunctionDecl) {
+                diagnoser.error(this) << "expected a function 'not' to be present for overloading";
+                setType(type);
+                return;
+            }
+            const auto func = child->as_function_unsafe();
+            if(func->params.size() != 1) {
+                diagnoser.error(this) << "expected 'not' operator function to have a single parameter";
+                setType(type);
+                return;
+            }
+            setType(func->returnType);
+            return;
+        }
+    }
+    // normal flow
+    setType(type);
 }

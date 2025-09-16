@@ -56,4 +56,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
+    void determine_type(ASTDiagnoser& diagnoser);
+
 };

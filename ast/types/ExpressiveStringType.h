@@ -15,8 +15,12 @@ public:
         return type->kind() == BaseTypeKind::ExpressiveString;
     }
 
-    BaseType* copy(ASTAllocator &allocator) const override {
-        return new (allocator.allocate<ExpressiveStringType>()) ExpressiveStringType();
+    BaseType* copy(ASTAllocator &allocator) final {
+        // why does this return itself (without copying)
+        // because the type exists in type builder
+        // it is initialized once in the type builder
+        // this will never be copied
+        return this;
     }
 
 };

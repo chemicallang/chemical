@@ -47,7 +47,7 @@ public:
     bool satisfies(BaseType *type) final;
 
     [[nodiscard]]
-    GenericType* copy(ASTAllocator& allocator) const final;
+    GenericType* copy(ASTAllocator& allocator) final;
 
     uint64_t byte_size(bool is64Bit) override;
 

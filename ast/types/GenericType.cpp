@@ -80,7 +80,7 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
     return true;
 }
 
-GenericType* GenericType::copy(ASTAllocator& allocator) const {
+GenericType* GenericType::copy(ASTAllocator& allocator) {
     auto gen = new (allocator.allocate<GenericType>()) GenericType((LinkedType*) referenced->copy(allocator));
     for(auto& type : types) {
         gen->types.emplace_back(type.copy(allocator));

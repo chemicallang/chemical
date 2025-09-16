@@ -14,10 +14,16 @@ class FunctionDeclaration;
 
 class CapturedVariable;
 
+class LambdaFunctionCopy : public Value {
+public:
+    using Value::Value;
+    Value* copy(ASTAllocator &allocator) override;
+};
+
 /**
  * @brief Class representing an integer value.
  */
-class LambdaFunction : public Value, public FunctionTypeBody {
+class LambdaFunction : public LambdaFunctionCopy, public FunctionTypeBody {
 public:
 
     std::vector<CapturedVariable*> captureList;
@@ -38,7 +44,7 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             SourceLocation location
-    ) : Value(ValueKind::LambdaFunc, this, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
+    ) : LambdaFunctionCopy(ValueKind::LambdaFunc, this, location), FunctionTypeBody(nullptr, isVariadic, false, false), scope(parent_node, location) {
 
     }
 
@@ -53,7 +59,6 @@ public:
     LambdaFunction* as_lambda() final {
         return this;
     }
-
 
     int data_struct_index() {
         return has_self_param() ? 1 : 0;
@@ -88,20 +93,6 @@ public:
      * should generate a destructor for capture struct
      */
     bool has_destructor_for_capture();
-
-    /**
-     * copy copies the entire lambda
-     */
-    Value* copy(ASTAllocator &allocator) override {
-        // TODO:
-//        const auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(
-//            isVariadic(), scope.parent(), getType(), encoded_location()
-//        );
-//        scope.copy_into(lambda->scope, allocator, scope.parent());
-//        FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
-//        return lambda;
-        return this;
-    }
 
     void set_return(InterpretScope &scope, Value *value) override {
 #ifdef DEBUG

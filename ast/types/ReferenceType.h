@@ -44,7 +44,7 @@ public:
     }
 
     [[nodiscard]]
-    ReferenceType *copy(ASTAllocator& allocator) const final {
+    ReferenceType *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), is_mutable);
     }
 

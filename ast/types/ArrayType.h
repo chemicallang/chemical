@@ -73,7 +73,7 @@ public:
     }
 
     [[nodiscard]]
-    ArrayType* copy(ASTAllocator& allocator) const final {
+    ArrayType* copy(ASTAllocator& allocator) final {
         const auto t = new (allocator.allocate<ArrayType>()) ArrayType(elem_type.copy(allocator), array_size_value);
         t->array_size = array_size;
         return t;

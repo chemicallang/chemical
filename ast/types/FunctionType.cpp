@@ -231,7 +231,7 @@ bool FunctionType::equal(FunctionType *other) const {
     return true;
 }
 
-FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
+FunctionType *FunctionType::copy(ASTAllocator& allocator) {
     const auto func_type = new (allocator.allocate<FunctionType>()) FunctionType(returnType.copy(allocator), isExtensionFn(), isVariadic(), isCapturing(), data.signature_resolved);
     for (auto &param: params) {
         func_type->params.emplace_back(param->copy(allocator));

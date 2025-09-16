@@ -27,7 +27,7 @@ public:
         return (FunctionType*) func_type.getType();
     }
 
-    BaseType* copy(ASTAllocator &allocator) const override {
+    BaseType* copy(ASTAllocator &allocator) final {
         return new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
             func_type.copy(allocator), instance_type.copy(allocator)
         );

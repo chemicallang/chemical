@@ -29,7 +29,7 @@ public:
 
     }
 
-    LinkedType* copy(ASTAllocator &allocator) const final {
+    LinkedType* copy(ASTAllocator &allocator) final {
         return new (allocator.allocate<LinkedValueType>()) LinkedValueType(
             value->copy(allocator),
             linked

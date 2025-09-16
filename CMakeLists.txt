@@ -570,6 +570,8 @@ set(COMMON_SOURCES
         ast/types/ExpressiveStringType.h
         ast/utils/GlobalContainerAPI.h
         ast/base/ChildResolution.h
+        ast/base/ChildResolutionNodes.h
+        std/chem_string_view_fast.h
 )
 
 # Chemical LSP Executable Target

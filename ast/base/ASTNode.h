@@ -14,6 +14,8 @@
 #include "DebugCast.h"
 #include "std/chem_string.h"
 
+class ChildResolver;
+
 class SymbolResolver;
 
 class LocatedIdentifier;
@@ -263,10 +265,22 @@ public:
     bool requires_moving(ASTNodeKind k);
 
     /**
-     * return a child ASTNode* with name
-     * called by access chain values like function call, on structs to get member function definitions
+     * return a child ASTNode* with given name
+     * example: children include struct members, functions, so on...
+     * note: if child resolver is given, children added to types using impl will be considered
      */
-    ASTNode *child(const chem::string_view &name);
+    ASTNode *child(ChildResolver* resolver, const chem::string_view &name) noexcept;
+
+    /**
+     * return a child ASTNode* with name
+     * example: children include struct members, functions, so on...
+     * note: this calls the above child function with ChildResolver* as nullptr, this means
+     * that the ChildResolver won't be used, so children that were added to types using
+     * impl won't be considered
+     */
+    inline ASTNode *child(const chem::string_view &name) noexcept {
+        return child(nullptr, name);
+    }
 
     /**
      * any value held by this node, for example var init statement can hold an initializer

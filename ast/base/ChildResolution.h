@@ -6,5 +6,6 @@
 
 class ASTNode;
 class ChainValue;
+class ChildResolver;
 
-ASTNode* provide_child(ChainValue* parent, const chem::string_view& name);
+ASTNode* provide_child(ChildResolver* resolver, ChainValue* parent, const chem::string_view& name, ASTNode* type_parent);

@@ -210,11 +210,16 @@ enum class TokenType {
     SemiColonSym,
 
     // ...
-    // TODO remove this
     TripleDotSym,
 
     // =>
     LambdaSym,
+
+    // $
+    DollarSym,
+
+    // ?
+    QuestionMarkSym,
 
     // -------- END OPERATORS ------
 

@@ -52,7 +52,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
-#include <iostream>
+#include "ChildResolution.h"
 
 #if !defined(DEBUG) && defined(COMPILER_BUILD)
 #include "compiler/Codegen.h"
@@ -662,6 +662,20 @@ ASTNode* provide_child(BaseType* type, const chem::string_view& name, ASTNode* t
     // safe direct recursive data structures (recursion check)
     if(provider == type_parent) return nullptr;
     return provider->child(name);
+}
+
+ASTNode* provide_child(ChainValue* parent, const chem::string_view& name) {
+    switch(parent->kind()) {
+        case ValueKind::Identifier:
+            return parent->as_identifier_unsafe()->linked->child(name);
+        case ValueKind::AccessChain:
+            return provide_child(parent->as_access_chain_unsafe()->values.back(), name);
+        case ValueKind::FunctionCall:
+        case ValueKind::IndexOperator:
+            return provide_child(parent->getType(), name);
+        default:
+            return nullptr;
+    }
 }
 
 // get inherited or direct child from a members container (like struct gives)

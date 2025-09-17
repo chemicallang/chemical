@@ -55,10 +55,9 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
             return final_decl;
         }
         if(consumeToken(TokenType::ForKw)) {
-            const auto structTypeLoc = loc_single(token);
-            auto structType = parseLinkedOrGenericType(allocator);
+            auto structType = parseTypeLoc(allocator);
             if(structType) {
-                impl->struct_type = {structType, structTypeLoc};
+                impl->struct_type = structType;
             } else {
                 return final_decl;
             }

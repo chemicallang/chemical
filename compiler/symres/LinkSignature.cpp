@@ -737,11 +737,94 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
             func->set_override(true);
         }
     }
-    const auto struct_linked = node->struct_type ? node->struct_type->linked_struct_def() : nullptr;
     LinkMembersContainerNoScope(node);
-    if(struct_linked) {
-        // adding all methods of this implementation to struct
-        struct_linked->adopt(node);
+    if(node->struct_type) {
+        switch(node->struct_type->kind()) {
+            case BaseTypeKind::IntN:
+            case BaseTypeKind::String:
+            case BaseTypeKind::ExpressiveString:
+            case BaseTypeKind::Double:
+            case BaseTypeKind::Float:
+            case BaseTypeKind::Float128:
+            case BaseTypeKind::LongDouble:
+            case BaseTypeKind::Any:
+            case BaseTypeKind::Void:
+            case BaseTypeKind::NullPtr:
+            case BaseTypeKind::Bool:
+                // index all functions (on primitive type)
+                for(const auto func : node->instantiated_functions()) {
+                    linker.child_resolver.index_primitive_child(node->struct_type, func->name_view(), func);
+                }
+                break;
+            case BaseTypeKind::Pointer:
+                // index all functions (on pointer type)
+                for(const auto func : node->instantiated_functions()) {
+                    if(!linker.child_resolver.index_ptr_child(node->struct_type->as_pointer_type_unsafe(), func->name_view(), func)) {
+                        linker.error("implementation for type is not allowed", node->struct_type.encoded_location());
+                        break;
+                    }
+                }
+                break;
+            case BaseTypeKind::Reference:
+                // index all functions (on reference type)
+                for(const auto func : node->instantiated_functions()) {
+                    if(!linker.child_resolver.index_ref_child(node->struct_type->as_reference_type_unsafe(), func->name_view(), func)) {
+                        linker.error("implementation for type is not allowed", node->struct_type.encoded_location());
+                        break;
+                    }
+                }
+                break;
+            case BaseTypeKind::Linked: {
+                const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
+                switch(member_node->kind()) {
+                    case ASTNodeKind::StructDecl:
+                    case ASTNodeKind::VariantDecl:
+                    case ASTNodeKind::UnionDecl: {
+                        const auto container = member_node->as_members_container_unsafe();
+                        container->adopt(node);
+                        break;
+                    }
+                    default:
+                        linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
+                        break;
+                }
+                break;
+            }
+            case BaseTypeKind::Generic: {
+                const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
+                switch (member_node->kind()) {
+                    case ASTNodeKind::StructDecl:
+                    case ASTNodeKind::VariantDecl:
+                    case ASTNodeKind::UnionDecl: {
+                        const auto container = member_node->as_members_container_unsafe();
+                        container->adopt(node);
+                        break;
+                    }
+                    case ASTNodeKind::GenericStructDecl: {
+                        const auto container = member_node->as_gen_struct_def_unsafe();
+                        container->master_impl->adopt(node);
+                        break;
+                    }
+                    case ASTNodeKind::GenericVariantDecl:{
+                        const auto container = member_node->as_gen_variant_decl_unsafe();
+                        container->master_impl->adopt(node);
+                        break;
+                    }
+                    case ASTNodeKind::GenericUnionDecl:{
+                        const auto container = member_node->as_gen_union_decl_unsafe();
+                        container->master_impl->adopt(node);
+                        break;
+                    }
+                    default:
+                        linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
+                        break;
+                }
+                break;
+            }
+            default:
+                linker.error("cannot implement unsupported type", node->struct_type.encoded_location());
+                break;
+        }
     }
     linker.scope_end();
 }

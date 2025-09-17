@@ -1,6 +1,12 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
-#include "ASTNode.h"
+#pragma once
+
+#include "ast/base/ASTNode.h"
+#include "ast/types/ReferenceType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/LinkedType.h"
+#include "ast/types/GenericType.h"
 #include <unordered_map>
 #include "std/chem_string_view_fast.h"
 #include <span>
@@ -174,7 +180,7 @@ public:
         return index_child(ptr_child_types, type->type, type->is_mutable, name, node);
     }
 
-    inline bool index_ref_child(PointerType* type, const chem::string_view& name, ASTNode* node) {
+    inline bool index_ref_child(ReferenceType* type, const chem::string_view& name, ASTNode* node) {
         return index_child(ref_child_types, type->type, type->is_mutable, name, node);
     }
 

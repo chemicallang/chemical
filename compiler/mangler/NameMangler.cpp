@@ -133,22 +133,26 @@ void write_file_scope(BufferedWriter& stream, ASTNode* node, FileScope* p) {
     }
 }
 
+inline void write_mangle_parent(NameMangler& mangler, BufferedWriter& stream, ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::FileScope: {
+            write_file_scope(stream, node, node->as_file_scope_unsafe());
+            break;
+        }
+        case ASTNodeKind::FunctionDecl:
+            break;
+        default:
+            mangler.mangle_non_func(stream, node);
+            break;
+    }
+}
+
 bool NameMangler::mangle_non_func(BufferedWriter& stream, ASTNode* node) {
     const auto id = node->get_located_id();
     if(id) {
         const auto p = node->parent();
         if (p) {
-            switch(p->kind()) {
-                case ASTNodeKind::FileScope: {
-                    write_file_scope(stream, node, p->as_file_scope_unsafe());
-                    break;
-                }
-                case ASTNodeKind::FunctionDecl:
-                    break;
-                default:
-                    mangle_non_func(stream, p);
-                    break;
-            }
+            write_mangle_parent(*this, stream, p);
         };
         mangle_no_parent(stream, node);
         return true;
@@ -187,8 +191,12 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                 if(can_node) {
                     mangle_non_func(stream, can_node);
                 } else {
-                    int i = 0;
-                    // TODO: handle for type, other than members container (generic)
+                    // TODO: this only covers module scope
+                    // since this method is on native types, we need to figure out how to mangle it
+                    const auto p = def->parent();
+                    if(p) {
+                        write_mangle_parent(*this, stream, p);
+                    }
                 }
             } else {
                 const auto& interface = def->interface_type->linked_interface_def();

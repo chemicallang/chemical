@@ -23,6 +23,7 @@
 #include "compiler/lab/mod_conv/ModToLabConverter.h"
 #include "parser/utils/ParseModDecl.h"
 #include "compiler/lab/timestamp/Timestamp.h"
+#include "std/chem_string_view_fast.h"
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -251,11 +252,11 @@ void check_imports_for_cycles(ImportCycleCheckResult& out, const std::span<ASTFi
     });
 }
 
-void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<std::string_view, bool>& done_files, ASTFileResult* single_file) {
+void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<chem::string_view, bool, FastHashInternedView, FastEqInternedView>& done_files, ASTFileResult* single_file) {
     for(auto& file : single_file->imports) {
         flatten(flat_out, done_files, file);
     }
-    auto view = std::string_view(single_file->abs_path);
+    auto view = chem::string_view(single_file->abs_path);
     auto found = done_files.find(view);
     if(found == done_files.end()) {
         done_files[view] = true;
@@ -265,7 +266,7 @@ void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<std::stri
 
 std::vector<ASTFileResult*> flatten(const std::span<ASTFileResult*>& files) {
     std::vector<ASTFileResult*> flat_out;
-    std::unordered_map<std::string_view, bool> done_files;
+    std::unordered_map<chem::string_view, bool, FastHashInternedView, FastEqInternedView> done_files;
     for(auto file : files) {
         flatten(flat_out, done_files, file);
     }

@@ -34,27 +34,6 @@ class VariableIdentifier;
 
 class CompilerBinder;
 
-/**
- * a struct representing a scope, every '{' and '}' opens and closes a scope respectively
- *
- */
-struct SymResScope {
-
-    /**
-     * the kind of scope this is
-     */
-    SymResScopeKind kind;
-
-    /**
-     * a scope is a map of symbols, this is that map
-     * The key here is string_view, so it assumes that it's always valid
-     * that's because strings are stored inside AST, which is not disposed
-     * until symbol resolution is completed
-     */
-    std::unordered_map<chem::string_view, ASTNode*> symbols;
-
-};
-
 struct SymbolRef {
 #ifdef DEBUG
 private:

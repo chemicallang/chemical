@@ -7,9 +7,9 @@
 struct FastHashInternedView {
     std::size_t operator()(chem::string_view const& k) const noexcept {
         // cast pointer to integer of pointer width
-        std::uintptr_t p = reinterpret_cast<std::uintptr_t>(k.data());
+        auto p = reinterpret_cast<std::uintptr_t>(k.data());
         // turn into size_t (same width as uintptr_t on typical platforms)
-        std::size_t h = static_cast<std::size_t>(p);
+        auto h = static_cast<std::size_t>(p);
         // mix in the other integer (k.tag) using boost::hash_combine style
         // this is cheap: one add, two shifts, one xor
         h ^= k.size() + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);

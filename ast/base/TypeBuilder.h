@@ -53,6 +53,10 @@ private:
     PointerType* ptrToVoid;
     ExpressiveStringType* expr_str_type;
 
+    // not exactly a type, but used once everywhere
+    // when anything is unresolved, we link it with this declaration
+    UnresolvedDecl* unresolvedDecl;
+
 public:
 
     ASTAllocator& allocator;
@@ -170,28 +174,28 @@ public:
     /**
      * get BoolType
      */
-    BoolType* getBoolType() {
+    inline BoolType* getBoolType() {
         return boolType;
     }
 
     /**
      * get DoubleType
      */
-    DoubleType* getDoubleType() {
+    inline DoubleType* getDoubleType() {
         return doubleType;
     }
 
     /**
      * get Float128Type
      */
-    Float128Type* getFloat128Type() {
+    inline Float128Type* getFloat128Type() {
         return float128Type;
     }
 
     /**
      * get FloatType
      */
-    FloatType* getFloatType() {
+    inline FloatType* getFloatType() {
         return floatType;
     }
 
@@ -199,43 +203,50 @@ public:
     /**
      * get LongDoubleType
      */
-    LongDoubleType* getLongDoubleType() {
+    inline LongDoubleType* getLongDoubleType() {
         return longDoubleType;
     }
 
     /**
      * get StringType
      */
-    StringType* getStringType() {
+    inline StringType* getStringType() {
         return stringType;
     }
 
     /**
      * get VoidType
      */
-    VoidType* getVoidType() {
+    inline VoidType* getVoidType() {
         return voidType;
     }
 
     /**
      * get NullPtrType
      */
-    NullPtrType* getNullPtrType() {
+    inline NullPtrType* getNullPtrType() {
         return nullPtrType;
     }
 
     /**
      * get PointerType
      */
-    PointerType* getPtrToVoid() {
+    inline PointerType* getPtrToVoid() {
         return ptrToVoid;
     }
 
     /**
      * get ExpressiveStringType
      */
-    ExpressiveStringType* getExprStrType() {
+    inline ExpressiveStringType* getExprStrType() {
         return expr_str_type;
+    }
+
+    /**
+     * get UnresolvedDecl
+     */
+    inline UnresolvedDecl* getUnresolvedDecl() {
+        return unresolvedDecl;
     }
 
 };

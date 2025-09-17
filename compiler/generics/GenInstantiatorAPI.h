@@ -39,6 +39,7 @@ public:
      */
     GenericInstantiatorAPI(
         CompilerBinder& binder,
+        ChildResolver& child_resolver,
         InstantiationsContainer& container,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser,

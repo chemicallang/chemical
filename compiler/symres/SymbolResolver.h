@@ -144,12 +144,6 @@ public:
     ChildResolver child_resolver;
 
     /**
-     * initialized in constructor, everything that is unresolved
-     * is linked with this declaration to avoid null pointer access
-     */
-    UnresolvedDecl* unresolved_decl;
-
-    /**
      * a reference to global interpret scope is required
      * which helps to resolve conditions inside compile time if statements
      * to link code
@@ -260,6 +254,11 @@ public:
             ASTAllocator* modAllocator,
             ASTAllocator* astAllocator
     );
+
+    /**
+     * get the unresolved declaration
+     */
+    UnresolvedDecl* get_unresolved_decl();
 
     /**
      * change the ast allocator to given allocator

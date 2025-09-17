@@ -27,15 +27,14 @@ SymbolResolver::SymbolResolver(
     ASTAllocator* astAllocator
 ) : binder(binder), comptime_scope(global), path_handler(handler), instContainer(container), ASTDiagnoser(global.loc_man), is64Bit(is64Bit),
     allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator),
-    genericInstantiator(binder, container, *astAllocator, *this, global.typeBuilder), table(512)
+    genericInstantiator(binder, child_resolver, container, *astAllocator, *this, global.typeBuilder), table(512)
 {
     global_scope_start();
     stored_file_symbols.reserve(128);
-    unresolved_decl = new (astAllocator->allocate<UnresolvedDecl>()) UnresolvedDecl(
-            nullptr,
-            comptime_scope.typeBuilder.getVoidType(),
-            ZERO_LOC
-    );
+}
+
+UnresolvedDecl* SymbolResolver::get_unresolved_decl() {
+    return comptime_scope.typeBuilder.getUnresolvedDecl();
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {

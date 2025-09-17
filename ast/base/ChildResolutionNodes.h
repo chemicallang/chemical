@@ -25,39 +25,27 @@ struct ChildKey {
     BaseType* type_ptr;         // pointer identity (nullable)
     bool is_mutable;
     bool operator==(ChildKey const& o) const noexcept {
-        return name == o.name && type_ptr == o.type_ptr && is_mutable == o.is_mutable;
+        return is_mutable == o.is_mutable && type_ptr == o.type_ptr && name == o.name;
     }
 };
 
-// splitmix64 as a small finalizer / scramble (cheap & good avalanche)
-static inline uint64_t splitmix64(uint64_t x) noexcept {
-    x += 0x9e3779b97f4a7c15ULL;
-    x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
-    x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
-    return x ^ (x >> 31);
-}
-
 struct ChildKeyHash {
     size_t operator()(ChildKey const& k) const noexcept {
-        // 1) hash the string_view to uint64
-        uint64_t h_name = static_cast<uint64_t>(FastHashInternedView{}(k.name));
+        // Hash the string contents (std::hash<string_view> is content-based)
+        size_t h_name = std::hash<chem::string_view>{}(k.name);
 
-        // 2) pointer -> integer (portable)
-        auto p = static_cast<uint64_t>(reinterpret_cast<std::uintptr_t>(k.type_ptr));
+        // Hash the pointer identity
+        size_t h_ptr = std::hash<uintptr_t>{}(reinterpret_cast<uintptr_t>(k.type_ptr));
 
-        // 3) pack small field(s) into a 64-bit word
-        //    put bits in low byte; mix in a small constant to separate similar ptrs
-        auto small = static_cast<uint64_t>(k.is_mutable);
+        // Small integer for the mutable flag
+        size_t h_mut = k.is_mutable ? 0x9e3779b97f4a7c15ULL : 0xC13FA9A902A6328FULL;
 
-        // 4) combine in a way that mixes locality while still letting splitmix finalize
-        //    (we multiply h_name by golden constant to spread it, then add pointer and small)
-        uint64_t combined = h_name * 0x9e3779b97f4a7c15ULL + p + (small << 1);
+        // combine (boost::hash_combine style)
+        size_t seed = h_name;
+        seed ^= h_ptr + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
+        seed ^= h_mut + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
 
-        // 5) final scramble
-        uint64_t final_val = splitmix64(combined);
-
-        // cast to size_t (size_t may be 32-bit on some platforms; acceptable)
-        return static_cast<size_t>(final_val);
+        return seed;
     }
 };
 

@@ -37,6 +37,11 @@ public:
     CompilerBinder& binder;
 
     /**
+     * child resolver is used to fix children
+     */
+    ChildResolver& child_resolver;
+
+    /**
      * a reference to type builder
      */
     TypeBuilder& typeBuilder;
@@ -64,11 +69,12 @@ public:
      */
     GenericInstantiator(
         CompilerBinder& binder,
+        ChildResolver& child_resolver,
         InstantiationsContainer& container,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
         TypeBuilder& typeBuilder
-    ) : binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder) {
+    ) : child_resolver(child_resolver), binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder) {
 
     }
 

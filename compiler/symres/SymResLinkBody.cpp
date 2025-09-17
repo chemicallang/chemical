@@ -228,15 +228,15 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
 
 bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResolver& resolver) {
     auto& value = id->value;
-    const auto child = provide_child(nullptr, parent, value, nullptr);
+    const auto child = provide_child(&resolver.child_resolver, parent, value, nullptr);
     if(child) {
         id->linked = child;
         id->setType(child->known_type());
         id->process_linked(&resolver, resolver.current_func_type);
         return true;
     } else {
-        id->linked = resolver.unresolved_decl;
-        id->setType(resolver.unresolved_decl->known_type());
+        id->linked = resolver.get_unresolved_decl();
+        id->setType(id->linked->known_type());
         resolver.error(id) << "unresolved child '" << value << "' in parent '" << parent->representation() << "'";
         return false;
     }
@@ -306,8 +306,8 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     } else {
         // since we couldn't find a linked declaration, we will
         // link this identifier with unresolved declaration
-        identifier->linked = linker.unresolved_decl;
-        identifier->setType(linker.unresolved_decl->known_type());
+        identifier->linked = linker.get_unresolved_decl();
+        identifier->setType(identifier->linked->known_type());
         linker.error(identifier) << "unresolved variable identifier '" << value << "' not found";
     }
 }
@@ -516,7 +516,8 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
 
 VariantCase* create_variant_case(SymbolResolver& resolver, SwitchStatement* stmt, VariantDefinition* def, VariableIdentifier* id) {
     auto& allocator = *resolver.ast_allocator;
-    const auto child = def->child(id->value);
+    // explicit nullptr for ChildResolver, because we're just looking for direct variant members
+    const auto child = def->child(nullptr, id->value);
     if(child) {
         if(child->kind() == ASTNodeKind::VariantMember) {
             return new (allocator.allocate<VariantCase>()) VariantCase(child->as_variant_member_unsafe(), stmt, resolver.comptime_scope.typeBuilder.getVoidType(), id->encoded_location());
@@ -926,7 +927,7 @@ void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
         node->linked = found;
     } else {
         linker.error(node) << "unresolved identifier '" << node->name << "' captured";
-        node->linked = linker.unresolved_decl;
+        node->linked = linker.get_unresolved_decl();
     }
     linker.declare(node->name, node);
 }
@@ -1864,7 +1865,7 @@ void SymResLinkBody::VisitLinkedType(LinkedType* type) {
         if(found) {
             type->linked = found;
         } else if(type->linked == nullptr) {
-            type->linked = linker.unresolved_decl;
+            type->linked = linker.get_unresolved_decl();
             linker.error(type_location) << "unresolved symbol, couldn't find referenced type '" << link_name << '\'';
             return;
         }
@@ -1879,7 +1880,7 @@ void SymResLinkBody::VisitLinkedType(LinkedType* type) {
             type->linked = linked;
         } else {
             // no need to error because we visited value, which prob cased an error if unresolved
-            type->linked = linker.unresolved_decl;
+            type->linked = linker.get_unresolved_decl();
         }
         return;
     }

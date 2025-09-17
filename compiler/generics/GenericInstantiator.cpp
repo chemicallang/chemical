@@ -51,7 +51,7 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
-    GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+    GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
     GenericInstantiatorAPI genApi(&instantiator);
     if(!call->instantiate_gen_call(genApi, nullptr)) {
         diagnoser.error("couldn't instantiate call", call);
@@ -72,7 +72,7 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) const {
     }
 }
 
-void relink_parent(AccessChain* chain, ASTDiagnoser& diagnoser, FunctionTypeBody* curr_func) {
+void relink_parent(AccessChain* chain, GenericInstantiator& instantiator, FunctionTypeBody* curr_func) {
     const auto values_size = chain->values.size();
     unsigned i = 1;
     while (i < values_size) {
@@ -80,19 +80,21 @@ void relink_parent(AccessChain* chain, ASTDiagnoser& diagnoser, FunctionTypeBody
         const auto parent = chain->values[i - 1];
         auto linked_node = parent->linked_node();
         if(linked_node) {
-            const auto child = linked_node->child(id->value);
+            const auto child = linked_node->child(&instantiator.child_resolver, id->value);
             if(child) {
                 id->linked = child;
                 id->setType(child->known_type());
-                id->process_linked(&diagnoser, curr_func);
+                id->process_linked(&instantiator.diagnoser, curr_func);
             } else {
-                // TODO link with unresolved declaration
-                diagnoser.error(id) << "unresolved child '" << id->value << "' in parent '" << parent->representation() << "'";
+                id->linked = (ASTNode*) instantiator.typeBuilder.getUnresolvedDecl();
+                id->setType(id->linked->known_type());
+                instantiator.diagnoser.error(id) << "unresolved child '" << id->value << "' in parent '" << parent->representation() << "'";
                 return;
             }
         } else {
-            // TODO link with unresolved declaration
-            diagnoser.error(id) << "unresolved child '" << id->value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
+            id->linked = (ASTNode*) instantiator.typeBuilder.getUnresolvedDecl();
+            id->setType(id->linked->known_type());
+            instantiator.diagnoser.error(id) << "unresolved child '" << id->value << "' because parent '" << parent->representation() << "' couldn't be resolved.";
             return;
         }
         i++;
@@ -112,7 +114,7 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
     if(val->kind() == ValueKind::Identifier) {
         if(relink_identifier(val->as_identifier_unsafe())) {
             // since parent has changed, we must relink the chain
-            relink_parent(value, diagnoser, current_func_type);
+            relink_parent(value, *this, current_func_type);
         }
     } else {
         // since it's not a identifier, we must visit it
@@ -173,7 +175,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
-        GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+        GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(genApi);
     }
@@ -196,7 +198,8 @@ void GenericInstantiator::VisitSwitchStmt(SwitchStatement* stmt) {
     for(auto& aCase : stmt->cases) {
         if(aCase.first->kind() == ValueKind::VariantCase) {
             const auto varCase = aCase.first->as_variant_case_unsafe();
-            const auto newChild = varDef->child(varCase->member->name);
+            // explicit nullptr for ChildResolver because we're just looking for direct variant members
+            const auto newChild = varDef->child(nullptr, varCase->member->name);
             if(newChild && newChild->kind() == ASTNodeKind::VariantMember) {
                 const auto newMem = newChild->as_variant_member_unsafe();
                 varCase->member = newMem;
@@ -317,7 +320,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -331,7 +334,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -345,7 +348,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -360,7 +363,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -374,7 +377,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
                 }
             }
             // relink generic struct decl with instantiated type
-            GenericInstantiator instantiator(binder, container, getAllocator(), diagnoser, typeBuilder);
+            GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
             linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types);
             return;
@@ -1232,11 +1235,12 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, const std::span<Im
 
 GenericInstantiatorAPI::GenericInstantiatorAPI(
     CompilerBinder& binder,
+    ChildResolver& child_resolver,
     InstantiationsContainer& container,
     ASTAllocator& astAllocator,
     ASTDiagnoser& diagnoser,
     TypeBuilder& typeBuilder
-) : giPtr(new GenericInstantiator(binder, container, astAllocator, diagnoser, typeBuilder)) {
+) : giPtr(new GenericInstantiator(binder, child_resolver, container, astAllocator, diagnoser, typeBuilder)) {
 
 }
 

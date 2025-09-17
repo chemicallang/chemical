@@ -11,6 +11,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/NullPtrType.h"
 #include "ast/types/PointerType.h"
+#include "ast/statements/UnresolvedDecl.h"
 #include "ast/types/ExpressiveStringType.h"
 
 void TypeBuilder::initialize() {
@@ -26,5 +27,8 @@ void TypeBuilder::initialize() {
     nullPtrType = new (allocator.allocate<NullPtrType>()) NullPtrType();
     ptrToVoid = new (allocator.allocate<PointerType>()) PointerType(voidType, true);
     expr_str_type = new (allocator.allocate<ExpressiveStringType>()) ExpressiveStringType();
+
+    // global declarations
+    unresolvedDecl = new (allocator.allocate<UnresolvedDecl>()) UnresolvedDecl(nullptr, voidType, ZERO_LOC);
 
 }

@@ -47,7 +47,7 @@ void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
         value->process_linked(&linker, nullptr);
     } else if(value->linked == nullptr) {
         linker.error(value) << "unresolved variable identifier, '" << value->value << "' not found";
-        value->linked = (ASTNode*) linker.unresolved_decl;
+        value->linked = (ASTNode*) linker.get_unresolved_decl();
         value->setType(value->linked->known_type());
     }
 }
@@ -69,7 +69,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
         if(linked) {
             type->linked = linked;
         } else {
-            type->linked = (ASTNode*) linker.unresolved_decl;
+            type->linked = (ASTNode*) linker.get_unresolved_decl();
             linker.error(type_location) << "unresolved type not found";
         }
     } else if(type->is_named()){
@@ -79,7 +79,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
             type->linked = decl;
         } else if(type->linked == nullptr) {
             linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
-            type->linked = (ASTNode*) linker.unresolved_decl;
+            type->linked = (ASTNode*) linker.get_unresolved_decl();
         }
     }
 }
@@ -128,13 +128,13 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     const auto size = value->values.size();
     while(i < size) {
         const auto child = value->values[i]->as_identifier_unsafe();
-        const auto child_linked = parent->child(child->value);
+        const auto child_linked = parent->child(&linker.child_resolver, child->value);
         if(child_linked) {
             child->linked = child_linked;
             child->setType(child_linked->known_type());
             parent = child_linked;
         } else {
-            child->linked = (ASTNode*) linker.unresolved_decl;
+            child->linked = (ASTNode*) linker.get_unresolved_decl();
             child->setType(child->linked->known_type());
             linker.error(child) << "unresolved identifier, '" << child->value << "' not found";
             break;

@@ -20,14 +20,12 @@ class StructDefinition;
  * for a function, struct or anything that has a runtime footprint
  */
 class NameMangler {
-private:
+public:
 
     /**
-     * mangle non_func is a private function that doesn't handle functions
+     * mangle non_func is a function that doesn't handle functions
      */
     bool mangle_non_func(BufferedWriter& stream, ASTNode* node);
-
-public:
 
     /**
      * mangle the linked container of given struct value

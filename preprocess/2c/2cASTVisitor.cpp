@@ -1272,6 +1272,23 @@ void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* c
     visitor.visit(grandpa);
 }
 
+// this checks the parameter type
+void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call, FunctionParam* param) {
+    switch(param->type->kind()) {
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Void:
+        case BaseTypeKind::Any:
+            visitor.visit(grandpa);
+            return;
+        default:
+            write_self_arg(visitor, grandpa, call);
+    }
+}
+
 bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call) {
     if(func_type->has_self_param()) {
         visitor.visit(grandpa);
@@ -1625,7 +1642,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                 visitor.write(", ");
             }
             const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
-            write_self_arg(visitor, till_grandpa, call);
+            write_self_arg(visitor, till_grandpa, call, firstParam);
             has_comma_before = false;
         } else {
             visitor.error("couldn't get the self parameter for the extension function receiver parameter", firstParam);
@@ -1640,7 +1657,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                         visitor.write(", ");
                     }
                     const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
-                    write_self_arg(visitor, till_grandpa, call);
+                    write_self_arg(visitor, till_grandpa, call, param);
                     has_comma_before = false;
                 } else if(visitor.current_func_type) {
                     auto self_param = visitor.current_func_type->get_self_param();

@@ -87,7 +87,7 @@ public:
     /**
      * container of
      */
-    static ASTNode* find_container_of(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type_ptr, bool is_mutable, const chem::string_view& name) {
+    static ASTNode* find_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type_ptr, bool is_mutable, const chem::string_view& name) {
         auto key = ChildKey {
                 .name = name,
                 .type_ptr = type_ptr,
@@ -130,18 +130,18 @@ public:
         }
     }
 
-    ASTNode* find_container_of(PointerType* type, const chem::string_view& name) {
+    ASTNode* find_child(PointerType* type, const chem::string_view& name) {
         if(!isNestedTypeAllowed(type->type)) {
             return nullptr;
         }
-        return find_container_of(ptr_child_types, type->type, type->is_mutable, name);
+        return find_child(ptr_child_types, type->type, type->is_mutable, name);
     }
 
-    ASTNode* find_container_of(ReferenceType* type, const chem::string_view& name) {
+    ASTNode* find_child(ReferenceType* type, const chem::string_view& name) {
         if(!isNestedTypeAllowed(type->type)) {
             return nullptr;
         }
-        return find_container_of(ref_child_types, type->type, type->is_mutable, name);
+        return find_child(ref_child_types, type->type, type->is_mutable, name);
     }
 
 };

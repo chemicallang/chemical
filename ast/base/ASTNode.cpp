@@ -646,7 +646,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
                 return child;
             } else {
                 if(resolver) {
-                    return resolver->find_container_of(type->as_pointer_type_unsafe(), name);
+                    return resolver->find_child(type->as_pointer_type_unsafe(), name);
                 } else {
                     return nullptr;
                 }
@@ -658,7 +658,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
                 return child;
             } else {
                 if(resolver) {
-                    return resolver->find_container_of(type->as_reference_type_unsafe(), name);
+                    return resolver->find_child(type->as_reference_type_unsafe(), name);
                 } else {
                     return nullptr;
                 }

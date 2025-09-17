@@ -109,17 +109,36 @@ public:
         return found->second;
     }
 
+    // only types that can be stored inside type builder
+    // are allowed
+    static bool isNestedTypeAllowed(BaseType* type) {
+        switch(type->kind()) {
+            case BaseTypeKind::IntN:
+            case BaseTypeKind::String:
+            case BaseTypeKind::ExpressiveString:
+            case BaseTypeKind::Double:
+            case BaseTypeKind::Float:
+            case BaseTypeKind::Float128:
+            case BaseTypeKind::LongDouble:
+            case BaseTypeKind::Any:
+            case BaseTypeKind::Void:
+            case BaseTypeKind::NullPtr:
+            case BaseTypeKind::Bool:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     ASTNode* find_container_of(PointerType* type, const chem::string_view& name) {
-        if(type->type->kind() == BaseTypeKind::Pointer) {
-            // impl Trait for **int (multiple indirections) NOT supported
+        if(!isNestedTypeAllowed(type->type)) {
             return nullptr;
         }
         return find_container_of(ptr_child_types, type->type, type->is_mutable, name);
     }
 
     ASTNode* find_container_of(ReferenceType* type, const chem::string_view& name) {
-        if(type->type->kind() == BaseTypeKind::Reference) {
-            // impl Trait for &&int (multiple indirections) NOT supported
+        if(!isNestedTypeAllowed(type->type)) {
             return nullptr;
         }
         return find_container_of(ref_child_types, type->type, type->is_mutable, name);

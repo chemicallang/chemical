@@ -135,9 +135,12 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
 void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
     // relink the type if found
-    const auto node = table.resolve(type->linked_name());
-    if(node) {
-        type->linked = node;
+    auto type_name = type->linked_name();
+    if(!type_name.empty()) {
+        const auto node = table.resolve(type_name);
+        if (node) {
+            type->linked = node;
+        }
     }
 
 }

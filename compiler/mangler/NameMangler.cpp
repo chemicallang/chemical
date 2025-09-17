@@ -183,8 +183,13 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
         case ASTNodeKind::ImplDecl: {
             const auto def = parent->as_impl_def_unsafe();
             if(decl->has_self_param() && def->struct_type) {
-                const auto struct_def = def->struct_type->linked_struct_def();
-                mangle_non_func(stream, struct_def);
+                const auto can_node = def->struct_type->get_members_container();
+                if(can_node) {
+                    mangle_non_func(stream, can_node);
+                } else {
+                    int i = 0;
+                    // TODO: handle for type, other than members container (generic)
+                }
             } else {
                 const auto& interface = def->interface_type->linked_interface_def();
                 mangle_non_func(stream, interface);

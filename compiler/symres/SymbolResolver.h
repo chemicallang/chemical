@@ -9,6 +9,7 @@
 #include "ast/base/ASTAllocator.h"
 #include "compiler/symres/SymbolTable.h"
 #include "compiler/symres/SymbolRange.h"
+#include "ChildResolver.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "compiler/generics/InstantiationsContainer.h"
 
@@ -135,6 +136,12 @@ private:
     }
 
 public:
+
+    /**
+     * the resolver is used to resolve children added using impl to
+     * non container types like int or *int
+     */
+    ChildResolver child_resolver;
 
     /**
      * initialized in constructor, everything that is unresolved

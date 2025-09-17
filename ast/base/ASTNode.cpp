@@ -53,7 +53,7 @@
 #include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
 #include "ChildResolution.h"
-#include "ChildResolutionNodes.h"
+#include "compiler/symres/ChildResolver.h"
 
 #if !defined(DEBUG) && defined(COMPILER_BUILD)
 #include "compiler/Codegen.h"

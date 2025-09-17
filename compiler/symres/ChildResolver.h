@@ -123,7 +123,7 @@ public:
             case BaseTypeKind::NullPtr:
             case BaseTypeKind::Bool:
                 // the underlying pointer doesn't change for these types
-                return find_child(map, type, is_mutable, name);
+                return find_child(map, (void*) type, is_mutable, name);
             case BaseTypeKind::Linked:
                 // linked types are stored with pointer to linked (because that pointer doesn't change)
                 return find_child(map, type->as_linked_type_unsafe()->linked, is_mutable, name);

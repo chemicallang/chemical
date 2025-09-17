@@ -159,12 +159,11 @@ bool Parser::parseParameterList(
             auto& t = *token;
             if(t.type == TokenType::SelfKw) {
                 token++;
-                const auto linkedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, t.value), nullptr);
-#ifdef LSP_BUILD
-                id->linked = linkedType;
-#endif
                 const auto loc = loc_single(t);
-                auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, t.value), TypeLoc(linkedType, loc), index, nullptr, true, parent_node, loc);
+                auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, t.value), TypeLoc(typeBuilder.getVoidType(), loc), index, nullptr, true, parent_node, loc);
+#ifdef LSP_BUILD
+                id->linked = param;
+#endif
                 parameters.emplace_back(param);
                 index++;
                 continue;
@@ -174,12 +173,19 @@ bool Parser::parseParameterList(
                 auto is_mutable = consumeToken(TokenType::MutKw); // optional mut keyword
                 auto id = consumeIdentifierOrKeyword();
                 if (id) {
-                    const auto linkedType = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr);
-#ifdef LSP_BUILD
-                    id->linked = linkedType;
-#endif
-                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(linkedType, is_mutable);
+                    BaseType* child_type;
+                    if(id->type == TokenType::SelfKw) {
+                        // will be replaced during symbol resolution
+                        child_type = typeBuilder.getVoidType();
+                    } else {
+                        // implicit parameter
+                        child_type = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, id->value), nullptr);
+                    }
+                    const auto ref_to_linked  = new (allocator.allocate<ReferenceType>()) ReferenceType(child_type, is_mutable);
                     auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, id->value), TypeLoc(ref_to_linked, loc_single(id)), index, nullptr, true, parent_node, loc(ampersand, id));
+#ifdef LSP_BUILD
+                    id->linked = param;
+#endif
                     parameters.emplace_back(param);
                     index++;
                     continue;

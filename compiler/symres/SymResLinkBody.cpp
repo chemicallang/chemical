@@ -807,10 +807,26 @@ void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
     }
 }
 
-bool link_self_type(SymbolResolver& linker, LinkedType* linked_type, FunctionParam* param) {
+void set_implicit_self_linked_to(FunctionParam* param, BaseType* linked_type) {
+    if (param->type->kind() == BaseTypeKind::Reference) {
+        param->type->as_reference_type_unsafe()->type = linked_type;
+    } else {
+        param->type = TypeLoc(linked_type, param->type.encoded_location());
+    }
+}
+
+void set_implicit_self_linked_to(ASTAllocator& allocator, FunctionParam* param, ASTNode* linked_node) {
+    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(linked_node, false, false);
+    if (param->type->kind() == BaseTypeKind::Reference) {
+        param->type->as_reference_type_unsafe()->type = linked_type;
+    } else {
+        param->type = TypeLoc(linked_type, param->type.encoded_location());
+    }
+}
+
+bool link_self_type(SymbolResolver& linker, FunctionParam* param) {
     auto parent_node = param->parent();
     auto parent_kind = parent_node->kind();
-    ASTNode* parent;
     if (parent_kind == ASTNodeKind::FunctionDecl || parent_kind == ASTNodeKind::StructMember) {
         const auto p = parent_node->parent();
         if (p) {
@@ -821,46 +837,44 @@ bool link_self_type(SymbolResolver& linker, LinkedType* linked_type, FunctionPar
     switch (parent_kind) {
         case ASTNodeKind::ImplDecl: {
             const auto struct_type = parent_node->as_impl_def_unsafe()->struct_type;
-            parent = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
-            break;
+            if(struct_type) {
+                set_implicit_self_linked_to(param, struct_type);
+                return true;
+            } else {
+                linker.error("couldn't get self / other implicit parameter type", param);
+                return false;
+            }
         }
         case ASTNodeKind::GenericImplDecl: {
             const auto struct_type = parent_node->as_gen_impl_decl_unsafe()->master_impl->struct_type;
-            parent = struct_type ? struct_type->get_direct_linked_canonical_node() : nullptr;
-            break;
+            if(struct_type) {
+                set_implicit_self_linked_to(param, struct_type);
+                return true;
+            } else {
+                linker.error("couldn't get self / other implicit parameter type", param);
+                return false;
+            }
         }
         case ASTNodeKind::GenericInterfaceDecl:
         case ASTNodeKind::GenericUnionDecl:
         case ASTNodeKind::GenericStructDecl:
         case ASTNodeKind::GenericVariantDecl:
-            parent = parent_node;
-            break;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::InterfaceDecl:
-            parent = parent_node;
-            break;
+            set_implicit_self_linked_to(*linker.ast_allocator, param, parent_node);
+            return true;
         default:
-            parent = nullptr;
-            break;
+            linker.error("couldn't get self / other implicit parameter type", param);
+            return false;
     }
-    if (!parent) {
-        linker.error("couldn't get self / other implicit parameter type", param);
-        return false;
-    }
-    linked_type->linked = parent;
-    return true;
 }
 
 bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
+    // TODO: remove other from here
     if(name == "self" || name == "other") { // name and other means pointers to parent node
-        if(type->kind() == BaseTypeKind::Reference) {
-            return link_self_type(linker, type->as_reference_type_unsafe()->type->as_linked_type_unsafe(), this);
-        } else {
-            // must be a direct self
-            return link_self_type(linker, type->as_linked_type_unsafe(), this);
-        }
+        return link_self_type(linker, this);
     } else {
         auto found = linker.find(name);
         if(found) {

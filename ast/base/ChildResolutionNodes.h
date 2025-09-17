@@ -98,7 +98,12 @@ public:
         return found->second;
     }
 
-    ASTNode* find_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name) {
+    ASTNode* find_primitive_child(BaseType* type, const chem::string_view& name) {
+        auto found = primitive_types_children.find(PrimitiveTypeFunctionKey{ .name = name, .type = type });
+        return found != primitive_types_children.end() ? found->second : nullptr;
+    }
+
+    static ASTNode* find_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name) {
         switch(type->kind()) {
             case BaseTypeKind::IntN:
             case BaseTypeKind::String:
@@ -136,7 +141,7 @@ public:
         primitive_types_children.emplace(PrimitiveTypeFunctionKey{ .name = name, .type = type }, node);
     }
 
-    void index_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name, ASTNode* node) {
+    static bool index_child(std::unordered_map<ChildKey, ASTNode*, ChildKeyHash>& map, BaseType* type, bool is_mutable, const chem::string_view& name, ASTNode* node) {
         switch(type->kind()) {
             case BaseTypeKind::IntN:
             case BaseTypeKind::String:
@@ -151,26 +156,26 @@ public:
             case BaseTypeKind::Bool:
                 // the underlying pointer doesn't change for these types
                 map.emplace(ChildKey{.name = name, .pointer = type, .is_mutable = is_mutable}, node);
-                return;
+                return true;
             case BaseTypeKind::Linked:
                 // linked types are stored with pointer to linked (because that pointer doesn't change)
                 map.emplace(ChildKey{.name = name, .pointer = type->as_linked_type_unsafe()->linked, .is_mutable = is_mutable}, node);
-                return;
+                return true;
             case BaseTypeKind::Generic:
                 // generic types are stores similar to linked types
                 map.emplace(ChildKey{.name = name, .pointer = type->as_generic_type_unsafe()->referenced->linked, .is_mutable = is_mutable}, node);
-                return;
+                return true;
             default:
-                return;
+                return false;
         }
     }
 
-    void index_ptr_child(PointerType* type, const chem::string_view& name, ASTNode* node) {
-        index_child(ptr_child_types, type->type, type->is_mutable, name, node);
+    bool index_ptr_child(PointerType* type, const chem::string_view& name, ASTNode* node) {
+        return index_child(ptr_child_types, type->type, type->is_mutable, name, node);
     }
 
-    inline void index_ref_child(PointerType* type, const chem::string_view& name, ASTNode* node) {
-        index_child(ref_child_types, type->type, type->is_mutable, name, node);
+    inline bool index_ref_child(PointerType* type, const chem::string_view& name, ASTNode* node) {
+        return index_child(ref_child_types, type->type, type->is_mutable, name, node);
     }
 
 };

@@ -632,10 +632,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
     switch(type->kind()) {
         case BaseTypeKind::IntN: {
             if(resolver) {
-                auto& map = resolver->primitive_types_children;
-                auto found = map.find(PrimitiveTypeFunctionKey{name, type});
-                if(found == map.end()) return nullptr;
-                return found->second;
+                return resolver->find_primitive_child(type, name);
             } else {
                 return nullptr;
             }

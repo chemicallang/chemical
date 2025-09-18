@@ -365,6 +365,58 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     visit(value, lhsType);
 
+    // first we check if the value is mutable
+    // immutable values cannot be used (even in operator overloading)
+    if(!lhs->check_is_mutable(linker.allocator, true)) {
+        linker.error("cannot assign to a non mutable value", lhs);
+    }
+
+    // check if operator is overloaded
+    // direct assignment cannot be overloaded
+    if(assign->assOp != Operation::Assignment) {
+        const auto can_node = lhsType->get_linked_canonical_node(true, false);
+        if(can_node) {
+            const auto container = can_node->get_members_container();
+            if(container) {
+                auto func_name = AssignStatement::overload_op_name(assign->assOp);
+                if(func_name.empty()) {
+                    linker.error("cannot override this operator", assign);
+                    return;
+                }
+                const auto child = container->child(func_name);
+                if(!child) {
+                    linker.error(assign) << "expected a function with name '" << func_name << "' for operator implementation";
+                    return;
+                }
+                auto& func_type = *linker.current_func_type;
+                if(child->kind() == ASTNodeKind::FunctionDecl) {
+                    const auto func = child->as_function_unsafe();
+                    if(func->params.size() != 2) {
+                        linker.error("expected overload implementation to have exactly two parameters", assign);
+                        return;
+                    }
+                    // check if rhs was moved and mark it
+                    func_type.mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
+                } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
+                    const auto node = child->as_multi_func_node_unsafe();
+                    std::vector<Value*> args { assign->lhs, assign->value };
+                    const auto func = node->func_for_call(args);
+                    if(!func) {
+                        linker.error(assign) << "couldn't find function with name '" << func_name << "' for operator implementation that satisfies these arguments";
+                        return;
+                    }
+                    // check if rhs was moved and mark it
+                    func_type.mark_moved_value(linker.allocator, value, func->params[1]->known_type(), linker, true);
+                } else {
+                    linker.error(assign) << "expected a function with name '" << func_name << "' for operator implementation";
+                    return;
+                }
+                return;
+            }
+        }
+    }
+
+    // check assignment satisfies the lhs type
     switch(assign->assOp){
         case Operation::Assignment:
             if (!lhsType->satisfies(value, true)) {
@@ -386,6 +438,9 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
             break;
     }
 
+    // we should report has assignment
+    // even if it's a different operator
+    // so the parameter can be allocated in a temporary variable for modification
     auto id = lhs->get_single_id();
     if(id) {
         auto linked = id->linked;
@@ -398,12 +453,13 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
             param->set_has_assignment();
         }
     }
-    if(!lhs->check_is_mutable(linker.allocator, true)) {
-        linker.error("cannot assign to a non mutable value", lhs);
-    }
+
+    // if overloaded operator is being called, lhs will not be un-moved
+    // because all operator overloaded take self (lhs) as mut ref
     auto& func_type = *linker.current_func_type;
-    func_type.mark_moved_value(linker.allocator, value, lhs->getType(), linker, true);
     func_type.mark_un_moved_lhs_value(lhs, lhs->getType());
+    // check if rhs was moved and mark it
+    func_type.mark_moved_value(linker.allocator, value, lhs->getType(), linker, true);
 
 }
 

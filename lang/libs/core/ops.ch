@@ -50,6 +50,7 @@ interface Decrement {
 
 // Compound Assignment
 
+// arithmetic assign
 interface AddAssign<Rhs = Self> {
     func add_assign(&mut self, rhs: Rhs);
 }
@@ -68,6 +69,28 @@ interface DivAssign<Rhs = Self> {
 
 interface RemAssign<Rhs = Self> {
     func rem_assign(&mut self, rhs: Rhs);
+}
+
+// bitwise assign
+interface BitAndAssign<Rhs = Self> {
+    func bitand_assign(&mut self, rhs: Rhs);
+}
+
+interface BitOrAssign<Rhs = Self> {
+    func bitor_assign(&mut self, rhs: Rhs);
+}
+
+interface BitXorAssign<Rhs = Self> {
+    func bitxor_assign(&mut self, rhs: Rhs);
+}
+
+// shift assign
+interface ShlAssign<Rhs = Self> {
+    func shl_assign(&mut self, rhs: Rhs);
+}
+
+interface ShrAssign<Rhs = Self> {
+    func shr_assign(&mut self, rhs: Rhs);
 }
 
 // Bitwise (integral only)

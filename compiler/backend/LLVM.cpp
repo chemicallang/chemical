@@ -679,12 +679,7 @@ llvm::AllocaInst* Expression::llvm_allocate(Codegen &gen, const std::string &ide
                 return (llvm::AllocaInst*) called;
             } else {
                 // basically alloca + store (without llvm_value)
-                const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
-                auto alloc = gen.builder->CreateAlloca(type, nullptr);
-                gen.di.instr(alloc, this);
-                const auto store = gen.builder->CreateStore(expected_type ? gen.implicit_cast(called, expected_type, type) : called, alloc);
-                gen.di.instr(store, this);
-                return alloc;
+                return Value::llvm_alloca_store(gen, expected_type, called);
             }
         }
     }

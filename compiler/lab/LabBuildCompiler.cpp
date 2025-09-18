@@ -1738,7 +1738,7 @@ int link_objects_now(
         for(auto& obj : objects) {
             std::cout << '\'' << obj.to_view() << '\'' << ' ';
         }
-        std::cout << "into " << output_path;
+        std::cout << "into '" << output_path << '\'';
         std::cout << std::endl;
     }
 #ifdef COMPILER_BUILD

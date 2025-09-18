@@ -46,6 +46,15 @@
 #include "compiler/llvmimpl.h"
 #include "ast/structures/StructMember.h"
 
+llvm::AllocaInst* Value::llvm_alloca_store(Codegen& gen, BaseType* expected_type, llvm::Value* value) {
+    const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
+    auto alloc = gen.builder->CreateAlloca(type, nullptr);
+    gen.di.instr(alloc, this);
+    const auto store = gen.builder->CreateStore(expected_type ? gen.implicit_cast(value, expected_type, type) : value, alloc);
+    gen.di.instr(store, this);
+    return alloc;
+}
+
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     const auto value = llvm_value(gen, expected_type);
     const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);

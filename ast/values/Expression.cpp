@@ -75,18 +75,39 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
                 return (BaseType*) typeBuilder.getVoidType();
             }
             const auto child_node = container->child(op_info.name);
-            if(!child_node || child_node->kind() != ASTNodeKind::FunctionDecl) {
+            if(!child_node) {
                 diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
                 return (BaseType*) typeBuilder.getVoidType();
             }
-            const auto func = child_node->as_function_unsafe();
-            if(func->params.size() != 2) {
-                // since this expression has two values, we always expect two parameters
-                diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+            if(child_node->kind() == ASTNodeKind::FunctionDecl) {
+                const auto func = child_node->as_function_unsafe();
+                if(func->params.size() != 2) {
+                    // since this expression has two values, we always expect two parameters
+                    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+                    return (BaseType*) typeBuilder.getVoidType();
+                }
+                // yes, its overloading an operator
+                return func->returnType;
+            } else if(child_node->kind() == ASTNodeKind::MultiFunctionNode) {
+                const auto multi_node = child_node->as_multi_func_node_unsafe();
+                std::vector<Value*> args { expr->firstValue, expr->secondValue };
+                const auto func = multi_node->func_for_call(args);
+                if(!func) {
+                    diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
+                    return (BaseType*) typeBuilder.getVoidType();
+                }
+                if(func->params.size() != 2) {
+                    // since this expression has two values, we always expect two parameters
+                    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+                    return (BaseType*) typeBuilder.getVoidType();
+                }
+                // yes, its overloading an operator
+                return func->returnType;
+            } else {
+                diagnoser.error(expr) << "expected function with name '" << op_info.name << "' to overload operator but found none";
                 return (BaseType*) typeBuilder.getVoidType();
             }
-            // yes, its overloading an operator
-            return func->returnType;
+
         }
     }
 

@@ -1963,18 +1963,66 @@ void destruct_assign_lhs(ToCAstVisitor& visitor, Value* lhs, FunctionDeclaration
     visitor.new_line_and_indent();
 }
 
+void call_single_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value, const chem::string_view& name) {
+    if(func->params.size() != 1) {
+        visitor.write('0');
+        visitor.error(value) << "operator implementation with name '" << name << "' must have exactly a single parameter";
+        return;
+    }
+    if(func->returnType->isStructLikeType()) {
+        visitor.write("({ ");
+        auto temp_name = visitor.get_local_temp_var_name();
+        visitor.visit(func->returnType);
+        visitor.space();
+        visitor.write(temp_name);
+        visitor.write("; ");
+        visitor.mangle(func);
+        visitor.write("(&");
+        visitor.write(temp_name);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[0]->known_type(), value, false);
+        visitor.write("); ");
+        visitor.write(temp_name);
+        visitor.write("; })");
+    } else {
+        visitor.mangle(func);
+        visitor.write('(');
+        visitor.accept_mutating_value(func->params[0]->known_type(), value, false);
+        visitor.write(')');
+    }
+}
+
 void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value1, Value* value2) {
     if(func->params.size() != 2) {
         visitor.write('0');
         visitor.error(value1) << "operator implementation with name '" << func->name_view() << "' must have exactly two parameters";
         return;
     }
-    visitor.mangle(func);
-    visitor.write('(');
-    visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
-    visitor.write(", ");
-    visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
-    visitor.write(')');
+    if(func->returnType->isStructLikeType()) {
+        visitor.write("({ ");
+        auto temp_name = visitor.get_local_temp_var_name();
+        visitor.visit(func->returnType);
+        visitor.space();
+        visitor.write(temp_name);
+        visitor.write("; ");
+        visitor.mangle(func);
+        visitor.write("(&");
+        visitor.write(temp_name);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
+        visitor.write("); ");
+        visitor.write(temp_name);
+        visitor.write("; })");
+    } else {
+        visitor.mangle(func);
+        visitor.write('(');
+        visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
+        visitor.write(", ");
+        visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
+        visitor.write(')');
+    }
 }
 
 void overload_assignment_operator(ToCAstVisitor& visitor, MembersContainer* container, AssignStatement* assign) {
@@ -4951,15 +4999,7 @@ void call_inc_dec_operator(ToCAstVisitor& visitor, MembersContainer* container, 
         return;
     }
     const auto func = child->as_function_unsafe();
-    if(func->params.size() != 1) {
-        visitor.write('0');
-        visitor.error(value) << "operator implementation with name '" << name << "' must have exactly a single parameter";
-        return;
-    }
-    visitor.mangle(func);
-    visitor.write('(');
-    visitor.accept_mutating_value(func->params[0]->known_type(), value->getValue(), false);
-    visitor.write(')');
+    call_single_arg_operator_func(visitor, func, value->getValue(), name);
 }
 
 void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
@@ -6192,41 +6232,22 @@ void overload_expr_operator(ToCAstVisitor& visitor, MembersContainer* container,
         visitor.error("no operator implementation exists for value", expr->firstValue);
         return;
     }
-    if (child->kind() != ASTNodeKind::FunctionDecl) {
+    if (child->kind() == ASTNodeKind::FunctionDecl) {
+        call_two_arg_operator_func(visitor, child->as_function_unsafe(), expr->firstValue, expr->secondValue);
+    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
+        const auto multi_node = child->as_multi_func_node_unsafe();
+        std::vector<Value*> args { expr->firstValue, expr->secondValue };
+        const auto func = multi_node->func_for_call(args);
+        if(func) {
+            call_two_arg_operator_func(visitor, func, expr->firstValue, expr->secondValue);
+        } else {
+            visitor.write('0');
+            visitor.error("couldn't find implementation for given arguments", expr);
+        }
+    } else {
         visitor.write('0');
         visitor.error("declaration cannot be used as implementation of operator", expr->firstValue);
         return;
-    }
-    const auto func = child->as_function_unsafe();
-    if(func->params.size() != 2) {
-        visitor.write('0');
-        visitor.error("invalid function signature when overloading operator", expr);
-        return;
-    }
-    if(func->returnType->isStructLikeType()) {
-        visitor.write("({ ");
-        auto temp_name = visitor.get_local_temp_var_name();
-        visitor.visit(func->returnType);
-        visitor.space();
-        visitor.write(temp_name);
-        visitor.write("; ");
-        visitor.mangle(child->as_function_unsafe());
-        visitor.write("(&");
-        visitor.write(temp_name);
-        visitor.write(", ");
-        visitor.accept_mutating_value(func->params[0]->known_type(), expr->firstValue, false);
-        visitor.write(", ");
-        visitor.accept_mutating_value(func->params[1]->known_type(), expr->secondValue, false);
-        visitor.write("); ");
-        visitor.write(temp_name);
-        visitor.write("; })");
-    } else {
-        visitor.mangle(child->as_function_unsafe());
-        visitor.write('(');
-        visitor.accept_mutating_value(func->params[0]->known_type(), expr->firstValue, false);
-        visitor.write(", ");
-        visitor.accept_mutating_value(func->params[1]->known_type(), expr->secondValue, false);
-        visitor.write(')');
     }
 }
 
@@ -6525,15 +6546,7 @@ void call_single_arg_operator(ToCAstVisitor& visitor, MembersContainer* containe
         return;
     }
     const auto func = child->as_function_unsafe();
-    if(func->params.size() != 1) {
-        visitor.write('0');
-        visitor.error(value) << "operator implementation with name '" << name << "' must have exactly a single parameter";
-        return;
-    }
-    visitor.mangle(func);
-    visitor.write('(');
-    visitor.accept_mutating_value(func->params[0]->known_type(), value, false);
-    visitor.write(')');
+    call_single_arg_operator_func(visitor, func, value, name);
 }
 
 void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {

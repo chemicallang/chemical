@@ -42,10 +42,6 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
     }
 }
 
-llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return Value::load_value(gen, getType(), llvm_type(gen), llvm_pointer(gen), encoded_location());
-}
-
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
     const auto parent_type = parent->getType()->canonical();
     if (parent_type->kind() == BaseTypeKind::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {

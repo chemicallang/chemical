@@ -2054,10 +2054,7 @@ void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
 
     // visiting stuff
     visit(indexOp->parent_val);
-    auto& values = indexOp->values;
-    for(auto& value : values) {
-        visit(value);
-    }
+    visit(indexOp->idx);
 
     // determining the type for this index operator
     auto& typeBuilder = linker.comptime_scope.typeBuilder;

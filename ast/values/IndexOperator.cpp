@@ -26,9 +26,7 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::V
     if (type->isArrayTy()) {
         idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
-    for (auto &value: values) {
-        idxList.emplace_back(value->llvm_value(gen));
-    }
+    idxList.emplace_back(idx->llvm_value(gen));
     idxList.shrink_to_fit();
     return gen.builder->CreateGEP(type, ptr, idxList, "", gen.inbounds);
 }
@@ -53,9 +51,7 @@ bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<ll
     if (parent_type->kind() == BaseTypeKind::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {
         indexes.push_back(gen.builder->getInt32(0));
     }
-    for (auto &value: values) {
-        indexes.emplace_back(value->llvm_value(gen));
-    }
+    indexes.emplace_back(idx->llvm_value(gen));
     return true;
 }
 
@@ -91,15 +87,12 @@ BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
 
 void IndexOperator::determine_type(TypeBuilder& typeBuilder) {
     auto current_type = parent_val->getType();
-    for(auto& value : values) {
-        const auto childType = get_child_type(typeBuilder, current_type);
-        if(childType) {
-            current_type = childType;
-        } else {
-            current_type = typeBuilder.getVoidType();
-        }
+    const auto childType = get_child_type(typeBuilder, current_type);
+    if(childType) {
+        setType(childType);
+    } else {
+        setType(typeBuilder.getVoidType());
     }
-    setType(current_type);
 }
 
 ASTNode *IndexOperator::linked_node() {
@@ -136,33 +129,16 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
 
 Value* IndexOperator::evaluated_value(InterpretScope &scope) {
     unsigned i = 0;
-    const auto total = values.size();
     Value* eval = parent_val->evaluated_value(scope);
     if(!eval) return nullptr;
-    while(i < total) {
-        eval = index_inside(scope, eval, values[i], values[i]->encoded_location());
-        i++;
-    }
-    return eval;
+    return index_inside(scope, eval, idx, idx->encoded_location());
 }
 
 Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
-    auto value = values[0];
-    if (values.size() > 1) {
-        scope.error("Index operator only supports a single integer index at the moment", this);
-    }
-    const auto eval = value->evaluated_value(scope);
+    const auto eval = idx->evaluated_value(scope);
     const auto num_value = eval->get_number();
     if(num_value.has_value()) {
         return parent->index(scope, num_value.value());
     }
     return nullptr;
-}
-
-IndexOperator* IndexOperator::copy(ASTAllocator& allocator) {
-    auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), getType(), encoded_location());
-    for(const auto value : values) {
-        op->values.emplace_back(value->copy(allocator));
-    }
-    return op;
 }

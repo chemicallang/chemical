@@ -612,8 +612,8 @@ std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node) {
     return &node->chain.values.back()->as_func_call_unsafe()->values;
 }
 
-std::vector<Value*>* IndexOperatorget_values(IndexOperator* op) {
-    return &op->values;
+Value** IndexOperatorget_idx_ptr(IndexOperator* op) {
+    return &op->idx;
 }
 
 std::vector<FunctionParam*>* LambdaFunctionget_params(LambdaFunction* lambdaFunc) {

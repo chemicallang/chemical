@@ -14,7 +14,7 @@ class IndexOperator : public ChainValue {
 public:
 
     ChainValue* parent_val;
-    std::vector<Value*> values;
+    Value* idx;
 
     /**
      * constructor
@@ -47,7 +47,11 @@ public:
 
     Value *find_in(InterpretScope &scope, Value *parent) final;
 
-    IndexOperator* copy(ASTAllocator& allocator) final;
+    IndexOperator* copy(ASTAllocator& allocator) final {
+        auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), getType(), encoded_location());
+        op->idx = idx->copy(allocator);
+        return op;
+    }
 
     void determine_type(TypeBuilder& typeBuilder);
 

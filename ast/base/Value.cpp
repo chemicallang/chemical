@@ -972,22 +972,14 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
             case ValueKind::IndexOperator: {
                 const auto this_index_op = as_index_op();
                 const auto other_index_op = other->as_index_op();
-                const auto siz = this_index_op->values.size();
-                if(siz != other_index_op->values.size()) {
-                    return false;
-                }
-                unsigned i = 0;
-                while(i < siz) {
-                    if(this_index_op->values[i]->is_value_int_n() && other_index_op->values[i]->is_value_int_n()) {
-                        auto this_value = ((IntNumValue*) this_index_op->values[i])->get_num_value();
-                        auto other_value = ((IntNumValue*) other_index_op->values[i])->get_num_value();
-                        if(this_value != other_value) {
-                            return false;
-                        }
-                    } else {
+                if(this_index_op->idx->is_value_int_n() && other_index_op->idx->is_value_int_n()) {
+                    auto this_value = ((IntNumValue*) this_index_op->idx)->get_num_value();
+                    auto other_value = ((IntNumValue*) other_index_op->idx)->get_num_value();
+                    if(this_value != other_value) {
                         return false;
                     }
-                    i++;
+                } else {
+                    return false;
                 }
                 return true;
             }

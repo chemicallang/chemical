@@ -43,7 +43,7 @@ extern "C" {
 
     std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node);
 
-    std::vector<Value*>* IndexOperatorget_values(IndexOperator* op);
+    Value** IndexOperatorget_idx_ptr(IndexOperator* op);
 
     std::vector<FunctionParam*>* LambdaFunctionget_params(LambdaFunction* lambdaFunc);
 

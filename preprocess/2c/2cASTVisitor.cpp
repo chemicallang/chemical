@@ -6361,14 +6361,9 @@ void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
 
 void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
     visit(op->parent_val);
-    unsigned i = 0;
-    while(i < op->values.size()) {
-        write('[');
-        auto& val = op->values[i];
-        visit(val);
-        write(']');
-        i++;
-    }
+    write('[');
+    visit(op->idx);
+    write(']');
 }
 
 void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {

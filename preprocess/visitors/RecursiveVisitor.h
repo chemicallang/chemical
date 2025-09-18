@@ -174,9 +174,7 @@ public:
 
     void VisitIndexOperator(IndexOperator* value) {
         visit_it(value->parent_val);
-        for(auto& val : value->values) {
-            visit_it(val);
-        }
+        visit_it(value->idx);
     }
 
     void VisitExpression(Expression *expr) {

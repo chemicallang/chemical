@@ -85,8 +85,44 @@ BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
     }
 }
 
-void IndexOperator::determine_type(TypeBuilder& typeBuilder) {
+void IndexOperator::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
     auto current_type = parent_val->getType();
+    const auto can_node = current_type->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            const auto child = container->child("index");
+            if(!child) {
+                diagnoser.error(this) << "expected a function 'index' to be present for overloading";
+                setType(typeBuilder.getVoidType());
+                return;
+            }
+            if(child->kind() == ASTNodeKind::FunctionDecl) {
+                // a single function with name 'index' is present
+                const auto func = child->as_function_unsafe();
+                if (func->params.size() != 2) {
+                    diagnoser.error(this) << "expected 'index' operator function to have exactly two parameters";
+                    setType(typeBuilder.getVoidType());
+                    return;
+                }
+                setType(func->returnType);
+            } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
+                const auto node = child->as_multi_func_node_unsafe();
+                std::vector<Value*> args { parent_val, idx };
+                const auto func = node->func_for_call(args);
+                if(func) {
+                    setType(func->returnType);
+                } else {
+                    diagnoser.error(this) << "no function with name 'index' exists for given arguments";
+                    setType(typeBuilder.getVoidType());
+                }
+            } else {
+                diagnoser.error(this) << "expected a function 'index' to be present for overloading";
+                setType(typeBuilder.getVoidType());
+            }
+            return;
+        }
+    }
     const auto childType = get_child_type(typeBuilder, current_type);
     if(childType) {
         setType(childType);
@@ -128,7 +164,6 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
 }
 
 Value* IndexOperator::evaluated_value(InterpretScope &scope) {
-    unsigned i = 0;
     Value* eval = parent_val->evaluated_value(scope);
     if(!eval) return nullptr;
     return index_inside(scope, eval, idx, idx->encoded_location());

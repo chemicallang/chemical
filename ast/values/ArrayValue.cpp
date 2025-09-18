@@ -37,7 +37,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
     bool moved = false;
     for (size_t i = 0; i < values.size(); ++i) {
 
-        const auto implicit = def ? def->implicit_constructor_func(gen.allocator, values[i]) : nullptr;
+        const auto implicit = def ? def->implicit_constructor_func(values[i]) : nullptr;
         if(implicit) {
             // replace values that are calls to implicit constructor
             values[i] = (Value*) call_with_arg(implicit, values[i], known_child_t, gen.allocator, gen);

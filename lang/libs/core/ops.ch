@@ -149,7 +149,7 @@ interface Index<Idx, Output> {
 }
 
 interface IndexMut<Idx, Output> : Index<Idx, Output> {
-    func index_mut(&mut self, idx : Idx) : &mut Output;
+    func index(&mut self, idx : Idx) : &mut Output;
 }
 
 /** TODO

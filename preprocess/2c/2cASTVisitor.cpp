@@ -1017,7 +1017,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
     if(type) {
-        const auto imp_cons = type->implicit_constructor_for(allocator, value);
+        const auto imp_cons = type->implicit_constructor_for(value);
         if (imp_cons) {
             if(imp_cons->is_comptime()) {
                 const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
@@ -1077,7 +1077,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             }
         }
 
-        const auto imp_cons = param->type->implicit_constructor_for(visitor.allocator, val);
+        const auto imp_cons = param->type->implicit_constructor_for(val);
         if(imp_cons) {
             if(imp_cons->is_comptime()) {
                 const auto comptime_imp_call = call_with_arg(imp_cons, val, param->type, visitor.allocator, visitor);
@@ -3577,7 +3577,7 @@ bool ToCAstVisitor::requires_return(Value* val) {
 
 void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     const auto type = non_canon_type->canonical();
-    const auto imp_cons = type->implicit_constructor_for(allocator, val);
+    const auto imp_cons = type->implicit_constructor_for(val);
     if(imp_cons) {
         if(imp_cons->is_comptime()) {
             const auto imp_call = call_with_arg(imp_cons, val, type, allocator, *this);
@@ -6359,7 +6359,94 @@ void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
     visit(casted->getValue());
 }
 
+void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value1, Value* value2) {
+    if(func->params.size() != 2) {
+        visitor.write('0');
+        visitor.error(value1) << "operator implementation with name '" << func->name_view() << "' must have exactly two parameters";
+        return;
+    }
+    visitor.mangle(func);
+    visitor.write('(');
+    visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
+    visitor.write(", ");
+    visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
+    visitor.write(')');
+}
+
+void call_two_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value1, Value* value2, const chem::string_view& name) {
+    // user trynna overload the operator
+    const auto child = container->child(name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(value1) << "expected operator implementation with name '" << name << '\'';
+        return;
+    }
+    if(child->kind() != ASTNodeKind::FunctionDecl) {
+        visitor.write('0');
+        visitor.error(value1) << "expected operator implementation with name '" << name << "' to be a function";
+        return;
+    }
+    const auto func = child->as_function_unsafe();
+    call_two_arg_operator_func(visitor, func, value1, value2);
+}
+
+void call_index_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value1, Value* value2) {
+    auto name = chem::string_view("index");
+    // user trynna overload the operator
+    const auto child = container->child(name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(value1) << "expected operator implementation with name '" << name << '\'';
+        return;
+    }
+    if(child->kind() != ASTNodeKind::FunctionDecl) {
+        visitor.write('0');
+        visitor.error(value1) << "expected operator implementation with name '" << name << "' to be a function";
+        return;
+    }
+    const auto func = child->as_function_unsafe();
+    if(func->params.size() != 2) {
+        visitor.write('0');
+        visitor.error(value1) << "operator implementation with name '" << name << "' must have exactly two parameters";
+        return;
+    }
+    if(child->kind() == ASTNodeKind::FunctionDecl) {
+        // a single function with name 'index' is present
+        const auto op_func = child->as_function_unsafe();
+        call_two_arg_operator_func(visitor, op_func, value1, value2);
+        return;
+    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
+        const auto node = child->as_multi_func_node_unsafe();
+        std::vector<Value*> args { value1, value2 };
+        const auto op_func = node->func_for_call(args);
+        if(op_func) {
+            call_two_arg_operator_func(visitor, op_func, value1, value2);
+        } else {
+            visitor.error(value1) << "no function with name '" << name << "' exists for given arguments";
+            visitor.write('0');
+            return;
+        }
+    } else {
+        visitor.error(value1) << "expected a function '" << name << "' to be present for overloading";
+        visitor.write('0');
+        return;
+    }
+}
+
 void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
+    const auto type = op->parent_val->getType();
+
+    // overloaded operator
+    const auto can_node = type->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            call_index_operator(*this, container, op->parent_val, op->idx);
+            return;
+        }
+    }
+
+    // normal flow
     visit(op->parent_val);
     write('[');
     visit(op->idx);

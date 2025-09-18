@@ -52,13 +52,13 @@ void NegativeValue::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagn
             const auto child = container->child("neg");
             if(!child || child->kind() != ASTNodeKind::FunctionDecl) {
                 diagnoser.error(this) << "expected a function 'not' to be present for overloading";
-                setType(type);
+                setType((BaseType*) typeBuilder.getVoidType());
                 return;
             }
             const auto func = child->as_function_unsafe();
             if(func->params.size() != 1) {
                 diagnoser.error(this) << "expected 'not' operator function to have a single parameter";
-                setType(type);
+                setType((BaseType*) typeBuilder.getVoidType());
                 return;
             }
             setType(func->returnType);

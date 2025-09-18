@@ -57,8 +57,8 @@ bool ExpressionType::satisfies(BaseType *type) {
     }
 }
 
-bool LiteralType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
-    auto result = !value->reference() && underlying->satisfies(allocator, value, false);
+bool LiteralType::satisfies(Value* value, bool assignment) {
+    auto result = !value->reference() && underlying->satisfies(value, false);
     if(result) {
         return true;
     } else {

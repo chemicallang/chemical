@@ -174,7 +174,7 @@ public:
     /**
      * whether the given value satisfies the current type
      */
-    virtual bool satisfies(ASTAllocator& allocator, Value* value, bool assignment);
+    virtual bool satisfies(Value* value, bool assignment);
 
     /**
      * if this value can be auto dereferenced, the type of dereferenced value is returned
@@ -402,7 +402,7 @@ public:
      * searches a implicit constructor for given value, using the linked struct with this type
      * otherwise nullptr
      */
-    FunctionDeclaration* implicit_constructor_for(ASTAllocator& allocator, Value* value);
+    FunctionDeclaration* implicit_constructor_for(Value* value);
 
 #ifdef COMPILER_BUILD
 

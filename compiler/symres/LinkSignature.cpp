@@ -199,7 +199,7 @@ void TopLevelLinkSignature::VisitIndexOperator(IndexOperator* value) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitIndexOperator(value);
     // determining the type for this index operator
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    value->determine_type(typeBuilder);
+    value->determine_type(typeBuilder, linker);
     if(!linker.comptime_context) {
         linker.error("cannot index into a value at runtime outside function body", value);
     }

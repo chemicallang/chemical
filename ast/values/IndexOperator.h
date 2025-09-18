@@ -53,7 +53,7 @@ public:
         return op;
     }
 
-    void determine_type(TypeBuilder& typeBuilder);
+    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

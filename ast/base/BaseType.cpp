@@ -335,10 +335,10 @@ bool BaseType::requires_moving() {
     return node != nullptr && node->requires_moving(node->kind());
 }
 
-FunctionDeclaration* BaseType::implicit_constructor_for(ASTAllocator& allocator, Value *value) {
+FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
     const auto linked_def = linked_struct_def();
     if(linked_def) {
-        const auto implicit_constructor = linked_def->implicit_constructor_func(allocator, value);
+        const auto implicit_constructor = linked_def->implicit_constructor_func(value);
         return implicit_constructor;
     }
     return nullptr;
@@ -507,7 +507,7 @@ BaseType* BaseType::removeReferenceFromType() {
     }
 }
 
-bool BaseType::satisfies(ASTAllocator& allocator, Value* value, bool assignment) {
+bool BaseType::satisfies(Value* value, bool assignment) {
     const auto val_type = value->getType();
     return satisfies(val_type->canonical());
 }
@@ -562,6 +562,8 @@ unsigned BaseType::type_alignment(bool is64Bit) {
         case BaseTypeKind::ExpressionType:
             // TODO
             return 8;
+        default:
+            return 0;
     }
 }
 

@@ -149,7 +149,7 @@ FunctionParam* FunctionType::implicit_param_for(const chem::string_view& name) {
     return nullptr;
 }
 
-bool FunctionType::satisfy_args(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
+bool FunctionType::satisfy_args(std::vector<Value*>& forArgs) {
     auto has_self = has_self_param();
     unsigned offset = has_self ? 1 : 0;
     auto required_args_len = params.size() - offset;
@@ -158,7 +158,7 @@ bool FunctionType::satisfy_args(ASTAllocator& allocator, std::vector<Value*>& fo
     }
     unsigned i = offset; // first argument for implicit self
     while(i < params.size()) {
-        if(!params[i]->type->satisfies(allocator, forArgs[i - offset], false)) {
+        if(!params[i]->type->satisfies(forArgs[i - offset], false)) {
             return false;
         }
         i++;
@@ -649,7 +649,7 @@ bool FunctionTypeBody::mark_moved_value(
             if(is_generic_instantiation(expected_node, linked_def)) {
                 final = mark_moved_value(&value, diagnoser);
             } else {
-                const auto implicit = pure_expected->implicit_constructor_for(allocator, &value);
+                const auto implicit = pure_expected->implicit_constructor_for(&value);
                 if (implicit && check_implicit_constructors) {
                     auto& param_type = *implicit->params[0]->type;
                     if (!param_type.is_reference()) { // not a reference type (requires moving)

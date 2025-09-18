@@ -367,7 +367,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     switch(assign->assOp){
         case Operation::Assignment:
-            if (!lhsType->satisfies(linker.allocator, value, true)) {
+            if (!lhsType->satisfies(value, true)) {
                 linker.unsatisfied_type_err(value, lhsType);
             }
             break;
@@ -378,7 +378,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
                 if(rhsType->kind() != BaseTypeKind::IntN) {
                     linker.unsatisfied_type_err(value, lhsType);
                 }
-            } else if (!lhsType->satisfies(linker.allocator, value, true)) {
+            } else if (!lhsType->satisfies(value, true)) {
                 linker.unsatisfied_type_err(value, lhsType);
             }
             break;
@@ -495,7 +495,7 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
             if(func && func->is_constructor_fn()) {
                 return;
             }
-            const auto implicit = func_type->returnType->implicit_constructor_for(linker.allocator, value);
+            const auto implicit = func_type->returnType->implicit_constructor_for(value);
             if (implicit &&
                 // this check means current function is not the implicit constructor we're trying to link for value
                 // basically an implicit constructor can has a value returned of a type for which it's an implicit constructor of (in comptime)
@@ -507,7 +507,7 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
                 link_with_implicit_constructor(*this, implicit, value);
                 return;
             }
-            if(!func_type->returnType->satisfies(linker.allocator, value, false)) {
+            if(!func_type->returnType->satisfies(value, false)) {
                 linker.unsatisfied_type_err(value, func_type->returnType);
             }
         }
@@ -698,7 +698,7 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
                     as_array->set_array_size(arr_type->get_array_size());
                 }
             }
-            if(!type->satisfies(linker.allocator, value, false)) {
+            if(!type->satisfies(value, false)) {
                 linker.unsatisfied_type_err(value, type);
             }
         }
@@ -1558,10 +1558,10 @@ void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* 
         const auto param = func_type->func_param_for_arg_at(i);
         if (param) {
             const auto value = call->values[i];
-            auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, value);
+            auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
                 link_with_implicit_constructor(visitor, implicit_constructor, value);
-            } else if(!param->type->satisfies(linker.allocator, value, false)) {
+            } else if(!param->type->satisfies(value, false)) {
                 linker.unsatisfied_type_err(value, param->type);
             }
         }
@@ -1995,10 +1995,10 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
                 auto& val_ptr = values[i];
                 const auto value = val_ptr;
                 visit(value, elemType);
-                const auto implicit = def->implicit_constructor_func(linker.allocator, value);
+                const auto implicit = def->implicit_constructor_func(value);
                 if(implicit) {
                     link_with_implicit_constructor(*this, implicit, value);
-                } else if(!elemType->satisfies(linker.allocator, value, false)) {
+                } else if(!elemType->satisfies(value, false)) {
                     linker.unsatisfied_type_err(value, elemType);
                 }
                 i++;
@@ -2016,7 +2016,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
         }
         if(known_elem_type) {
             current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
-            if(!known_elem_type->satisfies(linker.allocator, value, false)) {
+            if(!known_elem_type->satisfies(value, false)) {
                 linker.unsatisfied_type_err(value, known_elem_type);
             }
         }
@@ -2058,7 +2058,7 @@ void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
 
     // determining the type for this index operator
     auto& typeBuilder = linker.comptime_scope.typeBuilder;
-    indexOp->determine_type(typeBuilder);
+    indexOp->determine_type(typeBuilder, linker);
 
 }
 
@@ -2452,10 +2452,10 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         if(member) {
             const auto mem_type = member->known_type();
             current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);
-            auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
+            auto implicit = mem_type->implicit_constructor_for(val_ptr);
             if(implicit) {
                 link_with_implicit_constructor(*this, implicit, val_ptr);
-            } else if(!mem_type->satisfies(linker.allocator, value, false)) {
+            } else if(!mem_type->satisfies(value, false)) {
                 linker.unsatisfied_type_err(value, mem_type);
             }
         }

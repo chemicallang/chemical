@@ -149,7 +149,7 @@ public:
      * user provides the arguments, we check arguments against params, to see if it's compatible
      * if not, another function is selected that is compatible with arguments provided
      */
-    bool satisfy_args(ASTAllocator& allocator, std::vector<Value*>& forArgs);
+    bool satisfy_args(std::vector<Value*>& forArgs);
 
     /**
      * get the total implicit parameters

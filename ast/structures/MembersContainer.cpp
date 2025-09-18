@@ -495,18 +495,18 @@ FunctionDeclaration* MembersContainer::default_constructor_func() {
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
+FunctionDeclaration* MembersContainer::constructor_func(std::vector<Value*>& forArgs) {
     for (const auto function : non_gen_range()) {
-        if(function->is_constructor_fn() && function->satisfy_args(allocator, forArgs)) {
+        if(function->is_constructor_fn() && function->satisfy_args(forArgs)) {
             return function;
         }
     }
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& allocator, Value* value) {
+FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
     for (const auto & function : non_gen_range()) {
-        if(function->is_implicit() && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value, false)) {
+        if(function->is_implicit() && function->params.size() == 1 && function->params[0]->type->satisfies(value, false)) {
             return function;
         }
     }

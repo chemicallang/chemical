@@ -72,7 +72,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             const auto elem_index = is_union() ? 0 : variable.first;
 
-            auto implicit = variable.second->implicit_constructor_for(gen.allocator, value_ptr);
+            auto implicit = variable.second->implicit_constructor_for(value_ptr);
             if(implicit) {
                 // replace values that call implicit constructors
                 value_ptr = (Value*) call_with_arg(implicit, value_ptr, variable.second, gen.allocator, gen);

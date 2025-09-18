@@ -161,8 +161,12 @@ public struct FunctionCall : ChainValue {
 
 public struct IndexOperator : ChainValue {
 
-    func get_values(&self) : *VecRef<Value>;
+    func get_idx_ptr(&self) : *mut *mut Value
 
+}
+
+public func (idx : &mut IndexOperator) get_idx() : *mut Value {
+    return *idx.get_idx_ptr()
 }
 
 public struct Int128Value : Value {}

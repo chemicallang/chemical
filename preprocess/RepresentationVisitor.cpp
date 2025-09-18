@@ -700,14 +700,10 @@ void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {
 }
 
 void RepresentationVisitor::VisitIndexOperator(IndexOperator *op) {
-    unsigned i = 0;
-    while(i < op->values.size()) {
-        write('[');
-        auto& val = op->values[i];
-        visit(val);
-        write(']');
-        i++;
-    }
+    visit(op->parent_val);
+    write('[');
+    visit(op->idx);
+    write(']');
 }
 
 void RepresentationVisitor::VisitNegativeValue(NegativeValue *negValue) {

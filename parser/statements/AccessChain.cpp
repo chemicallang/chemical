@@ -349,20 +349,16 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Chai
             const auto location = loc_single(token);
             auto indexOp = new(allocator.allocate<IndexOperator>()) IndexOperator(take_parent(allocator, values, location), location);
             values.emplace_back(indexOp);
-            // parse multiple index operators
-            while (token->type == TokenType::LBracket) {
-                token++;
-                auto expr = parseExpression(allocator);
-                if (!expr) {
-                    error("expected an expression in indexing operators for access chain");
-                    return nullptr;
-                }
-                indexOp->values.emplace_back(expr);
-                auto rbToken = consumeOfType(TokenType::RBracket);
-                if (!rbToken) {
-                    error("expected a closing bracket ] in access chain");
-                    return nullptr;
-                }
+            token++;
+            auto expr = parseExpression(allocator);
+            if (!expr) {
+                error("expected an expression in indexing operators for access chain");
+                return nullptr;
+            }
+            indexOp->idx = expr;
+            if (!consumeToken(TokenType::RBracket)) {
+                error("expected a closing bracket ] in access chain");
+                return nullptr;
             }
             // parse recursive access chain
             return parseAccessChainAfterId(allocator, values, start, false, false);

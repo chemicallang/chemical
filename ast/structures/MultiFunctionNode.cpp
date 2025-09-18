@@ -3,9 +3,9 @@
 #include "MultiFunctionNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 
-FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, std::vector<Value*>& args) {
+FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<Value*>& args) {
     for(auto func : functions) {
-        if(func->expectedArgsSize() == args.size() && func->satisfy_args(allocator, args)) {
+        if(func->expectedArgsSize() == args.size() && func->satisfy_args(args)) {
             return func;
         }
     }

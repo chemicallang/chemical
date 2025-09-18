@@ -20,7 +20,7 @@ public:
         return underlying->byte_size(is64Bit);
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final;
+    bool satisfies(Value* value, bool assignment) final;
 
     bool is_same(BaseType *type) final {
         return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying);

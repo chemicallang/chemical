@@ -170,7 +170,7 @@ public:
     /**
      * check if value satisfies
      */
-    bool satisfies(ASTAllocator &allocator, Value *value, bool assignment) override;
+    bool satisfies(Value *value, bool assignment) override;
 
     /**
      * this checks whether this int n type is equal to this other int n type

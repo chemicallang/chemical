@@ -198,13 +198,13 @@ public:
     /**
      * will provide a constructor function if there's one
      */
-    FunctionDeclaration* constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs);
+    FunctionDeclaration* constructor_func(std::vector<Value*>& forArgs);
 
     /**
      * will provide a implicit constructor function if there's one for the given value
      * the implicit constructor is used for type conversion
      */
-    FunctionDeclaration* implicit_constructor_func(ASTAllocator& allocator, Value* type);
+    FunctionDeclaration* implicit_constructor_func(Value* type);
 
     /**
      * checks if any member has a default constructor

@@ -11,7 +11,7 @@ public:
 
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final {
+    bool satisfies(Value* value, bool assignment) final {
         return true;
     }
 

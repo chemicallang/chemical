@@ -18,7 +18,7 @@ void TypeVerifier::VisitArrayValue(ArrayValue* val) {
     RecursiveVisitor<TypeVerifier>::VisitArrayValue(val);
     auto& elemType = val->known_elem_type();
     for(const auto value : val->values) {
-        if (!elemType->satisfies(allocator, value, false)) {
+        if (!elemType->satisfies(value, false)) {
             unsatisfied_type_err(diagnoser, allocator, value, elemType);
         }
     }
@@ -33,10 +33,10 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
         const auto param = func_type->func_param_for_arg_at(i);
         if (param) {
             const auto value = call->values[i];
-            auto implicit_constructor = param->type->implicit_constructor_for(allocator, value);
+            auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
                 // TODO handle implicit constructor
-            } else if(!param->type->satisfies(allocator, value, false)) {
+            } else if(!param->type->satisfies(value, false)) {
                 unsatisfied_type_err(diagnoser, allocator, value, param->type);
             }
         }
@@ -59,10 +59,10 @@ void TypeVerifier::VisitStructValue(StructValue* structValue) {
         const auto member = container->direct_variable(val.first);
         if(member) {
             const auto mem_type = member->known_type();
-            auto implicit = mem_type->implicit_constructor_for(allocator, val_ptr);
+            auto implicit = mem_type->implicit_constructor_for(val_ptr);
             if(implicit) {
                 // TODO handle implicit constructor
-            } else if(!mem_type->satisfies(allocator, value, false)) {
+            } else if(!mem_type->satisfies(value, false)) {
                 unsatisfied_type_err(diagnoser, allocator, value, mem_type);
             }
         }
@@ -80,7 +80,7 @@ void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<AST
                 }
                 auto& type = stmt->type;
                 auto& value = stmt->value;
-                if(type && value && !stmt->type->satisfies(allocator, value, false)) {
+                if(type && value && !stmt->type->satisfies(value, false)) {
                     unsatisfied_type_err(diagnoser, allocator, value, type);
                 }
                 if(value) {

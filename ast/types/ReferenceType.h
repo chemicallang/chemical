@@ -37,7 +37,7 @@ public:
         return satisfies(given, nullptr, false);
     }
 
-    bool satisfies(ASTAllocator& allocator, Value* value, bool assignment) final;
+    bool satisfies(Value* value, bool assignment) final;
 
     bool is_same(BaseType *other) final {
         return other->kind() == kind() && other->as_reference_type_unsafe()->type->is_same(type);

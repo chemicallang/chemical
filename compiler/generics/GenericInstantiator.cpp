@@ -449,7 +449,7 @@ void GenericInstantiator::VisitExpression(Expression *expr) {
 
 void GenericInstantiator::VisitIndexOperator(IndexOperator* value) {
     RecursiveVisitor<GenericInstantiator>::VisitIndexOperator(value);
-    value->determine_type(typeBuilder);
+    value->determine_type(typeBuilder, diagnoser);
 }
 
 void GenericInstantiator::VisitNegativeValue(NegativeValue* value) {

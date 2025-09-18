@@ -1297,7 +1297,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
         // replace value with call to implicit constructor if there is one
         const auto func = func_type->as_function();
         if (!(func && func->is_constructor_fn())) {
-            const auto implicit = func_type->returnType->implicit_constructor_for(gen.allocator, value);
+            const auto implicit = func_type->returnType->implicit_constructor_for(value);
             if (implicit && implicit != func_type && (func && func->parent() != implicit->parent())) {
                 value = call_with_arg(implicit, value, func_type->returnType, gen.allocator, gen);
             }

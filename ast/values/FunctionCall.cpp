@@ -165,7 +165,7 @@ llvm::Value* arg_value(
     const auto pure_type = param_type->pure_type(gen.allocator);
     const auto param_type_kind = param_type->kind();
 
-    auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
+    auto implicit_constructor = param_type->implicit_constructor_for(value_ptr);
     if (implicit_constructor) {
         value_ptr = (Value*) call_with_arg(implicit_constructor, value_ptr, param_type, gen.allocator, gen);
     }
@@ -527,7 +527,7 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
         const auto param = itr->second;
         const auto param_type = param->type->canonical();
 
-        auto implicit_constructor = param_type->implicit_constructor_for(gen.allocator, value_ptr);
+        auto implicit_constructor = param_type->implicit_constructor_for(value_ptr);
         if (implicit_constructor) {
             // replace calls to implicit constructor with actual calls
             value_ptr = (Value*) call_with_arg(implicit_constructor, value_ptr, param_type, gen.allocator, gen);
@@ -995,7 +995,7 @@ void relink_multi_id(
     if(parent->linked) {
         auto multi = parent->linked->as_multi_func_node();
         if(multi) {
-            auto func = multi->func_for_call(allocator, values);
+            auto func = multi->func_for_call(values);
             if(func) {
                 parent->linked = func;
                 parent->setType(func->known_type());
@@ -1028,7 +1028,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
     const auto linked_kind = parent_id->linked->kind();
     if(linked_kind == ASTNodeKind::StructDecl || linked_kind == ASTNodeKind::VariantDecl) {
         const auto parent_struct = parent_id->linked->as_extendable_members_container_unsafe();
-        auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
+        auto constructorFunc = parent_struct->constructor_func(call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
             parent_id->setType(constructorFunc->known_type());
@@ -1038,7 +1038,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
     } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
         const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
         const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
-        auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
+        auto constructorFunc = parent_struct->constructor_func(call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
             parent_id->setType(constructorFunc->known_type());
@@ -1048,7 +1048,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
     } else if(linked_kind == ASTNodeKind::GenericVariantDecl) {
         const auto gen_struct = parent_id->linked->as_gen_variant_decl_unsafe();
         const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
-        auto constructorFunc = parent_struct->constructor_func(allocator, call->values);
+        auto constructorFunc = parent_struct->constructor_func(call->values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
             parent_id->setType(constructorFunc->known_type());

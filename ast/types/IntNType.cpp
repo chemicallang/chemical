@@ -41,7 +41,7 @@ bool IntNType::satisfies(BaseType *given) {
     return type->kind() == BaseTypeKind::IntN && satisfies(type->as_intn_type_unsafe());
 }
 
-bool IntNType::satisfies(ASTAllocator &allocator, Value *value, bool assignment) {
+bool IntNType::satisfies(Value *value, bool assignment) {
     const auto literal = value->isValueIntegerLiteral();
     auto otherType = value->getType();
     if(!otherType) return false;

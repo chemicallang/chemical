@@ -988,10 +988,6 @@ llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     gen.error("unknown value given to placement new", this);
 }
 
-bool CastedValue::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
-    return getType()->linked_node()->add_child_index(gen, indexes, name);
-}
-
 llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }

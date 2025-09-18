@@ -52,6 +52,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/values/ValueNode.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/values/InValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/ExtractionValue.h"
@@ -310,7 +311,107 @@ llvm::Value *IntNumValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getIntN(get_num_bits(gen.is64Bit), get_num_value());
 }
 
+llvm::Value* call_single_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* arg) {
+    if(decl->params.size() != 1) {
+        gen.error(arg) << "expected overloaded operator to have exactly single parameter";
+        return nullptr;
+    }
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::vector<llvm::Value*> args;
+    llvm::Instruction* returnedStruct = nullptr;
+    // handle secret struct param sent to call inst when call returns a struct
+    if(decl->returnType->isStructLikeType()) {
+        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
+        gen.di.instr(returnedStruct, arg->encoded_location());
+        args.emplace_back(returnedStruct);
+    }
+    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], arg, 0, destructibles));
+    // create call
+    auto callInst = gen.builder->CreateCall(decl->llvm_func(gen), args);
+    gen.di.instr(callInst, arg->encoded_location());
+    Value::destruct(gen, destructibles);
+    return returnedStruct ? returnedStruct : callInst;
+}
+
+llvm::Value* call_single_param_op_impl(Codegen& gen, MembersContainer* container, Value* first, const chem::string_view& func_name) {
+    // find the function
+    auto found_child = container->child(func_name);
+    if(!found_child) {
+        return nullptr;
+    }
+    // call the function
+    if(found_child->kind() == ASTNodeKind::FunctionDecl) {
+        const auto func = found_child->as_function_unsafe();
+        return call_single_param_op_impl(gen, func, first);
+    } else if(found_child->kind() == ASTNodeKind::MultiFunctionNode) {
+        const auto multi_node = found_child->as_multi_func_node_unsafe();
+        std::vector<Value*> args;
+        args.emplace_back(first);
+        const auto func = multi_node->func_for_call(args);
+        if(!func) return nullptr;
+        return call_single_param_op_impl(gen, func, first);
+    } else {
+        return nullptr;
+    }
+}
+
+llvm::Value* call_two_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* first, Value* second) {
+    if(decl->params.size() != 2) {
+        gen.error(first) << "expected overloaded operator to have exactly two parameters";
+        return nullptr;
+    }
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::vector<llvm::Value*> args;
+    llvm::Instruction* returnedStruct = nullptr;
+    // handle secret struct param sent to call inst when call returns a struct
+    if(decl->returnType->isStructLikeType()) {
+        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
+        gen.di.instr(returnedStruct, first->encoded_location());
+        args.emplace_back(returnedStruct);
+    }
+    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], first, 0, destructibles));
+    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[1], second, 1, destructibles));
+    // create call
+    auto callInst = gen.builder->CreateCall(decl->llvm_func(gen), args);
+    gen.di.instr(callInst, first->encoded_location());
+    Value::destruct(gen, destructibles);
+    return returnedStruct ? returnedStruct : callInst;
+}
+
+llvm::Value* call_two_param_op_impl(Codegen& gen, MembersContainer* container, Value* first, Value* second, const chem::string_view& func_name) {
+    // find the function
+    auto found_child = container->child(func_name);
+    if(!found_child) {
+        return nullptr;
+    }
+    // call the function
+    if(found_child->kind() == ASTNodeKind::FunctionDecl) {
+        const auto func = found_child->as_function_unsafe();
+        return call_two_param_op_impl(gen, func, first, second);
+    } else if(found_child->kind() == ASTNodeKind::MultiFunctionNode) {
+        const auto multi_node = found_child->as_multi_func_node_unsafe();
+        std::vector<Value*> args;
+        args.emplace_back(first);
+        args.emplace_back(second);
+        const auto func = multi_node->func_for_call(args);
+        if(!func) return nullptr;
+        return call_two_param_op_impl(gen, func, first, second);
+    } else {
+        return nullptr;
+    }
+}
+
 llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    // check if operator is overloaded
+    const auto valType = value->getType();
+    const auto can_node = valType->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            return call_single_param_op_impl(gen, container, value, "neg");
+        }
+    }
+    // normal flow
     const auto llvmValue = value->llvm_value(gen);
     const auto ty = llvmValue->getType();
     if(ty->isFloatingPointTy()) {
@@ -321,6 +422,16 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    const auto val_type = value->getType();
+    // check operator overloading
+    const auto can_node = val_type->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            return call_single_param_op_impl(gen, container, value, "not");
+        }
+    }
+    // normal flow
     const auto val = value->llvm_value(gen);
     const auto type = val->getType();
     if(type->isPointerTy()) {
@@ -399,6 +510,17 @@ llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &id
     } else {
         return Value::llvm_allocate(gen, identifier, expected_type);
     }
+}
+
+llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
+    const auto can_node = parent_val->getType()->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            return call_two_param_op_impl(gen, container, parent_val, idx, "index");
+        }
+    }
+    return Value::load_value(gen, getType(), llvm_type(gen), llvm_pointer(gen), encoded_location());
 }
 
 llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
@@ -528,74 +650,6 @@ llvm::Value* normal_flow_expr(Codegen& gen, Expression* expr, BaseType* first, B
     return gen.operate(expr->operation, expr->firstValue, expr->secondValue, first->canonical(), second->canonical());
 }
 
-llvm::Value* call_single_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* arg) {
-    if(decl->params.size() != 1) {
-        gen.error(arg) << "expected overloaded operator to have exactly single parameter";
-        return nullptr;
-    }
-    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    std::vector<llvm::Value*> args;
-    llvm::Instruction* returnedStruct = nullptr;
-    // handle secret struct param sent to call inst when call returns a struct
-    if(decl->returnType->isStructLikeType()) {
-        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
-        gen.di.instr(returnedStruct, arg->encoded_location());
-        args.emplace_back(returnedStruct);
-    }
-    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], arg, 0, destructibles));
-    // create call
-    auto callInst = gen.builder->CreateCall(decl->llvm_func(gen), args);
-    gen.di.instr(callInst, arg->encoded_location());
-    Value::destruct(gen, destructibles);
-    return returnedStruct ? returnedStruct : callInst;
-}
-
-llvm::Value* call_two_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* first, Value* second) {
-    if(decl->params.size() != 2) {
-        gen.error(first) << "expected overloaded operator to have exactly two parameters";
-        return nullptr;
-    }
-    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    std::vector<llvm::Value*> args;
-    llvm::Instruction* returnedStruct = nullptr;
-    // handle secret struct param sent to call inst when call returns a struct
-    if(decl->returnType->isStructLikeType()) {
-        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
-        gen.di.instr(returnedStruct, first->encoded_location());
-        args.emplace_back(returnedStruct);
-    }
-    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], first, 0, destructibles));
-    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[1], second, 1, destructibles));
-    // create call
-    auto callInst = gen.builder->CreateCall(decl->llvm_func(gen), args);
-    gen.di.instr(callInst, first->encoded_location());
-    Value::destruct(gen, destructibles);
-    return returnedStruct ? returnedStruct : callInst;
-}
-
-llvm::Value* call_two_param_op_impl(Codegen& gen, MembersContainer* container, Value* first, Value* second, const chem::string_view& func_name) {
-    // find the function
-    auto found_child = container->child(func_name);
-    if(!found_child) {
-        return nullptr;
-    }
-    // call the function
-    if(found_child->kind() == ASTNodeKind::FunctionDecl) {
-        const auto func = found_child->as_function_unsafe();
-        return call_two_param_op_impl(gen, func, first, second);
-    } else if(found_child->kind() == ASTNodeKind::MultiFunctionNode) {
-        const auto multi_node = found_child->as_multi_func_node_unsafe();
-        std::vector<Value*> args;
-        args.emplace_back(first);
-        args.emplace_back(second);
-        const auto func = multi_node->func_for_call(args);
-        if(!func) return nullptr;
-        return call_two_param_op_impl(gen, func, first, second);
-    } else {
-        return nullptr;
-    }
-}
-
 llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
 
     auto firstType = firstValue->getType();
@@ -723,7 +777,17 @@ bool Expression::add_child_index(Codegen& gen, std::vector<llvm::Value *>& index
 }
 
 llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
-    auto type = value->getType()->pure_type(gen.allocator);
+    const auto val_type = value->getType();
+    // check operator overloading
+    const auto can_type = val_type->get_linked_canonical_node(true, false);
+    if(can_type) {
+        const auto container = can_type->get_members_container();
+        if(container) {
+            return call_single_param_op_impl(gen, container, value, get_overloaded_func_name());
+        }
+    }
+    // normal flow
+    auto type = val_type->pure_type(gen.allocator);
     const auto rhs = new (gen.allocator.allocate<IntNumValue>()) IntNumValue(1, gen.comptime_scope.typeBuilder.getShortType(), encoded_location());
     auto value_pointer = value->llvm_pointer(gen);
     // TODO loading the value after pointer, value is not being loaded using the pointer we have
@@ -1887,7 +1951,19 @@ void AssignStatement::code_gen(Codegen &gen) {
     const auto lhs_type_non_canon = lhs->getType();
     const auto lhs_type = lhs_type_non_canon->canonical();
 
-    if(assOp == Operation::Assignment) {
+    if(assOp != Operation::Assignment) {
+        // is operator overloaded
+        const auto can_node = lhs_type_non_canon->get_linked_canonical_node(true, false);
+        if(can_node) {
+            const auto container = can_node->get_members_container();
+            if(container) {
+                call_two_param_op_impl(gen, container, lhs, value, AssignStatement::overload_op_name(assOp));
+                // all assignment operators return void
+                return;
+            }
+        }
+    } else {
+        // normal flow
         const auto container = lhs_type->kind() == BaseTypeKind::CapturingFunction ? (
                 lhs_type->as_capturing_func_type_unsafe()->instance_type->get_members_container()
         ) : lhs_type->get_members_container();
@@ -1929,6 +2005,7 @@ void AssignStatement::code_gen(Codegen &gen) {
             }
         }
     }
+    // normal flow
     if (assOp == Operation::Assignment) {
         value->llvm_assign_value(gen, pointer, lhs);
     } else {

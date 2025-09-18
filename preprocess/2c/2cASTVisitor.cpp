@@ -1963,8 +1963,68 @@ void destruct_assign_lhs(ToCAstVisitor& visitor, Value* lhs, FunctionDeclaration
     visitor.new_line_and_indent();
 }
 
+void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value1, Value* value2) {
+    if(func->params.size() != 2) {
+        visitor.write('0');
+        visitor.error(value1) << "operator implementation with name '" << func->name_view() << "' must have exactly two parameters";
+        return;
+    }
+    visitor.mangle(func);
+    visitor.write('(');
+    visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
+    visitor.write(", ");
+    visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
+    visitor.write(')');
+}
+
+void overload_assignment_operator(ToCAstVisitor& visitor, MembersContainer* container, AssignStatement* assign) {
+    auto op_func_name = AssignStatement::overload_op_name(assign->assOp);
+    if(op_func_name.empty()) {
+        visitor.write('0');
+        visitor.error("cannot overload this operator", assign);
+        return;
+    }
+    const auto child = container->child(op_func_name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(assign) << "expected overload implementation function with name '" << op_func_name << "'";
+        return;
+    }
+    FunctionDeclaration* func;
+    if(child->kind() == ASTNodeKind::FunctionDecl) {
+        func = child->as_function_unsafe();
+    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
+        std::vector<Value*> args { assign->lhs, assign->value };
+        const auto found_found = child->as_multi_func_node_unsafe()->func_for_call(args);
+        if(!found_found) {
+            visitor.write('0');
+            visitor.error(assign) << "expected overload implementation function with name '" << op_func_name << "' for the given arguments";
+            return;
+        }
+        func = found_found;
+    } else {
+        visitor.write('0');
+        visitor.error(assign) << "expected overload implementation function with name '" << op_func_name << "' for the given arguments";
+        return;
+    }
+    call_two_arg_operator_func(visitor, func, assign->lhs, assign->value);
+}
+
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
-    auto type = assign->lhs->getType()->canonical();
+    const auto lhs_type = assign->lhs->getType();
+    if(assign->assOp != Operation::Assignment) {
+        // only non assignment operators can be overloaded
+        const auto can_node = lhs_type->get_linked_canonical_node(true, false);
+        if(can_node) {
+            const auto container = can_node->get_members_container();
+            if(container) {
+                overload_assignment_operator(visitor, container, assign);
+                return;
+            }
+        }
+    }
+    // normal flow
+    auto type = lhs_type->canonical();
     const auto was_lhs_moved = assign->lhs->is_ref_moved();
     if(was_lhs_moved) {
         // do not destruct, because previously the lhs was moved (we are reinitializing it)
@@ -6357,20 +6417,6 @@ void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
 //    const auto known = casted->value->known_type();
     write('*');
     visit(casted->getValue());
-}
-
-void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value1, Value* value2) {
-    if(func->params.size() != 2) {
-        visitor.write('0');
-        visitor.error(value1) << "operator implementation with name '" << func->name_view() << "' must have exactly two parameters";
-        return;
-    }
-    visitor.mangle(func);
-    visitor.write('(');
-    visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
-    visitor.write(", ");
-    visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
-    visitor.write(')');
 }
 
 void call_two_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value1, Value* value2, const chem::string_view& name) {

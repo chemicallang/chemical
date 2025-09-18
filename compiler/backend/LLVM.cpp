@@ -524,28 +524,174 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
     return nullptr;
 }
 
+llvm::Value* normal_flow_expr(Codegen& gen, Expression* expr, BaseType* first, BaseType* second) {
+    return gen.operate(expr->operation, expr->firstValue, expr->secondValue, first->canonical(), second->canonical());
+}
+
+llvm::Value* call_single_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* arg) {
+    if(decl->params.size() != 1) {
+        gen.error(arg) << "expected overloaded operator to have exactly single parameter";
+        return nullptr;
+    }
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::vector<llvm::Value*> args;
+    llvm::Instruction* returnedStruct = nullptr;
+    // handle secret struct param sent to call inst when call returns a struct
+    if(decl->returnType->isStructLikeType()) {
+        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
+        gen.di.instr(returnedStruct, arg->encoded_location());
+        args.emplace_back(returnedStruct);
+    }
+    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], arg, 0, destructibles));
+    // create call
+    auto callInst = gen.builder->CreateCall(decl->llvm_func(gen), args);
+    gen.di.instr(callInst, arg->encoded_location());
+    Value::destruct(gen, destructibles);
+    return returnedStruct ? returnedStruct : callInst;
+}
+
+llvm::Value* call_two_param_op_impl(Codegen& gen, FunctionDeclaration* decl, Value* first, Value* second) {
+    if(decl->params.size() != 2) {
+        gen.error(first) << "expected overloaded operator to have exactly two parameters";
+        return nullptr;
+    }
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::vector<llvm::Value*> args;
+    llvm::Instruction* returnedStruct = nullptr;
+    // handle secret struct param sent to call inst when call returns a struct
+    if(decl->returnType->isStructLikeType()) {
+        returnedStruct = gen.builder->CreateAlloca(decl->returnType->llvm_type(gen));
+        gen.di.instr(returnedStruct, first->encoded_location());
+        args.emplace_back(returnedStruct);
+    }
+    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[0], first, 0, destructibles));
+    args.emplace_back(FunctionCall::arg_value(gen, decl, decl->params[1], second, 1, destructibles));
+    // create call
+    auto callInst = gen.builder->CreateCall(decl->llvm_func(gen), args);
+    gen.di.instr(callInst, first->encoded_location());
+    Value::destruct(gen, destructibles);
+    return returnedStruct ? returnedStruct : callInst;
+}
+
+llvm::Value* call_two_param_op_impl(Codegen& gen, MembersContainer* container, Value* first, Value* second, const chem::string_view& func_name) {
+    // find the function
+    auto found_child = container->child(func_name);
+    if(!found_child) {
+        return nullptr;
+    }
+    // call the function
+    if(found_child->kind() == ASTNodeKind::FunctionDecl) {
+        const auto func = found_child->as_function_unsafe();
+        return call_two_param_op_impl(gen, func, first, second);
+    } else if(found_child->kind() == ASTNodeKind::MultiFunctionNode) {
+        const auto multi_node = found_child->as_multi_func_node_unsafe();
+        std::vector<Value*> args;
+        args.emplace_back(first);
+        args.emplace_back(second);
+        const auto func = multi_node->func_for_call(args);
+        if(!func) return nullptr;
+        return call_two_param_op_impl(gen, func, first, second);
+    } else {
+        return nullptr;
+    }
+}
+
 llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
+
     auto firstType = firstValue->getType();
     auto secondType = secondValue->getType();
-    auto first_pure = firstType->pure_type(gen.allocator);
-    auto second_pure = secondType->pure_type(gen.allocator);
+    auto first_pure = firstType->canonical();
+    auto second_pure = secondType->canonical();
+
     // promote literal values is using gen allocator
     // TODO there's probably a better way of doing this
     auto prev_firstValue = firstValue;
     auto prev_secondValue = secondValue;
+
     replace_number_values(gen.allocator, gen.comptime_scope.typeBuilder, first_pure, second_pure);
     // shrink_literal_values(gen.allocator, first_pure, second_pure);
     // promote_literal_values(gen.allocator, first_pure, second_pure);
+
     firstType = firstValue->getType();
     first_pure = firstType->canonical();
+
     secondType = secondValue->getType();
     second_pure = secondType->canonical();
+
+    // logical expressions
     auto logical = llvm_logical_expr(gen, first_pure, second_pure);
     if(logical) return logical;
+
+    // check for operator overloading
+    const auto can_node = firstType->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            // operator overloading
+            // get operator info
+            auto impl_info = operator_impl_info(operation);
+            if(impl_info.name.empty()) {
+                gen.error("operator cannot be overloaded", this);
+                return normal_flow_expr(gen, this, firstType, secondType);
+            }
+            // call the operator implementation
+            const auto called = call_two_param_op_impl(gen, container, firstValue, secondValue, impl_info.name);
+            if(!called) {
+                gen.error(this) << "couldn't find operator implementation with name '" << impl_info.name << "'";
+                return normal_flow_expr(gen, this, firstType, secondType);
+            }
+            return called;
+        }
+    }
+
+    // normal flow
     auto value = gen.operate(operation, firstValue, secondValue, first_pure, second_pure);
     firstValue = prev_firstValue;
     secondValue = prev_secondValue;
     return value;
+
+}
+
+llvm::AllocaInst* Expression::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+
+    auto firstType = firstValue->getType();
+    auto secondType = secondValue->getType();
+
+    // check for operator overloading
+    const auto can_node = firstType->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            // operator overloading
+            // get operator info
+            auto impl_info = operator_impl_info(operation);
+            if(impl_info.name.empty()) {
+                gen.error("operator cannot be overloaded", this);
+                return Value::llvm_allocate(gen, identifier, expected_type);
+            }
+            // call the operator implementation
+            const auto called = call_two_param_op_impl(gen, container, firstValue, secondValue, impl_info.name);
+            if(!called) {
+                gen.error(this) << "couldn't find operator implementation with name '" << impl_info.name << "'";
+                return Value::llvm_allocate(gen, identifier, expected_type);
+            }
+            if(llvm::isa<llvm::AllocaInst>(called)) {
+                return (llvm::AllocaInst*) called;
+            } else {
+                // basically alloca + store (without llvm_value)
+                const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
+                auto alloc = gen.builder->CreateAlloca(type, nullptr);
+                gen.di.instr(alloc, this);
+                const auto store = gen.builder->CreateStore(expected_type ? gen.implicit_cast(called, expected_type, type) : called, alloc);
+                gen.di.instr(store, this);
+                return alloc;
+            }
+        }
+    }
+
+    // default llvm_allocate
+    return Value::llvm_allocate(gen, identifier, expected_type);
+
 }
 
 // a || b

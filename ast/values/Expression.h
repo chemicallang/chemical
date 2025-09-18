@@ -56,6 +56,8 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;

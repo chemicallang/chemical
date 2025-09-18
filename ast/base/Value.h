@@ -379,6 +379,11 @@ public:
     }
 
     /**
+     *
+     */
+    llvm::AllocaInst* llvm_alloca_store(Codegen& gen, BaseType* expected_type, llvm::Value* value);
+
+    /**
      * allocates this value with this identifier, and also creates a store instruction
      */
     virtual llvm::AllocaInst* llvm_allocate(

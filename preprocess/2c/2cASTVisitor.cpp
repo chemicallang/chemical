@@ -1992,6 +1992,35 @@ void call_single_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* 
     }
 }
 
+void call_single_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value, const chem::string_view& name) {
+    // user trynna overload the operator
+    const auto child = container->child(name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(value) << "expected operator implementation with name '" << name << '\'';
+        return;
+    }
+    if(child->kind() == ASTNodeKind::FunctionDecl) {
+        const auto func = child->as_function_unsafe();
+        call_single_arg_operator_func(visitor, func, value, name);
+    } else if(child->kind() ==  ASTNodeKind::MultiFunctionNode) {
+        const auto multi_node = child->as_multi_func_node_unsafe();
+        std::vector<Value*> args { value };
+        const auto func = multi_node->func_for_call(args);
+        if(func) {
+            call_single_arg_operator_func(visitor, func, value, name);
+        } else {
+            visitor.write('0');
+            visitor.error(value) << "no operator implementation function with name '" << name << "' satisfies given arguments";
+            return;
+        }
+    } else {
+        visitor.write('0');
+        visitor.error(value) << "expected operator implementation with name '" << name << "' to be a function";
+        return;
+    }
+}
+
 void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value1, Value* value2) {
     if(func->params.size() != 2) {
         visitor.write('0');
@@ -2025,6 +2054,33 @@ void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* fun
     }
 }
 
+void call_two_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, const chem::string_view& op_func_name, Value* value1, Value* value2) {
+    const auto child = container->child(op_func_name);
+    if(!child) {
+        visitor.write('0');
+        visitor.error(value1) << "expected overload implementation function with name '" << op_func_name << "'";
+        return;
+    }
+    FunctionDeclaration* func;
+    if(child->kind() == ASTNodeKind::FunctionDecl) {
+        func = child->as_function_unsafe();
+    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
+        std::vector<Value*> args { value1, value2 };
+        const auto found_found = child->as_multi_func_node_unsafe()->func_for_call(args);
+        if(!found_found) {
+            visitor.write('0');
+            visitor.error(value1) << "expected overload implementation function with name '" << op_func_name << "' for the given arguments";
+            return;
+        }
+        func = found_found;
+    } else {
+        visitor.write('0');
+        visitor.error(value1) << "expected overload implementation function with name '" << op_func_name << "' for the given arguments";
+        return;
+    }
+    call_two_arg_operator_func(visitor, func, value1, value2);
+}
+
 void overload_assignment_operator(ToCAstVisitor& visitor, MembersContainer* container, AssignStatement* assign) {
     auto op_func_name = AssignStatement::overload_op_name(assign->assOp);
     if(op_func_name.empty()) {
@@ -2032,30 +2088,7 @@ void overload_assignment_operator(ToCAstVisitor& visitor, MembersContainer* cont
         visitor.error("cannot overload this operator", assign);
         return;
     }
-    const auto child = container->child(op_func_name);
-    if(!child) {
-        visitor.write('0');
-        visitor.error(assign) << "expected overload implementation function with name '" << op_func_name << "'";
-        return;
-    }
-    FunctionDeclaration* func;
-    if(child->kind() == ASTNodeKind::FunctionDecl) {
-        func = child->as_function_unsafe();
-    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
-        std::vector<Value*> args { assign->lhs, assign->value };
-        const auto found_found = child->as_multi_func_node_unsafe()->func_for_call(args);
-        if(!found_found) {
-            visitor.write('0');
-            visitor.error(assign) << "expected overload implementation function with name '" << op_func_name << "' for the given arguments";
-            return;
-        }
-        func = found_found;
-    } else {
-        visitor.write('0');
-        visitor.error(assign) << "expected overload implementation function with name '" << op_func_name << "' for the given arguments";
-        return;
-    }
-    call_two_arg_operator_func(visitor, func, assign->lhs, assign->value);
+    call_two_arg_operator(visitor, container, op_func_name, assign->lhs, assign->value);
 }
 
 void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
@@ -4984,24 +5017,6 @@ void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {
     writer << member->parent()->direct_child_index(member->name);
 }
 
-void call_inc_dec_operator(ToCAstVisitor& visitor, MembersContainer* container, IncDecValue* value) {
-    // user trynna overload the operator
-    const auto name = value->get_overloaded_func_name();
-    const auto child = container->child(name);
-    if(!child) {
-        visitor.write('0');
-        visitor.error(value) << "expected operator implementation with name '" << name << '\'';
-        return;
-    }
-    if(child->kind() != ASTNodeKind::FunctionDecl) {
-        visitor.write('0');
-        visitor.error(value) << "expected operator implementation with name '" << name << "' to be a function";
-        return;
-    }
-    const auto func = child->as_function_unsafe();
-    call_single_arg_operator_func(visitor, func, value->getValue(), name);
-}
-
 void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
 
     const auto val = value->getValue();
@@ -5012,7 +5027,7 @@ void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
     if(node) {
         const auto container = node->get_members_container();
         if(container) {
-            call_inc_dec_operator(*this, container, value);
+            call_single_arg_operator(*this, container, value->getValue(), value->get_overloaded_func_name());
             return;
         }
     }
@@ -6226,29 +6241,7 @@ void overload_expr_operator(ToCAstVisitor& visitor, MembersContainer* container,
         visitor.error("operator cannot be overloaded", expr);
         return;
     }
-    const auto child = container->child(info.name);
-    if (!child) {
-        visitor.write('0');
-        visitor.error("no operator implementation exists for value", expr->firstValue);
-        return;
-    }
-    if (child->kind() == ASTNodeKind::FunctionDecl) {
-        call_two_arg_operator_func(visitor, child->as_function_unsafe(), expr->firstValue, expr->secondValue);
-    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
-        const auto multi_node = child->as_multi_func_node_unsafe();
-        std::vector<Value*> args { expr->firstValue, expr->secondValue };
-        const auto func = multi_node->func_for_call(args);
-        if(func) {
-            call_two_arg_operator_func(visitor, func, expr->firstValue, expr->secondValue);
-        } else {
-            visitor.write('0');
-            visitor.error("couldn't find implementation for given arguments", expr);
-        }
-    } else {
-        visitor.write('0');
-        visitor.error("declaration cannot be used as implementation of operator", expr->firstValue);
-        return;
-    }
+    call_two_arg_operator(visitor, container, info.name, expr->firstValue, expr->secondValue);
 }
 
 void ToCAstVisitor::VisitExpression(Expression *expr) {
@@ -6440,66 +6433,6 @@ void ToCAstVisitor::VisitDereferenceValue(DereferenceValue *casted) {
     visit(casted->getValue());
 }
 
-void call_two_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value1, Value* value2, const chem::string_view& name) {
-    // user trynna overload the operator
-    const auto child = container->child(name);
-    if(!child) {
-        visitor.write('0');
-        visitor.error(value1) << "expected operator implementation with name '" << name << '\'';
-        return;
-    }
-    if(child->kind() != ASTNodeKind::FunctionDecl) {
-        visitor.write('0');
-        visitor.error(value1) << "expected operator implementation with name '" << name << "' to be a function";
-        return;
-    }
-    const auto func = child->as_function_unsafe();
-    call_two_arg_operator_func(visitor, func, value1, value2);
-}
-
-void call_index_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value1, Value* value2) {
-    auto name = chem::string_view("index");
-    // user trynna overload the operator
-    const auto child = container->child(name);
-    if(!child) {
-        visitor.write('0');
-        visitor.error(value1) << "expected operator implementation with name '" << name << '\'';
-        return;
-    }
-    if(child->kind() != ASTNodeKind::FunctionDecl) {
-        visitor.write('0');
-        visitor.error(value1) << "expected operator implementation with name '" << name << "' to be a function";
-        return;
-    }
-    const auto func = child->as_function_unsafe();
-    if(func->params.size() != 2) {
-        visitor.write('0');
-        visitor.error(value1) << "operator implementation with name '" << name << "' must have exactly two parameters";
-        return;
-    }
-    if(child->kind() == ASTNodeKind::FunctionDecl) {
-        // a single function with name 'index' is present
-        const auto op_func = child->as_function_unsafe();
-        call_two_arg_operator_func(visitor, op_func, value1, value2);
-        return;
-    } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
-        const auto node = child->as_multi_func_node_unsafe();
-        std::vector<Value*> args { value1, value2 };
-        const auto op_func = node->func_for_call(args);
-        if(op_func) {
-            call_two_arg_operator_func(visitor, op_func, value1, value2);
-        } else {
-            visitor.error(value1) << "no function with name '" << name << "' exists for given arguments";
-            visitor.write('0');
-            return;
-        }
-    } else {
-        visitor.error(value1) << "expected a function '" << name << "' to be present for overloading";
-        visitor.write('0');
-        return;
-    }
-}
-
 void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
     const auto type = op->parent_val->getType();
 
@@ -6508,7 +6441,7 @@ void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
-            call_index_operator(*this, container, op->parent_val, op->idx);
+            call_two_arg_operator(*this, container, "index", op->parent_val, op->idx);
             return;
         }
     }
@@ -6530,23 +6463,6 @@ void ToCAstVisitor::VisitBlockValue(BlockValue *blockVal) {
         write("; ");
     }
     write("})");
-}
-
-void call_single_arg_operator(ToCAstVisitor& visitor, MembersContainer* container, Value* value, const chem::string_view& name) {
-    // user trynna overload the operator
-    const auto child = container->child(name);
-    if(!child) {
-        visitor.write('0');
-        visitor.error(value) << "expected operator implementation with name '" << name << '\'';
-        return;
-    }
-    if(child->kind() != ASTNodeKind::FunctionDecl) {
-        visitor.write('0');
-        visitor.error(value) << "expected operator implementation with name '" << name << "' to be a function";
-        return;
-    }
-    const auto func = child->as_function_unsafe();
-    call_single_arg_operator_func(visitor, func, value, name);
 }
 
 void ToCAstVisitor::VisitNegativeValue(NegativeValue *negValue) {

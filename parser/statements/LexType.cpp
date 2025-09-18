@@ -30,6 +30,8 @@
 #include "ast/types/LongDoubleType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/VoidType.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/structures/GenericImplDecl.h"
 
 TypeLoc Parser::parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing) {
     auto t1 = consumeOfType(TokenType::LParen);
@@ -331,7 +333,7 @@ BaseType* Parser::parseExpressionType(ASTAllocator& allocator, BaseType* firstTy
 
 }
 
-ASTNode* find_self_node(ASTNode* parent) {
+BaseType* get_self_kw_type(ASTAllocator& allocator, ASTNode* parent) {
     if(parent == nullptr) return nullptr;
     switch(parent->kind()) {
         case ASTNodeKind::FunctionDecl:
@@ -340,7 +342,7 @@ ASTNode* find_self_node(ASTNode* parent) {
         case ASTNodeKind::IfStmt:
         case ASTNodeKind::ComptimeBlock:
         case ASTNodeKind::UnsafeBlock:
-            return find_self_node(parent->parent());
+            return get_self_kw_type(allocator, parent->parent());
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::InterfaceDecl:
         case ASTNodeKind::UnionDecl:
@@ -350,14 +352,26 @@ ASTNode* find_self_node(ASTNode* parent) {
         case ASTNodeKind::GenericStructDecl:
         case ASTNodeKind::GenericUnionDecl:
         case ASTNodeKind::GenericVariantDecl:
+            return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Self"), (ASTNode*) parent);
 
         // impl decl probably requires special treatment
-        case ASTNodeKind::ImplDecl:
-        case ASTNodeKind::GenericImplDecl:
-
-            return parent;
-
-
+        case ASTNodeKind::ImplDecl:{
+            const auto impl = parent->as_impl_def_unsafe();
+            if(impl->struct_type) {
+                return impl->struct_type->copy(allocator);
+            } else {
+                return impl->interface_type->copy(allocator);
+            }
+        }
+        case ASTNodeKind::GenericImplDecl:{
+            const auto impl = parent->as_gen_impl_decl_unsafe();
+            const auto master_impl = impl->master_impl;
+            if(master_impl->struct_type) {
+                return master_impl->struct_type->copy(allocator);
+            } else {
+                return master_impl->interface_type->copy(allocator);
+            }
+        }
         default:
             return nullptr;
     }
@@ -380,12 +394,11 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
         case TokenType::SelfKw: {
             const auto self_tok = token;
             token++;
-            const auto parent = find_self_node(parent_node);
-            if(parent) {
-                const auto ty = new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(chem::string_view("Self"), (ASTNode*) parent);
-                return { ty, loc_single(self_tok)};
+            const auto type = get_self_kw_type(allocator, parent_node);
+            if(type) {
+                return { type, loc_single(self_tok) };
             } else {
-                error("couldn't find the parent container");
+                error("couldn't find the parent declaration for 'Self' Type");
                 return {nullptr, ZERO_LOC};
             }
         }

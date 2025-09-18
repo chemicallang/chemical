@@ -104,6 +104,15 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    static llvm::Value* arg_value(
+            Codegen& gen,
+            FunctionType* func_type,
+            FunctionParam* func_param,
+            Value* value_ptr,
+            int i,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+    );
+
     llvm::Type *llvm_type(Codegen &gen) final;
 
     llvm::Type *llvm_chain_type(

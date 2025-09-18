@@ -152,9 +152,8 @@ inline bool should_destruct(Value* value) {
     }
 }
 
-llvm::Value* arg_value(
+llvm::Value* FunctionCall::arg_value(
         Codegen& gen,
-        FunctionCall* call,
         FunctionType* func_type,
         FunctionParam* func_param,
         Value* value_ptr,
@@ -277,7 +276,7 @@ void to_llvm_args(
 
         const auto func_param = func_type->func_param_for_arg_at(i);
 
-        const auto argVal = arg_value(gen, call, func_type, func_param, values[i], (int) i, destructibles);
+        const auto argVal = FunctionCall::arg_value(gen, func_type, func_param, values[i], (int) i, destructibles);
 
         args.emplace_back(argVal);
 
@@ -312,7 +311,7 @@ void to_llvm_args(
         auto param = func_type->func_param_for_arg_at(i);
         if(param) {
             if(param->defValue) {
-                args.emplace_back(arg_value(gen, call, func_type, param, param->defValue, -1, destructibles));
+                args.emplace_back(FunctionCall::arg_value(gen, func_type, param, param->defValue, -1, destructibles));
             } else if(!func_type->isInVarArgs(i)) {
                 gen.error(call) << "function param '" << param->name << "' doesn't have a default value, however no argument exists for it";
             }

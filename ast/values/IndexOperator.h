@@ -69,8 +69,6 @@ public:
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
 #endif
 
 };

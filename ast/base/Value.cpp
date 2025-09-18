@@ -420,11 +420,12 @@ bool Value::add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Valu
 }
 
 bool Value::add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name) {
-#ifdef DEBUG
-    throw std::runtime_error("Value::add_child_index called on a Value");
-#else
-    std::cerr << "add_child_index called on base Value " << representation();
-#endif
+    const auto node = getType()->linked_node();
+    if(node) {
+        return node->add_child_index(gen, indexes, name);
+    } else {
+        return false;
+    }
 }
 
 llvm::Value* Value::llvm_arg_value(Codegen& gen, BaseType* expected_type) {

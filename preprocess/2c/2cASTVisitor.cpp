@@ -654,23 +654,6 @@ inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, 
     visitor.mangler.mangle_vtable_name(visitor.writer, interface, definition);
 }
 
-std::pair<InterfaceDefinition*, StructDefinition*> get_dyn_obj_impl(BaseType* type, Value* value) {
-    if(!type) return {nullptr, nullptr};
-    auto pure_type = type->canonical();
-    if(pure_type->kind() == BaseTypeKind::Dynamic) {
-        const auto dyn_type = ((DynamicType*) pure_type);
-        const auto interface = dyn_type->linked_node()->as_interface_def();
-        if(interface && type->isStructLikeType()) {
-            const auto linked = value->getType();
-            const auto def = linked->linked_struct_def();
-            if(def) {
-                return { interface, def };
-            }
-        }
-    }
-    return {nullptr, nullptr};
-}
-
 // structs, or variants or references to them are passed in functions as pointers
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
@@ -758,37 +741,6 @@ bool is_value_type_pointer_like(Value* value) {
     } else {
         return false;
     }
-}
-
-bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor& visitor, BaseType* type, Value* value, void(*value_visit)(ToCAstVisitor& visitor, Value* value)) {
-//    (__chemical_fat_pointer__){ &sm, (void*) &PhoneSmartPhone }
-    auto dyn_obj = get_dyn_obj_impl(type, value);
-    if(!dyn_obj.first) return false;
-    visitor.write('(');
-    visitor.write(visitor.fat_pointer_type);
-    visitor.write(')');
-    visitor.write('{');
-    visitor.space();
-    if(!is_value_param_pointer_like(value)) {
-        visitor.write('&');
-    }
-    value_visit(visitor, value);
-    visitor.write(',');
-    visitor.write("(void*) &");
-    vtable_name(visitor, dyn_obj.first, dyn_obj.second);
-    visitor.space();
-    visitor.write('}');
-    return true;
-}
-
-//bool implicit_mutate_value(ToCAstVisitor& visitor, BaseType* type, Value* value, void(*value_visit)(ToCAstVisitor& visitor, Value* value)) {
-//    return implicit_mutate_value_for_dyn_obj(visitor, type, value, value_visit);
-//}
-
-bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value* value) {
-    return implicit_mutate_value_for_dyn_obj(visitor, type, value, [](ToCAstVisitor& visitor, Value* value) -> void {
-        visitor.visit(value);
-    });
 }
 
 // when a value is being stored or passed as a reference we must write address of it
@@ -1010,9 +962,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
         }
     }
     // mutating value
-    if(!implicit_mutate_value_default(*this, type, value)) {
-        visit(value);
-    }
+    visit(value);
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
@@ -3732,9 +3682,6 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     const auto struct_val = val->as_struct_value();
     const auto val_type = val->getType();
     if(struct_val) {
-        if(implicit_mutate_value_default(*this, type, val)) {
-           return;
-        }
         if(pass_structs_to_initialize) {
             auto size = struct_val->values.size();
             bool has_value_before = false;
@@ -3784,12 +3731,10 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
         write('*');
         write(struct_passed_param_name);
         write(" = ");
-        if(!implicit_mutate_value_default(*this, type, val)) {
-            if(is_value_param_pointer_like(val)) {
-                write('*');
-            }
-            visit(val);
+        if(is_value_param_pointer_like(val)) {
+            write('*');
         }
+        visit(val);
     } else {
         accept_mutating_value_explicit(type, val, false);
     }
@@ -6602,7 +6547,7 @@ bool is_structural_impl_node(ASTNode* type) {
 }
 
 void ToCAstVisitor::VisitDynamicValue(DynamicValue* dyn_value) {
-    const auto type = dyn_value->type;
+    const auto type = dyn_value->getInterfaceType();
     const auto value = dyn_value->value;
     const auto inter_node = dyn_value->getType()->referenced->get_direct_linked_canonical_node();
     if(!inter_node || inter_node->kind() != ASTNodeKind::InterfaceDecl) {

@@ -30,21 +30,6 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
 
     const auto parent_type = llvm_type(gen);
 
-    // when the expected type is dyn, which means fat pointer has been allocated before, however struct can't be stored inside it
-    // so we allocate a struct, and assign dynamic object to the fat pointer, we also initialize the dynamic object
-    const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
-    if(interface) {
-        if(!allocaInst) {
-            const auto alloca1 = gen.builder->CreateAlloca(parent_type, nullptr);
-            gen.di.instr(alloca1, this);
-            allocaInst = alloca1;
-        }
-        if(!gen.assign_dyn_obj(this, expected_type, inst, allocaInst, encoded_location())) {
-            gen.error(this) << "couldn't assign dyn object struct " << representation() << " to expected type " << expected_type->representation();
-        }
-        inst = allocaInst;
-    }
-
     // default initialize inherited values in struct
     unsigned inherited_index = 0;
     for(auto& inh : container->inherited) {

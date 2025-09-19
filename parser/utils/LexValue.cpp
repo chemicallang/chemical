@@ -797,8 +797,7 @@ Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
     }
 
     const auto dynType = new (allocator.allocate<DynamicType>()) DynamicType(type);
-
-    auto value = new (allocator.allocate<DynamicValue>()) DynamicValue(type, nullptr, loc, dynType);
+    auto value = new (allocator.allocate<DynamicValue>()) DynamicValue(nullptr, loc, dynType);
 
     if(token->type == TokenType::GreaterThanSym) {
         token++;

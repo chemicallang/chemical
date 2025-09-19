@@ -66,6 +66,7 @@
 //#include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/UnionType.h"
+#include "ast/types/DynamicType.h"
 //#include "ast/types/UBigIntType.h"
 //#include "ast/types/UInt128Type.h"
 //#include "ast/types/UIntType.h"
@@ -582,7 +583,7 @@ public:
     }
 
     inline void VisitDynamicValue(DynamicValue* value) {
-        visit_it(value->type);
+        visit_it(value->getType()->referenced);
         visit_it(value->value);
     }
 

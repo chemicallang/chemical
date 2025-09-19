@@ -116,8 +116,6 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
 //            if(!moved) {
 
-                llvm::Value* dyn_obj_impl = nullptr;
-
                 if(type) {
                     const auto canType = type->canonical();
                     const auto mutated = gen.mutate_capturing_function(canType, value);
@@ -127,16 +125,9 @@ void VarInitStatement::code_gen(Codegen &gen) {
                         gen.di.declare(this, llvm_ptr);
                         return;
                     }
-                    if(type->isStructLikeType() && value->as_struct_value() == nullptr) {
-                        // get it's dynamic object implementation based on expected type
-                        dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
-                    }
                 }
 
                 llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
-                if(dyn_obj_impl) {
-                    gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl, encoded_location());
-                }
                 gen.di.declare(this, llvm_ptr);
 
 //            }

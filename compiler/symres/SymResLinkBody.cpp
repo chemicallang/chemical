@@ -2525,6 +2525,7 @@ void SymResLinkBody::VisitExpressiveString(ExpressiveString* value) {
 }
 
 void SymResLinkBody::VisitDynamicValue(DynamicValue* value) {
-    visit(value->type);
+    visit(value->getType());
     visit(value->value);
+    // TODO: must verify that an implementation exists
 }

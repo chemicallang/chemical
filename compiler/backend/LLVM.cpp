@@ -1387,7 +1387,7 @@ void BlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_bl
 void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr) {
 
     const auto value = dyn_value->value;
-    const auto type = dyn_value->type;
+    const auto type = dyn_value->getInterfaceType();
 
     // get the object pointer
     llvm::Value* ptr;
@@ -1588,12 +1588,10 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
             auto value_ptr = value->llvm_pointer(gen);
-            if(!gen.assign_dyn_obj(value, func_type->returnType, dest, value_ptr, location)) {
-                llvm::MaybeAlign noAlign;
-                auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
-                const auto memCpyInst = gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
-                gen.di.instr(memCpyInst, location);
-            }
+            llvm::MaybeAlign noAlign;
+            auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
+            const auto memCpyInst = gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
+            gen.di.instr(memCpyInst, location);
         } else {
             return_value = value->llvm_ret_value(gen, value);
             if(return_value && func_type) {

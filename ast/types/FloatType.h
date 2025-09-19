@@ -4,13 +4,13 @@
 
 #include "ast/base/BaseType.h"
 
-class FloatType : public BaseType {
+class FloatType : public GlobalBaseType {
 public:
 
     /**
      * constructor
      */
-    constexpr FloatType() : BaseType(BaseTypeKind::Float) {
+    constexpr FloatType() : GlobalBaseType(BaseTypeKind::Float) {
 
     }
 
@@ -20,19 +20,6 @@ public:
 
     bool satisfies(BaseType *type) final {
         return type->kind() == BaseTypeKind::Float;
-    }
-
-    bool is_same(BaseType *type) final {
-        return type->kind() == kind();
-    }
-
-    [[nodiscard]]
-    FloatType *copy(ASTAllocator& allocator) final {
-        // why does this return itself (without copying)
-        // because the type exists in type builder
-        // it is initialized once in the type builder
-        // this will never be copied
-        return this;
     }
 
 #ifdef COMPILER_BUILD

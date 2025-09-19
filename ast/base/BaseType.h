@@ -730,3 +730,25 @@ public:
     }
 
 };
+
+class GlobalBaseType : public BaseType {
+public:
+
+    using BaseType::BaseType;
+
+    bool is_same(BaseType *type) final {
+        // why does this check pointers
+        // because this type is stored once in the type builder
+        // and used across multiple jobs (that's why called GlobalBaseType)
+        return type == this;
+    }
+
+    BaseType* copy(ASTAllocator &allocator) final {
+        // why does this return itself (without copying)
+        // because the type exists in type builder
+        // it is initialized once in the type builder
+        // this will never be copied
+        return this;
+    }
+
+};

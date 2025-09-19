@@ -4,23 +4,11 @@
 
 #include "ast/base/BaseType.h"
 
-class ExpressiveStringType : public BaseType {
+class ExpressiveStringType : public GlobalBaseType {
 public:
 
-    ExpressiveStringType() : BaseType(BaseTypeKind::ExpressiveString) {
+    ExpressiveStringType() : GlobalBaseType(BaseTypeKind::ExpressiveString) {
 
-    }
-
-    bool is_same(BaseType *type) override {
-        return type->kind() == BaseTypeKind::ExpressiveString;
-    }
-
-    BaseType* copy(ASTAllocator &allocator) final {
-        // why does this return itself (without copying)
-        // because the type exists in type builder
-        // it is initialized once in the type builder
-        // this will never be copied
-        return this;
     }
 
 };

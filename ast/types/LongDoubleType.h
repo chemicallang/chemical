@@ -4,15 +4,13 @@
 
 #include "ast/base/BaseType.h"
 
-class LongDoubleType : public BaseType {
+class LongDoubleType : public GlobalBaseType {
 public:
-
-    static const LongDoubleType instance;
 
     /**
      * constructor
      */
-    constexpr LongDoubleType() : BaseType(BaseTypeKind::LongDouble) {
+    constexpr LongDoubleType() : GlobalBaseType(BaseTypeKind::LongDouble) {
 
     }
 
@@ -22,19 +20,6 @@ public:
 
     bool satisfies(BaseType *type) final {
         return type->kind() == BaseTypeKind::LongDouble;
-    }
-
-    bool is_same(BaseType *type) final {
-        return type->kind() == kind();
-    }
-
-    [[nodiscard]]
-    LongDoubleType *copy(ASTAllocator& allocator) final {
-        // why does this return itself (without copying)
-        // because the type exists in type builder
-        // it is initialized once in the type builder
-        // this will never be copied
-        return this;
     }
 
 #ifdef COMPILER_BUILD

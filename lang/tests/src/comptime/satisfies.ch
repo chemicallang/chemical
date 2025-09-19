@@ -20,6 +20,40 @@ struct DerivedSatisfies11 : BaseSatisfies11 {
 }
 
 func test_satisfies() {
+    test("all types satisfy any - 1", () => {
+        type A = int
+        type B = long
+        type C = char
+        type D = double
+        type E = bool
+        type F = float
+        type G = ulong
+        type H = uint
+        type I = bigint
+        type J = ubigint
+        type K = uchar
+        type L = void
+        type M = *void
+        type N = []int
+        return intrinsics::satisfies<any, A>() && intrinsics::satisfies<any, B>() && intrinsics::satisfies<any, C>() && intrinsics::satisfies<any, D>() && intrinsics::satisfies<any, E>() && intrinsics::satisfies<any, F>() && intrinsics::satisfies<any, G>() && intrinsics::satisfies<any, H>() && intrinsics::satisfies<any, I>() && intrinsics::satisfies<any, J>() && intrinsics::satisfies<any, K>() && intrinsics::satisfies<any, L>() && intrinsics::satisfies<any, M>() && intrinsics::satisfies<any, N>()
+    })
+    test("all types satisfy any - 2", () => {
+        type A = i32
+        type B = u32
+        type C = i8
+        type D = u8
+        type E = i64
+        type F = u64
+        type G = i16
+        type H = u16
+        type I = () => void
+        type J = %expressive_string
+        type K = *mut void
+        type L = &mut void
+        type M = EmptySatisfies
+        type N = &EmptySatisfies
+        return intrinsics::satisfies<any, A>() && intrinsics::satisfies<any, B>() && intrinsics::satisfies<any, C>() && intrinsics::satisfies<any, D>() && intrinsics::satisfies<any, E>() && intrinsics::satisfies<any, F>() && intrinsics::satisfies<any, G>() && intrinsics::satisfies<any, H>() && intrinsics::satisfies<any, I>() && intrinsics::satisfies<any, J>() && intrinsics::satisfies<any, K>() && intrinsics::satisfies<any, L>() && intrinsics::satisfies<any, M>() && intrinsics::satisfies<any, N>()
+    })
     test("bool type satisfy", () => {
         type T = bool;
         return intrinsics::satisfies<T, T>();

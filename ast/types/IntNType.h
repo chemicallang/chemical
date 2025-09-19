@@ -175,7 +175,7 @@ public:
     /**
      * this checks whether this int n type is equal to this other int n type
      */
-    bool equals(IntNType* type) {
+    inline bool equals(IntNType* type) const noexcept {
         return type->IntNKind() == IntNKind();
     }
 
@@ -209,7 +209,7 @@ public:
         return to_unsigned_kind(IntNKind()) > to_unsigned_kind(type->IntNKind());
     }
 
-    bool is_same(BaseType *type) {
+    bool is_same(BaseType *type) final {
         return type->kind() == kind() && equals(type->as_intn_type_unsafe());
     }
 

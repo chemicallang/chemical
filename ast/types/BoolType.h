@@ -4,13 +4,13 @@
 
 #include "ast/base/BaseType.h"
 
-class BoolType : public BaseType {
+class BoolType : public GlobalBaseType {
 public:
 
     /**
      * constructor
      */
-    constexpr BoolType() : BaseType(BaseTypeKind::Bool) {
+    constexpr BoolType() : GlobalBaseType(BaseTypeKind::Bool) {
 
     }
 
@@ -19,18 +19,6 @@ public:
     }
 
     bool satisfies(BaseType *type) final;
-
-    bool is_same(BaseType *type) final {
-        return type->kind() == BaseTypeKind::Bool;
-    }
-
-    BoolType* copy(ASTAllocator& allocator) final {
-        // why does this return itself (without copying)
-        // because the type exists in type builder
-        // it is initialized once in the type builder
-        // this will never be copied
-        return this;
-    }
 
 #ifdef COMPILER_BUILD
 

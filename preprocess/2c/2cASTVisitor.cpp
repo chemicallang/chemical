@@ -6589,6 +6589,51 @@ void ToCAstVisitor::VisitEmbeddedValue(EmbeddedValue* value) {
     }
 }
 
+// TODO: use this when interfaces for variants are to be supported
+bool is_structural_impl_node(ASTNode* type) {
+    switch(type->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+            return true;
+        default:
+            return false;
+    }
+}
+
+void ToCAstVisitor::VisitDynamicValue(DynamicValue* dyn_value) {
+    const auto type = dyn_value->type;
+    const auto value = dyn_value->value;
+    const auto inter_node = dyn_value->getType()->referenced->get_direct_linked_canonical_node();
+    if(!inter_node || inter_node->kind() != ASTNodeKind::InterfaceDecl) {
+        error("couldn't get interface from dynamic value", dyn_value);
+        write("[error: couldn't get interface from dynamic value]");
+        return;
+    }
+    const auto value_node = value->getType()->get_direct_linked_canonical_node();
+    if(!value_node || value_node->kind() != ASTNodeKind::StructDecl) {
+        error("couldn't get struct from dynamic value", dyn_value);
+        write("[error: couldn't get struct from dynamic value]");
+        return;
+    }
+    const auto interface = inter_node->as_interface_def_unsafe();
+    const auto impl_node = value_node->as_struct_def_unsafe();
+    write('(');
+    write(fat_pointer_type);
+    write(')');
+    write('{');
+    space();
+    if(!is_value_param_pointer_like(value)) {
+        write('&');
+    }
+    visit(value);
+    write(',');
+    write("(void*) &");
+    vtable_name(*this, interface, impl_node);
+    space();
+    write('}');
+}
+
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {
     visit(node->value);
 }

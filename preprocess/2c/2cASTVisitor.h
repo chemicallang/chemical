@@ -777,6 +777,8 @@ public:
 
     void VisitEmbeddedValue(EmbeddedValue* value);
 
+    void VisitDynamicValue(DynamicValue* value);
+
     // TYPES
 
     void VisitAnyType(AnyType* type);

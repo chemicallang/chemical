@@ -78,6 +78,7 @@
 #include "ast/values/IfValue.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
+#include "ast/values/DynamicValue.h"
 //#include "ast/values/FloatValue.h"
 #include "ast/values/ValueNode.h"
 //#include "ast/values/Int128Value.h"
@@ -325,6 +326,11 @@ public:
 
     inline void VisitLoopValue(LoopValue* value) {
         VisitLoopBlock(&value->stmt);
+    }
+
+    inline void VisitDynamicValue(DynamicValue* value) {
+        visit(value->type);
+        visit(value->value);
     }
 
 };

@@ -112,6 +112,7 @@ public:
 
     void VisitEmbeddedValue(EmbeddedValue* value);
 
+    void VisitDynamicValue(DynamicValue* value);
 
     void LinkVariablesNoScope(VariablesContainer* container);
 

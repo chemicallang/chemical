@@ -572,6 +572,7 @@ set(COMMON_SOURCES
         ast/base/ChildResolution.h
         compiler/symres/ChildResolver.h
         std/chem_string_view_fast.h
+        ast/values/DynamicValue.h
 )
 
 # Chemical LSP Executable Target

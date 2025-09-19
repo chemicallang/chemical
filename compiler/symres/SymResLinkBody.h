@@ -264,4 +264,6 @@ public:
 
     void VisitExpressiveString(ExpressiveString* value);
 
+    void VisitDynamicValue(DynamicValue* value);
+
 };

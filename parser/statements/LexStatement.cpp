@@ -340,6 +340,10 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             token++;
             return parseAlignOfValue(allocator);
         }
+        case TokenType::DynKw: {
+            token++;
+            return parseDynamicValue(allocator);
+        }
         default:
             return (Value*) parseAccessChain(allocator, false);
     }

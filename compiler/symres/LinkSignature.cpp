@@ -335,6 +335,10 @@ void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
     }
 }
 
+void TopLevelLinkSignature::VisitDynamicValue(DynamicValue* value) {
+    linker.error(RUNTIME_EVAL_ERR, value);
+}
+
 void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     // save the type into a temporary before visiting children
     auto loc = type_location;

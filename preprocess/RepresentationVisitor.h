@@ -252,6 +252,8 @@ public:
 
     void VisitExpression(Expression* value);
 
+    void VisitDynamicValue(DynamicValue* value);
+
     void VisitArrayValue(ArrayValue* value);
 
     void VisitStructValue(StructValue* value);

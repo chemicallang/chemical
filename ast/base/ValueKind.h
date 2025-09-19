@@ -53,5 +53,6 @@ enum class ValueKind : uint8_t {
     EmbeddedValue,
 
     ExpressiveString,
+    DynamicValue,
 
 };

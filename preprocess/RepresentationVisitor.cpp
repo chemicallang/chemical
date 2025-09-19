@@ -26,6 +26,7 @@
 #include "ast/values/VariantCase.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/ExpressiveString.h"
+#include "ast/values/DynamicValue.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/TryCatch.h"
@@ -646,6 +647,14 @@ void RepresentationVisitor::VisitExpression(Expression *expr) {
     space();
     visit(expr->secondValue);
     nested_value = false;
+    write(')');
+}
+
+void RepresentationVisitor::VisitDynamicValue(DynamicValue* value) {
+    write("dyn<");
+    visit(value->type);
+    write(">(");
+    visit(value->value);
     write(')');
 }
 

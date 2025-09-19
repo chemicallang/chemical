@@ -19,6 +19,7 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/DynamicValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
@@ -779,6 +780,54 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
     }
 }
 
+Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
+
+    const auto loc = loc_single(token);
+    if(token->type == TokenType::LessThanSym) {
+        token++;
+    } else {
+        unexpected_error("expected '<' for dynamic value");
+        return nullptr;
+    }
+
+    auto type = parseTypeLoc(allocator);
+    if(!type) {
+        unexpected_error("expected a type in dynamic value");
+        return nullptr;
+    }
+
+    const auto dynType = new (allocator.allocate<DynamicType>()) DynamicType(type);
+
+    auto value = new (allocator.allocate<DynamicValue>()) DynamicValue(type, nullptr, loc, dynType);
+
+    if(token->type == TokenType::GreaterThanSym) {
+        token++;
+    } else {
+        unexpected_error("expected '>' after the type in dynamic value");
+    }
+
+    if(token->type == TokenType::LParen) {
+        token++;
+    } else {
+        unexpected_error("expected '(' after the type in dynamic value");
+    }
+
+    const auto expr = parseExpression(allocator, true, false);
+    if(expr) {
+        value->value = expr;
+    } else {
+        unexpected_error("expected a expression for dynamic value");
+    }
+
+    if(token->type == TokenType::RParen) {
+        token++;
+    } else {
+        unexpected_error("expected ')' after the expression in dynamic value");
+    }
+
+    return value;
+
+}
 
 Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {
     const auto tok = token;

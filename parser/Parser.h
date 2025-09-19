@@ -963,6 +963,11 @@ public:
     Value* parseComptimeValue(ASTAllocator& allocator);
 
     /**
+     * parses a single dynamic value
+     */
+    Value* parseDynamicValue(ASTAllocator& allocator);
+
+    /**
      * parses the sizeof value
      */
     Value* parseSizeOfValue(ASTAllocator& allocator);

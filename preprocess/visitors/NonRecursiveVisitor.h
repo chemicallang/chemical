@@ -375,6 +375,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitDynamicValue(DynamicValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     // Types begin here
 
     inline void VisitAnyType(AnyType* type) {
@@ -794,6 +798,9 @@ public:
             case ValueKind::ExpressiveString:
                 static_cast<Derived*>(this)->VisitExpressiveString((ExpressiveString*) value);
                 return;
+            case ValueKind::DynamicValue:
+                static_cast<Derived*>(this)->VisitDynamicValue((DynamicValue*) value);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: value kind in non recursive visitor";
@@ -1152,6 +1159,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(ExpressiveString* value) {
         static_cast<Derived*>(this)->VisitExpressiveString(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(DynamicValue* value) {
+        static_cast<Derived*>(this)->VisitDynamicValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(AnyType* type) {
         static_cast<Derived*>(this)->VisitAnyType(type);

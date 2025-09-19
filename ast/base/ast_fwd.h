@@ -202,6 +202,8 @@ class SwitchValue;
 
 class LoopValue;
 
+class DynamicValue;
+
 class NegativeValue;
 
 class NotValue;

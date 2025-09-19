@@ -116,6 +116,7 @@
 #include "ast/types/ExpressionType.h"
 #include "ast/statements/AliasStmt.h"
 #include "ast/values/ExtractionValue.h"
+#include "ast/values/DynamicValue.h"
 //#include "ast/values/ShortValue.h"
 //#include "ast/values/StringValue.h"
 //#include "ast/values/UBigIntValue.h"
@@ -578,6 +579,11 @@ public:
         for(auto& child_val : value->values) {
             visit_it(child_val);
         }
+    }
+
+    inline void VisitDynamicValue(DynamicValue* value) {
+        visit_it(value->type);
+        visit_it(value->value);
     }
 
 };

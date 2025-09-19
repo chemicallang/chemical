@@ -2523,3 +2523,8 @@ void SymResLinkBody::VisitExpressiveString(ExpressiveString* value) {
         visit(val);
     }
 }
+
+void SymResLinkBody::VisitDynamicValue(DynamicValue* value) {
+    visit(value->type);
+    visit(value->value);
+}

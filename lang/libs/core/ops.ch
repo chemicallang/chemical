@@ -4,28 +4,28 @@ public namespace ops {
 // Arithmetic
 
 // +
-interface Add<Output, Rhs = Self> {
-    func add(self, rhs : Rhs) : Output
+public interface Add<Output, Rhs = Self> {
+    func add(&self, rhs : Rhs) : Output
 }
 
 // -
-interface Sub<Output, Rhs = Self> {
-    func sub(self, rhs : Rhs) : Output
+public interface Sub<Output, Rhs = Self> {
+    func sub(&self, rhs : Rhs) : Output
 }
 
 // *
-interface Mul<Output, Rhs = Self> {
-    func mul(self, rhs : Rhs) : Output
+public interface Mul<Output, Rhs = Self> {
+    func mul(&self, rhs : Rhs) : Output
 }
 
 // /
-interface Div<Output, Rhs = Self> {
-    func div(self, rhs : Rhs) : Output
+public interface Div<Output, Rhs = Self> {
+    func div(&self, rhs : Rhs) : Output
 }
 
 // %
-interface Rem<Output, Rhs = Self> {
-    func rem(self, rhs : Rhs) : Output
+public interface Rem<Output, Rhs = Self> {
+    func rem(&self, rhs : Rhs) : Output
 }
 
 // Unary Arithmetic

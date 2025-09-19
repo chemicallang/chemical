@@ -4,10 +4,10 @@
 
 #include "ast/base/BaseType.h"
 
-class AnyType : public BaseType {
+class AnyType : public GlobalBaseType {
 public:
 
-    inline constexpr AnyType() : BaseType(BaseTypeKind::Any) {
+    inline constexpr AnyType() : GlobalBaseType(BaseTypeKind::Any) {
 
     }
 
@@ -17,19 +17,6 @@ public:
 
     bool satisfies(BaseType *type) final {
         return true;
-    }
-
-    bool is_same(BaseType *type) final {
-        return true;
-    }
-
-    [[nodiscard]]
-    AnyType* copy(ASTAllocator& allocator) final {
-        // why does this return itself (without copying)
-        // because the type exists in type builder
-        // it is initialized once in the type builder
-        // this will never be copied
-        return this;
     }
 
 #ifdef COMPILER_BUILD

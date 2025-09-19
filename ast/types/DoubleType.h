@@ -4,13 +4,13 @@
 
 #include "ast/base/BaseType.h"
 
-class DoubleType : public BaseType {
+class DoubleType : public GlobalBaseType {
 public:
 
     /**
      * constructor
      */
-    constexpr DoubleType() : BaseType(BaseTypeKind::Double) {
+    constexpr DoubleType() : GlobalBaseType(BaseTypeKind::Double) {
 
     }
 
@@ -20,19 +20,6 @@ public:
 
     bool satisfies(BaseType *type) final {
         return type->kind() == BaseTypeKind::Double;
-    }
-
-    bool is_same(BaseType *type) final {
-        return type->kind() == BaseTypeKind::Double;
-    }
-
-    [[nodiscard]]
-    DoubleType *copy(ASTAllocator& allocator) final {
-        // why does this return itself (without copying)
-        // because the type exists in type builder
-        // it is initialized once in the type builder
-        // this will never be copied
-        return this;
     }
 
 #ifdef COMPILER_BUILD

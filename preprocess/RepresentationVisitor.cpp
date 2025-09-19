@@ -652,7 +652,7 @@ void RepresentationVisitor::VisitExpression(Expression *expr) {
 
 void RepresentationVisitor::VisitDynamicValue(DynamicValue* value) {
     write("dyn<");
-    visit(value->type);
+    visit(value->getInterfaceType());
     write(">(");
     visit(value->value);
     write(')');

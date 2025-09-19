@@ -12,23 +12,36 @@
 class DynamicValue : public Value {
 public:
 
-    TypeLoc type;
     Value* value;
 
     /**
      * constructor
      */
     DynamicValue(
-            TypeLoc type,
             Value* value,
             SourceLocation location,
             DynamicType* dynType
-    ) : Value(ValueKind::DynamicValue, dynType, location), type(type), value(value) {
+    ) : Value(ValueKind::DynamicValue, dynType, location), value(value) {
 
     }
 
     DynamicType* getType() const noexcept {
         return (DynamicType*) Value::getType();
+    }
+
+    [[nodiscard]]
+    BaseType* getInterfaceType() const noexcept {
+        return getType()->referenced;
+    }
+
+    Value* copy(ASTAllocator &allocator) override {
+        const auto dyn_type = new (allocator.allocate<DynamicType>()) DynamicType(
+            getType()->referenced->copy(allocator)
+        );
+        const auto dyn_val = new (allocator.allocate<DynamicValue>()) DynamicValue(
+            value->copy(allocator), encoded_location(), dyn_type
+        );
+        return dyn_val;
     }
 
 #ifdef COMPILER_BUILD

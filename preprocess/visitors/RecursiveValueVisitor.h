@@ -329,7 +329,7 @@ public:
     }
 
     inline void VisitDynamicValue(DynamicValue* value) {
-        visit(value->type);
+        visit(value->getType()->referenced);
         visit(value->value);
     }
 

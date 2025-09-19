@@ -121,25 +121,23 @@ unsigned int Value::store_in_struct(
     }
 
     const auto value = llvm_value(gen, expected_type);
-    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
 
-        const auto value_pure = getType()->canonical();
-        const auto derefType = value_pure->getAutoDerefType(expected_type);
+    const auto value_pure = getType()->canonical();
+    const auto derefType = value_pure->getAutoDerefType(expected_type);
 
-        llvm::Value* Val = value;
-        if(derefType) {
-            const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
-            gen.di.instr(loadInstr, this);
-            Val = loadInstr;
-        } else if(value->getType()->isIntegerTy()) {
-            const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
-            Val = gen.implicit_cast(Val, expected_type, ll_type);
-        }
-
-        const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
-        gen.di.instr(storeInstr, this);
-
+    llvm::Value* Val = value;
+    if(derefType) {
+        const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
+        gen.di.instr(loadInstr, this);
+        Val = loadInstr;
+    } else if(value->getType()->isIntegerTy()) {
+        const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
+        Val = gen.implicit_cast(Val, expected_type, ll_type);
     }
+
+    const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
+    gen.di.instr(storeInstr, this);
+
     return index + 1;
 }
 
@@ -169,25 +167,23 @@ unsigned int Value::store_in_array(
     }
 
     const auto value = llvm_value(gen, expected_type);
-    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value, encoded_location())) {
 
-        const auto value_pure = getType()->canonical();
-        const auto derefType = value_pure->getAutoDerefType(expected_type);
+    const auto value_pure = getType()->canonical();
+    const auto derefType = value_pure->getAutoDerefType(expected_type);
 
-        llvm::Value* Val = value;
-        if(derefType) {
-            const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
-            gen.di.instr(loadInstr, this);
-            Val = loadInstr;
-        } else if(value->getType()->isIntegerTy()) {
-            const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
-            Val = gen.implicit_cast(Val, expected_type, ll_type);
-        }
-
-        const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
-        gen.di.instr(storeInstr, this);
-
+    llvm::Value* Val = value;
+    if(derefType) {
+        const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
+        gen.di.instr(loadInstr, this);
+        Val = loadInstr;
+    } else if(value->getType()->isIntegerTy()) {
+        const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
+        Val = gen.implicit_cast(Val, expected_type, ll_type);
     }
+
+    const auto storeInstr = gen.builder->CreateStore(Val, elementPtr);
+    gen.di.instr(storeInstr, this);
+
     return index + 1;
 }
 

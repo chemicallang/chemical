@@ -615,44 +615,43 @@ bool has_allocated_storage(Value* value) {
 void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value, SourceLocation location) {
     if(lhs) {
         const auto lhsType = lhs->getType()->canonical();
-        if (!assign_dyn_obj(rhs, lhsType, pointer, value, location)) {
 
-            const auto value_pure = rhs->getType();
-            const auto derefType = value_pure->getAutoDerefType(lhsType);
+        const auto value_pure = rhs->getType();
+        const auto derefType = value_pure->getAutoDerefType(lhsType);
 
-            // this handles the case where value is a reference, however
-            // user is assigning it to a non reference, we auto deref the reference
-            auto Val = value;
-            if(derefType) {
-                const auto loadInst = builder->CreateLoad(derefType->llvm_type(*this), value);
-                di.instr(loadInst, rhs);
-                Val = loadInst;
-            } else {
+        // this handles the case where value is a reference, however
+        // user is assigning it to a non reference, we auto deref the reference
+        auto Val = value;
+        if(derefType) {
+            const auto loadInst = builder->CreateLoad(derefType->llvm_type(*this), value);
+            di.instr(loadInst, rhs);
+            Val = loadInst;
+        } else {
 
-                // now we check if we need to auto deref the lhs type
-                // for example user is assigning to lhsType = &mut int
-                // so we need to load the pointer, before we use it as lhs
-                // and do a store instruction on it
-                // in rhs we have just int which doesn't matter
-                // we'll handle this by reversing the logic of auto dereference
-                if(lhsType->kind() == BaseTypeKind::Reference && has_allocated_storage(lhs)) {
-                    const auto loadInst = builder->CreateLoad(builder->getPtrTy(), pointer);
-                    di.instr(loadInst, lhs);
-                    pointer = loadInst;
-                }
-
-                // can the value be casted to lhs
-                // for example i64 is the lhs, however value is i32
-                // so we extend that value
-                Val = implicit_cast(Val, lhsType, lhsType->llvm_type(*this));
-
+            // now we check if we need to auto deref the lhs type
+            // for example user is assigning to lhsType = &mut int
+            // so we need to load the pointer, before we use it as lhs
+            // and do a store instruction on it
+            // in rhs we have just int which doesn't matter
+            // we'll handle this by reversing the logic of auto dereference
+            if(lhsType->kind() == BaseTypeKind::Reference && has_allocated_storage(lhs)) {
+                const auto loadInst = builder->CreateLoad(builder->getPtrTy(), pointer);
+                di.instr(loadInst, lhs);
+                pointer = loadInst;
             }
 
+            // can the value be casted to lhs
+            // for example i64 is the lhs, however value is i32
+            // so we extend that value
+            Val = implicit_cast(Val, lhsType, lhsType->llvm_type(*this));
 
-            // TODO not using the correct location for debugging
-            const auto storeInst = builder->CreateStore(Val, pointer);
-            di.instr(storeInst, lhs);
         }
+
+
+        // TODO not using the correct location for debugging
+        const auto storeInst = builder->CreateStore(Val, pointer);
+        di.instr(storeInst, lhs);
+
     } else {
         // TODO not using the correct location for debugging
         const auto storeInst = builder->CreateStore(value, pointer);

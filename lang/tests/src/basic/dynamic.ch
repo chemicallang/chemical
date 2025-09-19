@@ -23,11 +23,11 @@ func call_actual(phone : dyn Phone) : int {
 }
 
 func ret_dyn_obj1(phone : SmartPhone) : dyn Phone {
-    return phone;
+    return dyn<Phone>(phone);
 }
 
 func ret_dyn_obj2(phone : CellPhone) : dyn Phone {
-    return phone;
+    return dyn<Phone>(phone);
 }
 
 impl Phone for SmartPhone {
@@ -45,11 +45,11 @@ impl Phone for CellPhone {
 func test_dynamic_dispatch() {
     test("passing struct as dynamic object in function argument works - 1", () => {
         var p = SmartPhone { number1 : 99 }
-        return call_actual(p) == 99;
+        return call_actual(dyn<Phone>(p)) == 99;
     })
     test("passing struct as dynamic object in function argument works - 2", () => {
         var p = CellPhone { number2 : 22 }
-        return call_actual(p) == 22;
+        return call_actual(dyn<Phone>(p)) == 22;
     })
     test("getting dynamic object from function return works - 1", () => {
         var p = SmartPhone { number1 : 88 }
@@ -62,59 +62,59 @@ func test_dynamic_dispatch() {
         return o.call() == 66;
     })
     test("storing struct as dynamic object in var init works - 1", () => {
-        var p : dyn Phone = SmartPhone { number1 : 45 }
+        var p : dyn Phone = dyn<Phone>(SmartPhone { number1 : 45 })
         return p.call() == 45;
     })
     test("storing struct as dynamic object in var init works - 2", () => {
-        var p : dyn Phone = CellPhone { number2 : 35 }
+        var p : dyn Phone = dyn<Phone>(CellPhone { number2 : 35 })
         return p.call() == 35;
     })
     test("storing struct ref as dynamic object in var init works - 1", () => {
         var s = SmartPhone { number1 : 73 };
-        var p : dyn Phone = s
+        var p : dyn Phone = dyn<Phone>(s)
         return p.call() == 73;
     })
     test("storing struct ref as dynamic object in var init works - 2", () => {
         var c = CellPhone { number2 : 26 };
-        var p : dyn Phone = c
+        var p : dyn Phone = dyn<Phone>(c)
         return p.call() == 26;
     })
     test("assignment to dynamic object using struct works - 1", () => {
-        var p : dyn Phone = SmartPhone { number1 : 57 }
-        p = CellPhone { number2 : 73 }
+        var p : dyn Phone = dyn<Phone>(SmartPhone { number1 : 57 })
+        p = dyn<Phone>(CellPhone { number2 : 73 })
         return p.call() == 73;
     })
     test("assignment to dynamic object using struct works - 2", () => {
-        var p : dyn Phone = CellPhone { number2 : 35 }
-        p = SmartPhone { number1 : 26 }
+        var p : dyn Phone = dyn<Phone>(CellPhone { number2 : 35 })
+        p = dyn<Phone>(SmartPhone { number1 : 26 })
         return p.call() == 26;
     })
     test("assignment to dynamic object using struct ref works - 3", () => {
-        var p : dyn Phone = SmartPhone { number1 : 57 }
+        var p : dyn Phone = dyn<Phone>(SmartPhone { number1 : 57 })
         var o = CellPhone { number2 : 73 };
-        p = o
+        p = dyn<Phone>(o)
         return p.call() == 73;
     })
     test("assignment to dynamic object using struct ref works - 3", () => {
-        var p : dyn Phone = CellPhone { number2 : 35 }
+        var p : dyn Phone = dyn<Phone>(CellPhone { number2 : 35 })
         var o = SmartPhone { number1 : 26 };
-        p = o
+        p = dyn<Phone>(o)
         return p.call() == 26;
     })
     test("storing dynamic object as a struct member works - 2", () => {
-        var c = PhoneContainer { p : SmartPhone { number1 : 33 } }
+        var c = PhoneContainer { p : dyn<Phone>(SmartPhone { number1 : 33 }) }
         return c.p.call() == 33;
     })
     test("storing dynamic object as a struct member works - 1", () => {
-        var c = PhoneContainer { p : CellPhone { number2 : 55 } }
+        var c = PhoneContainer { p : dyn<Phone>(CellPhone { number2 : 55 }) }
         return c.p.call() == 55;
     })
     test("storing dynamic object in a array value works - 1", () => {
-        var p : []dyn Phone = [ SmartPhone { number1 : 11 } ]
+        var p : []dyn Phone = [ dyn<Phone>(SmartPhone { number1 : 11 }) ]
         return p[0].call() == 11;
     })
     test("storing dynamic object in a array value works - 2", () => {
-        var p : []dyn Phone = [ CellPhone { number2 : 88 } ]
+        var p : []dyn Phone = [ dyn<Phone>(CellPhone { number2 : 88 }) ]
         return p[0].call() == 88;
     })
 }

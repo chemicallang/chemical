@@ -56,17 +56,17 @@ public func test_external_interfaces() {
 
     test("external public normal interface works in current mod through dynamic call - 1", () => {
         var ext = ExtPubNormInterfaceImpl1 { a : 10, b : 20 }
-        return dyn_sum_pub_norm_inter(ext) == 30
+        return dyn_sum_pub_norm_inter(dyn<ExtPubNormInterface>(ext)) == 30
     })
 
     test("external public normal interface works in current mod through dynamic call - 2", () => {
         var ext = ExtPubNormInterfaceImpl2 { a : 10, b : 20, c : 30 }
-        return dyn_sum_pub_norm_inter(ext) == 60
+        return dyn_sum_pub_norm_inter(dyn<ExtPubNormInterface>(ext)) == 60
     })
 
     test("external public normal interface implemented in current mod works through dynamic call", () => {
         var ext = ExtPubNormInterfaceImpl3 { a : 10, b : 20, c : 30, d : 40 }
-        return dyn_sum_pub_norm_inter(ext) == 100
+        return dyn_sum_pub_norm_inter(dyn<ExtPubNormInterface>(ext)) == 100
     })
 
 }

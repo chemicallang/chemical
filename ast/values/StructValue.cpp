@@ -179,7 +179,7 @@ unsigned int StructValue::store_in_array(
 }
 
 llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    throw std::runtime_error("cannot allocate a struct without an identifier");
+    return llvm_allocate(gen, "", nullptr);
 }
 
 void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {

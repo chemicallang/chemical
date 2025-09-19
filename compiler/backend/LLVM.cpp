@@ -1384,27 +1384,32 @@ void BlockValue::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_bl
     calculated_value->llvm_conditional_branch(gen, then_block, otherwise_block);
 }
 
-llvm::Value* DynamicValue::llvm_pointer(Codegen &gen) {
+void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr) {
 
-    // allocating the fat pointer
-    const auto fat_ptr = (llvm::AllocaInst*) gen.llvm.CreateAlloca(gen.fat_pointer_type(), encoded_location());
+    const auto value = dyn_value->value;
+    const auto type = dyn_value->type;
 
     // get the object pointer
-    const auto ptr = value->llvm_pointer(gen);
+    llvm::Value* ptr;
+    if(value->kind() == ValueKind::StructValue) {
+        ptr = value->llvm_value(gen);
+    } else {
+        ptr = value->llvm_pointer(gen);
+    };
 
     // get the interface
     const auto inter_node = type->get_direct_linked_canonical_node();
     if(!inter_node || inter_node->kind() != ASTNodeKind::InterfaceDecl) {
-        gen.error("couldn't get interface declaration", this);
-        return fat_ptr;
+        gen.error("couldn't get interface declaration", dyn_value);
+        return;
     }
     const auto interface = inter_node->as_interface_def_unsafe();
 
     // get the impl decl
     const auto impl_node = value->getType()->get_direct_linked_canonical_node();
     if(!impl_node || impl_node->kind() != ASTNodeKind::StructDecl) {
-        gen.error("couldn't get implementation declaration", this);
-        return fat_ptr;
+        gen.error("couldn't get implementation declaration", dyn_value);
+        return;
     }
     const auto impl_decl = impl_node->as_struct_def_unsafe();
 
@@ -1412,76 +1417,45 @@ llvm::Value* DynamicValue::llvm_pointer(Codegen &gen) {
     const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);
 
     // assign the dynamic object
-    gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, encoded_location());
+    gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, dyn_value->encoded_location());
 
+}
+
+llvm::Value* DynamicValue::llvm_pointer(Codegen &gen) {
+    // allocating the fat pointer
+    const auto fat_ptr = (llvm::AllocaInst*) gen.llvm.CreateAlloca(gen.fat_pointer_type(), encoded_location());
+    dyn_initialize(gen, this, fat_ptr);
     return fat_ptr;
 }
 
-llvm::Value* DynamicValue::llvm_value(Codegen &gen, BaseType *type) {
+llvm::Value* DynamicValue::llvm_ret_value(Codegen &gen, Value *returnValue) {
+    // TODO make sure this argument corresponds to the struct
+    // TODO hardcoding the struct return index
+    auto structPassed = gen.current_function->getArg(0);
+    dyn_initialize(gen, this, structPassed);
+    return nullptr;
+}
 
-    // allocating the fat pointer
-    const auto fat_ptr = (llvm::AllocaInst*) gen.llvm.CreateAlloca(gen.fat_pointer_type(), encoded_location());
+void DynamicValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {
+    dyn_initialize(gen, this, lhsPtr);
+}
 
-    // get the object pointer
-    const auto ptr = value->llvm_pointer(gen);
-
-    // get the interface
-    const auto inter_node = type->get_direct_linked_canonical_node();
-    if(!inter_node || inter_node->kind() != ASTNodeKind::InterfaceDecl) {
-        gen.error("couldn't get interface declaration", this);
-        return fat_ptr;
-    }
-    const auto interface = inter_node->as_interface_def_unsafe();
-
-    // get the impl decl
-    const auto impl_node = value->getType()->get_direct_linked_canonical_node();
-    if(!impl_node || impl_node->kind() != ASTNodeKind::StructDecl) {
-        gen.error("couldn't get implementation declaration", this);
-        return fat_ptr;
-    }
-    const auto impl_decl = impl_node->as_struct_def_unsafe();
-
-    // get the vtable pointer
-    const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);
-
-    // assign the dynamic object
-    gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, encoded_location());
-
-    return fat_ptr;
+llvm::Value* DynamicValue::llvm_value(Codegen &gen, BaseType *expected_type) {
+    return llvm_pointer(gen);
 }
 
 llvm::AllocaInst* DynamicValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+    return (llvm::AllocaInst*) llvm_pointer(gen);
+}
 
-    // allocating the fat pointer
-    const auto fat_ptr = (llvm::AllocaInst*) gen.llvm.CreateAlloca(gen.fat_pointer_type(), encoded_location());
+unsigned int DynamicValue::store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
+    dyn_initialize(gen, this, allocated);
+    return index + 1;
+}
 
-    // get the object pointer
-    const auto ptr = value->llvm_pointer(gen);
-
-    // get the interface
-    const auto inter_node = type->get_direct_linked_canonical_node();
-    if(!inter_node || inter_node->kind() != ASTNodeKind::InterfaceDecl) {
-        gen.error("couldn't get interface declaration", this);
-        return fat_ptr;
-    }
-    const auto interface = inter_node->as_interface_def_unsafe();
-
-    // get the impl decl
-    const auto impl_node = value->getType()->get_direct_linked_canonical_node();
-    if(!impl_node || impl_node->kind() != ASTNodeKind::StructDecl) {
-        gen.error("couldn't get implementation declaration", this);
-        return fat_ptr;
-    }
-    const auto impl_decl = impl_node->as_struct_def_unsafe();
-
-    // get the vtable pointer
-    const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);
-
-    // assign the dynamic object
-    gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, encoded_location());
-
-    return fat_ptr;
-
+unsigned int DynamicValue::store_in_array(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
+    dyn_initialize(gen, this, allocated);
+    return index + 1;
 }
 
 // --------------------------------------- Statements

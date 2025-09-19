@@ -56,6 +56,7 @@ public func main() : int {
     test_capturing_lambda();
     test_in_value();
     test_failing_code();
+    test_core_ops();
     print_test_stats();
     return 0;
 }

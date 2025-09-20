@@ -51,6 +51,8 @@ public:
         return getType()->llvm_type(gen);
     }
 
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
 #endif

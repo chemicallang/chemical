@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 
 class IncDecValue : public Value {
 private:
@@ -53,7 +54,7 @@ public:
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override {
-        return value->llvm_type(gen);
+        return getType()->llvm_type(gen);
     }
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type) override;

@@ -8,7 +8,8 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>,
     core::ops::BitXor<int, int>,
     core::ops::Shl<int, int>,
     core::ops::Shr<int, int>,
-    core::ops::PartialEq<int> {
+    core::ops::PartialEq<int>,
+    core::ops::Index<int, int> {
 
     var a : int
     var b : int
@@ -73,6 +74,20 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>,
         return b != other;
     }
 
+    // TODO: can't take reference of the struct member directly (bug)
+    func take_ref(ptr : &int) : &int {
+        return ptr
+    }
+
+    @override
+    func index(&self, idx : int) : &int {
+        if(idx == 0) {
+            return take_ref(a)
+        } else {
+            return take_ref(b)
+        }
+    }
+
 }
 
 func test_arithmetic_bin_op_with_primitive() {
@@ -133,5 +148,23 @@ func test_arithmetic_bin_op_with_primitive() {
     test("eq operator with primitive type works", () => {
         var s = PrimArithBinOpStruct { a : 50, b : 9 }
         return (s != 9) == false && (s != 10) == true
+    })
+    test("index operator overload with primitive type works - 1", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        return s[0] == 50
+    })
+    test("index operator overload with primitive type works - 2", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        return s[1] == 9
+    })
+    test("index operator overload in assignment with primitive type works - 1", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        s[0] = 76
+        return s.a == 76
+    })
+    test("index operator overload in assignment with primitive type works - 2", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        s[1] = 97
+        return s.b == 97
     })
 }

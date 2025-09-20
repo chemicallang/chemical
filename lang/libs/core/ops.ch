@@ -124,13 +124,13 @@ public interface Shr<Output, Rhs> {
 // Comparisons & Ordering
 
 public interface PartialEq<Rhs = Self> {
-    func eq(&self, other : &Rhs) : bool;
-    func ne(&self, other : &Rhs) : bool;
+    func eq(&self, other : Rhs) : bool;
+    func ne(&self, other : Rhs) : bool;
 }
 
 public interface Eq : PartialEq {}   // marker for total equality
 
-enum Ordering { Less, Equal, Greater }
+public enum Ordering { Less, Equal, Greater }
 
 // this option exists in this module
 // is separate from the std::Option

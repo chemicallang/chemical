@@ -55,6 +55,8 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType* expected_type) final;
 
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+
 #endif
 
     void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser);

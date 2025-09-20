@@ -423,6 +423,26 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     }
 }
 
+llvm::AllocaInst* NegativeValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+    // check if operator is overloaded
+    const auto valType = value->getType();
+    const auto can_node = valType->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            const auto called = call_single_param_op_impl(gen, container, value, "neg");
+            if(llvm::isa<llvm::AllocaInst>(called)) {
+                return (llvm::AllocaInst*) called;
+            } else {
+                // basically alloca + store (without llvm_value)
+                return Value::llvm_alloca_store(gen, expected_type, called);
+            }
+        }
+    }
+    // normal flow
+    return Value::llvm_allocate(gen, identifier, expected_type);
+}
+
 llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     const auto val_type = value->getType();
     // check operator overloading
@@ -450,6 +470,26 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
         return gen.builder->CreateICmpEQ(val, gen.builder->getIntN(bitWidth, 0));
     }
     return gen.builder->CreateNot(val);
+}
+
+llvm::AllocaInst* NotValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+    const auto val_type = value->getType();
+    // check operator overloading
+    const auto can_node = val_type->get_linked_canonical_node(true, false);
+    if(can_node) {
+        const auto container = can_node->get_members_container();
+        if(container) {
+            const auto called = call_single_param_op_impl(gen, container, value, "not");
+            if(llvm::isa<llvm::AllocaInst>(called)) {
+                return (llvm::AllocaInst*) called;
+            } else {
+                // basically alloca + store (without llvm_value)
+                return Value::llvm_alloca_store(gen, expected_type, called);
+            }
+        }
+    }
+    // normal flow
+    return Value::llvm_allocate(gen, identifier, expected_type);
 }
 
 llvm::Value* NullValue::null_llvm_value(Codegen &gen) {

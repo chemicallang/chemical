@@ -879,7 +879,7 @@ Token Lexer::getNextToken() {
             }
         case ' ':
         case '\t':
-            // skip the whitespaces
+            // skip the whitespace
             provider.skipWhitespaces();
 #ifdef LSP_BUILD
             if(lex_whitespace) {

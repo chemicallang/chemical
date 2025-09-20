@@ -879,13 +879,13 @@ Token Lexer::getNextToken() {
             }
         case ' ':
         case '\t':
-#ifdef LSP_BUILD
-            if(lex_whitespace) {
-                return Token(TokenType::Whitespace, { WSCStr, provider.readWhitespaces() + (current == '\t' ? 4 : 1) }, pos);
-            }
-#endif
             // skip the whitespaces
             provider.skipWhitespaces();
+#ifdef LSP_BUILD
+            if(lex_whitespace) {
+                return Token(TokenType::Whitespace, { curr_data_ptr, (unsigned long long) (provider.current_data() - curr_data_ptr) }, pos);
+            }
+#endif
             return getNextToken();
         case '\n':
             return Token(TokenType::NewLine, view_str(NewlineCStr), pos);

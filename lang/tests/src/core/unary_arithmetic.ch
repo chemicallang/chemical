@@ -1,4 +1,4 @@
-struct PrimUnaryArithTestStruct : core::ops::Neg<int>, core::ops::Increment, core::ops::Decrement {
+struct PrimUnaryArithTestStruct : core::ops::Neg<int>, core::ops::Not<int>, core::ops::Increment, core::ops::Decrement {
 
     var a : int
     var b : int
@@ -6,6 +6,11 @@ struct PrimUnaryArithTestStruct : core::ops::Neg<int>, core::ops::Increment, cor
     @override
     func neg(&self) : int {
         return -a;
+    }
+
+    @override
+    func not(&self) : int {
+        return -b;
     }
 
     @override
@@ -46,7 +51,7 @@ struct PrimUnaryArithTestStruct : core::ops::Neg<int>, core::ops::Increment, cor
 
 }
 
-struct StructuralUnaryArithTestStruct : core::ops::Neg<StructuralUnaryArithTestStruct> {
+struct StructuralUnaryArithTestStruct : core::ops::Neg<StructuralUnaryArithTestStruct>, core::ops::Not<StructuralUnaryArithTestStruct> {
 
     var a : int
     var b : int
@@ -55,6 +60,14 @@ struct StructuralUnaryArithTestStruct : core::ops::Neg<StructuralUnaryArithTestS
     func neg(self) : StructuralUnaryArithTestStruct {
         return StructuralUnaryArithTestStruct {
             a : -a,
+            b : -b
+        }
+    }
+
+    @override
+    func not(self) : StructuralUnaryArithTestStruct {
+        return StructuralUnaryArithTestStruct {
+            a : a,
             b : -b
         }
     }
@@ -72,6 +85,16 @@ func test_unary_arithmetic() {
         var p = StructuralUnaryArithTestStruct { a : 23, b : 43 }
         var x = -p
         return x.a == -23 && x.b == -43
+    })
+    test("unary not operator overload with primitive output type works", () => {
+        var p = PrimUnaryArithTestStruct { a : 54, b : 32 }
+        var x = !p
+        return x == -32
+    })
+    test("unary not operator overload with structural output type works", () => {
+        var p = StructuralUnaryArithTestStruct { a : 23, b : 43 }
+        var x = !p
+        return x.a == 23 && x.b == -43
     })
     test("pre increment unary arithmetic operator overload works", () => {
         var p = PrimUnaryArithTestStruct { a : 25, b : 64 }

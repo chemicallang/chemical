@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
 
 // A value that's preceded by a not operator !value
@@ -45,6 +46,10 @@ public:
     }
 
 #ifdef COMPILER_BUILD
+
+    llvm::Type* llvm_type(Codegen &gen) override {
+        return getType()->llvm_type(gen);
+    }
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 

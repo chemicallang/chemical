@@ -1,4 +1,13 @@
-struct PrimArithBinOpStruct : core::ops::Add<int, int>, core::ops::Sub<int, int>, core::ops::Mul<int, int>, core::ops::Div<int, int>, core::ops::Rem<int, int> {
+struct PrimArithBinOpStruct : core::ops::Add<int, int>,
+    core::ops::Sub<int, int>,
+    core::ops::Mul<int, int>,
+    core::ops::Div<int, int>,
+    core::ops::Rem<int, int>,
+    core::ops::BitAnd<int, int>,
+    core::ops::BitOr<int, int>,
+    core::ops::BitXor<int, int>,
+    core::ops::Shl<int, int>,
+    core::ops::Shr<int, int> {
 
     var a : int
     var b : int
@@ -28,6 +37,31 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>, core::ops::Sub<int, int>
         return a % rhs;
     }
 
+    @override
+    func bitand(&self, rhs: int) : int {
+        return b & rhs;
+    }
+
+    @override
+    func bitor(&self, rhs: int) : int {
+        return a | rhs;
+    }
+
+    @override
+    func bitxor(&self, rhs: int) : int {
+        return b ^ rhs;
+    }
+
+    @override
+    func shl(&self, rhs: int) : int {
+        return a << rhs;
+    }
+
+    @override
+    func shr(&self, rhs: int) : int {
+        return b >> rhs;
+    }
+
 }
 
 func test_arithmetic_bin_op_with_primitive() {
@@ -55,5 +89,30 @@ func test_arithmetic_bin_op_with_primitive() {
         var s = PrimArithBinOpStruct { a : 50, b : 9 }
         var d = s % 7
         return d == 1
+    })
+    test("bitand operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 13, b : 14 }  // b = 1110
+        var d = s & 3                                    // 0011
+        return d == 2                                    // 1110 & 0011 = 0010
+    })
+    test("bitor operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 6, b : 14 }   // a = 0110
+        var d = s | 9                                    // 1001
+        return d == 15                                   // 0110 | 1001 = 1111
+    })
+    test("bitxor operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 6, b : 14 }   // b = 1110
+        var d = s ^ 5                                    // 0101
+        return d == 11                                   // 1110 ^ 0101 = 1011
+    })
+    test("shl operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 3, b : 9 }
+        var d = s << 2
+        return d == 12                                   // 3 << 2 = 12
+    })
+    test("shr operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 100, b : 40 }
+        var d = s >> 3
+        return d == 5                                    // 40 >> 3 = 5
     })
 }

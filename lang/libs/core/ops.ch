@@ -34,6 +34,10 @@ public interface Neg<Output> {
     func neg(&self) : Output
 }
 
+public interface Not<Output> {
+    func not(&self) : Output;
+}
+
 public interface Increment {
     // ++x
     func inc_pre(&mut self) : &Self;
@@ -96,29 +100,25 @@ public interface ShrAssign<Rhs = Self> {
 // Bitwise (integral only)
 
 public interface BitAnd<Output, Rhs = Self> {
-    func bitand(self, rhs: Rhs) : Output;
+    func bitand(&self, rhs: Rhs) : Output;
 }
 
 public interface BitOr<Output, Rhs = Self> {
-    func bitor(self, rhs: Rhs) : Output;
+    func bitor(&self, rhs: Rhs) : Output;
 }
 
 public interface BitXor<Output, Rhs = Self> {
-    func bitxor(self, rhs: Rhs) : Output;
-}
-
-public interface Not<Output> {
-    func not(self) : Output;
+    func bitxor(&self, rhs: Rhs) : Output;
 }
 
 // Shifts (Rhs typically unsigned/sized integer)
 
 public interface Shl<Output, Rhs> {
-    func shl(self, rhs: Rhs) : Output;
+    func shl(&self, rhs: Rhs) : Output;
 }
 
 public interface Shr<Output, Rhs> {
-    func shr(self, rhs: Rhs) : Output;
+    func shr(&self, rhs: Rhs) : Output;
 }
 
 // Comparisons & Ordering

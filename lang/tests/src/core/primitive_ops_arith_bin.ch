@@ -1,4 +1,5 @@
-struct AddOpTestStruct : core::ops::Add<int, int>, core::ops::Sub<int, int>, core::ops::Mul<int, int>, core::ops::Div<int, int>, core::ops::Rem<int, int> {
+struct PrimArithBinOpStruct : core::ops::Add<int, int>, core::ops::Sub<int, int>, core::ops::Mul<int, int>, core::ops::Div<int, int>, core::ops::Rem<int, int> {
+
     var a : int
     var b : int
 
@@ -29,29 +30,29 @@ struct AddOpTestStruct : core::ops::Add<int, int>, core::ops::Sub<int, int>, cor
 
 }
 
-func test_core_ops() {
+func test_arithmetic_bin_op_with_primitive() {
     test("add operator with primitive type works", () => {
-        var s = AddOpTestStruct { a : 13, b : 6 }
+        var s = PrimArithBinOpStruct { a : 13, b : 6 }
         var d = s + 3
         return d == 16
     })
     test("sub operator with primitive type works", () => {
-        var s = AddOpTestStruct { a : 13, b : 8 }
+        var s = PrimArithBinOpStruct { a : 13, b : 8 }
         var d = s - 4
         return d == 4
     })
     test("mul operator with primitive type works", () => {
-        var s = AddOpTestStruct { a : 7, b : 3 }
+        var s = PrimArithBinOpStruct { a : 7, b : 3 }
         var d = s * 7
         return d == 49
     })
-    test("mul operator with primitive type works", () => {
-        var s = AddOpTestStruct { a : 7, b : 36 }
+    test("div operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 7, b : 36 }
         var d = s / 6
         return d == 6
     })
-    test("mul operator with primitive type works", () => {
-        var s = AddOpTestStruct { a : 50, b : 9 }
+    test("mod operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
         var d = s % 7
         return d == 1
     })

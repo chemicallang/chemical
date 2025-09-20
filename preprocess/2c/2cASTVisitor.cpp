@@ -1913,6 +1913,14 @@ void destruct_assign_lhs(ToCAstVisitor& visitor, Value* lhs, FunctionDeclaration
     visitor.new_line_and_indent();
 }
 
+void call_arg_accept(ToCAstVisitor& visitor, FunctionParam* param, Value* value) {
+    const auto param_type = param->type;
+    if(param_type->get_direct_linked_canonical_node() != nullptr) {
+        visitor.write('&');
+    }
+    visitor.accept_mutating_value(param_type, value, false);
+}
+
 void call_single_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value, const chem::string_view& name) {
     if(func->params.size() != 1) {
         visitor.write('0');
@@ -1930,14 +1938,14 @@ void call_single_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* 
         visitor.write("(&");
         visitor.write(temp_name);
         visitor.write(", ");
-        visitor.accept_mutating_value(func->params[0]->known_type(), value, false);
+        call_arg_accept(visitor, func->params[0], value);
         visitor.write("); ");
         visitor.write(temp_name);
         visitor.write("; })");
     } else {
         visitor.mangle(func);
         visitor.write('(');
-        visitor.accept_mutating_value(func->params[0]->known_type(), value, false);
+        call_arg_accept(visitor, func->params[0], value);
         visitor.write(')');
     }
 }
@@ -1988,18 +1996,18 @@ void call_two_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* fun
         visitor.write("(&");
         visitor.write(temp_name);
         visitor.write(", ");
-        visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
+        call_arg_accept(visitor, func->params[0], value1);
         visitor.write(", ");
-        visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
+        call_arg_accept(visitor, func->params[1], value2);
         visitor.write("); ");
         visitor.write(temp_name);
         visitor.write("; })");
     } else {
         visitor.mangle(func);
         visitor.write('(');
-        visitor.accept_mutating_value(func->params[0]->known_type(), value1, false);
+        call_arg_accept(visitor, func->params[0], value1);
         visitor.write(", ");
-        visitor.accept_mutating_value(func->params[1]->known_type(), value2, false);
+        call_arg_accept(visitor, func->params[1], value2);
         visitor.write(')');
     }
 }

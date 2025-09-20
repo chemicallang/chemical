@@ -766,6 +766,10 @@ bool ASTProcessor::import_chemical_file(
         bool use_job_allocator
 ) {
 
+    if(abs_path == "D:\\Programming\\Cpp\\zig-bootstrap\\chemical\\lang\\tests\\src\\core\\structural_ops_arith_bin.ch") {
+        int i = 0;
+    }
+
     result.abs_path = abs_path;
     result.file_id = fileId;
     result.private_symbol_range = { 0, 0 };

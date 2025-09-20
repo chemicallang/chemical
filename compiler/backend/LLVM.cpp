@@ -555,6 +555,7 @@ llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &id
 }
 
 llvm::Value *IndexOperator::llvm_pointer(Codegen &gen)  {
+    // check if operator is overloaded
     const auto can_node = parent_val->getType()->get_linked_canonical_node(true, false);
     if(can_node) {
         const auto container = can_node->get_members_container();
@@ -562,6 +563,7 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen)  {
             return call_two_param_op_impl(gen, container, parent_val, idx, "index");
         }
     }
+    // normal flow
     auto pure_type = parent_val->getType()->canonical();
     if(pure_type->is_pointer()) {
         auto parent_value = parent_val->llvm_value(gen, nullptr);
@@ -860,6 +862,26 @@ llvm::Value* IncDecValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     const auto storeInst = gen.builder->CreateStore(result, value_pointer);
     gen.di.instr(storeInst, this);
     return post ? value_loaded : result;
+}
+
+llvm::AllocaInst* IncDecValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
+    const auto val_type = value->getType();
+    // check operator overloading
+    const auto can_type = val_type->get_linked_canonical_node(true, false);
+    if(can_type) {
+        const auto container = can_type->get_members_container();
+        if(container) {
+            const auto called = call_single_param_op_impl(gen, container, value, get_overloaded_func_name());
+            if(llvm::isa<llvm::AllocaInst>(called)) {
+                return (llvm::AllocaInst*) called;
+            } else {
+                // basically alloca + store (without llvm_value)
+                return Value::llvm_alloca_store(gen, expected_type, called);
+            }
+        }
+    }
+    // normal flow
+    return Value::llvm_allocate(gen, identifier, expected_type);
 }
 
 llvm::Type *CastedValue::llvm_type(Codegen &gen) {

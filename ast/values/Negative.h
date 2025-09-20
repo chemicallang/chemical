@@ -8,6 +8,7 @@
 
 #include <memory>
 #include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 
 // A value that's preceded by a negative operator -value
 class NegativeValue : public Value {
@@ -49,7 +50,7 @@ public:
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) final {
-        return value->llvm_type(gen);
+        return getType()->llvm_type(gen);
     }
 
     llvm::Value* llvm_value(Codegen &gen, BaseType* expected_type) final;

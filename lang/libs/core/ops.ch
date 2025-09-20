@@ -30,18 +30,18 @@ public interface Rem<Output, Rhs = Self> {
 
 // Unary Arithmetic
 
-interface Neg<Output> {
-    func neg(self) : Output
+public interface Neg<Output> {
+    func neg(&self) : Output
 }
 
-interface Increment {
+public interface Increment {
     // ++x
     func inc_pre(&mut self) : &Self;
     // x++
     func inc_post(&mut self) : Self;
 }
 
-interface Decrement {
+public interface Decrement {
     // --x
     func dec_pre(&mut self) : &Self;
     // x--
@@ -51,84 +51,84 @@ interface Decrement {
 // Compound Assignment
 
 // arithmetic assign
-interface AddAssign<Rhs = Self> {
+public interface AddAssign<Rhs = Self> {
     func add_assign(&mut self, rhs: Rhs);
 }
 
-interface SubAssign<Rhs = Self> {
+public interface SubAssign<Rhs = Self> {
     func sub_assign(&mut self, rhs: Rhs);
 }
 
-interface MulAssign<Rhs = Self> {
+public interface MulAssign<Rhs = Self> {
     func mul_assign(&mut self, rhs: Rhs);
 }
 
-interface DivAssign<Rhs = Self> {
+public interface DivAssign<Rhs = Self> {
     func div_assign(&mut self, rhs: Rhs);
 }
 
-interface RemAssign<Rhs = Self> {
+public interface RemAssign<Rhs = Self> {
     func rem_assign(&mut self, rhs: Rhs);
 }
 
 // bitwise assign
-interface BitAndAssign<Rhs = Self> {
+public interface BitAndAssign<Rhs = Self> {
     func bitand_assign(&mut self, rhs: Rhs);
 }
 
-interface BitOrAssign<Rhs = Self> {
+public interface BitOrAssign<Rhs = Self> {
     func bitor_assign(&mut self, rhs: Rhs);
 }
 
-interface BitXorAssign<Rhs = Self> {
+public interface BitXorAssign<Rhs = Self> {
     func bitxor_assign(&mut self, rhs: Rhs);
 }
 
 // shift assign
-interface ShlAssign<Rhs = Self> {
+public interface ShlAssign<Rhs = Self> {
     func shl_assign(&mut self, rhs: Rhs);
 }
 
-interface ShrAssign<Rhs = Self> {
+public interface ShrAssign<Rhs = Self> {
     func shr_assign(&mut self, rhs: Rhs);
 }
 
 // Bitwise (integral only)
 
-interface BitAnd<Output, Rhs = Self> {
+public interface BitAnd<Output, Rhs = Self> {
     func bitand(self, rhs: Rhs) : Output;
 }
 
-interface BitOr<Output, Rhs = Self> {
+public interface BitOr<Output, Rhs = Self> {
     func bitor(self, rhs: Rhs) : Output;
 }
 
-interface BitXor<Output, Rhs = Self> {
+public interface BitXor<Output, Rhs = Self> {
     func bitxor(self, rhs: Rhs) : Output;
 }
 
-interface Not<Output> {
+public interface Not<Output> {
     func not(self) : Output;
 }
 
 // Shifts (Rhs typically unsigned/sized integer)
 
-interface Shl<Output, Rhs> {
+public interface Shl<Output, Rhs> {
     func shl(self, rhs: Rhs) : Output;
 }
 
-interface Shr<Output, Rhs> {
+public interface Shr<Output, Rhs> {
     func shr(self, rhs: Rhs) : Output;
 }
 
 // Comparisons & Ordering
 
-interface PartialEq<Rhs = Self> {
+public interface PartialEq<Rhs = Self> {
     func eq(&self, other : &Rhs) : bool;
     func ne(&self, other : &Rhs) : bool;
 }
 
-interface Eq : PartialEq {}   // marker for total equality
+public interface Eq : PartialEq {}   // marker for total equality
 
 enum Ordering { Less, Equal, Greater }
 
@@ -139,11 +139,11 @@ public variant Option<T> {
     None()
 }
 
-interface PartialOrd<OrderingP = Ordering, Rhs = Self> {
+public interface PartialOrd<OrderingP = Ordering, Rhs = Self> {
     func partial_cmp(&self, other : &Rhs) : Option<OrderingP>;
 }
 
-interface Ord : PartialOrd {
+public interface Ord : PartialOrd {
 
     func cmp(&self, other : &Self) : Ordering;
 
@@ -167,26 +167,26 @@ interface Ord : PartialOrd {
 
 // Indexing
 
-interface Index<Idx, Output> {
+public interface Index<Idx, Output> {
     func index(&self, idx : Idx) : &Output;
 }
 
-interface IndexMut<Idx, Output> : Index<Idx, Output> {
+public interface IndexMut<Idx, Output> : Index<Idx, Output> {
     func index(&mut self, idx : Idx) : &mut Output;
 }
 
 /** TODO
 // Call (function call operator)
 
-interface Fn<Args...> {
+public interface Fn<Args...> {
     func call(&self, args: Args...) -> Output;
 }
 
-interface FnMut<Args...> {
+public interface FnMut<Args...> {
     func call_mut(&mut self, args: Args...) -> Output;
 }
 
-interface FnOnce<Args...> {
+public interface FnOnce<Args...> {
     func call_once(self, args: Args...) -> Output;
 }
 **/

@@ -1164,10 +1164,14 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
     if(linked && linked->as_namespace()) {
         return;
     }
-    if(is_value_param_pointer_like(current)) {
+    if(is_value_type_pointer_like(current)) {
         visitor.write("->");
         return;
     }
+//    if(is_value_param_pointer_like(current)) {
+//        visitor.write("->");
+//        return;
+//    }
 //    if(linked && linked->as_base_func_param()){
 //        const auto node = linked->as_base_func_param()->type->get_direct_linked_node();
 //        if(node && (node->as_struct_def() || node->as_variant_def())) {
@@ -3415,6 +3419,7 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
         if(!external_declare) {
             create_v_table_type(visitor, def);
         }
+
         // either create or declare the vtable, depending on whether it has been declared before
         for(auto& user : def->users) {
             const auto linked_struct = user.first;
@@ -3432,30 +3437,28 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
                 if(!has_vtable_impl) {
 
                     // declare contained functions for each implementation
-                    for (auto& use: def->users) {
-                        def->active_user = use.first;
-                        for (auto& func: def->instantiated_functions()) {
-                            if (func->has_self_param()) {
-                                declare_contained_func(this, func, false, use.first);
-                            }
+                    auto& use = user;
+                    def->active_user = use.first;
+                    for (auto& func: def->instantiated_functions()) {
+                        if (func->has_self_param()) {
+                            declare_contained_func(this, func, false, use.first);
                         }
                     }
                     def->active_user = nullptr;
 
                     // create the v table for each implementation
                     create_v_table(visitor, def, linked_struct);
+
+
+                    // setting it true, that vtable implementation exists
+#ifdef COMPILER_BUILD
+                    def->vtable_pointers[linked_struct] = nullptr;
+#else
+                    def->users[linked_struct] = true;
+#endif
+
                 }
 
-                // setting it true, that vtable implementation exists
-#ifdef COMPILER_BUILD
-                if(!has_vtable_impl) {
-                    def->vtable_pointers[linked_struct] = nullptr;
-                }
-#else
-                if(!has_vtable_impl) {
-                    def->users[linked_struct] = true;
-                }
-#endif
             }
         }
     }

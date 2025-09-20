@@ -766,10 +766,6 @@ bool ASTProcessor::import_chemical_file(
         bool use_job_allocator
 ) {
 
-    if(abs_path == "D:\\Programming\\Cpp\\zig-bootstrap\\chemical\\lang\\tests\\src\\core\\structural_ops_arith_bin.ch") {
-        int i = 0;
-    }
-
     result.abs_path = abs_path;
     result.file_id = fileId;
     result.private_symbol_range = { 0, 0 };
@@ -1128,17 +1124,13 @@ int ASTProcessor::translate_module(
     // we will implement the direct dependencies of this module
     for(const auto dep : dependencies) {
         for(auto& file : dep->direct_files) {
-            if(file.result != nullptr) {
-                auto& body = file.result->unit.scope.body;
+            auto& body = file.result->unit.scope.body;
 
 #ifdef DEBUG
-                c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
+            c_visitor.debug_comment(chem::string_view(("ExtImplement " + file.abs_path)));
 #endif
 
-                external_implement_in_c(c_visitor, body, file.abs_path);
-            } else {
-                throw std::runtime_error("result is null");
-            }
+            external_implement_in_c(c_visitor, body, file.abs_path);
         }
     }
 

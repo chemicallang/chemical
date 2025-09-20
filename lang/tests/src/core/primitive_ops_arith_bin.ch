@@ -7,7 +7,8 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>,
     core::ops::BitOr<int, int>,
     core::ops::BitXor<int, int>,
     core::ops::Shl<int, int>,
-    core::ops::Shr<int, int> {
+    core::ops::Shr<int, int>,
+    core::ops::PartialEq<int> {
 
     var a : int
     var b : int
@@ -62,6 +63,16 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>,
         return b >> rhs;
     }
 
+    @override
+    func eq(&self, other : int) : bool {
+        return a == other;
+    }
+
+    @override
+    func ne(&self, other : int) : bool {
+        return b != other;
+    }
+
 }
 
 func test_arithmetic_bin_op_with_primitive() {
@@ -114,5 +125,13 @@ func test_arithmetic_bin_op_with_primitive() {
         var s = PrimArithBinOpStruct { a : 100, b : 40 }
         var d = s >> 3
         return d == 5                                    // 40 >> 3 = 5
+    })
+    test("eq operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        return s == 50 && (s == 9) == false
+    })
+    test("eq operator with primitive type works", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        return (s != 9) == false && (s != 10) == true
     })
 }

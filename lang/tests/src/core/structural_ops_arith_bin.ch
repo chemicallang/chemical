@@ -7,7 +7,8 @@ struct StructuralArithBinOpStruct : core::ops::Add<StructuralArithBinOpStruct, S
     core::ops::BitOr<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
     core::ops::BitXor<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
     core::ops::Shl<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
-    core::ops::Shr<StructuralArithBinOpStruct, StructuralArithBinOpStruct> {
+    core::ops::Shr<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
+    core::ops::PartialEq<&StructuralArithBinOpStruct> {
 
     var a : int
     var b : int
@@ -92,6 +93,16 @@ struct StructuralArithBinOpStruct : core::ops::Add<StructuralArithBinOpStruct, S
         }
     }
 
+    @override
+    func eq(&self, other : &StructuralArithBinOpStruct) : bool {
+        return a == other.a && b == other.b
+    }
+
+    @override
+    func ne(&self, other : &StructuralArithBinOpStruct) : bool {
+        return a != other.a && b != other.b
+    }
+
 }
 
 func test_arithmetic_bin_op_with_structure() {
@@ -154,5 +165,17 @@ func test_arithmetic_bin_op_with_structure() {
         var b = StructuralArithBinOpStruct { a : 2, b : 2 }
         var c = a >> b
         return c.a == (a.a >> b.a) && c.b == (a.b >> b.b)     // 5, 10
+    })
+    test("eq operator with structure type works", () => {
+        var a = StructuralArithBinOpStruct { a : 20, b : 40 }
+        var b = StructuralArithBinOpStruct { a : 20, b : 40 }
+        var c = StructuralArithBinOpStruct { a : 33, b : 45 }
+        return (a == b) && (a == c) == false && (b == c) == false
+    })
+    test("ne operator with structure type works", () => {
+        var a = StructuralArithBinOpStruct { a : 20, b : 40 }
+        var b = StructuralArithBinOpStruct { a : 20, b : 40 }
+        var c = StructuralArithBinOpStruct { a : 34, b : 30 }
+        return (a != b) == false && (a != c) == true && (b != c) == true
     })
 }

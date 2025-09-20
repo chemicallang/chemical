@@ -162,7 +162,7 @@ bool Parser::parseParameterList(
                 const auto loc = loc_single(t);
                 auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, t.value), TypeLoc(typeBuilder.getVoidType(), loc), index, nullptr, true, parent_node, loc);
 #ifdef LSP_BUILD
-                id->linked = param;
+                t.linked = param;
 #endif
                 parameters.emplace_back(param);
                 index++;

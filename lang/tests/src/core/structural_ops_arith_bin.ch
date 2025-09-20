@@ -9,7 +9,8 @@ struct StructuralArithBinOpStruct : core::ops::Add<StructuralArithBinOpStruct, S
     core::ops::Shl<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
     core::ops::Shr<StructuralArithBinOpStruct, StructuralArithBinOpStruct>,
     core::ops::PartialEq<&StructuralArithBinOpStruct>,
-    core::ops::Ord {
+    core::ops::Ord,
+    core::ops::Index<&StructuralArithBinOpStruct, StructuralArithBinOpStruct> {
 
     var a : int
     var b : int
@@ -140,6 +141,11 @@ struct StructuralArithBinOpStruct : core::ops::Add<StructuralArithBinOpStruct, S
         return cmp(other) in core::ops::Ordering.Greater, core::ops::Ordering.Equal
     }
 
+    @override
+    func index(&self, idx : &StructuralArithBinOpStruct) : &StructuralArithBinOpStruct {
+        return idx;
+    }
+
 }
 
 func test_arithmetic_bin_op_with_structure() {
@@ -238,5 +244,15 @@ func test_arithmetic_bin_op_with_structure() {
         var b = StructuralArithBinOpStruct { a : 50, b : 60 }
         var c = StructuralArithBinOpStruct { a : 40, b : 50 }
         return (a >= b) && (a >= c) && !(c >= a)
+    })
+    test("index operator overloaded with structure type works", () => {
+        var a = StructuralArithBinOpStruct { a : 21, b : 87 }
+        var b = StructuralArithBinOpStruct { a : 67, b : 98 }
+        return a[b].a == 67 && a[b].b == 98
+    })
+    test("index operator overloaded with structure type works", () => {
+        var a = StructuralArithBinOpStruct { a : 21, b : 87 }
+        var b = StructuralArithBinOpStruct { a : 67, b : 98 }
+        return a[a].a == 21 && a[a].b == 87
     })
 }

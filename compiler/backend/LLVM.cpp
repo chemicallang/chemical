@@ -514,7 +514,7 @@ llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &id
     }
 }
 
-llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
+llvm::Value *IndexOperator::llvm_pointer(Codegen &gen)  {
     const auto can_node = parent_val->getType()->get_linked_canonical_node(true, false);
     if(can_node) {
         const auto container = can_node->get_members_container();
@@ -522,6 +522,17 @@ llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
             return call_two_param_op_impl(gen, container, parent_val, idx, "index");
         }
     }
+    auto pure_type = parent_val->getType()->canonical();
+    if(pure_type->is_pointer()) {
+        auto parent_value = parent_val->llvm_value(gen, nullptr);
+        auto child_type = pure_type->create_child_type(gen.allocator);
+        return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
+    } else {
+        return elem_pointer(gen, parent_val->llvm_type(gen), parent_val->llvm_pointer(gen));
+    }
+}
+
+llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
     return Value::load_value(gen, getType(), llvm_type(gen), llvm_pointer(gen), encoded_location());
 }
 

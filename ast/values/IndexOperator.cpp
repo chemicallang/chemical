@@ -31,17 +31,6 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::V
     return gen.builder->CreateGEP(type, ptr, idxList, "", gen.inbounds);
 }
 
-llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
-    auto pure_type = parent_val->getType()->canonical();
-    if(pure_type->is_pointer()) {
-        auto parent_value = parent_val->llvm_value(gen, nullptr);
-        auto child_type = pure_type->create_child_type(gen.allocator);
-        return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
-    } else {
-        return elem_pointer(gen, parent_val->llvm_type(gen), parent_val->llvm_pointer(gen));
-    }
-}
-
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
     const auto parent_type = parent->getType()->canonical();
     if (parent_type->kind() == BaseTypeKind::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {
@@ -97,7 +86,12 @@ void IndexOperator::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagn
                     setType(typeBuilder.getVoidType());
                     return;
                 }
-                setType(func->returnType);
+                const auto childType = get_child_type(typeBuilder, func->returnType);
+                if(childType) {
+                    setType(childType);
+                } else {
+                    setType(typeBuilder.getVoidType());
+                }
             } else if(child->kind() == ASTNodeKind::MultiFunctionNode) {
                 const auto node = child->as_multi_func_node_unsafe();
                 std::vector<Value*> args { parent_val, idx };

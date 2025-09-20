@@ -6397,7 +6397,9 @@ void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
     if(can_node) {
         const auto container = can_node->get_members_container();
         if(container) {
+            write("*(");
             call_two_arg_operator(*this, container, "index", op->parent_val, op->idx);
+            write(')');
             return;
         }
     }

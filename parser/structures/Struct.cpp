@@ -411,6 +411,7 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& passed_allocator, Acce
         // parsing the inheritance list
         if(consumeToken(TokenType::ColonSym)) {
             do {
+                consumeNewLines();
                 auto in_spec = parseAccessSpecifier(AccessSpecifier::Public);
                 auto type = parseTypeLoc(allocator);
                 if(!type) {

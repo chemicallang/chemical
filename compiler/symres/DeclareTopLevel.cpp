@@ -109,6 +109,9 @@ void TopLevelDeclSymDeclare::VisitEnumDecl(EnumDeclaration* node) {
 void TopLevelDeclSymDeclare::VisitFunctionDecl(FunctionDeclaration* node) {
     // extension functions do not declare themselves
     if (!node->isExtensionFn()) {
+        if(node->name_view() == "add" && node->parent() && node->parent()->kind() == ASTNodeKind::StructDecl) {
+            int i = 0;
+        }
         linker.declare_function(node->name_view(), node, node->specifier());
     }
 }

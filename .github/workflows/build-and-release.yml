@@ -278,7 +278,7 @@ jobs:
           path: chemical-bootstrap/out/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
-      # … the rest of your Linux steps unchanged …
+      # Configure chemical project (uses musl)
       - name: Configure Chemical Project (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |

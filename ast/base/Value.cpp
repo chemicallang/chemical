@@ -665,6 +665,11 @@ bool Value::is_ref_l_value() {
     switch(kind) {
         case ValueKind::StructValue:
             return true;
+        case ValueKind::AccessChain:
+            if(as_access_chain_unsafe()->values.back()->kind() == ValueKind::IndexOperator) {
+                return true;
+            }
+            // intentional fallthrough
         default: {
             const auto linked = linked_node();
             return linked && is_node_assignable(linked);

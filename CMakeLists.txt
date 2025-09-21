@@ -45,7 +45,6 @@ if (VERBOSE)
 endif ()
 
 # enable the address sanitizer to catch bugs
-option(USE_MUSL "Build with musl libc on linux" ON)
 option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds" OFF)
 
 # For printing the version in the compiler

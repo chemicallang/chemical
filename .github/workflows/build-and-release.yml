@@ -248,7 +248,7 @@ jobs:
       - name: Install Zig (adds `zig` to PATH)
         uses: mlugg/setup-zig@v1
         with:
-          version: 'latest'   # or pin a specific version
+          version: 'latest'
 
       - name: Create musl wrapper compilers (zig-based)
         run: |

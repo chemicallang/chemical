@@ -244,27 +244,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git
 
-      # Install zig
-      - name: Install Zig (adds `zig` to PATH)
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 'latest'
-
-      - name: Create musl wrapper compilers (zig-based)
-        run: |
-          sudo tee /usr/local/bin/musl-clang > /dev/null <<'EOF'
-          #!/usr/bin/env bash
-          exec zig cc -target x86_64-linux-musl "$@"
-          EOF
-          sudo tee /usr/local/bin/musl-clang++ > /dev/null <<'EOF'
-          #!/usr/bin/env bash
-          exec zig c++ -target x86_64-linux-musl "$@"
-          EOF
-          sudo chmod +x /usr/local/bin/musl-clang /usr/local/bin/musl-clang++
-          echo "Wrapper compilers created:"
-          /usr/local/bin/musl-clang++ --version || true
-          which /usr/local/bin/musl-clang++
-
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
         id: get-sha
@@ -298,30 +277,30 @@ jobs:
           path: chemical-bootstrap/out/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
 
-      # Configure chemical project
+      # … the rest of your Linux steps unchanged …
       - name: Configure Chemical Project (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/release
-          cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/local/bin/musl-clang -DCMAKE_CXX_COMPILER=/usr/local/bin/musl-clang++
+          cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=Release
 
       # Build the compiler target
       - name: Build Chemical LLVM Based Compiler (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out/build/x64-release-wsl --config Release --target Compiler -- -j$(nproc)
+          cmake --build out/build/x64-release-wsl --config Release --target Compiler
 
       # Build the tcc compiler target
       - name: Build Chemical TCC Based Compiler (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out/build/x64-release-wsl --config Release --target TCCCompiler -- -j$(nproc)
+          cmake --build out/build/x64-release-wsl --config Release --target TCCCompiler
 
       # Build the lsp target
       - name: Build Chemical LSP (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
-          cmake --build out/build/x64-release-wsl --config Release --target ChemicalLsp -- -j$(nproc)
+          cmake --build out/build/x64-release-wsl --config Release --target ChemicalLsp
 
       # Run the release packaging script to create ZIP files (Linux)
       - name: Run release packaging script (Linux)
@@ -441,3 +420,189 @@ jobs:
         with:
           name: linux-x86-64-lsp.zip
           path: chemical-bootstrap/chemical/out/release/linux-x86-64-lsp.zip
+
+  build-alpine:
+    name: Build on Alpine Linux
+    container:
+      image: alpine:3.20
+    runs-on: ubuntu-latest
+    # Only run when the commit message contains "releaseIt"
+    if: contains(github.event.head_commit.message, 'releaseIt')
+    steps:
+      # ––– Checkout repositories –––
+      - name: Checkout chemical-bootstrap repository
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical-bootstrap
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap
+
+      # Checkout chemical repository inside chemical-bootstrap
+      - name: Checkout chemical repository inside chemical-bootstrap
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap/chemical
+          submodules: recursive
+
+      # ––– Install dependencies –––
+      - name: Install dependencies
+        run: |
+          apk add --no-cache \
+            build-base \
+            cmake \
+            ninja \
+            git \
+            bash \
+            python3 \
+            curl \
+            musl-dev \
+            linux-headers
+
+      # Get the SHA of the chemical-bootstrap repository
+      - name: Get SHA of chemical-bootstrap repository
+        id: get-sha
+        working-directory: chemical-bootstrap
+        run: |
+          SHA=$(git rev-parse HEAD | xargs)
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+
+      # split cache into restore + save
+      - name: Restore cache for chemical-bootstrap/out
+        id: bootstrap-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: chemical-bootstrap/out/
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
+
+      # Build the chemical-bootstrap project (Linux) (only if not cached)
+      - name: Build chemical-bootstrap (Linux)
+        working-directory: chemical-bootstrap
+        run: |
+          chmod +x build
+          ./build native-linux-gnu native
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
+
+      # saves the out folder in cache
+      - name: Save cache for chemical-bootstrap/out
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
+        id: bootstrap-cache-save
+        uses: actions/cache/save@v4
+        with:
+          path: chemical-bootstrap/out/
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}
+
+      # … the rest of your Linux steps unchanged …
+      - name: Configure Chemical Project (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          mkdir -p out/release
+          cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=Release
+
+      # Build the compiler target
+      - name: Build Chemical LLVM Based Compiler (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          cmake --build out/build/x64-release-wsl --config Release --target Compiler
+
+      # Build the tcc compiler target
+      - name: Build Chemical TCC Based Compiler (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          cmake --build out/build/x64-release-wsl --config Release --target TCCCompiler
+
+      # Build the lsp target
+      - name: Build Chemical LSP (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          cmake --build out/build/x64-release-wsl --config Release --target ChemicalLsp
+
+      # Run the release packaging script to create ZIP files (Linux)
+      - name: Run release packaging script (Linux)
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          chmod +x release.sh
+          ./release.sh
+
+      # ––– Get information about the latest release –––
+      - name: Get latest release info
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const releasesResponse = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
+
+      # ––– Check and (conditionally) upload Linux archives –––
+      - name: Check if linux-x86-64-alpine.zip exists in latest release
+        id: check_linux_x64_alpine
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'linux-x86-64-alpine.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload linux-x86-64-alpine.zip to release if not exists
+        if: steps.check_linux_x64_alpine.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: chemical-bootstrap/chemical/out/release/linux-x86-64-alpine.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save linux-x86-64.zip as artifact if already exists
+        if: steps.check_linux_x64_alpine.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86-64.zip
+          path: chemical-bootstrap/chemical/out/release/linux-x86-64-alpine.zip
+
+      - name: Check if linux-x86-64-tcc-alpine.zip exists in latest release
+        id: check_linux_x64_tcc_alpine
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+            });
+            const exists = release.assets.some(asset => asset.name === 'linux-x86-64-tcc-alpine.zip');
+            core.setOutput("exists", exists.toString());
+
+      - name: Upload linux-x86-64-tcc-alpine.zip to release if not exists
+        if: steps.check_linux_x64_tcc_alpine.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc-alpine.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Save linux-x86-64-tcc-alpine.zip as artifact if already exists
+        if: steps.check_linux_x64_tcc_alpine.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86-64-tcc.zip
+          path: chemical-bootstrap/chemical/out/release/linux-x86-64-tcc-alpine.zip

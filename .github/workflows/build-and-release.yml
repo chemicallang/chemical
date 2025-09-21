@@ -283,7 +283,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/release
-          CC="musl-gcc" CXX="g++" cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-static"
+          cmake -S . -B out/build/x64-release-wsl -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=musl-gcc -DCMAKE_CXX_COMPILER=musl-g++
 
       # Build the compiler target
       - name: Build Chemical LLVM Based Compiler (Linux)

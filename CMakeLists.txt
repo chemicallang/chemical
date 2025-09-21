@@ -45,6 +45,7 @@ if (VERBOSE)
 endif ()
 
 # enable the address sanitizer to catch bugs
+option(USE_MUSL "Build with musl libc on linux" ON)
 option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds" OFF)
 
 # For printing the version in the compiler
@@ -768,50 +769,53 @@ if (WIN32)
     # Linking Compiler executable statically is necessary because of LLVM
     # we link everything else statically on windows anyway
     target_compile_options(Compiler PRIVATE "/MT")
-elseif(APPLE)
+elseif(UNIX)
     # Statically link C++ runtime + libgcc
     target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)
     target_link_options(TCCCompiler PRIVATE -static-libstdc++ -static-libgcc)
-elseif(UNIX)
-    # Statically link C++ runtime + libgcc
-    target_link_options(Compiler PRIVATE -static -static-libstdc++ -static-libgcc)
-    target_link_options(TCCCompiler PRIVATE -static -static-libstdc++ -static-libgcc)
 endif()
 
 # Linking interpreter
 target_link_libraries(Interpreter)
 
-# Link compiler against CLANG, LLVM, LLD, LibTCC
-target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
-
-if(UNIX AND NOT APPLE)
-    # Use -Wl,-Bstatic to request static linking for common system libs,
-    # then switch back to -Wl,-Bdynamic for libtcc (which we want dynamic).
-    target_link_options(Compiler PRIVATE
-            "SHELL:-Wl,-Bstatic"   # start static linking
-            "-lz"                   # -lz (zlib)
-            "-ltinfo"               # -ltinfo (terminfo / ncurses)
-            "-lm"                   # -lm (math)
-            "-lpthread"             # -lpthread
-            "-lc"                   # -lc (libc)
-            "SHELL:-Wl,-Bdynamic"   # switch back to dynamic
-            "${LIBTCC_LIB}"                 # -ltcc (libtcc.so dynamic)
+if(APPLE)
+    target_link_libraries(Compiler PRIVATE
+            # ask linker to prefer static libraries from here onward
+            -Wl,-Bstatic
+            ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
+            # switch back to dynamic mode for the next libs
+            -Wl,-Bdynamic
+            ${LIBTCC_LIB}
     )
-
-    target_link_options(TCCCompiler PRIVATE
-            "SHELL:-Wl,-Bstatic"
-            "-lz"
-            "-ltinfo"
-            "-lm"
-            "-lpthread"
-            "-lc"
-            "SHELL:-Wl,-Bdynamic"
-            "${LIBTCC_LIB}"
+    target_link_libraries(TCCCompiler PRIVATE
+            # ask linker to prefer static libraries from here onward
+            -Wl,-Bstatic
+            # switch back to dynamic mode for the next libs
+            -Wl,-Bdynamic
+            ${LIBTCC_LIB}
     )
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(Compiler PRIVATE
+            # ask linker to prefer static libraries from here onward
+            -Wl,-Bstatic
+            ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
+            # switch back to dynamic mode for the next libs
+            -Wl,-Bdynamic
+            ${LIBTCC_LIB}
+    )
+    target_link_libraries(TCCCompiler PRIVATE
+            # ask linker to prefer static libraries from here onward
+            -Wl,-Bstatic
+            # switch back to dynamic mode for the next libs
+            -Wl,-Bdynamic
+            ${LIBTCC_LIB}
+    )
+else()
+    # Windows branch
+    # llvm and clang will automatically be always statically linked (these paths point to .a on linux, .lib on windows)
+    target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
+    target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 endif()
-
-# Link TCC Compiler against LibTCC
-target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 
 # This instructs the linux build to always search for the libtcc.so in the
 # executable directory

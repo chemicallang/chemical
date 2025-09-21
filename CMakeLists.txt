@@ -784,6 +784,12 @@ target_link_libraries(Interpreter)
 # Link compiler against CLANG, LLVM, LLD, LibTCC
 target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
 
+if(UNIX AND NOT APPLE)
+    target_link_options(Compiler PRIVATE
+            "SHELL:-static -Wl,-Bdynamic"
+    )
+endif()
+
 # Link TCC Compiler against LibTCC
 target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 

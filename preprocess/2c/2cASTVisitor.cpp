@@ -684,6 +684,10 @@ bool is_value_param_hidden_pointer(Value* value) {
 }
 
 bool is_value_param_pointer_or_ref_like(Value* value) {
+    const auto val_type = value->getType()->canonical();
+    if(val_type->kind() == BaseTypeKind::Reference) {
+        return true;
+    }
     const auto linked = value->linked_node();
     if(linked) {
         switch(linked->kind()) {

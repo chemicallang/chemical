@@ -86,6 +86,13 @@ struct RefPassRet {
 
 }
 
+struct RefGiveStruct {
+    var i : int
+    func get_ref(&self) : &mut int {
+        return i;
+    }
+}
+
 func test_references() {
     test("integer references are passed as function arguments automatically", () => {
         var i = 3
@@ -211,5 +218,10 @@ func test_references() {
         var thing = ReferenceCastedMethod { a : 23, b : 6 }
         var r = ref_mem_call { thing : thing }
         return r.get_sum() == 29
+    })
+    test("taking reference of struct member through method works", () => {
+        var s = RefGiveStruct { i : 33 }
+        assign_to_passed_ref(s.get_ref())
+        return s.i == 434
     })
 }

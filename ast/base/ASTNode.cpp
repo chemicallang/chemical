@@ -52,6 +52,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "compiler/lab/LabGetMethodInjection.h"
 #include <sstream>
+#include <iostream>
 #include "ChildResolution.h"
 #include "compiler/symres/ChildResolver.h"
 

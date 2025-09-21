@@ -429,6 +429,21 @@ jobs:
     # Only run when the commit message contains "releaseIt"
     if: contains(github.event.head_commit.message, 'releaseIt')
     steps:
+
+      # ––– Install dependencies –––
+      - name: Install dependencies
+        run: |
+          apk add --no-cache \
+            build-base \
+            cmake \
+            ninja \
+            git \
+            bash \
+            python3 \
+            curl \
+            musl-dev \
+            linux-headers
+
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
         uses: actions/checkout@v3
@@ -445,20 +460,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap/chemical
           submodules: recursive
-
-      # ––– Install dependencies –––
-      - name: Install dependencies
-        run: |
-          apk add --no-cache \
-            build-base \
-            cmake \
-            ninja \
-            git \
-            bash \
-            python3 \
-            curl \
-            musl-dev \
-            linux-headers
 
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository

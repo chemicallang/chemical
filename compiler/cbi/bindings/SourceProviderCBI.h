@@ -4,6 +4,7 @@
 
 #include "CBIUtils.h"
 #include <cstdint>
+#include <stddef.h>
 
 class SourceProvider;
 

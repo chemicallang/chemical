@@ -785,17 +785,28 @@ target_link_libraries(Interpreter)
 target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
 
 if(UNIX AND NOT APPLE)
+    # Use -Wl,-Bstatic to request static linking for common system libs,
+    # then switch back to -Wl,-Bdynamic for libtcc (which we want dynamic).
     target_link_options(Compiler PRIVATE
-            "SHELL:-Wl,-Bstatic"     # everything static
-            z tinfo m pthread c      # list system libs that should be static
-            "SHELL:-Wl,-Bdynamic"    # switch back to dynamic
-            tcc                      # libtcc.so stays dynamic
+            "SHELL:-Wl,-Bstatic"   # start static linking
+            "-lz"                   # -lz (zlib)
+            "-ltinfo"               # -ltinfo (terminfo / ncurses)
+            "-lm"                   # -lm (math)
+            "-lpthread"             # -lpthread
+            "-lc"                   # -lc (libc)
+            "SHELL:-Wl,-Bdynamic"   # switch back to dynamic
+            "${LIBTCC_LIB}"                 # -ltcc (libtcc.so dynamic)
     )
+
     target_link_options(TCCCompiler PRIVATE
-            "SHELL:-Wl,-Bstatic"     # everything static
-            z tinfo m pthread c      # list system libs that should be static
-            "SHELL:-Wl,-Bdynamic"    # switch back to dynamic
-            tcc                      # libtcc.so stays dynamic
+            "SHELL:-Wl,-Bstatic"
+            "-lz"
+            "-ltinfo"
+            "-lm"
+            "-lpthread"
+            "-lc"
+            "SHELL:-Wl,-Bdynamic"
+            "${LIBTCC_LIB}"
     )
 endif()
 

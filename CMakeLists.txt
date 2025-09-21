@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.12)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical" VERSION 0.0.20)
+project("chemical" VERSION 0.0.21)
 
 # Set C++ standard 20
 set(CMAKE_CXX_STANDARD 20)
@@ -768,7 +768,15 @@ if (WIN32)
     # Linking Compiler executable statically is necessary because of LLVM
     # we link everything else statically on windows anyway
     target_compile_options(Compiler PRIVATE "/MT")
-endif ()
+elseif(APPLE)
+    # Statically link C++ runtime + libgcc
+    target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)
+    target_link_options(TCCCompiler PRIVATE -static-libstdc++ -static-libgcc)
+elseif(UNIX)
+    # Statically link C++ runtime + libgcc
+    target_link_options(Compiler PRIVATE -static -static-libstdc++ -static-libgcc)
+    target_link_options(TCCCompiler PRIVATE -static -static-libstdc++ -static-libgcc)
+endif()
 
 # Linking interpreter
 target_link_libraries(Interpreter)

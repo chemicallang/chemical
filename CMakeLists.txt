@@ -786,7 +786,16 @@ target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRAR
 
 if(UNIX AND NOT APPLE)
     target_link_options(Compiler PRIVATE
-            "SHELL:-static -Wl,-Bdynamic"
+            "SHELL:-Wl,-Bstatic"     # everything static
+            z tinfo m pthread c      # list all system libs that should be static
+            "SHELL:-Wl,-Bdynamic"    # switch back to dynamic
+            tcc                      # libtcc.so stays dynamic
+    )
+    target_link_options(TCCCompiler PRIVATE
+            "SHELL:-Wl,-Bstatic"     # everything static
+            z tinfo m pthread c      # list all system libs that should be static
+            "SHELL:-Wl,-Bdynamic"    # switch back to dynamic
+            tcc                      # libtcc.so stays dynamic
     )
 endif()
 

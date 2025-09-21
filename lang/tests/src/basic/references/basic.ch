@@ -161,6 +161,11 @@ func test_references() {
         assign_to_passed_ref(i)
         return i == 434;
     })
+    test("index operator automatically sends a reference", () => {
+        var arr : [3]int = [14, 74, 92]
+        assign_to_passed_ref(arr[1])
+        return arr[1] == 434
+    })
     test("integer r value can be passed to constant reference function", () => {
         return take_int_ref(789) == 789
     })

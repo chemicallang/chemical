@@ -90,6 +90,10 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>,
 
 }
 
+func assign_mut_ref_op_overloaded(ref : &mut int) {
+    ref = 834
+}
+
 func test_arithmetic_bin_op_with_primitive() {
     test("add operator with primitive type works", () => {
         var s = PrimArithBinOpStruct { a : 13, b : 6 }
@@ -166,5 +170,10 @@ func test_arithmetic_bin_op_with_primitive() {
         var s = PrimArithBinOpStruct { a : 50, b : 9 }
         s[1] = 97
         return s.b == 97
+    })
+    test("index operator overload automatically sends a reference to reference types", () => {
+        var s = PrimArithBinOpStruct { a : 50, b : 9 }
+        assign_mut_ref_op_overloaded(s[0])
+        return s.a == 834
     })
 }

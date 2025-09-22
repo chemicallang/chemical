@@ -2899,11 +2899,15 @@ void early_declare_container(ToCAstVisitor& visitor, MembersContainer* def) {
     }
 }
 
+void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container);
+
 void early_declare_container(ToCAstVisitor& visitor, VariantDefinition* def) {
     declare_inherited(visitor, def);
     // declare sub variables
     for(const auto var : def->variables()) {
-        early_declare_node(visitor, var->as_variant_member_unsafe());
+        for(auto& val : var->as_variant_member_unsafe()->values) {
+            early_declare_type(visitor, val.second->type, def);
+        }
     }
 }
 
@@ -2963,7 +2967,7 @@ void early_declare_composed_variables(ToCAstVisitor& visitor, VariablesContainer
     }
 }
 
-void early_declare_type(ToCAstVisitor& visitor, BaseType* type) {
+void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container) {
     switch(type->kind()) {
 //        case BaseTypeKind::Reference:
 //            early_declare_type(visitor, type->as_reference_type_unsafe()->type);
@@ -2971,21 +2975,29 @@ void early_declare_type(ToCAstVisitor& visitor, BaseType* type) {
 //        case BaseTypeKind::Pointer:
 //            early_declare_type(visitor, type->as_pointer_type_unsafe()->type);
 //            return;
-        case BaseTypeKind::Linked:
-            early_declare_node(visitor, type->as_linked_type_unsafe()->linked);
-            return;
-        case BaseTypeKind::Dynamic:
-            early_declare_type(visitor, type->as_dynamic_type_unsafe()->referenced);
-            return;
-        case BaseTypeKind::Array:
-            early_declare_type(visitor, type->as_array_type_unsafe()->elem_type);
-            return;
-        case BaseTypeKind::Generic:
-            early_declare_node(visitor, type->as_generic_type_unsafe()->referenced->linked);
-            for(const auto ty : type->as_generic_type_unsafe()->types) {
-                early_declare_type(visitor, ty);
+        case BaseTypeKind::Linked: {
+            const auto linked = type->as_linked_type_unsafe()->linked;
+            if(linked != container) {
+                early_declare_node(visitor, linked);
             }
             return;
+        }
+        case BaseTypeKind::Dynamic:
+            early_declare_type(visitor, type->as_dynamic_type_unsafe()->referenced, container);
+            return;
+        case BaseTypeKind::Array:
+            early_declare_type(visitor, type->as_array_type_unsafe()->elem_type, container);
+            return;
+        case BaseTypeKind::Generic: {
+            const auto linked = type->as_generic_type_unsafe()->referenced->linked;
+            if(linked != container) {
+                early_declare_node(visitor, linked);
+            }
+            for (const auto ty: type->as_generic_type_unsafe()->types) {
+                early_declare_type(visitor, ty, container);
+            }
+            return;
+        }
         default:
             return;
     }
@@ -3044,7 +3056,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     const auto init_type = init->type ? init->type : init->value->getType();
-    early_declare_type(visitor, init_type);
+    early_declare_type(visitor, init_type, nullptr);
     visitor.new_line_and_indent();
     const auto has_initializer = init->value != nullptr;
     const auto is_link_public = init->is_linkage_public();
@@ -3089,7 +3101,7 @@ void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
 }
 
 void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
-    early_declare_type(visitor, stmt->actual_type);
+    early_declare_type(visitor, stmt->actual_type, nullptr);
     visitor.new_line_and_indent();
     visitor.write("typedef ");
     const auto kind = stmt->actual_type->kind();

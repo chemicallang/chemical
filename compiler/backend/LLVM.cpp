@@ -1661,7 +1661,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
         const auto value_canonical_type = value->getType()->canonical();
         if(canonical_return_type->kind() == BaseTypeKind::Reference && value_canonical_type->kind() != BaseTypeKind::Reference) {
             return_value = value->llvm_pointer(gen);
-        } else if((value->reference() && value->getType()->isStructLikeType())) {
+        } else if((value->kind() != ValueKind::StructValue && value->getType()->isStructLikeType())) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
             auto value_ptr = value->llvm_pointer(gen);

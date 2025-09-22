@@ -996,10 +996,9 @@ void visit_subscript_arr_type(ToCAstVisitor& visitor, BaseType* type) {
     }
 }
 
-void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, unsigned i = 0) {
+void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, bool& has_value_before, unsigned i) {
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
-    bool has_value_before = false;
     std::string temp_struct_name;
     std::string d_ref_name;
     const auto total_args = call->values.size();
@@ -1139,6 +1138,10 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         i++;
     }
     visitor.nested_value = prev_value;
+}
+
+void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, bool has_value_before = false) {
+    func_call_args(visitor, call, func_type, has_value_before, 0);
 }
 
 // void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned end, unsigned size);
@@ -1494,7 +1497,7 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
     return struct_name;
 }
 
-void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before);
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool& has_value_before);
 
 void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 
@@ -1591,17 +1594,17 @@ void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
     visitor.mangler.mangle_no_parent(visitor.writer, func_decl);
 }
 
-void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool has_comma_before = true) {
+void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool& has_value_before) {
     if(func_type->isExtensionFn()) {
         const auto firstParam = func_type->params[0];
         const auto grandpa = get_parent_from(call->parent_val);
         if(grandpa) {
-            if(!has_comma_before) {
+            if(has_value_before) {
                 visitor.write(", ");
             }
             const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
             write_self_arg(visitor, till_grandpa, call, firstParam);
-            has_comma_before = false;
+            has_value_before = true;
         } else {
             visitor.error("couldn't get the self parameter for the extension function receiver parameter", firstParam);
         }
@@ -1611,20 +1614,20 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
             if(param->name == "self") {
                 const auto grandpa = get_parent_from(call->parent_val);
                 if(grandpa) {
-                    if(!has_comma_before) {
+                    if(has_value_before) {
                         visitor.write(", ");
                     }
                     const auto till_grandpa = build_parent_chain(call->parent_val, visitor.allocator);
                     write_self_arg(visitor, till_grandpa, call, param);
-                    has_comma_before = false;
+                    has_value_before = true;
                 } else if(visitor.current_func_type) {
                     auto self_param = visitor.current_func_type->get_self_param();
                     if(self_param) {
-                        if(!has_comma_before) {
+                        if(has_value_before) {
                             visitor.write(", ");
                         }
                         visitor.write(param->name);
-                        has_comma_before = false;
+                        has_value_before = true;
                     } else {
 //                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
                     }
@@ -1635,7 +1638,7 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
             } else {
                 auto found = visitor.implicit_args.find(param->name);
                 if(found != visitor.implicit_args.end()) {
-                    if(!has_comma_before) {
+                    if(has_value_before) {
                         visitor.write(", ");
                     }
                     auto type = found->second->getType();
@@ -1644,15 +1647,15 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                         visitor.write('&');
                     }
                     visitor.visit(found->second);
-                    has_comma_before = false;
+                    has_value_before = true;
                 } else {
                     const auto between = visitor.current_func_type->implicit_param_for(param->name);
                     if(between) {
-                        if(!has_comma_before) {
+                        if(has_value_before) {
                             visitor.write(", ");
                         }
                         visitor.write(between->name);
-                        has_comma_before = false;
+                        has_value_before = true;
                     } else {
                         visitor.error(call) << "couldn't find implicit argument with name '" << param->name << "'";
                     }
@@ -1661,9 +1664,6 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
         } else {
             break;
         }
-    }
-    if (!has_comma_before && !call->values.empty()) {
-        visitor.write(", ");
     }
 };
 
@@ -5035,10 +5035,7 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func
     // TODO func_call parent value is being accepted twice - 2
     visitor.visit(func_call->parent_val);
     visitor.write("->second");
-    if(!func_call->values.empty()) {
-        visitor.write(',');
-    }
-    func_call_args(visitor, func_call, type);
+    func_call_args(visitor, func_call, type, true);
     visitor.write(')');
     visitor.write(')');
 }
@@ -5344,8 +5341,9 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
         visitor.visit(call->parent_val);
         visitor.write("(&");
         visitor.write(temp_name);
-        write_implicit_args(visitor, func_type, call, false);
-        func_call_args(visitor, call, func_type);
+        bool has_value_before = true;
+        write_implicit_args(visitor, func_type, call, has_value_before);
+        func_call_args(visitor, call, func_type, has_value_before, 0);
         visitor.write("); &");
         visitor.write(temp_name);
         visitor.write("; }))");
@@ -5359,8 +5357,9 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
         visitor.visit(call->parent_val);
         visitor.write("(&");
         visitor.write(temp_name);
-        write_implicit_args(visitor, func_type, call, false);
-        func_call_args(visitor, call, func_type);
+        bool has_value_before = true;
+        write_implicit_args(visitor, func_type, call, has_value_before);
+        func_call_args(visitor, call, func_type, has_value_before);
         visitor.write("); &");
         visitor.write(temp_name);
         visitor.write("; }))");
@@ -5417,8 +5416,9 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         write('(');
         write(temp_var);
         write("->fn_data_ptr");
-        write_implicit_args(*this, func_type, call, false);
-        func_call_args(*this, call, func_type);
+        bool has_value_before = true;
+        write_implicit_args(*this, func_type, call, has_value_before);
+        func_call_args(*this, call, func_type, has_value_before);
         write(')');
         write("; })");
         return;
@@ -5458,11 +5458,10 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                     if (write_self_arg_bool_no_pointer(*this, func_type, grandpa_chain, call)) {
                         write('.');
                         write("first");
-                        if (!call->values.empty()) {
-                            write(", ");
-                        }
+                        func_call_args(*this, call, func_type, true);
+                    } else {
+                        func_call_args(*this, call, func_type);
                     }
-                    func_call_args(*this, call, func_type);
                     write(')');
                 } else {
                     write("[Dynamic Dispatch used with type other than interface]");
@@ -5486,8 +5485,9 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
             visit(call->parent_val);
             write("(&");
             write_str(temp_name);
-            write_implicit_args(*this, func_type, call, false);
-            func_call_args(*this, call, func_type);
+            bool has_value_before = true;
+            write_implicit_args(*this, func_type, call, has_value_before);
+            func_call_args(*this, call, func_type, has_value_before);
             write("); &");
             write_str(temp_name);
             write("; }))");
@@ -5530,7 +5530,8 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                         mangle(func_decl);
                         interface->active_user = prev_user;
                         write('(');
-                        write_implicit_args(*this, func_type, call);
+                        bool has_value_before = false;
+                        write_implicit_args(*this, func_type, call, has_value_before);
                         func_call_args(*this, call, func_type);
                         write(')');
                         return;
@@ -5549,8 +5550,9 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                         mangle(func_decl);
                         interface->active_user = prev_user;
                         write('(');
-                        write_implicit_args(*this, func_type, call);
-                        func_call_args(*this, call, func_type);
+                        bool has_value_before = false;
+                        write_implicit_args(*this, func_type, call, has_value_before);
+                        func_call_args(*this, call, func_type, has_value_before);
                         write(')');
                         return;
                     }
@@ -5562,8 +5564,9 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     // normal functions
     visit(call->parent_val);
     write('(');
-    write_implicit_args(*this, func_type, call);
-    func_call_args(*this, call, func_type);
+    bool has_value_before = false;
+    write_implicit_args(*this, func_type, call, has_value_before);
+    func_call_args(*this, call, func_type, has_value_before);
     write(')');
 
 }

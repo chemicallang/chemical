@@ -39,6 +39,17 @@ func give_ref_struct_ref(r : &mut ReferencableStruct) : &mut ReferencableStruct 
     return r;
 }
 
+func compare_refs(a : &int, b : int) : bool {
+    // a > b is an expression, it returns the type reference type
+    // which further is dereferenced, so output in C would be *(*(a + 1) > b) which is wrong
+    // it should understand that comparison with reference means unwrap the reference type
+    // when determining type of the expression
+    if(a + 1 > b) {
+        return true;
+    }
+    return false;
+}
+
 variant OptRefInt {
     Some(i : &int)
     None()
@@ -223,5 +234,9 @@ func test_references() {
         var s = RefGiveStruct { i : 33 }
         assign_to_passed_ref(s.get_ref())
         return s.i == 434
+    })
+    test("references can be compared in expressions", () => {
+        var x = 33
+        return compare_refs(x, 18)
     })
 }

@@ -14,6 +14,7 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/base/InterpretScope.h"
 
 inline EnumDeclaration* getEnumDecl(BaseType* type) {
@@ -49,6 +50,15 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
                 firstValue = second->get_underlying_integer_type()->create(allocator, typeBuilder, firstVal->value, firstValue->encoded_location());
             }
         }
+    }
+}
+
+BaseType* unwrap_reference(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Reference:
+            return type->as_reference_type_unsafe()->type;
+        default:
+            return type;
     }
 }
 
@@ -111,8 +121,8 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
         }
     }
 
-    const auto first = first_canonical->canonicalize_enum();
-    const auto second = secondType->canonical()->canonicalize_enum();
+    const auto first = unwrap_reference(first_canonical->canonicalize_enum());
+    const auto second = unwrap_reference(secondType->canonical()->canonicalize_enum());
     const auto first_kind = first->kind();
     const auto second_kind = second->kind();
     // operation between integer and float/double results in float/double

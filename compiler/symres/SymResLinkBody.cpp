@@ -254,16 +254,11 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     if(linked) {
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
-            if (!linker.current_func_type) {
-                linker.error(values[0]) << "unresolved identifier with struct member / function, with name '" << values[0]->representation() << '\'';
-                return;
-            }
             auto self_param = linker.current_func_type->get_self_param();
             if (!self_param) {
                 auto decl = linker.current_func_type->as_function();
                 if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
                     linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
-                    return;
                 }
             }
         }

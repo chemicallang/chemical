@@ -178,6 +178,66 @@ public struct unordered_map<Key, Value> {
         return _size == 0;
     }
 
+    func iterator(&self) : unordered_map_iterator<Key, Value> {
+        var it = unordered_map_iterator<Key, Value> {
+            map : &self,
+            bucket : 0,
+            node : null
+        }
+        // find first non-empty bucket
+        while (it.bucket < capacity && table[it.bucket] == null) {
+            it.bucket += 1;
+        }
+        if (it.bucket < capacity) {
+            it.node = table[it.bucket];
+        } else {
+            it.node = null; // end
+        }
+        return it;
+    }
+
+};
+
+public struct unordered_map_iterator<Key, Value> {
+
+    var map : *unordered_map<Key, Value>;
+    var bucket : size_t;
+    var node : *mut unordered_map_node<Key, Value>;
+
+    func next(&mut self) {
+        if (node == null) {
+            return;
+        }
+        // if there is a next node in chain, go there
+        if (node.next != null) {
+            node = node.next;
+            return;
+        }
+
+        // otherwise scan forward for next non-empty bucket
+        bucket += 1;
+        while (bucket < map.capacity && map.table[bucket] == null) {
+            bucket += 1;
+        }
+
+        if (bucket < map.capacity) {
+            node = map.table[bucket];
+        } else {
+            node = null; // reached end
+        }
+    }
+
+    // accessors
+    public func key(&self) : &Key {
+        return node.key;
+    }
+    public func value(&self) : &Value {
+        return node.value;
+    }
+    public func valid(&self) : bool {
+        return node != null;
+    }
+
 };
 
 }

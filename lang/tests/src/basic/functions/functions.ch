@@ -34,6 +34,20 @@ func (mem : &MemLamb) ext_func_test() : TestStruct1 {
     }
 }
 
+// this function forces our llvm backend to do a default return
+// because when generating while, we also generate a end block
+// however since the end block doesn't end here, the function ends with a
+// default return of null pointer
+func last_block_while_ret_ptr() : *char {
+    var i = 0
+    while(i < 5) {
+        if(i > 2) {
+            return null
+        }
+        i++
+    }
+}
+
 var is_expr_test_func_called = false;
 
 func expr_test_func_call() : bool {
@@ -235,5 +249,8 @@ func test_functions() {
     test("functions returning void can be returned in functions returning void", () => {
         call_func_ret_void();
         return true;
+    })
+    test("function that returns a pointer has a last while block, can exist", () => {
+        return last_block_while_ret_ptr() == null
     })
 }

@@ -627,7 +627,11 @@ llvm::Value *DereferenceValue::llvm_pointer(Codegen& gen) {
 }
 
 llvm::Value *DereferenceValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
+    const auto llvm_val = value->llvm_value(gen);
+    if(expected_type && expected_type->canonical()->kind() == BaseTypeKind::Reference) {
+        return llvm_val;
+    }
+    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), llvm_val, "deref");
     gen.di.instr(loadInst, this);
     return loadInst;
 }

@@ -538,6 +538,21 @@ llvm::Function* Codegen::declare_function(const std::string_view &name, llvm::Fu
     }
 }
 
+void create_return_of_type(Codegen& gen, llvm::Type* retType, SourceLocation location) {
+    if (retType->isVoidTy()) {
+        gen.CreateRet(nullptr, location);
+    } else if (retType->isIntegerTy()) {
+        gen.CreateRet(llvm::ConstantInt::get(retType, 0), location);
+    } else if (retType->isFloatingPointTy()) {
+        gen.CreateRet(llvm::ConstantFP::get(retType, 0.0), location);
+    } else if (retType->isPointerTy()) {
+        gen.CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(retType)), location);
+    } else {
+        // For other return types (e.g. structs), return an undefined value.
+        gen.CreateRet(llvm::UndefValue::get(retType), location);
+    }
+}
+
 llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionTypeBody* func_type, bool is_exported, SourceLocation location) {
     auto fn = create_func(*this, name, type, llvm::Function::WeakAnyLinkage);
     // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
@@ -550,19 +565,7 @@ llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llv
         createFunctionBlock(fn);
         // generating an empty return
         const auto returnType = type->getReturnType();
-        llvm::Type* retType = type->getReturnType();
-        if (retType->isVoidTy()) {
-            CreateRet(nullptr, location);
-        } else if (retType->isIntegerTy()) {
-            CreateRet(llvm::ConstantInt::get(retType, 0), location);
-        } else if (retType->isFloatingPointTy()) {
-            CreateRet(llvm::ConstantFP::get(retType, 0.0), location);
-        } else if (retType->isPointerTy()) {
-            CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(retType)), location);
-        } else {
-            // For other return types (e.g. structs), return an undefined value.
-            CreateRet(llvm::UndefValue::get(retType), location);
-        }
+        create_return_of_type(*this, type->getReturnType(), location);
         // this will end the di subprogram
         di.end_scope();
         di.end_function_scope();
@@ -1048,6 +1051,14 @@ void Codegen::DefaultRet(SourceLocation location) {
         CreateBr(redirect_return, location);
     } else {
         CreateRet(nullptr, location);
+    }
+}
+
+void Codegen::FunctionRet(SourceLocation location) {
+    if(redirect_return) {
+        CreateBr(redirect_return, location);
+    } else {
+        create_return_of_type(*this, current_function->getReturnType(), location);
     }
 }
 

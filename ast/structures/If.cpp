@@ -74,13 +74,8 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     const auto ifBodyValue = stmt.ifBody.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
     incoming.emplace_back(ifBodyValue, gen.builder->GetInsertBlock());
     bool is_then_returns = gen.has_current_block_ended;
-    if(endBlock) {
-        // TODO send the ending location of the block
-        gen.CreateBr(endBlock, stmt.ifBody.encoded_location());
-    } else {
-        // TODO send the ending location here
-        gen.DefaultRet(stmt.ifBody.encoded_location());
-    }
+    // TODO send the ending location of the block
+    gen.CreateBr(endBlock, stmt.ifBody.encoded_location());
 
     bool all_elseifs_return = true;
 
@@ -102,13 +97,8 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
         if(!gen.has_current_block_ended) {
             all_elseifs_return = false;
         }
-        if(endBlock) {
-            // TODO send the ending location of the block
-            gen.CreateBr(endBlock, elif.second.encoded_location());
-        } else {
-            // TODO send the ending location here
-            gen.DefaultRet(elif.second.encoded_location());
-        }
+        // TODO send the ending location of the block
+        gen.CreateBr(endBlock, elif.second.encoded_location());
         i++;
     }
 
@@ -119,13 +109,8 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
         const auto elseBlockVal = stmt.elseBody.value().code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
         incoming.emplace_back(elseBlockVal, gen.builder->GetInsertBlock());
         is_else_returns = gen.has_current_block_ended;
-        if(endBlock) {
-            // TODO send the ending location of the block
-            gen.CreateBr(endBlock, stmt.elseBody->encoded_location());
-        } else {
-            // TODO send the ending location of the block
-            gen.DefaultRet(stmt.elseBody->encoded_location());
-        }
+        // TODO send the ending location of the block
+        gen.CreateBr(endBlock, stmt.elseBody->encoded_location());
     }
 
 //    if(endBlock) {
@@ -141,7 +126,7 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     const auto phi = gen.builder->CreatePHI(ifBodyValue->getType(), total_elseifs + 1 + (elseBlock ? 1 : 0));
 
     for(auto& inc : incoming) {
-        phi->addIncoming(inc.first, inc.second);
+        phi->addIncoming(gen.implicit_cast(inc.first, stmt.known_type(),ifBodyValue->getType()), inc.second);
     }
 
     return phi;
@@ -232,13 +217,8 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
     gen.SetInsertPoint(thenBlock);
     ifBody.code_gen(gen);
     bool is_then_returns = gen.has_current_block_ended;
-    if(endBlock) {
-        // TODO send the ending location of the block
-        gen.CreateBr(endBlock, ifBody.encoded_location());
-    } else {
-        // TODO send the ending location here
-        gen.DefaultRet(ifBody.encoded_location());
-    }
+    // TODO send the ending location of the block
+    gen.CreateBr(endBlock, ifBody.encoded_location());
 
     bool all_elseifs_return = true;
     // generating else if block
@@ -258,13 +238,8 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
         if(!gen.has_current_block_ended) {
             all_elseifs_return = false;
         }
-        if(endBlock) {
-            // TODO send the ending location of the block
-            gen.CreateBr(endBlock, elif.second.encoded_location());
-        } else {
-            // TODO send the ending location here
-            gen.DefaultRet(elif.second.encoded_location());
-        }
+        // TODO send the ending location of the block
+        gen.CreateBr(endBlock, elif.second.encoded_location());
         i++;
     }
 
@@ -274,13 +249,8 @@ void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
         gen.SetInsertPoint(elseBlock);
         elseBody.value().code_gen(gen);
         is_else_returns = gen.has_current_block_ended;
-        if(endBlock) {
-            // TODO send the ending location of the block
-            gen.CreateBr(endBlock, elseBody->encoded_location());
-        } else {
-            // TODO send the ending location of the block
-            gen.DefaultRet(elseBody->encoded_location());
-        }
+        // TODO send the ending location of the block
+        gen.CreateBr(endBlock, elseBody->encoded_location());
     }
 
     if(endBlock) {

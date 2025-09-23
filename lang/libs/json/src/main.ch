@@ -83,8 +83,32 @@ public struct ASTJsonHandler : public JsonSaxHandler {
                     var Object(values) = *top else unreachable
                     values.insert(key, v);
                 } else {
+
+                    const is_arr = v is JsonValue.Array
+                    if(is_arr) {
+                       // printing it back
+                        printf("printing the json array:");
+                        var Array(values) = v else unreachable
+                        var start = values.data()
+                        var end = start + values.size()
+                        while(start < end) {
+                            print_json_value(*start)
+                            printf(", ");
+                            start++
+                        }
+                        printf("\n");
+                    }
+
                     var Object(values) = *top else unreachable
-                    values.insert(std::replace(current_key, std::string()), v);
+                    values.insert(current_key.copy(), v);
+
+                    if(is_arr) {
+                        printf("printing after insertion:")
+                        const ptr = values.get_ptr(std::string("tags"))
+                        print_json_value(*ptr)
+                        printf("\n");
+                    }
+
                     // consume the current key
                     current_key.clear();
                     have_current_key = false;

@@ -73,6 +73,7 @@ AccessChain *AccessChain::copy(ASTAllocator& allocator) {
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy(allocator));
     }
+    chain->set_is_moved(is_moved());
     return chain;
 }
 

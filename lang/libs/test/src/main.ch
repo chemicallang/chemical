@@ -430,6 +430,10 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
 
     } else {
 
+        if(tests_view.empty()) {
+            return;
+        }
+
         // create test runner state
         var state = TestRunnerState()
         state.tests.reserve(tests_view.size());

@@ -61,9 +61,11 @@ func run_executable_tests() {
 
 public func main(argc : int, argv : **char) : int {
     run_executable_tests()
-    // this will print the test stats (not all)
-    print_test_stats();
+    // print a separator
+    printf("\n");
     // this will trigger tests with @test annotation
     test_runner(argc, argv)
+    // this will print the test stats (not all)
+    print_test_stats();
     return 0;
 }

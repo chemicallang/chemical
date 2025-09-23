@@ -1,4 +1,4 @@
-public func main() : int {
+func run_executable_tests() {
     test_var_init();
     test_lambda();
     test_bodmas();
@@ -57,6 +57,13 @@ public func main() : int {
     test_in_value();
     test_failing_code();
     test_core_ops();
+}
+
+public func main(argc : int, argv : **char) : int {
+    run_executable_tests()
+    // this will print the test stats (not all)
     print_test_stats();
+    // this will trigger tests with @test annotation
+    test_runner(argc, argv)
     return 0;
 }

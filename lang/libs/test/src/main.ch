@@ -328,7 +328,7 @@ func read_str(msg_ptr : *mut *char, into : &mut std::string) {
 }
 
 func parseLog(msg_ptr : *mut *char, log : &mut TestLog) {
-    if (!msg_ptr || !log) return;
+    if (!msg_ptr) return;
 
     if (!read_char(msg_ptr, ',')) { return; }
     log.type = parse_int_from_str(msg_ptr) as LogType;
@@ -355,7 +355,6 @@ $quit_group
 $quit_all
 */
 func process_message(state : &mut TestFunctionState, msg : *char) {
-    if (!state) return;
     if (!msg)   return;
 
     // Must start with '$' to be one of ours
@@ -396,7 +395,7 @@ struct TestRunnerState {
 func append_integer(str : &mut std::string, dig : int) {
     var buffer : char[160]
     const buffStart = &mut buffer[0]
-    sprintf(buffStart, "%d", dig)
+    snprintf(buffStart, sizeof(buffer), "%d", dig)
     str.append_char_ptr(buffStart);
 }
 

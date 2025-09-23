@@ -324,8 +324,8 @@ public:
      * this is because the functions that return void may need a return statement
      * to end current BasicBlock
      */
-    void end_function_block(SourceLocation location) {
-        DefaultRet(location);
+    inline void end_function_block(SourceLocation location) {
+        FunctionRet(location);
     }
 
     /**
@@ -744,6 +744,15 @@ public:
      * destructors, it should be used instead of CreateRet(nullptr) or CreateRetVoid()
      */
     void DefaultRet(SourceLocation location);
+
+    /**
+     * a function return, before returning checks the return type of function
+     * and then creates a return for that type, if the function return type is pointer
+     * it would return a null, integer -> it would return a zero
+     * Sometimes user ends the function with last block as while loop, which generates an end block
+     * so user's further code goes there, if we don't encounter any node there, we do a default return
+     */
+    void FunctionRet(SourceLocation location);
 
     /**
      * The safe version of builder.CreateCondBr

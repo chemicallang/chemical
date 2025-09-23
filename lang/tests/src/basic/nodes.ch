@@ -526,6 +526,14 @@ func test_nodes() {
         var i = create_pair_point(if(val == 45) 10 else 5, if(val == 45) 20 else 2)
         return i.x == 5 && i.y == 2;
     })
+    test("different integer types in if value works", () => {
+        var first = 234324u64
+        var condition = true
+        condition = false
+        condition = true
+        var i = if(condition) first else 123 // 123 is i32
+        return i == first
+    })
     test("nested if in if value statements - 1", () => {
         var i = 2;
         var j = if(i > 0) if(i < 2) 10 else 20 else 30

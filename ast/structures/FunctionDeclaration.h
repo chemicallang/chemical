@@ -401,7 +401,7 @@ public:
      * comptime functions or functions which have no usage do not exist
      */
     inline bool exists_at_runtime() {
-        return !is_comptime() && (has_usage() || is_linkage_public() || is_auto_called_func());
+        return !is_comptime();
     }
 
     ASTNode* get_parent() final {

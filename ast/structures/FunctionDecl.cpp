@@ -124,8 +124,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
-    auto llvm_data = known_func(gen);
-    if(llvm_data == nullptr && is_override()) {
+    if(is_override()) {
         const auto struct_def = parent()->as_struct_def();
         if(struct_def) {
             const auto overriding = struct_def->get_overriding_info(this);
@@ -136,8 +135,7 @@ llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
                     const auto& found = use.find(overriding.second);
                     if(found != use.end()) {
                         // TODO this function is probably not declared in this module, if the interface is from outside
-                        llvm_data = found->second;
-                        return llvm_data;
+                        return found->second;
                     }
                 } else {
                     const auto parent_struct = overriding.first->as_struct_def();
@@ -148,7 +146,7 @@ llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
             }
         }
     }
-    return llvm_data;
+    return known_func(gen);
 }
 
 void FunctionType::queue_destruct_params(Codegen& gen) {

@@ -355,5 +355,6 @@ SwitchStatement* SwitchStatement::copy(ASTAllocator &allocator) {
             ASTNode::encoded_location()
     );
     copy_into(allocator, stmt);
+    stmt->defScopeInd = defScopeInd;
     return stmt;
 }

@@ -65,7 +65,6 @@ func append_utf8(cp : uint32_t, out : *mut char, outpos : &mut size_t, outcap : 
     return false;
 }
 
-/* Parser class (CRTP on handler type) */
 public struct JsonParser {
 
     /* Configuration limits */

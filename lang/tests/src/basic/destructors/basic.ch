@@ -21,6 +21,16 @@ struct Destructible {
 
 }
 
+variant DestructibleVariant {
+    Movable(value : Destructible)
+}
+
+struct CheckDestructVariant<T> {
+    var my_value : T
+    func move_it(&self, value : T) {
+        my_value = value
+    }
+}
 
 type DestructibleAlias = Destructible
 
@@ -964,6 +974,17 @@ func test_destructors() {
                 data : 739, count : &mut count, lamb : destruct_inc_count
             }
             var data = d.copy().data
+        }
+        return count == 2
+    })
+    test("moved variant through generic type parameter is not destructed", () => {
+        var count = 0
+        if(count == 0) {
+            var v = CheckDestructVariant<DestructibleVariant> { my_value : DestructibleVariant.Movable(create_destructible(&mut count, 9373)) }
+            v.move_it(DestructibleVariant.Movable(create_destructible(&mut count, 8237)))
+            if(count != 1) {
+                return false;
+            }
         }
         return count == 2
     })

@@ -83,6 +83,83 @@ public func print_json_value(value : &JsonValue, indent: int = 0) {
     }
 }
 
+public func escape_string_into(str: &std::string, into : &std::string) {
+    into.append_view("\"");
+    var data = str.data();
+    var len = str.size();
+    var i = 0;
+    while (i < len) {
+        var ch = data[i];
+        switch (ch) {
+            '"'  => into.append_view("\\\"");
+            '\\' => into.append_view("\\\\");
+            '\n' => into.append_view("\\n");
+            '\r' => into.append_view("\\r");
+            '\t' => into.append_view("\\t");
+            default => into.append(ch)
+        }
+        i++;
+    }
+    into.append_view("\"");
+}
+
+
+public func json_value_to_string(str : &std::string, value : &JsonValue, indent: int = 0) {
+    switch(value) {
+        default => { str.append_view("UNKNOWN") }
+        Null() => { str.append_view("null") }
+        Bool(value) => {
+            if(value) {
+                str.append_view("true")
+            } else {
+                str.append_view("false")
+            }
+        }
+        Number(value) => { str.append_string(value) }
+        String(value) => { escape_string_into(value, str); }
+        Object(values) => {
+            str.append_view("\{\n");
+            var itr = values.iterator();
+            var first = true;
+            while (itr.valid()) {
+                if (!first) str.append_view(",\n");
+                first = false;
+
+                // indent
+                for (var i = 0; i < indent + 2; i++) { str.append_view(" "); }
+
+                var key = itr.key()
+                escape_string_into(key, str);
+                str.append_view(": ");
+                var val = itr.value();
+                json_value_to_string(str, val, indent + 2);
+                itr.next();
+            }
+            str.append_view("\n");
+            for (var i = 0; i < indent; i++) { str.append_view(" "); }
+            str.append_view("}");
+        }
+        Array(values) => {
+            str.append_view("[\n");
+            var current = values.data();
+            const end = current + values.size();
+            var first = true;
+            while (current != end) {
+                if (!first) str.append_view(",\n");
+                first = false;
+
+                for (var i = 0; i < indent + 2; i++) { str.append_view(" "); }
+                json_value_to_string(str, *current, indent + 2);
+
+                current++;
+            }
+            str.append_view("\n");
+            for (var i = 0; i < indent; i++) { str.append_view(" "); }
+            str.append_view("]");
+        }
+    }
+}
+
 public struct ASTJsonHandler : public JsonSaxHandler {
 
     var stack : std::vector<JsonValue>

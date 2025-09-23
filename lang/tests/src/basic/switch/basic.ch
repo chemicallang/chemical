@@ -1,3 +1,20 @@
+func <T> generic_default_in_switch_works(value : T) : int {
+    switch(value) {
+        0 => {
+            return 0
+        }
+        1 => {
+            return 10;
+        }
+        2 => {
+            return 20;
+        }
+        default => {
+            return 30;
+        }
+    }
+}
+
 func test_switch_statement() {
     test("switch statement", () => {
        var j = 0;
@@ -137,5 +154,21 @@ func test_switch_statement() {
              default => 6
         }
         return i == 6;
+    })
+    test("switch with default works in generics - 1", () => {
+        var value = 0
+        return generic_default_in_switch_works(value) == 0
+    })
+    test("switch with default works in generics - 2", () => {
+        var value = 1
+        return generic_default_in_switch_works(value) == 10
+    })
+    test("switch with default works in generics - 3", () => {
+        var value = 2
+        return generic_default_in_switch_works(value) == 20
+    })
+    test("switch with default works in generics - 4", () => {
+        var value = 8
+        return generic_default_in_switch_works(value) == 30
     })
 }

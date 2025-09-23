@@ -7,155 +7,109 @@ public variant JsonValue {
     Array(values : std::vector<JsonValue>)
 }
 
-public func escape_and_print_string(str: &std::string) {
-    printf("\"");
+interface JsonStringEmitter {
+
+    func append_view(&self, view : &std::string_view)
+
+    func append_char(&self, ch : char)
+
+}
+
+public struct JsonStringPrinter : JsonStringEmitter {
+    @override
+    func append_view(&self, view : &std::string_view) {
+        printf("%.*s", view.size(), view.data());
+    }
+    @override
+    func append_char(&self, ch : char) {
+        printf("%c", ch);
+    }
+}
+
+public struct JsonStringBuilder : JsonStringEmitter {
+    var ptr : &std::string
+    @override
+    func append_view(&self, view : &std::string_view) {
+        ptr.append_view(view)
+    }
+    @override
+    func append_char(&self, ch : char) {
+        ptr.append(ch)
+    }
+}
+
+public func <T : JsonStringEmitter> escape_string_into(emitter : &T, str: &std::string) {
+    emitter.append_view("\"");
     var data = str.data();
     var len = str.size();
     var i = 0;
     while (i < len) {
         var ch = data[i];
         switch (ch) {
-            '"'  => printf("\\\"");
-            '\\' => printf("\\\\");
-            '\n' => printf("\\n");
-            '\r' => printf("\\r");
-            '\t' => printf("\\t");
-            default => printf("%c", ch);
+            '"'  => emitter.append_view("\\\"");
+            '\\' => emitter.append_view("\\\\");
+            '\n' => emitter.append_view("\\n");
+            '\r' => emitter.append_view("\\r");
+            '\t' => emitter.append_view("\\t");
+            default => emitter.append_char(ch)
         }
         i++;
     }
-    printf("\"");
+    emitter.append_view("\"");
 }
 
-public func print_json_value(value : &JsonValue, indent: int = 0) {
+public func <T : JsonStringEmitter> (emitter : &mut T) append_value(value : &JsonValue, indent: int = 0) {
     switch(value) {
-        default => { printf("UNKNOWN"); }
-        Null() => { printf("null") }
+        default => { emitter.append_view("UNKNOWN") }
+        Null() => { emitter.append_view("null") }
         Bool(value) => {
             if(value) {
-                printf("true")
+                emitter.append_view("true")
             } else {
-                printf("false")
+                emitter.append_view("false")
             }
         }
-        Number(value) => { printf("%s", value.data()); }
-        String(value) => { escape_and_print_string(value); }
+        Number(value) => { emitter.append_view(value.to_view()) }
+        String(value) => { escape_string_into(emitter, value); }
         Object(values) => {
-            printf("\{\n");
+            emitter.append_view("\{\n");
             var itr = values.iterator();
             var first = true;
             while (itr.valid()) {
-                if (!first) printf(",\n");
+                if (!first) emitter.append_view(",\n");
                 first = false;
 
                 // indent
-                for (var i = 0; i < indent + 2; i++) { printf(" "); }
+                for (var i = 0; i < indent + 2; i++) { emitter.append_view(" "); }
 
                 var key = itr.key()
-                escape_and_print_string(key);
-                printf(": ");
+                escape_string_into(emitter, key);
+                emitter.append_view(": ");
                 var val = itr.value();
-                print_json_value(val, indent + 2);
+                emitter.append_value(val, indent + 2);
                 itr.next();
             }
-            printf("\n");
-            for (var i = 0; i < indent; i++) { printf(" "); }
-            printf("}");
+            emitter.append_view("\n");
+            for (var i = 0; i < indent; i++) { emitter.append_view(" "); }
+            emitter.append_view("}");
         }
         Array(values) => {
-            printf("[\n");
+            emitter.append_view("[\n");
             var current = values.data();
             const end = current + values.size();
             var first = true;
             while (current != end) {
-                if (!first) printf(",\n");
+                if (!first) emitter.append_view(",\n");
                 first = false;
 
-                for (var i = 0; i < indent + 2; i++) { printf(" "); }
-                print_json_value(*current, indent + 2);
+                for (var i = 0; i < indent + 2; i++) { emitter.append_view(" "); }
+                emitter.append_value(*current, indent + 2);
 
                 current++;
             }
-            printf("\n");
-            for (var i = 0; i < indent; i++) { printf(" "); }
-            printf("]");
-        }
-    }
-}
-
-public func escape_string_into(str: &std::string, into : &std::string) {
-    into.append_view("\"");
-    var data = str.data();
-    var len = str.size();
-    var i = 0;
-    while (i < len) {
-        var ch = data[i];
-        switch (ch) {
-            '"'  => into.append_view("\\\"");
-            '\\' => into.append_view("\\\\");
-            '\n' => into.append_view("\\n");
-            '\r' => into.append_view("\\r");
-            '\t' => into.append_view("\\t");
-            default => into.append(ch)
-        }
-        i++;
-    }
-    into.append_view("\"");
-}
-
-
-public func json_value_to_string(str : &std::string, value : &JsonValue, indent: int = 0) {
-    switch(value) {
-        default => { str.append_view("UNKNOWN") }
-        Null() => { str.append_view("null") }
-        Bool(value) => {
-            if(value) {
-                str.append_view("true")
-            } else {
-                str.append_view("false")
-            }
-        }
-        Number(value) => { str.append_string(value) }
-        String(value) => { escape_string_into(value, str); }
-        Object(values) => {
-            str.append_view("\{\n");
-            var itr = values.iterator();
-            var first = true;
-            while (itr.valid()) {
-                if (!first) str.append_view(",\n");
-                first = false;
-
-                // indent
-                for (var i = 0; i < indent + 2; i++) { str.append_view(" "); }
-
-                var key = itr.key()
-                escape_string_into(key, str);
-                str.append_view(": ");
-                var val = itr.value();
-                json_value_to_string(str, val, indent + 2);
-                itr.next();
-            }
-            str.append_view("\n");
-            for (var i = 0; i < indent; i++) { str.append_view(" "); }
-            str.append_view("}");
-        }
-        Array(values) => {
-            str.append_view("[\n");
-            var current = values.data();
-            const end = current + values.size();
-            var first = true;
-            while (current != end) {
-                if (!first) str.append_view(",\n");
-                first = false;
-
-                for (var i = 0; i < indent + 2; i++) { str.append_view(" "); }
-                json_value_to_string(str, *current, indent + 2);
-
-                current++;
-            }
-            str.append_view("\n");
-            for (var i = 0; i < indent; i++) { str.append_view(" "); }
-            str.append_view("]");
+            emitter.append_view("\n");
+            for (var i = 0; i < indent; i++) { emitter.append_view(" "); }
+            emitter.append_view("]");
         }
     }
 }

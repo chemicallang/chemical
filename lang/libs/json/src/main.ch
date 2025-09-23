@@ -16,13 +16,18 @@ interface JsonStringEmitter {
 }
 
 public struct JsonStringPrinter : JsonStringEmitter {
+    var stream : CommandLineStream
+    @make
+    func make() {
+        stream = CommandLineStream {}
+    }
     @override
     func append_view(&self, view : &std::string_view) {
-        printf("%.*s", view.size(), view.data());
+        stream.writeStr(view.data(), view.size())
     }
     @override
     func append_char(&self, ch : char) {
-        printf("%c", ch);
+        stream.writeChar(ch)
     }
 }
 

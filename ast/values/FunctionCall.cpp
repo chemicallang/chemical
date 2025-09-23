@@ -280,32 +280,9 @@ void to_llvm_args(
 
         args.emplace_back(argVal);
 
-        // expanding passed lambda values, to multiple (passing function pointer)
-//        if(values[i]->value_type() == ValueType::Lambda) {
-//            auto expectedParam = func_type->params[i]->create_value_type();
-//            auto expectedFuncType = (FunctionType*) expectedParam.get();
-//            auto type = values[i]->getType();
-//            auto funcType = (FunctionType*) type.get();
-//            if(expectedFuncType->isCapturing) {
-//                if(funcType->isCapturing) {
-//                    if(values[i]->primitive()) {
-//                        args.emplace_back(((LambdaFunction*) values[i].get())->captured_struct);
-//                    } else {
-//                        auto lambda_linked = values[i]->linked_node();
-//                        if(lambda_linked->as_func_param() != nullptr) {
-//                            args.emplace_back(gen.current_function->getArg(lambda_linked->as_func_param()->index + 1));
-//                        } else {
-//                            throw std::runtime_error("unknown linked node to lambda referenced value");
-//                        }
-//                    }
-//                } else {
-//                    args.emplace_back(llvm::ConstantPointerNull::get(gen.builder->getPtrTy()));
-//                }
-//            }
-//        }
     }
 
-    i += func_type->explicit_func_arg_offset();
+    // i += func_type->explicit_func_arg_offset();
     const auto func_param_size = func_type->expectedArgsSize();
     while(i < func_param_size) {
         auto param = func_type->func_param_for_arg_at(i);

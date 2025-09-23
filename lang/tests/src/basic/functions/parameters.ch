@@ -37,6 +37,16 @@ func assign_to_param(value : int) : int {
     return value;
 }
 
+func give_me_the_default_value(value : int = 832) : int {
+    return value;
+}
+
+struct MyDefValStruct {
+    func give(&self, value : int = 9238) : int {
+        return value;
+    }
+}
+
 func test_parameters() {
 
     test("taking address of parameters works", () => {
@@ -60,6 +70,13 @@ func test_parameters() {
     })
     test("assignment to parameters works", () => {
         return assign_to_param(10) == 17
+    })
+    test("functions with default values work when default values not given in call", () => {
+        return give_me_the_default_value() == 832
+    })
+    test("struct functions with default values work when default values not given in call", () => {
+        var d = MyDefValStruct{}
+        return d.give() == 9238
     })
 
 }

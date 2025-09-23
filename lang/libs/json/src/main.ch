@@ -7,7 +7,27 @@ public variant JsonValue {
     Array(values : std::vector<JsonValue>)
 }
 
-public func print_json_value(value : &JsonValue) {
+public func escape_and_print_string(str: &std::string) {
+    printf("\"");
+    var data = str.data();
+    var len = str.size();
+    var i = 0;
+    while (i < len) {
+        var ch = data[i];
+        switch (ch) {
+            '"'  => printf("\\\"");
+            '\\' => printf("\\\\");
+            '\n' => printf("\\n");
+            '\r' => printf("\\r");
+            '\t' => printf("\\t");
+            default => printf("%c", ch);
+        }
+        i++;
+    }
+    printf("\"");
+}
+
+public func print_json_value(value : &JsonValue, indent: int = 0) {
     switch(value) {
         default => { printf("UNKNOWN"); }
         Null() => { printf("null") }
@@ -19,30 +39,46 @@ public func print_json_value(value : &JsonValue) {
             }
         }
         Number(value) => { printf("%s", value.data()); }
-        String(value) => { printf("%s", value.data()) }
+        String(value) => { escape_and_print_string(value); }
         Object(values) => {
-            printf("\{ ");
-            var itr = values.iterator()
-            while(itr.valid()) {
+            printf("\{\n");
+            var itr = values.iterator();
+            var first = true;
+            while (itr.valid()) {
+                if (!first) printf(",\n");
+                first = false;
+
+                // indent
+                for (var i = 0; i < indent + 2; i++) { printf(" "); }
+
                 var key = itr.key()
-                printf("%s : ", key.data());
-                var val = itr.value()
-                print_json_value(val)
-                printf(",\n");
-                itr.next()
+                escape_and_print_string(key);
+                printf(": ");
+                var val = itr.value();
+                print_json_value(val, indent + 2);
+                itr.next();
             }
-            printf("} ");
+            printf("\n");
+            for (var i = 0; i < indent; i++) { printf(" "); }
+            printf("}");
         }
         Array(values) => {
-            printf("[ ");
-            var current = values.data()
-            const end = current + values.size()
-            while(current != end) {
-                print_json_value(*current)
-                printf(", ");
-                current++
+            printf("[\n");
+            var current = values.data();
+            const end = current + values.size();
+            var first = true;
+            while (current != end) {
+                if (!first) printf(",\n");
+                first = false;
+
+                for (var i = 0; i < indent + 2; i++) { printf(" "); }
+                print_json_value(*current, indent + 2);
+
+                current++;
             }
-            printf(" ]");
+            printf("\n");
+            for (var i = 0; i < indent; i++) { printf(" "); }
+            printf("]");
         }
     }
 }
@@ -83,32 +119,8 @@ public struct ASTJsonHandler : public JsonSaxHandler {
                     var Object(values) = *top else unreachable
                     values.insert(key, v);
                 } else {
-
-                    const is_arr = v is JsonValue.Array
-                    if(is_arr) {
-                       // printing it back
-                        printf("printing the json array:");
-                        var Array(values) = v else unreachable
-                        var start = values.data()
-                        var end = start + values.size()
-                        while(start < end) {
-                            print_json_value(*start)
-                            printf(", ");
-                            start++
-                        }
-                        printf("\n");
-                    }
-
                     var Object(values) = *top else unreachable
                     values.insert(current_key.copy(), v);
-
-                    if(is_arr) {
-                        printf("printing after insertion:")
-                        const ptr = values.get_ptr(std::string("tags"))
-                        print_json_value(*ptr)
-                        printf("\n");
-                    }
-
                     // consume the current key
                     current_key.clear();
                     have_current_key = false;

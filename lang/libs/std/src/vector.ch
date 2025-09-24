@@ -37,7 +37,7 @@ public struct vector<T> {
     }
 
     func reserve(&mut self, cap : size_t) {
-        if(cap < data_cap) return;
+        if(cap <= data_cap) return;
         resize(cap);
     }
 

@@ -1558,6 +1558,7 @@ void Codegen::destruct(Destructible& destructible, SourceLocation location) {
 // this just checks whether the node being destructed is being returned
 // in that case we should not destruct the node
 bool should_destruct_node(ASTNode* node, Value* returnValue) {
+    // TODO: stop using linked node here
     switch(node->kind()) {
         case ASTNodeKind::VarInitStmt:{
             const auto init = node->as_var_init_unsafe();
@@ -1568,6 +1569,12 @@ bool should_destruct_node(ASTNode* node, Value* returnValue) {
         }
         case ASTNodeKind::FunctionParam:{
             const auto param = node->as_func_param_unsafe();
+            if(returnValue && returnValue->linked_node() == node) {
+                return false;
+            }
+            return true;
+        }
+        case ASTNodeKind::StructMember: {
             if(returnValue && returnValue->linked_node() == node) {
                 return false;
             }

@@ -449,6 +449,10 @@ std::optional<Destructible> Codegen::create_destructible_for(ASTNode* node, llvm
             const auto ptr = current_function->getArg(argInd);
             return ::create_destructible_for(*this, node, param->type, ptr, oldDropFlag);
         }
+        case ASTNodeKind::StructMember:{
+            const auto mem = node->as_struct_member_unsafe();
+            return ::create_destructible_for(*this, node, mem->known_type(), mem->llvm_pointer(*this), oldDropFlag);
+        }
         default:
             return std::nullopt;
     }

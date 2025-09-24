@@ -618,14 +618,31 @@ llvm::Value* FunctionCall::llvm_chain_value(
         if(!val) {
             return nullptr;
         }
-        auto as_struct = val->as_struct_value();
-        if(as_struct) {
+        if(returnsStruct) {
             if(!returnedStruct) {
                 const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
                 gen.di.instr(returnedAlloca, this);
                 returnedValue = returnedAlloca;
             }
-            as_struct->initialize_alloca((llvm::AllocaInst*) returnedValue, gen, nullptr);
+            switch(val->kind()) {
+                case ValueKind::StructValue:
+                    val->as_struct_value_unsafe()->initialize_alloca(returnedValue, gen, nullptr);
+                    return returnedValue;
+                case ValueKind::AccessChain:{
+                    const auto chain = val->as_access_chain_unsafe();
+                    if(chain->values.size() == 1 && chain->values.back()->kind() == ValueKind::FunctionCall) {
+                        return chain->values.back()->as_func_call_unsafe()->llvm_chain_value(gen, returnedValue, nullptr, nullptr);
+                    } else {
+                        break;
+                    }
+                }
+                case ValueKind::FunctionCall:
+                    return val->as_func_call_unsafe()->llvm_chain_value(gen, returnedValue, nullptr, nullptr);
+                default:
+                    break;
+            }
+            const auto allocated_inside = val->llvm_value(gen);
+            gen.memcpy_struct(func_type->returnType->llvm_type(gen), returnedValue, allocated_inside, encoded_location());
             return returnedValue;
         } else {
             return val->llvm_value(gen);

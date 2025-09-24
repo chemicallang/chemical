@@ -145,4 +145,9 @@ func test_pointer_math() {
         var p = PMC22 { a : 43, b : 87 }
         return send_a_struct_ptr(&p)
     })
+    test("index operator works on pointer values", () => {
+        var arr = [ 10, 20, 30 ]
+        var first = &mut arr[0]
+        return first[2] == 30
+    })
 }

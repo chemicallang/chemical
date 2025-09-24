@@ -20,6 +20,35 @@ struct Field88 {
 
 }
 
+struct constructable_obj_comptime {
+
+    var data : *char
+    var size : ubigint
+
+    @implicit
+    @constructor
+    comptime func make(value : %literal_string) {
+        return intrinsics::wrap(constructor(value, intrinsics::size(value)))
+    }
+
+    @constructor
+    func constructor(value : *char, length : size_t) {
+        data = null;
+        size = length;
+    }
+
+    @constructor
+    func empty_make() {
+        data = null
+        size = 0
+    }
+
+}
+
+struct comptime_constructor_field_container {
+    var c : constructable_obj_comptime
+}
+
 struct Derived32 : Base89 {
 
     var f : Field88
@@ -61,5 +90,29 @@ func test_constructors() {
     test("manual default constructor also runs the code inside", () => {
         var d = Derived78()
         return d.k == 30
+    })
+    test("constructor initializes the field inside the struct value - 1", () => {
+        var c = comptime_constructor_field_container {
+            c : constructable_obj_comptime("")
+        }
+        return c.c.data == null && c.c.size == 0
+    })
+    test("constructor initializes the field inside the struct value - 2", () => {
+        var c = comptime_constructor_field_container {
+            c : constructable_obj_comptime("abc")
+        }
+        return c.c.data == null && c.c.size == 3
+    })
+    test("constructor initializes the field inside the struct value - 3", () => {
+        var c = comptime_constructor_field_container {
+            c : ""
+        }
+        return c.c.data == null && c.c.size == 0
+    })
+    test("constructor initializes the field inside the struct value - 4", () => {
+        var c = comptime_constructor_field_container {
+            c : "abc"
+        }
+        return c.c.data == null && c.c.size == 3
     })
 }

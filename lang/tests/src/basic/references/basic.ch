@@ -239,4 +239,10 @@ func test_references() {
         var x = 33
         return compare_refs(x, 18)
     })
+    test("de-referencing a pointer to reference type means no de-reference", () => {
+        var u = 234
+        var j = &mut u
+        assign_to_passed_ref(*j)
+        return u == 434
+    })
 }

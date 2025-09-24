@@ -33,6 +33,7 @@ func run_executable_tests() {
     test_optional_type();
     test_result_type();
     test_is_value();
+    test_for_loop()
     test_imported_modules();
     test_modules_import();
     test_moves();

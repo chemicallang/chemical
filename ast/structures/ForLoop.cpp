@@ -15,6 +15,7 @@ void ForLoop::code_gen(Codegen &gen) {
     // creating blocks
     auto condBlock = llvm::BasicBlock::Create(*gen.ctx, "forcond", gen.current_function);
     auto thenBlock = llvm::BasicBlock::Create(*gen.ctx, "forthen", gen.current_function);
+    auto thenIncrementBlock = llvm::BasicBlock::Create(*gen.ctx, "forinc", gen.current_function);
     auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "forend", gen.current_function);
 
     // going to condition
@@ -27,8 +28,13 @@ void ForLoop::code_gen(Codegen &gen) {
 
     // then block
     gen.SetInsertPoint(thenBlock);
-    gen.loop_body_gen(body, condBlock, endBlock);
+    gen.loop_body_gen(body, thenIncrementBlock, endBlock);
+    gen.CreateBr(thenIncrementBlock, incrementerExpr->encoded_location());
+
+    // increment block
+    gen.SetInsertPoint(thenIncrementBlock);
     incrementerExpr->code_gen(gen);
+
     // TODO use the ending location here
     gen.CreateBr(condBlock, body.encoded_location());
 

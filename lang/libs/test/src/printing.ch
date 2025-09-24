@@ -1,6 +1,6 @@
 
-func enable_terminal_colors() : int {
-    if(def.windows) {
+func enable_terminal_colors() : bool {
+    // if(def.windows) {
         // TODO: enable these
         // /* Try to enable VT processing on Windows 10+ so ANSI codes work */
         // HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -10,13 +10,14 @@ func enable_terminal_colors() : int {
         // dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         // if (!SetConsoleMode(hOut, dwMode)) return 0;
         // return 1;
-    } else {
-        return 1;
-    }
+    // } else {
+        // return 1;
+    // }
+    return true;
 }
 
 /* If colors are disabled, these macros evaluate to empty strings. */
-var colors_enabled : int = 0;
+var colors_enabled : bool = false;
 
 public comptime const ANSI_RESET =  "\x1b[0m"
 public comptime const ANSI_BOLD =   "\x1b[1m"

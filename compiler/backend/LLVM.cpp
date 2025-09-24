@@ -2257,7 +2257,7 @@ void DestructStmt::code_gen(Codegen &gen) {
 
     auto id_value = identifier->llvm_value(gen);
 
-    gen.destruct(id_value, arr_size_llvm, elem_type, true, encoded_location());
+    gen.destruct(id_value, arr_size_llvm, elem_type, encoded_location());
 
     if(getFreeAfter()) {
         const auto free_func = gen.getFreeFn();

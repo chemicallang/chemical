@@ -988,4 +988,23 @@ func test_destructors() {
         }
         return count == 2
     })
+    test("destruct statement doesn't destruct if array size is zero - 1", () => {
+        var count = 0
+        var d = Destructible {
+            data : 739, count : &mut count, lamb : destruct_inc_count
+        }
+        var e = &mut d
+        var total_destr = 0
+        destruct[total_destr] e // shouldn't cause destruction, because array size is 0
+        return count == 0
+    })
+    test("destruct statement doesn't destruct if array size is zero - 2", () => {
+        var count = 0
+        var d = Destructible {
+            data : 739, count : &mut count, lamb : destruct_inc_count
+        }
+        var e = &mut d
+        destruct[0] e // shouldn't cause destruction, because array size is 0
+        return count == 0
+    })
 }

@@ -615,7 +615,6 @@ public:
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             llvm::Type* elem_type,
-            bool check_for_null,
             SourceLocation location
     );
 
@@ -630,7 +629,6 @@ public:
             bool pass_self,
             llvm::Value* array_size,
             BaseType* elem_type,
-            bool check_for_null,
             SourceLocation location
     );
 
@@ -643,7 +641,6 @@ public:
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             BaseType* elem_type,
-            bool check_for_null,
             SourceLocation location
     );
 

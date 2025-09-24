@@ -675,7 +675,6 @@ LLVMArrayDestructor Codegen::loop_array_destructor(
         llvm::Value* allocaInst,
         llvm::Value* array_size,
         llvm::Type* elem_type,
-        bool check_for_null,
         SourceLocation location
 ) {
     auto& gen = *this;
@@ -696,13 +695,10 @@ LLVMArrayDestructor Codegen::loop_array_destructor(
     // the end block is where all destructors have been called, user's code is written...
     auto end_block = llvm::BasicBlock::Create(ctx, "", current_function);
 
-    if(check_for_null) {
-        // check if given pointer is null and send user to end block if it is
-        gen.CheckNullCondBr(allocaInst, end_block, body_block, location);
-    } else {
-        // sending directly to body block (no null check)
-        gen.CreateBr(body_block, location);
-    };
+    // check if first pointer is equal to last pointer (when array size is zero)
+    // if it is then branch to end
+    auto is_last = builder->CreateICmpEQ(allocaInst, lastEle);
+    CreateCondBr(is_last, end_block, body_block, location);
 
     // generating the code for the body
     gen.SetInsertPoint(body_block);
@@ -724,10 +720,9 @@ LLVMArrayDestructor Codegen::destruct(
         bool pass_self,
         llvm::Value* array_size,
         BaseType* elem_type,
-        bool check_for_null,
         SourceLocation location
 ) {
-    const auto finalize = loop_array_destructor(allocaInst, array_size, elem_type->llvm_type(*this), check_for_null, location);
+    const auto finalize = loop_array_destructor(allocaInst, array_size, elem_type->llvm_type(*this), location);
     // calling the destructor
     std::vector<llvm::Value*> args;
     if(pass_self) {
@@ -764,7 +759,6 @@ void Codegen::destruct(
         llvm::Value* allocaInst,
         llvm::Value* array_size,
         BaseType* elem_type,
-        bool check_for_null,
         SourceLocation location
 ) {
     // determining destructor
@@ -778,7 +772,6 @@ void Codegen::destruct(
             destructorFunc->has_self_param(),
             array_size,
             elem_type,
-            check_for_null,
             location
     );
 }
@@ -789,7 +782,11 @@ void Codegen::destruct(
         BaseType* elem_type,
         SourceLocation location
 ) {
-    destruct(allocaInst, builder->getInt32(array_size), elem_type, false, location);
+    if(array_size == 0) {
+        // no destruction required, the known array size is zero
+        return;
+    }
+    destruct(allocaInst, builder->getInt32(array_size), elem_type, location);
 }
 
 llvm::BasicBlock *Codegen::createBB(const std::string_view &name, llvm::Function *fn) {

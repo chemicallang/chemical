@@ -65,7 +65,7 @@ public func main(argc : int, argv : **char) : int {
     printf("\n");
     // this will trigger tests with @test annotation
     test_runner(argc, argv)
-    // this will print the test stats (not all)
+    // this will print the test stats
     print_test_stats();
     return 0;
 }

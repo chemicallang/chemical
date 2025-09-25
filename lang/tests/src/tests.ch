@@ -61,7 +61,9 @@ func run_executable_tests() {
 }
 
 public func main(argc : int, argv : **char) : int {
-    run_executable_tests()
+    if(argc <= 1) {
+        run_executable_tests()
+    }
     // print a separator
     printf("\n");
     // this will trigger tests with @test annotation

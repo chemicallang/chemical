@@ -125,11 +125,7 @@ chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, con
 void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* str) {
     while(true) {
         auto& t = *parser.token;
-        if(t.type == TokenType::String) {
-            str->values.emplace_back(
-                    new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, parser, t.value), parser.typeBuilder.getStringType(), parser.loc_single(t))
-            );
-        } else if(t.type == TokenType::StringExprStart) {
+        if(t.type == TokenType::StringExprStart) {
             parser.token++;
             const auto expr = parser.parseExpression(allocator, true);
             if(expr) {
@@ -147,7 +143,7 @@ void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* 
                 // skipping the first r-brace
                 chem::string_view view(t.value.data() + 1, t.value.size() - 1);
                 str->values.emplace_back(
-                        new(allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, parser, view), parser.typeBuilder.getStringType(), parser.loc_single(t))
+                        new(allocator.allocate<StringValue>()) StringValue(parser.allocate_view(allocator, view), parser.typeBuilder.getStringType(), parser.loc_single(t))
                 );
             }
         } else {
@@ -162,11 +158,11 @@ ExpressiveString* Parser::parseExpressiveString(ASTAllocator& allocator) {
     auto& f = *parser.token;
     if(f.type == TokenType::BacktickString) {
         parser.token++;
-        auto escaped = escaped_view(allocator, parser, f.value);
+        auto allocated = parser.allocate_view(allocator, f.value);
         auto& next = *parser.token;
         const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
         str->values.emplace_back(
-                new (allocator.allocate<StringValue>()) StringValue(escaped, parser.typeBuilder.getStringType(), parser.loc_single(f))
+                new (allocator.allocate<StringValue>()) StringValue(allocated, parser.typeBuilder.getStringType(), parser.loc_single(f))
         );
         parseStringExpr(parser, allocator, str);
         return str;

@@ -159,8 +159,6 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_type(Codegen &gen, int16_t iteration);
-
     llvm::Type* llvm_param_type(Codegen &gen) final;
 
     llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;

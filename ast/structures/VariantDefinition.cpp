@@ -91,11 +91,6 @@ llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
     return type;
 }
 
-llvm::Type *VariantDefinition::llvm_type(Codegen &gen, int16_t iteration) {
-    auto type = llvm_type(gen);
-    return type;
-}
-
 llvm::Type* VariantDefinition::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
@@ -205,7 +200,7 @@ llvm::Type* VariantMember::llvm_raw_struct_type(Codegen &gen) {
 }
 
 llvm::Type *VariantMember::llvm_type(Codegen &gen) {
-    return VariantDefinition::llvm_type_with_member(gen, this);
+    return parent()->llvm_type(gen);
 }
 
 llvm::Type* VariantMemberParam::llvm_type(Codegen &gen) {

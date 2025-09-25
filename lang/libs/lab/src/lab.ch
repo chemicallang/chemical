@@ -250,7 +250,7 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
 }
 
 public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
-    const path_ptr = &path;
+    var path_ptr = &path;
     return ctx.files_module(scope_name, name, &path_ptr, 1, dependencies);
 }
 

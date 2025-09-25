@@ -319,13 +319,11 @@ void to_llvm_args(
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     const auto linked = parent_val->linked_node();
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
-    llvm::Type* type;
     if(linked_kind == ASTNodeKind::VariantMember) {
-        type = VariantDefinition::llvm_type_with_member(gen, linked->as_variant_member_unsafe());
+        return linked->as_variant_member_unsafe()->parent()->llvm_type(gen);
     } else {
-        type = getType()->llvm_type(gen);
+        return getType()->llvm_type(gen);
     }
-    return type;
 }
 
 llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
@@ -542,15 +540,8 @@ bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* d
     return true;
 }
 
-llvm::Type* variant_llvm_type(Codegen &gen, VariantMember* member) {
-    const auto largest_member = member->parent()->largest_member();
-    llvm::Type* def_type;
-    if(largest_member == member) {
-        def_type = member->parent()->llvm_type(gen);
-    } else {
-        def_type = VariantDefinition::llvm_type_with_member(gen, member);
-    }
-    return def_type;
+inline llvm::Type* variant_llvm_type(Codegen &gen, VariantMember* member) {
+    return member->parent()->llvm_type(gen);
 }
 
 llvm::FunctionType* cloneFunctionTypeWithParamAtBeginning(

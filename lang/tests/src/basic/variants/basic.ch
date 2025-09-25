@@ -381,6 +381,14 @@ func test_variants() {
         dealloc p
         return result == 765
     })
+    test("different sized objects in variants have same size upon allocation", () => {
+        var first = OptVariant.Some(32)
+        var second = OptVariant.None()
+        var expected_size = sizeof(OptVariant)
+        var first_size_of = sizeof(first)
+        var second_size_of = sizeof(second)
+        return first_size_of == second_size_of && first_size_of == expected_size
+    })
     /** TODO:
     test("pointer to variant works in switch pattern match", () => {
         var p = new OptVariant

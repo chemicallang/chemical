@@ -69,6 +69,33 @@ struct Derived78 : Base89 {
 
 }
 
+interface UselessInterface {
+    func give(&self) : int
+}
+
+struct ComposedInitializableStruct {
+    var i : int
+    @make
+    func make() {
+        i = 8372534
+    }
+}
+
+struct UselessImplInitialization : UselessInterface {
+
+    var first : ComposedInitializableStruct
+
+    @make
+    func make() {
+
+    }
+
+    @override
+    func give(&self) : int {
+        return first.i;
+    }
+
+}
 
 func test_constructors() {
     test("automatically generated default constructor makes a call to the inherited default constructor", () => {
@@ -114,5 +141,9 @@ func test_constructors() {
             c : "abc"
         }
         return c.c.data == null && c.c.size == 3
+    })
+    test("interface can exist as the first in inheritance list", () => {
+        var m = UselessImplInitialization()
+        return m.give() == 8372534;
     })
 }

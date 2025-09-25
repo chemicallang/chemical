@@ -549,8 +549,11 @@ void code_gen_process_members_types(
 ) {
     unsigned index = 0;
     for(auto& inherited : def->inherited) {
+        const auto node = inherited.type->get_direct_linked_canonical_node();
         member_func_call(gen, inherited.type->canonical(), def, func, index, location);
-        index++;
+        if(node->kind() == ASTNodeKind::StructDecl) {
+            index++;
+        }
     }
     for(const auto var : def->variables()) {
         auto mem_type = var->known_type();
@@ -568,11 +571,11 @@ void code_gen_process_members(
 ) {
     unsigned index = 0;
     for(auto& inherited : def->inherited) {
-        const auto base_def = inherited.type->get_direct_linked_struct();
-        if(base_def) {
-            member_func_call(gen, base_def, def, func, index, location);
+        const auto base_def = inherited.type->get_direct_linked_canonical_node();
+        if(base_def && base_def->kind() == ASTNodeKind::StructDecl) {
+            member_func_call(gen, base_def->as_struct_def_unsafe(), def, func, index, location);
+            index++;
         }
-        index++;
     }
     for(const auto var : def->variables()) {
         auto mem_type = var->known_type();

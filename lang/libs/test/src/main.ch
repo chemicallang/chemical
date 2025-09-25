@@ -276,7 +276,8 @@ func parse_int_from_str(pstr : *mut *char) : int {
     }
 
     const s = *pstr;
-    const endptr = null;
+
+    var endptr : *mut char = null;
 
     set_errno(0);
     const val = strtol(s, &endptr, 10);

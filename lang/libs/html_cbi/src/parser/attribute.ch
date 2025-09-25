@@ -41,7 +41,7 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
 
             var expr = parser.parseExpression(builder);
             if(expr == null) {
-                parser.error("expected a expression value after '\{'");
+                parser.error("expected a expression value after '{'");
             }
 
             const next = parser.getToken();

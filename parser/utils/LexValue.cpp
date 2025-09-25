@@ -48,7 +48,6 @@ bool is_escaped_self(char self) {
         case '\\':
         case '\'':
         case '"':
-        case '{':
             return true;
         default:
             return false;
@@ -158,22 +157,19 @@ void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* 
     }
 }
 
-Value* parseExpressiveString(Parser& parser, ASTAllocator& allocator) {
+ExpressiveString* Parser::parseExpressiveString(ASTAllocator& allocator) {
+    auto& parser = *this;
     auto& f = *parser.token;
-    if(f.type == TokenType::String) {
+    if(f.type == TokenType::BacktickString) {
         parser.token++;
         auto escaped = escaped_view(allocator, parser, f.value);
         auto& next = *parser.token;
-        if(next.type != TokenType::StringExprStart) {
-            return new (allocator.allocate<StringValue>()) StringValue(escaped, parser.typeBuilder.getStringType(), parser.loc_single(f));
-        } else {
-            const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
-            str->values.emplace_back(
+        const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
+        str->values.emplace_back(
                 new (allocator.allocate<StringValue>()) StringValue(escaped, parser.typeBuilder.getStringType(), parser.loc_single(f))
-            );
-            parseStringExpr(parser, allocator, str);
-            return str;
-        }
+        );
+        parseStringExpr(parser, allocator, str);
+        return str;
     } else if(f.type == TokenType::StringExprStart) {
         const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
         parseStringExpr(parser, allocator, str);
@@ -219,12 +215,16 @@ std::optional<chem::string_view> BasicParser::parseString(ASTAllocator& allocato
     }
 }
 
-Value* Parser::parseStringValue(ASTAllocator& allocator) {
+StringValue* Parser::parseStringValue(ASTAllocator& allocator) {
     auto& t = *token;
     switch(t.type) {
-        case TokenType::String:
-        case TokenType::StringExprStart:
-            return parseExpressiveString(*this, allocator);
+        case TokenType::String:{
+            auto& f = *token;
+            token++;
+            auto escaped = escaped_view(allocator, *this, f.value);
+            auto& next = *token;
+            return new (allocator.allocate<StringValue>()) StringValue(escaped, typeBuilder.getStringType(), loc_single(f));
+        }
         case TokenType::MultilineString:
             token++;
             return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
@@ -719,9 +719,11 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
         case TokenType::Char:
             return (Value*) parseCharValue(allocator);
         case TokenType::String:
-        case TokenType::StringExprStart:
         case TokenType::MultilineString:
             return (Value*) parseStringValue(allocator);
+        case TokenType::BacktickString:
+        case TokenType::StringExprStart:
+            return (Value*) parseExpressiveString(allocator);
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);
@@ -756,9 +758,11 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::Char:
             return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
         case TokenType::String:
-        case TokenType::StringExprStart:
         case TokenType::MultilineString:
             return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
+        case TokenType::BacktickString:
+        case TokenType::StringExprStart:
+            return parseAfterValue(allocator, (Value*) parseExpressiveString(allocator), start_token);
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);

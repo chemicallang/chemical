@@ -131,6 +131,8 @@ enum class TokenType {
     String,
     // a multiline string begins and ends with three double quotes
     MultilineString,
+    // string starting with a backtick
+    BacktickString,
     // #macro_name
     HashMacro,
     // @annotation

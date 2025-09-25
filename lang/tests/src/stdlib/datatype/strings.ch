@@ -52,35 +52,35 @@ func test_strings() {
     test("appending expressive string into std::string, i32 - 1", () => {
         var first = string("")
         var count = 33
-        first.append_expr("I have {count} apples")
+        first.append_expr(`I have {count} apples`)
         var second = string("I have 33 apples")
         return first.equals(second);
     })
     test("appending expressive string into std::string, i32 - 2", () => {
         var first = string("")
         var count = 65
-        first.append_expr("{count} apples I have, said Yoda")
+        first.append_expr(`{count} apples I have, said Yoda`)
         var second = string("65 apples I have, said Yoda")
         return first.equals(second);
     })
     test("appending expressive string into std::string, *char - 3", () => {
         var first = string("")
         var my_str = "something of value"
-        first.append_expr("start: {my_str} end")
+        first.append_expr(`start: {my_str} end`)
         var second = string("start: something of value end")
         return first.equals(second);
     })
     test("appending expressive string into std::string, char - 4", () => {
         var first = string("")
         var letter = 'l'
-        first.append_expr("letter : {letter} end")
+        first.append_expr(`letter : {letter} end`)
         var second = string("letter : l end")
         return first.equals(second);
     })
     test("appending expressive string into std::string, float - 5", () => {
         var first = string("")
         var pi = 3.14f
-        first.append_expr("pi value : {pi} end")
+        first.append_expr(`pi value : {pi} end`)
         printf("%s\n", first.data())
         var second = string("pi value : 3.140 end")
         return first.equals(second);
@@ -88,7 +88,7 @@ func test_strings() {
     test("appending expressive string into std::string, double - 6", () => {
         var first = string("")
         var pi = 3.14
-        first.append_expr("pi value : {pi} end")
+        first.append_expr(`pi value : {pi} end`)
         printf("%s\n", first.data())
         var second = string("pi value : 3.140 end")
         return first.equals(second);
@@ -96,21 +96,21 @@ func test_strings() {
     test("appending expressive string into std::string, u32 - 6", () => {
         var first = string("")
         var val = 99u
-        first.append_expr("value : {val} end")
+        first.append_expr(`value : {val} end`)
         var second = string("value : 99 end")
         return first.equals(second);
     })
     test("appending expressive string into std::string, i64 - 7", () => {
         var first = string("")
         var val = 99i64
-        first.append_expr("value : {val} end")
+        first.append_expr(`value : {val} end`)
         var second = string("value : 99 end")
         return first.equals(second);
     })
     test("appending expressive string into std::string, u64 - 8", () => {
         var first = string("")
         var val = 99u64
-        first.append_expr("value : {val} end")
+        first.append_expr(`value : {val} end`)
         var second = string("value : 99 end")
         return first.equals(second);
     })

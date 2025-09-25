@@ -1749,6 +1749,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         const auto func_type = call->function_type();
         if(!func_type) {
             resolver.error(call) << "cannot call a non function type";
+            call->setType(resolver.get_unresolved_decl()->known_type());
             return false;
         }
     }

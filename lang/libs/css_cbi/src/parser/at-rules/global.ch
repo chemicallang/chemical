@@ -9,7 +9,7 @@ func (cssParser : &mut CSSParser) parseGlobalBlock(
     if(lb.type == TokenType.LBrace) {
         parser.increment()
     } else {
-        parser.error("expected a '\{' for the global block")
+        parser.error("expected a '{' for the global block")
         return block;
     }
 

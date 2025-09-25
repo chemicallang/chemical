@@ -84,7 +84,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             html.lb_count++;
             return Token {
                 type : TokenType.LBrace as int,
-                value : view("\{"),
+                value : view("{"),
                 position : position
             }
         }

@@ -319,7 +319,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             css.lb_count++;
             return Token {
                 type : TokenType.LBrace as int,
-                value : view("\{"),
+                value : view("{"),
                 position : position
             }
         }

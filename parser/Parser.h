@@ -447,7 +447,12 @@ public:
     /**
      * parses a single string value using the given allocator
      */
-    Value* parseStringValue(ASTAllocator& allocator);
+    StringValue* parseStringValue(ASTAllocator& allocator);
+
+    /**
+     * parses a single expressive string
+     */
+    ExpressiveString* parseExpressiveString(ASTAllocator& allocator);
 
     /**
      * parse generic argument list

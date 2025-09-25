@@ -179,7 +179,7 @@ private:
 
     func parse_object(&self, depth : size_t) : ParseResult {
         /* expect '{' */
-        if (cur() != '{') return ParseResult::Err(pos, "expected '\{'");
+        if (cur() != '{') return ParseResult::Err(pos, "expected '{'");
         advance();
         handler.on_object_begin();
         skip_ws();

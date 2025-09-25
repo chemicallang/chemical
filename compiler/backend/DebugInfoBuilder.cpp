@@ -192,12 +192,14 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
         case BaseTypeKind::Pointer: {
             const auto ptrType = type->as_pointer_type_unsafe();
             const auto pointee = to_di_type(di, ptrType->type, replaceable);
-            return di.builder->createPointerType(pointee, 64);
+            auto ptrBits = di.gen.module->getDataLayout().getPointerSizeInBits(0);
+            return di.builder->createPointerType(pointee, ptrBits);
         }
         case BaseTypeKind::Reference: {
             const auto ptrType = type->as_reference_type_unsafe();
             const auto pointee = to_di_type(di, ptrType->type, replaceable);
-            return di.builder->createReferenceType(llvm::dwarf::DW_TAG_reference_type, pointee, 64);
+            auto ptrBits = di.gen.module->getDataLayout().getPointerSizeInBits(0);
+            return di.builder->createReferenceType(llvm::dwarf::DW_TAG_reference_type, pointee, ptrBits);
         }
         case BaseTypeKind::Linked: {
             const auto linkedType = type->as_linked_type_unsafe();
@@ -259,7 +261,7 @@ llvm::DICompositeType* DebugInfoBuilder::create_replaceable_type(StructDefinitio
             to_ref(def->name_view()),
             diCompileUnit,
             diCompileUnit->getFile(),
-            pos.line
+            pos.line + 1
     );
     replaceAbleTypes.emplace_back(def, replaceAble);
     return replaceAble;
@@ -283,7 +285,7 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
     for(const auto var : def->variables()) {
         const auto var_loc = loc_node(this, var->encoded_location());
         const auto var_ll_type = var->llvm_type(gen);
-        const auto var_bit_size = var_ll_type->getScalarSizeInBits();
+        const auto var_bit_size = dataLayout.getTypeAllocSizeInBits(var_ll_type);
         // Get the ABI alignment in bytes and convert to bits.
         const auto var_bit_align = dataLayout.getABITypeAlign(var_ll_type).value() * 8;
         const auto mem_di_type = to_di_type(*this, var->known_type(), true);
@@ -293,7 +295,7 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
                 diCompileUnit,
                 to_ref(var->name),
                 diCompileUnit->getFile(),
-                var_loc.start.line,
+                var_loc.start.line + 1,
                 var_bit_size,
                 var_bit_align,
                 varOffset,
@@ -308,7 +310,8 @@ llvm::DICompositeType* DebugInfoBuilder::create_struct_type(StructDefinition* de
             diCompileUnit,
             to_ref(def->name_view()),
             diCompileUnit->getFile(),
-            pos.line, llvm_type->getScalarSizeInBits(),
+            pos.line + 1,
+            llvm_type->getScalarSizeInBits(),
             alignmentInBits,
             llvm::DINode::DIFlags::FlagZero,
             nullptr,
@@ -370,8 +373,8 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionTypeBody* decl, llvm::Function* 
             diCompileUnit->getFile(),
             location.start.line + 1,    // Line number of the function
             subroutineType,
-            location.start.character,
-            llvm::DINode::FlagFwdDecl,
+            location.start.line + 1,
+            llvm::DINode::FlagZero,
             llvm::DISubprogram::SPFlagDefinition
     );
     func->setSubprogram(SP);

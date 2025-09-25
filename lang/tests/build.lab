@@ -101,6 +101,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
         gen_ir(ctx, exe_name, core_module);
         gen_ir(ctx, exe_name, std_module);
         gen_ir(ctx, exe_name, module);
+        gen_ir(ctx, exe_name, json_module);
         gen_ir(ctx, exe_name, test_module);
         gen_ir(ctx, exe_name, test_env_module);
     }

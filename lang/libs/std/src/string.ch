@@ -196,7 +196,16 @@ public struct string : Hashable, Eq {
                 if(new_capacity < STR_BUFF_SIZE && storage.constant.length < STR_BUFF_SIZE) {
                     move_const_to_buffer();
                 } else {
-                    move_data_to_heap(storage.constant.data, storage.constant.length, new_capacity);
+                    const len = storage.constant.length
+                    if(new_capacity > len) {
+                        // user requested capacity is greater than current length of string
+                        // we'll allocate the requested capacity
+                        move_data_to_heap(storage.constant.data, len, new_capacity);
+                    } else {
+                        // user requested capacity is smaller than current length of string
+                        // we'll allocate the length of current string
+                        move_data_to_heap(storage.constant.data, len, len);
+                    }
                 }
             }
             '1' => {

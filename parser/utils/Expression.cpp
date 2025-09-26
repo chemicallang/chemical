@@ -109,7 +109,6 @@ Value* Parser::parseRemainingExpression(ASTAllocator& allocator, Value* first_va
         return first_value;
     }
 
-
     ValueAndOperatorStack stack;
     ValueAndOperatorStack final;
 

@@ -167,7 +167,9 @@ public struct string : Hashable, Eq {
         state = '2'
     }
 
-    func resize(&mut self, new_capacity : size_t) {
+    // this is a private function
+    // new_capacity is always > length
+    func resize_heap(&mut self, new_capacity : size_t) {
         var data = realloc(storage.heap.data, new_capacity) as *mut char
         data[storage.heap.length] = '\0'
         storage.heap.data = data;
@@ -186,7 +188,7 @@ public struct string : Hashable, Eq {
             } else if(state == '1') {
                 move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, length);
             } else if(storage.heap.capacity <= length) {
-                resize(length);
+                resize_heap(length);
             }
         }
     }
@@ -207,7 +209,7 @@ public struct string : Hashable, Eq {
             }
             '2' => {
                 if(new_capacity > storage.heap.capacity) {
-                    resize(new_capacity);
+                    resize_heap(new_capacity);
                 }
             }
         }
@@ -537,7 +539,7 @@ public struct string : Hashable, Eq {
             } else if(state == '1') {
                 move_data_to_heap(&storage.sso.buffer[0], length, length * 2);
             } else if(storage.heap.capacity <= length + 2) {
-                resize(storage.heap.capacity * 2);
+                resize_heap(storage.heap.capacity * 2);
             }
             storage.heap.data[length] = value;
             storage.heap.data[length + 1] = '\0'

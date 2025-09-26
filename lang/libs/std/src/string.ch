@@ -170,7 +170,8 @@ public struct string : Hashable, Eq {
     // this is a private function
     // new_capacity is always > length
     func resize_heap(&mut self, new_capacity : size_t) {
-        var data = realloc(storage.heap.data, new_capacity) as *mut char
+        // +1 for the null terminator
+        var data = realloc(storage.heap.data, new_capacity + 1) as *mut char
         data[storage.heap.length] = '\0'
         storage.heap.data = data;
         storage.heap.capacity = new_capacity

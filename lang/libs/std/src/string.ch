@@ -246,11 +246,28 @@ public struct string : Hashable, Eq {
     }
 
     func append_with_len(&mut self, value : *char, len : size_t) {
-        ensure_mut(size() + len + 1);
+        // offset, where we start writing
+        const offset = size()
+        // the size of the string, after we've written
+        const new_size = offset + len
+        // +1 for null terminator
+        ensure_mut(new_size + 1);
         var i : size_t = 0;
-        while(i < len) {
-            append(value[i]);
-            i++;
+        if(state == '1') {
+            while(i < len) {
+                storage.sso.buffer[offset + i] = value[i]
+                i++;
+            }
+            storage.sso.buffer[new_size] = '\0'
+            storage.sso.length = new_size
+        } else {
+            // state is '2', it cannot be '0'
+            while(i < len) {
+                storage.heap.data[offset + i] = value[i];
+                i++;
+            }
+            storage.heap.data[new_size] = '\0';
+            storage.heap.length = new_size
         }
     }
 
@@ -584,7 +601,7 @@ public struct string : Hashable, Eq {
         switch(state) {
             '0' => {
                 unsafe {
-                    storage.constant.data = null
+                    storage.constant.data = ""
                 }
                 storage.constant.length = 0
             }

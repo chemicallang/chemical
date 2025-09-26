@@ -764,6 +764,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseLambdaValue(allocator);
         case TokenType::Number:
             return parseAfterValue(allocator, (Value*) parseNumberValue(allocator), start_token);
+        case TokenType::LParen:
+            return parseParenExpression(allocator);
         case TokenType::NotSym:
             return parseAfterValue(allocator, (Value*) parseNotValue(allocator), start_token);
         case TokenType::MinusSym:

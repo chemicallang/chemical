@@ -2018,7 +2018,10 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
                 linked->as_func_param_unsafe()->set_has_address_taken(true);
                 break;
             case ASTNodeKind::VarInitStmt:
-                if(linked->as_var_init_unsafe()->is_const()) {
+                if(linked->as_var_init_unsafe()->is_comptime()) {
+                    linker.error("taking address of a comptime variable is not allowed", addrOfValue);
+                }
+                if(linked->as_var_init_unsafe()->is_const() && !linked->as_var_init_unsafe()->is_top_level()) {
                     linker.error("taking address of a constant is not allowed", addrOfValue);
                 }
                 break;

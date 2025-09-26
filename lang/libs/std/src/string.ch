@@ -196,7 +196,7 @@ public struct string : Hashable, Eq {
     func reserve(&mut self, new_capacity : size_t) {
         switch(state) {
             '0' => {
-                if(new_capacity < STR_BUFF_SIZE) {
+                if(new_capacity < STR_BUFF_SIZE && storage.constant.length < STR_BUFF_SIZE) {
                     move_const_to_buffer();
                 } else {
                     move_data_to_heap(storage.constant.data, storage.constant.length, new_capacity);

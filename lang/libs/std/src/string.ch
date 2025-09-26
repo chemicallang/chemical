@@ -254,14 +254,13 @@ public struct string : Hashable, Eq {
         const new_size = offset + len
         // +1 for null terminator
         ensure_mut(new_size + 1);
-        var i : size_t = 0;
         if(state == '1') {
-            memcpy(&mut storage.sso.buffer[offset + i], value + i, len)
+            memcpy(&mut storage.sso.buffer[offset], value, len)
             storage.sso.buffer[new_size] = '\0'
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
-            memcpy(&mut storage.heap.data[offset + i], value + i, len)
+            memcpy(&mut storage.heap.data[offset], value, len)
             storage.heap.data[new_size] = '\0';
             storage.heap.length = new_size
         }

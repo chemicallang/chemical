@@ -155,12 +155,8 @@ public struct string : Hashable, Eq {
     func move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) {
         // +1 is for safety, we need to add a null terminator (always)
         var data = malloc(capacity + 1) as *mut char
-        var i = 0
-        while(i < length) {
-            data[i] = from_data[i]
-            i++
-        }
-        data[i] = '\0'
+        memcpy(data, from_data, length)
+        data[length] = '\0'
         storage.heap.data = data;
         storage.heap.length = length;
         storage.heap.capacity = capacity

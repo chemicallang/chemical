@@ -256,18 +256,12 @@ public struct string : Hashable, Eq {
         ensure_mut(new_size + 1);
         var i : size_t = 0;
         if(state == '1') {
-            while(i < len) {
-                storage.sso.buffer[offset + i] = value[i]
-                i++;
-            }
+            memcpy(&mut storage.sso.buffer[offset + i], value + i, len)
             storage.sso.buffer[new_size] = '\0'
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
-            while(i < len) {
-                storage.heap.data[offset + i] = value[i];
-                i++;
-            }
+            memcpy(&mut storage.heap.data[offset + i], value + i, len)
             storage.heap.data[new_size] = '\0';
             storage.heap.length = new_size
         }

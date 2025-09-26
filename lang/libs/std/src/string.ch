@@ -54,7 +54,7 @@ public struct string : Hashable, Eq {
 
     @constructor
     comptime func make(value : %literal_string) {
-        return intrinsics::wrap(constructor(value, intrinsics::size(value)))
+        return intrinsics::wrap(constructor2(value, intrinsics::size(value), false))
     }
 
     @constructor
@@ -62,7 +62,20 @@ public struct string : Hashable, Eq {
         storage.constant.data = value;
         storage.constant.length = length;
         state = '0'
-        // TODO ensure mut
+        ensure_mut(size())
+    }
+
+    // the ensure parameter is added just to differentiate signature from constructor above it
+    // this allows to keep literal strings as constants
+    @constructor
+    func constructor2(value : *char, length : size_t, ensure : bool) {
+        storage.constant.data = value;
+        storage.constant.length = length;
+        state = '0'
+        if(ensure) {
+            // this branch probably will never be taken
+            ensure_mut(size())
+        }
     }
 
     @constructor
@@ -78,7 +91,7 @@ public struct string : Hashable, Eq {
         storage.constant.data = value;
         storage.constant.length = length;
         state = '0'
-        // TODO ensure mut
+        ensure_mut(length)
     }
 
     @constructor
@@ -140,7 +153,8 @@ public struct string : Hashable, Eq {
     }
 
     func move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) {
-        var data = malloc(capacity) as *mut char
+        // +1 is for safety, we need to add a null terminator (always)
+        var data = malloc(capacity + 1) as *mut char
         var i = 0
         while(i < length) {
             data[i] = from_data[i]

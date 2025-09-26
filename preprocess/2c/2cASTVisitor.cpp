@@ -1499,6 +1499,11 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
 
 void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, FunctionCall* call, bool& has_value_before);
 
+void complete_func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, bool has_value_before = false) {;
+    write_implicit_args(visitor, func_type, call, has_value_before);
+    func_call_args(visitor, call, func_type, has_value_before, 0);
+}
+
 void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
 
     const auto linked = call->parent_val->linked_node();
@@ -5353,9 +5358,7 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
         visitor.visit(call->parent_val);
         visitor.write("(&");
         visitor.write(temp_name);
-        bool has_value_before = true;
-        write_implicit_args(visitor, func_type, call, has_value_before);
-        func_call_args(visitor, call, func_type, has_value_before, 0);
+        complete_func_call_args(visitor, call, func_type, true);
         visitor.write("); &");
         visitor.write(temp_name);
         visitor.write("; }))");
@@ -5369,9 +5372,7 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
         visitor.visit(call->parent_val);
         visitor.write("(&");
         visitor.write(temp_name);
-        bool has_value_before = true;
-        write_implicit_args(visitor, func_type, call, has_value_before);
-        func_call_args(visitor, call, func_type, has_value_before);
+        complete_func_call_args(visitor, call, func_type, true);
         visitor.write("); &");
         visitor.write(temp_name);
         visitor.write("; }))");
@@ -5428,9 +5429,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         write('(');
         write(temp_var);
         write("->fn_data_ptr");
-        bool has_value_before = true;
-        write_implicit_args(*this, func_type, call, has_value_before);
-        func_call_args(*this, call, func_type, has_value_before);
+        complete_func_call_args(*this, call, func_type, true);
         write(')');
         write("; })");
         return;
@@ -5497,9 +5496,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
             visit(call->parent_val);
             write("(&");
             write_str(temp_name);
-            bool has_value_before = true;
-            write_implicit_args(*this, func_type, call, has_value_before);
-            func_call_args(*this, call, func_type, has_value_before);
+            complete_func_call_args(*this, call, func_type, true);
             write("); &");
             write_str(temp_name);
             write("; }))");
@@ -5542,9 +5539,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                         mangle(func_decl);
                         interface->active_user = prev_user;
                         write('(');
-                        bool has_value_before = false;
-                        write_implicit_args(*this, func_type, call, has_value_before);
-                        func_call_args(*this, call, func_type);
+                        complete_func_call_args(*this, call, func_type, false);
                         write(')');
                         return;
                     }
@@ -5562,9 +5557,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
                         mangle(func_decl);
                         interface->active_user = prev_user;
                         write('(');
-                        bool has_value_before = false;
-                        write_implicit_args(*this, func_type, call, has_value_before);
-                        func_call_args(*this, call, func_type, has_value_before);
+                        complete_func_call_args(*this, call, func_type, false);
                         write(')');
                         return;
                     }
@@ -5576,9 +5569,7 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     // normal functions
     visit(call->parent_val);
     write('(');
-    bool has_value_before = false;
-    write_implicit_args(*this, func_type, call, has_value_before);
-    func_call_args(*this, call, func_type, has_value_before);
+    complete_func_call_args(*this, call, func_type, false);
     write(')');
 
 }

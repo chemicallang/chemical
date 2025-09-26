@@ -1634,7 +1634,16 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                         visitor.write(param->name);
                         has_value_before = true;
                     } else {
-//                        visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
+                        const auto decl = visitor.current_func_type->as_function();
+                        if(decl && decl->is_constructor_fn()) {
+                            if(has_value_before) {
+                                visitor.write(", ");
+                            }
+                            visitor.write("this");
+                            has_value_before = true;
+                        } else {
+                            visitor.error("couldn't get self parameter for function call", call);
+                        }
                     }
                 }
             } else if(param->name == "other") {

@@ -93,8 +93,14 @@ void put_self_param(
             if(passing_self_arg) {
                 args.emplace_back(passing_self_arg->llvm_load(gen, call->encoded_location()));
             } else {
-                gen.error("function without a self argument cannot call methods that require self arg", call);
-                return;
+                const auto decl = gen.current_func_type->as_function();
+                if(decl && decl->is_constructor_fn()) {
+                    // TODO: hardcoded the secret returned struct arg
+                    args.emplace_back(decl->llvm_func(gen)->getArg(0));
+                } else {
+                    gen.error("function without a self argument cannot call methods that require self arg", call);
+                    return;
+                }
             }
         }
     }

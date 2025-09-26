@@ -97,6 +97,21 @@ struct UselessImplInitialization : UselessInterface {
 
 }
 
+struct constructor_calls_self_function {
+    var a : int
+    var b : int
+    @make
+    func make(p : int) {
+        a = p;
+        b = p;
+        double_it()
+    }
+    func double_it(&self) {
+        a *= 2
+        b *= 2
+    }
+}
+
 func test_constructors() {
     test("automatically generated default constructor makes a call to the inherited default constructor", () => {
         var d = Derived32()
@@ -145,5 +160,9 @@ func test_constructors() {
     test("interface can exist as the first in inheritance list", () => {
         var m = UselessImplInitialization()
         return m.give() == 8372534;
+    })
+    test("constructors can call functions that take self argument", () => {
+        var x = constructor_calls_self_function(8)
+        return x.a == 16 && x.b == 16
     })
 }

@@ -2895,15 +2895,14 @@ inline void declare_inherited(ToCAstVisitor& visitor, VariablesContainer* def) {
     }
 }
 
-void early_declare_container(ToCAstVisitor& visitor, MembersContainer* def) {
-    declare_inherited(visitor, def);
+void early_declare_variables(ToCAstVisitor& visitor, VariablesContainer* def, ASTNode* container) {
     // declare sub variables
     for(const auto var : def->variables()) {
         const auto known_t = var->known_type();
         if(known_t) {
             auto sub_node = known_t->get_direct_linked_node();
             if (sub_node) {
-                if(sub_node == def) {
+                if(sub_node == container) {
                     visitor.error("recursion in composition is not allowed", var);
                     continue;
                 }
@@ -2911,6 +2910,15 @@ void early_declare_container(ToCAstVisitor& visitor, MembersContainer* def) {
             }
         }
     }
+}
+
+void early_declare_variables_container(ToCAstVisitor& visitor, VariablesContainer* def, ASTNode* container) {
+    declare_inherited(visitor, def);
+    early_declare_variables(visitor, def, container);
+}
+
+void early_declare_container(ToCAstVisitor& visitor, MembersContainer* def) {
+    early_declare_variables_container(visitor, def, def);
 }
 
 void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container, bool do_ref = false, bool do_ptr = false);
@@ -2959,6 +2967,12 @@ void early_declare_node(ToCAstVisitor& c_visitor, ASTNode* node) {
             return;
         case ASTNodeKind::UnionDecl:
             early_declare_union(c_visitor, node->as_union_def_unsafe());
+            return;
+        case ASTNodeKind::UnnamedStruct:
+            early_declare_variables(c_visitor, node->as_unnamed_struct_unsafe(), node);
+            return;
+        case ASTNodeKind::UnnamedUnion:
+            early_declare_variables(c_visitor, node->as_unnamed_union_unsafe(), node);
             return;
         default:
             return;
@@ -3014,6 +3028,14 @@ void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* contain
             for (const auto ty: type->as_generic_type_unsafe()->types) {
                 early_declare_type(visitor, ty, container);
             }
+            return;
+        }
+        case BaseTypeKind::Struct: {
+            early_declare_variables_container(visitor, type->as_struct_type_unsafe(), container);
+            return;
+        }
+        case BaseTypeKind::Union: {
+            early_declare_variables_container(visitor, type->as_struct_type_unsafe(), container);
             return;
         }
         default:

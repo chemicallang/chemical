@@ -143,6 +143,33 @@ variant VertexInheriter : ConstructedVertex {
     Second(j : int)
 }
 
+// EXISTENCE TEST BEGIN
+// This tests whether an error of type satisfaction is caused, when we use
+// ubigint_type_alias, the calls to variant members cause type satisfaction bug
+// with the return type (even though they are same types) but if one is canonical
+// it rejects the typealias type (ubigint doesn't get satisfied from ubigint_type_alias)
+public variant CustomResult<T, E> {
+    Ok(value : T)
+    Err(error : E)
+}
+
+public type ubigint_type_alias = ubigint
+
+public variant CustomFsError {
+    NotFound()
+    AlreadyExists()
+}
+
+func first_variant_result_giver() : CustomResult<ubigint_type_alias, CustomFsError> {
+    return CustomResult.Ok<ubigint_type_alias, CustomFsError>(1)
+}
+
+func second_variant_result_giver() : CustomResult<ubigint_type_alias, CustomFsError> {
+    return CustomResult.Err<ubigint_type_alias, CustomFsError>(CustomFsError.NotFound())
+}
+
+// EXISTENCE TEST END
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;

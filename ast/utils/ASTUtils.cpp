@@ -214,8 +214,8 @@ int16_t get_iteration_for(
         auto& instantiation = instantiations[i];
         j = 0;
         for(const auto instType : instantiation) {
-            const auto generic_arg_pure = generic_list[j]->canonical();
-            if(!generic_arg_pure || !instType->is_same(generic_arg_pure)) {
+            const auto generic_arg_pure = generic_list[j];
+            if(!generic_arg_pure || !instType->canonical()->is_same(generic_arg_pure->canonical())) {
                 all_params_found = false;
                 break;
             }

@@ -2913,7 +2913,7 @@ void early_declare_container(ToCAstVisitor& visitor, MembersContainer* def) {
     }
 }
 
-void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container);
+void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container, bool do_ref = false, bool do_ptr = false);
 
 void early_declare_container(ToCAstVisitor& visitor, VariantDefinition* def) {
     declare_inherited(visitor, def);
@@ -2981,14 +2981,18 @@ void early_declare_composed_variables(ToCAstVisitor& visitor, VariablesContainer
     }
 }
 
-void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container) {
+void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* container, bool do_ref, bool do_ptr) {
     switch(type->kind()) {
-//        case BaseTypeKind::Reference:
-//            early_declare_type(visitor, type->as_reference_type_unsafe()->type);
-//            return;
-//        case BaseTypeKind::Pointer:
-//            early_declare_type(visitor, type->as_pointer_type_unsafe()->type);
-//            return;
+        case BaseTypeKind::Reference:
+            if(do_ref) {
+                early_declare_type(visitor, type->as_reference_type_unsafe()->type, container, do_ref, do_ptr);
+            }
+            return;
+        case BaseTypeKind::Pointer:
+            if(do_ptr) {
+                early_declare_type(visitor, type->as_pointer_type_unsafe()->type, container, do_ref, do_ptr);
+            }
+            return;
         case BaseTypeKind::Linked: {
             const auto linked = type->as_linked_type_unsafe()->linked;
             if(linked != container) {
@@ -3115,7 +3119,7 @@ void CValueDeclarationVisitor::VisitFunctionDecl(FunctionDeclaration *decl) {
 }
 
 void type_def_stmt(ToCAstVisitor& visitor, TypealiasStatement* stmt) {
-    early_declare_type(visitor, stmt->actual_type, nullptr);
+    early_declare_type(visitor, stmt->actual_type, nullptr, true, true);
     visitor.new_line_and_indent();
     visitor.write("typedef ");
     const auto kind = stmt->actual_type->kind();

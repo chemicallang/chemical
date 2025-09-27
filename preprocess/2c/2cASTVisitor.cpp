@@ -5367,6 +5367,12 @@ void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, cons
             } else if (lastKind == ASTNodeKind::EnumMember) {
                 write_enum(visitor, linked->as_enum_member_unsafe());
                 return;
+            } else if(lastKind == ASTNodeKind::VarInitStmt) {
+                const auto stmt = linked->as_var_init_unsafe();
+                if(stmt->is_const() && stmt->is_comptime()) {
+                    visitor.visit(stmt->value);
+                    return;
+                }
             }
         }
     }
@@ -6453,6 +6459,10 @@ void ToCAstVisitor::VisitIndexOperator(IndexOperator *op) {
     // normal flow
     visit(op->parent_val);
     write('[');
+    // supporting automatic dereference of index value
+    if(op->idx->getType()->canonical()->kind() == BaseTypeKind::Reference) {
+        write('*');
+    }
     visit(op->idx);
     write(']');
 }
@@ -6907,6 +6917,14 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
     auto& linked = *type->linked;
     const auto kind = linked.kind();
     switch(kind) {
+        case ASTNodeKind::VarInitStmt:{
+            const auto stmt = linked.as_var_init_unsafe();
+            if(stmt->is_const() && stmt->is_comptime()) {
+                visit(stmt->value);
+                return;
+            }
+            break;
+        }
         case ASTNodeKind::InterfaceDecl:
             if(linked.as_interface_def_unsafe()->active_user) {
                 write("struct ");

@@ -51,14 +51,19 @@ llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 #endif
 
 // TODO: make this function on BaseType
-BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type) {
+BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type, bool unwrap_ref = false) {
     switch(type->kind()) {
         case BaseTypeKind::Array:
             return type->as_array_type_unsafe()->elem_type;
         case BaseTypeKind::Pointer:
             return type->as_pointer_type_unsafe()->type;
         case BaseTypeKind::Reference:
-            return type->as_reference_type_unsafe()->type;
+            // since reference is automatically dereferenced
+            if(unwrap_ref) {
+                return get_child_type(typeBuilder, type->as_reference_type_unsafe()->type, false);
+            } else {
+                return type->as_reference_type_unsafe()->type;
+            }
         case BaseTypeKind::String:
             return typeBuilder.getCharType();
         default:
@@ -109,7 +114,7 @@ void IndexOperator::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagn
             return;
         }
     }
-    const auto childType = get_child_type(typeBuilder, current_type);
+    const auto childType = get_child_type(typeBuilder, current_type, true);
     if(childType) {
         setType(childType);
     } else {

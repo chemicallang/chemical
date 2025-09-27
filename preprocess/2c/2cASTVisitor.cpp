@@ -3313,6 +3313,7 @@ void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* de
     for(const auto mem : def->variables()) {
         value_visitor->visit(mem);
     }
+    early_declare_container(visitor, def);
     visitor.new_line_and_indent();
     write("struct ");
     visitor.mangle(def);

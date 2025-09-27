@@ -13,7 +13,7 @@ public func u16_strlen(ptr : *u16) : size_t {
     return current - start;
 }
 
-public struct u16_string {
+public struct u16string {
 
     union {
         struct {
@@ -305,7 +305,6 @@ public struct u16_string {
                     cp = 0xFFFDu32;
                     in_i = in_i + 1;
                 } else {
-                    // TODO: fails to parse cp = (((b0 & 0x1F) as uint32) << 6) | ((b1 & 0x3F) as uint32);
                     cp = (((b0 & 0x1F) as u32) << 6) | ((b1 & 0x3F) as u32);
                     if(cp < 0x80u32) { cp = 0xFFFDu32; }
                     in_i = in_i + 2;
@@ -365,9 +364,9 @@ public struct u16_string {
         dealloc out;
     }
 
-// substring copy by u16 unit indices
-    func substr(&self, start : size_t, len : size_t) : u16_string {
-        var result = u16_string.empty_str();
+    // substring copy by u16 unit indices
+    func substr(&self, start : size_t, len : size_t) : u16string {
+        var result = u16string.empty_str();
         const my_size = size();
         if(start >= my_size) {
             return result;
@@ -441,7 +440,7 @@ public struct u16_string {
     }
 
     // find substring (naive, by u16 code units). returns first index or -1
-    func find(&self, sub : u16_string) : int {
+    func find(&self, sub : u16string) : int {
         const n = size();
         const m = sub.size();
         if(m == 0) { return 0; }
@@ -458,7 +457,7 @@ public struct u16_string {
         return -1;
     }
 
-    func starts_with(&self, prefix : u16_string) : bool {
+    func starts_with(&self, prefix : u16string) : bool {
         const p_len = prefix.size();
         const my_len = size();
         if(p_len > my_len) { return false; }
@@ -472,7 +471,7 @@ public struct u16_string {
         return true;
     }
 
-    func ends_with(&self, suffix : u16_string) : bool {
+    func ends_with(&self, suffix : u16string) : bool {
         const s_len = suffix.size();
         const my_len = size();
         if(s_len > my_len) { return false; }

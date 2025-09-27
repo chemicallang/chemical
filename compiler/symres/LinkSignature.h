@@ -108,6 +108,8 @@ public:
 
     void VisitBlockValue(BlockValue* value);
 
+    void VisitStructValue(StructValue* value);
+
     void VisitEmbeddedNode(EmbeddedNode* node);
 
     void VisitEmbeddedValue(EmbeddedValue* value);

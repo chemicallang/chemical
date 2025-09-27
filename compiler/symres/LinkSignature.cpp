@@ -287,6 +287,36 @@ void TopLevelLinkSignature::VisitBlockValue(BlockValue* value) {
     }
 }
 
+void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitStructValue(value);
+    const auto structValue = value;
+    const auto refType = structValue->getRefType();
+    if(refType) {
+        TypeLoc temp_loc {refType, value->encoded_location()};
+        visit(temp_loc);
+        if(temp_loc.getType() != refType) {
+            value->setRefType(temp_loc);
+        }
+    } else {
+        linker.error("unnamed struct value cannot link without a type", structValue);
+        structValue->setType(new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
+        return;
+    }
+    if(!structValue->resolve_container(linker.genericInstantiator)) {
+        return;
+    }
+    structValue->diagnose_missing_members_for_init(linker);
+    if(!structValue->allows_direct_init()) {
+        linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
+    }
+    auto refTypeKind = structValue->getRefType()->kind();
+    if(refTypeKind == BaseTypeKind::Generic) {
+        for (auto& arg: structValue->generic_list()) {
+            visit(arg);
+        }
+    }
+}
+
 bool sig_embedded_traverse(void* data, ASTAny* item) {
     const auto traverser = static_cast<TopLevelLinkSignature*>(data);
     switch(item->any_kind()) {

@@ -502,6 +502,19 @@ func file_flush(f : *mut File) : Result<UnitTy, FsError> {
     }
 }
 
+public func filetime_to_unix(ft : FILETIME) : i64 {
+    const SECS_BETWEEN_EPOCHS : i64 = 11644473600;
+    const HUNDRED_NANOSECONDS_PER_SEC : i64 = 10000000;
+
+    // Reconstruct 64-bit Windows time from FILETIME parts
+    var windows_time : u64 = ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+
+    // Convert to seconds and adjust epoch
+    var unix_time : i64 = (windows_time / HUNDRED_NANOSECONDS_PER_SEC) - SECS_BETWEEN_EPOCHS;
+
+    return unix_time;
+}
+
 // --------------------------
 // Metadata, timestamps, permissions
 // --------------------------
@@ -524,10 +537,9 @@ func metadata(path : *char) : Result<Metadata, FsError> {
         m.is_symlink = ((attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0);
         // convert LARGE_INTEGER FILETIME to epoch seconds (simplified)
         m.len = (fi.nFileSizeHigh as size_t) << 32 | (fi.nFileSizeLow as size_t);
-        // TODO: filetime_to_unix not available
-        // m.modified = filetime_to_unix(fi.ftLastWriteTime);
-        // m.accessed = filetime_to_unix(fi.ftLastAccessTime);
-        // m.created = filetime_to_unix(fi.ftCreationTime);
+        m.modified = filetime_to_unix(fi.ftLastWriteTime);
+        m.accessed = filetime_to_unix(fi.ftLastAccessTime);
+        m.created = filetime_to_unix(fi.ftCreationTime);
         m.perms = attrs as u32;
         return Result.Ok(m);
     } else {

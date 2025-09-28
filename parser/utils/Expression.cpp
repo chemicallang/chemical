@@ -136,7 +136,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     // lambda with no params
     if(consumeToken(TokenType::RParen)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);;
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));;
         parseLambdaAfterParamsList(allocator, lamb);
         return lamb;
     }
@@ -149,7 +149,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     }
 
     if (consumeToken(TokenType::RParen)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         parseLambdaAfterParamsList(allocator, lamb);
@@ -161,7 +161,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         } else {
             unexpected_error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), typeLoc, 0, nullptr, false, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         if (consumeToken(TokenType::CommaSym)) {
@@ -170,7 +170,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
         parseLambdaAfterComma(this, allocator,  lamb);
         return lamb;
     } else if (consumeToken(TokenType::CommaSym)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
         auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
         lamb->params.emplace_back(param);
         lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));

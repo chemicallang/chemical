@@ -221,6 +221,9 @@ bool FunctionType::equal(FunctionType *other) const {
     if (!returnType->is_same(other->returnType)) {
         return false;
     }
+    if(params.size() != other->params.size()) {
+        return false;
+    }
     unsigned i = 0;
     while (i < params.size()) {
         if (!params[i]->type->is_same(other->params[i]->type)) {

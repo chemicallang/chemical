@@ -2184,7 +2184,7 @@ bool link_full(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_type
 void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymResLinkBody& symRes, Value* debug_value) {
     auto& resolver = symRes.linker;
     if(to_params.size() > from_params.size()) {
-        resolver.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " however given " << std::to_string(to_params.size());
+        resolver.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " parameters however given " << std::to_string(to_params.size());
         return;
     }
     auto total = from_params.size();

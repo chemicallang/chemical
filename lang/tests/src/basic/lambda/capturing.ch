@@ -22,6 +22,10 @@ func pass_func_lambda(fun : std::function<() => int>) : int {
     return take_cap_func(fun);
 }
 
+func take_cap_func2(fun : std::function<(a : int) => int>) : int {
+    return fun(8327)
+}
+
 func test_capturing_lambda() {
     test("capturing lambda works in var init", () => {
         var temp = 11;
@@ -101,6 +105,19 @@ func test_capturing_lambda() {
             return 0;
         })
         return temp == 121;
+    })
+    test("capturing lambdas can take parameters (no capture) - 1", () => {
+        const arg = take_cap_func2(||(a : int) => {
+            return a;
+        })
+        return arg == 8327
+    })
+    test("capturing lambdas can take parameters (with capture) - 2", () => {
+        var x = 8237
+        const arg = take_cap_func2(|x|(a : int) => {
+            return a;
+        })
+        return arg == 8327
     })
     test_capturing_lambda_destruction()
 }

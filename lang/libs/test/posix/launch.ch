@@ -36,7 +36,7 @@ func launch_test(exe_path : *char, , id : int, state : &mut TestFunctionState) :
    posix_spawn_file_actions_addclose(&mut actions, sv[0]);
 
     // spawn the process
-    rc = posix_spawnp(&mut pid, exe_path, &actions, null as **char, argv, environ)
+    rc = posix_spawnp(&mut pid, exe_path, &actions, null, argv, __environ)
 
     // destroy the actions
     posix_spawn_file_actions_destroy(&mut actions);
@@ -60,7 +60,7 @@ func launch_test(exe_path : *char, , id : int, state : &mut TestFunctionState) :
             var saved_errno = get_errno();
             close(parent_fd);
             var status : int
-            waitpid(pid, &status, 0)
+            waitpid(pid, &mut status, 0)
             set_errno(saved_errno);
             return -1;
         }
@@ -76,7 +76,7 @@ func launch_test(exe_path : *char, , id : int, state : &mut TestFunctionState) :
         if(len > MAX_MSG) {
             close(parent_fd)
             var status : int
-            waitpid(pid, &status, 0)
+            waitpid(pid, &mut status, 0)
             set_errno(EPROTO)
             return -1;
         }
@@ -103,7 +103,7 @@ func launch_test(exe_path : *char, , id : int, state : &mut TestFunctionState) :
             }
         }
 
-        process_message(state, buf)
+        process_message(state, buf as *char)
 
         free(buf);
 

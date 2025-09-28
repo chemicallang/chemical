@@ -121,39 +121,43 @@ bool is_node_no_mangle(ASTNode* node) {
     }
 }
 
-void write_file_scope(BufferedWriter& stream, ASTNode* node, FileScope* p) {
-    const auto scope = p->parent();
-    if(scope && !is_node_no_mangle(node)) {
-        if(!scope->scope_name.empty()) {
-            stream << scope->scope_name;
-            stream << '_';
-        }
-        stream << scope->module_name;
+void write_mod_scope(BufferedWriter& stream, ModuleScope* mod) {
+    if(!mod->scope_name.empty()) {
+        stream << mod->scope_name;
         stream << '_';
     }
+    stream << mod->module_name;
+    stream << '_';
 }
 
-inline void write_mangle_parent(NameMangler& mangler, BufferedWriter& stream, ASTNode* node) {
-    switch(node->kind()) {
+inline void write_file_scope(BufferedWriter& stream, FileScope* p) {
+   write_mod_scope(stream, p->parent());
+}
+
+inline void write_mangle_parent_of(NameMangler& mangler, BufferedWriter& stream, ASTNode* node) {
+    if(!node) return;
+    const auto parent = node->parent();
+    if(!parent) return;
+    switch(parent->kind()) {
         case ASTNodeKind::FileScope: {
-            write_file_scope(stream, node, node->as_file_scope_unsafe());
-            break;
+            if(!is_node_no_mangle(node)) {
+                write_file_scope(stream, parent->as_file_scope_unsafe());
+            }
+            return;
         }
         case ASTNodeKind::FunctionDecl:
-            break;
+            // local node, no need to mangle
+            return;
         default:
-            mangler.mangle_non_func(stream, node);
-            break;
+            mangler.mangle_non_func(stream, parent);
+            return;
     }
 }
 
 bool NameMangler::mangle_non_func(BufferedWriter& stream, ASTNode* node) {
     const auto id = node->get_located_id();
     if(id) {
-        const auto p = node->parent();
-        if (p) {
-            write_mangle_parent(*this, stream, p);
-        };
+        write_mangle_parent_of(*this, stream, node);
         mangle_no_parent(stream, node);
         return true;
     } else {
@@ -193,10 +197,7 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                 } else {
                     // TODO: this only covers module scope
                     // since this method is on native types, we need to figure out how to mangle it
-                    const auto p = def->parent();
-                    if(p) {
-                        write_mangle_parent(*this, stream, p);
-                    }
+                    write_mangle_parent_of(*this, stream, def);
                 }
             } else {
                 const auto& interface = def->interface_type->linked_interface_def();
@@ -205,7 +206,9 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
             break;
         }
         case ASTNodeKind::FileScope: {
-            write_file_scope(stream, decl, parent->as_file_scope_unsafe());
+            if(!decl->is_no_mangle()) {
+                write_file_scope(stream, parent->as_file_scope_unsafe());
+            }
             break;
         }
         default:

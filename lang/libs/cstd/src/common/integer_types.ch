@@ -43,32 +43,52 @@ public type int64_t = i64
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type int_fast8_t = char
+if(def.windows) {
+    @extern
+    public type int_fast8_t = char
+} else {
+    @extern
+    public type int_fast8_t = i8 // signed char
+}
 
 /**
  * fastest signed integer type with width of
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type int_fast16_t = short
+if(def.windows) {
+    @extern
+    public type int_fast16_t = short
+} else {
+    @extern
+    public type int_fast16_t = long
+}
 
 /**
  * fastest signed integer type with width of
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type int_fast32_t = int
+if(def.windows) {
+    @extern
+    public type int_fast32_t = int
+} else {
+    @extern
+    public type int_fast32_t = long
+}
 
 /**
  * fastest signed integer type with width of
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type int_fast64_t = bigint
+if(def.windows) {
+    @extern
+    public type int_fast64_t = bigint
+} else {
+    @extern
+    public type int_fast64_t = long
+}
 
 /**
  * smallest signed integer type with width of
@@ -170,24 +190,39 @@ public type uint_fast8_t = uchar
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type uint_fast16_t = ushort
+if(def.windows) {
+    @extern
+    public type uint_fast16_t = ushort
+} else {
+    @extern
+    public type uint_fast16_t = ulong
+}
 
 /**
  * fastest unsigned integer type with width of
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type uint_fast32_t = uint
+if(def.windows) {
+    @extern
+    public type uint_fast32_t = uint
+} else {
+    @extern
+    public type uint_fast32_t = ulong
+}
 
 /**
  * fastest unsigned integer type with width of
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
-public type uint_fast64_t = ubigint
+if(def.windows) {
+    @extern
+    public type uint_fast64_t = ubigint
+} else {
+    @extern
+    public type uint_fast64_t = ulong
+}
 
 /**
  * smallest unsigned integer type with width of

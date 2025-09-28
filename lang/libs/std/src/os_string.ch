@@ -28,7 +28,7 @@ struct OsString {
         if(def.windows) {
             data_ = utf8_to_u16(utf8);
         } else {
-            data_ = utf8;
+            data_ = utf8.copy();
         }
     }
 
@@ -56,7 +56,7 @@ struct OsString {
                 return data_.data()
             }
         } else {
-            return data_.c_str();
+            return data_.data();
         }
     }
 

@@ -34,6 +34,10 @@ llvm::Value* PatternMatchIdentifier::llvm_pointer(Codegen &gen) {
     return linked_def->get_param_pointer(gen, holder_pointer, member_param);
 }
 
+bool PatternMatchIdentifier::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) {
+    return member_param->add_child_index(gen, indexes, name);
+}
+
 llvm::Value* PatternMatchExpr::llvm_value(Codegen &gen, BaseType *type) {
     const auto pointer = expression->llvm_pointer(gen);
     const auto elseKind = elseExpression.kind;

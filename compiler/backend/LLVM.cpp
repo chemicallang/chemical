@@ -960,10 +960,24 @@ llvm::Value* IsValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 
             // loading the type integer from the variant
             const auto expr_value = value->llvm_value(gen);
-            const auto def_type = variant_def->llvm_type(gen);
+
+            const auto int32Ty = gen.builder->getInt32Ty();
+
+            llvm::Type* def_type;
+            if(variant_def->generic_parent != nullptr) {
+                // when the variant can be generic
+                // user writes val is MyVariant.Some (without any generic args)
+                // we don't want to call llvm_type on a generic variant (or its master implementation)
+                // without knowing which generic instantiation
+                // therefore we'll use a small struct type with a single integer
+                def_type = llvm::StructType::get(*gen.ctx, std::initializer_list<llvm::Type*> { int32Ty });
+            } else {
+                def_type = variant_def->llvm_type(gen);
+            }
+
             std::initializer_list<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
             const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
-            const auto loadInst = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+            const auto loadInst = gen.builder->CreateLoad(int32Ty, gep, "");
             gen.di.instr(loadInst, value);
 
             // getting the index of the variant member type

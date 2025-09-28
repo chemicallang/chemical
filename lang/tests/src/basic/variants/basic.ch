@@ -3,6 +3,11 @@ variant OptVariant {
     None()
 }
 
+variant GenVarIsValTest<T> {
+    Some(value : T)
+    None()
+}
+
 func check_variant_is_some(opt : OptVariant) : bool {
     return opt is OptVariant.Some
 }
@@ -250,41 +255,57 @@ func test_variants() {
         var v = ImpVar22.Some(99)
         return get_value_iv22(v) == 99;
     })
-    test("is values work with variants - 1", () => {
+    test("is value work with variants - 1", () => {
         var v1 = OptVariant.Some(10)
         return v1 is OptVariant.Some
     })
-    test("is values work with variants - 2", () => {
+    test("is value work with variants - 2", () => {
         var v1 = OptVariant.Some(10)
         return v1 !is OptVariant.None
     })
-    test("is values work with variants - 3", () => {
+    test("is value work with variants - 3", () => {
         var v1 = OptVariant.None()
         return v1 is OptVariant.None
     })
-    test("is values work with variants - 4", () => {
+    test("is value work with variants - 4", () => {
         var v1 = OptVariant.None()
         return v1 !is OptVariant.Some
     })
-    test("is values work with variants - 5", () => {
+    test("is value work with variants - 5", () => {
         var v1 = OptVariant.Some(10)
         return v1 is OptVariant.Some && v1 !is OptVariant.None
     })
-    test("is values work with variants - 6", () => {
+    test("is value work with variants - 6", () => {
         var v1 = OptVariant.None()
         return v1 is OptVariant.None && v1 !is OptVariant.Some
     })
-    test("is values work with variants - 7", () => {
+    test("is value work with variants - 7", () => {
         return check_variant_is_some(OptVariant.Some(10))
     })
-    test("is values work with variants - 8", () => {
+    test("is value work with variants - 8", () => {
         return !check_variant_is_none(OptVariant.Some(10))
     })
-    test("is values work with variants - 9", () => {
+    test("is value work with variants - 9", () => {
         return check_variant_is_none(OptVariant.None())
     })
-    test("is values work with variants - 10", () => {
+    test("is value work with variants - 10", () => {
         return !check_variant_is_some(OptVariant.None())
+    })
+    test("is value works with generic variant - 1", () => {
+        var v = GenVarIsValTest.Some<short>(9201)
+        return v is GenVarIsValTest.Some && v !is GenVarIsValTest.None
+    })
+    test("is value works with generic variant - 2", () => {
+        var v = GenVarIsValTest.None<short>()
+        return v is GenVarIsValTest.None && v !is GenVarIsValTest.Some
+    })
+    test("is value works with generic variant - 3", () => {
+        var v = GenVarIsValTest.Some<int>(9201)
+        return v is GenVarIsValTest.Some && v !is GenVarIsValTest.None
+    })
+    test("is value works with generic variant - 4", () => {
+        var v = GenVarIsValTest.None<int>()
+        return v is GenVarIsValTest.None && v !is GenVarIsValTest.Some
     })
     test("default generic parameter types work in variants", () => {
         var s = GenVarDef.Some<>(10)

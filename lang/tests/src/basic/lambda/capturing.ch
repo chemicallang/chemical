@@ -119,5 +119,21 @@ func test_capturing_lambda() {
         })
         return arg == 8327
     })
+    test("automatic dereference when captured is a reference for indexing - 1", () => {
+        var index = 0
+        const arg = take_cap_func2(|&mut index|(a : int) => {
+            var arr = [ 8323, 23485 ]
+            return arr[index]
+        })
+        return arg == 8323
+    })
+    test("automatic dereference when captured is a reference for indexing - 2", () => {
+        var index = 1
+        const arg = take_cap_func2(|&mut index|(a : int) => {
+            var arr = [ 8323, 23485 ]
+            return arr[index]
+        })
+        return arg == 23485
+    })
     test_capturing_lambda_destruction()
 }

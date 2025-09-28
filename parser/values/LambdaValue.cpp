@@ -33,7 +33,7 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
 
 LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
 
-    auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, 0);
+    auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
 
     if(consumeToken(TokenType::PipeSym)) {
 

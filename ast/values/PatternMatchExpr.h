@@ -78,6 +78,8 @@ public:
 
     llvm::Value* llvm_pointer(Codegen &gen) override;
 
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override;
+
 #endif
 
 };

@@ -46,6 +46,18 @@ func take_destructible_ref(ref : &Destructible) {
 
 }
 
+struct ThingRetTy {}
+// this function wasn't compiling because destructor of 'callback' was being called
+// after the return, so now we test whether it can exist and calling it still destructs
+// the callback
+func func_ret_struct_can_exist(callback : Destructible) : ThingRetTy {
+    if(def.windows) {
+        return ThingRetTy {}
+    } else {
+        return ThingRetTy {}
+    }
+}
+
 struct GenDestruct<T> {
 
     var data : T
@@ -386,6 +398,11 @@ func test_destructors() {
             data_usable = d.data == 426;
         }
         return count == 1 && data_usable;
+    })
+    test("destruction of struct when returning using a compile time branch works", () => {
+        var count = 0
+        func_ret_struct_can_exist(create_destructible(&mut count, 5283))
+        return count == 1
     })
     test("destruction at early return : true", () => {
          var count = 0;

@@ -1881,17 +1881,19 @@ void ASTNode::code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation
 
 void Scope::destruct_current_scope(Codegen& gen, unsigned destruct_begin) {
     const auto func_type = gen.current_func_type;
-    VariableIdentifier temp_id("", encoded_location());
+    // VariableIdentifier temp_id("", encoded_location());
     int i = ((int) gen.destruct_nodes.size()) - 1;
     while (i >= (int) destruct_begin) {
         auto& nodePair = gen.destruct_nodes[i];
         // TODO use the location that represents the scope end
-        temp_id.linked = nodePair.getInitializer();
-        if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
+        // we don't need to check if a nested member has been moved
+        // because we don't allow moving a nested member
+        // temp_id.linked = nodePair.getInitializer();
+        // if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
             gen.conditional_destruct(nodePair, nullptr, encoded_location());
-        } else {
-            gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer(), this);
-        }
+        // } else {
+        //     gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer(), this);
+        // }
         i--;
     }
 }
@@ -1954,6 +1956,13 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
         i++;
     }
     if(gen.destroy_current_scope) {
+        if(gen.has_current_block_ended) {
+            // why ? so user can write as last statement an if that returns in both branches (body, else)
+            // even though both have returned, we start calling destructors here, which causes llvm to crash
+            // because we're calling destructors after the return, so we avoid that, since return statement
+            // automatically calls destructors
+            return;
+        }
         destruct_current_scope(gen, destruct_begin);
     } else {
         gen.destroy_current_scope = true;

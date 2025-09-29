@@ -1345,7 +1345,7 @@ func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size
     return Result.Ok<size_t, FsError>(pos);
 }
 
-func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+public func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
     var opts : OpenOptions; opts.read = false; opts.write = true; opts.create = true; opts.truncate = true; opts.append = false;
     var fo = file_open(path, opts);
     if(fo is Result.Err) {

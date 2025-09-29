@@ -1467,6 +1467,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         job->objects.emplace_back(job_obj_path);
     }
 
+    // end the translation (must be done)
+    c_visitor.end_translate();
+
     auto program = c_visitor.writer.finalized_std_view();
 
     if(job_type == LabJobType::ToCTranslation) {
@@ -2405,6 +2408,9 @@ TCCState* LabBuildCompiler::built_lab_file(
     lab_processor.translate_module(
         c_visitor, &chemical_lab_module
     );
+
+    // end the translation
+    c_visitor.end_translate();
 
     // compiling the c output from build.labs
     auto str = c_visitor.writer.finalized_std_view();

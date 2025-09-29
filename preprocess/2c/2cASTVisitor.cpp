@@ -3094,11 +3094,30 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     tld->write(';');
 }
 
+bool is_return_type_prim_int_like(BaseTypeKind kind) {
+    switch(kind) {
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Reference:
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Function:
+        case BaseTypeKind::String:
+            return true;
+        default:
+            return false;
+    }
+}
+
 // functions inside static interface can be implemented here
 void create_stub_impl_for_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
     declare_contained_func_non_ending(tld, decl, false, nullptr);
     tld->write(" {");
-    if(decl->returnType->canonical()->kind() == BaseTypeKind::IntN) {
+    if(is_return_type_prim_int_like(decl->returnType->canonical()->kind())) {
         tld->new_line_and_indent();
         tld->write("return 0;");
         tld->new_line_and_indent();

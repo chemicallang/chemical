@@ -145,4 +145,12 @@ if(is_my_windows) {
     var y : int = 234
 }
 
+// still would support annotation
+@no_mangle
+var y : int = if(def.windows) 983 else 23623 
+
+// type will support `if` too
+@no_mangle
+type my_type = if(def.windows) int else long
+
 ```

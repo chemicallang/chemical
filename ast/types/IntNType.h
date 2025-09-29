@@ -153,6 +153,20 @@ public:
     );
 
     /**
+     * check if the type satisfies this int n type when in pointer / reference
+     * *mut u8 doesn't satisfy *mut u64
+     */
+    bool pointee_satisfies(IntNType* type) {
+        if(is_unsigned() != type->is_unsigned()) {
+            return false;
+        }
+        if(byte_size(true) != type->byte_size(true)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * types that are larger in bits or smaller can satisfy each other as long as they are same signed
      * however maybe we should have a diagnostic for this
      */

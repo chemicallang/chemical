@@ -48,7 +48,7 @@ bool PointerType::satisfies(BaseType *given) {
         const auto other_pointee = pointer->type->canonical();
         if(type_kind == BaseTypeKind::IntN) {
             const auto other_pointee_kind = other_pointee->kind();
-            if(other_pointee_kind == BaseTypeKind::IntN && !current->as_intn_type_unsafe()->equals(other_pointee->as_intn_type_unsafe())) {
+            if(other_pointee_kind == BaseTypeKind::IntN && !current->as_intn_type_unsafe()->pointee_satisfies(other_pointee->as_intn_type_unsafe())) {
                 return false;
             }
         }

@@ -11,7 +11,6 @@ void ASTProcessor::code_gen_declare(
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
-    CP_UTF8;
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();

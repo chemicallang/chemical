@@ -137,6 +137,12 @@ public:
     std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
 
     /**
+     * map tells which static interfaces have implementations
+     * at the end, we iterate over every static interface here and generate a stub
+     */
+    std::unordered_map<InterfaceDefinition*, bool> has_implementations;
+
+    /**
      * implicit arguments are stored on this unordered map
      */
     std::unordered_map<chem::string_view, Value*> implicit_args;
@@ -433,6 +439,28 @@ public:
 #endif
 
     /**
+     * store this static interface, for generation of stub implementation of it
+     * unless it gets implemented by the user
+     */
+    void store_static_interface_exists(InterfaceDefinition* def) {
+        auto found = has_implementations.find(def);
+        if(found == has_implementations.end()) {
+            has_implementations[def] = true;
+        }
+    }
+
+    /**
+     * remove this static interface from storage, so stub implementation for it
+     * should not be generated
+     */
+    void remove_static_interface_implemented(InterfaceDefinition* def) {
+        auto found = has_implementations.find(def);
+        if(found != has_implementations.end()) {
+            has_implementations.erase(found);
+        }
+    }
+
+    /**
      * destruct the call site
      */
     void destruct_current_scope(Value* returnValue);
@@ -454,6 +482,11 @@ public:
      * this should be called before calling translate
      */
     void prepare_translate();
+
+    /**
+     * end the translation, this would implement all the static interfaces
+     */
+    void end_translate();
 
     /**
      * this should be called after translating one set of nodes (belonging to a single file)

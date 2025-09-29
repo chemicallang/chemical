@@ -3061,8 +3061,7 @@ inline void write_void_ptr_to_param(CTopLevelDeclarationVisitor* tld, FunctionPa
     tld->write(param->name);
 }
 
-// when a function is inside struct / interface
-void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, StructDefinition* overridden = nullptr) {
+void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, StructDefinition* overridden = nullptr) {
     if(decl->is_comptime()) {
         return;
     }
@@ -3087,10 +3086,24 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         func_type_params(tld->visitor, decl, 0, false);
         tld->write(')');
     }
-    if(func_parent->kind() == ASTNodeKind::InterfaceDecl) {
-        tld->write(" __attribute__((weak))");
-    }
+}
+
+// when a function is inside struct / interface
+void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, StructDefinition* overridden = nullptr) {
+    declare_contained_func_non_ending(tld, decl, overrides, overridden);
     tld->write(';');
+}
+
+// functions inside static interface can be implemented here
+void create_stub_impl_for_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl) {
+    declare_contained_func_non_ending(tld, decl, false, nullptr);
+    tld->write(" {");
+    if(decl->returnType->canonical()->kind() == BaseTypeKind::IntN) {
+        tld->new_line_and_indent();
+        tld->write("return 0;");
+        tld->new_line_and_indent();
+    }
+    tld->write("};");
 }
 
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
@@ -3465,9 +3478,16 @@ static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefin
 void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bool external_declare) {
     const auto is_static = def->is_static();
     if(!external_declare) {
-        for (auto& func: def->instantiated_functions()) {
-            if(is_static || !func->has_self_param()) {
+        if(is_static) {
+            for (auto& func: def->instantiated_functions()) {
                 declare_contained_func(this, func, false);
+            }
+            visitor.store_static_interface_exists(def);
+        } else {
+            for (auto& func: def->instantiated_functions()) {
+                if(!func->has_self_param()) {
+                    declare_contained_func(this, func, false);
+                }
             }
         }
     }
@@ -3612,6 +3632,15 @@ void ToCAstVisitor::prepare_translate() {
         "#endif\n"
     );
 
+}
+
+void ToCAstVisitor::end_translate() {
+    for(auto& pair : has_implementations) {
+        for(const auto func : pair.first->instantiated_functions()) {
+            create_stub_impl_for_func(&tld, func);
+        }
+    }
+    has_implementations.clear();
 }
 
 void ToCAstVisitor::reset() {
@@ -4550,6 +4579,11 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
     for (auto& inherits: def->inherited) {
         const auto overridden = inherits.type->get_direct_linked_node()->as_interface_def();
         if (overridden) {
+            if(overridden->is_static()) {
+                // remove, stub implementation for the interface must not be
+                // generated at the end
+                remove_static_interface_implemented(overridden);
+            }
             overridden->active_user = def;
             for (auto& func: overridden->instantiated_functions()) {
                 if (!def->contains_func(func->name_view())) {

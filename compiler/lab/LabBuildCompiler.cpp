@@ -2041,6 +2041,26 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         }
     }
 
+    // import any link libraries into the executable user requested for this module
+    for(auto& linkLib : modFileData.link_libs) {
+        auto resolved = is_condition_enabled(container, linkLib.if_cond);
+        if(resolved.has_value()) {
+            if(resolved.value()) {
+                switch(linkLib.kind) {
+                    case ModFileLinkLibKind::Name:
+                        job->link_libs.emplace_back(chem::string(linkLib.name));
+                        break;
+                    case ModFileLinkLibKind::File:
+                        // TODO: support file link libs
+                        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "file based link libraries aren't supported '" << modFilePathView << '\'' << std::endl;
+                        continue;
+                }
+            }
+        } else {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't resolve the if condition in '" << modFilePathView << '\'' << std::endl;
+        }
+    }
+
     if (verbose) {
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
@@ -2457,6 +2477,13 @@ TCCState* LabBuildCompiler::built_lab_file(
     for(const auto mod : outModDependencies) {
         for(auto& interface : mod->compiler_interfaces) {
             CompilerBinder::import_compiler_interface(interface, state);
+        }
+    }
+
+    // add all the link link libraries required
+    for(auto& linkLib : job->link_libs) {
+        if(tcc_add_library(state, linkLib.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't link library '" << linkLib << "' for build.lab at '" << path << '\'' << std::endl;
         }
     }
 

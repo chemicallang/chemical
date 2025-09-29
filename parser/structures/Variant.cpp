@@ -187,7 +187,14 @@ ASTNode* Parser::parseVariantStructureTokens(ASTAllocator& passed_allocator, Acc
         do {
             consumeNewLines();
             if(parseAnyVariantMember(passed_allocator, decl, AccessSpecifier::Public, false)) {
-                consumeOfType(TokenType::SemiColonSym);
+                switch(token->type) {
+                    case TokenType::SemiColonSym:
+                    case TokenType::CommaSym:
+                        token++;
+                        break;
+                    default:
+                        break;
+                }
             } else {
                 break;
             }

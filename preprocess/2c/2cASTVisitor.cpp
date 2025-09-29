@@ -4438,6 +4438,11 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
     const auto linked_interface = def->interface_type->linked_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
+    // stub implementation for the given interface should not be generated
+    // because impl implements this interface
+    if(linked_interface && linked_interface->is_static()) {
+        store_static_interface_exists(linked_interface);
+    }
     // generate default implementations for functions in interface (which weren't overridden)
     if(linked_struct && !linked_struct->does_override(linked_interface)) {
         linked_interface->active_user = linked_struct;

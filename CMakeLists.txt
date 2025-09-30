@@ -104,7 +104,7 @@ set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/tcc)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/libtcc/include)
 # OS-specific dynamic library
 if (WIN32)
-    set(LIBTCC_LIB ${LIBTCC_DIR}/libtcc.dll)
+    set(LIBTCC_LIB ${LIBTCC_DIR}/libtcc.lib)
 elseif (APPLE)
     set(LIBTCC_LIB ${LIBTCC_DIR}/libtcc.dylib)
 elseif (UNIX)
@@ -712,7 +712,6 @@ endif()
 
 # Add include directories for LspCpp
 target_include_directories(ChemicalLsp PRIVATE
-        ${LIBTCC_DIR}/include
         ${COMMON_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/lib/lsp-framework
         ${LSP_GENERATED_FILES_DIR}
@@ -730,13 +729,11 @@ target_include_directories(Compiler PRIVATE
         ${LLVM_INCLUDE_DIRS}
         ${LLD_INCLUDE_DIRS}
         ${CLANG_INCLUDE_DIRS}
-        ${LIBTCC_DIR}/include
 )
 
 # Add include directories for TCCCompiler
 target_include_directories(TCCCompiler PRIVATE
         ${COMMON_INCLUDE_DIRS}
-        ${LIBTCC_DIR}/include
 )
 
 # find the libraries that correspond to llvm

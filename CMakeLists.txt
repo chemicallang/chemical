@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.12)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical" VERSION 0.0.22)
+project("chemical" VERSION 0.0.23)
 
 # Set C++ standard 20
 set(CMAKE_CXX_STANDARD 20)
@@ -36,6 +36,7 @@ endif()
 # set(CMAKE_BUILD_TYPE "Debug")
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG)
+    add_compile_definitions(PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 endif ()
 
 # Verbose builds produce logs as well
@@ -97,17 +98,21 @@ if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
     string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
 endif ()
 
-# Include directories for libtcc
-set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/libtcc)
-if(WIN32)
-    set(LIBTCC_LIB_DIR ${LIBTCC_DIR}/win-x64)
-    set(LIBTCC_LIB ${LIBTCC_LIB_DIR}/libtcc.lib)
-elseif(UNIX)
-    set(LIBTCC_LIB_DIR ${LIBTCC_DIR}/lin-x64)
-    set(LIBTCC_LIB ${LIBTCC_LIB_DIR}/libtcc.so)
+# Base libtcc directory
+set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/tcc)
+# Headers for Tiny CC Lib
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/libtcc/include)
+# OS-specific dynamic library
+if (WIN32)
+    set(LIBTCC_LIB ${LIBTCC_DIR}/libtcc.dll)
+elseif (APPLE)
+    set(LIBTCC_LIB ${LIBTCC_DIR}/libtcc.dylib)
+elseif (UNIX)
+    set(LIBTCC_LIB ${LIBTCC_DIR}/libtcc.so)
 else()
-    message(FATAL_ERROR "Unknown Operating System, Couldn't Determine libtcc to use")
+    message(FATAL_ERROR "Unsupported Operating System for libtcc")
 endif()
+message(STATUS "Using libtcc from: ${LIBTCC_LIB}")
 
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES

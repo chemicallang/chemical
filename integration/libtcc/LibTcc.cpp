@@ -26,8 +26,19 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMo
     // set custom error/warning printer
     tcc_set_error_func(s, (void*) debug_file_name, handle_tcc_error);
 
+#ifdef DEBUG
+
+    const auto source_dir_path = PROJECT_SOURCE_DIR;
+
+    // the tcc dir contains everything tcc needs present relative to our compiler executable
+    const auto tcc_dir = resolve_rel_child_path_str(source_dir_path, "lib/tcc");
+
+#else
+
     // the tcc dir contains everything tcc needs present relative to our compiler executable
     auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
+
+#endif
 
     // adding tcc include paths (which should be present relative to our compiler executable
     auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");

@@ -57,6 +57,10 @@ public namespace std {
             WakeConditionVariable(&mut storage[0])
         }
 
+        func signal(&mut self) {
+            notify_one()
+        }
+
         func notify_all(&mut self) {
             WakeAllConditionVariable(&mut storage[0])
         }
@@ -68,4 +72,7 @@ public namespace std {
         }
 
     }
+
+    public type condvar = CondVar
+
 }

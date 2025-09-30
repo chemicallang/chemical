@@ -372,6 +372,8 @@ public:
 
     void VisitCapturingFunctionType(CapturingFunctionType* type);
 
+    void VisitExpressiveStringType(ExpressiveStringType* type);
+
     // TODO handle this
     void VisitExpressionType(ExpressionType* type) {}
 

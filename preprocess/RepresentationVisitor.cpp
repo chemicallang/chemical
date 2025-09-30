@@ -41,6 +41,7 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/values/InValue.h"
+#include "ast/types/LinkedValueType.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/ForLoop.h"
@@ -895,6 +896,17 @@ void RepresentationVisitor::VisitReferenceType(ReferenceType *type) {
     visit(type->type);
 }
 
+void write_as_it_is(RepresentationVisitor& visitor, LinkedType* type) {
+    if(type->is_named()) {
+        const auto named = (NamedLinkedType*) type;
+        visitor.write(named->debug_link_name());
+    } else if(type->is_value()) {
+        visitor.visit(((LinkedValueType*) type)->value);
+    } else {
+        visitor.write("UNKNOWN_TYPE");
+    }
+}
+
 void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
     if(type->linked) {
         const auto id = type->linked->get_located_id();
@@ -903,10 +915,10 @@ void RepresentationVisitor::VisitLinkedType(LinkedType *type) {
         } else if (type->linked->kind() == ASTNodeKind::GenericTypeParam) {
             write(type->linked->as_generic_type_param_unsafe()->identifier);
         } else {
-            write("TODO");
+            write_as_it_is(*this, type);
         }
     } else {
-        write("TODO");
+        write_as_it_is(*this, type);
     }
 }
 
@@ -944,11 +956,14 @@ void RepresentationVisitor::VisitVoidType(VoidType *func) {
 }
 
 void RepresentationVisitor::VisitCapturingFunctionType(CapturingFunctionType* type) {
-    write("capture<");
+    write("%capture<");
     visit(type->func_type);
     write(',');
     visit(type->instance_type);
     write('>');
+}
+void RepresentationVisitor::VisitExpressiveStringType(ExpressiveStringType* type) {
+    write("%expressive_string");
 }
 
 void RepresentationVisitor::VisitNullPtrType(NullPtrType* type) {

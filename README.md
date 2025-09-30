@@ -124,28 +124,22 @@ These features should give you an idea about features we have worked on
 - LLVM (for compiler)
 - CLion or other IDE
 
-### Getting Started
+### Building Tiny CC Based Compiler Project (easy, fast)
 
-1. Clone `chemical-bootstrap` in the organization (contains LLVM/CLANG)
-2. Run build scripts (`./build.bat` / `./build`).
+1. Clone this repo
+2. Inside the repo, run `./scripts/configure.sh` (on windows, git bash must be installed)
+3. Open the repo in IDE (in CLion, you'll get automatic build configurations) or build using cmake
+
+LSP also depends on Tiny CC Based Compiler Project and is built similarly
+
+### Building LLVM Based Compiler Project (takes time)
+
+1. Clone `chemical-bootstrap` repo in this organization (contains LLVM/CLANG)
+2. Run build scripts (`./build.bat` / `./build`) (this builds LLVM)
 3. Inside it, clone this repo
-4. Open this repo in your IDE and enjoy!
-
-#### Building the TCC based compiler
-
-TCC based compiler build requires some tcc files to be present at runtime, this process will be automated someday
-
-1. If you use CLion, know that output dir would be `cmake-build-debug` (next to the TCCCompiler / ChemicalLSP)
-2. do not touch / copy `$this_repo/lib/libtcc/include` (directory)
-3. put contents of either `$this_repo/lib/libtcc/win-x64` or `$this_repo/lib/libtcc/lin-x64` into `$output_dir/packages/tcc`
-4. make sure to extract the `package.zip` into `$output_dir/packages/tcc` directory
-5. copy the `libtcc.dll` or `libtcc.so` into the `$output_dir/`, your final structure should be
-
-```
-directory: $output_dir/packages/tcc/include
-directory: $output_dir/packages/tcc/lib
-file:      $output_dir/libtcc.dll
-```
+4. Open this repo directory in terminal
+5. Run the configure script using `./scripts/configure.sh` (on windows, bash must be installed, usually comes with git)
+6. Open the repo in CLion
 
 #### LSP
 

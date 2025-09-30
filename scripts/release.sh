@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#
+# Copyright (c) Chemical Language Foundation 2025.
+#
+
 set -e
 
 # Determine the operating system using uname -s
@@ -140,12 +144,12 @@ if [ "$windows_x64" = true ]; then
   cp out/build/x64-release/Compiler.exe "$windows64dir/chemical.exe"
   # copy resources
   cp -r ./lib/include "$windows64dir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/win-x64/libtcc.dll "$windows64dir/libtcc.dll"
   # copy the libs directory
   cp -r lang/libs "$windows64dir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/win-x64/package.zip" "$windows64dir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.dll "$windows64dir/libtcc.dll"
+  cp -r lib/tcc/include "$windows64dir/packages/tcc"
+  cp -r lib/tcc/lib "$windows64dir/packages/tcc"
 fi
 
 # -------------------------- linux x86-64
@@ -155,12 +159,12 @@ if [ "$linux_x86_64" = true ]; then
   cp out/build/x64-release-wsl/Compiler "$linux64dir/chemical"
   # copy resources
   cp -r ./lib/include "$linux64dir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/lin-x64/libtcc.so "$linux64dir/libtcc.so"
   # copy the libs directory
   cp -r lang/libs "$linux64dir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/lin-x64/package.zip" "$linux64dir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.so "$linux64dir/libtcc.so"
+  cp -r lib/tcc/include "$linux64dir/packages/tcc"
+  cp -r lib/tcc/lib "$linux64dir/packages/tcc"
 fi
 
 # -------------------------- linux x86-64 alpine
@@ -170,12 +174,12 @@ if [ "$linux_x86_64_alpine" = true ]; then
   cp out/build/x64-release-wsl/Compiler "$linux64AlpineDir/chemical"
   # copy resources
   cp -r ./lib/include "$linux64AlpineDir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/lin-x64/libtcc.so "$linux64AlpineDir/libtcc.so"
   # copy the libs directory
   cp -r lang/libs "$linux64AlpineDir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/lin-x64/package.zip" "$linux64AlpineDir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.so "$linux64AlpineDir/libtcc.so"
+  cp -r lib/tcc/include "$linux64AlpineDir/packages/tcc"
+  cp -r lib/tcc/lib "$linux64AlpineDir/packages/tcc"
 fi
 
 # -------------------------- windows x64 tcc
@@ -185,12 +189,12 @@ if [ "$windows_x64_tcc" = true ]; then
   cp out/build/x64-release/TCCCompiler.exe "$Win64TccDir/chemical.exe"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Win64TccDir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/win-x64/libtcc.dll "$Win64TccDir/libtcc.dll"
   # copy the libs directory
   cp -r lang/libs "$Win64TccDir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/win-x64/package.zip" "$Win64TccDir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.dll "$Win64TccDir/libtcc.dll"
+  cp -r lib/tcc/include "$Win64TccDir/packages/tcc"
+  cp -r lib/tcc/lib "$Win64TccDir/packages/tcc"
 fi
 
 # -------------------------- linux x86-64 tcc
@@ -201,11 +205,12 @@ if [ "$linux_x86_64_tcc" = true ]; then
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Lin64TccDir/resources"
   # copy tiny cc dll
-  cp lib/libtcc/lin-x64/libtcc.so "$Lin64TccDir/libtcc.so"
   # copy the libs directory
   cp -r lang/libs "$Lin64TccDir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/lin-x64/package.zip" "$Lin64TccDir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.so "$Lin64TccDir/libtcc.so"
+  cp -r lib/tcc/include "$Lin64TccDir/packages/tcc"
+  cp -r lib/tcc/lib "$Lin64TccDir/packages/tcc"
 fi
 
 # -------------------------- linux x86-64 alpine tcc
@@ -215,12 +220,12 @@ if [ "$linux_x86_64_alpine_tcc" = true ]; then
   cp out/build/x64-release-wsl/TCCCompiler "$Lin64AlpineTccDir/chemical"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Lin64TccDir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/lin-x64/libtcc.so "$Lin64AlpineTccDir/libtcc.so"
   # copy the libs directory
   cp -r lang/libs "$Lin64AlpineTccDir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/lin-x64/package.zip" "$Lin64AlpineTccDir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.so "$Lin64AlpineTccDir/libtcc.so"
+  cp -r lib/tcc/include "$Lin64AlpineTccDir/packages/tcc"
+  cp -r lib/tcc/lib "$Lin64AlpineTccDir/packages/tcc"
 fi
 
 # -------------------------- windows x64 lsp
@@ -230,12 +235,12 @@ if [ "$windows_x64_lsp" = true ]; then
   cp out/build/x64-release/ChemicalLsp.exe "$Win64LspDir/lsp.exe"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Win64LspDir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/win-x64/libtcc.dll "$Win64LspDir/libtcc.dll"
   # copy the libs directory
   cp -r lang/libs "$Win64LspDir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/win-x64/package.zip" "$Win64LspDir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.dll "$Win64LspDir/libtcc.dll"
+  cp -r lib/tcc/include "$Win64LspDir/packages/tcc"
+  cp -r lib/tcc/lib "$Win64LspDir/packages/tcc"
 fi
 
 # -------------------------- linux x86-64 lsp
@@ -245,12 +250,12 @@ if [ "$linux_x86_64_lsp" = true ]; then
   cp out/build/x64-release-wsl/ChemicalLsp "$Lin64LspDir/lsp"
   # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include "$Lin64LspDir/resources"
-  # copy tiny cc dll
-  cp lib/libtcc/lin-x64/libtcc.so "$Lin64LspDir/libtcc.so"
   # copy the libs directory
   cp -r lang/libs "$Lin64LspDir/"
-  # unzip the tinycc package
-  unzip_folder "lib/libtcc/lin-x64/package.zip" "$Lin64LspDir/packages/tcc"
+  # copy the tinycc package
+  cp lib/tcc/libtcc.so "$Lin64LspDir/libtcc.so"
+  cp -r lib/tcc/include "$Lin64LspDir/packages/tcc"
+  cp -r lib/tcc/lib "$Lin64LspDir/packages/tcc"
 fi
 
 # ------------------------- done

@@ -50,6 +50,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/FunctionType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/IfType.h"
 //#include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/CapturingFunctionType.h"
@@ -558,6 +559,16 @@ public:
     void VisitExpressionType(ExpressionType* type) {
         visit_it(type->firstType);
         visit_it(type->secondType);
+    }
+
+    void VisitIfType(IfType* type) {
+        visit_it(type->condition);
+        visit_it(type->thenType);
+        for(auto& pair : type->elseIfs) {
+            visit_it(pair.first);
+            visit_it(pair.second);
+        }
+        visit_it(type->elseType);
     }
 
     inline void VisitAliasStmt(AliasStmt* node) {

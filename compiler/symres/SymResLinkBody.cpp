@@ -55,6 +55,7 @@
 #include "ast/utils/GenericUtils.h"
 #include "NodeSymbolDeclarer.h"
 #include "ast/base/ChildResolution.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 
 void sym_res_link_body(SymbolResolver& resolver, Scope* scope) {
     SymResLinkBody linker(resolver);
@@ -2001,6 +2002,16 @@ void SymResLinkBody::VisitUnionType(UnionType* type) {
     if(!type->name.empty()) {
         linker.declare(type->name, type);
     }
+}
+
+void SymResLinkBody::VisitIfType(IfType* type) {
+    visit(type->condition);
+    visit(type->thenType);
+    for(auto& pair : type->elseIfs) {
+        visit(pair.first);
+        visit(pair.second);
+    }
+    visit(type->elseType);
 }
 
 void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "preprocess/visitors/RecursiveVisitor.h"
+#include "preprocess/visitors/NonRecursiveVisitor.h"
 
 class SymResLinkBody : public NonRecursiveVisitor<SymResLinkBody> {
 public:
@@ -208,6 +208,8 @@ public:
     void VisitStructType(StructType* type);
 
     void VisitUnionType(UnionType* type);
+
+    void VisitIfType(IfType* type);
 
     void VisitAddrOfValue(AddrOfValue* value);
 

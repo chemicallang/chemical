@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include <string>
+#include "std/chem_string_view.h"
+
 
 enum class CompilerFeatureKind : int {
     Float128 = 0
@@ -19,6 +20,16 @@ enum class CompilerFeatureKind : int {
  */
 class BackendContext {
 public:
+
+    /**
+     * get backend name
+     */
+    virtual chem::string_view name() = 0;
+
+    /**
+     * emit a string value
+     */
+    virtual void emit(const chem::string_view& value) = 0;
 
     /**
      * forgets, meaning no drop will be called on the given node

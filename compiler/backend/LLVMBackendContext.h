@@ -15,6 +15,15 @@ public:
 
     }
 
+    chem::string_view name() final {
+        return "LLVM";
+    }
+
+    void emit(const chem::string_view& value) {
+        // no support for emitting the string
+        // we could support some small codes here
+    }
+
     bool forget(ASTNode* node) final;
 
     void mem_copy(Value* lhs, Value* rhs) final;

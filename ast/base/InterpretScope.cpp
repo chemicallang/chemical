@@ -139,6 +139,25 @@ double operate(Operation op, double first, double second) {
     }
 }
 
+std::optional<bool> operate(Operation op, const chem::string_view& first, const chem::string_view& second) {
+    switch(op) {
+        case Operation::IsEqual:
+            return first == second;
+        case Operation::IsNotEqual:
+            return first != second;
+        case Operation::GreaterThan:
+            return first > second;
+        case Operation::LessThan:
+            return first < second;
+        case Operation::GreaterThanOrEqual:
+            return first >= second;
+        case Operation::LessThanOrEqual:
+            return first <= second;
+        default:
+            return std::nullopt;
+    }
+}
+
 bool is_bool_output(Operation op) {
     switch(op) {
         case Operation::IsEqual:
@@ -195,9 +214,26 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 return pack_bool(scope, fKind == ValueKind::NullValue && sKind == ValueKind::NullValue, location);
             case Operation::IsNotEqual:
                 return pack_bool(scope, fKind != sKind, location);
-                break;
             default:
                 return new (scope.allocate<NullValue>()) NullValue(global->typeBuilder.getNullPtrType(), location);
+        }
+    } else if(fKind == ValueKind::String && sKind == ValueKind::String) {
+        const auto firstVal = fEvl->as_string_unsafe();
+        const auto secondVal = sEvl->as_string_unsafe();
+        auto bool_answer = operate(operation, firstVal->value, secondVal->value);
+        if(bool_answer.has_value()) {
+            return pack_bool(scope, bool_answer.value(), location);
+        } else {
+            if(operation == Operation::Addition) {
+                const auto expected_size = firstVal->value.size() + secondVal->value.size();
+                const auto new_ptr = scope.allocator.allocate_released_size(sizeof(char) * (expected_size), alignof(char));
+                memcpy(new_ptr, firstVal->value.data(), firstVal->value.size());
+                memcpy(new_ptr + firstVal->value.size(), secondVal->value.data(), secondVal->value.size());
+                return new (scope.allocate<StringValue>()) StringValue(chem::string_view(new_ptr, expected_size), firstVal->getType(), location);
+            } else {
+                scope.error("unknown operation between strings", debugValue);
+                return nullptr;
+            }
         }
     } else if((fKind == ValueKind::String && is_int_n(sKind))) {
         const auto strVal = fEvl->as_string_unsafe();

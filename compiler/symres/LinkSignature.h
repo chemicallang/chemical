@@ -116,6 +116,8 @@ public:
 
     void VisitDynamicValue(DynamicValue* value);
 
+    void VisitComptimeBlock(ComptimeBlock* node);
+
     void LinkVariablesNoScope(VariablesContainer* container);
 
     void LinkMembersContainerNoScope(MembersContainer* container);

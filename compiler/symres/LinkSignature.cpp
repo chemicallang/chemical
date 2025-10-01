@@ -85,6 +85,19 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
     }
 }
 
+ASTNode* get_chain_item_parent(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::Identifier:
+            return value->as_identifier_unsafe()->linked;
+        case ValueKind::IndexOperator:
+        case ValueKind::FunctionCall:
+        case ValueKind::AccessChain:
+            return value->getType()->get_linked_node();
+        default:
+            return nullptr;
+    }
+}
+
 void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     // an access chain during link signature is being used
     // this must be for example in using statement using ns::something::some
@@ -100,13 +113,6 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     // take the first value
     auto& first = value->values[0];
 
-    // only supporting identifiers at the moment
-    // so we don't have to call linked_node on first value
-    if(first->kind() != ValueKind::Identifier) {
-        linker.error(first) << "only identifiers are supported in top level access chains at the moment";
-        return;
-    }
-
     // visit the first element normally
     visit(first);
 
@@ -116,9 +122,8 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
         return;
     }
 
-    // a variable for traversal
-    const auto first_id = first->as_identifier_unsafe();
-    auto parent = first_id->linked;
+    // get the first chain item parent
+    auto parent = get_chain_item_parent(first);
     if(parent == nullptr) {
         return;
     }
@@ -146,6 +151,16 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     // the last item holds the type for this access chain
     value->setType(value->values[size - 1]->getType());
 
+}
+
+void TopLevelLinkSignature::VisitComptimeBlock(ComptimeBlock* node) {
+    if(linker.comptime_context) {
+        RecursiveVisitor<TopLevelLinkSignature>::VisitComptimeBlock(node);
+    } else {
+        linker.comptime_context = true;
+        RecursiveVisitor<TopLevelLinkSignature>::VisitComptimeBlock(node);
+        linker.comptime_context = false;
+    }
 }
 
 void TopLevelLinkSignature::VisitExpression(Expression* value) {

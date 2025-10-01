@@ -151,22 +151,19 @@ LSP also depends on Tiny CC Based Compiler Project and is built similarly
 
 ---
 
-## 🎯 Vision & Design Goals
+# 🎯 Vision & Design Goals
 
-- **Sensible simplicity:** one way to do things.
+## Compiler plugins and language extensions — Scalability
 
-   We don't want to make the syntax complex, the language should feel very easy to a moderately experienced programmer
-   However too much simplicity (like Python) is also not desired.
+Chemical exists to let you embed complex, domain-specific syntax into the language via compiler plugins. Extensions are first-class: add new syntax and behaviors without touching the core. Tooling (syntax highlighting, editor parsing) must continue to work for extended syntax. Scalability and extensibility are part of Chemical’s DNA.
 
-- **Memory Safety:** without the cost of simplicity
+## Comprehensive features
 
-   This is more of a long term goal, to promote memory safety, We want to be as safe as possible without sacrificing simplicity.
+Real projects frequently need features a language didn’t originally include. Chemical aims to provide the capabilities you actually need while avoiding “syntax pollution.” Powerful, composable abstractions for library authors and power users come with sensible defaults and a gentle learning curve for beginners. The goal: lots of capability, minimal surprise.
 
-- **Git-based modules:** no central package repository. build system baked in
+## Memory safety — without the cost of simplicity
 
-   Compiler would automatically provide support for package management without having to download external package management
-   libraries / plugins. Compiler would provide support for it in build files and its command line by using git to manage
-   modules.
+Long-term, Chemical will promote memory safety while keeping the language simple to use. Safety is a priority but not yet fully enforced — the initial focus is on core functionality and tooling. Once the core is stable, compiler-enforced safety checks will be added progressively; the beta compiler will enforce baseline safety guarantees.
 
 ---
 

@@ -46,6 +46,7 @@
 #include "ast/statements/AccessChainNode.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/GenericTypeDecl.h"
+#include "utils/PathUtils.h"
 
 #ifdef COMPILER_BUILD
 #include "llvm/TargetParser/Triple.h"
@@ -1876,6 +1877,102 @@ public:
 
 };
 
+class InterpretGetBackendName : public FunctionDeclaration {
+public:
+
+    explicit InterpretGetBackendName(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("get_backend_name"),
+            {cache.getStringType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        const auto nameView = call_scope->global->backend_context->name();
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        return new (allocator.allocate<StringValue>()) StringValue(
+            chem::string_view(nameView), typeBuilder.getStringType(), call->encoded_location()
+        );
+    }
+
+};
+
+class InterpretBackendEmit : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretBackendEmit(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("backend_emit"),
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("value", { cache.getStringType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.empty()) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
+        }
+        const auto value = call->values.front()->evaluated_value(*call_scope);
+        if(!value || value->kind() != ValueKind::String) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
+        }
+        call_scope->global->backend_context->emit(value->as_string_unsafe()->value);
+        return new (allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), call->encoded_location());
+    }
+
+};
+
+class InterpretGetLibsDir : public FunctionDeclaration {
+public:
+
+    explicit InterpretGetLibsDir(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("get_libs_dir"),
+            {cache.getStringType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+#ifdef DEBUG
+        auto source_dir = PROJECT_SOURCE_DIR;
+        auto libs_dir = std::string(source_dir) + "/lang/libs";
+#else
+        auto libs_dir = resolve_sibling(call_scope->global->build_compiler->options->exe_path, "libs");
+#endif
+        const auto libs_dir_ptr = allocator.allocate_str(libs_dir.data(), libs_dir.size());
+        return new (allocator.allocate<StringValue>()) StringValue(chem::string_view(libs_dir_ptr, libs_dir.size()), typeBuilder.getStringType(), call->encoded_location());
+    }
+
+};
+
 class ChildFnCache {
 private:
     ASTNode* parent;
@@ -2376,6 +2473,11 @@ public:
     InterpretGetTests get_tests_fn;
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
 
+    InterpretGetBackendName get_backend_name;
+    InterpretBackendEmit backend_emit;
+
+    InterpretGetLibsDir get_libs_dir;
+
     // TODO get_child_fn should be removed
     // we should use get destructor explicitly
     InterpretGetChildFunction get_child_fn;
@@ -2395,7 +2497,7 @@ public:
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this),
-        expr_str_blk_val(cache, this)
+        expr_str_blk_val(cache, this), get_backend_name(cache, this), backend_emit(cache, this), get_libs_dir(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -2406,7 +2508,7 @@ public:
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
-            &destruct_call_site, &expr_str_blk_val
+            &destruct_call_site, &expr_str_blk_val, &get_backend_name, &backend_emit, &get_libs_dir
         };
     }
 

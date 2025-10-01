@@ -87,10 +87,10 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
             if(comptime) {
                 error("already inside comptime context");
             }
+            token++;
             if(token->type == TokenType::LBrace) {
                 return (ASTNode*) parseComptimeBlockNoKw(allocator);
             } else {
-                token++;
                 return parseTopLevelStatement(allocator, true);
             }
         case TokenType::ConstKw:

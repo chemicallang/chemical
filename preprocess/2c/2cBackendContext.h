@@ -15,6 +15,15 @@ public:
 
     }
 
+    chem::string_view name() final {
+        return "C";
+    }
+
+    void emit(const chem::string_view &value) override {
+        // direct write to output
+        visitor->write(value);
+    }
+
     bool forget(ASTNode* node) final;
 
     void mem_copy(Value *lhs, Value *rhs) final;

@@ -162,6 +162,34 @@ func (container : &comptime_func_container) give_arg2(arg : int) : int {
     return arg;
 }
 
+comptime func comptime_test_comparison_strings(value1 : *char, value2 : *char) : bool {
+    return value1 == value2;
+}
+
+comptime func comptime_test_comparison_strings2() : bool {
+    return "something34" == "something34";
+}
+
+comptime func comptime_test_comparison_strings3() : bool {
+    return "sdfgsdfsd3234" == "fgdgdf234234234";
+}
+
+comptime func comptime_test_comparison_strings4() : bool {
+    return "sdfgsdfsd3234" != "fgdgdf234234234";
+}
+
+comptime func comptime_test_comparison_strings5() : bool {
+    return "abc123asdf" != "abc123asdf";
+}
+
+comptime func comptime_add_strings() : *char {
+    return "abcdef" + "ghijkl"
+}
+
+comptime func check_addition_strings() : bool {
+    return comptime_add_strings() == "abcdefghijkl"
+}
+
 func test_comptime() {
     test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -284,5 +312,23 @@ func test_comptime() {
     test("comptime extension functions can return arguments", () => {
         var c = comptime_func_container {}
         return c.give_arg2(67) == 67
+    })
+    test("comptime can compare two strings for equality - 1", () => {
+        return comptime_test_comparison_strings("something123", "something123")
+    })
+    test("comptime can compare two strings for equality - 2", () => {
+        return comptime_test_comparison_strings2()
+    })
+    test("comptime can compare two strings for equality - 3", () => {
+        return comptime_test_comparison_strings3() == false
+    })
+    test("comptime can compare two strings for equality - 4", () => {
+        return comptime_test_comparison_strings4()
+    })
+    test("comptime can compare two strings for equality - 5", () => {
+        return comptime_test_comparison_strings5() == false
+    })
+    test("comptime can add two strings together using plus", () => {
+        return check_addition_strings()
     })
 }

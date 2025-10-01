@@ -58,6 +58,12 @@ public:
     }
 
     /**
+     * this if type can be evaluated to get the type
+     * note: this can return null if condition couldn't be resolved
+     */
+    TypeLoc evaluate(InterpretScope& scope);
+
+    /**
      * copy the if type
      */
     BaseType* copy(ASTAllocator &allocator) override {

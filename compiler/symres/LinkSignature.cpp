@@ -29,6 +29,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/VariantMemberParam.h"
+#include "ast/types/IfType.h"
 #include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
 #include "compiler/SymbolResolver.h"
@@ -449,6 +450,18 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
             } else if(!as_array->has_explicit_size()) {
                 as_array->set_array_size(arr_type->get_array_size());
             }
+        }
+    }
+}
+
+void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
+    if(stmt->actual_type->kind() == BaseTypeKind::IfType) {
+        auto evaluated = stmt->actual_type->as_if_type_unsafe()->evaluate(linker.comptime_scope);
+        if(evaluated) {
+            stmt->actual_type = evaluated;
+        } else {
+            linker.error("couldn't evaluate the if type", stmt->actual_type.encoded_location());
         }
     }
 }

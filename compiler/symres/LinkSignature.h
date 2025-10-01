@@ -130,6 +130,7 @@ public:
 
     void VisitVarInitStmt(VarInitStatement* node);
 
+    void VisitTypealiasStmt(TypealiasStatement* node);
 
     void VisitFunctionDecl(FunctionDeclaration* node);
 

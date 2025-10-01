@@ -43,9 +43,6 @@ std::pair<Value*, TypeLoc> parseTypeIffy(Parser& parser, ASTAllocator& allocator
 }
 
 IfType* parseIfType(Parser& parser, ASTAllocator& allocator) {
-    auto& token = parser.token;
-    // assuming its a if keyword
-    token++;
 
     const auto ifType = new (allocator.allocate<IfType>()) IfType(
         nullptr, nullptr, nullptr
@@ -147,11 +144,7 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
                 // user is going to write an if type
                 // lets parse that
                 const auto ifType = parseIfType(*this, allocator);
-                if (ifType) {
-                    alias->actual_type = {ifType, saved_loc};
-                } else {
-                    error("expected an if type after '='");
-                }
+                alias->actual_type = {ifType, saved_loc};
                 break;
             }
             default: {

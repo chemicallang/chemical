@@ -729,6 +729,11 @@ public:
         return (ExpressiveStringType*) this;
     }
 
+    inline IfType* as_if_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::IfType);
+        return (IfType*) this;
+    }
+
 };
 
 class GlobalBaseType : public BaseType {

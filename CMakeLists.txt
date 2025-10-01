@@ -579,6 +579,7 @@ set(COMMON_SOURCES
         std/chem_string_view_fast.h
         ast/values/DynamicValue.h
         ast/types/IfType.h
+        ast/types/IfType.cpp
 )
 
 # Chemical LSP Executable Target

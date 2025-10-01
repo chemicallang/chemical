@@ -477,6 +477,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
+    inline void VisitIfType(IfType* type) {
+        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
+    }
+
     void VisitNodeNoNullCheck(ASTNode* node) {
         switch(node->kind()) {
             case ASTNodeKind::AssignmentStmt:
@@ -886,6 +890,9 @@ public:
             case BaseTypeKind::ExpressiveString:
                 static_cast<Derived*>(this)->VisitExpressiveStringType((ExpressiveStringType*) type);
                 return;
+            case BaseTypeKind::IfType:
+                static_cast<Derived*>(this)->VisitIfType((IfType*) type);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: type kind in non recursive visitor";
@@ -1228,6 +1235,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(ExpressiveStringType* type) {
         static_cast<Derived*>(this)->VisitExpressiveStringType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(IfType* type) {
+        static_cast<Derived*>(this)->VisitIfType(type);
     }
 
 

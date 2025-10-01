@@ -270,6 +270,8 @@ class ReferenceType;
 
 class ExpressiveStringType;
 
+class IfType;
+
 class LinkedType;
 
 class GenericTypeParameter;

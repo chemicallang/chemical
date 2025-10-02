@@ -54,5 +54,9 @@ enum class ValueKind : uint8_t {
 
     ExpressiveString,
     DynamicValue,
+    Multiple,
+
+    RawLiteral,
+
 
 };

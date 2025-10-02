@@ -580,6 +580,8 @@ set(COMMON_SOURCES
         ast/values/DynamicValue.h
         ast/types/IfType.h
         ast/types/IfType.cpp
+        ast/values/MultipleValue.h
+        ast/values/RawLiteral.h
 )
 
 # Chemical LSP Executable Target

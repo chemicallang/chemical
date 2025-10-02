@@ -103,6 +103,8 @@
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/IsValue.h"
 #include "ast/values/InValue.h"
+#include "ast/values/RawLiteral.h"
+#include "ast/values/MultipleValue.h"
 #include "preprocess/utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
@@ -786,7 +788,7 @@ Value* evaluate_comptime_func(
     visitor.diagnostics.insert(visitor.diagnostics.end(), diags.begin(), diags.end());
     visitor.comptime_scope.reset_diagnostics();
     if(!value) {
-        visitor.error("comptime function call didn't return anything", call);
+        // visitor.error("comptime function call didn't return anything", call);
         return nullptr;
     }
     auto eval_call = value->evaluated_value(visitor.comptime_scope);
@@ -6488,6 +6490,16 @@ void ToCAstVisitor::VisitPatternMatchExpr(PatternMatchExpr* value) {
 
 
     local_allocated[value] = varName;
+}
+
+void ToCAstVisitor::VisitMultipleValue(MultipleValue* value) {
+    for(const auto val : value->values) {
+        visit(val);
+    }
+}
+
+void ToCAstVisitor::VisitRawLiteral(RawLiteral* value) {
+    write(value->value);
 }
 
 void ToCAstVisitor::VisitRetStructParamValue(RetStructParamValue *paramVal) {

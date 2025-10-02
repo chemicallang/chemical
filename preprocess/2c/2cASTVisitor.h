@@ -794,6 +794,10 @@ public:
 
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 
+    void VisitMultipleValue(MultipleValue* value);
+
+    void VisitRawLiteral(RawLiteral* value);
+
     // TODO handle pointer value
     void VisitPointerValue(PointerValue* value) {}
 

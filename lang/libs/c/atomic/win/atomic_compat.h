@@ -101,30 +101,36 @@ static inline unsigned long long atomic_exchange_u64_explicit(LONGLONG volatile 
 
 static inline int atomic_compare_exchange_strong_u64_explicit(unsigned long long volatile *object,
                                                               unsigned long long volatile *expected,
-                                                              unsigned long long desired, int order)
+                                                              unsigned long long desired, int success_order, int failure_order)
 {
     unsigned long long old = *expected;
-    /* InterlockedCompareExchange64 is a full barrier */
-    LONGLONG res = InterlockedCompareExchange64((LONGLONG volatile *)object, (LONGLONG)desired, (LONGLONG)old);
-    *expected = (unsigned long long)res;
-    /* apply fences: success or failure use same order here */
-    if (*expected == old) {
-        /* success semantics */
-        _atomic_fence_after_load(order); /* ensure acquire semantics if requested */
+
+    // Fences for failure ordering (only when CAS fails)
+    _atomic_fence_before_store(failure_order);
+
+    LONGLONG res = InterlockedCompareExchange64(
+            (LONGLONG volatile *)object,
+            (LONGLONG)desired,
+            (LONGLONG)old);
+
+    if (res == old) {
+        // Success path: success_order applies
+        _atomic_fence_after_load(success_order);
+        return 1;
     } else {
-        /* failure semantics: conservative fence for seq_cst if asked */
-        if (order == memory_order_seq_cst)
-            atomic_thread_fence(memory_order_seq_cst);
+        // Failure path: failure_order applies
+        *expected = (unsigned long long)res;
+        _atomic_fence_after_load(failure_order);
+        return 0;
     }
-    return *expected == old;
 }
 
 static inline int atomic_compare_exchange_weak_u64_explicit(unsigned long long volatile *object,
                                                             unsigned long long volatile *expected,
-                                                            unsigned long long desired, int order)
+                                                            unsigned long long desired, int success_order, int failure_order)
 {
     /* Implement weak as strong here (x86 does not provide spurious failures guarantee easily) */
-    return atomic_compare_exchange_strong_u64_explicit(object, expected, desired, order);
+    return atomic_compare_exchange_strong_u64_explicit(object, expected, desired, success_order, failure_order);
 }
 
 #if defined(_WIN64)
@@ -217,28 +223,33 @@ static inline unsigned atomic_exchange_u32_explicit(long volatile *object, unsig
 /* compare-exchange (strong) */
 static inline int atomic_compare_exchange_strong_u32_explicit(unsigned volatile *object,
                                                               unsigned volatile *expected,
-                                                              unsigned desired, int order)
+                                                              unsigned desired, int success_order, int failure_order)
 {
-    unsigned old = *expected;
-    LONG res = (LONG)InterlockedCompareExchange((LONG volatile *)object, (LONG)desired, (LONG)old);
-    *expected = (unsigned)res;
-    if (*expected == old) {
-        /* success: ensure acquire semantics if requested */
-        _atomic_fence_after_load(order);
+    unsigned int old = *expected;
+
+    _atomic_fence_before_store(failure_order);
+
+    unsigned int res = (unsigned int)InterlockedCompareExchange(
+            (LONG volatile *)object,
+            (LONG)desired,
+            (LONG)old);
+
+    if (res == old) {
+        _atomic_fence_after_load(success_order);
+        return 1;
     } else {
-        /* failure: seq_cst fence if requested */
-        if (order == memory_order_seq_cst)
-            atomic_thread_fence(memory_order_seq_cst);
+        *expected = res;
+        _atomic_fence_after_load(failure_order);
+        return 0;
     }
-    return *expected == old;
 }
 
 /* weak implemented as strong (x86 does not provide spurious failure easily) */
 static inline int atomic_compare_exchange_weak_u32_explicit(unsigned volatile *object,
                                                             unsigned volatile *expected,
-                                                            unsigned desired, int order)
+                                                            unsigned desired, int success_order, int failure_order)
 {
-    return atomic_compare_exchange_strong_u32_explicit(object, expected, desired, order);
+    return atomic_compare_exchange_strong_u32_explicit(object, expected, desired, success_order, failure_order);
 }
 
 /* fetch ops */
@@ -301,14 +312,33 @@ static inline unsigned short atomic_exchange_u16_explicit(unsigned short volatil
 
 static inline int atomic_compare_exchange_strong_u16_explicit(short volatile *object,
                                                               unsigned short volatile *expected,
-                                                              unsigned short desired, int order)
+                                                              unsigned short desired, int success_order, int failure_order)
 {
     unsigned short old = *expected;
-    unsigned short res = InterlockedCompareExchange16((volatile short *)object, desired, old);
-    *expected = res;
-    if (*expected == old) _atomic_fence_after_load(order);
-    else if (order == memory_order_seq_cst) atomic_thread_fence(memory_order_seq_cst);
-    return *expected == old;
+
+    _atomic_fence_before_store(failure_order);
+
+    unsigned short res = (unsigned short)InterlockedCompareExchange16(
+            (SHORT volatile *)object,
+            (SHORT)desired,
+            (SHORT)old);
+
+    if (res == old) {
+        _atomic_fence_after_load(success_order);
+        return 1;
+    } else {
+        *expected = res;
+        _atomic_fence_after_load(failure_order);
+        return 0;
+    }
+}
+
+/* weak implemented as strong (x86 does not provide spurious failure easily) */
+static inline int atomic_compare_exchange_weak_u16_explicit(short volatile *object,
+                                                            unsigned short volatile *expected,
+                                                            unsigned short desired, int success_order, int failure_order)
+{
+    return atomic_compare_exchange_strong_u16_explicit(object, expected, desired, success_order, failure_order);
 }
 
 /* fetch ops for u16 */
@@ -368,14 +398,33 @@ static inline unsigned char atomic_exchange_byte_explicit(char volatile *object,
 
 static inline int atomic_compare_exchange_strong_byte_explicit(char volatile *object,
                                                                unsigned char volatile *expected,
-                                                               unsigned char desired, int order)
+                                                               unsigned char desired, int success_order, int failure_order)
 {
     unsigned char old = *expected;
-    unsigned char res = InterlockedCompareExchange8((char volatile *)object, desired, old);
-    *expected = res;
-    if (*expected == old) _atomic_fence_after_load(order);
-    else if (order == memory_order_seq_cst) atomic_thread_fence(memory_order_seq_cst);
-    return *expected == old;
+
+    _atomic_fence_before_store(failure_order);
+
+    unsigned char res = (unsigned char)InterlockedCompareExchange8(
+            (CHAR volatile *)object,
+            (CHAR)desired,
+            (CHAR)old);
+
+    if (res == old) {
+        _atomic_fence_after_load(success_order);
+        return 1;
+    } else {
+        *expected = res;
+        _atomic_fence_after_load(failure_order);
+        return 0;
+    }
+}
+
+/* weak implemented as strong (x86 does not provide spurious failure easily) */
+static inline int atomic_compare_exchange_weak_u8_explicit(char volatile *object,
+                                                            unsigned char volatile *expected,
+                                                            unsigned char desired, int success_order, int failure_order)
+{
+    return atomic_compare_exchange_strong_byte_explicit(object, expected, desired, success_order, failure_order);
 }
 
 /* fetch ops for byte */

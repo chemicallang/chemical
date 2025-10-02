@@ -46,14 +46,14 @@ public comptime func atomic_store_u64(x : *mut u64, y : u64, order : memory_orde
     return three_arg_call("atomic_store_u64_explicit", x, y, order) as void
 }
 
-public comptime func atomic_compare_exchange_weak_u64(x : *mut u64, expected : *mut u64, y : u64, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u64(x : *mut u64, expected : *mut u64, y : u64, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_weak_u64(unsigned long long* x, unsigned long long* expected, unsigned long long y)
-    return four_arg_call("atomic_compare_exchange_weak_u64_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_weak_u64_explicit", x, expected, y, success_order, failure_order) as int
 }
 
-public comptime func atomic_compare_exchange_strong_u64(x : *mut u64, expected : *mut u64, y : u64, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u64(x : *mut u64, expected : *mut u64, y : u64, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_strong_u64(unsigned long long* x, unsigned long long* expected, unsigned long long y)
-    return four_arg_call("atomic_compare_exchange_strong_u64_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_strong_u64_explicit", x, expected, y, success_order, failure_order) as int
 }
 
 public comptime func atomic_exchange_u64(x : *mut u64, y : u64, order : memory_order = memory_order.seq_cst) : u64 {
@@ -98,14 +98,14 @@ public comptime func atomic_store_u32(x : *mut u32, y : u32, order : memory_orde
     return three_arg_call("atomic_store_u32_explicit", x, y, order) as void
 }
 
-public comptime func atomic_compare_exchange_weak_u32(x : *mut u32, expected : *mut u32, y : u32, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u32(x : *mut u32, expected : *mut u32, y : u32, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_weak_u32(unsigned* x, unsigned* expected, unsigned y)
-    return four_arg_call("atomic_compare_exchange_weak_u32_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_weak_u32_explicit", x, expected, y, success_order, failure_order) as int
 }
 
-public comptime func atomic_compare_exchange_strong_u32(x : *mut u32, expected : *mut u32, y : u32, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u32(x : *mut u32, expected : *mut u32, y : u32, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_strong_u32(unsigned* x, unsigned* expected, unsigned y)
-    return four_arg_call("atomic_compare_exchange_strong_u32_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_strong_u32_explicit", x, expected, y, success_order, failure_order) as int
 }
 
 public comptime func atomic_exchange_u32(x : *mut u32, y : u32, order : memory_order = memory_order.seq_cst) : u32 {
@@ -150,14 +150,14 @@ public comptime func atomic_store_u16(x : *mut u16, y : u16, order : memory_orde
     return three_arg_call("atomic_store_u16_explicit", x, y, order) as void
 }
 
-public comptime func atomic_compare_exchange_weak_u16(x : *mut u16, expected : *mut u16, y : u16, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u16(x : *mut u16, expected : *mut u16, y : u16, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_weak_u16(void* x, unsigned short* expected, unsigned short y)
-    return four_arg_call("atomic_compare_exchange_weak_u16_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_weak_u16_explicit", x, expected, y, success_order, failure_order) as int
 }
 
-public comptime func atomic_compare_exchange_strong_u16(x : *mut u16, expected : *mut u16, y : u16, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u16(x : *mut u16, expected : *mut u16, y : u16, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_strong_u16(unsigned short* x, unsigned short* expected, unsigned short y)
-    return four_arg_call("atomic_compare_exchange_strong_u16_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_strong_u16_explicit", x, expected, y, success_order, failure_order) as int
 }
 
 public comptime func atomic_exchange_u16(x : *mut u16, y : u16, order : memory_order = memory_order.seq_cst) : u16 {
@@ -204,14 +204,14 @@ public comptime func atomic_store_u8(x : *mut u8, y : u8, order : memory_order =
     return three_arg_call("atomic_store_byte_explicit", x, y, order) as void
 }
 
-public comptime func atomic_compare_exchange_weak_u8(x : *mut u8, expected : *mut u8, y : u8, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u8(x : *mut u8, expected : *mut u8, y : u8, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_weak_byte(unsigned char* x, unsigned char* expected, unsigned char y);
-    return four_arg_call("atomic_compare_exchange_weak_byte_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_weak_byte_explicit", x, expected, y, success_order, failure_order) as int
 }
 
-public comptime func atomic_compare_exchange_strong_u8(x : *mut u8, expected : *mut u8, y : u8, order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u8(x : *mut u8, expected : *mut u8, y : u8, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
     // int atomic_compare_exchange_strong_byte(unsigned char* x, unsigned char* expected, unsigned char y);
-    return four_arg_call("atomic_compare_exchange_strong_byte_explicit", x, expected, y, order) as int
+    return five_arg_call("atomic_compare_exchange_strong_byte_explicit", x, expected, y, success_order, failure_order) as int
 }
 
 public comptime func atomic_exchange_u8(x : *mut u8, y : u8, order : memory_order = memory_order.seq_cst) : u8 {

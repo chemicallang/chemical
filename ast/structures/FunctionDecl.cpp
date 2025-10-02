@@ -1107,12 +1107,6 @@ Value *FunctionDeclaration::call(
     callScope = call_scope;
     auto& allocator = fn_scope->allocator;
     auto self_param = get_self_param();
-    auto expected_args = expectedArgsSize();
-    if (call_args.size() != expected_args) {
-        // TODO make this method stream
-        fn_scope->error("function " + name_str() + " requires " + std::to_string(expected_args) + ", but given args are " + std::to_string(call_args.size()), debug_value);
-        return nullptr;
-    }
     if(self_param) {
         fn_scope->declare(self_param->name, parent);
     }
@@ -1133,6 +1127,19 @@ Value *FunctionDeclaration::call(
         fn_scope->declare(param->name, param_val);
         i++;
     }
+    auto expected_args = expectedArgsSize();
+    while(i < expected_args) {
+        auto param = func_param_for_arg_at(i);
+        if (param) {
+            if(param->defValue) {
+                fn_scope->declare(param->name, param->defValue->scope_value(*call_scope));
+            } else if(!isInVarArgs(i)) {
+                call_scope->error("function parameter doesn't have default value, no argument exists for it", debug_value);
+            }
+        }
+        i++;
+    }
+
     fn_scope->interpret(&body.value());
     return interpretReturn;
 }

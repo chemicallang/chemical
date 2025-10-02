@@ -1,0 +1,3 @@
+module atomic
+
+source "src"

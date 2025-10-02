@@ -37,6 +37,8 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/Version.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/RawLiteral.h"
+#include "ast/values/MultipleValue.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/IntNType.h"
 #include "core/source/LocationManager.h"
@@ -1905,17 +1907,53 @@ public:
 
 };
 
-class InterpretBackendEmit : public FunctionDeclaration {
+class InterpretEmitRaw : public FunctionDeclaration {
 public:
 
     FunctionParam param;
 
-    explicit InterpretBackendEmit(
+    explicit InterpretEmitRaw(
+        TypeBuilder& cache,
+        ASTNode* parent_node
+    ) : FunctionDeclaration(
+        ZERO_LOC_ID("emit"),
+        {cache.getBoolType(), ZERO_LOC},
+        false,
+        parent_node,
+        ZERO_LOC,
+        AccessSpecifier::Public,
+        true
+    ), param("value", { cache.getStringType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.empty()) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
+        }
+        const auto value = call->values.front()->evaluated_value(*call_scope);
+        if(!value || value->kind() != ValueKind::String) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
+        }
+        call_scope->global->backend_context->emit(value->as_string_unsafe()->value);
+        return new (allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), call->encoded_location());
+    }
+
+};
+
+class InterpretRawLiteral : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretRawLiteral(
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
-            ZERO_LOC_ID("backend_emit"),
-            {cache.getVoidType(), ZERO_LOC},
+            ZERO_LOC_ID("raw"),
+            {cache.getAnyType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1935,8 +1973,43 @@ public:
         if(!value || value->kind() != ValueKind::String) {
             return new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
         }
-        call_scope->global->backend_context->emit(value->as_string_unsafe()->value);
-        return new (allocator.allocate<BoolValue>()) BoolValue(true, typeBuilder.getBoolType(), call->encoded_location());
+        return new (allocator.allocate<RawLiteral>()) RawLiteral(value->as_string_unsafe()->value, typeBuilder.getAnyType(), call->encoded_location());
+    }
+
+};
+
+class InterpretMultiple : public FunctionDeclaration {
+public:
+
+    FunctionParam param;
+
+    explicit InterpretMultiple(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("multiple"),
+            {cache.getAnyType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), param("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+        params = { &param };
+        set_compiler_decl(true);
+        setIsVariadic(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.empty()) {
+            return new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
+        }
+        const auto multi = new (allocator.allocate<MultipleValue>()) MultipleValue(call->values.back()->getType(), call->encoded_location());
+        for(const auto val : call->values) {
+            multi->values.emplace_back(val->evaluated_value(*call_scope));
+        }
+        return multi;
     }
 
 };
@@ -2474,7 +2547,9 @@ public:
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
 
     InterpretGetBackendName get_backend_name;
-    InterpretBackendEmit backend_emit;
+    InterpretEmitRaw emit_raw;
+    InterpretRawLiteral raw_literal;
+    InterpretMultiple multiple_value;
 
     InterpretGetLibsDir get_libs_dir;
 
@@ -2497,7 +2572,8 @@ public:
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this),
-        expr_str_blk_val(cache, this), get_backend_name(cache, this), backend_emit(cache, this), get_libs_dir(cache, this)
+        expr_str_blk_val(cache, this), get_backend_name(cache, this), emit_raw(cache, this), raw_literal(cache, this),
+        multiple_value(cache, this), get_libs_dir(cache, this)
     {
         set_compiler_decl(true);
         nodes = {
@@ -2508,7 +2584,8 @@ public:
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
-            &destruct_call_site, &expr_str_blk_val, &get_backend_name, &backend_emit, &get_libs_dir
+            &destruct_call_site, &expr_str_blk_val, &get_backend_name, &emit_raw, &raw_literal,
+            &multiple_value, &get_libs_dir
         };
     }
 

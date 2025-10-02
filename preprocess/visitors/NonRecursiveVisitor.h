@@ -319,6 +319,14 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitMultipleValue(MultipleValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
+    inline void VisitRawLiteral(RawLiteral* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitSizeOfValue(SizeOfValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -759,6 +767,12 @@ public:
                 return;
             case ValueKind::NullValue:
                 static_cast<Derived*>(this)->VisitNullValue((NullValue*) value);
+                return;
+            case ValueKind::Multiple:
+                static_cast<Derived*>(this)->VisitMultipleValue((MultipleValue*) value);
+                return;
+            case ValueKind::RawLiteral:
+                static_cast<Derived*>(this)->VisitRawLiteral((RawLiteral*) value);
                 return;
             case ValueKind::SizeOfValue:
                 static_cast<Derived*>(this)->VisitSizeOfValue((SizeOfValue*) value);

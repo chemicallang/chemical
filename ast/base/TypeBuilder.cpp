@@ -12,6 +12,7 @@
 #include "ast/types/NullPtrType.h"
 #include "ast/types/PointerType.h"
 #include "ast/statements/UnresolvedDecl.h"
+#include "ast/values/NullValue.h"
 #include "ast/types/ExpressiveStringType.h"
 
 void TypeBuilder::initialize() {
@@ -30,5 +31,8 @@ void TypeBuilder::initialize() {
 
     // global declarations
     unresolvedDecl = new (allocator.allocate<UnresolvedDecl>()) UnresolvedDecl(nullptr, voidType, ZERO_LOC);
+
+    // values
+    nullValue = new (allocator.allocate<NullValue>()) NullValue(nullPtrType, ZERO_LOC);
 
 }

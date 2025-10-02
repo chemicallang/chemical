@@ -57,6 +57,8 @@ private:
     // when anything is unresolved, we link it with this declaration
     UnresolvedDecl* unresolvedDecl;
 
+    NullValue* nullValue;
+
 public:
 
     ASTAllocator& allocator;
@@ -247,6 +249,13 @@ public:
      */
     inline UnresolvedDecl* getUnresolvedDecl() {
         return unresolvedDecl;
+    }
+
+    /**
+     * get the null value
+     */
+    inline NullValue* getNullValue() {
+        return nullValue;
     }
 
 };

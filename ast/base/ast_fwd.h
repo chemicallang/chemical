@@ -210,6 +210,10 @@ class NotValue;
 
 class NullValue;
 
+class MultipleValue;
+
+class RawLiteral;
+
 class SizeOfValue;
 
 class AlignOfValue;

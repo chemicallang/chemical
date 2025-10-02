@@ -190,6 +190,14 @@ comptime func check_addition_strings() : bool {
     return comptime_add_strings() == "abcdefghijkl"
 }
 
+comptime func test_comptime_default_val(value : int = 39238) : bool {
+    return value == 39238
+}
+
+comptime func test_mm_comptime_def_val() : bool {
+    return test_comptime_default_val()
+}
+
 func test_comptime() {
     test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -330,5 +338,11 @@ func test_comptime() {
     })
     test("comptime can add two strings together using plus", () => {
         return check_addition_strings()
+    })
+    test("default values in comptime functions work when called from runtime function", () => {
+        return test_comptime_default_val()
+    })
+    test("default values in comptime functions work when called from comptime function", () => {
+        return test_mm_comptime_def_val()
     })
 }

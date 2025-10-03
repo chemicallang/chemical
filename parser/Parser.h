@@ -791,7 +791,7 @@ public:
     /**
      * parse an if statement
      */
-    IfStatement* parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level);
+    IfStatement* parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level, bool is_comptime);
 
     /**
      * parses a single if value

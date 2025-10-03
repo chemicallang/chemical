@@ -285,14 +285,13 @@ std::optional<bool> IfStatement::get_condition_const(InterpretScope& scope) {
 }
 
 Scope* IfStatement::get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen, bool condition_value) {
-    auto err = "couldn't get constant value for top level if statement's condition";
     if(condition_value) {
         return &ifBody;
     } else {
         for(auto& elseIf : elseIfs) {
             auto constant = elseIf.first->evaluated_value(scope);
             if(!constant || constant->val_kind() != ValueKind::Bool) {
-                gen->error(err, (ASTNode*) this);
+                gen->error("couldn't get constant value for top level if statement's condition", (ASTNode*) this);
                 return nullptr;
             }
             if(constant->get_the_bool()) {
@@ -319,13 +318,10 @@ bool IfStatement::compile_time_computable() {
 }
 
 std::optional<Scope*> IfStatement::resolve_evaluated_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser) {
-    auto condition_val = resolved_condition ? get_condition_const(comptime_scope) : std::optional(false);
+    auto condition_val = get_condition_const(comptime_scope);
     if(condition_val.has_value()) {
-        auto eval = get_evaluated_scope(comptime_scope, &diagnoser, condition_val.value());
-        computed_scope = eval;
-        return eval;
+        return get_evaluated_scope(comptime_scope, &diagnoser, condition_val.value());
     } else {
-        is_computable = false;
         return std::nullopt;
     }
 }

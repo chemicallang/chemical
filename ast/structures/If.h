@@ -11,6 +11,12 @@
 #include "ast/base/Value.h"
 #include <optional>
 
+struct IfStatementAttrs {
+
+    bool is_comptime = false;
+
+};
+
 class IfStatement : public ASTNode {
 public:
 
@@ -18,8 +24,7 @@ public:
     Scope ifBody;
     std::vector<std::pair<Value*, Scope>> elseIfs;
     std::optional<Scope> elseBody;
-    bool is_computable = false;
-    bool resolved_condition = true;
+    IfStatementAttrs attrs;
     // after resolving computed value, we store the scope, so we can visit it
     std::optional<Scope*> computed_scope = std::nullopt;
 
@@ -33,9 +38,15 @@ public:
     ) : ASTNode(ASTNodeKind::IfStmt, parent_node, location), condition(condition), ifBody(this, location),
         elseBody(std::nullopt) {}
 
+    /**
+     * is comptime
+     */
+    inline bool is_comptime() const noexcept {
+        return attrs.is_comptime;
+    }
+
     void copy_into(ASTAllocator& allocator, IfStatement* stmt) {
-        stmt->is_computable = is_computable;
-        stmt->resolved_condition = resolved_condition;
+        stmt->attrs = attrs;
         ifBody.copy_into(stmt->ifBody, allocator, parent());
         stmt->elseIfs.reserve(elseIfs.size());
         for(auto& elif : elseIfs) {
@@ -61,9 +72,7 @@ public:
 
     bool compile_time_computable();
 
-    bool link_conditions(SymbolResolver &linker);
-
-    Scope* link_evaluated_scope(SymbolResolver& linker);
+    void link_conditions(SymbolResolver &linker);
 
     /**
      * std::nullopt means the if statement couldn't be evaluated at comptile time
@@ -76,22 +85,20 @@ public:
     std::optional<Scope*> get_or_resolve_scope(InterpretScope& comptime_scope, ASTDiagnoser& diagnoser) {
         if(computed_scope.has_value()) {
             return computed_scope;
-        } else if(is_computable) {
+        } else if(is_comptime()) {
             return resolve_evaluated_scope(comptime_scope, diagnoser);
         } else {
             return std::nullopt;
         }
     }
 
+    Scope* link_evaluated_scope(SymbolResolver& linker);
+
     /**
-     * this method can be called by parent containers, when the if statement is
-     * present inside the variables container, the evaluated scope is given after linking
-     * conditions, the nodes contained inside ARE NOT LINKED, so you can manually link
+     * first the conditions are linked, then the scope is determined by
+     * evaluating conditions
      */
     inline Scope* get_evaluated_scope_by_linking(SymbolResolver& linker) {
-        if(computed_scope.has_value()) {
-            return computed_scope.value();
-        }
         return link_evaluated_scope(linker);
     }
 

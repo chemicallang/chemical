@@ -55,7 +55,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
 
     // only compile html ide module in lsp
     var cssIde : *mut Module
-    if(def.lsp) {
+    comptime if(def.lsp) {
         cssIde = cssIdeMod.build(ctx, job)
         if(cssIde == null) {
             return null;
@@ -78,7 +78,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_def_cbi_fn(cbi, std::string_view("css_traversalNode"), CBIFunctionType.TraversalNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("css_traversalValue"), CBIFunctionType.TraversalValue);
 
-    if(def.lsp) {
+    comptime if(def.lsp) {
         // this will let the compiler know that methods are present
         ctx.index_def_cbi_fn(cbi, std::string_view("css_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
         ctx.index_def_cbi_fn(cbi, std::string_view("css_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);

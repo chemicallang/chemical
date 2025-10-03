@@ -1156,10 +1156,9 @@ void link_conditions(IfStatement* stmt, SymResLinkBody& symRes) {
     }
 }
 
-bool IfStatement::link_conditions(SymbolResolver &linker) {
+void IfStatement::link_conditions(SymbolResolver &linker) {
     SymResLinkBody temp(linker);
     ::link_conditions(this, temp);
-    return true;
 }
 
 void link_conditions_no_patt_match_expr(IfStatement* stmt, SymResLinkBody &symRes) {
@@ -1174,54 +1173,38 @@ void link_conditions_no_patt_match_expr(IfStatement* stmt, SymResLinkBody &symRe
 }
 
 Scope* IfStatement::link_evaluated_scope(SymbolResolver& linker) {
-    is_computable = true;
-    if(!link_conditions(linker)) {
-        resolved_condition = false;
+    if(computed_scope.has_value()) {
+        return computed_scope.value();
     }
-    auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
+    link_conditions(linker);
+    auto condition_val = get_condition_const(linker.comptime_scope);
     if(condition_val.has_value()) {
-        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+        auto eval = get_evaluated_scope(linker.comptime_scope, &linker, condition_val.value());
         computed_scope = eval;
         return eval;
     } else {
-        is_computable = false;
+        linker.error("couldn't evaluate if statement at compile time", this);
+        return nullptr;
     }
-    return nullptr;
 }
 
 void SymResLinkBody::VisitIfStmt(IfStatement* node) {
 
-    if(node->is_top_level()) {
-        auto scope = node->get_evaluated_scope_by_linking(linker);
-        if(scope) {
-            visit(scope);
-        }
-        return;
-    }
-
     link_conditions_no_patt_match_expr(node, *this);
 
-    if(node->is_computable || node->compile_time_computable()) {
-        node->is_computable = true;
-        if(node->computed_scope.has_value()) {
-            auto scope = node->computed_scope.value();
-            if(scope) {
-                visit(scope);
+    // evaluate the scope and only link that scope
+    if(node->is_comptime() && !linker.comptime_context) {
+        auto condition_val = node->get_condition_const(linker.comptime_scope);
+        if (condition_val.has_value()) {
+            auto eval = node->get_evaluated_scope(linker.comptime_scope, &linker, condition_val.value());
+            // computed scope is calculated once in sym res link body
+            node->computed_scope = eval;
+            if (eval) {
+                visit(eval);
             }
             return;
-        }
-        if(!linker.comptime_context) {
-            auto condition_val = node->resolved_condition ? node->get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
-            if (condition_val.has_value()) {
-                auto eval = node->get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
-                node->computed_scope = eval;
-                if (eval) {
-                    visit(eval);
-                }
-                return;
-            } else {
-                node->is_computable = false;
-            }
+        } else {
+            linker.error("couldn't evaluate if statement at compile time", node);
         }
     }
 

@@ -67,9 +67,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
 
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
-        if(is_const() && is_comptime()) {
-            llvm_ptr = initializer_value(gen);
-            gen.di.declare(this, llvm_ptr);
+        if(is_comptime()) {
             return;
         }
         code_gen_global_var(gen, true);
@@ -163,11 +161,26 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) {
+    if(is_comptime()) {
+        if(!value) {
+            gen.error("comptime global variable/constant must be initialized", this);
+            return gen.builder->getInt32(0);
+        }
+        if(is_const()) {
+            // quickly create a value that we already hold
+            return initializer_value(gen);
+        } else {
+            const auto stored = gen.comptime_scope.find(name_view());
+            if(stored) {
+                return stored->llvm_value(gen);
+            } else {
+                gen.error("couldn't get value for comptime variable", this);
+                return gen.builder->getInt32(0);
+            };
+        }
+    }
     if(is_const()) {
         if(is_top_level()) {
-            if (is_comptime()) {
-                return llvm_pointer(gen);
-            }
         } else if(value) {
             return llvm_pointer(gen);
         }

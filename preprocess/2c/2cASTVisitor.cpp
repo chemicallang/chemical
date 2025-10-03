@@ -5440,6 +5440,23 @@ void ToCAstVisitor::VisitAccessChain(AccessChain *chain) {
             return;
         }
     }
+
+    // accessing something from a comptime var init
+    // def.windows (def is comptime, windows is a struct member)
+    const auto first = chain->values[0];
+    if(first->kind() == ValueKind::Identifier) {
+        const auto linked = first->as_identifier_unsafe()->linked;
+        if(linked->kind() == ASTNodeKind::VarInitStmt && linked->as_var_init_unsafe()->is_comptime()) {
+            const auto eval = chain->evaluated_value(comptime_scope);
+            if(eval) {
+                visit(eval);
+            } else {
+                error("couldn't evaluate the access chain", chain);
+            }
+            return;
+        }
+    }
+
     const auto size = chain->values.size();
     access_chain(*this, chain->values, 0, size);
 }

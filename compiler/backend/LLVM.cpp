@@ -1326,16 +1326,21 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
     return type;
 }
 
-llvm::Value* AccessChain::llvm_value_no_itr(Codegen &gen, BaseType* expected_type) {
-    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    const auto last_ind = values.size() - 1;
-    const auto last = values[last_ind];
-    const auto value = last->access_chain_value(gen, values, last_ind, destructibles, expected_type);
-    Value::destruct(gen, destructibles);
-    return value;
-}
-
 llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
+    if(values.front()->kind() == ValueKind::Identifier) {
+        const auto id = values.front()->as_identifier_unsafe();
+        // when user access a value in a comptime global variable/constant
+        // like def.windows (def is comptime, windows is a struct member)
+        if(id->linked->kind() == ASTNodeKind::VarInitStmt && id->linked->as_var_init_unsafe()->is_comptime()) {
+            const auto evaluated = evaluated_value(gen.comptime_scope);
+            if(evaluated) {
+                return evaluated->llvm_value(gen);
+            } else {
+                gen.error("couldn't evaluate the value at compile time", this);
+                return gen.builder->getInt32(0);
+            }
+        }
+    }
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     const auto last_ind = values.size() - 1;
     const auto last = values[last_ind];

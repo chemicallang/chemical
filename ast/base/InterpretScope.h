@@ -107,6 +107,13 @@ public:
     Value* find_value(const std::string& name);
 
     /**
+     * return a value stored with name
+     */
+    inline Value* find(const chem::string_view& name) {
+        return find_value(name.str());
+    }
+
+    /**
      * @return iterator for found value, the map that it was found in
      */
     std::pair<value_iterator, InterpretScope&> find_value_iterator(const std::string& name);

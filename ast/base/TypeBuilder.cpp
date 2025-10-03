@@ -27,6 +27,8 @@ void TypeBuilder::initialize() {
     voidType = new (allocator.allocate<VoidType>()) VoidType();
     nullPtrType = new (allocator.allocate<NullPtrType>()) NullPtrType();
     ptrToVoid = new (allocator.allocate<PointerType>()) PointerType(voidType, true);
+    ptrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, true);
+    constPtrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, false);
     expr_str_type = new (allocator.allocate<ExpressiveStringType>()) ExpressiveStringType();
 
     // global declarations

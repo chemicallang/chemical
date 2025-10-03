@@ -2540,7 +2540,6 @@ public:
     InterpretSizeOfLambdaCaptured sizeof_lambda_captured;
     InterpretAlignOfLambdaCaptured alignof_lambda_captured;
 
-    InterpretDestructCallSite destruct_call_site;
     InterpretExprStrBlockValue expr_str_blk_val;
 
     InterpretGetTests get_tests_fn;
@@ -2571,7 +2570,7 @@ public:
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
-        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this), destruct_call_site(cache, this),
+        sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this),
         expr_str_blk_val(cache, this), get_backend_name(cache, this), emit_raw(cache, this), raw_literal(cache, this),
         multiple_value(cache, this), get_libs_dir(cache, this)
     {
@@ -2584,7 +2583,7 @@ public:
             &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
             &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
-            &destruct_call_site, &expr_str_blk_val, &get_backend_name, &emit_raw, &raw_literal,
+            &expr_str_blk_val, &get_backend_name, &emit_raw, &raw_literal,
             &multiple_value, &get_libs_dir
         };
     }

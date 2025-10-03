@@ -14,7 +14,6 @@ comptime func decode_location(loc : ubigint) : Location {
 }
 
 public comptime func panic(message : *char) {
-    intrinsics::destruct_call_site()
     var loc = intrinsics::get_call_loc(999)
     var decoded = decode_location(loc)
     return (intrinsics::wrap(raw_panic(message, decoded)) as void);

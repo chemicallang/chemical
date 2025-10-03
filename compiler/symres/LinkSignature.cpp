@@ -755,11 +755,9 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
 }
 
 void TopLevelLinkSignature::VisitIfStmt(IfStatement* node) {
-    if(node->is_top_level()) {
-        auto scope = node->get_evaluated_scope_by_linking(linker);
-        if(scope) {
-            VisitByPtrTypeNoNullCheck(scope);
-        }
+    auto scope = node->get_evaluated_scope_by_linking(linker);
+    if(scope) {
+        VisitByPtrTypeNoNullCheck(scope);
     }
 }
 

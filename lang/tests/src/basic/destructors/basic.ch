@@ -51,7 +51,7 @@ struct ThingRetTy {}
 // after the return, so now we test whether it can exist and calling it still destructs
 // the callback
 func func_ret_struct_can_exist(callback : Destructible) : ThingRetTy {
-    if(def.windows) {
+    comptime if(def.windows) {
         return ThingRetTy {}
     } else {
         return ThingRetTy {}

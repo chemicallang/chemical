@@ -7,7 +7,7 @@ if(!def.windows) {
 public namespace fs {
 
     public func mkdir(pathname : *char) : int {
-        if(def.windows) {
+        comptime if(def.windows) {
             return _mkdir(pathname)
         } else {
             return posix_mkdir(pathname, PermissionMode.S_IRWXU as uint)
@@ -31,7 +31,7 @@ public namespace fs {
     public func parent_path(str : std::string_view) : std::string {
         var final = std::string()
         var pos : int
-        if(def.windows) {
+        comptime if(def.windows) {
             pos = find_last_pos_of_or(str.data(), str.size(), '\\', '/')
         } else {
             pos = find_last_pos_of_or(str.data(), str.size(), '/', '/')
@@ -79,7 +79,7 @@ public namespace fs {
     public comptime const COPY_SKIP_EXISTING = CopyOptions.SkipExisting;
 
     public func path_exists(path : *char) : bool {
-        if(def.windows) {
+        comptime if(def.windows) {
             return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
         } else {
             var st : Stat;
@@ -88,7 +88,7 @@ public namespace fs {
     }
 
     public func is_directory(path : *char) : bool {
-        if(def.windows) {
+        comptime if(def.windows) {
             const attributes = GetFileAttributesA(path);
             return (attributes != INVALID_FILE_ATTRIBUTES) && (attributes & FILE_ATTRIBUTE_DIRECTORY);
         } else {
@@ -104,7 +104,7 @@ public namespace fs {
             fprintf(get_stderr(), "File exists: %s\n", dest);
             return -1;
         }
-        if(def.windows) {
+        comptime if(def.windows) {
             // Note: CopyFileA's bFailIfExists parameter handles the overwrite logic.
             // The check above is redundant if relying solely on CopyFileA's parameter,
             // but useful for the SkipExisting logic.
@@ -161,7 +161,7 @@ public namespace fs {
         }
 
         // Create destination directory if it doesn't exist
-        if(def.windows) {
+        comptime if(def.windows) {
             if (!path_exists(dest_dir)) {
                 if (!CreateDirectoryA(dest_dir, NULL)) { // Assumes CreateDirectoryA is available
                     fprintf(get_stderr(), "CreateDirectoryA failed: %s\n", dest_dir);
@@ -185,7 +185,7 @@ public namespace fs {
             }
         }
 
-        if(def.windows) {
+        comptime if(def.windows) {
 
             var find_data : WIN32_FIND_DATAA; // Assumes WIN32_FIND_DATAA is defined
 

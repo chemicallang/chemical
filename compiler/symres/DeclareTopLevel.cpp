@@ -157,11 +157,19 @@ void TopLevelDeclSymDeclare::VisitGenericVariantDecl(GenericVariantDecl* node) {
 }
 
 void TopLevelDeclSymDeclare::VisitIfStmt(IfStatement* node) {
-    if (node->is_top_level()) {
-        auto scope = node->link_evaluated_scope(linker);
-        if (scope) {
-            visit(scope);
-        }
+    auto& comptime_scope = linker.comptime_scope;
+    ASTDiagnoser& diagnoser = linker;
+    // we don't know if conditions of this if statement have linked or failed
+    node->link_conditions(linker);
+    auto condition_evaluated = node->get_condition_const(comptime_scope);;
+    if(!condition_evaluated.has_value()) {
+        diagnoser.error("couldn't evaluate condition", node->condition);
+        return;
+    }
+    auto eval = node->get_evaluated_scope(comptime_scope, &diagnoser, condition_evaluated.value());
+    node->computed_scope = eval;
+    if(eval) {
+        visit(eval);
     }
 }
 

@@ -4397,14 +4397,6 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
             visit(scope);
         }
         return;
-    } else if(decl->is_computable) {
-        auto scope = decl->resolve_evaluated_scope(comptime_scope, *this);
-        if(scope.has_value()) {
-           if(scope.value()) {
-               visit(scope.value());
-           }
-           return;
-        }
     }
     if(decl->condition->kind() == ValueKind::PatternMatchExpr) {
         do_patt_mat_expr(*this, decl->condition->as_pattern_match_expr_unsafe());

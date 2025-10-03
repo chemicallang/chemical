@@ -879,6 +879,7 @@ void VariablesContainer::take_variables_from_parsed_nodes(SymbolResolver& linker
             }
             case ASTNodeKind::IfStmt: {
                 const auto stmt = node->as_if_stmt_unsafe();
+                stmt->link_conditions(linker);
                 const auto scope = stmt->get_evaluated_scope_by_linking(linker);
                 if(scope) {
                     take_variables_from_parsed_nodes(linker, scope->nodes);

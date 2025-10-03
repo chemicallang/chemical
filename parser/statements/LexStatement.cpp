@@ -88,10 +88,13 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
                 error("already inside comptime context");
             }
             token++;
-            if(token->type == TokenType::LBrace) {
-                return (ASTNode*) parseComptimeBlockNoKw(allocator);
-            } else {
-                return parseTopLevelStatement(allocator, true);
+            switch(token->type) {
+                case TokenType::LBrace:
+                    return (ASTNode*) parseComptimeBlockNoKw(allocator);
+                case TokenType::IfKw:
+                    return (ASTNode*) parseIfStatement(allocator, false, false, false, true);
+                default:
+                    return parseTopLevelStatement(allocator, true);
             }
         case TokenType::ConstKw:
         case TokenType::VarKw:
@@ -122,7 +125,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
         case TokenType::IfKw:
             // top level if can contain public declarations, which is why it needs to be allocated
             // on global allocator, so other modules can import nodes inside the if
-            return (ASTNode*) parseIfStatement(global_allocator, false, false, true);
+            return (ASTNode*) parseIfStatement(global_allocator, false, false, true, false);
         case TokenType::FuncKw:
             return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, false, true, comptime);
         case TokenType::NamespaceKw:
@@ -178,9 +181,17 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::NewKw:
             return (ASTNode*) parsePlacementNewNode(allocator);
         case TokenType::ComptimeKw:
-            return (ASTNode*) parseComptimeBlock(allocator);
+            token++;
+            switch(token->type) {
+                case TokenType::LBrace:
+                    return parseComptimeBlockNoKw(allocator);
+                case TokenType::IfKw:
+                    return (ASTNode*) parseIfStatement(allocator, false, false, false, true);
+                default:
+                    return parseComptimeBlockNoKw(allocator);
+            }
         case TokenType::IfKw:
-            return (ASTNode*) parseIfStatement(allocator, is_value, parse_value_node, false);
+            return (ASTNode*) parseIfStatement(allocator, is_value, parse_value_node, false, false);
         case TokenType::TryKw:
             return (ASTNode*) parseTryCatch(allocator);
         case TokenType::TypeKw:
@@ -393,7 +404,7 @@ ComptimeBlock* Parser::parseComptimeBlockNoKw(ASTAllocator& allocator) {
     if (block.has_value()) {
         ctBlock->body = std::move(block.value());
     } else {
-        error("missing body for provide statement");
+        error("missing body for comptime block");
     }
     return ctBlock;
 }

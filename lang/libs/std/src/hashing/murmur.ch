@@ -27,7 +27,7 @@ public func murmurhash (key : *char, len : uint32_t, seed : uint32_t) : uint32_t
     // for each 4 byte chunk of `key'
     for (i = -l; i != 0; ++i) {
         // next 4 byte chunk of `key'
-        if(def.big_endian) {
+        comptime if(def.big_endian) {
             k = htole32(chunks[i]);
         } else {
             k = chunks[i];

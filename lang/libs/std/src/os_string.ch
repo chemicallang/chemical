@@ -25,7 +25,7 @@ struct OsString {
     // Construct from UTF-8. On POSIX this copies the bytes; on Windows this converts to UTF-16.
     @make
     func make2(utf8 : &std::string) {
-        if(def.windows) {
+        comptime if(def.windows) {
             data_ = utf8_to_u16(utf8);
         } else {
             data_ = utf8.copy();
@@ -46,7 +46,7 @@ struct OsString {
 
     // Get a pointer to native data (null-terminated if you ensure it)
     func c_str_native(&self) : *native_char_t {
-        if(def.windows) {
+        comptime if(def.windows) {
             // u16string is not guaranteed to be null-terminated by c_str in old standards,
             // but in modern C++ it is. We return data() which is fine as long as caller
             // treats the length via size().
@@ -69,7 +69,7 @@ struct OsString {
     // func shrink_to_fit(&self) { data_.shrink_to_fit(); }
 
     func append_utf8(&self, data : *char, len : size_t) {
-        if(def.windows) {
+        comptime if(def.windows) {
             data_.append_utf8_view(data, len)
         } else {
             data_.append_with_len(data, len)
@@ -96,7 +96,7 @@ struct OsString {
 
     // Convert to UTF-8. On POSIX this returns the raw bytes, on Windows it converts.
     func to_utf8(&self) : std::string {
-        if(def.windows) {
+        comptime if(def.windows) {
             return u16_to_utf8(data_);
         } else {
             return data_;

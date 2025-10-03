@@ -152,7 +152,7 @@ void Parser::parseIfStatement(
 
 }
 
-IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level) {
+IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bool parse_value_node, bool top_level, bool is_comptime) {
 
     auto& first = *token;
     if(first.type != TokenType::IfKw) {
@@ -162,6 +162,10 @@ IfStatement* Parser::parseIfStatement(ASTAllocator& allocator, bool is_value, bo
     token++;
 
     auto statement = new (allocator.allocate<IfStatement>()) IfStatement(nullptr, parent_node, loc_single(first));
+
+    if(is_comptime) {
+        statement->attrs.is_comptime = true;
+    }
 
     parseIfStatement(allocator, statement, is_value, parse_value_node, top_level);
 

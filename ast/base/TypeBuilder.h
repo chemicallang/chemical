@@ -51,6 +51,8 @@ private:
     VoidType* voidType;
     NullPtrType* nullPtrType;
     PointerType* ptrToVoid;
+    PointerType* ptrToAny;
+    PointerType* constPtrToAny;
     ExpressiveStringType* expr_str_type;
 
     // not exactly a type, but used once everywhere
@@ -235,6 +237,20 @@ public:
      */
     inline PointerType* getPtrToVoid() {
         return ptrToVoid;
+    }
+
+    /**
+     * get PointerType
+     */
+    inline PointerType* getPtrToAny() {
+        return ptrToAny;
+    }
+
+    /**
+     * get PointerType
+     */
+    inline PointerType* getConstPtrToAny() {
+        return constPtrToAny;
     }
 
     /**

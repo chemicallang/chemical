@@ -2522,7 +2522,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getConstPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         orderParam("order", { cache.getIntType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
@@ -2567,7 +2567,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         orderParam("order", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
@@ -2617,8 +2617,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        expParam("expected", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        expParam("expected", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         order1Param("order1", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         order2Param("order2", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
@@ -2671,8 +2671,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        expParam("expected", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        expParam("expected", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         order1Param("order1", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         order2Param("order2", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
@@ -2725,7 +2725,7 @@ public:
             AccessSpecifier::Public,
             true
     ), opParam("op", { cache.getIntType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         valueParam("value", { cache.getAnyType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         orderParam("order", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC) {
@@ -2900,7 +2900,7 @@ public:
     {
         set_compiler_decl(true);
         nodes = {
-            &memNamespace, &ptrNamespace,
+            &llvmNamespace, &memNamespace, &ptrNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
             &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &satisfiesValueFn, &get_raw_location,
             &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,

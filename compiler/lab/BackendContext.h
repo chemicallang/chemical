@@ -3,7 +3,7 @@
 #pragma once
 
 #include "std/chem_string_view.h"
-
+#include "backend/atomics.h"
 
 enum class CompilerFeatureKind : int {
     Float128 = 0
@@ -51,5 +51,35 @@ public:
      * destruct the call site
      */
     virtual void destruct_call_site(SourceLocation location) = 0;
+
+    /**
+     * atomic fence
+     */
+    virtual void atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) = 0;
+
+    /**
+     * atomic load instruction intrinsic
+     */
+    virtual Value* atomic_load(Value* ptr, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) = 0;
+
+    /**
+     * atomic store instruction intrinsic
+     */
+    virtual void atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) = 0;
+
+    /**
+     * atomic compare exchange weak
+     */
+    virtual Value* atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) = 0;
+
+    /**
+     * atomic compare exchange strong
+     */
+    virtual Value* atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) = 0;
+
+    /**
+     * atomic operation, supports add, sub, and, or, xor
+     */
+    virtual Value* atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) = 0;
 
 };

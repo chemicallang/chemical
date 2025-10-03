@@ -582,6 +582,7 @@ set(COMMON_SOURCES
         ast/types/IfType.cpp
         ast/values/MultipleValue.h
         ast/values/RawLiteral.h
+        compiler/lab/backend/atomics.h
 )
 
 # Chemical LSP Executable Target

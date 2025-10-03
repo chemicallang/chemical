@@ -1249,6 +1249,8 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
                 return gen.builder->getInt64(align.value());
             }
         }
+        case ExtractionKind::ReinterpretLLVMValue:
+            return ((llvm::Value*) value);
     }
 }
 
@@ -2435,4 +2437,163 @@ void LLVMBackendContext::mem_copy(Value* lhs, Value* rhs) {
 void LLVMBackendContext::destruct_call_site(SourceLocation location) {
     auto& gen = *gen_ptr;
     destruct_current_scope(gen, nullptr, location);
+}
+
+llvm::AtomicOrdering to_llvm_mo(BackendAtomicMemoryOrder order) {
+    switch(order) {
+        case BackendAtomicMemoryOrder::NotAtomic:
+            return llvm::AtomicOrdering::NotAtomic;
+        case BackendAtomicMemoryOrder::Unordered:
+            return llvm::AtomicOrdering::Unordered;
+        case BackendAtomicMemoryOrder::Monotonic:
+            return llvm::AtomicOrdering::Monotonic;
+        case BackendAtomicMemoryOrder::Acquire:
+            return llvm::AtomicOrdering::Acquire;
+        case BackendAtomicMemoryOrder::Release:
+            return llvm::AtomicOrdering::Release;
+        case BackendAtomicMemoryOrder::AcquireRelease:
+            return llvm::AtomicOrdering::AcquireRelease;
+        case BackendAtomicMemoryOrder::SequentiallyConsistent:
+            return llvm::AtomicOrdering::SequentiallyConsistent;
+    }
+}
+
+uint8_t to_llvm_ss(BackendAtomicSyncScope scope) {
+    switch(scope) {
+        case BackendAtomicSyncScope::System:
+            return llvm::SyncScope::System;
+        case BackendAtomicSyncScope::SingleThread:
+            return llvm::SyncScope::SingleThread;
+    }
+}
+
+llvm::AtomicRMWInst::BinOp to_llvm_op(BackendAtomicOp op) {
+    switch(op) {
+        case BackendAtomicOp::Xchg:
+            return llvm::AtomicRMWInst::Xchg;
+        case BackendAtomicOp::Add:
+            return llvm::AtomicRMWInst::Add;
+        case BackendAtomicOp::Sub:
+            return llvm::AtomicRMWInst::Sub;
+        case BackendAtomicOp::And:
+            return llvm::AtomicRMWInst::And;
+        case BackendAtomicOp::Nand:
+            return llvm::AtomicRMWInst::Nand;
+        case BackendAtomicOp::Or:
+            return llvm::AtomicRMWInst::Or;
+        case BackendAtomicOp::Xor:
+            return llvm::AtomicRMWInst::Xor;
+        case BackendAtomicOp::Max:
+            return llvm::AtomicRMWInst::Max;
+        case BackendAtomicOp::Min:
+            return llvm::AtomicRMWInst::Min;
+        case BackendAtomicOp::UMax:
+            return llvm::AtomicRMWInst::UMax;
+        case BackendAtomicOp::UMin:
+            return llvm::AtomicRMWInst::UMin;
+        case BackendAtomicOp::FAdd:
+            return llvm::AtomicRMWInst::FAdd;
+        case BackendAtomicOp::FSub:
+            return llvm::AtomicRMWInst::FSub;
+        case BackendAtomicOp::FMax:
+            return llvm::AtomicRMWInst::FMax;
+        case BackendAtomicOp::FMin:
+            return llvm::AtomicRMWInst::FMin;
+        case BackendAtomicOp::UIncWrap:
+            return llvm::AtomicRMWInst::UIncWrap;
+        case BackendAtomicOp::UDecWrap:
+            return llvm::AtomicRMWInst::UDecWrap;
+    }
+}
+
+BaseType* get_atomic_op_type(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Pointer:
+            return type->as_pointer_type_unsafe()->type;
+        case BaseTypeKind::Linked: {
+            const auto linked = type->as_linked_type_unsafe()->linked;
+            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
+                return get_atomic_op_type(linked->as_typealias_unsafe()->actual_type);
+            } else {
+                return nullptr;
+            }
+        }
+        default:
+            return nullptr;
+    }
+}
+
+Value* pack_llvm_val(ASTAllocator& allocator, llvm::Value* value, BaseType* type, SourceLocation location) {
+    return new (allocator.allocate<ExtractionValue>()) ExtractionValue(
+        (Value*) value, type, ExtractionKind::ReinterpretLLVMValue, location
+    );
+}
+
+void LLVMBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) {
+    auto& gen = *gen_ptr;
+    const auto instr = gen.builder->CreateFence(to_llvm_mo(order), to_llvm_ss(scope));
+    gen.di.instr(instr, location);
+}
+
+Value* LLVMBackendContext::atomic_load(Value* ptr, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+    auto& gen = *gen_ptr;
+    const auto type = ptr->getType();
+    const auto atomic_type = get_atomic_op_type(type);
+    if(!atomic_type) {
+        gen.error("expected a value of pointer to integer type", ptr);
+        return ptr;
+    }
+    const auto loadInst = gen.builder->CreateLoad(atomic_type->llvm_type(gen), ptr->llvm_value(gen));
+    gen.di.instr(loadInst, ptr);
+    loadInst->setAtomic(to_llvm_mo(order), to_llvm_ss(scope));
+    return pack_llvm_val(gen.allocator, loadInst, atomic_type, ptr->encoded_location());
+}
+
+void LLVMBackendContext::atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+    auto& gen = *gen_ptr;
+    const auto type = ptr->getType();
+    const auto atomic_type = get_atomic_op_type(type);
+    if(!atomic_type) {
+        gen.error("expected a value of pointer to integer type", ptr);
+        return;
+    }
+    const auto storeInst = gen.builder->CreateStore(value->llvm_value(gen), ptr->llvm_value(gen));
+    gen.di.instr(storeInst, ptr);
+    storeInst->setAtomic(to_llvm_mo(order), to_llvm_ss(scope));
+}
+
+Value* LLVMBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
+    auto& gen = *gen_ptr;
+    const auto type = ptr->getType();
+    const auto atomic_type = get_atomic_op_type(type);
+    if(!atomic_type) {
+        gen.error("expected a value of pointer to integer type", ptr);
+        return ptr;
+    }
+    const auto inst = gen.builder->CreateAtomicCmpXchg(ptr->llvm_value(gen), expected->llvm_value(gen), value->llvm_value(gen), llvm::MaybeAlign(), to_llvm_mo(success_order), to_llvm_mo(failure_order), to_llvm_ss(scope));
+    gen.di.instr(inst, ptr);
+    const auto loc = ptr->encoded_location();
+    const auto struct_type = new (gen.allocator.allocate<StructType>()) StructType("result", nullptr, loc);
+    const auto first = new (gen.allocator.allocate<StructMember>()) StructMember("old_value", {atomic_type, loc}, nullptr, nullptr, loc, true);
+    const auto second = new (gen.allocator.allocate<StructMember>()) StructMember("success_flag", {gen.comptime_scope.typeBuilder.getBoolType(), loc}, nullptr, nullptr, loc, true);
+    struct_type->insert_variable(first);
+    struct_type->insert_variable(second);
+    return pack_llvm_val(gen.allocator, inst, struct_type, ptr->encoded_location());
+}
+
+Value* LLVMBackendContext::atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
+    // maps to the same instruction
+    return atomic_cmp_exch_weak(ptr, expected, value, success_order, failure_order, scope);
+}
+
+Value* LLVMBackendContext::atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+    auto& gen = *gen_ptr;
+    const auto type = ptr->getType();
+    const auto atomic_type = get_atomic_op_type(type);
+    if(!atomic_type) {
+        gen.error("expected a value of pointer to integer type", ptr);
+        return ptr;
+    }
+    const auto atomic_rmw = gen.builder->CreateAtomicRMW(to_llvm_op(op), ptr->llvm_value(gen), value->llvm_value(gen), llvm::MaybeAlign(), to_llvm_mo(order), to_llvm_ss(scope));
+    return pack_llvm_val(gen.allocator, atomic_rmw, atomic_type, ptr->encoded_location());
 }

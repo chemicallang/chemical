@@ -198,6 +198,13 @@ comptime func test_mm_comptime_def_val() : bool {
     return test_comptime_default_val()
 }
 
+struct ComptimePointStructMemberAccessTest {
+    var a : int
+    var b : int
+}
+
+comptime const my_comptime_point = ComptimePointStructMemberAccessTest { a : 382, b : 8373 }
+
 func test_comptime() {
     test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -344,5 +351,23 @@ func test_comptime() {
     })
     test("default values in comptime functions work when called from comptime function", () => {
         return test_mm_comptime_def_val()
+    })
+    test("if statement without comptime but with a comptime expression works", () => {
+        var i = 0
+        if(def.windows) {
+            i = 32
+        } else {
+            i = 33
+        }
+        return i != 0
+    })
+    test("can access comptime global struct constant members", () => {
+        return my_comptime_point.a == 382 && my_comptime_point.b == 8373
+    })
+    test("can access comptime global struct constant members - 2", () => {
+        if(my_comptime_point.a == 382) {
+            return true;
+        }
+        return false;
     })
 }

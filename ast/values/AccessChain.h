@@ -94,8 +94,6 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Value* llvm_value_no_itr(Codegen &gen, BaseType* expected_type);
-
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
     void llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) final;

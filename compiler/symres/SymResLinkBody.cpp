@@ -1193,7 +1193,7 @@ void SymResLinkBody::VisitIfStmt(IfStatement* node) {
     link_conditions_no_patt_match_expr(node, *this);
 
     // evaluate the scope and only link that scope
-    if(node->is_comptime() && !linker.comptime_context) {
+    if(node->is_comptime()) {
         auto condition_val = node->get_condition_const(linker.comptime_scope);
         if (condition_val.has_value()) {
             auto eval = node->get_evaluated_scope(linker.comptime_scope, &linker, condition_val.value());

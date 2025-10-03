@@ -2462,6 +2462,329 @@ public:
 
 };
 
+class InterpretLLVMAtomicFence : public FunctionDeclaration {
+public:
+
+    FunctionParam orderParam;
+    FunctionParam scopeParam;
+
+    explicit InterpretLLVMAtomicFence(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("atomic_fence"),
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), orderParam("order", { cache.getIntType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &orderParam, &scopeParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.size() != 2) return typeBuilder.getNullValue();
+        const auto orderVal = call->values[0]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[1]->evaluated_value(*call_scope);
+        if(orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
+            return typeBuilder.getNullValue();
+        }
+        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
+        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
+        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        call_scope->global->backend_context->atomic_fence(static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum), call->encoded_location());
+        return typeBuilder.getNullValue();
+    }
+
+};
+
+class InterpretLLVMAtomicLoad : public FunctionDeclaration {
+public:
+
+    FunctionParam ptrParam;
+    FunctionParam orderParam;
+    FunctionParam scopeParam;
+
+    explicit InterpretLLVMAtomicLoad(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("atomic_load"),
+            {cache.getAnyType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        orderParam("order", { cache.getIntType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &ptrParam, &orderParam, &scopeParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.size() != 3) return typeBuilder.getNullValue();
+        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
+        const auto orderVal = call->values[1]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[2]->evaluated_value(*call_scope);
+        if(orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
+            return typeBuilder.getNullValue();
+        }
+        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
+        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
+        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        return call_scope->global->backend_context->atomic_load(ptrVal, static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum));
+    }
+
+};
+
+class InterpretLLVMAtomicStore : public FunctionDeclaration {
+public:
+
+    FunctionParam ptrParam;
+    FunctionParam valueParam;
+    FunctionParam orderParam;
+    FunctionParam scopeParam;
+
+    explicit InterpretLLVMAtomicStore(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("atomic_store"),
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        orderParam("order", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &ptrParam, &valueParam, &orderParam, &scopeParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.size() != 4) return typeBuilder.getNullValue();
+        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
+        const auto valueVal = call->values[1]->evaluated_value(*call_scope);
+        const auto orderVal = call->values[2]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[3]->evaluated_value(*call_scope);
+        if(orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
+            return typeBuilder.getNullValue();
+        }
+        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
+        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
+        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        call_scope->global->backend_context->atomic_store(ptrVal, valueVal, static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum));
+        return typeBuilder.getNullValue();
+    }
+
+};
+
+class InterpretLLVMAtomicCmpExchWeak : public FunctionDeclaration {
+public:
+
+    FunctionParam ptrParam;
+    FunctionParam expParam;
+    FunctionParam valueParam;
+    FunctionParam order1Param;
+    FunctionParam order2Param;
+    FunctionParam scopeParam;
+
+    explicit InterpretLLVMAtomicCmpExchWeak(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("atomic_cmp_exch_weak"),
+            {cache.getAnyType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        expParam("expected", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        order1Param("order1", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        order2Param("order2", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &ptrParam, &expParam, &valueParam, &order1Param, &order2Param, &scopeParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.size() != 6) return typeBuilder.getNullValue();
+        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
+        const auto expVal = call->values[1]->evaluated_value(*call_scope);
+        const auto valueVal = call->values[2]->evaluated_value(*call_scope);
+        const auto order1Val = call->values[3]->evaluated_value(*call_scope);
+        const auto order2Val = call->values[4]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[5]->evaluated_value(*call_scope);
+        if(order1Val->kind() != ValueKind::IntN || order2Val->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
+            return typeBuilder.getNullValue();
+        }
+        const auto order1Num = order1Val->as_int_num_value_unsafe()->value;
+        const auto order2Num = order2Val->as_int_num_value_unsafe()->value;
+        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
+        if(order1Num < 0 || order1Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || order2Num < 0 || order2Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        return call_scope->global->backend_context->atomic_cmp_exch_weak(ptrVal, expVal, valueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
+    }
+
+};
+
+class InterpretLLVMAtomicCmpExchStrong : public FunctionDeclaration {
+public:
+
+    FunctionParam ptrParam;
+    FunctionParam expParam;
+    FunctionParam valueParam;
+    FunctionParam order1Param;
+    FunctionParam order2Param;
+    FunctionParam scopeParam;
+
+    explicit InterpretLLVMAtomicCmpExchStrong(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("atomic_cmp_exch_strong"),
+            {cache.getAnyType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        expParam("expected", { cache.getPtrToVoid(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        order1Param("order1", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        order2Param("order2", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &ptrParam, &expParam, &valueParam, &order1Param, &order2Param, &scopeParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.size() != 6) return typeBuilder.getNullValue();
+        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
+        const auto expVal = call->values[1]->evaluated_value(*call_scope);
+        const auto valueVal = call->values[2]->evaluated_value(*call_scope);
+        const auto order1Val = call->values[3]->evaluated_value(*call_scope);
+        const auto order2Val = call->values[4]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[5]->evaluated_value(*call_scope);
+        if(order1Val->kind() != ValueKind::IntN || order2Val->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
+            return typeBuilder.getNullValue();
+        }
+        const auto order1Num = order1Val->as_int_num_value_unsafe()->value;
+        const auto order2Num = order2Val->as_int_num_value_unsafe()->value;
+        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
+        if(order1Num < 0 || order1Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || order2Num < 0 || order2Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        return call_scope->global->backend_context->atomic_cmp_exch_strong(ptrVal, expVal, valueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
+    }
+
+};
+
+class InterpretLLVMAtomicOperation : public FunctionDeclaration {
+public:
+
+    FunctionParam opParam;
+    FunctionParam ptrParam;
+    FunctionParam valueParam;
+    FunctionParam orderParam;
+    FunctionParam scopeParam;
+
+    explicit InterpretLLVMAtomicOperation(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : FunctionDeclaration(
+            ZERO_LOC_ID("atomic_op"),
+            {cache.getVoidType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), opParam("op", { cache.getIntType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        ptrParam("ptr", { cache.getPtrToVoid(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        orderParam("order", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &opParam, &ptrParam, &valueParam, &orderParam, &scopeParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->values.size() != 5) return typeBuilder.getNullValue();
+        const auto opVal = call->values[0]->evaluated_value(*call_scope);
+        const auto ptrVal = call->values[1]->evaluated_value(*call_scope);
+        const auto valueVal = call->values[2]->evaluated_value(*call_scope);
+        const auto orderVal = call->values[3]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[4]->evaluated_value(*call_scope);
+        if(opVal->kind() != ValueKind::IntN || orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
+            return typeBuilder.getNullValue();
+        }
+        const auto opNum = opVal->as_int_num_value_unsafe()->value;
+        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
+        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
+        if(opNum < 0 || opNum > static_cast<int>(BackendAtomicOp::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
+            return typeBuilder.getNullValue();
+        }
+        return call_scope->global->backend_context->atomic_op(static_cast<BackendAtomicOp>(opNum), ptrVal, valueVal, static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum));
+    }
+
+};
+
+// llvm intrinsics live here
+class LLVMNamespace : public Namespace {
+public:
+
+    InterpretLLVMAtomicFence atomicFence;
+    InterpretLLVMAtomicLoad atomicLoad;
+    InterpretLLVMAtomicStore atomicStore;
+    InterpretLLVMAtomicCmpExchWeak atomicCmpExchWeak;
+    InterpretLLVMAtomicCmpExchStrong atomicCmpExchStrong;
+    InterpretLLVMAtomicOperation atomicOperation;
+
+
+    explicit LLVMNamespace(
+            TypeBuilder& cache,
+            ASTNode* parent_node
+    ) : Namespace(ZERO_LOC_ID("llvm"), parent_node, ZERO_LOC, AccessSpecifier::Public),
+        atomicFence(cache, this), atomicLoad(cache, this), atomicStore(cache, this),
+        atomicCmpExchWeak(cache, this), atomicCmpExchStrong(cache, this), atomicOperation(cache, this)
+    {
+        set_compiler_decl(true);
+        nodes = { &atomicFence, &atomicLoad, &atomicStore, &atomicCmpExchWeak, &atomicCmpExchStrong,
+                  &atomicOperation
+        };
+    }
+
+};
+
 class MemNamespace : public Namespace {
 public:
 
@@ -2499,6 +2822,7 @@ class IntrinsicsNamespace : public Namespace {
 public:
 
     // sub namespaces
+    LLVMNamespace llvmNamespace;
     MemNamespace memNamespace;
     PtrNamespace ptrNamespace;
 
@@ -2561,7 +2885,7 @@ public:
     IntrinsicsNamespace(
             TypeBuilder& cache
     ) : Namespace(ZERO_LOC_ID("intrinsics"), nullptr, ZERO_LOC, AccessSpecifier::Public),
-        memNamespace(cache, this), ptrNamespace(cache, this),
+        llvmNamespace(cache, this), memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
         sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), satisfiesValueFn(cache, this), get_target_fn(cache, this),

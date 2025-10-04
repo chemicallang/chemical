@@ -205,6 +205,44 @@ struct ComptimePointStructMemberAccessTest {
 
 comptime const my_comptime_point = ComptimePointStructMemberAccessTest { a : 382, b : 8373 }
 
+enum testable_comptime_enum {
+    First,
+    Second,
+    Third
+}
+
+comptime func compare_enums_result1() : bool {
+    return testable_comptime_enum.First == testable_comptime_enum.First
+}
+
+comptime func compare_enums_result2() : bool {
+    return testable_comptime_enum.First != testable_comptime_enum.First
+}
+
+comptime func compare_enums_result3() : bool {
+    return testable_comptime_enum.First == testable_comptime_enum.Second
+}
+
+comptime func compare_enums_result4() : bool {
+    return testable_comptime_enum.First != testable_comptime_enum.Second
+}
+
+comptime func compare_enums_result5() : bool {
+    return testable_comptime_enum.First < testable_comptime_enum.Second
+}
+
+comptime func compare_enums_result6(result : testable_comptime_enum) : bool {
+    return result == testable_comptime_enum.First && result != testable_comptime_enum.Second
+}
+
+comptime func compare_enum_result7(result : testable_comptime_enum) : int {
+    switch(result) {
+        testable_comptime_enum.First => { return 1; }
+        testable_comptime_enum.Second => { return 2; }
+        testable_comptime_enum.Third => { return 3; }
+    }
+}
+
 func test_comptime() {
     test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -369,5 +407,32 @@ func test_comptime() {
             return true;
         }
         return false;
+    })
+    test("enums in comptime can be operated on - 1", () => {
+        return compare_enums_result1()
+    })
+    test("enums in comptime can be operated on - 2", () => {
+        return compare_enums_result2() == false
+    })
+    test("enums in comptime can be operated on - 3", () => {
+        return compare_enums_result3() == false
+    })
+    test("enums in comptime can be operated on - 4", () => {
+        return compare_enums_result4()
+    })
+    test("enums in comptime can be operated on - 5", () => {
+        return compare_enums_result5()
+    })
+    test("enums in comptime can be operated on - 6", () => {
+        return compare_enums_result6(testable_comptime_enum.First)
+    })
+    test("enums in comptime can be operated on - 7", () => {
+        return compare_enum_result7(testable_comptime_enum.First) == 1
+    })
+    test("enums in comptime can be operated on - 8", () => {
+        return compare_enum_result7(testable_comptime_enum.Second) == 2
+    })
+    test("enums in comptime can be operated on - 9", () => {
+        return compare_enum_result7(testable_comptime_enum.Third) == 3
     })
 }

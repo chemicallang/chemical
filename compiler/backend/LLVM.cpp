@@ -2557,7 +2557,8 @@ void LLVMBackendContext::atomic_store(Value* ptr, Value* value, BackendAtomicMem
         gen.error("expected a value of pointer to integer type", ptr);
         return;
     }
-    const auto storeInst = gen.builder->CreateStore(value->llvm_value(gen), ptr->llvm_value(gen));
+    const auto casted_value = gen.implicit_cast(value->llvm_value(gen), atomic_type, atomic_type->llvm_type(gen));
+    const auto storeInst = gen.builder->CreateStore(casted_value, ptr->llvm_value(gen));
     gen.di.instr(storeInst, ptr);
     storeInst->setAtomic(to_llvm_mo(order), to_llvm_ss(scope));
 }
@@ -2570,9 +2571,12 @@ Value* LLVMBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Val
         gen.error("expected a value of pointer to integer type", ptr);
         return ptr;
     }
-    const auto inst = gen.builder->CreateAtomicCmpXchg(ptr->llvm_value(gen), expected->llvm_value(gen), value->llvm_value(gen), llvm::MaybeAlign(), to_llvm_mo(success_order), to_llvm_mo(failure_order), to_llvm_ss(scope));
-    gen.di.instr(inst, ptr);
+    const auto new_value = value->llvm_value(gen);
+    const auto new_value_casted = gen.implicit_cast(new_value, atomic_type, atomic_type->llvm_type(gen));
     const auto loc = ptr->encoded_location();
+    DereferenceValue deref_expected(expected, atomic_type, loc);
+    const auto inst = gen.builder->CreateAtomicCmpXchg(ptr->llvm_value(gen), deref_expected.llvm_value(gen, nullptr), new_value_casted, llvm::MaybeAlign(), to_llvm_mo(success_order), to_llvm_mo(failure_order), to_llvm_ss(scope));
+    gen.di.instr(inst, ptr);
     const auto struct_type = new (gen.allocator.allocate<StructType>()) StructType("result", nullptr, loc);
     const auto first = new (gen.allocator.allocate<StructMember>()) StructMember("old_value", {atomic_type, loc}, nullptr, nullptr, loc, true);
     const auto second = new (gen.allocator.allocate<StructMember>()) StructMember("success_flag", {gen.comptime_scope.typeBuilder.getBoolType(), loc}, nullptr, nullptr, loc, true);
@@ -2594,6 +2598,7 @@ Value* LLVMBackendContext::atomic_op(BackendAtomicOp op, Value* ptr, Value* valu
         gen.error("expected a value of pointer to integer type", ptr);
         return ptr;
     }
-    const auto atomic_rmw = gen.builder->CreateAtomicRMW(to_llvm_op(op), ptr->llvm_value(gen), value->llvm_value(gen), llvm::MaybeAlign(), to_llvm_mo(order), to_llvm_ss(scope));
+    const auto casted_value = gen.implicit_cast(value->llvm_value(gen), atomic_type, atomic_type->llvm_type(gen));
+    const auto atomic_rmw = gen.builder->CreateAtomicRMW(to_llvm_op(op), ptr->llvm_value(gen), casted_value, llvm::MaybeAlign(), to_llvm_mo(order), to_llvm_ss(scope));
     return pack_llvm_val(gen.allocator, atomic_rmw, atomic_type, ptr->encoded_location());
 }

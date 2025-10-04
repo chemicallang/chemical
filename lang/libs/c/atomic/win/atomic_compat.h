@@ -3,6 +3,7 @@
 #ifndef COMPAT_ATOMICS_WIN32_STDATOMIC_H
 
 #include "atomic.h"
+#include <intrin.h>
 
 /* Helper: small helper to treat order values consistently.
    We use atomic_thread_fence(order) already defined earlier. */

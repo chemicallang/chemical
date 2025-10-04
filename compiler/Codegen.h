@@ -172,6 +172,11 @@ public:
     std::string target_triple;
 
     /**
+     * the target machine
+     */
+    llvm::TargetMachine* TargetMachine = nullptr;
+
+    /**
      * The function being compiled currently
      */
     llvm::Function *current_function = nullptr;

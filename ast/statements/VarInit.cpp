@@ -56,7 +56,8 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     }
     ScratchString<128> temp_name;
     gen.mangler.mangle(temp_name, this);
-    const auto global = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const(), linkage, initializer, (std::string_view) temp_name);
+    const auto global_type = llvm_type(gen);
+    const auto global = new llvm::GlobalVariable(*gen.module, global_type, is_const(), linkage, initializer, (std::string_view) temp_name);
     global->setDSOLocal(true);
     if(is_thread_local()) {
         global->setThreadLocal(true);

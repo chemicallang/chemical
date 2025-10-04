@@ -1610,6 +1610,13 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     }
 
+    // before compilation of the module, we prepare the target machine
+    const auto machine = gen.setup_for_target(gen.target_triple, is_debug(options->outMode));
+    if(machine == nullptr) {
+        std::cerr << "[lab] " << "failure to create target machine" << std::endl;
+        return 1;
+    }
+
     // compile dependent modules for this executable
     for(auto mod : dependencies) {
 

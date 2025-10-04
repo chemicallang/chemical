@@ -167,6 +167,11 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
 
     // creating the modules
     module = std::make_unique<llvm::Module>(final_module_name, *ctx);
+
+    // set the data layout and target triple
+    module->setDataLayout(TargetMachine->createDataLayout());
+    module->setTargetTriple(target_triple);
+
     diBuilder = std::make_unique<llvm::DIBuilder>(*module, true);
     llvm.di.update_builder(diBuilder.get());
 
@@ -1144,7 +1149,7 @@ void configureDebugTargetOptions(TargetOptions &Opts) {
 }
 
 
-TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple, bool isDebug) {
+TargetMachine* Codegen::setup_for_target(const std::string &TargetTriple, bool isDebug) {
 
     // Initialize the target registry etc.
     InitializeAllTargetInfos();
@@ -1180,11 +1185,8 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple, bool 
         RM = llvm::Reloc::PIC_;
     }
 
-    auto TheTargetMachine = Target->createTargetMachine(
-            TargetTriple, CPU, Features, opt, RM);
-
-    module->setDataLayout(TheTargetMachine->createDataLayout());
-    module->setTargetTriple(TargetTriple);
+    auto TheTargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+    TargetMachine = TheTargetMachine;
 
     return TheTargetMachine;
 
@@ -1231,12 +1233,7 @@ bool save_as_file_type(
         char** error_message
 ) {
 
-    auto TheTargetMachine = gen->setup_for_target(gen->target_triple, options->is_debug);
-    if(TheTargetMachine == nullptr) {
-        return false;
-    }
-
-    auto& target_machine = *TheTargetMachine;
+    auto& target_machine = *gen->TargetMachine;
     auto& llvm_module = *gen->module;
 
     raw_fd_ostream *dest_asm_ptr = nullptr;
@@ -1276,7 +1273,7 @@ bool save_as_file_type(
     std::string ProcName = "chem-";
     ProcName += std::to_string(PID);
     TimeTracerRAII TimeTracer(ProcName, options->bitcode_path ? options->bitcode_path : options->obj_path);
-    TheTargetMachine->setO0WantsFastISel(true);
+    target_machine.setO0WantsFastISel(true);
 
     // Pipeline configurations
     PipelineTuningOptions pipeline_opts;

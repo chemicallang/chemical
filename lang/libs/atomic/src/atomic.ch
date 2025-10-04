@@ -4,7 +4,7 @@ if(intrinsics::get_backend_name() == "C") {
     }
 }
 
-private comptime func signal_arg_call(name : *char, arg : any) : any {
+private comptime func single_arg_call(name : *char, arg : any) : any {
     return intrinsics::wrap(intrinsics::multiple(intrinsics::raw(name), intrinsics::raw("("), arg, intrinsics::raw(")")))
 }
 
@@ -145,6 +145,15 @@ comptime func llvm_atomic_op_to_int(op : llvm_atomic_op) : int {
 }
 
 // ------- u64 functions ----------
+
+public comptime func atomic_fence(order : memory_order = memory_order.seq_cst) {
+    if(intrinsics::get_backend_name() == "C") {
+        // void atomic_thread_fence (int memory_order)
+        return single_arg_call("atomic_thread_fence", order) as void
+    } else {
+        intrinsics::llvm::atomic_fence(llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))
+    }
+}
 
 public comptime func atomic_load_u64(x : *u64, order : memory_order = memory_order.seq_cst) : u64 {
     if(intrinsics::get_backend_name() == "C") {

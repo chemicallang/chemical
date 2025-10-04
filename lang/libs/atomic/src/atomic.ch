@@ -24,7 +24,7 @@ private comptime func five_arg_call(name : *char, arg1 : any, arg2 : any, arg3 :
     return intrinsics::wrap(intrinsics::multiple(intrinsics::raw(name),intrinsics::raw("("),arg1,intrinsics::raw(", "),arg2,intrinsics::raw(", "),arg3,intrinsics::raw(", "),arg4,intrinsics::raw(", "),arg5,intrinsics::raw(")")))
 }
 
-enum memory_order : int {
+public enum memory_order : int {
     relaxed,
     consume,
     acquire,

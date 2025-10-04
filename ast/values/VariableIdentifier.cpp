@@ -5,6 +5,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/structures/EnumMember.h"
 #include "ast/types/VoidType.h"
 #include "TypeInsideValue.h"
 
@@ -212,6 +213,9 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
             if(init->is_const()) {
                 return init->value;
             }
+        } else if(linked_kind == ASTNodeKind::EnumMember) {
+            const auto mem = linked->as_enum_member_unsafe();
+            return mem->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
         }
     }
     return this;

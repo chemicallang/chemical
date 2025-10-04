@@ -95,7 +95,8 @@ void interpret(InterpretScope& scope, SwitchStatement* stmt) {
     while(i < size) {
         for(auto& casePair : stmt->cases) {
             if(casePair.second == i && casePair.first) {
-                const auto isEqualEval = scope.evaluate(Operation::IsEqual, casePair.first, cond, ZERO_LOC, casePair.first);
+                auto eval_first = casePair.first->evaluated_value(scope);
+                const auto isEqualEval = scope.evaluate(Operation::IsEqual, eval_first, cond, ZERO_LOC, casePair.first);
                 if(isEqualEval->val_kind() == ValueKind::Bool && isEqualEval->get_the_bool()) {
                     auto& body = stmt->scopes[i];
                     scope.interpret(&body);

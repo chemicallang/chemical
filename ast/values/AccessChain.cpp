@@ -7,6 +7,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/EnumMember.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/base/ASTAllocator.h"
 
@@ -167,6 +168,13 @@ Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Va
 }
 
 Value* AccessChain::evaluated_value(InterpretScope &scope) {
+    const auto last = values.back();
+    if(last->kind() == ValueKind::Identifier) {
+        const auto last_id = last->as_identifier_unsafe();
+        if(last_id->linked->kind() == ASTNodeKind::EnumMember) {
+            return last_id->linked->as_enum_member_unsafe()->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
+        }
+    }
     if(values.size() == 1) return values[0]->evaluated_value(scope);
     Value* evaluated = values[0]->evaluated_value(scope);
     return evaluate_from(values, scope, evaluated, 1);

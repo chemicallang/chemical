@@ -243,6 +243,14 @@ comptime func compare_enum_result7(result : testable_comptime_enum) : int {
     }
 }
 
+comptime func compare_enum_result8(a : int) : testable_comptime_enum {
+    switch(a) {
+        1 => { return testable_comptime_enum.First }
+        2 => { return testable_comptime_enum.Second }
+        3 => { return testable_comptime_enum.Third }
+    }
+}
+
 func test_comptime() {
     test("comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -434,5 +442,14 @@ func test_comptime() {
     })
     test("enums in comptime can be operated on - 9", () => {
         return compare_enum_result7(testable_comptime_enum.Third) == 3
+    })
+    test("enums in comptime can be operated on - 10", () => {
+        return compare_enum_result7(compare_enum_result8(1)) == 1
+    })
+    test("enums in comptime can be operated on - 11", () => {
+        return compare_enum_result7(compare_enum_result8(2)) == 2
+    })
+    test("enums in comptime can be operated on - 12", () => {
+        return compare_enum_result7(compare_enum_result8(3)) == 3
     })
 }

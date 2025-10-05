@@ -1,0 +1,25 @@
+import lab
+import std
+
+public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+
+    const cached = ctx.get_cached(user_job, "", "atomic");
+    if(cached != null) {
+        return cached;
+    }
+
+    var dependencies = std::vector<*mut Module>();
+
+    // TODO: this should be checking if c translation
+    if(user_job.target.tcc) {
+        const runtime_module = ctx.c_file_module(std::string_view(""), std::string_view("atomic_runtime"), lab::rel_path_to("cruntime/atomic.c").to_view(), [])
+        dependencies.push(runtime_module)
+    }
+
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("atomic"), lab::rel_path_to("src").to_view(), std::span<*mut Module>(dependencies));
+
+    ctx.set_cached(user_job, module)
+
+    return module;
+
+}

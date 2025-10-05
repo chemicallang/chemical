@@ -2531,7 +2531,15 @@ Value* pack_llvm_val(ASTAllocator& allocator, llvm::Value* value, BaseType* type
 
 void LLVMBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) {
     auto& gen = *gen_ptr;
-    const auto instr = gen.builder->CreateFence(to_llvm_mo(order), to_llvm_ss(scope));
+    if(order == BackendAtomicMemoryOrder::Monotonic) {
+        gen.error("fence cannot use 'monotonic' or 'relaxed' ordering; upgrade to 'acq_rel'", location);
+    }
+    auto llvm_mo = to_llvm_mo(order);
+    const auto instr = gen.builder->CreateFence(
+        // fence cannot use 'monotonic' or 'relaxed' ordering
+        llvm_mo == llvm::AtomicOrdering::Monotonic ? llvm::AtomicOrdering::AcquireRelease : llvm_mo,
+        to_llvm_ss(scope)
+    );
     gen.di.instr(instr, location);
 }
 

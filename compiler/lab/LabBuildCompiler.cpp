@@ -1036,7 +1036,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
         return 1;
     }
-    const auto compile_result = compile_c_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, to_tcc_mode(compiler->options));
+    const auto compile_result = compile_adding_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, to_tcc_mode(compiler->options));
     if (compile_result == 1) {
         return 1;
     }

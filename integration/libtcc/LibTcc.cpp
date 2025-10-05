@@ -40,6 +40,20 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMo
 
 #endif
 
+#ifdef _WIN32
+
+    // adding tcc include paths (which should be present relative to our compiler executable
+    // this allows to resolve 'windows.h' includes
+    auto winApiDir = resolve_rel_child_path_str(tcc_dir, "include/winapi");
+    const auto winApiRes = tcc_add_include_path(s, winApiDir.data());;
+    if (winApiRes == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't include winapi include package at '" << winApiDir << '\'' << std::endl;
+        return nullptr;
+    }
+
+#endif
+
     // adding tcc include paths (which should be present relative to our compiler executable
     auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
     const auto includeRes = tcc_add_include_path(s, include_dir.data());;
@@ -236,26 +250,52 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
 
 }
 
-std::optional<std::string> read_file_to_string(const char* file_path) {
-    std::ifstream input;
-    input.open(file_path);
-    if (!input.is_open()) {
-        return std::nullopt;
-    }
-    std::stringstream buffer;
-    buffer << input.rdbuf();
-    input.close();
-    return buffer.str();
-}
+int compile_adding_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode) {
 
-int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, TCCMode mode) {
-    auto read = read_file_to_string(c_file_path);
-    if(read.has_value()) {
-        return compile_c_string(exe_path, read.value().data(), outputFileName, jit, benchmark, mode);
-    } else {
-        std::cerr << "couldn't open c file at " << c_file_path << " for compilation" << std::endl;
+    BenchmarkResults results{};
+    if(benchmark) {
+        results.benchmark_begin();
+    }
+
+    auto s = setup_tcc_state(exe_path, outputFileName, jit, mode);
+    if(!s) {
         return 1;
     }
+
+    // add the c file
+    if (tcc_add_file(s, c_file_path) == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't add the file '" << c_file_path << "'" << std::endl;
+        tcc_delete(s);
+        return 1;
+    }
+
+    // we will use our heap context
+    // this way c and our program and can free or allocate for each other
+    if(jit) {
+        prepare_tcc_state_for_jit(s);
+    }
+
+    // output the file
+    const auto out_res = tcc_output_file(s, outputFileName.data());
+    if (out_res == -1) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset;
+        std::cerr << "couldn't output file '" << outputFileName << '\'' << std::endl;
+        tcc_delete(s);
+        return -1;
+    }
+
+    // delete the state
+    tcc_delete(s);
+
+    // end the benchmarks
+    if(benchmark) {
+        results.benchmark_end();
+        std::cout << "[Tcc] " << results.representation() << std::endl;
+    }
+
+    return 0;
+
 }
 
 int tcc_link_objects(

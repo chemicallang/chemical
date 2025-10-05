@@ -101,6 +101,8 @@
 
 #define atomic_is_lock_free(obj) 0
 
+#ifndef __TINYC__
+
 typedef intptr_t atomic_flag;
 typedef _Atomic bool                    atomic_bool;
 typedef _Atomic char                    atomic_char;
@@ -138,6 +140,8 @@ typedef intptr_t atomic_ptrdiff_t;
 typedef intptr_t atomic_intmax_t;
 typedef intptr_t atomic_uintmax_t;
 
+#endif
+
 #ifdef __TINYC__
 /*
     For TCC it is missing the x64 version of _InterlockedExchangeAdd64 so we
@@ -165,7 +169,9 @@ __CRT_INLINE LONG _InterlockedExchangeAdd(LONG volatile *Addend, LONG Value)
     return Old;
 }
 
+#ifndef InterlockedIncrement64
 #define InterlockedIncrement64 _InterlockedExchangeAdd64
+#endif
 
 #endif
 
@@ -401,6 +407,38 @@ static inline int atomic_compare_exchange_strong_u16(unsigned short volatile * o
 
 #define atomic_fetch_sub_u16(object, operand) \
     InterlockedExchangeAdd16(object, -(operand))
+
+#ifdef __TINYC__
+
+static inline unsigned short ManualInterlockedOr16(unsigned short volatile * dest, unsigned short value) {
+    unsigned short oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange16(dest, oldValue | value, oldValue) != oldValue);
+    return oldValue;
+}
+
+static inline unsigned short ManualInterlockedXor16(unsigned short volatile * dest, unsigned short value) {
+    unsigned short oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange16(dest, oldValue ^ value, oldValue) != oldValue);
+    return oldValue;
+}
+
+static inline unsigned short ManualInterlockedAnd16(unsigned short volatile * dest, unsigned short value) {
+    unsigned short oldValue;
+    do {
+        oldValue = *dest;
+    } while (InterlockedCompareExchange16(dest, oldValue & value, oldValue) != oldValue);
+    return oldValue;
+}
+#define InterlockedOr16 ManualInterlockedOr16
+#define InterlockedXor16 ManualInterlockedXor16
+#define InterlockedAnd16 ManualInterlockedAnd16
+
+
+#endif
 
 #define atomic_fetch_or_u16(object, operand) \
     InterlockedOr16(object, operand)

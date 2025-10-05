@@ -58,6 +58,7 @@ func run_executable_tests() {
     test_in_value();
     test_failing_code();
     test_core_ops();
+    test_atomics();
 }
 
 public func main(argc : int, argv : **char) : int {

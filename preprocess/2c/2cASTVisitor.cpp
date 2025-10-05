@@ -6976,12 +6976,16 @@ void ToCAstVisitor::VisitIntNType(IntNType *type) {
 }
 
 void ToCAstVisitor::VisitPointerType(PointerType *func) {
-    visit(func->type);
-    if(func->is_mutable) {
-        write('*');
-    } else {
-        write(" const*");
+    if(!func->is_mutable) {
+        write("const ");
     }
+    visit(func->type);
+    write('*');
+//    if(func->is_mutable) {
+//        write('*');
+//    } else {
+//        write(" const*");
+//    }
 }
 
 void ToCAstVisitor::VisitReferenceType(ReferenceType* func) {

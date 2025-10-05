@@ -1,3 +1,8 @@
+// TODO: these atomics are redundant, we have a atomic library
+    // which does give you access to an atomic api
+    // that's not compatible with most of the api here YET !
+    // we'll supply this cstd atomic api in that library and most of the compatability stuff
+
 /**
  * TODO These macros are implementation defined
  * #define ATOMIC_BOOL_LOCK_FREE     // implementation-defined

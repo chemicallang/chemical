@@ -209,12 +209,16 @@ comptime func llvm_atomic_op_to_int(op : llvm_atomic_op) : int {
 }
 
 public comptime func atomic_fence(order : memory_order = memory_order.seq_cst) {
-   comptime  if(intrinsics::get_backend_name() == "C") {
+   comptime if(intrinsics::get_backend_name() == "C") {
         // void atomic_thread_fence (int memory_order)
         return intrinsics::wrap(atomic_thread_fence_explicit(order as int)) as void
     } else {
         intrinsics::llvm::atomic_fence(llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))
     }
+}
+
+public func llvm_success_flag_to_int(flag : bool) : int {
+    return if(flag) 1 else 0
 }
 
 // ------- u64 functions ----------
@@ -242,7 +246,8 @@ public comptime func atomic_compare_exchange_weak_u64(x : *mut u64, expected : *
         // int atomic_compare_exchange_weak_u64(unsigned long long* x, unsigned long long* expected, unsigned long long y)
         return intrinsics::wrap(atomic_compare_exchange_weak_u64_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -251,7 +256,8 @@ public comptime func atomic_compare_exchange_strong_u64(x : *mut u64, expected :
         // int atomic_compare_exchange_strong_u64(unsigned long long* x, unsigned long long* expected, unsigned long long y)
         return intrinsics::wrap(atomic_compare_exchange_strong_u64_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -334,7 +340,8 @@ public comptime func atomic_compare_exchange_weak_u32(x : *mut u32, expected : *
         // int atomic_compare_exchange_weak_u32(unsigned* x, unsigned* expected, unsigned y)
         return intrinsics::wrap(atomic_compare_exchange_weak_u32_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -343,7 +350,8 @@ public comptime func atomic_compare_exchange_strong_u32(x : *mut u32, expected :
         // int atomic_compare_exchange_strong_u32(unsigned* x, unsigned* expected, unsigned y)
         return intrinsics::wrap(atomic_compare_exchange_strong_u32_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -426,7 +434,8 @@ public comptime func atomic_compare_exchange_weak_u16(x : *mut u16, expected : *
         // int atomic_compare_exchange_weak_u16(void* x, unsigned short* expected, unsigned short y)
         return intrinsics::wrap(atomic_compare_exchange_weak_u16_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -435,7 +444,8 @@ public comptime func atomic_compare_exchange_strong_u16(x : *mut u16, expected :
         // int atomic_compare_exchange_strong_u16(unsigned short* x, unsigned short* expected, unsigned short y)
         return intrinsics::wrap(atomic_compare_exchange_strong_u16_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -520,7 +530,8 @@ public comptime func atomic_compare_exchange_weak_u8(x : *mut u8, expected : *mu
         // int atomic_compare_exchange_weak_byte(unsigned char* x, unsigned char* expected, unsigned char y);
         return intrinsics::wrap(atomic_compare_exchange_weak_byte_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 
@@ -529,7 +540,8 @@ public comptime func atomic_compare_exchange_strong_u8(x : *mut u8, expected : *
         // int atomic_compare_exchange_strong_byte(unsigned char* x, unsigned char* expected, unsigned char y);
         return intrinsics::wrap(atomic_compare_exchange_strong_byte_explicit(x, expected, y, success_order as int, failure_order as int)) as int
     } else {
-        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)) as int
+        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, null, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
+        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
     }
 }
 

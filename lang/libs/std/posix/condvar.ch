@@ -30,19 +30,19 @@ public namespace std {
     // ensure pthread_condattr_setclock used at cond init.
     comptime const CLOCK_REALTIME = 0
 
-    func compute_abstime_ms(&mut out : *mut timespec, timeout_ms : ulong) {
+    func compute_abstime_ms(out : *mut timespec, timeout_ms : ulong) {
         var now : timespec
         var rc = clock_gettime(CLOCK_REALTIME, &mut now)
         if(rc != 0) {
             panic("clock_gettime failed")
         }
         var add_s : i64 = (timeout_ms / 1000) as i64
-        var add_ns : i64 = ((timeout_ms % 1000) * 1_000_000) as i64
+        var add_ns : i64 = ((timeout_ms % 1000) * 1000000) as i64
         out.tv_sec = now.tv_sec + add_s
         out.tv_nsec = now.tv_nsec + add_ns
-        if(out.tv_nsec >= 1_000_000_000) {
+        if(out.tv_nsec >= 1000000000) {
             out.tv_sec = out.tv_sec + 1
-            out.tv_nsec = out.tv_nsec - 1_000_000_000
+            out.tv_nsec = out.tv_nsec - 1000000000
         }
     }
 

@@ -5,6 +5,8 @@
 #ifndef __ATOMIC_H
 #define __ATOMIC_H
 
+#include <stdint.h>
+
 #ifndef __cplusplus
 // If C just use stdatomic.h
 #ifndef __TINYC__
@@ -47,9 +49,9 @@
 
 #ifdef __TINYC__
 
-typedef volatile long long atomic_llong;
-typedef volatile unsigned long long atomic_ullong;
-typedef volatile uintptr_t atomic_uintptr_t;
+// typedef volatile long long atomic_llong;
+// typedef volatile unsigned long long atomic_ullong;
+// typedef volatile uintptr_t atomic_uintptr_t;
 
 extern void atomic_thread_fence (int memory_order);
 extern void __atomic_thread_fence (int memory_order);

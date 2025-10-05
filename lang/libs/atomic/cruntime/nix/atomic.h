@@ -181,11 +181,11 @@ unsigned long long atomic_load_u64_explicit(unsigned long long* x, int mo) {
 void atomic_store_u64_explicit(unsigned long long* x, unsigned long long y, int mo) {
 	__atomic_store_8(x, y, mo);
 }
-int atomic_compare_exchange_weak_u64_explicit(unsigned long long* x, unsigned long long* expected, unsigned long long y, int mo, int mo2) {
-	return (int)__atomic_compare_exchange_8(x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_u64_explicit(unsigned long long* x, unsigned long long* expected, unsigned long long y, int mo, int mo2) {
+	return (_Bool)__atomic_compare_exchange_8(x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_u64_explicit(unsigned long long* x, unsigned long long* expected, unsigned long long y, int mo, int mo2) {
-	return (int)__atomic_compare_exchange_8(x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_u64_explicit(unsigned long long* x, unsigned long long* expected, unsigned long long y, int mo, int mo2) {
+	return (_Bool)__atomic_compare_exchange_8(x, expected, y, mo, mo2);
 }
 unsigned long long atomic_exchange_u64_explicit(unsigned long long* x, unsigned long long y, int mo) {
 	return __atomic_exchange_8(x, y, mo);
@@ -212,11 +212,11 @@ unsigned atomic_load_u32_explicit(unsigned* x, int mo) {
 void atomic_store_u32_explicit(unsigned* x, unsigned y, int mo) {
 	__atomic_store_4(x, y, mo);
 }
-int atomic_compare_exchange_weak_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
-	return (int)__atomic_compare_exchange_4(x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
+	return (_Bool)__atomic_compare_exchange_4(x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
-	return (int)__atomic_compare_exchange_4(x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
+	return (_Bool)__atomic_compare_exchange_4(x, expected, y, mo, mo2);
 }
 unsigned atomic_exchange_u32_explicit(unsigned* x, unsigned y, int mo) {
 	return __atomic_exchange_4(x, y, mo);
@@ -243,11 +243,11 @@ unsigned short atomic_load_u16_explicit(unsigned short* x, int mo) {
 void atomic_store_u16_explicit(void* x, unsigned short y, int mo) {
 	__atomic_store_2(x, y, mo);
 }
-int atomic_compare_exchange_weak_u16_explicit(void* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
-	return (int)__atomic_compare_exchange_2(x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_u16_explicit(void* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
+	return (_Bool)__atomic_compare_exchange_2(x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_u16_explicit(unsigned short* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
-	return (int)__atomic_compare_exchange_2(x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_u16_explicit(unsigned short* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
+	return (_Bool)__atomic_compare_exchange_2(x, expected, y, mo, mo2);
 }
 unsigned short atomic_exchange_u16_explicit(unsigned short* x, unsigned short y, int mo) {
 	return __atomic_exchange_2(x, y, mo);
@@ -274,10 +274,10 @@ unsigned char atomic_load_byte_explicit(unsigned char* x, int mo) {
 void atomic_store_byte_explicit(unsigned char* x, unsigned char y, int mo) {
 	__atomic_store_1(x, y, mo);
 }
-int atomic_compare_exchange_weak_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
+_Bool atomic_compare_exchange_weak_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
 	return __atomic_compare_exchange_1(x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
+_Bool atomic_compare_exchange_strong_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
 	return __atomic_compare_exchange_1(x, expected, y, mo, mo2);
 }
 unsigned char atomic_exchange_byte_explicit(unsigned char* x, unsigned char y, int mo) {
@@ -856,11 +856,11 @@ unsigned long long atomic_load_u64_explicit(uint64_t* x, int mo) {
 void atomic_store_u64_explicit(uint64_t* x, uint64_t y, int mo) {
     atomic_store_explicit((_Atomic(uint64_t)*)x, y, mo);
 }
-int atomic_compare_exchange_weak_u64_explicit(uint64_t* x, uint64_t* expected, uint64_t y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_weak_explicit((_Atomic(uint64_t)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_u64_explicit(uint64_t* x, uint64_t* expected, uint64_t y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_weak_explicit((_Atomic(uint64_t)*)x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_u64_explicit(uint64_t* x, uint64_t* expected, uint64_t y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_strong_explicit((_Atomic(uint64_t)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_u64_explicit(uint64_t* x, uint64_t* expected, uint64_t y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_strong_explicit((_Atomic(uint64_t)*)x, expected, y, mo, mo2);
 }
 unsigned long long atomic_exchange_u64_explicit(uint64_t* x, uint64_t y, int mo) {
     return atomic_exchange_explicit((_Atomic(uint64_t)*)x, y, mo);
@@ -887,11 +887,11 @@ unsigned atomic_load_u32_explicit(unsigned* x, int mo) {
 void atomic_store_u32_explicit(unsigned* x, unsigned y, int mo) {
     atomic_store_explicit((_Atomic(unsigned)*)x, y, mo);
 }
-int atomic_compare_exchange_weak_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_weak_explicit((_Atomic(unsigned)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_weak_explicit((_Atomic(unsigned)*)x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_strong_explicit((_Atomic(unsigned)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_u32_explicit(unsigned* x, unsigned* expected, unsigned y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_strong_explicit((_Atomic(unsigned)*)x, expected, y, mo, mo2);
 }
 unsigned atomic_exchange_u32_explicit(unsigned* x, unsigned y, int mo) {
     return atomic_exchange_explicit((_Atomic(unsigned)*)x, y, mo);
@@ -918,11 +918,11 @@ unsigned short atomic_load_u16_explicit(unsigned short* x, int mo) {
 void atomic_store_u16_explicit(void* x, unsigned short y, int mo) {
     atomic_store_explicit((_Atomic(unsigned short)*)x, y, mo);
 }
-int atomic_compare_exchange_weak_u16_explicit(void* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_weak_explicit((_Atomic(unsigned short)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_u16_explicit(void* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_weak_explicit((_Atomic(unsigned short)*)x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_u16_explicit(unsigned short* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_strong_explicit((_Atomic(unsigned short)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_u16_explicit(unsigned short* x, unsigned short* expected, unsigned short y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_strong_explicit((_Atomic(unsigned short)*)x, expected, y, mo, mo2);
 }
 unsigned short atomic_exchange_u16_explicit(unsigned short* x, unsigned short y, int mo) {
     return atomic_exchange_explicit((_Atomic(unsigned short)*)x, y, mo);
@@ -949,11 +949,11 @@ unsigned char atomic_load_byte_explicit(unsigned char* x, int mo) {
 void atomic_store_byte_explicit(unsigned char* x, unsigned char y, int mo) {
     atomic_store_explicit((_Atomic(unsigned char)*)x, y, mo);
 }
-int atomic_compare_exchange_weak_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_weak_explicit((_Atomic(unsigned char)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_weak_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_weak_explicit((_Atomic(unsigned char)*)x, expected, y, mo, mo2);
 }
-int atomic_compare_exchange_strong_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
-    return (int)atomic_compare_exchange_strong_explicit((_Atomic(unsigned char)*)x, expected, y, mo, mo2);
+_Bool atomic_compare_exchange_strong_byte_explicit(unsigned char* x, unsigned char* expected, unsigned char y, int mo, int mo2) {
+    return (_Bool)atomic_compare_exchange_strong_explicit((_Atomic(unsigned char)*)x, expected, y, mo, mo2);
 }
 unsigned char atomic_exchange_byte_explicit(unsigned char* x, unsigned char y, int mo) {
     return atomic_exchange_explicit((_Atomic(unsigned char)*)x, y, mo);

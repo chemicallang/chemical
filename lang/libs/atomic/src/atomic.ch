@@ -7,9 +7,9 @@ if(intrinsics::get_backend_name() == "C") {
     @extern
     protected func atomic_store_u64_explicit(x : *mut u64, y : u64, mo : int);
     @extern
-    protected func atomic_compare_exchange_weak_u64_explicit(x : *mut u64, expected : *u64, y : u64, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_weak_u64_explicit(x : *mut u64, expected : *u64, y : u64, mo : int, mo2 : int) : bool;
     @extern
-    protected func atomic_compare_exchange_strong_u64_explicit(x : *mut u64, expected : *u64, y : u64, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_strong_u64_explicit(x : *mut u64, expected : *u64, y : u64, mo : int, mo2 : int) : bool;
     @extern
     protected func atomic_exchange_u64_explicit(x : *mut u64, y : u64, mo : int) : u64;
     @extern
@@ -28,9 +28,9 @@ if(intrinsics::get_backend_name() == "C") {
     @extern
     protected func atomic_store_u32_explicit(x : *mut u32, y : u32, mo : int);
     @extern
-    protected func atomic_compare_exchange_weak_u32_explicit(x : *mut u32, expected : *u32, y : u32, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_weak_u32_explicit(x : *mut u32, expected : *u32, y : u32, mo : int, mo2 : int) : bool;
     @extern
-    protected func atomic_compare_exchange_strong_u32_explicit(x : *mut u32, expected : *u32, y : u32, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_strong_u32_explicit(x : *mut u32, expected : *u32, y : u32, mo : int, mo2 : int) : bool;
     @extern
     protected func atomic_exchange_u32_explicit(x : *mut u32, y : u32, mo : int) : u32;
     @extern
@@ -49,9 +49,9 @@ if(intrinsics::get_backend_name() == "C") {
     @extern
     protected func atomic_store_u16_explicit(x : *mut void, y : u16, mo : int);
     @extern
-    protected func atomic_compare_exchange_weak_u16_explicit(x : *mut void, expected : *u16, y : u16, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_weak_u16_explicit(x : *mut void, expected : *u16, y : u16, mo : int, mo2 : int) : bool;
     @extern
-    protected func atomic_compare_exchange_strong_u16_explicit(x : *mut u16, expected : *u16, y : u16, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_strong_u16_explicit(x : *mut u16, expected : *u16, y : u16, mo : int, mo2 : int) : bool;
     @extern
     protected func atomic_exchange_u16_explicit(x : *mut u16, y : u16, mo : int) : u16;
     @extern
@@ -70,9 +70,9 @@ if(intrinsics::get_backend_name() == "C") {
     @extern
     protected func atomic_store_byte_explicit(x : *mut u8, y : u8, mo : int);
     @extern
-    protected func atomic_compare_exchange_weak_byte_explicit(x : *mut u8, expected : *u8, y : u8, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_weak_byte_explicit(x : *mut u8, expected : *u8, y : u8, mo : int, mo2 : int) : bool;
     @extern
-    protected func atomic_compare_exchange_strong_byte_explicit(x : *mut u8, expected : *u8, y : u8, mo : int, mo2 : int) : int;
+    protected func atomic_compare_exchange_strong_byte_explicit(x : *mut u8, expected : *u8, y : u8, mo : int, mo2 : int) : bool;
     @extern
     protected func atomic_exchange_byte_explicit(x : *mut u8, y : u8, mo : int) : u8;
     @extern
@@ -241,23 +241,21 @@ public comptime func atomic_store_u64(x : *mut u64, y : u64, order : memory_orde
     }
 }
 
-public comptime func atomic_compare_exchange_weak_u64(x : *mut u64, expected : *mut u64, y : u64, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u64(x : *mut u64, expected : *mut u64, y : u64, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_weak_u64(unsigned long long* x, unsigned long long* expected, unsigned long long y)
-        return intrinsics::wrap(atomic_compare_exchange_weak_u64_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_weak_u64_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
-public comptime func atomic_compare_exchange_strong_u64(x : *mut u64, expected : *mut u64, y : u64, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u64(x : *mut u64, expected : *mut u64, y : u64, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_strong_u64(unsigned long long* x, unsigned long long* expected, unsigned long long y)
-        return intrinsics::wrap(atomic_compare_exchange_strong_u64_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_strong_u64_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
@@ -335,23 +333,21 @@ public comptime func atomic_store_u32(x : *mut u32, y : u32, order : memory_orde
     }
 }
 
-public comptime func atomic_compare_exchange_weak_u32(x : *mut u32, expected : *mut u32, y : u32, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u32(x : *mut u32, expected : *mut u32, y : u32, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_weak_u32(unsigned* x, unsigned* expected, unsigned y)
-        return intrinsics::wrap(atomic_compare_exchange_weak_u32_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_weak_u32_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
-public comptime func atomic_compare_exchange_strong_u32(x : *mut u32, expected : *mut u32, y : u32, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u32(x : *mut u32, expected : *mut u32, y : u32, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_strong_u32(unsigned* x, unsigned* expected, unsigned y)
-        return intrinsics::wrap(atomic_compare_exchange_strong_u32_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_strong_u32_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
@@ -429,23 +425,21 @@ public comptime func atomic_store_u16(x : *mut u16, y : u16, order : memory_orde
     }
 }
 
-public comptime func atomic_compare_exchange_weak_u16(x : *mut u16, expected : *mut u16, y : u16, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u16(x : *mut u16, expected : *mut u16, y : u16, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_weak_u16(void* x, unsigned short* expected, unsigned short y)
-        return intrinsics::wrap(atomic_compare_exchange_weak_u16_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_weak_u16_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
-public comptime func atomic_compare_exchange_strong_u16(x : *mut u16, expected : *mut u16, y : u16, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u16(x : *mut u16, expected : *mut u16, y : u16, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_strong_u16(unsigned short* x, unsigned short* expected, unsigned short y)
-        return intrinsics::wrap(atomic_compare_exchange_strong_u16_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_strong_u16_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
@@ -525,23 +519,21 @@ public comptime func atomic_store_u8(x : *mut u8, y : u8, order : memory_order =
     }
 }
 
-public comptime func atomic_compare_exchange_weak_u8(x : *mut u8, expected : *mut u8, y : u8, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_weak_u8(x : *mut u8, expected : *mut u8, y : u8, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_weak_byte(unsigned char* x, unsigned char* expected, unsigned char y);
-        return intrinsics::wrap(atomic_compare_exchange_weak_byte_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_weak_byte_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 
-public comptime func atomic_compare_exchange_strong_u8(x : *mut u8, expected : *mut u8, y : u8, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : int {
+public comptime func atomic_compare_exchange_strong_u8(x : *mut u8, expected : *mut u8, y : u8, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(intrinsics::get_backend_name() == "C") {
         // int atomic_compare_exchange_strong_byte(unsigned char* x, unsigned char* expected, unsigned char y);
-        return intrinsics::wrap(atomic_compare_exchange_strong_byte_explicit(x, expected, y, success_order as int, failure_order as int)) as int
+        return intrinsics::wrap(atomic_compare_exchange_strong_byte_explicit(x, expected, y, success_order as int, failure_order as int)) as bool
     } else {
-        var inst = intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
-        return intrinsics::wrap(llvm_success_flag_to_int(inst)) as int
+        return intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system))
     }
 }
 

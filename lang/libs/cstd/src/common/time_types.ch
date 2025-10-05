@@ -1,19 +1,25 @@
+
 /**
- * TODO time_t is implementation defined
  * @see https://en.cppreference.com/w/c/chrono/time_t
  */
-@extern
-public struct time_t {
-
+if(def.windows) {
+    @extern
+    public type time_t = i64
+} else {
+    @extern
+    public type time_t = long
 }
 
 /**
- * TODO clock_t is implementation defined
  * @see https://en.cppreference.com/w/c/chrono/clock_t
  */
-@extern
-public struct clock_t {
-
+if(def.windows) {
+    @extern
+    public type clock_t = long
+} else {
+    // TODO: double check on linux
+    @extern
+    public type clock_t = long
 }
 
 /**

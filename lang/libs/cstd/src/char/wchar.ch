@@ -1385,7 +1385,7 @@ public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcsrchr
  */
 @extern
-public func wcsrchr(str : *wchar_t, ch : wchar_t) : *wchar_t
+public func wcsrchr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1426,7 +1426,7 @@ public func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
  * @see https://en.cppreference.com/w/c/string/wide/wcspbrk
  */
 @extern
-public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *wchar_t
+public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1442,7 +1442,7 @@ public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcsstr
  */
 @extern
-public func wcsstr(dest : *wchar_t, src : *wchar_t) : *wchar_t
+public func wcsstr(dest : *wchar_t, src : *wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1468,7 +1468,7 @@ public func wcsstr(dest : *wchar_t, src : *wchar_t) : *wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcstok
  */
 @extern
-public func wcstok(str : *wchar_t, delim : *wchar_t, ptr : **mut wchar_t) : *wchar_t
+public func wcstok(str : *mut wchar_t, delim : *wchar_t) : *mut wchar_t
 
 /**
  * Copies exactly count successive wide characters from the wide character array pointed to by src to the wide character array pointed to by dest. If the objects overlap, the behavior is undefined. If count is zero, the function does nothing.

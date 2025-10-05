@@ -1,11 +1,15 @@
 /**
- * TODO wctype_t is implementation defined
  * @see https://en.cppreference.com/w/c/string/wide
  */
-@extern
-public struct wctype_t {
-
+if(def.windows) {
+    @extern
+    public type wctype_t = ushort
+} else {
+    // TODO: unknown size, please fix this
+    @extern
+    public type wctype_t = u64
 }
+
 
 /**
  * TODO wctrans_t is implementation defined

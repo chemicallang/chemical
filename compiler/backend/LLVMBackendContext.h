@@ -52,12 +52,12 @@ public:
     /**
      * atomic compare exchange weak
      */
-    Value* atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, Value* oldValuePtr, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final;
+    Value* atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final;
 
     /**
      * atomic compare exchange strong
      */
-    Value* atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, Value* oldValuePtr, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final;
+    Value* atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final;
 
     /**
      * atomic operation, supports add, sub, and, or, xor

@@ -2602,6 +2602,7 @@ public:
     FunctionParam ptrParam;
     FunctionParam expParam;
     FunctionParam valueParam;
+    FunctionParam oldValueParam;
     FunctionParam order1Param;
     FunctionParam order2Param;
     FunctionParam scopeParam;
@@ -2611,7 +2612,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("atomic_cmp_exch_weak"),
-            {cache.getAnyType(), ZERO_LOC},
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -2620,22 +2621,24 @@ public:
     ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         expParam("expected", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
-        order1Param("order1", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
-        order2Param("order2", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
-        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
+        oldValueParam("oldValue", { cache.getPtrToAny(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        order1Param("order1", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
+        order2Param("order2", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 5, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
-        params = { &ptrParam, &expParam, &valueParam, &order1Param, &order2Param, &scopeParam };
+        params = { &ptrParam, &expParam, &valueParam, &oldValueParam, &order1Param, &order2Param, &scopeParam };
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 6) return typeBuilder.getNullValue();
+        if(call->values.size() != 7) return typeBuilder.getNullValue();
         const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
         const auto expVal = call->values[1]->evaluated_value(*call_scope);
         const auto valueVal = call->values[2]->evaluated_value(*call_scope);
-        const auto order1Val = call->values[3]->evaluated_value(*call_scope);
-        const auto order2Val = call->values[4]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[5]->evaluated_value(*call_scope);
+        const auto oldValueVal = call->values[3]->evaluated_value(*call_scope);
+        const auto order1Val = call->values[4]->evaluated_value(*call_scope);
+        const auto order2Val = call->values[5]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[6]->evaluated_value(*call_scope);
         if(order1Val->kind() != ValueKind::IntN || order2Val->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
             return typeBuilder.getNullValue();
         }
@@ -2645,7 +2648,7 @@ public:
         if(order1Num < 0 || order1Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || order2Num < 0 || order2Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
             return typeBuilder.getNullValue();
         }
-        return call_scope->global->backend_context->atomic_cmp_exch_weak(ptrVal, expVal, valueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
+        return call_scope->global->backend_context->atomic_cmp_exch_weak(ptrVal, expVal, valueVal, oldValueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
     }
 
 };
@@ -2656,6 +2659,7 @@ public:
     FunctionParam ptrParam;
     FunctionParam expParam;
     FunctionParam valueParam;
+    FunctionParam oldValueParam;
     FunctionParam order1Param;
     FunctionParam order2Param;
     FunctionParam scopeParam;
@@ -2665,7 +2669,7 @@ public:
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("atomic_cmp_exch_strong"),
-            {cache.getAnyType(), ZERO_LOC},
+            {cache.getBoolType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -2674,22 +2678,24 @@ public:
     ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         expParam("expected", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
-        order1Param("order1", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
-        order2Param("order2", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
-        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
+        oldValueParam("oldValue", { cache.getPtrToAny(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        order1Param("order1", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
+        order2Param("order2", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC),
+        scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 5, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
-        params = { &ptrParam, &expParam, &valueParam, &order1Param, &order2Param, &scopeParam };
+        params = { &ptrParam, &expParam, &valueParam, &oldValueParam, &order1Param, &order2Param, &scopeParam };
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 6) return typeBuilder.getNullValue();
+        if(call->values.size() != 7) return typeBuilder.getNullValue();
         const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
         const auto expVal = call->values[1]->evaluated_value(*call_scope);
         const auto valueVal = call->values[2]->evaluated_value(*call_scope);
-        const auto order1Val = call->values[3]->evaluated_value(*call_scope);
-        const auto order2Val = call->values[4]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[5]->evaluated_value(*call_scope);
+        const auto oldValueVal = call->values[3]->evaluated_value(*call_scope);
+        const auto order1Val = call->values[4]->evaluated_value(*call_scope);
+        const auto order2Val = call->values[5]->evaluated_value(*call_scope);
+        const auto scopeVal = call->values[6]->evaluated_value(*call_scope);
         if(order1Val->kind() != ValueKind::IntN || order2Val->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
             return typeBuilder.getNullValue();
         }
@@ -2699,7 +2705,7 @@ public:
         if(order1Num < 0 || order1Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || order2Num < 0 || order2Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
             return typeBuilder.getNullValue();
         }
-        return call_scope->global->backend_context->atomic_cmp_exch_strong(ptrVal, expVal, valueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
+        return call_scope->global->backend_context->atomic_cmp_exch_strong(ptrVal, expVal, valueVal, oldValueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
     }
 
 };

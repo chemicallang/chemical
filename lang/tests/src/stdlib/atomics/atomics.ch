@@ -80,7 +80,7 @@ func test_u64_compare_exchange_strong_success() : bool {
     var p = reset_u64(42)
     var expected: u64 = 42
     var ok = atomic_compare_exchange_strong_u64(p, &mut expected, 4242, memory_order.acq_rel, memory_order.acquire)
-    return ok == 1 && atomic_load_u64(p) == 4242
+    return ok == true && atomic_load_u64(p) == 4242
 }
 
 func test_u64_compare_exchange_strong_fail() : bool {
@@ -88,7 +88,7 @@ func test_u64_compare_exchange_strong_fail() : bool {
     var expected: u64 = 111
     var ok = atomic_compare_exchange_strong_u64(p, &mut expected, 222, memory_order.seq_cst, memory_order.seq_cst)
     // on failure expected should be updated to actual stored value (500)
-    return ok == 0 && atomic_load_u64(p) == 500 && expected == 500
+    return ok == false && atomic_load_u64(p) == 500 && expected == 500
 }
 
 func test_u64_compare_exchange_weak_success() : bool {
@@ -97,7 +97,7 @@ func test_u64_compare_exchange_weak_success() : bool {
     // retry a few times to tolerate spurious failure (weak)
     for(var i = 0;i < 10; i++) {
         var ok = atomic_compare_exchange_weak_u64(p, &mut expected, 31, memory_order.seq_cst, memory_order.seq_cst)
-        if (ok == 1) {
+        if (ok == true) {
             return atomic_load_u64(p) == 31
         }
     }
@@ -108,7 +108,7 @@ func test_u64_compare_exchange_weak_fail() : bool {
     var p = reset_u64(77)
     var expected: u64 = 5
     var ok = atomic_compare_exchange_weak_u64(p, &mut expected, 99, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 77 && atomic_load_u64(p) == 77
+    return ok == false && expected == 77 && atomic_load_u64(p) == 77
 }
 
 func test_u64_overflow_wrap() : bool {
@@ -155,14 +155,14 @@ func test_u32_compare_exchange_strong_success() : bool {
     var p = reset_u32(200)
     var expected: u32 = 200
     var ok = atomic_compare_exchange_strong_u32(p, &mut expected, 300, memory_order.acquire, memory_order.relaxed)
-    return ok == 1 && atomic_load_u32(p) == 300
+    return ok == true && atomic_load_u32(p) == 300
 }
 
 func test_u32_compare_exchange_strong_fail() : bool {
     var p = reset_u32(400)
     var expected: u32 = 1
     var ok = atomic_compare_exchange_strong_u32(p, &mut expected, 2, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 400 && atomic_load_u32(p) == 400
+    return ok == false && expected == 400 && atomic_load_u32(p) == 400
 }
 
 func test_u32_compare_exchange_weak_success() : bool {
@@ -170,7 +170,7 @@ func test_u32_compare_exchange_weak_success() : bool {
     var expected: u32 = 8
     for(var i = 0;i < 10;i++) {
         var ok = atomic_compare_exchange_weak_u32(p, &mut expected, 16, memory_order.seq_cst, memory_order.seq_cst)
-        if (ok == 1) {
+        if (ok == true) {
             return atomic_load_u32(p) == 16
         }
     }
@@ -181,7 +181,7 @@ func test_u32_compare_exchange_weak_fail() : bool {
     var p = reset_u32(9)
     var expected: u32 = 123
     var ok = atomic_compare_exchange_weak_u32(p, &mut expected, 45, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 9 && atomic_load_u32(p) == 9
+    return ok == false && expected == 9 && atomic_load_u32(p) == 9
 }
 
 func test_u32_overflow_wrap() : bool {
@@ -227,14 +227,14 @@ func test_u16_compare_exchange_strong_success() : bool {
     var p = reset_u16(55)
     var expected: u16 = 55
     var ok = atomic_compare_exchange_strong_u16(p, &mut expected, 66, memory_order.acquire, memory_order.relaxed)
-    return ok == 1 && atomic_load_u16(p) == 66
+    return ok == true && atomic_load_u16(p) == 66
 }
 
 func test_u16_compare_exchange_strong_fail() : bool {
     var p = reset_u16(77)
     var expected: u16 = 2
     var ok = atomic_compare_exchange_strong_u16(p, &mut expected, 3, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 77 && atomic_load_u16(p) == 77
+    return ok == false && expected == 77 && atomic_load_u16(p) == 77
 }
 
 func test_u16_compare_exchange_weak_success() : bool {
@@ -242,7 +242,7 @@ func test_u16_compare_exchange_weak_success() : bool {
     var expected: u16 = 21
     for(var i = 0;i < 10; i++) {
         var ok = atomic_compare_exchange_weak_u16(p, &mut expected, 42, memory_order.seq_cst, memory_order.seq_cst)
-        if (ok == 1) { return atomic_load_u16(p) == 42 }
+        if (ok == true) { return atomic_load_u16(p) == 42 }
     }
     return false
 }
@@ -251,7 +251,7 @@ func test_u16_compare_exchange_weak_fail() : bool {
     var p = reset_u16(99)
     var expected: u16 = 0
     var ok = atomic_compare_exchange_weak_u16(p, &mut expected, 1, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 99 && atomic_load_u16(p) == 99
+    return ok == false && expected == 99 && atomic_load_u16(p) == 99
 }
 
 func test_u16_overflow_wrap() : bool {
@@ -297,14 +297,14 @@ func test_u8_compare_exchange_strong_success() : bool {
     var p = reset_u8(10)
     var expected: u8 = 10
     var ok = atomic_compare_exchange_strong_u8(p, &mut expected, 20, memory_order.acquire, memory_order.release)
-    return ok == 1 && atomic_load_u8(p) == 20
+    return ok == true && atomic_load_u8(p) == 20
 }
 
 func test_u8_compare_exchange_strong_fail() : bool {
     var p = reset_u8(30)
     var expected: u8 = 5
     var ok = atomic_compare_exchange_strong_u8(p, &mut expected, 6, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 30 && atomic_load_u8(p) == 30
+    return ok == false && expected == 30 && atomic_load_u8(p) == 30
 }
 
 func test_u8_compare_exchange_weak_success() : bool {
@@ -312,7 +312,7 @@ func test_u8_compare_exchange_weak_success() : bool {
     var expected: u8 = 4
     for(var i = 0; i < 10; i++){
         var ok = atomic_compare_exchange_weak_u8(p, &mut expected, 9, memory_order.seq_cst, memory_order.seq_cst)
-        if (ok == 1) { return atomic_load_u8(p) == 9 }
+        if (ok == true) { return atomic_load_u8(p) == 9 }
     }
     return false
 }
@@ -321,7 +321,7 @@ func test_u8_compare_exchange_weak_fail() : bool {
     var p = reset_u8(66)
     var expected: u8 = 12
     var ok = atomic_compare_exchange_weak_u8(p, &mut expected, 77, memory_order.seq_cst, memory_order.seq_cst)
-    return ok == 0 && expected == 66 && atomic_load_u8(p) == 66
+    return ok == false && expected == 66 && atomic_load_u8(p) == 66
 }
 
 func test_u8_overflow_wrap() : bool {

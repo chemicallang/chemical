@@ -2571,7 +2571,7 @@ void LLVMBackendContext::atomic_store(Value* ptr, Value* value, BackendAtomicMem
     storeInst->setAtomic(to_llvm_mo(order), to_llvm_ss(scope));
 }
 
-Value* LLVMBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, Value* oldValuePtr, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
+Value* LLVMBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
     auto& gen = *gen_ptr;
     const auto type = ptr->getType();
     const auto atomic_type = get_atomic_op_type(type);
@@ -2585,18 +2585,16 @@ Value* LLVMBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Val
     DereferenceValue deref_expected(expected, atomic_type, loc);
     const auto inst = gen.builder->CreateAtomicCmpXchg(ptr->llvm_value(gen), deref_expected.llvm_value(gen, nullptr), new_value_casted, llvm::MaybeAlign(), to_llvm_mo(success_order), to_llvm_mo(failure_order), to_llvm_ss(scope));
     gen.di.instr(inst, ptr);
-    if(oldValuePtr->kind() != ValueKind::NullValue) {
-        const auto loadedOldValue = gen.builder->CreateExtractValue(inst, 0);
-        const auto storedOldValue = gen.builder->CreateStore(loadedOldValue, oldValuePtr->llvm_value(gen));
-        gen.di.instr(storedOldValue, oldValuePtr);
-    }
+    const auto loadedOldValue = gen.builder->CreateExtractValue(inst, 0);
+    const auto storedOldValue = gen.builder->CreateStore(loadedOldValue, expected->llvm_value(gen));
+    gen.di.instr(storedOldValue, expected);
     const auto successFlagValue = gen.builder->CreateExtractValue(inst, 1);
     return pack_llvm_val(gen.allocator, successFlagValue, gen.comptime_scope.typeBuilder.getBoolType(), ptr->encoded_location());
 }
 
-Value* LLVMBackendContext::atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, Value* oldValuePtr, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
+Value* LLVMBackendContext::atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
     // maps to the same instruction
-    return atomic_cmp_exch_weak(ptr, expected, value, oldValuePtr, success_order, failure_order, scope);
+    return atomic_cmp_exch_weak(ptr, expected, value, success_order, failure_order, scope);
 }
 
 Value* LLVMBackendContext::atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {

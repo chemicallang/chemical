@@ -10,7 +10,9 @@
 #include "ast/types/FunctionType.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/statements/Return.h"
-#include "ast/statements/SwitchStatement.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/ValueNode.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
@@ -54,6 +56,8 @@ void skip_interpretation_above_once(ASTNode* node) {
     }
 }
 
+Value* evaluate(InterpretScope& scope, Scope* body);
+
 inline void interpret(InterpretScope& scope, BreakStatement* stmt) {
     stop_interpretation_above_once(stmt->parent());
 }
@@ -84,11 +88,11 @@ void interpret(InterpretScope& scope, ReturnStatement* stmt) {
     stop_interpretation_above(stmt->parent());
 }
 
-void interpret(InterpretScope& scope, SwitchStatement* stmt) {
+Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
     const auto cond = stmt->expression->evaluated_value(scope);
     if(!cond) {
         scope.error("couldn't evaluate the expression", stmt->expression);
-        return;
+        return nullptr;
     }
     unsigned i = 0;
     const auto size = stmt->scopes.size();
@@ -98,38 +102,63 @@ void interpret(InterpretScope& scope, SwitchStatement* stmt) {
                 auto eval_first = casePair.first->evaluated_value(scope);
                 const auto isEqualEval = scope.evaluate(Operation::IsEqual, eval_first, cond, ZERO_LOC, casePair.first);
                 if(isEqualEval->val_kind() == ValueKind::Bool && isEqualEval->get_the_bool()) {
-                    auto& body = stmt->scopes[i];
-                    scope.interpret(&body);
-                    return;
+                    return &stmt->scopes[i];
                 }
             }
         }
         i++;
     }
     if(stmt->has_default_case()) {
-        auto& body = stmt->scopes[stmt->defScopeInd];
-        scope.interpret(&body);
-        return;
+        return &stmt->scopes[stmt->defScopeInd];
+    }
+    return nullptr;
+}
+
+void interpret(InterpretScope& scope, SwitchStatement* stmt) {
+    const auto body = eval_switch_stmt_block(scope, stmt);
+    if(body) {
+        scope.interpret(body);
     }
 }
 
-void interpret(InterpretScope& scope, IfStatement* stmt) {
+Value* evaluated_value(InterpretScope &scope, SwitchStatement* stmt) {
+    const auto body = eval_switch_stmt_block(scope, stmt);
+    if(body) {
+        return evaluate(scope, body);
+    }
+    return scope.getNullValue();
+}
+
+Scope* eval_if_stmt_block(InterpretScope& scope, IfStatement* stmt) {
     if (stmt->condition->evaluated_bool(scope)) {
-        InterpretScope child(&scope, scope.allocator, scope.global);
-        child.interpret(&stmt->ifBody);
+        return &stmt->ifBody;
     } else {
         for (auto const &elseIf: stmt->elseIfs) {
             if (elseIf.first->evaluated_bool(scope)) {
-                InterpretScope child(&scope, scope.allocator, scope.global);
-                child.interpret(const_cast<Scope *>(&elseIf.second));
-                return;
+                return const_cast<Scope *>(&elseIf.second);
             }
         }
         if (stmt->elseBody.has_value()) {
-            InterpretScope child(&scope, scope.allocator, scope.global);
-            child.interpret(&stmt->elseBody.value());
+            return &stmt->elseBody.value();
         }
     }
+    return nullptr;
+}
+
+void interpret(InterpretScope& scope, IfStatement* stmt) {
+    const auto block = eval_if_stmt_block(scope, stmt);
+    if(block) {
+        InterpretScope child(&scope, scope.allocator, scope.global);
+        child.interpret(block);
+    }
+}
+
+Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
+    const auto body = eval_if_stmt_block(scope, stmt);
+    if(body) {
+        return evaluate(scope, body);
+    }
+    return scope.getNullValue();
 }
 
 inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
@@ -182,13 +211,43 @@ void interpret(InterpretScope& scope, WhileLoop* loop) {
     }
 }
 
-void interpret(InterpretScope& scope, Scope* body) {
-    for (const auto &node: body->nodes) {
+void interpret(InterpretScope& scope, std::vector<ASTNode*>& nodes, bool& stoppedInterpretOnce) {
+    for (const auto &node: nodes) {
         scope.interpret(node);
-        if (body->stoppedInterpretOnce) {
-            body->stoppedInterpretOnce = false;
+        if (stoppedInterpretOnce) {
+            stoppedInterpretOnce = false;
             return;
         }
+    }
+}
+
+inline void interpret(InterpretScope& scope, Scope* body) {
+    interpret(scope, body->nodes, body->stoppedInterpretOnce);
+}
+
+Value* evaluate(InterpretScope& scope, Scope* body) {
+    auto& nodes = body->nodes;
+    if(nodes.size() > 1) {
+        auto start = body->nodes.data();
+        // skip the last one
+        const auto end = start + (nodes.size() - 1);
+        while(start != end) {
+            scope.interpret(*start);
+            start++;
+        }
+    }
+    // lets do the last one
+    const auto last = nodes.back();
+    switch(last->kind()) {
+        case ASTNodeKind::ValueNode:
+            return last->as_value_node_unsafe()->value->evaluated_value(scope);
+        case ASTNodeKind::IfStmt:
+            return evaluated_value(scope, last->as_if_stmt_unsafe());
+        case ASTNodeKind::SwitchStmt:
+            return evaluated_value(scope, last->as_switch_stmt_unsafe());
+        default:
+            scope.interpret(last);
+            return scope.getNullValue();
     }
 }
 
@@ -245,4 +304,14 @@ void InterpretScope::interpret(ASTNode* node) {
         default:
             break;
     }
+}
+
+// ---------- values
+
+Value* IfValue::evaluated_value(InterpretScope &scope) {
+    return ::evaluated_value(scope, &stmt);
+}
+
+Value* SwitchValue::evaluated_value(InterpretScope &scope) {
+    return ::evaluated_value(scope, &stmt);
 }

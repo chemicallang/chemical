@@ -156,7 +156,7 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
 void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {
 
     // iterator for previous value
-    auto itr = scope.find_value_iterator(value.str());
+    auto itr = scope.find_value_iterator(value);
     if(itr.first == itr.second.values.end()) {
         scope.error("couldn't find identifier '" + value.str() + "' in current scope", this);
         return;
@@ -196,7 +196,7 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 }
 
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
-    auto found = scope.find_value(value.str());
+    auto found = scope.find_value(value);
     if (found != nullptr) {
         return found;
     }

@@ -23,9 +23,9 @@ class ASTNode;
 
 class LocationManager;
 
-using node_map = std::unordered_map<std::string, ASTNode*>;
+using node_map = std::unordered_map<chem::string_view, ASTNode*>;
 using node_iterator = node_map::iterator;
-using value_map = std::unordered_map<std::string, Value*>;
+using value_map = std::unordered_map<chem::string_view, Value*>;
 using value_iterator = value_map::iterator;
 
 class FunctionType;
@@ -36,7 +36,7 @@ public:
     /**
       * This contains a map between identifiers and its values, of the current scope
       */
-    std::unordered_map<std::string, Value *> values;
+    std::unordered_map<chem::string_view, Value*> values;
 
     /**
      * a pointer to the parent scope, If this is a global scope, it will be a nullptr
@@ -85,9 +85,9 @@ public:
     }
 
     /**
-     * declares a value with this name in current scope
+     * get the null value
      */
-    void declare(std::string& name, Value* value);
+    Value* getNullValue();
 
     /**
      * declares a value with this name in current scope
@@ -96,27 +96,18 @@ public:
 
     /**
      * erases a value by the key name from the value map safely
-     * TODO provide a method which takes a string view
      */
-    void erase_value(const std::string &name);
+    void erase_value(const chem::string_view& name);
 
     /**
-     * @return return value with name, or nullptr
-     * TODO provide a method which takes a string view
+     * return value with name, or nullptr
      */
-    Value* find_value(const std::string& name);
-
-    /**
-     * return a value stored with name
-     */
-    inline Value* find(const chem::string_view& name) {
-        return find_value(name.str());
-    }
+    Value* find_value(const chem::string_view& name);
 
     /**
      * @return iterator for found value, the map that it was found in
      */
-    std::pair<value_iterator, InterpretScope&> find_value_iterator(const std::string& name);
+    std::pair<value_iterator, InterpretScope&> find_value_iterator(const chem::string_view& name);
 
     /**
      * perform an operation between two values

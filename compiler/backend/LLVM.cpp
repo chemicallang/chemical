@@ -1906,9 +1906,6 @@ void Scope::destruct_current_scope(Codegen& gen, unsigned destruct_begin) {
 }
 
 llvm::Value* Scope::code_gen_value_scope(Codegen& gen, bool allocate, unsigned destruct_begin) {
-    for(const auto node : nodes) {
-        node->code_gen_declare(gen);
-    }
     if(nodes.size() > 1) {
         int i = 0;
         // do not do the last one

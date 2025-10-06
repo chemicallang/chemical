@@ -19,21 +19,15 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-//ASTAny* InterpretScope::allocate_released(std::size_t obj_size, std::size_t alignment) {
-//    const auto ptr = (ASTAny*) (void*) allocator.allocate_released_size(obj_size, alignment);
-//    allocated.emplace_back(ptr);
-//    return ptr;
-//}
-
-void InterpretScope::declare(std::string &name, Value *value) {
-    values[name] = value;
+Value* InterpretScope::getNullValue() {
+    return global->typeBuilder.getNullValue();
 }
 
 void InterpretScope::declare(const chem::string_view& name, Value* value) {
-    values[name.str()] = value;
+    values[name] = value;
 }
 
-Value *InterpretScope::find_value(const std::string &name) {
+Value* InterpretScope::find_value(const chem::string_view& name) {
     auto found = values.find(name);
     if (found == values.end()) {
         if(parent == nullptr) return nullptr;
@@ -43,13 +37,26 @@ Value *InterpretScope::find_value(const std::string &name) {
     }
 }
 
-std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(const std::string &name) {
+std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(const chem::string_view& name) {
     auto found = values.find(name);
     if (found == values.end()) {
         if(parent == nullptr) return { values.end(), *this };
         return parent->find_value_iterator(name);
     } else {
         return { found, *this };
+    }
+}
+
+void InterpretScope::erase_value(const chem::string_view& name) {
+    auto iterator = find_value_iterator(name);
+    if(iterator.first == iterator.second.values.end()) {
+        std::cerr << ANSI_COLOR_RED << "couldn't locate value " << name << " for removal" << ANSI_COLOR_RESET
+                  << std::endl;
+#ifdef DEBUG
+        print_values();
+#endif
+    } else {
+        iterator.second.values.erase(iterator.first);
     }
 }
 
@@ -270,19 +277,6 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
     } else {
         scope.error("Operation between values of unknown kind", debugValue);
         return nullptr;
-    }
-}
-
-void InterpretScope::erase_value(const std::string &name) {
-    auto iterator = find_value_iterator(name);
-    if(iterator.first == iterator.second.values.end()) {
-        std::cerr << ANSI_COLOR_RED << "couldn't locate value " << name << " for removal" << ANSI_COLOR_RESET
-                  << std::endl;
-#ifdef DEBUG
-        print_values();
-#endif
-    } else {
-        iterator.second.values.erase(iterator.first);
     }
 }
 

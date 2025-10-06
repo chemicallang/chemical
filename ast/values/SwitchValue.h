@@ -33,6 +33,8 @@ public:
 
     ASTNode* linked_node() override;
 
+    Value* evaluated_value(InterpretScope &scope) override;
+
 #ifdef COMPILER_BUILD
 
     static llvm::Value* llvm_value(Codegen& gen, SwitchStatement& stmt, bool allocate);

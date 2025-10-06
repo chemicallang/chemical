@@ -217,10 +217,6 @@ public comptime func atomic_fence(order : memory_order = memory_order.seq_cst) {
     }
 }
 
-public func llvm_success_flag_to_int(flag : bool) : int {
-    return if(flag) 1 else 0
-}
-
 // ------- u64 functions ----------
 
 public comptime func atomic_load_u64(x : *u64, order : memory_order = memory_order.seq_cst) : u64 {
@@ -228,6 +224,22 @@ public comptime func atomic_load_u64(x : *u64, order : memory_order = memory_ord
         // unsigned long long atomic_load_u64(unsigned long long* x)
         return intrinsics::wrap(atomic_load_u64_explicit(x, order as int)) as u64
     } else {
+        // var mo_relaxed = llvm_mem_order(memory_order.relaxed)
+        // var mo_consume = llvm_mem_order(memory_order.consume)
+        // var mo_acquire = llvm_mem_order(memory_order.acquire)
+        // var mo_acquire = llvm_mem_order(memory_order.acquire)
+        // var mo_acquire = llvm_mem_order(memory_order.acquire)
+        // var mo_seq_cst = llvm_mem_order(memory_order.seq_cst)
+        // var scope = scope_to_int(llvm_atomic_sync_scope.system);
+        // return intrinsics::wrap(switch(order) {
+        //     memory_order.relaxed => intrinsics::llvm::atomic_load(x, mo_relaxed, scope) as u64
+        //     memory_order.consume => intrinsics::llvm::atomic_load(x, mo_consume, scope) as u64
+        //     memory_order.acquire => intrinsics::llvm::atomic_load(x, mo_acquire, scope) as u64
+        //     memory_order.release => intrinsics::llvm::atomic_load(x, mo_acquire, scope) as u64
+        //     memory_order.acq_rel => intrinsics::llvm::atomic_load(x, mo_acquire, scope) as u64
+        //     memory_order.seq_cst => intrinsics::llvm::atomic_load(x, mo_seq_cst, scope) as u64
+        //     default => 0u64
+        // }) as u64
         return intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system)) as u64
     }
 }

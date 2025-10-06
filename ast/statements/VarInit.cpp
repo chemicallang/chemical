@@ -171,7 +171,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) 
             // quickly create a value that we already hold
             return initializer_value(gen);
         } else {
-            const auto stored = gen.comptime_scope.find(name_view());
+            const auto stored = gen.comptime_scope.find_value(name_view());
             if(stored) {
                 return stored->llvm_value(gen);
             } else {

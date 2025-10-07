@@ -11,15 +11,14 @@ void ASTProcessor::code_gen_declare(
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     gen.declare_nodes(nodes_vec);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "Declare", bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "Declare", &bm_results);
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(chem::string_view(abs_path), "Declare");
@@ -32,15 +31,14 @@ void ASTProcessor::code_gen_compile(
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     gen.compile_nodes(nodes_vec);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "Compile", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "Compile", abs_path, &bm_results);
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(chem::string_view(abs_path), "Compile");
@@ -53,15 +51,14 @@ void ASTProcessor::code_gen_external_implement(
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     gen.external_implement_nodes(nodes_vec);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "ExtCompile", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "ExtCompile", abs_path, &bm_results);
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(chem::string_view(abs_path), "ExtCompile");
@@ -74,10 +71,9 @@ void ASTProcessor::declare_and_compile(
         std::vector<ASTNode*>& nodes_vec,
         const std::string_view& abs_path
 ) {
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     // create a di compile unit
     if(gen.di.isEnabled) {
@@ -88,9 +84,9 @@ void ASTProcessor::declare_and_compile(
     } else {
         gen.declare_and_compile(nodes_vec);
     }
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "Compile", bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "Compile", &bm_results);
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(chem::string_view(abs_path), "Compile");
@@ -104,15 +100,14 @@ void ASTProcessor::external_declare_nodes(
         const std::string& abs_path
 ) {
     auto& nodes_vec = import_res.nodes;
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     gen.external_declare_nodes(nodes_vec);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "Declare", bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "Declare", &bm_results);
     }
     if(!gen.diagnostics.empty()) {
         gen.print_diagnostics(chem::string_view(abs_path), "Declare");

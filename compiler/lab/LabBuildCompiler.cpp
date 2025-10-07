@@ -150,6 +150,14 @@ LabBuildCompiler::LabBuildCompiler(
 }
 
 int LabBuildCompiler::do_job(LabJob* job) {
+    const auto bm = options->benchmark;
+
+    // benchmark
+    BenchmarkResults bm_res;
+    if(bm) {
+        bm_res.benchmark_begin();
+    }
+
     job->status = LabJobStatus::Launched;
     int return_int;
     switch(job->type) {
@@ -178,6 +186,17 @@ int LabBuildCompiler::do_job(LabJob* job) {
             job->status = LabJobStatus::Failure;
         }
     }
+
+    // end and print the benchmark for module
+    if(bm) {
+        bm_res.benchmark_end();
+        auto tag = chem::string("Job");
+        tag.append("[");
+        tag.append(job->name.to_view());
+        tag.append("]");
+        ASTProcessor::print_benchmarks(std::cout, tag.to_view(), &bm_res);
+    }
+
     return return_int;
 }
 
@@ -614,6 +633,43 @@ void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileMetaDat
     }
 }
 
+int LabBuildCompiler::process_module_tcc_bm(
+        LabModule* mod,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        const std::string& mod_timestamp_file
+) {
+
+    const auto bm_mod = options->benchmark_modules;
+
+    // benchmark for the module compilation
+    BenchmarkResults bm;
+
+    if(bm_mod) {
+        bm.benchmark_begin();
+    }
+
+    // the actual translation happens here
+    const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file);
+    if(result != 0) {
+        return result;
+    }
+
+    // end and print the benchmark for module
+    if(bm_mod) {
+        bm.benchmark_end();
+        // printing the benchmark
+        std::string tag = "Module";
+        tag += "[";
+        tag += mod->format();
+        tag += "]";
+        ASTProcessor::print_benchmarks(std::cout, tag, &bm);
+    }
+
+    return 0;
+
+}
+
 int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
@@ -645,7 +701,7 @@ int LabBuildCompiler::process_module_tcc(
 
     // lets print diagnostics for all files in module
     for(auto& file : direct_files) {
-        print_results(*file.result, file.abs_path, options->benchmark);
+        print_results(*file.result, file.abs_path, options->benchmark_files);
     }
 
     // return failure if parse failed
@@ -743,6 +799,44 @@ int LabBuildCompiler::process_module_tcc(
 
 #ifdef COMPILER_BUILD
 
+int LabBuildCompiler::process_module_gen_bm(
+        LabModule* mod,
+        ASTProcessor& processor,
+        Codegen& gen,
+        CTranslator& cTranslator,
+        const std::string& mod_timestamp_file
+) {
+
+    const auto bm_mod = options->benchmark_modules;
+
+    // benchmark for the module compilation
+    BenchmarkResults bm;
+
+    if(bm_mod) {
+        bm.benchmark_begin();
+    }
+
+    // the actual translation happens here
+    const auto result = process_module_gen(mod, processor, gen, cTranslator, mod_timestamp_file);
+    if(result != 0) {
+        return result;
+    }
+
+    // end and print the benchmark for module
+    if(bm_mod) {
+        bm.benchmark_end();
+        // printing the benchmark
+        std::string tag = "Module";
+        tag += "[";
+        tag += mod->format();
+        tag += "]";
+        ASTProcessor::print_benchmarks(std::cout, tag, &bm);
+    }
+
+    return 0;
+
+}
+
 int LabBuildCompiler::process_module_gen(
         LabModule* mod,
         ASTProcessor& processor,
@@ -764,7 +858,7 @@ int LabBuildCompiler::process_module_gen(
 
     // lets print diagnostics for all files in module
     for(auto& file : direct_files) {
-        print_results(*file.result, file.abs_path, options->benchmark);
+        print_results(*file.result, file.abs_path, options->benchmark_files);
     }
 
     // return failure if parse failed
@@ -1280,6 +1374,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     const auto caching = options->is_caching_enabled;
     const auto verbose = options->verbose;
+    const auto bm_mod = options->benchmark_modules;
 
     begin_job_print(job);
 
@@ -1455,9 +1550,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // the actual translation happens here
-        const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file);
-        if(result == 1) {
-            return 1;
+        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mod_timestamp_file);
+        if(result != 0) {
+            return result;
         }
 
     }
@@ -1651,9 +1746,9 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
                 break;
         }
 
-        const auto result = process_module_gen(mod, processor, gen, cTranslator, mod_timestamp_file);
-        if(result == 1) {
-            return 1;
+        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, mod_timestamp_file);
+        if(result != 0) {
+            return result;
         }
 
         job->objects.emplace_back(mod->object_path.copy());
@@ -2148,7 +2243,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // printing results for module file parsing
-    print_results(labFileResult, path, true);
+    print_results(labFileResult, path, options->benchmark_files);
 
     // probably an error during parsing
     if(!labFileResult.continue_processing) {
@@ -2173,7 +2268,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
         // lets print diagnostics for all files in module
         for(auto& file : direct_files_in_lab) {
-            print_results(*file.result, file.abs_path, options->benchmark);
+            print_results(*file.result, file.abs_path, options->benchmark_files);
         }
 
         // return failure if parse failed
@@ -2343,8 +2438,8 @@ TCCState* LabBuildCompiler::built_lab_file(
         const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod, true);
 
         // compile the module
-        const auto module_result = process_module_tcc(mod, processor, c_visitor, timestamp_path);
-        if(module_result == 1) {
+        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, timestamp_path);
+        if(module_result != 0) {
             return nullptr;
         }
 

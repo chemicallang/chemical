@@ -498,6 +498,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("", "minify-c", CmdOptionType::NoValue, minify_c_desc),
             CmdOption("test", "test", CmdOptionType::NoValue, test_cmd_desc),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
+            CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue, benchmark_cmd_desc),
+            CmdOption("benchmark-modules", "bm-modules", CmdOptionType::NoValue, benchmark_cmd_desc),
             CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
             CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
             CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
@@ -625,6 +627,8 @@ int compiler_main(int argc, char *argv[]) {
 
     auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
         opts->benchmark = options.has_value("benchmark", "bm");
+        opts->benchmark_files = options.has_value("benchmark-files", "bm-files");
+        opts->benchmark_modules = options.has_value("benchmark-modules", "bm-modules");
         opts->print_representation = options.has_value("print-ast", "pr-ast");
         opts->print_cst = options.has_value("print-cst", "pr-cst");
         opts->print_ig = options.has_value("print-ig", "pr-ig");

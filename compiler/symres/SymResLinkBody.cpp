@@ -719,11 +719,13 @@ void SymResLinkBody::VisitTypealiasStmt(TypealiasStatement* node) {
         visit(node->actual_type);
     }
     if(node->actual_type->kind() == BaseTypeKind::IfType) {
-        auto evaluated = node->actual_type->as_if_type_unsafe()->evaluate(linker.comptime_scope);
+        const auto if_type = node->actual_type->as_if_type_unsafe();
+        auto evaluated = if_type->evaluate(linker.comptime_scope);
         if(evaluated) {
             node->actual_type = evaluated;
         } else {
             linker.error("couldn't evaluate the if type", node->actual_type.encoded_location());
+            node->actual_type = if_type->thenType;
         }
     }
 }

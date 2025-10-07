@@ -479,11 +479,13 @@ void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
         linker.comptime_context = false;
     }
     if(stmt->actual_type->kind() == BaseTypeKind::IfType) {
-        auto evaluated = stmt->actual_type->as_if_type_unsafe()->evaluate(linker.comptime_scope);
+        const auto if_type = stmt->actual_type->as_if_type_unsafe();
+        auto evaluated = if_type->evaluate(linker.comptime_scope);
         if(evaluated) {
             stmt->actual_type = evaluated;
         } else {
             linker.error("couldn't evaluate the if type", stmt->actual_type.encoded_location());
+            stmt->actual_type = if_type->thenType;
         }
     }
 }

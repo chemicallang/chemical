@@ -190,11 +190,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     // end and print the benchmark for module
     if(bm) {
         bm_res.benchmark_end();
-        auto tag = chem::string("Job");
-        tag.append("[");
-        tag.append(job->name.to_view());
-        tag.append("]");
-        ASTProcessor::print_benchmarks(std::cout, tag.to_view(), &bm_res);
+        ASTProcessor::print_benchmarks(std::cout, "bm:job", job->name.to_view(), &bm_res);
     }
 
     return return_int;
@@ -659,11 +655,7 @@ int LabBuildCompiler::process_module_tcc_bm(
     if(bm_mod) {
         bm.benchmark_end();
         // printing the benchmark
-        std::string tag = "Module";
-        tag += "[";
-        tag += mod->format();
-        tag += "]";
-        ASTProcessor::print_benchmarks(std::cout, tag, &bm);
+        ASTProcessor::print_benchmarks(std::cout, "bm:module", mod->format(), &bm);
     }
 
     return 0;
@@ -826,11 +818,7 @@ int LabBuildCompiler::process_module_gen_bm(
     if(bm_mod) {
         bm.benchmark_end();
         // printing the benchmark
-        std::string tag = "Module";
-        tag += "[";
-        tag += mod->format();
-        tag += "]";
-        ASTProcessor::print_benchmarks(std::cout, tag, &bm);
+        ASTProcessor::print_benchmarks(std::cout, "bm:module", mod->format(), &bm);
     }
 
     return 0;

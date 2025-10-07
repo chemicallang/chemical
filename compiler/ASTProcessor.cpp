@@ -351,20 +351,11 @@ int ASTProcessor::sym_res_module_seq(LabModule* module) {
 }
 
 void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, BenchmarkResults* bm_results) {
-    const auto mil = bm_results->millis();
-    bool reset = false;
-    if(mil > 1) {
-        stream << (mil > 3 ? rang::fg::red : rang::fg::yellow);
-        reset = true;
-    }
-    stream << '[' << TAG << ']' << " Completed " << bm_results->representation() << std::endl;
-    if(reset) {
-        stream << rang::fg::reset;
-    }
+    stream << '[' << TAG << ']' << " completed " << bm_results->representation() << std::endl;
 }
 
-void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& ABS_PATH, BenchmarkResults* bm_results) {
-    stream << '[' << TAG << ']' << ' ' << ABS_PATH << " Completed " << bm_results->representation() << std::endl;
+void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& Name, BenchmarkResults* bm_results) {
+    stream << '[' << TAG << ']' << ' ' << '\'' << Name << "' completed " << bm_results->representation() << std::endl;
 }
 
 

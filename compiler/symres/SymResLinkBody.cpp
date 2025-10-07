@@ -1814,6 +1814,31 @@ void verifyArgumentsAreComptime(SymbolResolver& linker, FunctionCall* call, Func
     }
 }
 
+void verifyArgumentNotRuntime(SymbolResolver& linker, BaseType* type, Value* value) {
+    if(isAnyRuntimeType(value->getType())) {
+        linker.error("comptime function expects argument that is known at compile time", value);
+        return;
+    }
+}
+
+void verifyArgumentsAreNotRuntime(SymbolResolver& linker, FunctionCall* call, FunctionType* func_type) {
+    if(!func_type || !func_type->data.signature_resolved) return;
+    unsigned i = 0;
+    while(i < call->values.size()) {
+        const auto param = func_type->func_param_for_arg_at(i);
+        if (param) {
+            const auto value = call->values[i];
+            auto implicit_constructor = param->type->implicit_constructor_for(value);
+            if (implicit_constructor) {
+                verifyArgumentNotRuntime(linker, implicit_constructor->params.front()->type, value);
+            } else {
+                verifyArgumentNotRuntime(linker, param->type, value);
+            }
+        }
+        i++;
+    }
+}
+
 // can call a normal function
 // can call a generic function (after instantiation, we can determine the type)
 // can call a stored function pointer
@@ -1933,10 +1958,24 @@ ending_block:
         const auto func_type = resolver.current_func_type;
         if(func_type) {
             const auto func = func_type->as_function();
-            if (!func || !func->is_comptime()) {
-                // current function is not comptime
-                // we only check this in runtime functions
-
+            if(func) {
+                if(func->is_comptime()) {
+                    // now if a compile time function is being called
+                    // we verify all the arguments are known at compile time
+                    const auto final_linked = call->parent_val->linked_node();
+                    if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl) {
+                        // TODO: verify arguments are not runtime
+                        // verifyArgumentsAreNotRuntime(resolver, call, final_linked->as_function_unsafe());
+                    }
+                } else {
+                    // now if a compile time function is being called
+                    // we verify all the arguments are known at compile time
+                    const auto final_linked = call->parent_val->linked_node();
+                    if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
+                        verifyArgumentsAreComptime(resolver, call, final_linked->as_function_unsafe());
+                    }
+                }
+            } else {
                 // now if a compile time function is being called
                 // we verify all the arguments are known at compile time
                 const auto final_linked = call->parent_val->linked_node();

@@ -489,6 +489,14 @@ public:
         static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
     }
 
+    inline void VisitMaybeRuntimeType(MaybeRuntimeType* type) {
+        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
+    }
+
+    inline void VisitRuntimeType(RuntimeType* type) {
+        static_cast<Derived*>(this)->VisitCommonType((BaseType*) type);
+    }
+
     void VisitNodeNoNullCheck(ASTNode* node) {
         switch(node->kind()) {
             case ASTNodeKind::AssignmentStmt:
@@ -907,6 +915,12 @@ public:
             case BaseTypeKind::IfType:
                 static_cast<Derived*>(this)->VisitIfType((IfType*) type);
                 return;
+            case BaseTypeKind::MaybeRuntime:
+                static_cast<Derived*>(this)->VisitMaybeRuntimeType((MaybeRuntimeType*) type);
+                return;
+            case BaseTypeKind::Runtime:
+                static_cast<Derived*>(this)->VisitRuntimeType((RuntimeType*) type);
+                return;
 #ifdef DEBUG
             default:
                 throw "UNHANDLED: type kind in non recursive visitor";
@@ -1253,7 +1267,12 @@ public:
     inline void VisitByPtrTypeNoNullCheck(IfType* type) {
         static_cast<Derived*>(this)->VisitIfType(type);
     }
-
+    inline void VisitByPtrTypeNoNullCheck(MaybeRuntimeType* type) {
+        static_cast<Derived*>(this)->VisitMaybeRuntimeType(type);
+    }
+    inline void VisitByPtrTypeNoNullCheck(RuntimeType* type) {
+        static_cast<Derived*>(this)->VisitRuntimeType(type);
+    }
 
     template<typename Thing>
     inline void VisitByPtrType(Thing* thing) {

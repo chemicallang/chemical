@@ -36,6 +36,8 @@
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/PlacementNewNode.h"
 #include "ast/types/DynamicType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/SizeOfValue.h"
@@ -1085,8 +1087,19 @@ void RepresentationVisitor::VisitUsingStmt(UsingStmt *usingStmt) {
 }
 
 void RepresentationVisitor::VisitLiteralType(LiteralType *type) {
-    write("literal");
-    write('<');
+    write("%literal<");
+    visit(type->underlying);
+    write('>');
+}
+
+void RepresentationVisitor::VisitMaybeRuntimeType(MaybeRuntimeType* type) {
+    write("%maybe_runtime<");
+    visit(type->underlying);
+    write('>');
+}
+
+void RepresentationVisitor::VisitRuntimeType(RuntimeType* type) {
+    write("%runtime<");
     visit(type->underlying);
     write('>');
 }

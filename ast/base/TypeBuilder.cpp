@@ -11,6 +11,8 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/NullPtrType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/RuntimeType.h"
+#include "ast/types/MaybeRuntimeType.h"
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/ExpressiveStringType.h"
@@ -30,6 +32,14 @@ void TypeBuilder::initialize() {
     ptrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, true);
     constPtrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, false);
     expr_str_type = new (allocator.allocate<ExpressiveStringType>()) ExpressiveStringType();
+
+    // runtime types
+    runtimeAny = new (allocator.allocate<RuntimeType>()) RuntimeType(anyType);
+    runtimePtrToVoid = new (allocator.allocate<RuntimeType>()) RuntimeType(ptrToVoid);
+
+    // maybe runtime types
+    maybeRuntimeAny = new (allocator.allocate<MaybeRuntimeType>()) MaybeRuntimeType(anyType);
+    maybeRuntimePtrToVoid = new (allocator.allocate<MaybeRuntimeType>()) MaybeRuntimeType(ptrToVoid);
 
     // global declarations
     unresolvedDecl = new (allocator.allocate<UnresolvedDecl>()) UnresolvedDecl(nullptr, voidType, ZERO_LOC);

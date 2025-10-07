@@ -801,9 +801,7 @@ Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
     const auto dynType = new (allocator.allocate<DynamicType>()) DynamicType(type);
     auto value = new (allocator.allocate<DynamicValue>()) DynamicValue(nullptr, loc, dynType);
 
-    if(token->type == TokenType::GreaterThanSym) {
-        token++;
-    } else {
+    if(!consumeGenericClose()) {
         unexpected_error("expected '>' after the type in dynamic value");
     }
 

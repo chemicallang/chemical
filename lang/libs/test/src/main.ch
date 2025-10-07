@@ -573,7 +573,7 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
 
 }
 
-public comptime func test_runner(argc : int, argv : **char) : int {
+public comptime func test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {
     var t = get_tests()
     return intrinsics::wrap(run_test_runner(std::span<TestFunction>(t), argc, argv)) as int
 }

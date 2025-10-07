@@ -19,6 +19,8 @@
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
 #include "ast/types/LiteralType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/BoolType.h"
@@ -64,6 +66,25 @@ BaseType* Parser::parseLambdaType(ASTAllocator& allocator, bool isCapturing) {
     return const_cast<BaseType*>(parseLambdaTypeLoc(allocator, isCapturing).getType());
 }
 
+bool Parser::consumeGenericClose() {
+    if (pending_greater_count > 0) {
+        --pending_greater_count;
+        return true;
+    }
+    if (token->type == TokenType::GreaterThanSym) {
+        token++;
+        return true;
+    }
+    if (token->type == TokenType::RightShiftSym) {
+        // Consume >>
+        token++;
+        // Simulate one consumed > now, and one remaining >
+        pending_greater_count = 1;
+        return true;
+    }
+    return false;
+}
+
 BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idType) {
     if(consumeToken(TokenType::LessThanSym)) {
         std::vector<TypeLoc> types;
@@ -75,7 +96,7 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
                 break;
             }
         } while(consumeToken(TokenType::CommaSym));
-        if(!consumeToken(TokenType::GreaterThanSym)) {
+        if(!consumeGenericClose()) {
             unexpected_error("expected '>' for generic type");
         }
         return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types));
@@ -377,6 +398,20 @@ BaseType* get_self_kw_type(ASTAllocator& allocator, ASTNode* parent) {
     }
 }
 
+BaseType* parseSingleGenType(Parser& parser, ASTAllocator& allocator, SourceLocation loc) {
+    if (!parser.consumeToken(TokenType::LessThanSym)) {
+        parser.unexpected_error("expected '<' for generic argument type");
+    }
+    auto child_type = parser.parseTypeLoc(allocator);
+    if (!child_type) {
+        parser.error("expected a child type as generic argument type");
+    }
+    if (!parser.consumeGenericClose()) {
+        parser.unexpected_error("expected '>' after the generic argument type");
+    }
+    return child_type;
+}
+
 /**
  * here's how mutable, dynamic and pointer types work
  * *mut Phone <-- direct linked type made mutable, ptr before type finds the linked type, makes itself mutable \n
@@ -491,18 +526,16 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                 case hashFn("literal_string"):
                     return TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(typeBuilder.getStringType()), loc);
                 case hashFn("literal"): {
-                    if (!consumeToken(TokenType::LessThanSym)) {
-                        unexpected_error("expected '<' for literal type");
-                    }
-                    auto child_type = parseTypeLoc(allocator);
-                    if (!child_type) {
-                        error("expected a child type for literal type");
-                    }
-                    auto literalTy = TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(child_type), loc);
-                    if (!consumeToken(TokenType::GreaterThanSym)) {
-                        unexpected_error("expected '>' for literal type");
-                    }
-                    return literalTy;
+                    const auto child_type = parseSingleGenType(*this, allocator, loc);
+                    return TypeLoc(new(allocator.allocate<LiteralType>()) LiteralType(child_type), loc);
+                }
+                case hashFn("maybe_runtime"): {
+                    const auto child_type = parseSingleGenType(*this, allocator, loc);
+                    return TypeLoc(new(allocator.allocate<MaybeRuntimeType>()) MaybeRuntimeType(child_type), loc);
+                }
+                case hashFn("runtime"): {
+                    const auto child_type = parseSingleGenType(*this, allocator, loc);
+                    return TypeLoc(new(allocator.allocate<RuntimeType>()) RuntimeType(child_type), loc);
                 }
                 case hashFn("capture"): {
                     if (!consumeToken(TokenType::LessThanSym)) {
@@ -522,7 +555,7 @@ TypeLoc Parser::parseTypeLoc(ASTAllocator& allocator) {
                     const auto captureTy = new (allocator.allocate<CapturingFunctionType>()) CapturingFunctionType(
                             child_type, instance_type
                     );
-                    if (!consumeToken(TokenType::GreaterThanSym)) {
+                    if (!consumeGenericClose()) {
                         unexpected_error("expected '>' for capture type");
                     }
                     return {captureTy, loc};

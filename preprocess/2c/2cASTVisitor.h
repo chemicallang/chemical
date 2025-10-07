@@ -854,11 +854,15 @@ public:
 
     void VisitStringType(StringType* type);
 
-    void VisitLiteralType(LiteralType* type);
-
     void VisitDynamicType(DynamicType* type);
 
     void VisitVoidType(VoidType* type);
+
+    void VisitLiteralType(LiteralType* type);
+
+    void VisitMaybeRuntimeType(MaybeRuntimeType* type);
+
+    void VisitRuntimeType(RuntimeType* type);
 
     // TODO expression type
     void VisitExpressionType(ExpressionType* type) {}

@@ -12,11 +12,11 @@ func test_array_refs() {
         return array_ref_size([ 10, 20 ]) == 2;
     })
     test("array reference works implicitly with referenced arrays", () => {
-        var arr = [ 10 ]
+        const arr = [ 10 ]
         return array_ref_size(arr) == 1;
     })
     test("array reference works implicitly with referenced arrays", () => {
-        var arr = [ 10 ]
+        const arr = [ 10 ]
         return array_ref_at(arr, 0) == 10;
     })
     test("array pointer is passed properly with array values", () => {

@@ -276,6 +276,10 @@ class ExpressiveStringType;
 
 class IfType;
 
+class MaybeRuntimeType;
+
+class RuntimeType;
+
 class LinkedType;
 
 class GenericTypeParameter;

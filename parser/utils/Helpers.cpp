@@ -62,7 +62,7 @@ static bool read_arr_type_token(Parser& parser) {
 static bool read_gen_type_token(Parser& parser) {
     if(parser.consumeOfType(TokenType::LessThanSym)) {
         read_type_involving_token(parser);
-        if(!parser.consumeOfType(TokenType::GreaterThanSym)) {
+        if(!parser.consumeGenericClose()) {
             parser.error("unknown token in look ahead operation for generics, expected '>'");
         }
         return true;
@@ -74,7 +74,7 @@ static bool read_gen_type_token(Parser& parser) {
 bool Parser::isGenericEndAhead() {
     auto current_token = token;
     consumeToken(TokenType::LessThanSym);
-    if(consumeToken(TokenType::GreaterThanSym)) {
+    if(consumeGenericClose()) {
         token = current_token;
         return true;
     }
@@ -85,7 +85,7 @@ bool Parser::isGenericEndAhead() {
             return false;
         }
     } while (consumeToken(TokenType::CommaSym));
-    const auto is_generic = consumeToken(TokenType::GreaterThanSym);
+    const auto is_generic = consumeGenericClose();
     token = current_token;
     return is_generic;
 }

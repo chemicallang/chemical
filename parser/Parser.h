@@ -337,6 +337,12 @@ class Parser : public BasicParser {
 public:
 
     /**
+     * required because user can write some1<some2<int>>
+     * notice the two greater than symbols being treated as a single right shift
+     */
+    int pending_greater_count = 0;
+
+    /**
      * stored for debugging
      * TODO remove this
      */
@@ -606,6 +612,12 @@ public:
      * parse a lambda type with location
      */
     TypeLoc parseLambdaTypeLoc(ASTAllocator& allocator, bool isCapturing);
+
+    /**
+     * consume a generic close (which is a greater than symbol)
+     * however sometimes it can be a right shift, for example some1<some2<int>>
+     */
+    bool consumeGenericClose();
 
     /**
      * parses a generic type after id

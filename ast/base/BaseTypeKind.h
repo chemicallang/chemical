@@ -46,6 +46,9 @@ enum class BaseTypeKind : uint8_t {
     ExpressiveString,
     IfType,
 
+    MaybeRuntime,
+    Runtime,
+
     Unknown
 
 };

@@ -15,6 +15,12 @@
 #include "VoidType.h"
 #include "ExpressionType.h"
 #include "ast/statements/Typealias.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/Negative.h"
+#include "ast/values/NotValue.h"
+#include "MaybeRuntimeType.h"
+#include "RuntimeType.h"
 
 bool ArrayType::satisfies(BaseType *pure_type) {
     const auto pure_type_kind = pure_type->kind();
@@ -68,4 +74,25 @@ bool LiteralType::satisfies(Value* value, bool assignment) {
         }
     }
     return false;
+}
+
+
+
+bool MaybeRuntimeType::satisfies(Value* value, bool assignment) {
+    return underlying->satisfies(value, assignment);
+}
+
+bool RuntimeType::satisfies(Value* value, bool assignment) {
+    const auto value_type = value->getType();
+    // check if value is a literal, comptime or runtime type
+    switch(value_type->kind()) {
+        case BaseTypeKind::Literal:
+            return false;
+        case BaseTypeKind::Runtime:
+            return underlying->satisfies(value_type);
+        default:
+            break;
+    }
+    // will do
+    return underlying->satisfies(value_type);
 }

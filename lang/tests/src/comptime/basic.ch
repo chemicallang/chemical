@@ -135,7 +135,7 @@ func ret_struct_implicit_b() : Pair66 {
 
 struct CompTimeCounter {
     @constructor
-    comptime func constructor(thing : *mut int) {
+    comptime func constructor(thing : %runtime<*mut int>) {
         return intrinsics::wrap(actual(thing, 1));
     }
     @constructor

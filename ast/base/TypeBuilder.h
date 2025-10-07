@@ -58,6 +58,8 @@ private:
     // runtime types
     RuntimeType* runtimeAny;
     RuntimeType* runtimePtrToVoid;
+    RuntimeType* runtimePtrToAny;
+    RuntimeType* runtimeConstPtrToAny;
 
     // maybe runtime types
     MaybeRuntimeType* maybeRuntimeAny;
@@ -280,6 +282,20 @@ public:
      */
     inline RuntimeType* getRuntimePtrToVoid() {
         return runtimePtrToVoid;
+    }
+
+    /**
+     * get runtimePtrToVoid
+     */
+    inline RuntimeType* getRuntimePtrToAny() {
+        return runtimePtrToAny;
+    }
+
+    /**
+     * get runtimePtrToVoid
+     */
+    inline RuntimeType* getRuntimeConstPtrToAny() {
+        return runtimeConstPtrToAny;
     }
 
     /**

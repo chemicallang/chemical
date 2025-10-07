@@ -2524,7 +2524,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getConstPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getRuntimeConstPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
         orderParam("order", { cache.getIntType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
@@ -2569,8 +2569,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getRuntimePtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         orderParam("order", { cache.getIntType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
@@ -2619,9 +2619,9 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        expParam("expected", { cache.getPtrToAny(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
-        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getRuntimePtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        expParam("expected", { cache.getRuntimePtrToAny(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         order1Param("order1", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
         order2Param("order2", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 5, nullptr, false, this, ZERO_LOC) {
@@ -2673,9 +2673,9 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        expParam("expected", { cache.getPtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+    ), ptrParam("ptr", { cache.getRuntimePtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        expParam("expected", { cache.getRuntimePtrToAny(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
         order1Param("order1", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
         order2Param("order2", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 5, nullptr, false, this, ZERO_LOC) {
@@ -2727,8 +2727,8 @@ public:
             AccessSpecifier::Public,
             true
     ), opParam("op", { cache.getIntType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC),
-        ptrParam("ptr", { cache.getPtrToAny(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
-        valueParam("value", { cache.getAnyType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
+        ptrParam("ptr", { cache.getRuntimePtrToAny(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC),
+        valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC}, 2, nullptr, false, this, ZERO_LOC),
         orderParam("order", { cache.getIntType(), ZERO_LOC}, 3, nullptr, false, this, ZERO_LOC),
         scopeParam("scope", { cache.getIntType(), ZERO_LOC}, 4, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);

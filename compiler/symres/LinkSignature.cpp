@@ -471,7 +471,13 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
 }
 
 void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
-    RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
+    if(linker.comptime_context) {
+        RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
+    } else {
+        linker.comptime_context = true;
+        RecursiveVisitor<TopLevelLinkSignature>::VisitTypealiasStmt(stmt);
+        linker.comptime_context = false;
+    }
     if(stmt->actual_type->kind() == BaseTypeKind::IfType) {
         auto evaluated = stmt->actual_type->as_if_type_unsafe()->evaluate(linker.comptime_scope);
         if(evaluated) {

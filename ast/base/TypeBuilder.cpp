@@ -36,6 +36,8 @@ void TypeBuilder::initialize() {
     // runtime types
     runtimeAny = new (allocator.allocate<RuntimeType>()) RuntimeType(anyType);
     runtimePtrToVoid = new (allocator.allocate<RuntimeType>()) RuntimeType(ptrToVoid);
+    runtimeConstPtrToAny = new (allocator.allocate<RuntimeType>()) RuntimeType(constPtrToAny);
+    runtimePtrToAny = new (allocator.allocate<RuntimeType>()) RuntimeType(ptrToVoid);
 
     // maybe runtime types
     maybeRuntimeAny = new (allocator.allocate<MaybeRuntimeType>()) MaybeRuntimeType(anyType);

@@ -169,12 +169,33 @@ public:
         const std::string& mod_timestamp_file
     );
 
+    /**
+     * the given module is processed
+     */
+    int process_module_tcc_bm(
+        LabModule* mod,
+        ASTProcessor& processor,
+        ToCAstVisitor& c_visitor,
+        const std::string& mod_timestamp_file
+    );
+
 #ifdef COMPILER_BUILD
 
     /**
      * the given module is processed
      */
     int process_module_gen(
+            LabModule* mod,
+            ASTProcessor& processor,
+            Codegen& gen,
+            CTranslator& cTranslator,
+            const std::string& mod_timestamp_file
+    );
+
+    /**
+     * the given module is processed
+     */
+    int process_module_gen_bm(
             LabModule* mod,
             ASTProcessor& processor,
             Codegen& gen,

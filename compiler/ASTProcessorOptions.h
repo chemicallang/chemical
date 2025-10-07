@@ -12,9 +12,19 @@ class ASTProcessorOptions {
 public:
 
     /**
-     * benchmark the compilation process
+     * benchmark the entire compilation process
      */
     bool benchmark = false;
+
+    /**
+     * benchmark the compilation process of each file
+     */
+    bool benchmark_files = false;
+
+    /**
+     * benchmark the compilation process of each module
+     */
+    bool benchmark_modules = false;
 
     /**
      * print the import graph

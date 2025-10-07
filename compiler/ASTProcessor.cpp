@@ -165,15 +165,14 @@ bool ASTProcessor::import_module_files_direct(
 SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     const auto range = resolver->tld_declare_file(scope, fileId, abs_path);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymRes:declare", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "SymRes:declare", abs_path, &bm_results);
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:declare");
@@ -184,15 +183,14 @@ SymbolRange ASTProcessor::sym_res_tld_declare_file(Scope& scope, unsigned int fi
 void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     resolver->link_signature_file(scope, fileId, range);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymRes:link_sig", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "SymRes:link_sig", abs_path, &bm_results);
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link_sig");
@@ -202,15 +200,14 @@ void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, cons
 void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     resolver->link_file(scope, fileId, range);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymRes:link", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "SymRes:link", abs_path, &bm_results);
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link");
@@ -220,15 +217,14 @@ void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const st
 void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     resolver->declare_and_link_file(scope, fileId, abs_path);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "SymRes:link_seq", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "SymRes:link_seq", abs_path, &bm_results);
     }
     if(!resolver->diagnostics.empty()) {
         resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:link_seq");
@@ -368,16 +364,7 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view
 }
 
 void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& ABS_PATH, BenchmarkResults* bm_results) {
-    const auto mil = bm_results->millis();
-    bool reset = false;
-    if(mil > 1) {
-        stream << (mil > 3 ? rang::fg::red : rang::fg::yellow);
-        reset = true;
-    }
     stream << '[' << TAG << ']' << ' ' << ABS_PATH << " Completed " << bm_results->representation() << std::endl;
-    if(reset) {
-        stream << rang::fg::reset;
-    }
 }
 
 
@@ -779,7 +766,7 @@ bool ASTProcessor::import_chemical_file(
     std::vector<Token> tokens;
 
     // actual lexing
-    if(options->benchmark) {
+    if(options->benchmark_files) {
         result.lex_benchmark = std::make_unique<BenchmarkResults>();
         result.lex_benchmark->benchmark_begin();
         lexer.getTokens(tokens);
@@ -824,7 +811,7 @@ bool ASTProcessor::import_chemical_file(
     parser.parent_node = &result.unit.scope;
 
     // actual parsing
-    if(options->benchmark) {
+    if(options->benchmark_files) {
         result.parse_benchmark = std::make_unique<BenchmarkResults>();
         result.parse_benchmark->benchmark_begin();
         parser.parse(unit.scope.body.nodes);
@@ -913,15 +900,14 @@ void ASTProcessor::declare_before_translation(
         const std::string& abs_path
 ) {
     // translating the nodes
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     visitor.declare_before_translation(nodes);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "2cTranslation:declare", bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "2cTranslation:declare", &bm_results);
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
@@ -936,15 +922,14 @@ void ASTProcessor::translate_after_declaration(
         const std::string& abs_path
 ) {
     // translating the nodes
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     visitor.translate_after_declaration(nodes);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "2cTranslation:translate", abs_path, bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "2cTranslation:translate", abs_path, &bm_results);
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
@@ -959,15 +944,14 @@ void ASTProcessor::translate_to_c(
         const std::string& abs_path
 ) {
     // translating the nodes
-    std::unique_ptr<BenchmarkResults> bm_results;
-    if(options->benchmark) {
-        bm_results = std::make_unique<BenchmarkResults>();
-        bm_results->benchmark_begin();
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
     }
     visitor.declare_and_translate(nodes);
-    if(options->benchmark) {
-        bm_results->benchmark_end();
-        print_benchmarks(std::cout, "2cTranslation", bm_results.get());
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "2cTranslation", &bm_results);
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
@@ -1036,7 +1020,7 @@ void forward_declare_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModul
         auto& file = result;
         ASTUnit& unit = file.unit;
         // print the benchmark or verbose output received from processing
-        if((proc->options->benchmark || proc->options->verbose) && !ASTProcessor::empty_diags(result)) {
+        if((proc->options->benchmark_files || proc->options->verbose) && !ASTProcessor::empty_diags(result)) {
             std::cout << rang::style::bold << rang::fg::magenta << '[' << name << "] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 
@@ -1109,7 +1093,7 @@ int ASTProcessor::translate_module(
         auto& unit = file.unit;
 
         // print the benchmark or verbose output received from processing
-        if((options->benchmark || options->verbose) && !empty_diags(file)) {
+        if((options->benchmark_files || options->verbose) && !empty_diags(file)) {
             std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
 

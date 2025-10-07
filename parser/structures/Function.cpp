@@ -286,7 +286,7 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
                 break;
             }
         }
-        if(!consumeToken(TokenType::GreaterThanSym)) {
+        if(!consumeGenericClose()) {
             error("expected a '>' for ending the generic parameters list");
             return true;
         }

@@ -38,6 +38,8 @@
 #include "ast/types/UnionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/DynamicType.h"
+#include "ast/types/RuntimeType.h"
+#include "ast/types/MaybeRuntimeType.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/BoolType.h"
 #include "ast/structures/UnnamedUnion.h"
@@ -638,6 +640,10 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
                 return nullptr;
             }
         }
+        case BaseTypeKind::MaybeRuntime:
+            return provide_child(resolver, type->as_maybe_runtime_type_unsafe()->underlying, name, type_parent);
+        case BaseTypeKind::Runtime:
+            return provide_child(resolver, type->as_maybe_runtime_type_unsafe()->underlying, name, type_parent);
         case BaseTypeKind::Pointer:{
             const auto child = direct_child_provider(resolver, type->as_pointer_type_unsafe()->type, name, type_parent);
             if(child) {

@@ -68,6 +68,8 @@
 #include "ast/types/StructType.h"
 #include "ast/types/ComplexType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/DoubleValue.h"
@@ -6847,6 +6849,14 @@ void ToCAstVisitor::VisitAnyType(AnyType *any_type) {
 
 void ToCAstVisitor::VisitLiteralType(LiteralType *literal) {
     visit(literal->underlying);
+}
+
+void ToCAstVisitor::VisitMaybeRuntimeType(MaybeRuntimeType* type) {
+    visit(type->underlying);
+}
+
+void ToCAstVisitor::VisitRuntimeType(RuntimeType* type) {
+    visit(type->underlying);
 }
 
 void ToCAstVisitor::VisitArrayType(ArrayType *type) {

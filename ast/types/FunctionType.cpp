@@ -576,7 +576,7 @@ bool is_movable(VariableIdentifier* id) {
 bool FunctionTypeBody::mark_moved_value(
         ASTAllocator& allocator,
         Value* value_ptr,
-        BaseType* expected_type,
+        BaseType* expected_type_non_canon,
         ASTDiagnoser& diagnoser,
         bool check_implicit_constructors
 ) {
@@ -592,6 +592,7 @@ bool FunctionTypeBody::mark_moved_value(
         default:
             break;
     }
+    const auto expected_type = expected_type_non_canon ? expected_type_non_canon->canonical() : nullptr;
     const auto expected_type_kind = expected_type ? expected_type->kind() : BaseTypeKind::Unknown;
     if (expected_type_kind == BaseTypeKind::Reference || expected_type_kind == BaseTypeKind::Pointer || expected_type_kind == BaseTypeKind::String || expected_type_kind == BaseTypeKind::Dynamic) {
         return false;
@@ -654,7 +655,7 @@ bool FunctionTypeBody::mark_moved_value(
             } else {
                 const auto implicit = pure_expected->implicit_constructor_for(&value);
                 if (implicit && check_implicit_constructors) {
-                    auto& param_type = *implicit->params[0]->type;
+                    auto& param_type = *implicit->params[0]->type->canonical();
                     if (!param_type.is_reference()) { // not a reference type (requires moving)
                         final = mark_moved_value(&value, diagnoser);
                     }

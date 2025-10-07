@@ -280,7 +280,7 @@ void Parser::parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& a
                 break;
             }
         } while(consumeToken(TokenType::CommaSym));
-        if (!consumeToken(TokenType::GreaterThanSym)) {
+        if (!consumeGenericClose()) {
             unexpected_error("expected a '>' for generic list in function call");
         }
     }

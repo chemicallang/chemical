@@ -10,6 +10,8 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
+#include "ast/types/RuntimeType.h"
+#include "ast/types/MaybeRuntimeType.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
@@ -523,13 +525,13 @@ public:
 
     explicit InterpretWrap(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("wrap"),
-            {cache.getAnyType(), ZERO_LOC},
+            {cache.getRuntimeAnyType(), ZERO_LOC},
             true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
+    ), valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -1056,8 +1058,8 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ),  valueParam("value", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
-        valueParam2("value2", { cache.getAnyType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
+    ),  valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+        valueParam2("value2", { cache.getMaybeRuntimeAnyType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
     {
         set_compiler_decl(true);
         params.emplace_back(&valueParam);
@@ -1451,7 +1453,7 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ), param("thing", { cache.getAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
+    ), param("thing", { cache.getRuntimeAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         params = { &param };
         set_compiler_decl(true);
     }

@@ -1636,6 +1636,184 @@ void update_parent_val_linked(ChainValue* value, ASTNode* node, BaseType* type) 
     }
 }
 
+Value* getNonComptimeValue(BaseType* type, Value* value);
+
+bool isAnyRuntimeType(BaseType* type);
+
+Value* getNonComptimeValueByKind(BaseType* type, Value* value) {
+    switch(value->kind()) {
+        case ValueKind::Identifier: {
+            const auto linked = value->as_identifier_unsafe()->linked;
+            switch (linked->kind()) {
+                case ASTNodeKind::EnumMember:
+                    return nullptr;
+                case ASTNodeKind::FunctionParam: {
+                    const auto p = linked->as_func_param_unsafe()->parent();
+                    if(p->kind() == ASTNodeKind::FunctionDecl) {
+                        return p->as_function_unsafe()->is_comptime() ? nullptr : value;
+                    } else {
+                        return value;
+                    }
+                }
+                case ASTNodeKind::VarInitStmt: {
+                    const auto init = linked->as_var_init_unsafe();
+                    if(init->is_comptime()) {
+                        return nullptr;
+                    } else {
+                        if(init->is_const()) {
+                            const auto non_ct = getNonComptimeValueByKind(type, init->value);
+                            if(non_ct) {
+                                return value;
+                            }
+                            return nullptr;
+                        } else {
+                            return value;
+                        }
+                    }
+                }
+                default:
+                    return value;
+            }
+        }
+        case ValueKind::AccessChain:
+            return getNonComptimeValueByKind(type, value->as_access_chain_unsafe()->values.back());
+        case ValueKind::FunctionCall:{
+            const auto call = value->as_func_call_unsafe();
+            const auto linked = call->parent_val->linked_node();
+            if(linked->kind() == ASTNodeKind::FunctionDecl) {
+                const auto func = linked->as_function_unsafe();
+                if(!func->is_comptime()) {
+                    return value;
+                }
+                switch(func->returnType->canonical()->kind()) {
+                    case BaseTypeKind::Runtime:
+                    case BaseTypeKind::MaybeRuntime:
+                        return value;
+                    default:
+                        return nullptr;
+                }
+            } else {
+                return value;
+            }
+        }
+        case ValueKind::Bool:
+        case ValueKind::Double:
+        case ValueKind::IntN:
+        case ValueKind::String:
+        case ValueKind::SizeOfValue:
+        case ValueKind::AlignOfValue:
+        case ValueKind::NullValue:
+            return nullptr;
+        case ValueKind::NegativeValue:
+            return getNonComptimeValue(type, value->as_negative_value_unsafe()->getValue());
+        case ValueKind::NotValue:
+            return getNonComptimeValue(type, value->as_negative_value_unsafe()->getValue());
+        case ValueKind::ArrayValue: {
+            auto& values = value->as_array_value_unsafe()->values;
+            if(values.empty()) {
+                return nullptr;
+            }
+            const auto can_type = type->canonical();
+            if(can_type->kind() == BaseTypeKind::Array) {
+                const auto elem_type = can_type->as_array_type_unsafe()->known_child_type();
+                if(isAnyRuntimeType(elem_type)) {
+                    return nullptr;
+                }
+                for (const auto child_value: values) {
+                    const auto child = getNonComptimeValue(elem_type, child_value);
+                    if (child) {
+                        return child;
+                    }
+                }
+                return nullptr;
+            } else {
+                return value;
+            }
+        }
+        case ValueKind::ExpressiveString: {
+            return nullptr;
+        }
+        case ValueKind::CastedValue:
+            return getNonComptimeValue(type, value->as_casted_value_unsafe()->value);
+        default:
+            return value;
+    }
+}
+
+std::optional<bool> checkTypeIsComptime(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Literal:
+            return true;
+        case BaseTypeKind::Runtime:
+            return false;
+        case BaseTypeKind::Linked: {
+            const auto l = type->as_linked_type_unsafe()->linked;
+            if (l->kind() == ASTNodeKind::TypealiasStmt) {
+                return checkTypeIsComptime(l->as_typealias_unsafe()->actual_type);
+            } else {
+                return std::nullopt;
+            }
+        }
+        default:
+            return std::nullopt;
+    }
+}
+
+Value* getNonComptimeValue(BaseType* type, Value* value) {
+    auto comptime_satisfies = checkTypeIsComptime(value->getType());
+    if(comptime_satisfies.has_value()) {
+        return comptime_satisfies.value() ? nullptr : value;
+    }
+    // is value a given that is not a reference ?
+    return getNonComptimeValueByKind(type, value);
+}
+
+bool isAnyRuntimeType(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Runtime:
+        case BaseTypeKind::MaybeRuntime:
+            return true;
+        case BaseTypeKind::Linked: {
+            const auto l = type->as_linked_type_unsafe()->linked;
+            if(l->kind() == ASTNodeKind::TypealiasStmt) {
+                return isAnyRuntimeType(l->as_typealias_unsafe()->actual_type);
+            } else {
+                return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+void verifyComptimeArgument(SymbolResolver& linker, BaseType* type, Value* value) {
+    if(isAnyRuntimeType(type)) {
+        return;
+    }
+    const auto nonComptimeValue = getNonComptimeValue(type, value);
+    if(nonComptimeValue) {
+        linker.error("comptime function expects argument that is known at compile time", nonComptimeValue);
+    }
+}
+
+void verifyArgumentsAreComptime(SymbolResolver& linker, FunctionCall* call, FunctionType* func_type) {
+    if(!func_type || !func_type->data.signature_resolved) return;
+    unsigned i = 0;
+    while(i < call->values.size()) {
+        const auto param = func_type->func_param_for_arg_at(i);
+        if (param) {
+            const auto value = call->values[i];
+            auto implicit_constructor = param->type->implicit_constructor_for(value);
+            if (implicit_constructor) {
+                verifyComptimeArgument(linker, implicit_constructor->params.front()->type, value);
+            } else {
+                verifyComptimeArgument(linker, param->type, value);
+            }
+        }
+        i++;
+    }
+}
+
 // can call a normal function
 // can call a generic function (after instantiation, we can determine the type)
 // can call a stored function pointer
@@ -1644,7 +1822,6 @@ void update_parent_val_linked(ChainValue* value, ASTNode* node, BaseType* type) 
 // can call a generic struct which has a constructor
 // can call a variant member of a variant
 // can call a variant member to instantiate a generic variant
-
 bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseType* expected_type, bool link_implicit_constructor) {
 
     auto& resolver = visitor.linker;
@@ -1747,12 +1924,33 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     // figuring out the type for function call
     call->determine_type(*resolver.ast_allocator, resolver);
 
-    ending_block:
+ending_block:
     if(link_implicit_constructor) {
         link_call_args_implicit_constructor(visitor, call);
     }
+
+    {
+        const auto func_type = resolver.current_func_type;
+        if(func_type) {
+            const auto func = func_type->as_function();
+            if (!func || !func->is_comptime()) {
+                // current function is not comptime
+                // we only check this in runtime functions
+
+                // now if a compile time function is being called
+                // we verify all the arguments are known at compile time
+                const auto final_linked = call->parent_val->linked_node();
+                if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
+                    verifyArgumentsAreComptime(resolver, call, final_linked->as_function_unsafe());
+                }
+            }
+        }
+
+    }
+
     return true;
-    instantiate_block:
+
+instantiate_block:
     const auto func_type = resolver.current_func_type;
     const auto curr_func = func_type->as_function();
     // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle

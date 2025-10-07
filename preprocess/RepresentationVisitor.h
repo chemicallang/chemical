@@ -366,6 +366,10 @@ public:
 
     void VisitLiteralType(LiteralType* type);
 
+    void VisitMaybeRuntimeType(MaybeRuntimeType* type);
+
+    void VisitRuntimeType(RuntimeType* type);
+
     void VisitDynamicType(DynamicType* type);
 
     void VisitVoidType(VoidType* type);

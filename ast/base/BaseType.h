@@ -709,6 +709,16 @@ public:
         return (LiteralType*) this;
     }
 
+    inline MaybeRuntimeType* as_maybe_runtime_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::MaybeRuntime);
+        return (MaybeRuntimeType*) this;
+    }
+
+    inline RuntimeType* as_runtime_type_unsafe() {
+        CHECK_CAST(BaseTypeKind::Runtime);
+        return (RuntimeType*) this;
+    }
+
     inline DynamicType* as_dynamic_type_unsafe() {
         CHECK_CAST(BaseTypeKind::Dynamic);
         return (DynamicType*) this;

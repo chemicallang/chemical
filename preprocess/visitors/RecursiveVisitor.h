@@ -68,6 +68,9 @@
 #include "ast/types/StructType.h"
 #include "ast/types/UnionType.h"
 #include "ast/types/DynamicType.h"
+#include "ast/types/LiteralType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 //#include "ast/types/UBigIntType.h"
 //#include "ast/types/UInt128Type.h"
 //#include "ast/types/UIntType.h"
@@ -569,6 +572,18 @@ public:
             visit_it(pair.second);
         }
         visit_it(type->elseType);
+    }
+
+    inline void VisitLiteralType(LiteralType* type) {
+        visit_it(type->underlying);
+    }
+
+    inline void VisitMaybeRuntimeType(MaybeRuntimeType* type) {
+        visit_it(type->underlying);
+    }
+
+    inline void VisitRuntimeType(RuntimeType* type) {
+        visit_it(type->underlying);
     }
 
     inline void VisitAliasStmt(AliasStmt* node) {

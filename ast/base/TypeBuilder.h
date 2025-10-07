@@ -55,6 +55,14 @@ private:
     PointerType* constPtrToAny;
     ExpressiveStringType* expr_str_type;
 
+    // runtime types
+    RuntimeType* runtimeAny;
+    RuntimeType* runtimePtrToVoid;
+
+    // maybe runtime types
+    MaybeRuntimeType* maybeRuntimeAny;
+    MaybeRuntimeType* maybeRuntimePtrToVoid;
+
     // not exactly a type, but used once everywhere
     // when anything is unresolved, we link it with this declaration
     UnresolvedDecl* unresolvedDecl;
@@ -258,6 +266,34 @@ public:
      */
     inline ExpressiveStringType* getExprStrType() {
         return expr_str_type;
+    }
+
+    /**
+     * get getRuntimeAnyType
+     */
+    inline RuntimeType* getRuntimeAnyType() {
+        return runtimeAny;
+    }
+
+    /**
+     * get runtimePtrToVoid
+     */
+    inline RuntimeType* getRuntimePtrToVoid() {
+        return runtimePtrToVoid;
+    }
+
+    /**
+     * get getRuntimeAnyType
+     */
+    inline MaybeRuntimeType* getMaybeRuntimeAnyType() {
+        return maybeRuntimeAny;
+    }
+
+    /**
+     * get runtimePtrToVoid
+     */
+    inline MaybeRuntimeType* getMaybeRuntimePtrToVoid() {
+        return maybeRuntimePtrToVoid;
     }
 
     /**

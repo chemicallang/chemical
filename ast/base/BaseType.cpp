@@ -16,6 +16,8 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/LiteralType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ArrayType.h"
@@ -172,10 +174,12 @@ bool BaseType::requires_copy_fn() {
 
 BaseType* BaseType::canonical() {
     switch(kind()) {
-        case BaseTypeKind::Literal: {
-            const auto type = as_literal_type_unsafe();
-            return type->underlying;
-        }
+        case BaseTypeKind::Literal:
+            return as_literal_type_unsafe()->underlying;
+        case BaseTypeKind::MaybeRuntime:
+            return as_maybe_runtime_type_unsafe()->underlying;
+        case BaseTypeKind::Runtime:
+            return as_runtime_type_unsafe()->underlying;
         case BaseTypeKind::Linked: {
             const auto linked = as_linked_type_unsafe()->linked;
             if (linked) {

@@ -39,11 +39,6 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
 
-    // we return null when all types inferred aren't specialized
-    if(!are_all_specialized(generic_args)) {
-        return nullptr;
-    }
-
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
         // iteration already exists

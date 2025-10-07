@@ -9,10 +9,6 @@
 
 class BaseType;
 
-bool are_all_specialized(const std::span<BaseType*>& types);
-
-bool are_all_specialized(const std::span<TypeLoc>& types);
-
 /**
  * get iteration for given generic args, if it exists, otherwise returns -1
  * non generic functions return 0

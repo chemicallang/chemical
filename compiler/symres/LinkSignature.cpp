@@ -318,7 +318,7 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
         structValue->setType(new (linker.ast_allocator->allocate<StructType>()) StructType("", nullptr, structValue->encoded_location()));
         return;
     }
-    if(!structValue->resolve_container(linker.genericInstantiator)) {
+    if(!structValue->resolve_container(linker.genericInstantiator, !linker.generic_context)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);
@@ -391,7 +391,8 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     // must be visited first, so child generic types are instantiated and ready
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
     // we must instantiate generic declarations and link with those
-    if(type->referenced != nullptr) {
+    // only if we are not present in generic context
+    if(!linker.generic_context && type->referenced != nullptr) {
         type->instantiate(linker.genericInstantiator, loc);
     }
 }
@@ -576,7 +577,13 @@ void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
     }
     // we don't put the master implementation (into extendable container)
     // because the receiver could be generic
-    visit(node->master_impl);
+    if(linker.generic_context) {
+        visit(node->master_impl);
+    } else {
+        linker.generic_context = true;
+        visit(node->master_impl);
+        linker.generic_context = false;
+    }
     // we set it has usage, so every shallow copy or instantiation has usage
     // since we create instantiation only when calls are detected, so no declaration will be created
     // when there's no usage
@@ -613,7 +620,13 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     for(const auto param : generic_params) {
         link_param(param);
     }
-    LinkMembersContainerNoScope(node->master_impl);
+    if(linker.generic_context) {
+        LinkMembersContainerNoScope(node->master_impl);
+    } else {
+        linker.generic_context = true;
+        LinkMembersContainerNoScope(node->master_impl);
+        linker.generic_context = false;
+    }
     linker.scope_end();
     node->signature_linked = true;
     // finalizing signature of instantiations that occurred before link_signature
@@ -673,7 +686,13 @@ void TopLevelLinkSignature::VisitGenericInterfaceDecl(GenericInterfaceDecl* node
     for(const auto param : generic_params) {
         link_param(param);
     }
-    LinkMembersContainerNoScope(node->master_impl);
+    if(linker.generic_context) {
+        LinkMembersContainerNoScope(node->master_impl);
+    } else {
+        linker.generic_context = true;
+        LinkMembersContainerNoScope(node->master_impl);
+        linker.generic_context = false;
+    }
     linker.scope_end();
     node->signature_linked = true;
     // finalizing signature of instantiations that occurred before link_signature

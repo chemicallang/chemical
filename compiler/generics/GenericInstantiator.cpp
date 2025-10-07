@@ -180,7 +180,7 @@ void GenericInstantiator::VisitStructValue(StructValue *val) {
         // so now we will specialize it, the above recursive visitor must have already replaced the refType
         GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
         GenericInstantiatorAPI genApi(&instantiator);
-        val->resolve_container(genApi);
+        val->resolve_container(genApi, true);
     }
 }
 

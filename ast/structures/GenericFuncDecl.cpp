@@ -65,11 +65,6 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         i++;
     }
 
-    // we return null when all types inferred aren't specialized
-    if(!are_all_specialized(generic_args)) {
-        return nullptr;
-    }
-
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
 
     // this will only happen, when we probably couldn't infer the generic args

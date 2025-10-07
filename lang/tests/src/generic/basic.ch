@@ -236,6 +236,22 @@ struct GenAddTestStruct : GenAddTestInterface<GenAddTestStruct, GenAddTestStruct
 
 }
 
+// ---------- existence test begin ------------
+// compiler couldn't compile this
+// because it tried to specialize the function type
+// even though the function type depends on the generic 'T'
+// to solve this, we don't specialize types if they are inside generic context
+
+struct point<T> {
+    var x : T
+}
+
+func <T> gen_t(x : point<() => T>) {
+
+}
+
+// ------------ existence test end ------------
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;

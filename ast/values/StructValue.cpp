@@ -358,7 +358,11 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseType* containerType) {
+bool StructValue::resolve_container(
+        GenericInstantiatorAPI& instantiator,
+        BaseType* containerType,
+        bool specialize_generics
+) {
     auto& diagnoser = instantiator.getDiagnoser();
     switch (containerType->kind()) {
         case BaseTypeKind::Struct:
@@ -377,7 +381,7 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseTy
                 case ASTNodeKind::GenericStructDecl: {
                     auto gen_args = create_generic_list();
                     const auto gen_decl = found->as_gen_struct_def_unsafe();
-                    if (are_all_specialized(gen_args)) {
+                    if (specialize_generics) {
                         definition = gen_decl->register_generic_args(instantiator, gen_args);
                     } else {
                         definition = gen_decl->master_impl;
@@ -388,7 +392,7 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseTy
                 case ASTNodeKind::GenericUnionDecl: {
                     auto gen_args = create_generic_list();
                     const auto gen_decl = found->as_gen_union_decl_unsafe();
-                    if (are_all_specialized(gen_args)) {
+                    if (specialize_generics) {
                         definition = gen_decl->register_generic_args(instantiator, gen_args);
                     } else {
                         definition = gen_decl->master_impl;
@@ -425,7 +429,7 @@ bool StructValue::resolve_container(GenericInstantiatorAPI& instantiator, BaseTy
                     container = (UnionType*) found;
                     break;
                 case ASTNodeKind::TypealiasStmt:
-                    return resolve_container(instantiator, found->as_typealias_unsafe()->actual_type);
+                    return resolve_container(instantiator, found->as_typealias_unsafe()->actual_type, specialize_generics);
                 default:
                     diagnoser.error("unknown struct/union being initialized via struct value", this);
                     definition = found->as_extendable_member_container();

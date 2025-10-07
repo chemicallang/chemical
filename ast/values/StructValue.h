@@ -55,7 +55,11 @@ public:
 
     bool primitive() final;
 
-    bool resolve_container(GenericInstantiatorAPI& instantiator, BaseType* containerType);
+    bool resolve_container(
+            GenericInstantiatorAPI& instantiator,
+            BaseType* containerType,
+            bool specialize_generics
+    );
 
     inline BaseType* getRefType() {
         return Value::getType();
@@ -69,8 +73,8 @@ public:
         return TypeLoc(Value::getType(), encoded_location());
     }
 
-    inline bool resolve_container(GenericInstantiatorAPI& instantiator) {
-        return resolve_container(instantiator, getRefType());
+    inline bool resolve_container(GenericInstantiatorAPI& instantiator, bool specialize_generics) {
+        return resolve_container(instantiator, getRefType(), specialize_generics);
     }
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);

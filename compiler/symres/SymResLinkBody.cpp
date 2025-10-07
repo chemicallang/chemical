@@ -1996,7 +1996,7 @@ instantiate_block:
     // we also don't want to instantiate this call, if the generic list is not completely specialized
     // TODO: two checks for specialization of parameters are running, one inside the instantiate_call
     // makeup mind about which one to keep
-    if ((curr_func && curr_func->generic_parent != nullptr) || !are_all_specialized(call->generic_list)) {
+    if ((curr_func && curr_func->generic_parent != nullptr) || resolver.generic_context) {
         // since current function has a generic parent (it is generic), we do not want to instantiate this call here
         // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
         // changing back to generic decl, since instantiator needs access to it
@@ -2141,7 +2141,9 @@ void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     for(auto& type : gen_type->types) {
         visit(type);
     }
-    gen_type->instantiate(linker.genericInstantiator, type_location);
+    if(!linker.generic_context) {
+        gen_type->instantiate(linker.genericInstantiator, type_location);
+    }
 }
 
 void SymResLinkBody::VisitLinkedType(LinkedType* type) {
@@ -2714,7 +2716,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         }
         structValue->setType(exp_type);
     }
-    if(!structValue->resolve_container(linker.genericInstantiator)) {
+    if(!structValue->resolve_container(linker.genericInstantiator, !linker.generic_context)) {
         return;
     }
     structValue->diagnose_missing_members_for_init(linker);

@@ -891,6 +891,34 @@ FunctionType* FunctionCall::function_type() {
     return func_type_from_parent_type(can_type);
 }
 
+FunctionType* FunctionCall::get_function_type_during_linking() {
+    if(!parent_val) return nullptr;
+    const auto type = parent_val->getType();
+    if(!type) return nullptr;
+    const auto can_type = type->canonical();
+    if(can_type->kind() == BaseTypeKind::CapturingFunction) {
+        return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    if(can_type->kind() == BaseTypeKind::Linked || can_type->kind() == BaseTypeKind::Generic) {
+        const auto container = can_type->get_direct_linked_canonical_node();
+        if(container) {
+            switch(container->kind()) {
+                case ASTNodeKind::StructDecl:{
+                    // linked with master implementation
+                    return container->as_struct_def_unsafe()->constructor_func(values);
+                }
+                case ASTNodeKind::VariantDecl: {
+                    // linked with master implementation
+                    return container->as_variant_def_unsafe()->constructor_func(values);
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    return can_type->as_function_type();;
+}
+
 FunctionType* FunctionCall::known_func_type() {
     auto decl = safe_linked_func();
     if(decl) {
@@ -1013,58 +1041,75 @@ void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diag
     }
 }
 
-void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call) {
+void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator, GenericInstantiatorAPI& genApi, FunctionCall* call, bool specialize_generic) {
     if(!parent_id->linked) return;
     const auto linked_kind = parent_id->linked->kind();
-    if(linked_kind == ASTNodeKind::StructDecl || linked_kind == ASTNodeKind::VariantDecl) {
-        const auto parent_struct = parent_id->linked->as_extendable_members_container_unsafe();
-        auto constructorFunc = parent_struct->constructor_func(call->values);
-        if(constructorFunc) {
-            parent_id->linked = constructorFunc;
-            parent_id->setType(constructorFunc->known_type());
-        } else {
-            genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+    switch(linked_kind) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl: {
+            const auto parent_struct = parent_id->linked->as_extendable_members_container_unsafe();
+            auto constructorFunc = parent_struct->constructor_func(call->values);
+            if(constructorFunc) {
+                parent_id->linked = constructorFunc;
+                parent_id->setType(constructorFunc->known_type());
+            } else {
+                genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+            }
+            return;
         }
-    } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
-        const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
-        const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
-        auto constructorFunc = parent_struct->constructor_func(call->values);
-        if(constructorFunc) {
-            parent_id->linked = constructorFunc;
-            parent_id->setType(constructorFunc->known_type());
-        } else {
-            genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+        case ASTNodeKind::GenericStructDecl:{
+            const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
+            if(!specialize_generic) {
+                return;
+            }
+            const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
+            auto constructorFunc = parent_struct->constructor_func(call->values);
+            if(constructorFunc) {
+                parent_id->linked = constructorFunc;
+                parent_id->setType(constructorFunc->known_type());
+            } else {
+                genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+            }
+            return;
         }
-    } else if(linked_kind == ASTNodeKind::GenericVariantDecl) {
-        const auto gen_struct = parent_id->linked->as_gen_variant_decl_unsafe();
-        const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
-        auto constructorFunc = parent_struct->constructor_func(call->values);
-        if(constructorFunc) {
-            parent_id->linked = constructorFunc;
-            parent_id->setType(constructorFunc->known_type());
-        } else {
-            genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+        case ASTNodeKind::GenericVariantDecl: {
+            const auto gen_struct = parent_id->linked->as_gen_variant_decl_unsafe();
+            if(!specialize_generic) {
+                return;
+            }
+            const auto parent_struct = gen_struct->register_generic_args(genApi, call->generic_list);
+            auto constructorFunc = parent_struct->constructor_func(call->values);
+            if(constructorFunc) {
+                parent_id->linked = constructorFunc;
+                parent_id->setType(constructorFunc->known_type());
+            } else {
+                genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << call->representation();
+            }
+            return;
+        }
+        default: {
+            return;
         }
     }
 }
 
 // the returned generic iteration is the previous iteration of the struct of which constructor we linked with
 // when this method is called, it automatically register the generic arguments with the struct constructor getting the new iteration and setting it active
-void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi) {
+void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic) {
     // relinking parent with constructor of the struct
     // if it's linked with struct
     const auto parent_kind = parent_val->val_kind();
     switch(parent_kind) {
         case ValueKind::Identifier:{
             const auto parent_id = parent_val->as_identifier_unsafe();
-            link_constructor_id(parent_id, allocator, genApi, this);
+            link_constructor_id(parent_id, allocator, genApi, this, specialize_generic);
             return;
         }
         case ValueKind::AccessChain:{
             const auto parent_chain = parent_val->as_access_chain_unsafe();
             const auto last = parent_chain->values.back()->as_identifier();
             if(last) {
-                link_constructor_id(last, allocator, genApi, this);
+                link_constructor_id(last, allocator, genApi, this, specialize_generic);
                 // if the type has been updated, we should update of chain as well
                 parent_chain->setType(last->getType());
                 return;
@@ -1116,6 +1161,32 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 parent_id->setType(new_mem->known_type());
             } else {
                 return true;
+            }
+        }
+        case ASTNodeKind::GenericStructDecl: {
+            const auto gen_struct = linked->as_gen_struct_def_unsafe();
+            const auto parent_struct = gen_struct->register_generic_args(genApi, generic_list);
+            auto constructorFunc = parent_struct->constructor_func(values);
+            if(constructorFunc) {
+                parent_id->linked = constructorFunc;
+                parent_id->setType(constructorFunc->known_type());
+                return true;
+            } else {
+                genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << representation();
+                return false;
+            }
+        }
+        case ASTNodeKind::GenericVariantDecl: {
+            const auto gen_struct = linked->as_gen_variant_decl_unsafe();
+            const auto parent_struct = gen_struct->register_generic_args(genApi, generic_list);
+            auto constructorFunc = parent_struct->constructor_func(values);
+            if(constructorFunc) {
+                parent_id->linked = constructorFunc;
+                parent_id->setType(constructorFunc->known_type());
+                return true;
+            } else {
+                genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << representation();
+                return false;
             }
         }
         default:
@@ -1174,10 +1245,27 @@ VoidType* voidTy(ASTAllocator& allocator) {
     return new (allocator.allocate<VoidType>()) VoidType();
 }
 
-FunctionType* get_func_type(BaseType* parent_type) {
+FunctionType* get_func_type(BaseType* parent_type, std::vector<Value*>& args) {
     const auto can_type = parent_type->canonical();
     if(can_type->kind() == BaseTypeKind::CapturingFunction) {
         return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    if(can_type->kind() == BaseTypeKind::Linked || can_type->kind() == BaseTypeKind::Generic) {
+        const auto container = can_type->get_direct_linked_canonical_node();
+        if(container) {
+            switch(container->kind()) {
+                case ASTNodeKind::StructDecl:{
+                    // linked with master implementation
+                    return container->as_struct_def_unsafe()->constructor_func(args);
+                }
+                case ASTNodeKind::VariantDecl: {
+                    // linked with master implementation
+                    return container->as_variant_def_unsafe()->constructor_func(args);
+                }
+                default:
+                    break;
+            }
+        }
     }
     return can_type->as_function_type();
 }
@@ -1210,7 +1298,7 @@ void FunctionCall::determine_type(ASTAllocator& allocator, ASTDiagnoser& diagnos
         // generics are handle in instantiate_block
         call->setType(newLinked->as_variant_member_unsafe()->known_type());
     } else {
-        const auto func_type = get_func_type(call->parent_val->getType());
+        const auto func_type = get_func_type(call->parent_val->getType(), call->values);
         if(func_type) {
             call->setType(func_type->returnType);
         } else {

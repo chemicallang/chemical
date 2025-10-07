@@ -59,6 +59,11 @@ public:
     FunctionType* function_type();
 
     /**
+     * gets the function type during linking, this also checks for calls to structs and variants
+     */
+    FunctionType* get_function_type_during_linking();
+
+    /**
      * get known func type
      */
     FunctionType* known_func_type();
@@ -74,7 +79,7 @@ public:
 
     void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
-    void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi);
+    void link_constructor(ASTAllocator& allocator, GenericInstantiatorAPI& genApi, bool specialize_generic);
 
     bool instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type);
 

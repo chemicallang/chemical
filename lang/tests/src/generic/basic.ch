@@ -242,15 +242,37 @@ struct GenAddTestStruct : GenAddTestInterface<GenAddTestStruct, GenAddTestStruct
 // even though the function type depends on the generic 'T'
 // to solve this, we don't specialize types if they are inside generic context
 
-struct point<T> {
+struct gen_point_existence_t34<T> {
     var x : T
 }
 
-func <T> gen_t(x : point<() => T>) {
+func <T> gen_point_existence_specialize(x : gen_point_existence_t34<() => T>) {
 
 }
 
 // ------------ existence test end ------------
+
+// ----------- existence test begin ------------
+
+struct gen_existence_89<T> {
+    var x : T
+    @make
+    func make() {
+
+    }
+}
+
+func <T> init_gen_existence_90() {
+    var prom2 = gen_existence_89<T>()
+}
+
+func init_gen_existence_91() {
+    // just a tiny call that does nothing
+    // but triggers dependent generics
+    init_gen_existence_90<int>()
+}
+
+// ------------ existence test end -----------
 
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {

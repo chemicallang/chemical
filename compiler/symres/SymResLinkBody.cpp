@@ -1925,14 +1925,14 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
 
     // determine constructor being called
     // after this call, parent id should NOT be linked with a struct / generic struct / variant
-    call->link_constructor(resolver.allocator, resolver.genericInstantiator);
+    call->link_constructor(resolver.allocator, resolver.genericInstantiator, !resolver.generic_context);
 
     // check if variant member is not being called
     // then we must get a function type
     if(linked_kind != ASTNodeKind::VariantMember) {
         // if its not a variant, it should give us a function type to be valid
         // TODO: every function call type is being created using ast allocator
-        const auto func_type = call->function_type();
+        const auto func_type = call->get_function_type_during_linking();
         if(!func_type) {
             resolver.error(call) << "cannot call a non function type";
             call->setType(resolver.get_unresolved_decl()->known_type());

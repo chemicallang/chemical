@@ -11,13 +11,13 @@ std::string BenchmarkResults::representation() {
     auto seconds = nanos / 1000000000;
 
     std::string rep;
-    rep.append("[Nano:");
+    rep.append("[nano:");
     rep.append(std::to_string(nanos));
-    rep.append("] Micro:");
+    rep.append("] [micro:");
     rep.append(std::to_string(micros));
-    rep.append("] [Milli:");
+    rep.append("] [milli:");
     rep.append(std::to_string(millis));
-    rep.append("] [Sec:");
+    rep.append("] [sec:");
     rep.append(std::to_string(seconds));
     rep.append("]");
     return rep;

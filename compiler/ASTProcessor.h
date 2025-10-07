@@ -388,7 +388,7 @@ public:
     /**
      * print given benchmark results with file path
      */
-    static void print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& ABS_PATH, BenchmarkResults* results);
+    static void print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& Name, BenchmarkResults* results);
 
     /**
      * translates given import result to c using visitor

@@ -116,6 +116,8 @@ bool RuntimeType::satisfies(Value* value, bool assignment) {
             return false;
         case BaseTypeKind::Runtime:
             return underlying->satisfies(value_type);
+        case BaseTypeKind::MaybeRuntime:
+            return false;
         default:
             break;
     }

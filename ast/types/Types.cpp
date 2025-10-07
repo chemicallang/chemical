@@ -15,6 +15,8 @@
 #include "VoidType.h"
 #include "ExpressionType.h"
 #include "ast/statements/Typealias.h"
+#include "ast/structures/FunctionParam.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/Negative.h"
@@ -82,6 +84,30 @@ bool MaybeRuntimeType::satisfies(Value* value, bool assignment) {
     return underlying->satisfies(value, assignment);
 }
 
+bool isValueTotallyComptime(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::Identifier: {
+            const auto linked = value->as_identifier_unsafe()->linked;
+            switch(linked->kind()) {
+                case ASTNodeKind::FunctionParam: {
+                    const auto p = linked->as_func_param_unsafe()->parent();
+                    if(p->kind() == ASTNodeKind::FunctionDecl) {
+                        return p->as_function_unsafe()->is_comptime();
+                    } else {
+                        return false;
+                    }
+                }
+                default:
+                    return false;
+            }
+        }
+        case ValueKind::AccessChain:
+            return isValueTotallyComptime(value->as_access_chain_unsafe()->values.front());
+        default:
+            return false;
+    }
+}
+
 bool RuntimeType::satisfies(Value* value, bool assignment) {
     const auto value_type = value->getType();
     // check if value is a literal, comptime or runtime type
@@ -92,6 +118,10 @@ bool RuntimeType::satisfies(Value* value, bool assignment) {
             return underlying->satisfies(value_type);
         default:
             break;
+    }
+    // if value is totally comptime
+    if(isValueTotallyComptime(value)) {
+        return false;
     }
     // will do
     return underlying->satisfies(value_type);

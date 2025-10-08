@@ -392,8 +392,12 @@ void TopLevelLinkSignature::VisitGenericType(GenericType* type) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitGenericType(type);
     // we must instantiate generic declarations and link with those
     // only if we are not present in generic context
-    if(!linker.generic_context && type->referenced != nullptr) {
-        type->instantiate(linker.genericInstantiator, loc);
+    if(type->referenced != nullptr) {
+        if(linker.generic_context) {
+            type->instantiate_inline(linker.genericInstantiator, loc);
+        } else {
+            type->instantiate(linker.genericInstantiator, loc);
+        }
     }
 }
 

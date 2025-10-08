@@ -864,7 +864,7 @@ FunctionType* FunctionCall::func_type_from_parent_type(BaseType* can_type) {
     if(can_type->kind() == BaseTypeKind::CapturingFunction) {
         return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
     }
-    auto func_type = can_type->as_function_type();
+    auto func_type = can_type->get_canonical_function_type();
 //    const auto func_decl = safe_linked_func();
 //    if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
 //        const auto parent = func_decl->parent();

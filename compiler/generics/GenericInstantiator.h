@@ -206,6 +206,8 @@ public:
 
     void FinalizeSignature(TypealiasStatement* decl);
 
+    void FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args);
+
     void FinalizeSignature(GenericTypeDecl* gen_decl, TypealiasStatement* decl, size_t itr);
 
     /**

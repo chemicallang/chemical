@@ -15,6 +15,51 @@ uint64_t GenericType::byte_size(bool is64Bit) {
     return referenced->byte_size(is64Bit);
 }
 
+bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc) {
+    auto& diagnoser = instantiatorApi.getDiagnoser();
+    const auto linked = referenced->linked;
+    switch(linked->kind()) {
+        case ASTNodeKind::GenericTypeDecl: {
+
+            auto& allocator = instantiatorApi.getAllocator();
+
+            // create the generic arguments
+            const auto typeDecl = linked->as_gen_type_decl_unsafe();
+            const auto total = typeDecl->generic_params.size();
+            std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
+
+            // default the generic args (to contain default type from generic parameters)
+            default_generic_args(generic_args, typeDecl->generic_params, types);
+
+            // check all types have been inferred
+            unsigned i = 0;
+            for(const auto arg : generic_args) {
+                if(arg == nullptr) {
+                    diagnoser.error(arg.encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i);
+                    return false;
+                }
+                i++;
+            }
+
+            // create a copy
+            const auto impl = typeDecl->master_impl->shallow_copy(allocator);
+
+            
+            impl->generic_parent = typeDecl;
+
+            // finalizes the signature
+            instantiatorApi.FinalizeSignature(typeDecl, impl, generic_args);
+
+            referenced->linked = impl;
+            inlined = true;
+            break;
+        }
+        default:
+            return true;
+    }
+    return true;
+}
+
 bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc) {
     auto& diagnoser = instantiatorApi.getDiagnoser();
     const auto linked = referenced->linked;

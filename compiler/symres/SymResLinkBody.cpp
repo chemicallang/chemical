@@ -1796,17 +1796,17 @@ bool isAnyRuntimeType(BaseType* type) {
     }
 }
 
-void verifyComptimeArgument(SymbolResolver& linker, BaseType* type, Value* value) {
+void verifyComptimeArgument(ASTDiagnoser& diagnoser, BaseType* type, Value* value) {
     if(isAnyRuntimeType(type)) {
         return;
     }
     const auto nonComptimeValue = getNonComptimeValue(type, value);
     if(nonComptimeValue) {
-        linker.error("comptime function expects argument that is known at compile time", nonComptimeValue);
+        diagnoser.error("comptime function expects argument that is known at compile time", nonComptimeValue);
     }
 }
 
-void verifyArgumentsAreComptime(SymbolResolver& linker, FunctionCall* call, FunctionType* func_type) {
+void verifyArgumentsAreComptime(ASTDiagnoser& diagnoser, FunctionCall* call, FunctionType* func_type) {
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < call->values.size()) {
@@ -1815,23 +1815,23 @@ void verifyArgumentsAreComptime(SymbolResolver& linker, FunctionCall* call, Func
             const auto value = call->values[i];
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
-                verifyComptimeArgument(linker, implicit_constructor->params.front()->type, value);
+                verifyComptimeArgument(diagnoser, implicit_constructor->params.front()->type, value);
             } else {
-                verifyComptimeArgument(linker, param->type, value);
+                verifyComptimeArgument(diagnoser, param->type, value);
             }
         }
         i++;
     }
 }
 
-void verifyArgumentNotRuntime(SymbolResolver& linker, BaseType* type, Value* value) {
+void verifyArgumentNotRuntime(ASTDiagnoser& diagnoser, BaseType* type, Value* value) {
     if(isAnyRuntimeType(value->getType())) {
-        linker.error("comptime function expects argument that is known at compile time", value);
+        diagnoser.error("comptime function expects argument that is known at compile time", value);
         return;
     }
 }
 
-void verifyArgumentsAreNotRuntime(SymbolResolver& linker, FunctionCall* call, FunctionType* func_type) {
+void verifyArgumentsAreNotRuntime(ASTDiagnoser& diagnoser, FunctionCall* call, FunctionType* func_type) {
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
     while(i < call->values.size()) {
@@ -1840,12 +1840,41 @@ void verifyArgumentsAreNotRuntime(SymbolResolver& linker, FunctionCall* call, Fu
             const auto value = call->values[i];
             auto implicit_constructor = param->type->implicit_constructor_for(value);
             if (implicit_constructor) {
-                verifyArgumentNotRuntime(linker, implicit_constructor->params.front()->type, value);
+                verifyArgumentNotRuntime(diagnoser, implicit_constructor->params.front()->type, value);
             } else {
-                verifyArgumentNotRuntime(linker, param->type, value);
+                verifyArgumentNotRuntime(diagnoser, param->type, value);
             }
         }
         i++;
+    }
+}
+
+void FunctionCall::verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_type) {
+    const auto func = func_type->as_function();
+    if(func) {
+        if(func->is_comptime()) {
+            // now if a compile time function is being called
+            // we verify all the arguments are known at compile time
+            const auto final_linked = parent_val->linked_node();
+            if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl) {
+                // TODO: verify arguments are not runtime
+                // verifyArgumentsAreNotRuntime(resolver, call, final_linked->as_function_unsafe());
+            }
+        } else {
+            // now if a compile time function is being called
+            // we verify all the arguments are known at compile time
+            const auto final_linked = parent_val->linked_node();
+            if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
+                verifyArgumentsAreComptime(diagnoser, this, final_linked->as_function_unsafe());
+            }
+        }
+    } else {
+        // now if a compile time function is being called
+        // we verify all the arguments are known at compile time
+        const auto final_linked = parent_val->linked_node();
+        if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
+            verifyArgumentsAreComptime(diagnoser, this, final_linked->as_function_unsafe());
+        }
     }
 }
 
@@ -1941,7 +1970,6 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     // then we must get a function type
     if(linked_kind != ASTNodeKind::VariantMember) {
         // if its not a variant, it should give us a function type to be valid
-        // TODO: every function call type is being created using ast allocator
         const auto func_type = call->get_function_type_during_linking();
         if(!func_type) {
             resolver.error(call) << "cannot call a non function type";
@@ -1963,40 +1991,12 @@ ending_block:
     if(link_implicit_constructor) {
         link_call_args_implicit_constructor(visitor, call);
     }
-
     {
         const auto func_type = resolver.current_func_type;
         if(func_type) {
-            const auto func = func_type->as_function();
-            if(func) {
-                if(func->is_comptime()) {
-                    // now if a compile time function is being called
-                    // we verify all the arguments are known at compile time
-                    const auto final_linked = call->parent_val->linked_node();
-                    if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl) {
-                        // TODO: verify arguments are not runtime
-                        // verifyArgumentsAreNotRuntime(resolver, call, final_linked->as_function_unsafe());
-                    }
-                } else {
-                    // now if a compile time function is being called
-                    // we verify all the arguments are known at compile time
-                    const auto final_linked = call->parent_val->linked_node();
-                    if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
-                        verifyArgumentsAreComptime(resolver, call, final_linked->as_function_unsafe());
-                    }
-                }
-            } else {
-                // now if a compile time function is being called
-                // we verify all the arguments are known at compile time
-                const auto final_linked = call->parent_val->linked_node();
-                if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
-                    verifyArgumentsAreComptime(resolver, call, final_linked->as_function_unsafe());
-                }
-            }
+            call->verifyArguments(resolver, func_type);
         }
-
     }
-
     return true;
 
 instantiate_block:

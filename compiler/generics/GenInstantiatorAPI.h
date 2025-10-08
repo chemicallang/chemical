@@ -74,6 +74,11 @@ public:
     /**
      * finalize the signature of generic type decl
      */
+    void FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args);
+
+    /**
+     * finalize the signature of generic type decl
+     */
     void FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations);
 
     /**

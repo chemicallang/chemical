@@ -15,6 +15,7 @@ public:
 
     LinkedType* referenced;
     std::vector<TypeLoc> types;
+    bool inlined = false;
 
     /**
      * constructor
@@ -29,6 +30,11 @@ public:
     GenericType(LinkedType* referenced, std::vector<TypeLoc> types) : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)) {
 
     }
+
+    /**
+     * instantiate inline only instantiates generic type declaration
+     */
+    bool instantiate_inline(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc);
 
     /**
      * instantiates the generic declaration associated with this type

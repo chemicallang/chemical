@@ -72,9 +72,6 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
-        // generate any functions required (default destructor...) since now types have been finalized
-        impl->generate_functions(allocator, diagnoser);
-
     } else if(signature_linked) {
 
         // copy over the extension functions, if more functions were linked because of link_signature called upon function declarations
@@ -89,9 +86,6 @@ StructDefinition* GenericStructDecl::register_generic_args(GenericInstantiatorAP
         auto ptr = impl;
         const auto span = std::span<StructDefinition*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
-
-        // generate any functions required (default destructor...) since now types have been finalized
-        impl->generate_functions(allocator, diagnoser);
 
     }
 

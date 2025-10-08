@@ -971,26 +971,26 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
     diagnoser.error((ASTNode*) decl) << decl->name_view() << " function must have two implicit reference parameters";
 }
 
-void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
 }
 
-void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     check_returns_void(diagnoser, this);
     check_self_param(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     check_returns_void(diagnoser, this);
     check_self_param(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
     check_self_other_params(diagnoser, this, def);
 }
 
-void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
     check_self_other_params(diagnoser, this, def);
 }

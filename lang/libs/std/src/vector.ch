@@ -59,12 +59,16 @@ public struct vector<T> {
         data_size = s + 1
     }
 
+    func push_back(&mut self, value : T) {
+        push(value)
+    }
+
     func get(&self, index : size_t) : T {
         return data_ptr[index];
     }
 
-    func get_ptr(&self, index : size_t) : *T {
-        return &data_ptr[index];
+    func get_ptr(&self, index : size_t) : *mut T {
+        return &mut data_ptr[index];
     }
 
     func set(&mut self, index : size_t, value : T) {
@@ -97,6 +101,10 @@ public struct vector<T> {
             memmove(&mut data_ptr[index], &data_ptr[index + 1], sizeof(T) * (last - index));
             data_size = last;
         }
+    }
+
+    func erase(&mut self, index : size_t) {
+        remove(index);
     }
 
     func remove_last(&mut self) {

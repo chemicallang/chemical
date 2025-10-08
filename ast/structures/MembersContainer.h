@@ -301,33 +301,47 @@ public:
     /**
      * create a destructor function and put it into functions
      */
-    FunctionDeclaration* create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name);
+    FunctionDeclaration* create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name, ASTNode* returnNode);
 
     /**
      * create a destructor function and put it into functions
      */
-    FunctionDeclaration* create_destructor(ASTAllocator& allocator);
+    inline FunctionDeclaration* create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
+        return create_def_constructor(allocator, parent_name, this);
+    }
+
+    /**
+     * create a destructor function and put it into functions
+     */
+    inline FunctionDeclaration* create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name, GenericStructDecl* decl) {
+        return create_def_constructor(allocator, parent_name, (ASTNode*) decl);
+    }
+
+    /**
+     * create a destructor function and put it into functions
+     */
+    FunctionDeclaration* create_destructor(ASTAllocator& allocator, ASTNode* returnNode);
 
     /**
      * create the copy function and put it into functions
      */
-    FunctionDeclaration* create_copy_fn(ASTAllocator& allocator);
+    FunctionDeclaration* create_copy_fn(ASTAllocator& allocator, ASTNode* returnNode);
 
     /**
      * creates a default constructor, report errors in given diagnoser, this is a helper function
      * the container name here is the name of the struct and not the function
      */
-    FunctionDeclaration* create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name);
+    FunctionDeclaration* create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name, ASTNode* returnNode);
 
     /**
      * create default destructor, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
 
     /**
      * create default copy function, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
 
     /**
      * insert a function that can have same name for multiple declarations

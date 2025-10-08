@@ -648,9 +648,9 @@ void MembersContainer::insert_functions(const std::initializer_list<FunctionDecl
     }
 }
 
-FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name) {
+FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name, ASTNode* returnNode) {
     const auto loc = encoded_location();
-    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(this);
+    const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(returnNode);
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("make"), {returnType, loc}, false, this, loc);
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_is_generated_fn(true);
@@ -659,11 +659,11 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
+FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator, ASTNode* returnNode) {
     const auto loc = encoded_location();
     const auto returnType = TypeLoc(new (allocator.allocate<VoidType>()) VoidType(), loc);
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), returnType, false, this, loc);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 0, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(returnNode), true), loc }, 0, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_is_generated_fn(true);
     decl->set_delete_fn(true);
@@ -671,12 +671,12 @@ FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
+FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator, ASTNode* returnNode) {
     const auto loc = encoded_location();
     const auto returnType = TypeLoc(new (allocator.allocate<VoidType>()) VoidType(), loc);
     auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("copy"), returnType, false, this, loc);
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 0, nullptr, true, decl, loc));
-    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(this), true), loc }, 1, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(returnNode), true), loc }, 0, nullptr, true, decl, loc));
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(returnNode), true), loc }, 1, nullptr, true, decl, loc));
     decl->body.emplace(Scope{nullptr, loc});
     decl->set_is_generated_fn(true);
     decl->set_copy_fn(true);
@@ -684,31 +684,31 @@ FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name) {
+FunctionDeclaration* MembersContainer::create_def_constructor_checking(ASTAllocator& allocator, ASTDiagnoser& diagnoser, const chem::string_view& container_name, ASTNode* returnNode) {
     auto delFunc = direct_child_function("make");
     if(delFunc) {
         diagnoser.warn("default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
-    return create_def_constructor(allocator, container_name);
+    return create_def_constructor(allocator, container_name, returnNode);
 }
 
-FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
         diagnoser.warn("default destructor is created by name 'delete', a function by name 'delete' already exists, please create a manual destructor to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
-    return create_destructor(allocator);
+    return create_destructor(allocator, returnNode);
 }
 
-FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode) {
     auto copyFn = direct_child_function("copy");
     if(copyFn) {
         diagnoser.warn("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual copy function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
-    return create_copy_fn(allocator);
+    return create_copy_fn(allocator, returnNode);
 }
 
 bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDeclaration* decl) {

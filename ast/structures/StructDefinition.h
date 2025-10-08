@@ -235,7 +235,7 @@ public:
      * generates any default constructors / destructors required
      * should be called after link signature
      */
-    void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+    void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
 
     BaseType* known_type() final;
 

@@ -74,9 +74,6 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         instantiator.FinalizeSignature(this, span);
         instantiator.FinalizeBody(this, span);
 
-        // since signature has completely finalized, we know which types need a destructor
-        impl->generate_functions(allocator, diagnoser);
-
     } else if(signature_linked) {
 
         // copy over the extension functions, if more functions were linked because of link_signature called upon function declarations
@@ -91,9 +88,6 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
         auto ptr = impl;
         const auto span = std::span<VariantDefinition*>(&ptr, 1);
         instantiator.FinalizeSignature(this, span);
-
-        // since signature has completely finalized, we know which types need a destructor
-        impl->generate_functions(allocator, diagnoser);
 
     }
 

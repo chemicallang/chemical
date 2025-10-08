@@ -126,7 +126,7 @@ public:
         return def;
     }
 
-    void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+    void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
 
     BaseType* known_type() final;
 

@@ -261,7 +261,7 @@ llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 #endif
 
-void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
+void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode) {
     bool has_constructor = false;
     bool has_def_constructor = false;
     bool has_destructor = false;
@@ -271,18 +271,18 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             if(!func->has_explicit_params()) {
                 has_def_constructor = true;
             }
-            func->ensure_constructor(allocator, diagnoser, this);
+            func->ensure_constructor(allocator, diagnoser, returnNode);
         }
         if(func->is_delete_fn()) {
-            func->ensure_destructor(allocator, diagnoser, this);
+            func->ensure_destructor(allocator, diagnoser, returnNode);
             has_destructor = true;
         }
         if(func->is_copy_fn()) {
-            func->ensure_copy_fn(allocator, diagnoser, this);
+            func->ensure_copy_fn(allocator, diagnoser, returnNode);
         }
     }
     if(!has_def_constructor && all_members_has_def_constructor()) {
-        if(create_def_constructor_checking(allocator, diagnoser, name_view())) {
+        if(create_def_constructor_checking(allocator, diagnoser, name_view(), returnNode)) {
             if (!has_constructor) {
                 attrs.is_direct_init = true;
             }
@@ -290,7 +290,7 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     }
     if(!has_destructor && any_member_has_destructor()) {
         has_destructor = true;
-        create_def_destructor(allocator, diagnoser);
+        create_def_destructor(allocator, diagnoser, returnNode);
     }
     if(!has_destructor) {
         // we make the struct copyable by default, if it doesn't have any destructor

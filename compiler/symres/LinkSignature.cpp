@@ -657,8 +657,11 @@ void TopLevelLinkSignature::VisitGenericStructDecl(GenericStructDecl* node) {
     // they don't have any generated functions like default constructor / destructor
     for(const auto inst : node->instantiations) {
         // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
-        inst->generate_functions(*linker.ast_allocator, linker);
+        inst->generate_functions(*linker.ast_allocator, linker, inst);
     }
+    // now we generate functions in the master implementation
+    // every instantiation after this would contain these functions
+    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericUnionDecl(GenericUnionDecl* node) {
@@ -750,8 +753,11 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     // they don't have any generated functions like default constructor / destructor
     for(const auto inst : node->instantiations) {
         // TODO we're passing the ast allocator, this generic could be at module level, in that case we should select the module alloctor
-        inst->generate_functions(*linker.ast_allocator, linker);
+        inst->generate_functions(*linker.ast_allocator, linker, inst);
     }
+    // now we generate functions in the master implementation
+    // every instantiation after this would contain these functions
+    node->master_impl->generate_functions(*linker.ast_allocator, linker, node);
 }
 
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
@@ -949,7 +955,7 @@ void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
 void TopLevelLinkSignature::VisitStructDecl(StructDefinition* node) {
     auto& allocator = node->specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     LinkMembersContainer(node);
-    node->generate_functions(allocator, linker);
+    node->generate_functions(allocator, linker, node);
     node->ensure_inherited_visibility(linker, node->specifier());
 }
 
@@ -962,7 +968,7 @@ void TopLevelLinkSignature::VisitVariantDecl(VariantDefinition* node) {
     auto& allocator = node->specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     auto& diagnoser = linker;
     LinkMembersContainer(node);
-    node->generate_functions(allocator, diagnoser);
+    node->generate_functions(allocator, diagnoser, node);
     node->ensure_inherited_visibility(linker, node->specifier());
 }
 

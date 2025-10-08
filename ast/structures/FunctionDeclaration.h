@@ -467,15 +467,15 @@ public:
 
     void make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
-    void ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
+    void ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
-    void ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
+    void ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
-    void ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
+    void ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
-    void ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
+    void ensure_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
-    void ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ExtendableMembersContainerNode* def);
+    void ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
     using FunctionType::as_extension_func;
 

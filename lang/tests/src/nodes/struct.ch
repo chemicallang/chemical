@@ -252,6 +252,25 @@ func test_no_type_structs() {
     })
 }
 
+// ------------ existence test begins here -----------------
+
+// this test verifies that constructor of a generic struct can be called
+// in a generic container and generated as well
+
+struct existence_gen_container_21345<T> {
+    var a : T
+}
+
+func <T> give_existence_gen_container_2343() : existence_gen_container_21345<T> {
+    return existence_gen_container_21345<T>()
+}
+
+func gen_existence_gen_container_43534() {
+    give_existence_gen_container_2343<int>()
+}
+
+// ------------ existence test ends here ----------------
+
 func test_structs() {
     test_no_type_structs();
     test_structs_aliases();

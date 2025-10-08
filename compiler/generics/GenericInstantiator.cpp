@@ -18,6 +18,9 @@ void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
         switch(linked->kind()) {
             case ASTNodeKind::GenericTypeParam: {
                 const auto ty = linked->as_generic_type_param_unsafe()->concrete_type();
+                if(ty == nullptr) {
+                    return;
+                }
 #ifdef DEBUG
                 if(ty == nullptr) {
                     throw std::runtime_error("generic active type doesn't exist");
@@ -314,6 +317,18 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
     auto& linked_ptr = referenced->linked;
     const auto linked = linked_ptr;
     switch(linked->kind()) {
+        case ASTNodeKind::TypealiasStmt: {
+            if(type->inlined) {
+                // we inlined this type, now we create concrete type by instantiating it
+                const auto alias = linked->as_typealias_unsafe();
+                GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
+                GenericInstantiatorAPI genApi(&instantiator);
+                linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types);
+                return;
+            }
+            visit(type->referenced);
+            return;
+        }
         case ASTNodeKind::GenericStructDecl: {
             if (linked == current_gen) {
                 if (are_types_generic(type->types, current_gen->generic_params)) {
@@ -546,6 +561,33 @@ void GenericInstantiator::FinalizeSignature(TypealiasStatement* impl) {
     visit(impl->actual_type);
     // reset the pointers
     current_impl_ptr = prev_impl;
+}
+
+void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args) {
+
+    // this allows us to check self-referential pointers to generic decls
+    current_gen = decl;
+
+    // activating iteration in params
+    unsigned i = 0;
+    for(const auto param : decl->generic_params) {
+        param->set_active_type(generic_args[i]);
+        i++;
+    }
+
+    // finalize the signature of typealias instantiation
+    FinalizeSignature(impl);
+
+    // deactivating iteration in parameters
+    // activating iteration in params
+    for(const auto param : decl->generic_params) {
+        param->deactivate_iteration();
+    }
+
+    // reset the pointers
+    current_gen = nullptr;
+    current_impl_ptr = nullptr;
+
 }
 
 void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, size_t itr) {
@@ -1267,6 +1309,10 @@ ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
 
 void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
     giPtr->setAllocator(allocator);
+}
+
+void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args) {
+    giPtr->FinalizeSignature(decl, impl, generic_args);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {

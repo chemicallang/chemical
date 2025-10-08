@@ -325,6 +325,28 @@ StructDefinition* BaseType::get_direct_non_movable_struct() {
     }
 }
 
+inline FunctionType* get_func_type_from_linked(LinkedType* type) {
+    const auto l = type->linked;
+    if(l->kind() == ASTNodeKind::TypealiasStmt) {
+        return l->as_typealias_unsafe()->actual_type->get_canonical_function_type();
+    } else {
+        return nullptr;
+    }
+}
+
+FunctionType* BaseType::get_canonical_function_type() {
+    switch(kind()) {
+        case BaseTypeKind::Function:
+            return (FunctionType*) this;
+        case BaseTypeKind::Linked:
+            return get_func_type_from_linked(as_linked_type_unsafe());
+        case BaseTypeKind::Generic:
+            return get_func_type_from_linked(as_generic_type_unsafe()->referenced);
+        default:
+            return nullptr;
+    }
+}
+
 FunctionType* BaseType::get_function_type() {
     switch(kind()) {
         case BaseTypeKind::Function:

@@ -375,6 +375,11 @@ public:
     StructDefinition* get_direct_non_movable_struct();
 
     /**
+     * gets the function type (considers type aliases)
+     */
+    FunctionType* get_canonical_function_type();
+
+    /**
      * this gets the function type, if any
      */
     FunctionType* get_function_type();

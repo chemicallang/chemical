@@ -18,6 +18,11 @@ func take_cap_func(fun : std::function<() => int>) : int {
     return fun()
 }
 
+func take_cap_func_2(fun : std::function<() => int>) : int {
+    var moved_func = fun
+    return moved_func()
+}
+
 func pass_func_lambda(fun : std::function<() => int>) : int {
     return take_cap_func(fun);
 }
@@ -33,6 +38,11 @@ func test_capturing_lambda() {
             return temp;
         }
         return fn() == 11;
+    })
+    test("capturing lambda moved into var init can be called", () => {
+        var temp = 938;
+        var result = take_cap_func_2(|temp|() => { return temp; })
+        return result == 938
     })
     test("capturing lambda works in function return", () => {
         var lambda = cap_func_ret();
@@ -72,7 +82,7 @@ func test_capturing_lambda() {
         var Some(lamb) = s else unreachable
         return lamb() == temp;
     })
-    test("capturing lambda works with assignment", () => {
+    test("capturing lambda works with assignment - 1", () => {
         var temp = 836;
         var fn : std::function<() => int> = |temp|() => {
             return temp + 11;
@@ -81,6 +91,15 @@ func test_capturing_lambda() {
             return temp;
         }
         return fn() == temp;
+    })
+    test("capturing lambda works with assignment - 2", () => {
+        var temp = 836;
+        var fn : std::function<() => int> = |temp|() => {
+            return temp + 11;
+        }
+        var fn2 : std::function<() => int> = |temp|() => { return temp + 3; }
+        fn = fn2
+        return fn() == 839;
     })
     test("capturing functions can be passed around", () => {
         var temp = 384

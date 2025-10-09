@@ -92,8 +92,21 @@ bool FunctionType::satisfies(BaseType *type) {
     switch(type->kind()) {
         case BaseTypeKind::NullPtr:
             return true;
+        case BaseTypeKind::Function: {
+            const auto func = type->as_function_type_unsafe();
+            // TODO: too expensive calling a virtual function
+            //  attribute should be stored in function type a uint8_t enum func kind
+            //  should be used to get as lambda and as function
+            const auto lamb = func->as_lambda();
+            if(lamb) {
+                // TODO: verify the type of lambda is consistent with the function type
+                return true;
+            } else {
+                return equal_type(func);
+            }
+        }
         default:
-            return is_same(type);
+            return false;
     }
 }
 

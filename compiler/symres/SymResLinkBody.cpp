@@ -2474,10 +2474,15 @@ bool link_full(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_type
     return result;
 }
 
-void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymResLinkBody& symRes, Value* debug_value) {
-    auto& resolver = symRes.linker;
+void copy_func_params_types(
+        const std::vector<FunctionParam*>& from_params,
+        std::vector<FunctionParam*>& to_params,
+        ASTAllocator& allocator,
+        ASTDiagnoser& diagnoser,
+        Value* debug_value
+) {
     if(to_params.size() > from_params.size()) {
-        resolver.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " parameters however given " << std::to_string(to_params.size());
+        diagnoser.error(debug_value) << "Lambda function type expects " << std::to_string(from_params.size()) << " parameters however given " << std::to_string(to_params.size());
         return;
     }
     auto total = from_params.size();
@@ -2485,8 +2490,8 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
     while(start < total) {
         const auto from_param = from_params[start];
         if(start >= to_params.size()) {
-            // only copy if user didn't include the parameter
-            to_params.emplace_back(from_param->copy(*resolver.ast_allocator));
+            // copying since user didn't include the parameter
+            to_params.emplace_back(from_param->copy(allocator));
         }
         const auto to_param = to_params[start];
         if(!to_param || !to_param->type || to_param->is_implicit() || from_param->is_implicit()) {
@@ -2502,27 +2507,24 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
             //  this would cause a symbol in the scope that user doesn't know about
             //  we should keep this name empty or make an attribute for unused parameter
             copied->name = to_param->name;
-        } else {
-            // link the given parameter
-            link_param(symRes, to_param);
-            // check it's type is same as the from parameter
-            if(!to_param->type->is_same(from_param->type)) {
-                resolver.error(debug_value) << "Lambda function param at index " << std::to_string(start) << " with type " << from_param->type->representation() << ", redeclared with type " << to_param->type->representation();
-            }
         }
         start++;
     }
 }
 
-bool link_lambda(LambdaFunction* func, SymResLinkBody& symRes ,FunctionType* func_type) {
-    auto& linker = symRes.linker;
+bool link_lambda(
+        LambdaFunction* func,
+        ASTAllocator& allocator,
+        ASTDiagnoser& diagnoser,
+        FunctionType* func_type
+) {
     auto& params = func->params;
     auto& returnType = func->returnType;
-    copy_func_params_types(func_type->params, params, symRes, func);
+    copy_func_params_types(func_type->params, params, allocator, diagnoser, func);
     if(!returnType) {
         returnType = func_type->returnType;
     } else if(!returnType->is_same(func_type->returnType)) {
-        linker.error((Value*) func) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
+        diagnoser.error((Value*) func) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
     }
     func->setIsCapturing(func_type->isCapturing());
     return true;
@@ -2569,7 +2571,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
             }
         }
 
-        link_lambda(lambVal, *this, func_type);
+        link_lambda(lambVal, *linker.ast_allocator, linker, func_type);
 
         if(link_full(lambVal, *this, false)) {
             data.signature_resolved = true;

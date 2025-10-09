@@ -1878,18 +1878,44 @@ void FunctionCall::verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_t
     }
 }
 
-void materialize_argument_type(BaseType* expected_type, Value* arg) {
+void materialize_lambda(
+        LambdaFunction* func,
+        ASTDiagnoser& diagnoser,
+        FunctionType* func_type
+) {
+    func->returnType = func_type->returnType;
+    const auto& from_params = func_type->params;
+    auto& to_params = func->params;
+    auto total = from_params.size();
+    auto start = 0;
+    while(start < total) {
+        const auto from_param = from_params[start];
+        if(start >= to_params.size()) {
+            return;
+        }
+        to_params[start]->type = from_param->type;
+        start++;
+    }
+}
+
+// probably won't use allocator (see materialize_lambda_parameters)
+void materialize_argument_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser, BaseType* expected_type, Value* arg) {
     switch(arg->kind()) {
         case ValueKind::LambdaFunc: {
             const auto func = arg->as_lambda_func_unsafe();
-
+            const auto func_type = expected_type->get_canonical_function_type();
+            if(func_type) {
+                materialize_lambda(arg->as_lambda_func_unsafe(), diagnoser, func_type);
+            } else {
+                diagnoser.error("function doesn't expect a lambda function argument for this parameter", arg);
+            }
         }
         default:
             return;
     }
 }
 
-void report_concrete_types(FunctionCall* call) {
+void report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& diagnoser, FunctionCall* call) {
 
     const auto parent_val = call->parent_val;
     auto& values = call->values;
@@ -1904,7 +1930,7 @@ void report_concrete_types(FunctionCall* call) {
             while (i < values_size) {
                 const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
                 const auto expected_type = param ? param->type : nullptr;
-                materialize_argument_type(expected_type, values[i]);
+                materialize_argument_type(allocator, diagnoser, expected_type, values[i]);
                 i++;
             }
 
@@ -1922,7 +1948,7 @@ void report_concrete_types(FunctionCall* call) {
     while (i < values_size) {
         const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
         const auto expected_type = param ? param->type : nullptr;
-        materialize_argument_type(expected_type, values[i]);
+        materialize_argument_type(allocator, diagnoser, expected_type, values[i]);
         i++;
     }
 
@@ -2089,6 +2115,10 @@ instantiate_block:
                 }
             }
         }
+
+        // report concrete types, for example lambda functions
+        // so they know the expected types
+        report_concrete_types(*resolver.ast_allocator, resolver, call);
 
     } else if(gen_var_decl) {
         auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, call, expected_type);
@@ -2489,9 +2519,11 @@ void copy_func_params_types(
     auto start = 0;
     while(start < total) {
         const auto from_param = from_params[start];
+        bool verify_type = true;
         if(start >= to_params.size()) {
             // copying since user didn't include the parameter
             to_params.emplace_back(from_param->copy(allocator));
+            verify_type = false;
         }
         const auto to_param = to_params[start];
         if(!to_param || !to_param->type || to_param->is_implicit() || from_param->is_implicit()) {
@@ -2507,6 +2539,12 @@ void copy_func_params_types(
             //  this would cause a symbol in the scope that user doesn't know about
             //  we should keep this name empty or make an attribute for unused parameter
             copied->name = to_param->name;
+        } else if(verify_type) {
+            // user gave the type
+            assert(to_param->type != nullptr);
+            if(!from_param->type->is_same(to_param->type)) {
+                diagnoser.error("Lambda function parameter type mismatch", to_param);
+            }
         }
         start++;
     }

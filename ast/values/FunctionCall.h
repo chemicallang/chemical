@@ -48,6 +48,8 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
+    void report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
+
     /**
      * get function type from parent type
      */

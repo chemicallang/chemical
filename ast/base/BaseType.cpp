@@ -212,6 +212,8 @@ ASTNode* BaseType::get_direct_linked_node() {
         case BaseTypeKind::Struct:
         case BaseTypeKind::Union:
             return linked_node();
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe()->instance_type->get_direct_linked_node();
         default:
             return nullptr;
     }
@@ -247,6 +249,8 @@ ASTNode* BaseType::get_linked_node(bool include_ref, bool include_ptr) {
             } else {
                 return nullptr;
             }
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe()->instance_type->get_direct_linked_node();
         default:
             return nullptr;
     }
@@ -272,6 +276,8 @@ ASTNode* BaseType::get_ref_or_linked_node() {
         case BaseTypeKind::Struct:
         case BaseTypeKind::Union:
             return linked_node();
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe()->instance_type->get_direct_linked_node();
         default:
             return nullptr;
     }

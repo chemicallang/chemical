@@ -274,6 +274,10 @@ func init_gen_existence_91() {
 
 // ------------ existence test end -----------
 
+func <T> ret_lamb_ret1(lamb : () => T) : T {
+    return lamb();
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -589,5 +593,9 @@ func test_basic_generics() {
         var a = GenAddTestStruct { a : 84, b : 84 }
         var s = a.add(GenAddTestStruct { a : 3, b : 5 })
         return s.a == 87 && s.b == 89 && a.a == 84 && a.b == 84
+    })
+    test("generic functions returning a lambda with generic return type work - 1", () => {
+        var res = ret_lamb_ret1<int>(() => 98324)
+        return res == 98324
     })
 }

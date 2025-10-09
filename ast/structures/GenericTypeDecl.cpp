@@ -9,6 +9,15 @@ void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasState
     inst->actual_type = inst->actual_type.copy(allocator);
 }
 
+TypealiasStatement* GenericTypeDecl::copy_master(ASTAllocator& allocator) {
+    // create a shallow copy
+    const auto impl = master_impl->shallow_copy(allocator);
+    // now finalize signature
+    finalize_signature(allocator, impl);
+    impl->generic_parent = this;
+    return impl;
+}
+
 TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& generic_args) {
 
     auto& container = instantiator.getContainer();

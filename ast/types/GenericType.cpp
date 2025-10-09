@@ -43,9 +43,8 @@ bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, So
     }
 
     // create a copy
-    const auto impl = typeDecl->master_impl->shallow_copy(allocator);
+    const auto impl = typeDecl->copy_master(allocator);
     impl->attrs.is_inlined = true;
-    impl->generic_parent = typeDecl;
 
     // finalizes the signature
     instantiatorApi.FinalizeSignature(typeDecl, impl, generic_args);

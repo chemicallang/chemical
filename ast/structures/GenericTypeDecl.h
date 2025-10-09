@@ -57,6 +57,8 @@ public:
         return master_impl->known_type();
     }
 
+    TypealiasStatement* copy_master(ASTAllocator& allocator);
+
     /**
      * register generic args
      */

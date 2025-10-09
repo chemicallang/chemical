@@ -2183,7 +2183,9 @@ void link_param(SymResLinkBody& symRes, FunctionParam* param) {
     if(param->is_implicit()) {
         param->link_implicit_param(symRes.linker);
     } else {
-        symRes.visit(param->type);
+        if(param->type) {
+            symRes.visit(param->type);
+        }
     }
 }
 
@@ -2451,24 +2453,22 @@ BaseType* find_return_type(std::vector<ASTNode*>& nodes) {
     return nullptr;
 }
 
-bool link_params_and_caps(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_types) {
+bool link_params_and_caps(LambdaFunction* fn, SymResLinkBody& visitor) {
     for(const auto cap : fn->captureList) {
         visitor.visit(cap);
     }
     bool result = true;
     for (auto& param : fn->params) {
-        if(link_param_types) {
-            link_param(visitor, param);
-        }
+        link_param(visitor, param);
         visitor.visit(param);
     }
     return result;
 }
 
-bool link_full(LambdaFunction* fn, SymResLinkBody& visitor, bool link_param_types) {
+bool link_full(LambdaFunction* fn, SymResLinkBody& visitor) {
     auto& linker = visitor.linker;
     linker.scope_start();
-    const auto result = link_params_and_caps(fn, visitor, link_param_types);
+    const auto result = link_params_and_caps(fn, visitor);
     link_seq(visitor, fn->scope);
     linker.scope_end();
     return result;
@@ -2550,7 +2550,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 #endif
 
         // linking params and their types
-        auto result = link_full(lambVal, *this, true);
+        auto result = link_full(lambVal, *this);
 
         // finding return type
         auto retType = find_return_type(scope.nodes);
@@ -2571,11 +2571,24 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
             }
         }
 
-        link_lambda(lambVal, *linker.ast_allocator, linker, func_type);
+        // start the scope
+        linker.scope_start();
 
-        if(link_full(lambVal, *this, false)) {
+        // link parameter and captured variables (only the ones user gave)
+        const auto result = link_params_and_caps(lambVal, *this);
+        if(result) {
             data.signature_resolved = true;
         }
+
+        // will also create parameters that don't exist, assign types to parameters not given
+        // assigned types won't be visited (assumed linked)
+        link_lambda(lambVal, *linker.ast_allocator, linker, func_type);
+
+        // link the body
+        link_seq(*this, lambVal->scope);
+
+        // end the scope, which drops both (parameters and any symbols in lambda body)
+        linker.scope_end();
 
     }
 

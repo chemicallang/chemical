@@ -1878,6 +1878,56 @@ void FunctionCall::verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_t
     }
 }
 
+void materialize_argument_type(BaseType* expected_type, Value* arg) {
+    switch(arg->kind()) {
+        case ValueKind::LambdaFunc: {
+            const auto func = arg->as_lambda_func_unsafe();
+
+        }
+        default:
+            return;
+    }
+}
+
+void report_concrete_types(FunctionCall* call) {
+
+    const auto parent_val = call->parent_val;
+    auto& values = call->values;
+
+    const auto parent = parent_val->linked_node();
+    if(parent) {
+        const auto variant_mem = parent->as_variant_member();
+        if (variant_mem) {
+            unsigned i = 0;
+            const auto values_size = values.size();
+            const auto total_params = variant_mem->values.size();
+            while (i < values_size) {
+                const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
+                const auto expected_type = param ? param->type : nullptr;
+                materialize_argument_type(expected_type, values[i]);
+                i++;
+            }
+
+            return;
+        }
+    }
+
+    auto func_type = call->function_type();
+    if (func_type && !func_type->data.signature_resolved) {
+        return;
+    }
+
+    unsigned i = 0;
+    const auto values_size = values.size();
+    while (i < values_size) {
+        const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
+        const auto expected_type = param ? param->type : nullptr;
+        materialize_argument_type(expected_type, values[i]);
+        i++;
+    }
+
+}
+
 // can call a normal function
 // can call a generic function (after instantiation, we can determine the type)
 // can call a stored function pointer
@@ -2435,16 +2485,23 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
     while(start < total) {
         const auto from_param = from_params[start];
         if(start >= to_params.size()) {
-            to_params.emplace_back(nullptr);
+            // only copy if user didn't include the parameter
+            to_params.emplace_back(from_param->copy(*resolver.ast_allocator));
         }
         const auto to_param = to_params[start];
         if(!to_param || !to_param->type || to_param->is_implicit() || from_param->is_implicit()) {
-            const auto copied = from_param->copy(*resolver.ast_allocator);
-            // change the name to what user wants
-            if(to_param) {
-                copied->name = to_param->name;
+            const auto copied = to_param;
+            if(!to_param->type) {
+                to_param->type = from_param->type;
             }
-            to_params[start] = copied;
+            if(!to_param->defValue && from_param->defValue) {
+                to_param->defValue = from_param->defValue;
+            }
+            to_param->attrs = from_param->attrs;
+            // TODO: assigning a name to a parameter may not have asked for
+            //  this would cause a symbol in the scope that user doesn't know about
+            //  we should keep this name empty or make an attribute for unused parameter
+            copied->name = to_param->name;
         } else {
             // link the given parameter
             link_param(symRes, to_param);
@@ -2463,7 +2520,7 @@ bool link_lambda(LambdaFunction* func, SymResLinkBody& symRes ,FunctionType* fun
     auto& returnType = func->returnType;
     copy_func_params_types(func_type->params, params, symRes, func);
     if(!returnType) {
-        returnType = func_type->returnType.copy(*linker.ast_allocator);
+        returnType = func_type->returnType;
     } else if(!returnType->is_same(func_type->returnType)) {
         linker.error((Value*) func) << "Lambda function type expected return type to be " << func_type->returnType->representation() << " but got lambda with return type " << returnType->representation();
     }

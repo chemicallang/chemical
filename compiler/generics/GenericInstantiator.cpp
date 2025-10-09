@@ -1194,12 +1194,14 @@ void GenericInstantiator::FinalizeBody(GenericImplDecl* decl, ImplDefinition* im
 void GenericInstantiator::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 
 void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 
@@ -1213,6 +1215,7 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* decl, const std::span<Fu
 void GenericInstantiator::FinalizeSignature(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 
@@ -1226,6 +1229,7 @@ void GenericInstantiator::FinalizeBody(GenericStructDecl* decl, const std::span<
 void GenericInstantiator::FinalizeSignature(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 
@@ -1239,6 +1243,7 @@ void GenericInstantiator::FinalizeBody(GenericUnionDecl* decl, const std::span<U
 void GenericInstantiator::FinalizeSignature(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 
@@ -1252,6 +1257,7 @@ void GenericInstantiator::FinalizeBody(GenericInterfaceDecl* decl, const std::sp
 void GenericInstantiator::FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 
@@ -1265,6 +1271,7 @@ void GenericInstantiator::FinalizeBody(GenericVariantDecl* decl, const std::span
 void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations) {
     for(const auto inst : instantiations) {
         FinalizeSignature(decl, inst, inst->generic_instantiation);
+        Clear();
     }
 }
 

@@ -687,6 +687,69 @@ bool is_value_param_hidden_pointer(Value* value) {
     }
 }
 
+bool is_value_param_hidden_pointer_non_cap(Value* value) {
+    const auto linked = value->linked_node();
+    if(linked) {
+        switch(linked->kind()) {
+            case ASTNodeKind::FunctionParam:{
+                const auto type = linked->as_func_param_unsafe()->type->canonical();
+                switch(type->kind()) {
+                    case BaseTypeKind::Reference:
+                        return true;
+                    case BaseTypeKind::Dynamic:
+                    case BaseTypeKind::CapturingFunction:
+                        return false;
+                    default:
+                        break;
+                }
+                return type->isStructLikeType();
+            }
+            case ASTNodeKind::StructMember:{
+                const auto type = linked->as_struct_member_unsafe()->type;
+                if(type->is_reference()) {
+                    return true;
+                }
+                return false;
+            }
+            default:
+                return false;
+        }
+    } else {
+        return false;
+    }
+}
+
+bool is_value_param_pointer_or_ref_like_in_call(Value* value) {
+    const auto val_type = value->getType()->canonical();
+    if(val_type->kind() == BaseTypeKind::Reference) {
+        return true;
+    }
+    const auto linked = value->linked_node();
+    if(linked) {
+        switch(linked->kind()) {
+            case ASTNodeKind::FunctionParam:{
+                const auto type = linked->as_func_param_unsafe()->type->canonical();
+                switch(type->kind()) {
+                    case BaseTypeKind::Dynamic:
+                    case BaseTypeKind::CapturingFunction:
+                        return false;
+                    case BaseTypeKind::String:
+                    case BaseTypeKind::Reference:
+                    case BaseTypeKind::Pointer:
+                        return true;
+                    default:
+                        break;
+                }
+                return type->isStructLikeType();
+            }
+            default:
+                return false;
+        }
+    } else {
+        return false;
+    }
+}
+
 bool is_value_param_pointer_or_ref_like(Value* value) {
     const auto val_type = value->getType()->canonical();
     if(val_type->kind() == BaseTypeKind::Reference) {
@@ -1065,24 +1128,18 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
                     visitor.write('*');
                 }
             } else {
+                if (is_value_param_pointer_or_ref_like_in_call(val)) {
+                    visitor.write('*');
+                }
                 visitor.write("({ ");
                 set_moved_ref_drop_flag(visitor, val);
                 visitor.space();
-                if (is_value_param_pointer_like(val)) {
-                    visitor.write('*');
-                }
             }
         }
         const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
         bool accept_value = true;
         if(isStructLikeTypePtr && !is_memcpy_ref_str) {
-            if(is_capturing_function) {
-                if(!is_value_param_hidden_pointer(val)) {
-                    visitor.write('&');
-                }
-            } else {
-                visitor.write('&');
-            }
+            visitor.write('&');
         } else if(is_param_type_ref && !val->is_ptr_or_ref(visitor.allocator)) {
             accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
         }

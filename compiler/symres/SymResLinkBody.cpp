@@ -1915,8 +1915,9 @@ void materialize_argument_type(ASTAllocator& allocator, ASTDiagnoser& diagnoser,
     }
 }
 
-void report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& diagnoser, FunctionCall* call) {
+void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
 
+    const auto call = this;
     const auto parent_val = call->parent_val;
     auto& values = call->values;
 
@@ -2118,7 +2119,7 @@ instantiate_block:
 
         // report concrete types, for example lambda functions
         // so they know the expected types
-        report_concrete_types(*resolver.ast_allocator, resolver, call);
+        call->report_concrete_types(*resolver.ast_allocator, resolver);
 
     } else if(gen_var_decl) {
         auto new_link = gen_var_decl->instantiate_call(resolver.genericInstantiator, call, expected_type);

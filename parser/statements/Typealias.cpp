@@ -114,22 +114,25 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
 
         ASTNode* final_decl = alias;
 
+        const auto prev_parent_node = parent_node;
+
         if(token->type == TokenType::LessThanSym) {
 
-            std::vector<GenericTypeParameter*> gen_params;
-            parseGenericParametersList(allocator, gen_params);
+            const auto gen_decl = new(allocator.allocate<GenericTypeDecl>()) GenericTypeDecl(
+                    alias, prev_parent_node, loc
+            );
 
-            if (!gen_params.empty()) {
+            parent_node = gen_decl;
 
-                const auto gen_decl = new(allocator.allocate<GenericTypeDecl>()) GenericTypeDecl(
-                        alias, parent_node, loc
-                );
+            parseGenericParametersList(allocator, gen_decl->generic_params);
 
-                final_decl = gen_decl;
+            alias->generic_parent = gen_decl;
 
-                gen_decl->generic_params = std::move(gen_params);
+            final_decl = gen_decl;
 
-            }
+        } else {
+
+            parent_node = alias;
 
         }
 
@@ -161,6 +164,8 @@ ASTNode* Parser::parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifie
                 break;
             }
         }
+
+        parent_node = prev_parent_node;
 
         return final_decl;
     } else {

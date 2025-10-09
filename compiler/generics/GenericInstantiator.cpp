@@ -318,13 +318,12 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
     const auto linked = linked_ptr;
     switch(linked->kind()) {
         case ASTNodeKind::TypealiasStmt: {
-            if(type->inlined) {
-                // we inlined this type, now we create concrete type by instantiating it
-                const auto alias = linked->as_typealias_unsafe();
+            // we inlined this type, now we create concrete type by instantiating it
+            const auto alias = linked->as_typealias_unsafe();
+            if(alias->attrs.is_inlined) {
                 GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
                 GenericInstantiatorAPI genApi(&instantiator);
                 linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types);
-                return;
             }
             visit(type->referenced);
             return;

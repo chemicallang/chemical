@@ -15,7 +15,6 @@ public:
 
     LinkedType* referenced;
     std::vector<TypeLoc> types;
-    bool inlined = false;
 
     /**
      * constructor

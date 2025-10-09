@@ -29,6 +29,13 @@ struct TypealiasDeclAttributes {
      */
     bool is_no_mangle = false;
 
+    /**
+     * a boolean set off when this typealias is used
+     * in a generic context and is itself a template
+     * for generic
+     */
+    bool is_inlined = false;
+
 };
 
 class TypealiasStatement : public ASTNode {

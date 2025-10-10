@@ -31,6 +31,14 @@ func take_cap_func2(fun : std::function<(a : int) => int>) : int {
     return fun(8327)
 }
 
+func <T> gen_cap_lamb() : T {
+    var my_var : T = 99234
+    var lamb : std::function<() => T> = |my_var|() => {
+        return my_var
+    }
+    return lamb()
+}
+
 func test_capturing_lambda() {
     test("capturing lambda works in var init", () => {
         var temp = 11;
@@ -153,6 +161,12 @@ func test_capturing_lambda() {
             return arr[index]
         })
         return arg == 23485
+    })
+    test("capturing lambda with capturing variable works in generic container - 1", () => {
+        return gen_cap_lamb<int>() == 99234
+    })
+    test("capturing lambda with capturing variable works in generic container - 2", () => {
+        return gen_cap_lamb<uint>() == 99234u
     })
     test_capturing_lambda_destruction()
 }

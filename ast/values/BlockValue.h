@@ -1,5 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
+#pragma once
+
 #include "ast/base/Value.h"
 #include "ast/structures/Scope.h"
 

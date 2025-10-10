@@ -3,13 +3,12 @@
 #pragma once
 
 #include "SubVisitor.h"
-#include "preprocess/visitors/RecursiveValueVisitor.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 #include <string>
 
-class CBeforeStmtVisitor : public RecursiveValueVisitor<CBeforeStmtVisitor>, public SubVisitor {
+class CBeforeStmtVisitor : public RecursiveVisitor<CBeforeStmtVisitor>, public SubVisitor {
 public:
 
-    using RecursiveValueVisitor<CBeforeStmtVisitor>::visit;
     using SubVisitor::SubVisitor;
 
     void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const chem::string_view& identifier);

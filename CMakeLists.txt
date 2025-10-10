@@ -464,7 +464,6 @@ set(COMMON_SOURCES
         preprocess/visitors/NonRecursiveVisitor.h
         ast/base/ast_fwd.h
         ast/base/IntNTypeKind.h
-        preprocess/visitors/RecursiveValueVisitor.h
         ast/structures/GenericFuncDecl.h
         ast/structures/BaseGenericDecl.h
         compiler/generics/GenericInstantiator.h

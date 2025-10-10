@@ -285,6 +285,13 @@ func <T> gen_lamb_func() : T {
     return lamb()
 }
 
+func <T> gen_lamb_with_param() : T {
+    var lamb : (a : T) => T = (a : T) => {
+        return a;
+    }
+    return lamb(93837)
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -610,5 +617,11 @@ func test_basic_generics() {
     })
     test("lambda functions can exist inside generic functions - 2", () => {
         return gen_lamb_func<uint>() == 287u
+    })
+    test("lambda function in generic container works with parameters", () => {
+        return gen_lamb_with_param<int>() == 93837
+    })
+    test("lambda function in generic container works with parameters", () => {
+        return gen_lamb_with_param<uint>() == 93837u
     })
 }

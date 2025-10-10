@@ -148,6 +148,13 @@ void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
 }
 
+void GenericInstantiator::VisitCapturedVariable(CapturedVariable* variable) {
+    const auto node = table.resolve(variable->name);
+    if(node) {
+        variable->linked = node;
+    }
+}
+
 void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
     RecursiveVisitor<GenericInstantiator>::VisitPatternMatchExpr(value);
 

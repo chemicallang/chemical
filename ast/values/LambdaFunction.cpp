@@ -192,6 +192,9 @@ Value* LambdaFunctionCopy::copy(ASTAllocator& allocator) {
     const auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(
         current->isVariadic(), scope.parent(), encoded_location()
     );
+    for(const auto captured : current->captureList) {
+        lambda->captureList.emplace_back(captured->copy(allocator));
+    }
     scope.copy_into(lambda->scope, allocator, scope.parent());
     current->FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
     return lambda;

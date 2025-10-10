@@ -2234,7 +2234,9 @@ void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     for(auto& type : gen_type->types) {
         visit(type);
     }
-    if(!linker.generic_context) {
+    if(linker.generic_context) {
+        gen_type->instantiate_inline(linker.genericInstantiator, type_location);
+    } else {
         gen_type->instantiate(linker.genericInstantiator, type_location);
     }
 }

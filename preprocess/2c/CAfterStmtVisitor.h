@@ -4,12 +4,11 @@
 
 #include "SubVisitor.h"
 #include <string>
-#include "preprocess/visitors/RecursiveValueVisitor.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 
-class CAfterStmtVisitor : public RecursiveValueVisitor<CAfterStmtVisitor>, public SubVisitor {
+class CAfterStmtVisitor : public RecursiveVisitor<CAfterStmtVisitor>, public SubVisitor {
 public:
 
-    using RecursiveValueVisitor<CAfterStmtVisitor>::visit;
     using SubVisitor::SubVisitor;
 
     bool destruct_call = false;

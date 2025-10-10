@@ -1586,7 +1586,7 @@ void CBeforeStmtVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
     // visit the values
-    RecursiveValueVisitor::VisitFunctionCall(call);
+    RecursiveVisitor::VisitFunctionCall(call);
 
     // get function type
     const auto func_type = call->function_type();
@@ -1748,7 +1748,7 @@ void CBeforeStmtVisitor::VisitVariableIdentifier(VariableIdentifier *identifier)
 
 void CBeforeStmtVisitor::VisitAccessChain(AccessChain *chain) {
 
-    RecursiveValueVisitor::VisitAccessChain(chain);
+    RecursiveVisitor::VisitAccessChain(chain);
 
 }
 
@@ -1870,7 +1870,7 @@ void CBeforeStmtVisitor::VisitVarInitStmt(VarInitStatement *init) {
 //    if (!init->type) {
 //        init->type = init->value->getType();
 //    }
-    RecursiveValueVisitor::VisitVarInitStmt(init);
+    RecursiveVisitor::VisitVarInitStmt(init);
 }
 
 CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
@@ -2247,7 +2247,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
 }
 
 void CAfterStmtVisitor::VisitAccessChain(AccessChain *chain) {
-    RecursiveValueVisitor::VisitAccessChain(chain);
+    RecursiveVisitor::VisitAccessChain(chain);
 }
 
 void CAfterStmtVisitor::VisitFunctionCall(FunctionCall *call) {
@@ -2740,7 +2740,7 @@ void call_struct_member_delete_fn(
 }
 
 void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
-    RecursiveValueVisitor::VisitLambdaFunction(lamb);
+    RecursiveVisitor::VisitLambdaFunction(lamb);
     std::string lamb_name = "__chemda_";
     lamb_name += std::to_string(random(100,999)) + "_";
     lamb_name += std::to_string(lambda_num++);
@@ -2838,7 +2838,7 @@ void CValueDeclarationVisitor::VisitReturnStmt(ReturnStatement *stmt) {
 //        }
 //    }
 
-    RecursiveValueVisitor::VisitReturnStmt(stmt);
+    RecursiveVisitor::VisitReturnStmt(stmt);
 
 }
 
@@ -2860,7 +2860,7 @@ void CValueDeclarationVisitor::VisitFunctionCall(FunctionCall *call) {
 //            i++;
 //        }
 //    }
-    RecursiveValueVisitor::VisitFunctionCall(call);
+    RecursiveVisitor::VisitFunctionCall(call);
 }
 
 void CValueDeclarationVisitor::VisitArrayValue(ArrayValue *arrayVal) {
@@ -2877,7 +2877,7 @@ void CValueDeclarationVisitor::VisitArrayValue(ArrayValue *arrayVal) {
 //        }
 //    }
 
-    RecursiveValueVisitor::VisitArrayValue(arrayVal);
+    RecursiveVisitor::VisitArrayValue(arrayVal);
 
 }
 
@@ -2893,7 +2893,7 @@ void CValueDeclarationVisitor::VisitStructValue(StructValue *structValue) {
 //        }
 //    }
 
-    RecursiveValueVisitor::VisitStructValue(structValue);
+    RecursiveVisitor::VisitStructValue(structValue);
 
 }
 
@@ -3639,7 +3639,7 @@ void CValueDeclarationVisitor::VisitFunctionType(FunctionType *type) {
 
 void CValueDeclarationVisitor::VisitStructMember(StructMember *member) {
     if(member->type->kind() != BaseTypeKind::Function) {
-        RecursiveValueVisitor::VisitStructMember(member);
+        RecursiveVisitor::VisitStructMember(member);
     }
 }
 
@@ -3651,7 +3651,7 @@ void CValueDeclarationVisitor::VisitIfStmt(IfStatement *stmt) {
         }
         return;
     }
-    RecursiveValueVisitor::VisitIfStmt(stmt);
+    RecursiveVisitor::VisitIfStmt(stmt);
 }
 
 void declare_fat_pointer(ToCAstVisitor& visitor) {

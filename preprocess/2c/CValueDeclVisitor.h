@@ -3,16 +3,14 @@
 #pragma once
 
 #include "SubVisitor.h"
-#include "preprocess/visitors/RecursiveValueVisitor.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 #include <string>
 #include <unordered_map>
 
-class CValueDeclarationVisitor : public RecursiveValueVisitor<CValueDeclarationVisitor>, public SubVisitor {
+class CValueDeclarationVisitor : public RecursiveVisitor<CValueDeclarationVisitor>, public SubVisitor {
 public:
 
     using SubVisitor::SubVisitor;
-
-    using RecursiveValueVisitor<CValueDeclarationVisitor>::visit;
 
     std::unordered_map<void*, std::string> aliases;
 

@@ -16,7 +16,6 @@
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/structures/EnumDeclaration.h"
-//#include "ast/statements/Import.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/PatternMatchExprNode.h"
@@ -43,7 +42,13 @@
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/CapturedVariable.h"
-//#include "ast/structures/MembersContainer.h"
+#include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/GenericTypeDecl.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericImplDecl.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/types/ReferenceType.h"
@@ -51,36 +56,14 @@
 #include "ast/types/FunctionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/IfType.h"
-//#include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/CapturingFunctionType.h"
-//#include "ast/types/BigIntType.h"
-//#include "ast/types/BoolType.h"
-//#include "ast/types/CharType.h"
-//#include "ast/types/DoubleType.h"
-//#include "ast/types/FloatType.h"
-//#include "ast/types/Int128Type.h"
-//#include "ast/types/IntNType.h"
-//#include "ast/types/IntType.h"
-//#include "ast/types/LongType.h"
-//#include "ast/types/ShortType.h"
-//#include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/UnionType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/LiteralType.h"
 #include "ast/types/MaybeRuntimeType.h"
 #include "ast/types/RuntimeType.h"
-//#include "ast/types/UBigIntType.h"
-//#include "ast/types/UInt128Type.h"
-//#include "ast/types/UIntType.h"
-//#include "ast/types/ULongType.h"
-//#include "ast/types/UShortType.h"
-//#include "ast/types/VoidType.h"
-//#include "ast/values/UShortValue.h"
-//#include "ast/values/VariableIdentifier.h"
-//#include "ast/values/IntValue.h"
-//#include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
@@ -89,9 +72,6 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/ExpressiveString.h"
-//#include "ast/values/BigIntValue.h"
-//#include "ast/values/BoolValue.h"
-//#include "ast/values/CharValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/IsValue.h"
@@ -99,13 +79,11 @@
 #include "ast/values/IfValue.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
-//#include "ast/values/FloatValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/values/TypeInsideValue.h"
-//#include "ast/values/IntNumValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/NotValue.h"
@@ -122,12 +100,6 @@
 #include "ast/statements/AliasStmt.h"
 #include "ast/values/ExtractionValue.h"
 #include "ast/values/DynamicValue.h"
-//#include "ast/values/ShortValue.h"
-//#include "ast/values/StringValue.h"
-//#include "ast/values/UBigIntValue.h"
-//#include "ast/values/UInt128Value.h"
-//#include "ast/values/UIntValue.h"
-//#include "ast/values/ULongValue.h"
 #include "ast/values/EmbeddedValue.h"
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
@@ -292,10 +264,52 @@ public:
         VisitVariables(def->variables());
     }
 
-    inline void VisitStructDecl(StructDefinition *def) {
+    void VisitStructDecl(StructDefinition *def) {
         VisitVariables(def->variables());
         for(const auto func : def->functions()) {
             NonRecursiveVisitor<Derived>::visit(func);
+        }
+    }
+
+    void VisitGenericFuncDecl(GenericFuncDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitFunctionDecl(decl);
+        }
+    }
+
+    void VisitGenericTypeDecl(GenericTypeDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitTypealiasStmt(decl);
+        }
+    }
+
+    void VisitGenericStructDecl(GenericStructDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitStructDecl(decl);
+        }
+    }
+
+    void VisitGenericUnionDecl(GenericUnionDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitUnionDecl(decl);
+        }
+    }
+
+    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitInterfaceDecl(decl);
+        }
+    }
+
+    void VisitGenericVariantDecl(GenericVariantDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitVariantDecl(decl);
+        }
+    }
+
+    void VisitGenericImplDecl(GenericImplDecl* node) {
+        for(const auto decl : node->instantiations) {
+            static_cast<Derived*>(this)->VisitImplDecl(decl);
         }
     }
 

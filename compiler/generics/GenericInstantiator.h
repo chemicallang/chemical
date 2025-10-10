@@ -154,6 +154,7 @@ public:
         current_func_type = func;
         RecursiveVisitor<GenericInstantiator>::VisitLambdaFunction(func);
         current_func_type = prev;
+        VisitFunctionType(func->as_function_type_unsafe());
     }
 
     void VisitSwitchStmt(SwitchStatement* node);

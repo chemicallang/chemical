@@ -932,6 +932,10 @@ std::string Value::representation() {
 }
 
 Value* Value::scope_value(InterpretScope& scope) {
+    if(kind() == ValueKind::LambdaFunc) {
+        // prevents copying of lambda function
+        return this;
+    }
     const auto eval = evaluated_value(scope);
     if(eval == this) {
         return copy(scope.allocator);

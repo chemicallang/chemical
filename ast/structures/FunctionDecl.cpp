@@ -1115,15 +1115,8 @@ Value *FunctionDeclaration::call(
         const auto param = func_param_for_arg_at(i);
         if(!param) break;
         Value* param_val;
-        if(evaluate_refs) {
-            param_val = call_args[i]->scope_value(*call_scope);
-        } else {
-//            if(call_args[i]->reference()) {
-//                param_val = call_args[i]->copy(allocator);
-//            } else {
-                param_val = call_args[i]->scope_value(*call_scope);
-//            }
-        }
+        const auto arg = call_args[i];
+        param_val = arg->scope_value(*call_scope);
         fn_scope->declare(param->name, param_val);
         i++;
     }

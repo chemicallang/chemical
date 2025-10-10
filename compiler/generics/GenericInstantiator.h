@@ -129,6 +129,8 @@ public:
 
     void VisitLinkedType(LinkedType* type);
 
+    void VisitCapturedVariable(CapturedVariable* node);
+
     void VisitGenericType(GenericType* type);
 
     void VisitStructValue(StructValue *val);

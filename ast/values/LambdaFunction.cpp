@@ -187,12 +187,12 @@ bool LambdaFunction::has_destructor_for_capture() {
 }
 
 Value* LambdaFunctionCopy::copy(ASTAllocator& allocator) {
-    // TODO:
-//        const auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(
-//            isVariadic(), scope.parent(), getType(), encoded_location()
-//        );
-//        scope.copy_into(lambda->scope, allocator, scope.parent());
-//        FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
-//        return lambda;
-    return this;
+    const auto current = (LambdaFunction*) this;
+    auto& scope = current->scope;
+    const auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(
+        current->isVariadic(), scope.parent(), encoded_location()
+    );
+    scope.copy_into(lambda->scope, allocator, scope.parent());
+    current->FunctionTypeBody::copy_into(*lambda, allocator, scope.parent());
+    return lambda;
 }

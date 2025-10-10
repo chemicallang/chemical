@@ -278,6 +278,13 @@ func <T> ret_lamb_ret1(lamb : () => T) : T {
     return lamb();
 }
 
+func <T> gen_lamb_func() : T {
+    var lamb : () => T = () => {
+        return 287;
+    }
+    return lamb()
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -597,5 +604,11 @@ func test_basic_generics() {
     test("generic functions returning a lambda with generic return type work - 1", () => {
         var res = ret_lamb_ret1<int>(() => 98324)
         return res == 98324
+    })
+    test("lambda functions can exist inside generic functions - 1", () => {
+        return gen_lamb_func<int>() == 287
+    })
+    test("lambda functions can exist inside generic functions - 2", () => {
+        return gen_lamb_func<uint>() == 287u
     })
 }

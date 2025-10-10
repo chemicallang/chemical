@@ -148,11 +148,44 @@ void GenericInstantiator::VisitLinkedType(LinkedType* type) {
 
 }
 
-void GenericInstantiator::VisitCapturedVariable(CapturedVariable* variable) {
-    const auto node = table.resolve(variable->name);
-    if(node) {
-        variable->linked = node;
+void GenericInstantiator::VisitLambdaFunction(LambdaFunction *func) {
+
+    // the function type of a lambda is inferred from expected type
+    // which can be generic, so we must visit that
+    VisitFunctionType(func->as_function_type_unsafe());
+
+    // set the current function type to lambda
+    const auto prev = current_func_type;
+    current_func_type = func;
+
+    // start a scope (we must drop parameters & captured variables symbols, after lambda ends)
+    table.scope_start();
+
+    // handle the captured variables
+    for(auto& var : func->captureList) {
+        // re-resolve the captured variables
+        const auto node = table.resolve(var->name);
+        if(node) {
+            var->linked = node;
+        }
+        // declare the new captured variable as well
+        table.declare(var->name, var);
     }
+
+    // handle the parameters of lambda
+    for(const auto param : func->params) {
+        table.declare(param->name_view(), param);
+    }
+
+    // visit the scope
+    visit_it(func->scope);
+
+    // this would drop the parameters and captured variables symbols we introduced
+    table.scope_end();
+
+    // set the previous function type
+    current_func_type = prev;
+
 }
 
 void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {

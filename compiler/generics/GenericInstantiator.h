@@ -129,8 +129,6 @@ public:
 
     void VisitLinkedType(LinkedType* type);
 
-    void VisitCapturedVariable(CapturedVariable* node);
-
     void VisitGenericType(GenericType* type);
 
     void VisitStructValue(StructValue *val);
@@ -151,13 +149,7 @@ public:
         table.declare(node->name_view(), node);
     }
 
-    void VisitLambdaFunction(LambdaFunction *func) {
-        const auto prev = current_func_type;
-        current_func_type = func;
-        RecursiveVisitor<GenericInstantiator>::VisitLambdaFunction(func);
-        current_func_type = prev;
-        VisitFunctionType(func->as_function_type_unsafe());
-    }
+    void VisitLambdaFunction(LambdaFunction *func);
 
     void VisitSwitchStmt(SwitchStatement* node);
 

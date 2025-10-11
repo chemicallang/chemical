@@ -459,7 +459,7 @@ llvm::Value *call_capturing_lambda(
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     const auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
     gen.di.instr(lambda, call);
-    const auto instr = gen.builder->CreateCall(func_type->llvm_func_type(gen), lambda, args);
+    const auto instr = gen.builder->CreateCall(func_type->llvm_capturing_func_type(gen), lambda, args);
     gen.di.instr(instr, call);
     return instr;
 }
@@ -602,7 +602,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto parent_type = parent_val->getType()->canonical();
     const auto func_type = func_type_from_parent_type(parent_type);
-    if(func_type->isCapturing()) {
+    if(parent_type->kind() == BaseTypeKind::CapturingFunction || func_type->isCapturing()) {
         return call_capturing_lambda(gen, this, func_type, destructibles);
     }
 

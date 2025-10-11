@@ -888,6 +888,9 @@ llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *CapturedVariable::llvm_load(Codegen& gen, SourceLocation location) {
+    if(known_type()->isStructLikeType()) {
+        return llvm_pointer(gen);
+    }
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
     gen.di.instr(loadInst, location);
     return loadInst;

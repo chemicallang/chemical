@@ -39,6 +39,27 @@ func <T> gen_cap_lamb() : T {
     return lamb()
 }
 
+func wrap_cap_lamb(ptr : *mut int, fn : std::function<() => int>) : std::function<() => void> {
+    return |ptr, fn|() => {
+        var result = fn()
+        *ptr = result
+    }
+}
+
+struct CapLambdContainerStruct {
+    var fn : std::function<() => void>
+}
+
+func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdContainerStruct {
+    var wrap_fn : std::function<() => void> = |ptr, fn|() => {
+        var result = fn()
+        *ptr = result
+    }
+    return CapLambdContainerStruct {
+        fn : wrap_fn
+    }
+}
+
 func test_capturing_lambda() {
     test("capturing lambda works in var init", () => {
         var temp = 11;
@@ -167,6 +188,22 @@ func test_capturing_lambda() {
     })
     test("capturing lambda with capturing variable works in generic container - 2", () => {
         return gen_cap_lamb<uint>() == 99234u
+    })
+    test("wrapping a capturing lambda works - 1", () => {
+        var result : int = 0
+        var x = wrap_cap_lamb(&mut result, ||() => {
+            return 92348324
+        })
+        x()
+        return result == 92348324
+    })
+    test("wrapping a capturing lambda works - 2", () => {
+        var result : int = 10
+        var x = wrap_cap_lamb_2(&mut result, |result|() => {
+            return result + 10
+        })
+        x.fn()
+        return result == 20
     })
     test_capturing_lambda_destruction()
 }

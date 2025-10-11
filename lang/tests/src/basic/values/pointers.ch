@@ -36,6 +36,10 @@ func send_a_struct_ptr(pathname : a_struct_ptr) : bool {
     return take_a_struct_ptr(pathname) == pathname
 }
 
+func check_int_to_ptr_cast(ptr : *mut int) : bool {
+    return ptr == null;
+}
+
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
@@ -149,5 +153,8 @@ func test_pointer_math() {
         var arr = [ 10, 20, 30 ]
         var first = &mut arr[0]
         return first[2] == 30
+    })
+    test("int to pointer cast works", () => {
+        return check_int_to_ptr_cast(0 as *mut int)
     })
 }

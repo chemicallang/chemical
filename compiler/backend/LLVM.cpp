@@ -899,10 +899,16 @@ llvm::Value* CastedValue::llvm_pointer(Codegen &gen) {
 llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
     const auto value_type_real = value->getType();
-    const auto value_type = value_type_real->pure_type(gen.allocator);
+    const auto value_type = value_type_real->canonical();
     const auto type = getType();
-    const auto pure_type = getType()->pure_type(gen.allocator);
+    const auto pure_type = getType()->canonical();
+    if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::Pointer) {
+        // casting integer to pointer
+        const auto instr = gen.builder->CreateIntToPtr(llvm_val, pure_type->llvm_type(gen));
+        return instr;
+    }
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
+        // integer to integer cast
         auto from_num_type = (IntNType*) value_type;
         auto to_num_type = (IntNType*) pure_type;
         const auto from_num_bits = from_num_type->num_bits(gen.is64Bit);

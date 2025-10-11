@@ -1053,6 +1053,20 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool ass
     accept_mutating_value_explicit(type, value, assigning_value);
 }
 
+void accept_movable_ref_value(ToCAstVisitor& visitor, BaseType* known_type, Value* value, bool assigning_value) {
+    if(value->is_ref_moved()) {
+        // since we're moving the value here
+        // what we must do is set the drop flag to false
+        visitor.write("({ ");
+        set_moved_ref_drop_flag(visitor, value);
+        visitor.space();
+        visitor.accept_mutating_value(known_type, value, assigning_value);
+        visitor.write("; })");
+    } else {
+        visitor.accept_mutating_value(known_type, value, assigning_value);
+    }
+}
+
 void visit_subscript_arr_type(ToCAstVisitor& visitor, BaseType* type) {
     if(visitor.array_types_as_subscript) {
         visitor.visit(type);
@@ -1398,18 +1412,7 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
         write_type_post_id(visitor, type);
     }
     visitor.write(" = ");
-
-    if(value->is_ref_moved()) {
-        // since we're moving the value here
-        // what we must do is set the drop flag to false
-        visitor.write("({ ");
-        set_moved_ref_drop_flag(visitor, value);
-        visitor.space();
-        visitor.accept_mutating_value(type, value, true);
-        visitor.write("; })");
-    } else {
-        visitor.accept_mutating_value(type, value, true);
-    }
+    accept_movable_ref_value(visitor, type, value, true);
     visitor.write(';');
 }
 
@@ -1792,18 +1795,7 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         visitor.write('.');
         visitor.write(value.second->name);
         visitor.write(" = ");
-        const auto val = call->values[i];
-        if(val->is_ref_moved()) {
-            // since we're moving the value here
-            // what we must do is set the drop flag to false
-            visitor.write("({ ");
-            set_moved_ref_drop_flag(visitor, val);
-            visitor.space();
-            visitor.accept_mutating_value(value.second->type, val, false);
-            visitor.write("; })");
-        } else {
-            visitor.accept_mutating_value(value.second->type, val, false);
-        }
+        accept_movable_ref_value(visitor, value.second->type, call->values[i], false);
         i++;
     }
 
@@ -2186,19 +2178,7 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     visitor.write('=');
     visitor.write(' ');
-
-    const auto value = assign->value;
-    if(value->is_ref_moved()) {
-        // since we're moving the value here
-        // what we must do is set the drop flag to false
-        visitor.write("({ ");
-        set_moved_ref_drop_flag(visitor, value);
-        visitor.space();
-        visitor.accept_mutating_value(type, value, true);
-        visitor.write("; })");
-    } else {
-        visitor.accept_mutating_value(type, value, true);
-    }
+    accept_movable_ref_value(visitor, type, assign->value, true);
 
 }
 
@@ -2755,11 +2735,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         for(auto& var : lamb->captureList) {
             aliases[var] = capture_struct_name;
             visitor.new_line_and_indent();
-            if(var->capture_by_ref) {
-                visitor.visit(var->known_type());
-            } else {
-                visitor.visit(var->linked->known_type());
-            }
+            visitor.visit(var->known_type());
             visitor.space();
             visitor.write(var->name);
             visitor.write(';');
@@ -3874,7 +3850,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
                 write("->");
                 write(mem.first);
                 write(" = ");
-                accept_mutating_value(child_member ? child_member->known_type() : nullptr, mem.second.value, false);
+                accept_movable_ref_value(*this, child_member ? child_member->known_type() : nullptr, mem.second.value, false);
             }
             const auto container = struct_val->variables();
             for(const auto mem : container->variables()) {
@@ -5998,18 +5974,7 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
     nested_value = true;
     const auto elem_type = arr->element_type(allocator);
     while(i < arr->values.size()) {
-        const auto value = arr->values[i];
-        if(value->is_ref_moved()) {
-            // since we're moving the value here
-            // what we must do is set the drop flag to false
-            write("({ ");
-            set_moved_ref_drop_flag(*this, value);
-            space();
-            accept_mutating_value(elem_type, value, false);
-            write("; })");
-        } else {
-            accept_mutating_value(elem_type, value, false);
-        }
+        accept_movable_ref_value(*this, elem_type, arr->values[i], false);
         if(i != arr->values.size() - 1) {
             write(',');
         }
@@ -6151,17 +6116,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         write('.');
         write(value.first);
         write(" = ");
-        if(value.second.value->is_ref_moved()) {
-            // since we're moving the value here
-            // what we must do is set the drop flag to false
-            write("({ ");
-            set_moved_ref_drop_flag(*this, value.second.value);
-            space();
-            accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
-            write("; })");
-        } else {
-            accept_mutating_value(member ? member->known_type() : nullptr, value.second.value, false);
-        }
+        accept_movable_ref_value(*this, member ? member->known_type() : nullptr, value.second.value, false);
     }
 
     // default initialize the direct variables
@@ -6843,7 +6798,9 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
         if (cap->capture_by_ref) {
             visitor.write('&');
         }
-        visitor.write(cap->name);
+        VariableIdentifier id(cap->name, cap->known_type(), cap->encoded_location());
+        id.linked = cap->linked;
+        visitor.accept_mutating_value(id.getType(), &id, false);
         if (i != func->captureList.size() - 1) {
             visitor.write(',');
         }

@@ -63,12 +63,12 @@ void llvm_func_param_types_into(
     }
 }
 
-std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType, isCapturing(), isVariadic(), as_function());
+std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen, bool capturing) {
+    return llvm_func_param_types(gen, params, returnType, capturing, isVariadic(), as_function());
 }
 
-llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
-    return llvm::FunctionType::get(llvm_func_return(gen, returnType), param_types(gen), isVariadic());
+llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen, bool capturing) {
+    return llvm::FunctionType::get(llvm_func_return(gen, returnType), param_types(gen, capturing), isVariadic());
 }
 
 llvm::Type *FunctionType::llvm_type(Codegen &gen) {
@@ -611,7 +611,6 @@ bool FunctionTypeBody::mark_moved_value(
     const auto linked_node_kind = linked_node->kind();
     // TODO this doesn't account for typealiases
     if(linked_node_kind == ASTNodeKind::GenericTypeParam) {
-
         return mark_moved_value(&value, diagnoser);
     }
     if(!ASTNode::isMembersContainer(linked_node_kind)) {
@@ -631,6 +630,9 @@ bool FunctionTypeBody::mark_moved_value(
                 diagnoser.error("cannot move a struct to a non struct type", &value);
             }
             return false;
+        }
+        if(expected_node->kind() == ASTNodeKind::GenericTypeParam) {
+            return mark_moved_value(&value, diagnoser);
         }
         switch(value.kind()) {
             case ValueKind::Identifier:

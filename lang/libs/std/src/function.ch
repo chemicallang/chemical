@@ -47,20 +47,23 @@ public struct default_function_instance {
         // set the destructor function for the given lambda
         dtor = destr
         // now lets store the data into buffer
-        if(size_data >= 32) {
+        // TODO: dynamically function pointer and function data pointer should be calculated
+        //  because on move the pointer gets invalidated, so we are taking a shortcut and putting
+        //  everything on heap until we can get this done
+        // if(size_data >= 32) {
             // we are going to need to allocate the lambda on heap, its too big
             // TODO: malloc call should take alignment malloc(size_data, align_data)
             var allocated = malloc(size_data) as *mut char
             memcpy(allocated, captured, size_data)
             fn_data_ptr = allocated
             is_heap = true;
-        } else {
-            // we are going to allocate it in buffer
-            var dest = &mut buffer[0]
-            memcpy(dest, captured, size_data)
-            fn_data_ptr = dest
-            is_heap = false;
-        }
+        // } else {
+        //     // we are going to allocate it in buffer
+        //     var dest = &mut buffer[0]
+        //     memcpy(dest, captured, size_data)
+        //     fn_data_ptr = dest
+        //     is_heap = false;
+        // }
     }
 
     @delete

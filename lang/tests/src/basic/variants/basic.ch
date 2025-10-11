@@ -437,6 +437,11 @@ func test_variants() {
         var second_size_of = sizeof(second)
         return first_size_of == second_size_of && first_size_of == expected_size
     })
+    test("assignment works with variant calls", () => {
+        var x = ImpVar22.None()
+        x = ImpVar22.Some(CheckImpParam22(99))
+        return x is ImpVar22.Some
+    })
     /** TODO:
     test("pointer to variant works in switch pattern match", () => {
         var p = new OptVariant

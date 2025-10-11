@@ -841,17 +841,32 @@ void FunctionCall::access_chain_assign_value(
         Value *lhs,
         BaseType *expected_type
 ) {
-    auto func = safe_linked_func();
-    if(func && func->returnType->isStructLikeType()) {
+    const auto parent_linked = parent_val->linked_node();
+    if(!parent_linked) {
+        goto default_case;
+    }
+    if(parent_linked->kind() == ASTNodeKind::FunctionDecl) {
+        const auto func = parent_linked->as_function_unsafe();
+        if(func->returnType->isStructLikeType()) {
+            // we allocate the returned struct, llvm_chain_value function
+            std::vector<llvm::Value *> args;
+            // TODO very dirty way of doing this, the function returns struct and that's why the pointer is being used to assign to it
+            //    returns nullptr because AssignStatement will assign the value for you, if you send it back, (THIS IS VERY BAD)
+            llvm_chain_value(gen, args, destructibles, lhsPtr);
+            return;
+        }
+    } else if(parent_linked->kind() == ASTNodeKind::VariantMember) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
         // TODO very dirty way of doing this, the function returns struct and that's why the pointer is being used to assign to it
         //    returns nullptr because AssignStatement will assign the value for you, if you send it back, (THIS IS VERY BAD)
         llvm_chain_value(gen, args, destructibles, lhsPtr);
-    } else {
-        const auto llvm_val = access_chain_value(gen, chain->values, until, destructibles, expected_type);
-        gen.assign_store(lhs, lhsPtr, chain, llvm_val, encoded_location());
+        return;
+        return;
     }
+default_case:
+    const auto llvm_val = access_chain_value(gen, chain->values, until, destructibles, expected_type);
+    gen.assign_store(lhs, lhsPtr, chain, llvm_val, encoded_location());
 }
 
 #endif

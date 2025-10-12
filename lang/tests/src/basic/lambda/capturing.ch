@@ -60,6 +60,13 @@ func wrap_cap_lamb_2(ptr : *mut int, fn : std::function<() => int>) : CapLambdCo
     }
 }
 
+struct CapLambRefStruct {
+    var value : int
+    func double(&self) : int {
+        return value * 2
+    }
+}
+
 func test_capturing_lambda() {
     test("capturing lambda works in var init", () => {
         var temp = 11;
@@ -204,6 +211,13 @@ func test_capturing_lambda() {
         })
         x.fn()
         return result == 20
+    })
+    test("struct captured via ref in lambda can be called methods on", () => {
+        var r = CapLambRefStruct { value : 92 }
+        var result = take_cap_func(|&mut r|() => {
+            return r.double()
+        })
+        return result == (92 + 92);
     })
     test_capturing_lambda_destruction()
 }

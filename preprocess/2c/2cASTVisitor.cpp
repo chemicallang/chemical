@@ -806,6 +806,13 @@ bool is_value_type_pointer_like(Value* value) {
                 }
                 return false;
             }
+            case ASTNodeKind::CapturedVariable: {
+                const auto cap = linked->as_captured_var_unsafe();
+                if(cap->capture_by_ref) {
+                    return true;
+                }
+                return cap->known_type()->isStructLikeType();
+            }
             default:
                 return false;
         }

@@ -348,6 +348,8 @@ FunctionType* BaseType::get_canonical_function_type() {
             return get_func_type_from_linked(as_linked_type_unsafe());
         case BaseTypeKind::Generic:
             return get_func_type_from_linked(as_generic_type_unsafe()->referenced);
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe()->func_type->get_canonical_function_type();
         default:
             return nullptr;
     }

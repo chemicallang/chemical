@@ -292,6 +292,20 @@ func <T> gen_lamb_with_param() : T {
     return lamb(93837)
 }
 
+struct GenFuncProvider<T> {
+    var value : T
+    func give_value(&self) : T {
+        return value;
+    }
+}
+
+struct GenFuncDelegateProvider<T> {
+    var ptr : *mut GenFuncProvider<T>
+    func get_value(&self) : T {
+        return ptr.give_value()
+    }
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -623,5 +637,13 @@ func test_basic_generics() {
     })
     test("lambda function in generic container works with parameters", () => {
         return gen_lamb_with_param<uint>() == 93837u
+    })
+    test("generic methods can call other generic methods which return structs", () => {
+        var giver = GenFuncProvider<GenAddTestStruct> {
+            value : GenAddTestStruct { a : 9234, b : 347 }
+        }
+        var provider = GenFuncDelegateProvider<GenAddTestStruct> { ptr : &mut giver }
+        var provided = provider.get_value()
+        return provided.a == 9234 && provided.b == 347
     })
 }

@@ -1141,6 +1141,22 @@ inline VariableIdentifier* get_parent_id(ChainValue* value) {
     return value->get_last_id();
 }
 
+void setParentType(Value* parent_val, BaseType* type) {
+    switch(parent_val->kind()) {
+        case ValueKind::Identifier:
+        case ValueKind::FunctionCall:
+        case ValueKind::IndexOperator:
+            parent_val->setType(type);
+            return;
+        case ValueKind::AccessChain:
+            setParentType(parent_val->as_access_chain_unsafe()->values.back(), type);
+            parent_val->setType(type);
+            return;
+        default:
+            return;
+    }
+}
+
 bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType* expected_type) {
     // relinking generic decl
     const auto parent_id = get_parent_id(parent_val);
@@ -1155,7 +1171,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 return false;
             }
             parent_id->linked = new_link;
-            parent_id->setType(new_link->known_type());
+            setParentType(parent_val, new_link->known_type());
             return true;
         }
         case ASTNodeKind::VariantMember:{
@@ -1173,7 +1189,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 }
                 const auto new_mem = new_link->direct_child(mem->name)->as_variant_member_unsafe();
                 parent_id->linked = new_mem;
-                parent_id->setType(new_mem->known_type());
+                setParentType(parent_val, new_mem->known_type());
             } else {
                 return true;
             }
@@ -1184,7 +1200,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
             auto constructorFunc = parent_struct->constructor_func(values);
             if(constructorFunc) {
                 parent_id->linked = constructorFunc;
-                parent_id->setType(constructorFunc->known_type());
+                setParentType(parent_val, constructorFunc->known_type());
                 return true;
             } else {
                 genApi.getDiagnoser().error(parent_id) << "struct with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << representation();
@@ -1197,7 +1213,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
             auto constructorFunc = parent_struct->constructor_func(values);
             if(constructorFunc) {
                 parent_id->linked = constructorFunc;
-                parent_id->setType(constructorFunc->known_type());
+                setParentType(parent_val, constructorFunc->known_type());
                 return true;
             } else {
                 genApi.getDiagnoser().error(parent_id) << "variant with name " << parent_struct->name_view() << " doesn't have a constructor that satisfies given arguments " << representation();

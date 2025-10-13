@@ -535,6 +535,9 @@ BaseType* ASTNode::get_stored_value_type(ASTAllocator& allocator, ASTNodeKind k)
                 return init->value->getType();
             }
         }
+        case ASTNodeKind::CapturedVariable: {
+            return as_captured_var_unsafe()->known_type();
+        }
         default:
             return nullptr;
     }

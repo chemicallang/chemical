@@ -534,6 +534,14 @@ func test_nodes() {
         var i = if(condition) first else 123 // 123 is i32
         return i == first
     })
+    test("different integer types in if value works - 2", () => {
+        var first = 2343u64
+        var condition = true
+        condition = false
+        condition = true
+        var i = if (first < 1u) 1u else first // 123 is i32
+        return i == first
+    })
     test("nested if in if value statements - 1", () => {
         var i = 2;
         var j = if(i > 0) if(i < 2) 10 else 20 else 30

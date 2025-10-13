@@ -367,7 +367,7 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionTypeBody* decl, llvm::Function* 
     // currently all functions go into the di compile unit scope (we don't know if it's right)
     // however saving the ll file fails if we use any other scope
     llvm::DISubprogram *SP = builder->createFunction(
-            diCompileUnit,
+            diCompileUnit->getFile(),
             name_view,
             func->getName(),  // Linkage name
             diCompileUnit->getFile(),

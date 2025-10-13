@@ -568,7 +568,6 @@ llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llv
 //    if(!is_exported) {
         // this will create a di subprogram and set it as current scope
         di.start_function_scope(func_type, fn);
-        di.start_scope(location);
         // what happens is an error when there's not a single implementation for an interface
         // because on windows, it requires a stub implementation
         createFunctionBlock(fn);
@@ -576,7 +575,6 @@ llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llv
         const auto returnType = type->getReturnType();
         create_return_of_type(*this, type->getReturnType(), location);
         // this will end the di subprogram
-        di.end_scope();
         di.end_function_scope();
 //    }
     return fn;

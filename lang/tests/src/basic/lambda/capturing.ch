@@ -67,6 +67,10 @@ struct CapLambRefStruct {
     }
 }
 
+struct CapLambRefContainer {
+    var value : CapLambRefStruct
+}
+
 func test_capturing_lambda() {
     test("capturing lambda works in var init", () => {
         var temp = 11;
@@ -218,6 +222,20 @@ func test_capturing_lambda() {
             return r.double()
         })
         return result == (92 + 92);
+    })
+    test("struct pointer captured by value in lambda can be called methods on", () => {
+        var s = new CapLambRefStruct
+        new (s) CapLambRefStruct { value : 32 }
+        var result = take_cap_func(|s|() => { return s.double() })
+        dealloc s
+        return result == 64
+    })
+    test("struct pointer captured by value in lambda can be called methods on its members", () => {
+        var s = new CapLambRefContainer
+        new (s) CapLambRefContainer { value : CapLambRefStruct { value : 33 } }
+        var result = take_cap_func(|s|() => { return s.value.double() })
+        dealloc s
+        return result == 66
     })
     test_capturing_lambda_destruction()
 }

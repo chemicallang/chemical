@@ -72,7 +72,8 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     // generating then code
     gen.SetInsertPoint(thenBlock);
     const auto ifBodyValue = stmt.ifBody.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
-    incoming.emplace_back(ifBodyValue, gen.builder->GetInsertBlock());
+    const auto casted = gen.implicit_cast(ifBodyValue, stmt.known_type(),ifBodyValue->getType());
+    incoming.emplace_back(casted, gen.builder->GetInsertBlock());
     bool is_then_returns = gen.has_current_block_ended;
     // TODO send the ending location of the block
     gen.CreateBr(endBlock, stmt.ifBody.encoded_location());
@@ -93,7 +94,8 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
         // generating block code
         gen.SetInsertPoint(pair.second);
         const auto elseIfVal = elif.second.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
-        incoming.emplace_back(elseIfVal, gen.builder->GetInsertBlock());
+        const auto castedElseIfVal = gen.implicit_cast(elseIfVal, stmt.known_type(),ifBodyValue->getType());
+        incoming.emplace_back(castedElseIfVal, gen.builder->GetInsertBlock());
         if(!gen.has_current_block_ended) {
             all_elseifs_return = false;
         }
@@ -107,7 +109,8 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     if (elseBlock) {
         gen.SetInsertPoint(elseBlock);
         const auto elseBlockVal = stmt.elseBody.value().code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
-        incoming.emplace_back(elseBlockVal, gen.builder->GetInsertBlock());
+        const auto castedElseVal = gen.implicit_cast(elseBlockVal, stmt.known_type(),ifBodyValue->getType());
+        incoming.emplace_back(castedElseVal, gen.builder->GetInsertBlock());
         is_else_returns = gen.has_current_block_ended;
         // TODO send the ending location of the block
         gen.CreateBr(endBlock, stmt.elseBody->encoded_location());
@@ -126,7 +129,7 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     const auto phi = gen.builder->CreatePHI(ifBodyValue->getType(), total_elseifs + 1 + (elseBlock ? 1 : 0));
 
     for(auto& inc : incoming) {
-        phi->addIncoming(gen.implicit_cast(inc.first, stmt.known_type(),ifBodyValue->getType()), inc.second);
+        phi->addIncoming(inc.first, inc.second);
     }
 
     return phi;

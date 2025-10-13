@@ -176,7 +176,7 @@ void body_gen_no_scope(Codegen &gen, llvm::Function* funcCallee, Scope& body, Fu
     // It's very important that we clear the evaluated function calls, before generating body
     // because different bodies of generic functions must reevaluate comptime functions
     gen.evaluated_func_calls.clear();
-    body.code_gen(gen, destruct_begin);
+    body.code_gen_no_scope(gen, destruct_begin);
     // TODO send the ending location of the body
     gen.end_function_block(func_type->body_location());
     gen.destruct_nodes = std::move(prev_destruct_nodes);

@@ -229,6 +229,21 @@ SymbolRange SymbolResolver::tld_declare_file(
     return SymbolRange { (unsigned int) start, (unsigned int) end };
 }
 
+void SymbolResolver::before_link_signature_file(
+        Scope& scope,
+        unsigned int fileId,
+        const SymbolRange& range
+) {
+    instContainer.current_file_id = fileId;
+    // we create a scope_index, this scope is strictly for private entries
+    // when this scope drops, every private symbol and non closed scope will automatically be dropped
+    const auto scope_index = file_scope_start();
+    enable_file_symbols(range);
+    // symbol resolve the scope
+    sym_res_before_signature(*this, &scope);
+    file_scope_end(scope_index);
+}
+
 void SymbolResolver::link_signature_file(
         Scope& scope,
         unsigned int fileId,
@@ -275,6 +290,7 @@ void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, co
     const auto end = stored_file_symbols.size();
     auto range = SymbolRange { (unsigned int) start, (unsigned int) end };
     enable_file_symbols(range);
+    sym_res_before_signature(*this, &scope);
     sym_res_signature(*this, &scope);
     sym_res_link_body(*this, &scope);
     file_scope_end(scope_index);

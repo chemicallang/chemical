@@ -143,6 +143,17 @@ void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::NamespaceDecl:
                 external_implement_nodes(node->as_namespace_unsafe()->nodes);
                 break;
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::UnionDecl:
+            case ASTNodeKind::VariantDecl:
+                // gotta handle the generic functions inside the structs
+                for(const auto func : node->as_members_container_unsafe()->functions()) {
+                    if(func->kind() == ASTNodeKind::GenericFuncDecl) {
+                        func->code_gen_declare(gen);
+                        func->code_gen(gen);
+                    }
+                }
+                break;
             default:
                 break;
         }

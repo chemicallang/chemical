@@ -340,6 +340,16 @@ public:
     /**
      * links the signature of the file
      */
+    void sym_res_before_link_sig_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path,
+            const SymbolRange& range
+    );
+
+    /**
+     * links the signature of the file
+     */
     void sym_res_link_sig_file(
             Scope& scope,
             unsigned int fileId,

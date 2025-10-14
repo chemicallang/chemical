@@ -483,8 +483,34 @@ void GenericInstantiator::VisitIncDecValue(IncDecValue* value) {
     value->setType(value->determine_type(diagnoser));
 }
 
+void set_param_addr_taken(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::Identifier: {
+            const auto l = value->as_identifier_unsafe()->linked;
+            switch(l->kind()) {
+                case ASTNodeKind::FunctionParam:
+                    l->as_func_param_unsafe()->set_has_address_taken(true);
+                    break;
+                default:
+                    break;
+            }
+            break;
+        }
+        case ValueKind::AccessChain: {
+            auto& values = value->as_access_chain_unsafe()->values;
+            if (values.size() == 1) {
+                set_param_addr_taken(values.back());
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 void GenericInstantiator::VisitAddrOfValue(AddrOfValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitAddrOfValue(value);
+    set_param_addr_taken(value->value);
     // type can change, must redetermine it
     value->determine_type();
 }

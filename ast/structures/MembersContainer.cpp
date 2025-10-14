@@ -111,8 +111,24 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
 }
 
 void MembersContainer::external_declare(Codegen& gen) {
-    for (auto& function: instantiated_functions()) {
-        function->code_gen_external_declare(gen);
+    for(const auto func : functions()) {
+        switch(func->kind()) {
+            default:
+                // TODO: multi function nodes could contain generics, which should be handled
+                func->code_gen_external_declare(gen);
+                break;
+            case ASTNodeKind::GenericFuncDecl:{
+                // we only external declare the instantiations that have been bodied
+                // because otherwise we'd end up with declarations and definitions in the same module
+                auto start = func->as_gen_func_decl_unsafe()->instantiations.data();
+                const auto end = start + func->as_gen_func_decl_unsafe()->total_bodied_instantiations;
+                while(start != end) {
+                    (*start)->code_gen_external_declare(gen);
+                    start++;
+                }
+                break;
+            }
+        }
     }
 }
 

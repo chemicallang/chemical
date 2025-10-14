@@ -27,6 +27,11 @@ public:
     std::vector<TypealiasStatement*> instantiations;
 
     /**
+     * these are inline instantiations which probably occurred before link_signature
+     */
+    std::vector<std::pair<TypealiasStatement*, std::vector<TypeLoc>>> inline_instantiations;
+
+    /**
      * how manu instantiations we've declared in this module
      */
     unsigned total_declared_instantiations = 0;

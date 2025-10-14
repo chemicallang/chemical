@@ -99,4 +99,7 @@ public namespace std {
             // best-effort, do not panic in destructor
         }
     }
+
+    public type condvar = CondVar
+
 }

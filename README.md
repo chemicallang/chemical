@@ -30,28 +30,6 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 > [!IMPORTANT]  
 > Chemical is in pre-alpha state, expect breaking changes and do not use in production.
 
-## 💻 Syntax
-
-Resembles Go, TypeScript, and C++, with powerful extensions:
-
-```chemical
-// Semicolons are optional
-// Supports structs, interfaces, implementations, lambdas, switch, pointers
-
-var x: int = 5
-
-for (var i = 0; i < 5; i++) {
-  var arr: int[5]    // uninitialized array of 5 ints
-  if (i == 3) x += 2
-  if (i == 6) break
-  x++
-}
-
-func add(a: int, b: int): int {
-  return a + b
-}
-```
-
 ---
 
 ## ⚙️ Installation

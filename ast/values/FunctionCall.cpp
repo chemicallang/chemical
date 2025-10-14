@@ -218,9 +218,6 @@ llvm::Value* FunctionCall::arg_value(
         }
     } else {
 
-        // we copy objects and send to function calls, only objects that have copy annotation
-        argValue = gen.memcpy_shallow_copy(pure_type, value, argValue);
-
         // this will set the drop flag to false, if the value is moved
         if(!value->set_drop_flag_for_moved_ref(gen)) {
             gen.warn("couldn't set the drop flag to false for moved value", value);

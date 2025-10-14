@@ -52,6 +52,8 @@ llvm::Type *FunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainValue*
 
 void FunctionParam::code_gen(Codegen &gen) {
     pointer = nullptr;
+    // quickly create a pointer if required
+    llvm_pointer(gen);
 }
 
 llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
@@ -65,8 +67,8 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
     }
     auto arg = gen.current_function->getArg(index);
     if (arg) {
-        if(has_address_taken() || get_has_assignment()) {
-            const auto pure = type->pure_type(gen.allocator);
+         if(has_address_taken() || get_has_assignment()) {
+            const auto pure = type->canonical();
             if(pure->kind() == BaseTypeKind::Pointer || pure->isIntegerLikeStorage()) {
                 const auto allocaInstr = gen.llvm.CreateAlloca(pure->llvm_type(gen), this);
                 pointer = allocaInstr;
@@ -74,7 +76,7 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
                 gen.di.instr(storeInstr, this);
                 return allocaInstr;
             }
-        }
+         }
         return arg;
     } else {
         gen.error(this) << "couldn't get argument with name " << name;
@@ -322,6 +324,9 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic fun
 }
 
 llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string_view& name) {
+    if(name == "std_stdconcurrentPoolDatasubmit__cfg_0") {
+        int i = 0;
+    }
     auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, runtime_specifier(decl));
     decl->set_llvm_data(gen, callee);
     return callee;

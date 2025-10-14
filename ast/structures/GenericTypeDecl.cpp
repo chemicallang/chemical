@@ -12,8 +12,6 @@ void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasState
 TypealiasStatement* GenericTypeDecl::copy_master(ASTAllocator& allocator) {
     // create a shallow copy
     const auto impl = master_impl->shallow_copy(allocator);
-    // now finalize signature
-    finalize_signature(allocator, impl);
     impl->generic_parent = this;
     return impl;
 }

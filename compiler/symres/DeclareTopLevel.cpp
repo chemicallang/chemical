@@ -109,9 +109,6 @@ void TopLevelDeclSymDeclare::VisitEnumDecl(EnumDeclaration* node) {
 void TopLevelDeclSymDeclare::VisitFunctionDecl(FunctionDeclaration* node) {
     // extension functions do not declare themselves
     if (!node->isExtensionFn()) {
-        if(node->name_view() == "add" && node->parent() && node->parent()->kind() == ASTNodeKind::StructDecl) {
-            int i = 0;
-        }
         linker.declare_function(node->name_view(), node, node->specifier());
     }
 }
@@ -157,6 +154,9 @@ void TopLevelDeclSymDeclare::VisitGenericVariantDecl(GenericVariantDecl* node) {
 }
 
 void TopLevelDeclSymDeclare::VisitIfStmt(IfStatement* node) {
+    // TODO: condition should not reference a comptime variable/constant that is present in same module
+    //  because we declare in order, and we link the conditions in order too, any symbols that appear below
+    //  won't be considered
     auto& comptime_scope = linker.comptime_scope;
     ASTDiagnoser& diagnoser = linker;
     // we don't know if conditions of this if statement have linked or failed

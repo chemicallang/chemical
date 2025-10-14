@@ -1,5 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
+#include "BeforeLinkSignature.h"
 #include "LinkSignature.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/statements/UsingStmt.h"
@@ -34,6 +35,16 @@
 #include "LinkSignatureAPI.h"
 #include "compiler/SymbolResolver.h"
 
+void sym_res_before_signature(SymbolResolver& resolver, Scope* scope) {
+    TopLevelLinkSignature visitor(resolver);
+    // this will link the at least and default types for generic parameters
+    // so they can be instantiated by signatures that would be linked before generic declarations
+    BeforeLinkSignature before_linker(visitor);
+    for(const auto node : scope->nodes) {
+        before_linker.visit(node);
+    }
+}
+
 void sym_res_signature(SymbolResolver& resolver, Scope* scope) {
     TopLevelLinkSignature visitor(resolver);
     visitor.visit(scope);
@@ -59,8 +70,6 @@ ASTNode* get_chain_linked(Value* value) {
 }
 
 void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
-    // can assume that after parsing every linked type is named
-    // because it is, we only create pure linked types after symbol resolution
     if(type->is_value()) {
         const auto linked_type = (LinkedValueType*) type;
         // only identifiers would be allowed in this value referencing type
@@ -552,13 +561,16 @@ void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container) {
 }
 
 void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
-    if(param->at_least_type) {
-        visit(param->at_least_type);
-    }
+//    if(param->at_least_type) {
+//        visit(param->at_least_type);
+//    }
+//    if(param->def_type) {
+//        visit(param->def_type);
+//    }
     linker.declare(param->identifier, param);
-    if(param->def_type) {
-        visit(param->def_type);
-    }
+    // do not link the default or at least types
+    // because they are linked before link signature
+
 }
 
 void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
@@ -567,17 +579,32 @@ void TopLevelLinkSignature::VisitGenericTypeDecl(GenericTypeDecl* node) {
     for(const auto param : generic_params) {
         link_param(param);
     }
-    VisitTypealiasStmt(node->master_impl);
+    if(linker.generic_context) {
+        VisitTypealiasStmt(node->master_impl);
+    } else {
+        linker.generic_context = true;
+        VisitTypealiasStmt(node->master_impl);
+        linker.generic_context = false;
+    }
     linker.scope_end();
     node->signature_linked = true;
-    // finalizing signature of instantiations that occurred before link_signature
     auto& allocator = *linker.ast_allocator;
+    // finalizing signature of instantiations that occurred before link_signature
     for(const auto inst : node->instantiations) {
         node->finalize_signature(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
     linker.genericInstantiator.FinalizeSignature(node, node->instantiations);
+    // finalizing signature of inline instantiations that occurred before link_signature
+    for(auto& inst : node->inline_instantiations) {
+        node->finalize_signature(allocator, inst.first);
+    }
+    // finalize the body of all instantiations
+    // this basically visits the instantiations body and makes the types concrete
+    for(auto& inst : node->inline_instantiations) {
+        linker.genericInstantiator.FinalizeSignature(node, inst.first, inst.second);
+    }
 }
 
 void TopLevelLinkSignature::VisitGenericFuncDecl(GenericFuncDecl* node) {
@@ -929,6 +956,21 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
 void TopLevelLinkSignature::VisitInterfaceDecl(InterfaceDefinition* node) {
     LinkMembersContainer(node);
     node->ensure_inherited_visibility(linker, node->specifier());
+}
+
+void BeforeLinkSignature::VisitNamespaceDecl(Namespace* node) {
+    auto& linker = signatureLinker.linker;
+    linker.scope_start();
+    const auto root = node->root;
+    if(root) {
+        root->declare_extended_in_linker(linker);
+    } else {
+        node->declare_extended_in_linker(linker);
+    }
+    for(const auto child : node->nodes) {
+        visit(child);
+    }
+    linker.scope_end();
 }
 
 void TopLevelLinkSignature::VisitNamespaceDecl(Namespace* node) {

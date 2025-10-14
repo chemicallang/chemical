@@ -46,8 +46,19 @@ bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, So
     const auto impl = typeDecl->copy_master(allocator);
     impl->attrs.is_inlined = true;
 
-    // finalizes the signature
-    instantiatorApi.FinalizeSignature(typeDecl, impl, generic_args);
+     if(typeDecl->signature_linked) {
+
+        // finalize signature using type decl
+        GenericTypeDecl::finalize_signature(allocator, impl);
+
+        // finalizes the signature
+        instantiatorApi.FinalizeSignature(typeDecl, impl, generic_args);
+
+     } else {
+
+         typeDecl->inline_instantiations.emplace_back(impl, std::move(generic_args));
+
+     }
 
     referenced->linked = impl;
     return true;

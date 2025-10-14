@@ -342,11 +342,27 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
     }
 }
 
+void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl);
+
+void external_implement_gen_func(ToCAstVisitor& visitor, GenericFuncDecl* node) {
+    auto& declarer = *visitor.declarer;
+    auto& i = node->total_bodied_instantiations;
+    const auto total = node->instantiations.size();
+    while(i < total) {
+        const auto inst = node->instantiations[i];
+        // apparently we have to take out lambda functions from the generic instantiations
+        declarer.VisitFunctionDecl(inst);
+        // implement the function as usual
+        func_decl_with_name(visitor, inst);
+        i++;
+    }
+}
+
 void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::GenericFuncDecl:
-                VisitGenericFuncDecl(node->as_gen_func_decl_unsafe());
+                external_implement_gen_func(*this, node->as_gen_func_decl_unsafe());
                 break;
             case ASTNodeKind::GenericStructDecl:
                 VisitGenericStructDecl(node->as_gen_struct_def_unsafe());
@@ -363,6 +379,16 @@ void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::NamespaceDecl:
                 external_implement(node->as_namespace_unsafe()->nodes);
                 break;
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::UnionDecl:
+            case ASTNodeKind::VariantDecl: {
+                for(const auto func : node->as_members_container_unsafe()->functions()) {
+                    if(func->kind() == ASTNodeKind::GenericFuncDecl) {
+                        external_implement_gen_func(*this, func->as_gen_func_decl_unsafe());
+                    }
+                }
+                break;
+            }
             default:
                 break;
         }
@@ -3056,6 +3082,10 @@ void early_declare_type(ToCAstVisitor& visitor, BaseType* type, ASTNode* contain
             if(linked != container) {
                 early_declare_node(visitor, linked);
             }
+            return;
+        }
+        case BaseTypeKind::CapturingFunction: {
+            early_declare_type(visitor, type->as_capturing_func_type_unsafe()->instance_type, container, do_ref, do_ptr);
             return;
         }
         case BaseTypeKind::Dynamic:

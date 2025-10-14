@@ -479,6 +479,15 @@ public:
     /**
      * link the signatures in the file
      */
+    void before_link_signature_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
+    );
+
+    /**
+     * link the signatures in the file
+     */
     void link_signature_file(
             Scope& scope,
             unsigned int fileId,

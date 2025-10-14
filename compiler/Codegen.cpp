@@ -183,24 +183,24 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
     module->setDataLayout(TargetMachine->createDataLayout());
     module->setTargetTriple(target_triple);
 
-    module->setModuleFlag(
-            llvm::Module::ModFlagBehavior::Error,
-            "Debug Info Version",
-            llvm::ConstantAsMetadata::get(
-                    llvm::ConstantInt::get(llvm::Type::getInt32Ty(*ctx),
-                                           llvm::DEBUG_METADATA_VERSION)));
-
-    module->setModuleFlag(
-            llvm::Module::ModFlagBehavior::Error,
-            "CodeView",
-            llvm::ConstantAsMetadata::get(llvm::ConstantInt::getBool(*ctx, true)));
-
-    module->setModuleFlag(
-            llvm::Module::ModFlagBehavior::Warning,
-            "Dwarf Version",
-            llvm::ConstantAsMetadata::get(
-                    llvm::ConstantInt::get(llvm::Type::getInt32Ty(*ctx), 4)));
-
+    // debug flags must be added otherwise debug information is ignored (or dropped)
+    if(llvm.di.isEnabled) {
+        module->setModuleFlag(
+                llvm::Module::ModFlagBehavior::Error,
+                "Debug Info Version",
+                llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*ctx), llvm::DEBUG_METADATA_VERSION))
+        );
+        module->setModuleFlag(
+                llvm::Module::ModFlagBehavior::Error,
+                "CodeView",
+                llvm::ConstantAsMetadata::get(llvm::ConstantInt::getBool(*ctx, true))
+        );
+        module->setModuleFlag(
+                llvm::Module::ModFlagBehavior::Warning,
+                "Dwarf Version",
+                llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*ctx), 4))
+        );
+    }
 
     diBuilder = std::make_unique<llvm::DIBuilder>(*module, true);
     llvm.di.update_builder(diBuilder.get());

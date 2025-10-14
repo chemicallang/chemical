@@ -42,7 +42,7 @@ public namespace std {
                 return info.dwNumberOfProcessors as usize
             } else {
                 var n = sysconf(_SC_NPROCESSORS_ONLN)
-                return if (n < 1) 1 else n as usize
+                return if (n < 1) 1 as usize else n as usize
             }
         }
         public func sleep_ms(ms: ulong) {
@@ -58,7 +58,7 @@ public namespace std {
                 var tid:ulong=0u;
                 return CreateThread(null,0u,entry,arg,0u,&mut tid)
             } else {
-                var th:int=0u;
+                var th:usize=0u;
                 if(pthread_create(&mut th,null,entry,arg)!=0){
                     panic("pthread_create")
                 }

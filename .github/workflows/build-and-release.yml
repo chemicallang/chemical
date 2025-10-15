@@ -292,6 +292,7 @@ jobs:
       - name: Run configure script (Linux)
         working-directory: chemical-bootstrap/chemical
         run: |
+          chmod +x ./scripts/setup-tcc.sh
           chmod +x ./scripts/configure.sh
           ./scripts/configure.sh
 

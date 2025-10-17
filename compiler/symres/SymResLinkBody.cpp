@@ -2587,7 +2587,8 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = lambVal;
 
-    auto func_type = expected_type ? expected_type->canonical()->get_function_type() : nullptr;
+    const auto canonical_exp = expected_type ? expected_type->canonical() : nullptr;
+    auto func_type = canonical_exp ? canonical_exp->get_function_type() : nullptr;
 
     if(!func_type) {
 
@@ -2638,7 +2639,17 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     }
 
-    if(!captureList.empty()) {
+    if(captureList.empty()) {
+
+        if(canonical_exp && canonical_exp->kind() == BaseTypeKind::CapturingFunction) {
+            lambVal->setIsCapturing(true);
+        }
+
+    } else {
+
+        if(canonical_exp && canonical_exp->kind() != BaseTypeKind::CapturingFunction) {
+            linker.error("the lambda function type is not capturing", lambVal);
+        }
 
         if(prev_func_type) {
             for (const auto captured: captureList) {

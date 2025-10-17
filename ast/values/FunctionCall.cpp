@@ -1187,9 +1187,8 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
                 const auto new_mem = new_link->direct_child(mem->name)->as_variant_member_unsafe();
                 parent_id->linked = new_mem;
                 setParentType(parent_val, new_mem->known_type());
-            } else {
-                return true;
             }
+            return true;
         }
         case ASTNodeKind::GenericStructDecl: {
             const auto gen_struct = linked->as_gen_struct_def_unsafe();

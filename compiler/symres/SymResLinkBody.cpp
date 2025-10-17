@@ -289,6 +289,9 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
     auto& value = identifier->value;
+    if(value == "Option") {
+        int i = 0;
+    }
     const auto linked = linker.find(value);
     if(linked) {
         identifier->linked = linked;
@@ -2079,16 +2082,18 @@ ending_block:
 instantiate_block:
     const auto func_type = resolver.current_func_type;
     const auto curr_func = func_type->as_function();
-    // we don't want to put this call into it's own function's call subscribers it would lead to infinite cycle
-    // we also don't want to instantiate this call, if the generic list is not completely specialized
-    // TODO: two checks for specialization of parameters are running, one inside the instantiate_call
-    // makeup mind about which one to keep
     if ((curr_func && curr_func->generic_parent != nullptr) || resolver.generic_context) {
         // since current function has a generic parent (it is generic), we do not want to instantiate this call here
-        // this call will be instantiated by the instantiator, even if this calls itself (recursion), instantiator checks that
+        // this call will be instantiated by the generic instantiator, even if this calls itself (recursion), instantiator checks that
         // changing back to generic decl, since instantiator needs access to it
-        parent_id->linked = gen_decl;
-        call->setType(curr_func->returnType);
+        if(gen_decl) {
+            parent_id->linked = gen_decl;
+            call->setType(gen_decl->master_impl->returnType);
+        } else {
+            if(gen_var_decl) {
+                call->setType(gen_var_decl->known_type());
+            }
+        }
         return true;
     }
     if(gen_decl) {

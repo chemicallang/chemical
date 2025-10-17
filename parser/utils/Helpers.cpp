@@ -36,9 +36,8 @@ static bool read_type_involving_token(Parser& parser) {
 }
 
 static bool read_pointer_type(Parser& parser) {
-    auto t = parser.consumeOfType(TokenType::MultiplySym);
-    if(t) {
-        while(parser.consumeOfType(TokenType::MultiplySym)) {
+    if(parser.consumeToken(TokenType::MultiplySym)) {
+        while(parser.consumeToken(TokenType::MultiplySym)) {
             // do nothing
         }
         return true;
@@ -48,9 +47,9 @@ static bool read_pointer_type(Parser& parser) {
 }
 
 static bool read_arr_type_token(Parser& parser) {
-    if(parser.consumeOfType(TokenType::LBracket)) {
-        parser.consumeOfType(TokenType::Number);
-        if(!parser.consumeOfType(TokenType::RBracket)) {
+    if(parser.consumeToken(TokenType::LBracket)) {
+        parser.consumeToken(TokenType::Number);
+        if(!parser.consumeToken(TokenType::RBracket)) {
             parser.error("unknown token in look ahead operation for generics, expected '>'");
         }
         return true;
@@ -60,8 +59,12 @@ static bool read_arr_type_token(Parser& parser) {
 }
 
 static bool read_gen_type_token(Parser& parser) {
-    if(parser.consumeOfType(TokenType::LessThanSym)) {
-        read_type_involving_token(parser);
+    if(parser.consumeToken(TokenType::LessThanSym)) {
+        do {
+            if(!read_type_involving_token(parser)) {
+                break;
+            }
+        } while(parser.consumeToken(TokenType::CommaSym));
         if(!parser.consumeGenericClose()) {
             parser.error("unknown token in look ahead operation for generics, expected '>'");
         }

@@ -47,6 +47,9 @@ func test_optional_type() {
         if(counter == 0) {
             var o = Option.Some<Deletable>(Deletable { counter : &mut counter })
             var taken = o.take()
+            if(o !is Option.None) {
+                return false;
+            }
         }
         return counter == 1
     })

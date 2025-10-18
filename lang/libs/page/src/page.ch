@@ -110,6 +110,18 @@ public struct HtmlPage {
         pageHead.append_view("</title>")
     }
 
+    func appendFavicon(&self, type : &std::string_view, path : &std::string_view) {
+        pageHead.append_view("<link rel=\"icon\" type=\"")
+        pageHead.append_view(type)
+        pageHead.append_view("\" href=\"")
+        pageHead.append_view(path)
+        pageHead.append_view("\">")
+    }
+
+    func appendPngFavicon(&self, path : &std::string_view) {
+        appendFavicon(std::string_view("image/png"), path)
+    }
+
     func htmlToString(&self, linkedStylesheet : &std::string_view) : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageHtml.size() + 80)

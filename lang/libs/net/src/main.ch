@@ -28,6 +28,26 @@ public namespace net {
         @dllimport @stdcall @extern public func getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char): int;
         @dllimport @stdcall @extern public func freeaddrinfo(res:*mut char): void;
 
+        // BOOL TransmitFile(SOCKET hSocket, HANDLE hFile, DWORD nNumberOfBytesToWrite, DWORD nNumberOfBytesPerSend,
+        //                    LPOVERLAPPED lpOverlapped, LPTRANSMIT_FILE_BUFFERS lpTransmitBuffers, DWORD dwFlags);
+        @dllimport
+        @stdcall
+        @extern
+        public func TransmitFile(
+            hSocket: uintptr_t,
+            hFile: uintptr_t,
+            nNumberOfBytesToWrite: u32,
+            nNumberOfBytesPerSend: u32,
+            lpOverlapped:*void,
+            lpTransmitBuffers:*void,
+            dwFlags: u32
+        ) : int;
+
+        // constants used
+        comptime const GENERIC_READ = 0x80000000u;
+        comptime const FILE_SHARE_READ = 0x00000001u;
+        comptime const OPEN_EXISTING = 3u;
+
         public func startup() { var dummy : [32]char; WSAStartup(0x202 as ushort, &mut dummy[0]); }
         public func cleanup() { WSACleanup() }
 
@@ -56,6 +76,18 @@ public namespace net {
         @extern public func setsockopt(s: int, level:int, optname:int, optval:*char, optlen:int): int;
         @extern public func getaddrinfo(node:*char, service:*char, hints:*mut char, res:*mut *mut char): int;
         @extern public func freeaddrinfo(res:*mut char): void;
+
+        // file I/O + sendfile
+        @extern public func open(path:*char, flags:int, mode:int): int;
+        @extern public func close(fd:int): int;
+        @extern public func lseek(fd:int, offset: longlong, whence:int): longlong;
+        // Linux sendfile: ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
+        @extern public func sendfile(out_fd:int, in_fd:int, offset:*longlong, count:size_t) : longlong;
+
+        // constants for open/lseek
+        comptime const O_RDONLY = 0;
+        comptime const SEEK_SET = 0;
+        comptime const SEEK_END = 2;
 
         public func startup() { }
         public func cleanup() { }
@@ -371,6 +403,67 @@ public namespace http {
         func write_view(&mut self, v : &std::string_view) {
             send_headers(v.size()); net::send_all(sock, v.data(), v.size() as int)
         }
+
+        // Adds a zero-copy send_file method to ResponseWriter.
+        // Returns true on success; false means the caller should fallback to chunked streaming.
+        func send_file(&mut self, path_view : &std::string_view, content_type : &std::string_view) : bool {
+            // set content-type header if provided
+            set_header_view(std::string_view("Content-Type"), content_type);
+            const path = path_view.data()
+            comptime if(def.windows) {
+                // Windows: use CreateFileA + GetFileSizeEx + TransmitFile
+                var fh = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, null, OPEN_EXISTING, 0u, 0 as HANDLE);
+                if (fh == 0u || fh == -1 as uintptr_t) {
+                    return false;
+                }
+                var filesize: longlong = 0
+                if (GetFileSizeEx(fh, (&mut filesize) as *mut LARGE_INTEGER) == 0) {
+                    CloseHandle(fh);
+                    return false;
+                }
+                // send headers with Content-Length
+                self.send_headers(filesize as usize);
+
+                // TransmitFile: pass 0 as nNumberOfBytesToWrite means send entire file
+                var ok = net::TransmitFile(self.sock as uintptr_t, fh as uintptr_t, 0u, 0u, null, null, 0u);
+                // Close handle regardless
+                CloseHandle(fh);
+                return ok != 0;
+            } else {
+                // POSIX / Linux: use open + lseek + sendfile
+                var fd = open(path, O_RDONLY, 0);
+                if (fd < 0) { return false; }
+                var size_ll = lseek(fd, 0 as longlong, SEEK_END);
+                if (size_ll < 0) { close(fd); return false; }
+                // rewind
+                if (lseek(fd, 0 as longlong, SEEK_SET) < 0) { close(fd); return false; }
+
+                // send headers with Content-Length
+                self.send_headers((size_ll as usize));
+
+                var remaining = size_ll;
+                var offset: longlong = 0;
+                while (remaining > 0) {
+                    // send up to remaining bytes
+                    var to_send = if(remaining > (1 << 30)) (1 << 30) as size_t else remaining as size_t;
+                    // on Linux sendfile returns number of bytes sent (ssize_t)
+                    var sent = sendfile(self.sock as int, fd, &mut offset, to_send);
+                    if (sent <= 0) {
+                        // error or EOF
+                        break;
+                    }
+                    // adjust remaining - note: sendfile may update offset; we'll recompute
+                    remaining = size_ll - offset;
+                }
+
+                var success = (offset == size_ll);
+                close(fd);
+                return success;
+            }
+        }
+
+
+
         func finish(&mut self) {}
     }
 

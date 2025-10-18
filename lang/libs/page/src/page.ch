@@ -79,54 +79,50 @@ public struct HtmlPage {
     func toString(&self) : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + 80)
-        var start = std::string_view("<!DOCTYPE html><html><head>")
-        str.append_with_len(start.data(), start.size())
-        str.append_with_len(pageHead.data(), pageHead.size())
-        const cssStart = std::string_view("<style>")
-        str.append_with_len(cssStart.data(), cssStart.size())
-        str.append_with_len(pageCss.data(), pageCss.size())
-        const cssEnd = std::string_view("</style>")
-        str.append_with_len(cssEnd.data(), cssEnd.size())
-        var bodyStart = std::string_view("</head><body>")
-        str.append_with_len(bodyStart.data(), bodyStart.size())
-        str.append_with_len(pageHtml.data(), pageHtml.size())
-        var end = std::string_view("</body></html>")
-        str.append_with_len(end.data(), end.size())
+        str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
+        str.append_string(pageHead)
+        str.append_view(std::string_view("<style>"))
+        str.append_string(pageCss)
+        str.append_view(std::string_view("</style>"))
+        str.append_view(std::string_view("</head><body>"))
+        str.append_string(pageHtml)
+        str.append_view(std::string_view("</body></html>"))
         return str;
     }
 
     func toStringHtmlOnly(&self) : std::string {
         var str = std::string()
         str.reserve(pageHtml.size())
-        str.append_with_len(pageHtml.data(), pageHtml.size())
+        str.append_string(pageHtml)
         return str;
     }
 
     func toStringCssOnly(&self) : std::string {
         var str = std::string()
         str.reserve(pageCss.size())
-        str.append_with_len(pageCss.data(), pageCss.size())
+        str.append_string(pageCss)
         return str;
+    }
+
+    func appendTitle(&self, view : &std::string_view) {
+        pageHead.append_view("<title>")
+        pageHead.append_view(view)
+        pageHead.append_view("</title>")
     }
 
     func htmlToString(&self, linkedStylesheet : &std::string_view) : std::string {
         var str = std::string()
         str.reserve(pageHead.size() + pageHtml.size() + 80)
-        var start = std::string_view("<!DOCTYPE html><html><head>")
-        str.append_with_len(start.data(), start.size())
-        str.append_with_len(pageHead.data(), pageHead.size())
+        str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
+        str.append_string(pageHead)
         if(!linkedStylesheet.empty()) {
-            const linkStart = std::string_view("<link rel=\"stylesheet\" href=\"");
-            str.append_with_len(linkStart.data(), linkStart.size());
-            str.append_with_len(linkedStylesheet.data(), linkedStylesheet.size());
-            const linkEnd = std::string_view("\">")
-            str.append_with_len(linkEnd.data(), linkEnd.size());
+            str.append_view(std::string_view("<link rel=\"stylesheet\" href=\""));
+            str.append_view(linkedStylesheet);
+            str.append_view(std::string_view("\">"));
         }
-        var bodyStart = std::string_view("</head><body>")
-        str.append_with_len(bodyStart.data(), bodyStart.size())
-        str.append_with_len(pageHtml.data(), pageHtml.size())
-        var end = std::string_view("</body></html>")
-        str.append_with_len(end.data(), end.size())
+        str.append_view(std::string_view("</head><body>"))
+        str.append_string(pageHtml)
+        str.append_view(std::string_view("</body></html>"))
         return str;
     }
 
@@ -155,12 +151,12 @@ public struct HtmlPage {
         // creating the route file at
         var htmlFile = std::string(path.data(), path.size())
         htmlFile.append('/');
-        htmlFile.append_with_len(name.data(), name.size());
+        htmlFile.append_view(name);
         htmlFile.append_char_ptr(".html")
 
         const cssFileName = std::string()
         if(!pageCss.empty()) {
-            cssFileName.append_with_len(name.data(), name.size())
+            cssFileName.append_view(name)
             cssFileName.append_char_ptr(".css");
         }
 
@@ -173,7 +169,7 @@ public struct HtmlPage {
 
         const cssFile = std::string(path.data(), path.size())
         cssFile.append('/');
-        cssFile.append_with_len(cssFileName.data(), cssFileName.size())
+        cssFile.append_string(cssFileName)
 
         writeCssToFile(std::string_view(cssFile.data(), cssFile.size()))
 

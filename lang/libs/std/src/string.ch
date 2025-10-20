@@ -119,6 +119,23 @@ public struct string : Hashable, Eq {
         }
     }
 
+    func resize_unsafe(&self, value : size_t) {
+        switch(state) {
+            '0' => {
+                storage.constant.length = value;
+            }
+            '1' => {
+                storage.sso.length = value;
+            }
+            '2' => {
+                storage.heap.length = value;
+            }
+            default => {
+                return
+            }
+        }
+    }
+
     func empty(&self) : bool {
         return size() == 0
     }

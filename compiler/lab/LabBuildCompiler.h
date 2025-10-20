@@ -369,12 +369,12 @@ public:
     /**
      * will build the lab file
      */
-    int build_lab_file(LabBuildContext& context, const std::string_view& path);
+    int build_lab_file(LabBuildContext& context, LabJobType final_job_type, const std::string_view& path);
 
     /**
      * build the mod file given at path, into an executable at outputPath
      */
-    int build_mod_file(LabBuildContext& context, const std::string_view& path, chem::string outputPath);
+    int build_mod_file(LabBuildContext& context, LabJobType final_job_type, const std::string_view& path, chem::string outputPath);
 
     /**
      * the destructor

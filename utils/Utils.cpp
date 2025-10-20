@@ -17,6 +17,60 @@
 #include <windows.h>
 #endif
 
+#if defined(_WIN32)
+#include <Shlwapi.h>
+#include <io.h>
+#endif
+
+#ifdef __APPLE__
+#include <libgen.h>
+    #include <limits.h>
+    #include <mach-o/dyld.h>
+    #include <unistd.h>
+#endif
+
+#ifdef __linux__
+#include <limits.h>
+    #include <libgen.h>
+    #include <unistd.h>
+
+    #if defined(__sun)
+        #define PROC_SELF_EXE "/proc/self/path/a.out"
+    #else
+        #define PROC_SELF_EXE "/proc/self/exe"
+    #endif
+
+#endif
+
+#if defined(_WIN32)
+std::string getExecutablePath() {
+    char rawPathName[MAX_PATH];
+    GetModuleFileNameA(NULL, rawPathName, MAX_PATH);
+    return std::string(rawPathName);
+}
+#endif
+
+#ifdef __linux__
+std::string getExecutablePath() {
+   char rawPathName[PATH_MAX];
+   realpath(PROC_SELF_EXE, rawPathName);
+   return  std::string(rawPathName);
+}
+#endif
+
+#ifdef __APPLE__
+std::string getExecutablePath() {
+    char rawPathName[PATH_MAX];
+    char realPathName[PATH_MAX];
+    uint32_t rawPathSize = (uint32_t)sizeof(rawPathName);
+    if(!_NSGetExecutablePath(rawPathName, &rawPathSize)) {
+        realpath(rawPathName, realPathName);
+    }
+    return  std::string(realPathName);
+}
+#endif
+
+
 std::string resolve_rel_child_path_str(const std::string_view& root_path, const std::string_view& file_path) {
     return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
 }

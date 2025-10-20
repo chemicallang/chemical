@@ -43,6 +43,30 @@ public variant FsError {
     PathTooLong()
     Unsupported()   // used only for extremely exotic requests
     Other(msg : *char)
+
+    func message(&self) : std::string {
+        switch(self) {
+            Io(code, message) => {
+                var msg = std::string("io error with code ")
+                msg.append_integer(code)
+                msg.append_view(std::string_view(" and message '"))
+                msg.append_char_ptr(message)
+                msg.append('\'')
+                return msg;
+            }
+            NotFound() => return std::string("FsError.NotFound")
+            AlreadyExists() => return std::string("FsError.AlreadyExists")
+            PermissionDenied() => return std::string("FsError.PermissionDenied")
+            InvalidInput() => return std::string("FsError.InvalidInput")
+            NotADirectory() => return std::string("FsError.NotADirectory")
+            IsADirectory() => return std::string("FsError.IsADirectory")
+            WouldBlock() => return std::string("FsError.WouldBlock")
+            PathTooLong() => return std::string("FsError.PathTooLong")
+            Unsupported() => return std::string("FsError.Unsupported")   // used only for extremely exotic requests
+            Other(msg) => return std::string(msg);
+        }
+    }
+
 }
 
 public struct Metadata {
@@ -235,7 +259,7 @@ func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Re
 
 // canonicalize: platform-backed (realpath / GetFullPathNameW)
 func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         // Windows: GetFullPathNameW
         var wtmp : [WIN_MAX_PATH]u16;
         var r = utf8_to_utf16(path, &mut wtmp[0], WIN_MAX_PATH as size_t);
@@ -274,46 +298,90 @@ func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size
 // You may replace with more optimized / complete conversions when desired.
 // ----------------------
 func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Result<size_t, FsError> {
-    // Simple conversion assuming valid UTF-8; no heap; returns number of WCHAR written (excluding null)
+    // Safe UTF-8 -> UTF-16 converter: validates continuation bytes and avoids out-of-bounds reads.
     var i : size_t = 0;
     var wpos : size_t = 0;
-    while(in_utf8[i] != 0) {
+
+    while (in_utf8[i] != 0) {
         var c = in_utf8[i] as u8;
-        if(c < 0x80) {
-            if(wpos + 1 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+
+        // ASCII
+        if (c < 0x80) {
+            if (wpos + 1 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
             out_w[wpos++] = c as u16;
-            i++;
-        } else if((c & 0xE0) == 0xC0) {
-            // 2-byte
+            i += 1;
+            continue;
+        }
+
+        // 2-byte sequence: 110xxxxx 10xxxxxx
+        if ((c & 0xE0) == 0xC0) {
+            // need one continuation byte
+            if (in_utf8[i+1] == 0) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
             var c2 = in_utf8[i+1] as u8;
-            var ch = ((c & 0x1F) as u16) << 6 | ((c2 & 0x3F) as u16);
-            if(wpos + 1 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
-            out_w[wpos++] = ch;
+            if ((c2 & 0xC0) != 0x80) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+
+            // decode and check overlong (must be >= 0x80)
+            var code = (((c & 0x1F) as u32) << 6) | ((c2 & 0x3F) as u32);
+            if (code < 0x80u32) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+
+            if (wpos + 1 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+            out_w[wpos++] = code as u16;
             i += 2;
-        } else if((c & 0xF0) == 0xE0) {
-            // 3-byte
+            continue;
+        }
+
+        // 3-byte sequence: 1110xxxx 10xxxxxx 10xxxxxx
+        if ((c & 0xF0) == 0xE0) {
+            // need two continuation bytes
+            if (in_utf8[i+1] == 0 || in_utf8[i+2] == 0) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
             var c2 = in_utf8[i+1] as u8;
             var c3 = in_utf8[i+2] as u8;
-            var ch = ((c & 0x0F) as u16) << 12 | ((c2 & 0x3F) as u16) << 6 | ((c3 & 0x3F) as u16);
-            if(wpos + 1 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
-            out_w[wpos++] = ch;
+            if ((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+
+            var code = (((c & 0x0F) as u32) << 12) | (((c2 & 0x3F) as u32) << 6) | ((c3 & 0x3F) as u32);
+
+            // Reject overlong encoding and surrogate halves (U+D800..U+DFFF)
+            if (code < 0x800u32) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+            if (code >= 0xD800u32 && code <= 0xDFFFu32) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+
+            if (wpos + 1 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+            out_w[wpos++] = code as u16;
             i += 3;
-        } else {
-            // 4-byte -> surrogate pair
+            continue;
+        }
+
+        // 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx -> surrogate pair in UTF-16
+        if ((c & 0xF8) == 0xF0) {
+            // need three continuation bytes
+            if (in_utf8[i+1] == 0 || in_utf8[i+2] == 0 || in_utf8[i+3] == 0) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
             var c2 = in_utf8[i+1] as u8;
             var c3 = in_utf8[i+2] as u8;
             var c4 = in_utf8[i+3] as u8;
-            var code = ((c & 0x07) as u32) << 18 | ((c2 & 0x3F) as u32) << 12 | ((c3 & 0x3F) as u32) << 6 | ((c4 & 0x3F) as u32);
-            code -= 0x10000;
+            if ((c2 & 0xC0) != 0x80 || (c3 & 0xC0) != 0x80 || (c4 & 0xC0) != 0x80) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+
+            var code = (((c & 0x07) as u32) << 18) | (((c2 & 0x3F) as u32) << 12) | (((c3 & 0x3F) as u32) << 6) | ((c4 & 0x3F) as u32);
+
+            // minimal value for 4-byte is 0x10000 and max is 0x10FFFF
+            if (code < 0x10000u32 || code > 0x10FFFFu32) { return Result.Err<size_t, FsError>(FsError.InvalidInput()); }
+
+            // produce surrogate pair
+            code -= 0x10000u32;
             var high = 0xD800u16 + ((code >> 10) as u16);
             var low  = 0xDC00u16 + ((code & 0x3FFu32) as u16);
-            if(wpos + 2 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+
+            if (wpos + 2 >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
             out_w[wpos++] = high;
             out_w[wpos++] = low;
             i += 4;
+            continue;
         }
+
+        // anything else is invalid (e.g. 0x80..0xBF as a leading byte or 0xF8+)
+        return Result.Err<size_t, FsError>(FsError.InvalidInput());
     }
-    if(wpos >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+
+    // null-terminate (ensure we still have space)
+    if (wpos >= out_w_len) { return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
     out_w[wpos] = 0;
     return Result.Ok<size_t, FsError>(wpos);
 }
@@ -358,7 +426,7 @@ func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size
 // File open/close/read/write/seek/flush
 // --------------------------
 func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         // Convert path to UTF-16 and call CreateFileW
         var wbuf : [WIN_MAX_PATH]u16;
         var r = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
@@ -419,7 +487,7 @@ func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
 
 func file_close(f : *mut File) : Result<UnitTy, FsError> {
     if(!f.valid) { return Result.Ok(UnitTy{}); }
-    if(def.windows) {
+    comptime if(def.windows) {
         var ok = CloseHandle(f.win.handle);
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         f.valid = false;
@@ -433,7 +501,7 @@ func file_close(f : *mut File) : Result<UnitTy, FsError> {
 }
 
 func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var read_out : u32 = 0;
         var ok = ReadFile(f.win.handle, buf as *mut void, buf_len as u32, (&mut read_out) as *mut DWORD, null);
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -446,7 +514,7 @@ func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, 
 }
 
 func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var written : u32 = 0;
         var ok = WriteFile(f.win.handle, buf as *void, buf_len as u32, (&mut written) as *mut DWORD, null);
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -491,7 +559,7 @@ func file_write_all(f : *mut File, buf : *u8, buf_len : size_t) : Result<UnitTy,
 }
 
 func file_flush(f : *mut File) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var ok = FlushFileBuffers(f.win.handle);
         if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         return Result.Ok(UnitTy{});
@@ -519,7 +587,7 @@ public func filetime_to_unix(ft : FILETIME) : i64 {
 // Metadata, timestamps, permissions
 // --------------------------
 func metadata(path : *char) : Result<Metadata, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wbuf : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
         if(conv is Result.Err) {
@@ -561,7 +629,7 @@ func metadata(path : *char) : Result<Metadata, FsError> {
 }
 
 func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         // map readonly bit
         var wbuf : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
@@ -599,7 +667,7 @@ public func unix_to_filetime(unix_time : i64) : FILETIME {
 }
 
 func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wbuf : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
         if(conv is Result.Err) {
@@ -647,8 +715,8 @@ func is_dir(path : *char) : Result<bool, FsError> {
 // --------------------------
 // Directory functions
 // --------------------------
-func create_dir(path : *char) : Result<UnitTy, FsError> {
-    if(def.windows) {
+public func create_dir(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
         var w : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
         if(conv is Result.Err) {
@@ -709,8 +777,8 @@ func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 }
 
 // remove_dir (non-recursive) and remove_dir_all (recursive)
-func remove_dir(path : *char) : Result<UnitTy, FsError> {
-    if(def.windows) {
+public func remove_dir(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
         var w : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
         if(conv is Result.Err) {
@@ -728,49 +796,221 @@ func remove_dir(path : *char) : Result<UnitTy, FsError> {
     }
 }
 
-// remove_dir_all : recursive
-func remove_dir_all(path : *char) : Result<UnitTy, FsError> {
-    // Use manual stack to avoid recursion depth issues
-    const MAX_STACK = 1024;
-    var stack : [MAX_STACK][PATH_MAX_BUF]char;
-    var top : int = 0;
-    // push initial path
-    var i : size_t = 0;
-    while(path[i] != 0) { stack[0][i] = path[i]; i++ }
-    stack[0][i] = 0; top = 1;
-    while(top > 0) {
-        top -= 1;
-        var curr = &mut stack[top][0];
-        // iterate entries
-        var res = read_dir(curr, |&mut stack, curr, top, MAX_STACK|(name : *char, name_len : size_t, is_dir : bool) => {
+const PATH_MAX_BUF = 4096;
+const WIN_MAX_PATH = 32768;
+
+const S_IFMT  = 0xF000;
+const S_IFDIR = 0x4000;
+
+const FILE_ATTRIBUTE_DIRECTORY = 0x10;
+
+// -----------------------------
+// Platform APIs & helpers
+// -----------------------------
+if(def.windows) {
+    struct WIN32_FIND_DATAW {
+        var dwFileAttributes : DWORD;
+        // additional fields omitted
+        var cFileName : [WIN_MAX_PATH]u16;
+    }
+    @extern @dllimport @stdcall public func FindFirstFileW(pattern : LPCWSTR, out : *mut WIN32_FIND_DATAW) : HANDLE;
+    @extern @dllimport @stdcall public func FindNextFileW(h : HANDLE, out : *mut WIN32_FIND_DATAW) : BOOL;
+    @extern @dllimport @stdcall public func FindClose(h : HANDLE) : BOOL;
+    @extern @dllimport @stdcall public func DeleteFileW(path : LPCWSTR) : BOOL;
+    @extern @dllimport @stdcall public func RemoveDirectoryW(path : LPCWSTR) : BOOL;
+
+    const INVALID_HANDLE_VALUE : HANDLE = -1 as HANDLE;
+    const CP_UTF8 = 65001u32;
+} else  {
+    // POSIX externs
+    type DIR = *void;
+    struct dirent { var d_name : [PATH_MAX_BUF]char; }
+    struct stat { var st_mode : u32; }
+
+    @extern public func opendir(path : *char) : DIR;
+    @extern public func readdir(dir : DIR) : *mut dirent;
+    @extern public func closedir(dir : DIR) : int;
+    @extern public func lstat(path : *char, out : *mut stat) : int;
+    @extern public func unlink(path : *char) : int;
+    @extern public func rmdir(path : *char) : int;
+}
+
+if(def.windows) {
+    public func utf8_to_utf16_inplace(src : *char, out : *mut u16, out_len : size_t) : Result<size_t, FsError> {
+        var n = MultiByteToWideChar(CP_UTF8, 0u32, src, -1, out, (out_len as i32));
+        if(n == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
+        // return length excluding null
+        return Result.Ok((n as size_t) - 1);
+    }
+
+    public func utf16_to_utf8_str(src : *u16) : std::string {
+        var out = std::string();
+        var needed = WideCharToMultiByte(CP_UTF8, 0u32, src, -1, null, 0, null, null);
+        if(needed <= 0) { return out; }
+        out.reserve((needed as size_t) - 1);
+        out.resize_unsafe((needed as size_t) - 1);
+        var n = WideCharToMultiByte(CP_UTF8, 0u32, src, -1, out.mutable_data(), needed, null, null);
+        if(n <= 0) { out.resize_unsafe(0); return out; }
+        return out;
+    }
+}
+
+public func remove_file_platform(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var w : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16_inplace(path, &mut w[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
+        var deleted = DeleteFileW((&mut w[0]) as LPCWSTR);
+        if(deleted == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
+        return Result.Ok(UnitTy{});
+    } else {
+        if(unlink(path) != 0) { return Result.Err(posix_errno_to_fs(-errno)); }
+        return Result.Ok(UnitTy{});
+    }
+}
+
+public func remove_dir_platform(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var w : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16_inplace(path, &mut w[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
+        var ok = RemoveDirectoryW((&mut w[0]) as LPCWSTR);
+        if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
+        return Result.Ok(UnitTy{});
+    } else {
+        var r = rmdir(path);
+        if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
+        return Result.Ok(UnitTy{});
+    }
+}
+
+
+// -----------------------------
+// Recursive remove_dir_all (public)
+// -----------------------------
+public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        // Convert path to wide
+        var wbuf : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16_inplace(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
+        // Build pattern path\* for enumeration
+        var search : [WIN_MAX_PATH]u16;
+        var p : size_t = 0;
+        while(wbuf[p] != 0) { search[p] = wbuf[p]; p += 1; }
+        if(p > 0) {
+            var last = search[p - 1];
+            if(last != '\\' as u16 && last != '/' as u16) { search[p] = '\\' as u16; p += 1; }
+        }
+        search[p] = '*' as u16; p += 1;
+        search[p] = 0;
+
+        var finddata : WIN32_FIND_DATAW;
+        var h = FindFirstFileW((&mut search[0]) as LPCWSTR, &mut finddata);
+        if(h == INVALID_HANDLE_VALUE) {
+            // If directory cannot be opened, return mapped error
+            var err = GetLastError();
+            return Result.Err(winerr_to_fs(err as int));
+        }
+
+        loop {
             // skip "." and ".."
-            if(name_len == 1 && name[0] == '.') { return true; }
-            if(name_len == 2 && name[0] == '.' && name[1] == '.') { return true; }
+            var name_w = &mut finddata.cFileName[0];
+            if(!(name_w[0] == '.' as u16 && name_w[1] == 0) &&
+               !(name_w[0] == '.' as u16 && name_w[1] == '.' as u16 && name_w[2] == 0)) {
+                // build child wide path: original path + '\' + name
+                var child : [WIN_MAX_PATH]u16;
+                var q : size_t = 0;
+                // copy original wide path
+                var i : size_t = 0;
+                while(wbuf[i] != 0) { child[i] = wbuf[i]; i += 1; }
+                if(i > 0) {
+                    var last = child[i - 1];
+                    if(last != '\\' as u16 && last != '/' as u16) { child[i] = '\\' as u16; i += 1; }
+                }
+                // append name_w
+                var j : size_t = 0;
+                while(name_w[j] != 0) { child[i + j] = name_w[j]; j += 1; }
+                child[i + j] = 0;
+
+                var is_dir = (finddata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                if(is_dir) {
+                    // convert child to utf-8 and recurse
+                    var child_utf = utf16_to_utf8_str(&mut child[0]);
+                    var rem = remove_dir_all_recursive(child_utf.data());
+                    if(rem is Result.Err) { var Err(e) = rem else unreachable; FindClose(h); return Result.Err(e); }
+                } else {
+                    // delete file
+                    var del = DeleteFileW((&mut child[0]) as LPCWSTR);
+                    if(del == 0) { var err = GetLastError(); FindClose(h); return Result.Err(winerr_to_fs(err as int)); }
+                }
+            }
+
+            var more = FindNextFileW(h, &mut finddata);
+            if(more == 0) {
+                var lasterr = GetLastError();
+                if(lasterr == 18u32) { // ERROR_NO_MORE_FILES
+                    break;
+                } else {
+                    FindClose(h);
+                    return Result.Err(winerr_to_fs(lasterr as int));
+                }
+            }
+        }
+
+        FindClose(h);
+
+        // finally remove the directory itself
+        var remd = RemoveDirectoryW((&mut wbuf[0]) as LPCWSTR);
+        if(remd == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
+        return Result.Ok(UnitTy{});
+
+    } else {
+        // POSIX
+        var dir = opendir(path);
+        if(dir == null) {
+            return Result.Err(posix_errno_to_fs(-errno));
+        }
+
+        loop {
+            var ent = readdir(dir);
+            if(ent == null) {
+                if(errno != 0) { closedir(dir); return Result.Err(posix_errno_to_fs(-errno)); }
+                break;
+            }
+
+            // skip "." and ".."
+            if(ent.d_name[0] == '.' && ent.d_name[1] == 0) { continue; }
+            if(ent.d_name[0] == '.' && ent.d_name[1] == '.' && ent.d_name[2] == 0) { continue; }
+
+            // build child path: path + '/' + name
             var child : [PATH_MAX_BUF]char;
             var p : size_t = 0;
-            while(curr[p] != 0) { child[p] = curr[p]; p++ }
-            if(p > 0 && child[p-1] != '/') { child[p++] = '/'; }
-            var q : size_t = 0; while(q <= name_len) { child[p + q] = name[q]; q++ } // includes null
-            if(is_dir) {
-                // push this directory
-                if(top + 1 >= MAX_STACK) { return false; } // overflow
-                var r : size_t = 0; while(child[r] != 0) { stack[top][r] = child[r]; r++ } stack[top][r] = 0;
-                top += 1;
+            while(path[p] != 0) { child[p] = path[p]; p++ }
+            if(p > 0 && child[p - 1] != '/') { child[p] = '/'; p++ }
+            var q : size_t = 0;
+            while(ent.d_name[q] != 0) { child[p + q] = ent.d_name[q]; q++ }
+            child[p + q] = 0;
+
+            // lstat to check if directory (do not follow symlink)
+            var st : stat;
+            if(lstat(&child[0], &mut st) != 0) { var err = errno; closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
+            if((st.st_mode & S_IFMT) == S_IFDIR) {
+                // recurse
+                var rem = remove_dir_all_recursive(&child[0]);
+                if(rem is Result.Err) { var Err(e) = rem else unreachable; closedir(dir); return Result.Err(e); }
             } else {
-                var rem = remove_file(&mut child[0]);
-                if(rem is Result.Err) { var Err(e) = rem else unreachable; return false; }
+                // unlink file (or symlink)
+                if(unlink(&child[0]) != 0) { var err = errno; closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
             }
-            return true;
-        });
-        if(res is Result.Err) {
-            var Err(e) = res else unreachable
-            return Result.Err(e)
         }
-        // after children removed, remove directory
-        var rr = remove_dir(curr);
-        if(rr is Result.Err) { var Err(e) = rr else unreachable; return Result.Err(e); }
+
+        closedir(dir);
+
+        // remove the directory itself
+        if(rmdir(path) != 0) { var err = errno; return Result.Err(posix_errno_to_fs(-err)); }
+        return Result.Ok(UnitTy{});
     }
-    return Result.Ok(UnitTy{});
 }
 
 func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
@@ -833,8 +1073,8 @@ func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result
 }
 
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
-func read_dir(path : *char, callback : (name : *char, name_len : size_t, is_dir : bool) => bool) : Result<UnitTy, FsError> {
-    if(def.windows) {
+func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
         // Windows implementation using FindFirstFileW / FindNextFileW
         var wpath : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut wpath[0], WIN_MAX_PATH as size_t);
@@ -906,7 +1146,7 @@ func read_dir(path : *char, callback : (name : *char, name_len : size_t, is_dir 
 
 // remove_file / unlink
 func remove_file(path : *char) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var w : [WIN_MAX_PATH]u16;
         var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
         if(conv is Result.Err) {
@@ -928,7 +1168,7 @@ func remove_file(path : *char) : Result<UnitTy, FsError> {
 // Copy & move (files and directories)
 // --------------------------
 func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
         var r1 = utf8_to_utf16(src, &mut wsrc[0], WIN_MAX_PATH as size_t);
         if(r1 is Result.Err) {
@@ -1001,7 +1241,7 @@ func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
             var Err(e) = c else unreachable
             return Result.Err(e)
         }
-        var rem = remove_dir_all(src);
+        var rem = remove_dir_all_recursive(src);
         if(rem is Result.Err) {
             var Err(e) = rem else unreachable
             return Result.Err(e)
@@ -1024,7 +1264,7 @@ func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
 
 // hard link / symlink
 func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wexist : [WIN_MAX_PATH]u16; var wnew : [WIN_MAX_PATH]u16;
         var f1 = utf8_to_utf16(existing, &mut wexist[0], WIN_MAX_PATH as size_t)
         if(f1 is Result.Err) {
@@ -1047,7 +1287,7 @@ func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsErro
 }
 
 func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wtarget : [WIN_MAX_PATH]u16; var wlink : [WIN_MAX_PATH]u16;
         var f1 = utf8_to_utf16(target, &mut wtarget[0], WIN_MAX_PATH as size_t)
         if(f1 is Result.Err) {
@@ -1072,7 +1312,7 @@ func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitT
 }
 
 func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         // On Windows readlink is more involved; use DeviceIoControl or GetFinalPathNameByHandle
         // Simpler approach: open file and call GetFinalPathNameByHandleW
         var wpath : [WIN_MAX_PATH]u16;
@@ -1103,7 +1343,7 @@ func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t,
 }
 
 func is_symlink(path : *char) : Result<bool, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var m = metadata(path);
         if(m is Result.Err) {
             var Err(e) = m else unreachable;
@@ -1124,7 +1364,7 @@ func is_symlink(path : *char) : Result<bool, FsError> {
 // Temp file helpers & atomic write
 // ----------------------
 func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wbuf : [WIN_MAX_PATH]u16;
         var n = GetTempPathW(WIN_MAX_PATH as u32, (&mut wbuf[0]) as LPWSTR);
         if(n == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
@@ -1144,7 +1384,7 @@ func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 }
 
 func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var wdir : [WIN_MAX_PATH]u16; var wprefix : [TEMP_NAME_MAX]u16; var wout : [WIN_MAX_PATH]u16;
         var f1 = utf8_to_utf16(dir, &mut wdir[0], WIN_MAX_PATH as size_t)
         if(f1 is Result.Err) {
@@ -1199,7 +1439,7 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
 // Disk capacity
 // --------------------------
 func disk_space(path : *char, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
-    if(def.windows) {
+    comptime if(def.windows) {
         var w : [WIN_MAX_PATH]u16;
         var f1 = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t)
         if(f1 is Result.Err) {
@@ -1231,7 +1471,7 @@ func lock_file_shared(path : *char) : Result<File, FsError> {
         return Result.Err(e);
     }
     var Ok(f) = fo else unreachable;
-    if(def.windows) {
+    comptime if(def.windows) {
         // use LockFileEx with LOCKFILE_FAIL_IMMEDIATELY & LOCKFILE_SHARED_LOCK
         var ok = LockFileEx(f.win.handle, LOCKFILE_FAIL_IMMEDIATELY as DWORD, 0, 0xFFFFFFFF, 0xFFFFFFFF, null);
         if(ok == 0) { var e = GetLastError(); file_close(&mut f); return Result.Err(winerr_to_fs(e as int)); }
@@ -1251,7 +1491,7 @@ func lock_file_exclusive(path : *char) : Result<File, FsError> {
         return Result.Err(e);
     }
     var Ok(f) = fo else unreachable;
-    if(def.windows) {
+    comptime if(def.windows) {
         var ok = LockFileEx(f.win.handle, 0, 0, 0xFFFFFFFF, 0xFFFFFFFF, null);
         if(ok == 0) { var e = GetLastError(); file_close(&mut f); return Result.Err(winerr_to_fs(e as int)); }
         return Result.Ok(f);
@@ -1322,6 +1562,76 @@ func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
 // ----------------------
 // High-level convenience: read/write small files to caller buffer
 // ----------------------
+// Read entire file by growing the buffer as needed.
+// Does NOT call metadata; works even when file grows while reading.
+public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
+    // open file for reading
+    var opts : OpenOptions;
+    opts.read = true;
+    opts.write = false;
+    opts.create = false;
+    opts.truncate = false;
+    opts.append = false;
+
+    var fo = file_open(path, opts);
+    if(fo is Result.Err) {
+        var Err(e) = fo else unreachable;
+        return Result.Err(e);
+    }
+    var Ok(f) = fo else unreachable;
+
+    // a vector
+    var vec = std::vector<u8>()
+    var cap : size_t = 1048;        // start with 8KiB
+    vec.reserve(cap) // 1kb
+
+    var pos : size_t = 0;
+
+    while(true) {
+        // ensure there's some writable capacity: if full, double it
+        if(pos >= cap) {
+            // grow capacity
+            var newcap = cap * 2;
+            // guard against 0 or overflow
+            if(newcap <= cap) { // overflow or stuck
+                file_close(&mut f);
+                return Result.Err(FsError.Other("file too large to read"));
+            }
+            cap = newcap;
+            vec.reserve(cap);
+        }
+
+        // pointer to writable region in the string's buffer
+        var ptr = vec.data() + pos as isize; // cast to pointer arithmetic if needed
+
+        // read up to (cap - pos) bytes
+        var want = cap - pos;
+        var r = file_read(&mut f, ptr as *mut u8, want);
+        if(r is Result.Err) {
+            var Err(e) = r else unreachable;
+            file_close(&mut f);
+            return Result.Err(e);
+        }
+        var Ok(n) = r else unreachable;
+
+        if(n == 0) {
+            // EOF
+            break;
+        }
+
+        // advance write position
+        pos += n;
+        // loop continues; if pos == cap, we'll grow next iteration
+    }
+
+    // set the string's size to the number of bytes read
+    vec.resize_unsafe(pos);
+
+    file_close(&mut f);
+    return Result.Ok(vec);
+}
+
+
 func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
     var opts : OpenOptions; opts.read = true; opts.write = false; opts.create = false; opts.truncate = false; opts.append = false;
     var fo = file_open(path, opts);

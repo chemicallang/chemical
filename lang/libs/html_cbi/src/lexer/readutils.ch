@@ -36,7 +36,7 @@ func (provider : &SourceProvider) read_text() {
 func (provider : &SourceProvider) read_comment_text() : bool {
     while(true) {
         const c = provider.peek();
-        if(c != '\0' && c != '-' && c != '{') {
+        if(c != '\0' && c != '-') {
             provider.increment();
         } else {
             if(c == '-') {

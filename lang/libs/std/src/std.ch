@@ -14,6 +14,17 @@ if(def.win64) {
 
 public type usize = size_t
 
+if(def.win64) {
+    @extern
+    public type isize = bigint
+} else if(def.win32) {
+    @extern
+    public type isize = long
+} else {
+    @extern
+    public type isize = long
+}
+
 @extern
 public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int
 

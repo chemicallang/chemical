@@ -172,6 +172,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
             break;
         case LabJobType::ToCTranslation:
         case LabJobType::ProcessingOnly:
+        case LabJobType::Intermediate:
         case LabJobType::CBI:
             return_int = process_modules(job);
             break;
@@ -854,8 +855,8 @@ int LabBuildCompiler::process_module_gen(
         return 1;
     }
 
-    const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-    if(mod_data_path) {
+    auto& mod_data_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
+    if(!mod_data_path.empty()) {
         std::cout << rang::bg::gray << rang::fg::black << "[lab] " << "Building module ";
         if (!mod->name.empty()) {
             std::cout << '\'' << mod->name.data() << "' ";
@@ -1007,7 +1008,7 @@ int LabBuildCompiler::process_module_gen(
         emitter_options.obj_path = mod->object_path.data();
     }
 
-    const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+    auto& gen_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
     if(verbose) {
         std::cout << "[lab] emitting the module '" << mod->name << "' at '" << gen_path << '\'' << std::endl;
     }
@@ -1015,13 +1016,11 @@ int LabBuildCompiler::process_module_gen(
     // creating a object or bitcode file
     const bool save_result = gen.save_with_options(&emitter_options);
     if(save_result) {
-        if(gen_path) {
-            if(caching) {
-                save_mod_timestamp(direct_files, mod_timestamp_file);
-            }
+        if(caching && !gen_path.empty()) {
+            save_mod_timestamp(direct_files, mod_timestamp_file);
         }
     } else {
-        std::cerr << "[lab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
+        std::cerr << "[lab] failed to emit file '" << gen_path << '\'' << std::endl;
         return 1;
     }
 
@@ -1049,6 +1048,9 @@ void begin_job_print(LabJob* job) {
             break;
         case LabJobType::ToChemicalTranslation:
             std::cout << "Translating to chemical";
+            break;
+        case LabJobType::Intermediate:
+            std::cout << "Building intermediate files";
             break;
         case LabJobType::ProcessingOnly:
             std::cout << "Building objects";
@@ -1107,7 +1109,8 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     if (!mod->name.empty()) {
         std::cout << '\'' << mod->name.data() << "' ";
     }
-    std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    auto& gen_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
+    std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
     const auto compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), compiler->options->exe_path, {});
     if (compile_result == 1) {
@@ -1154,6 +1157,7 @@ void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::
         case LabJobType::JITExecutable:
         case LabJobType::CBI:
         case LabJobType::ProcessingOnly:
+        case LabJobType::Intermediate:
         case LabJobType::Library:
             if (is_use_obj_format) {
                 mod->object_path.clear();
@@ -1561,14 +1565,18 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         return 0;
     }
 
-    // TODO: place this behind a check
-    auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
-    writeToFile(out_path, program);
+    if(job_type == LabJobType::Intermediate) {
+        // skip compilation, only intermediates required
+        auto out_path = resolve_rel_child_path_str(build_dir, "Translated.c");
+        writeToFile(out_path, program);
+        return 0;
+    }
 
     // compiling the entire C to a single object file
     const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
     if (compile_c_result == 1) {
-        // TODO: also output the translation here into out_path
+        auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
+        writeToFile(out_path, program);
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_path << std::endl;
         return 1;
     }
@@ -1732,6 +1740,12 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
                 continue;
             default:
                 break;
+        }
+
+        if(job_type == LabJobType::Intermediate) {
+            // prevent generation of object / bitcode file
+            mod->object_path.clear();
+            mod->bitcode_path.clear();
         }
 
         const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, mod_timestamp_file);
@@ -1973,7 +1987,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         } else {
 
-            std::cerr << rang::fg::red << "error:" << rang::fg::reset << " directory at path '" << dependency.module_dir_path << "' doesn't contain a 'build.lab' or 'chemical.mod' therefore cannot be imported" << std::endl;
+            std::cerr << rang::fg::red << "error:" << rang::fg::reset << " directory at path '" << module_path << "' doesn't contain a 'build.lab' or 'chemical.mod' therefore cannot be imported" << std::endl;
             return nullptr;
 
         }
@@ -2714,7 +2728,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
 }
 
-int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string_view& path) {
+int LabBuildCompiler::build_lab_file(LabBuildContext& context, LabJobType final_job_type, const std::string_view& path) {
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -2733,7 +2747,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     create_dir(options->build_dir);
 
     // create the final job
-    LabJob final_job(LabJobType::Executable, chem::string("main"), chem::string(""), chem::string(options->build_dir));
+    LabJob final_job(final_job_type, chem::string("main"), chem::string(""), chem::string(options->build_dir));
     final_job.mode = options->outMode;
     final_job.target_triple.append(options->target_triple);
 
@@ -2795,7 +2809,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
 }
 
-int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string_view& path, chem::string outputPath) {
+int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_job_type, const std::string_view& path, chem::string outputPath) {
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -2814,7 +2828,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     create_dir(options->build_dir);
 
     // create the final job
-    LabJob final_job(LabJobType::Executable, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
+    LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
     final_job.mode = options->outMode;
     final_job.target_triple.append(options->target_triple);
 

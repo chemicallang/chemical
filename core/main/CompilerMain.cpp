@@ -170,7 +170,8 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
     }
 #endif
 
-    auto parent_path = resolve_parent_path(argv[0]);
+    auto chemical_exe_path = getExecutablePath();
+    auto parent_path = resolve_parent_path(chemical_exe_path);
     if(set_environment_variable("CHEMICAL_HOME", parent_path, false)) {
         config_job_success_msg(job++, "Set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");
     } else {
@@ -236,6 +237,7 @@ const auto lto_desc = "enable link time optimization";
 const auto assertions_desc = "enable assertions for checking of generated code";
 const auto no_pie_desc = "disable position independent code";
 const auto target_desc = "the target for which code is being generated";
+const auto job_type_desc = "change job type if compiling a .mod or .lab file";
 const auto jit_desc = "just in time compile the given input and run using tiny cc compiler";
 const auto output_desc = "the output at which file(s) will be generated";
 const auto resources_desc = "the path to resources directory required";
@@ -511,6 +513,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
             CmdOption("no-pie", "no-pie", CmdOptionType::NoValue, no_pie_desc),
             CmdOption("target", "t", CmdOptionType::SingleValue, target_desc),
+            CmdOption("job-type", "jt", CmdOptionType::SingleValue, job_type_desc),
             CmdOption("jit", "jit", CmdOptionType::NoValue, jit_desc),
             CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
             CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
@@ -553,7 +556,8 @@ int compiler_main(int argc, char *argv[]) {
         for(auto& view : span) {
             jit_args.emplace_back(const_cast<char*>(view.data()));
         }
-        return LabBuildCompiler::tcc_run_invocation(argv[0], args, mode, (int) jit_args.size(), jit_args.data());
+        auto compiler_exe_path = getExecutablePath();
+        return LabBuildCompiler::tcc_run_invocation(compiler_exe_path.data(), args, mode, (int) jit_args.size(), jit_args.data());
     }
 
 #ifdef COMPILER_BUILD
@@ -583,7 +587,7 @@ int compiler_main(int argc, char *argv[]) {
     auto& cc_cmd_opt = options.cmd_opt("cc");
     if(!cc_cmd_opt.get_multi_opt_values().empty()) {
         std::vector<std::string> subc;
-        subc.emplace_back(argv[0]);
+        subc.emplace_back(getExecutablePath());
         cc_cmd_opt.get_multi_value_vec(subc);
 //        std::cout << "rclg  : ";
 //        for(const auto& sub : subc) {
@@ -615,7 +619,7 @@ int compiler_main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
 
     auto get_resources_path = [&res, &argv]() -> std::string {
-        auto resources_path = res.has_value() ? std::string(res.value()) : resources_path_rel_to_exe(std::string(argv[0]));
+        auto resources_path = res.has_value() ? std::string(res.value()) : resources_path_rel_to_exe(getExecutablePath());
         if(resources_path.empty()) {
             std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset;
             std::cerr << "couldn't locate resources path relative to compiler's executable" << std::endl;
@@ -701,9 +705,10 @@ int compiler_main(int argc, char *argv[]) {
     // build a .lab file
     if(is_lab_file || is_mod_file) {
 
+        auto compiler_exe_path = getExecutablePath();
         std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : resolve_non_canon_parent_path(args[0], "build");
-        LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
-        CompilerBinder binder(argv[0]);
+        LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, std::move(build_dir), is64Bit);
+        CompilerBinder binder(compiler_exe_path);
         LocationManager loc_man;
         LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
         compiler.set_cmd_options(&options);
@@ -748,9 +753,30 @@ int compiler_main(int argc, char *argv[]) {
             }
         }
 
+        auto job_type_opt = options.option_new("job-type", "jt");
+        LabJobType final_job_type = LabJobType::Executable;
+        if(job_type_opt.has_value()) {
+            auto& view = job_type_opt.value();
+            if(view == "exe") {
+                final_job_type = LabJobType::Executable;
+            } else if(view == "lib") {
+                final_job_type = LabJobType::Library;
+            } else if(view == "2c") {
+                final_job_type = LabJobType::ToCTranslation;
+            } else if(view == "2ch") {
+                final_job_type = LabJobType::ToChemicalTranslation;
+            } else if(view == "inter") {
+                final_job_type = LabJobType::Intermediate;
+            } else if(view == "proc") {
+                final_job_type = LabJobType::ProcessingOnly;
+            } else {
+                // TODO: unknown job type, probably an error
+            }
+        }
+
         if(is_lab_file) {
             // building the lab file
-            const auto result = compiler.build_lab_file(context, args[0]);
+            const auto result = compiler.build_lab_file(context, final_job_type, args[0]);
             return result;
         } else {
             // building the mod file
@@ -764,16 +790,17 @@ int compiler_main(int argc, char *argv[]) {
                 outputPath.append("a");
 #endif
             }
-            const auto result = compiler.build_mod_file(context, args[0], std::move(outputPath));
+            const auto result = compiler.build_mod_file(context, final_job_type, args[0], std::move(outputPath));
             return result;
         }
 
     }
 
     // compilation
+    auto compiler_exe_path = getExecutablePath();
     std::string build_dir = build_dir_opt.has_value() ? std::string(build_dir_opt.value()) : "./";
-    LabBuildCompilerOptions compiler_opts(argv[0], target, std::move(build_dir), is64Bit);
-    CompilerBinder binder(argv[0]);
+    LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, std::move(build_dir), is64Bit);
+    CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
     LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
     compiler.set_cmd_options(&options);

@@ -130,6 +130,10 @@ public struct vector<T> {
         data_size = 0;
     }
 
+    func resize_unsafe(&self, new_size : size_t) {
+        data_size = new_size
+    }
+
     @delete
     func delete(&mut self) {
         if(data_ptr != null) {

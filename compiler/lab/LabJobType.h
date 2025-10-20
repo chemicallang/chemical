@@ -41,4 +41,11 @@ enum class LabJobType : int {
      */
     CBI = 6,
 
+    /**
+     * intermediate is job like processing only, however
+     * intermediate doesn't even produce the object file
+     * it just stops after producing the intermediate files like llvm ir
+     */
+    Intermediate,
+
 };

@@ -4,6 +4,9 @@
 
 #include <string_view>
 
+// argv[0] is not complete, when user executes from the environment variable
+std::string getExecutablePath();
+
 std::string resolve_rel_child_path_str(const std::string_view& root_path, const std::string_view& file_path);
 
 std::string resolve_parent_path(const std::string_view& root_path);

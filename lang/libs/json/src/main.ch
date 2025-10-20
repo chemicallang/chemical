@@ -164,17 +164,69 @@ public func <T : JsonStringEmitter> (emitter : &mut T) append_value_pretty(value
     }
 }
 
+public struct DebugJsonSaxHandler {
+
+    var stream : CommandLineStream
+    @make
+    func make() {
+        stream = CommandLineStream {}
+    }
+
+    func write_view(&self, view : &std::string_view) {
+        stream.writeStr(view.data(), view.size())
+    }
+
+    func writeLine(&self) { stream.writeChar('\n') }
+
+    func on_null(&self) {
+        write_view(std::string_view("null\n"))
+    }
+    func on_bool(&self, value : bool) {
+        write_view(std::string_view("bool : "))
+        if(value) { write_view(std::string_view(" (true)\n")); } else { write_view(std::string_view(" (false)\n")); }
+    }
+    func on_number(&self, data : *char, len : size_t) {
+        write_view(std::string_view("number : "))
+        stream.writeStr(data, len)
+        writeLine()
+    }
+    func on_string(&self, data : *char, len : size_t) {
+        write_view(std::string_view("string : "))
+        stream.writeStr(data, len)
+        writeLine()
+    }
+
+    func on_object_begin(&self) {
+       write_view(std::string_view("object begin\n"))
+    }
+    func on_object_end(&self) {
+        write_view(std::string_view("object end\n"))
+    }
+    func on_array_begin(&self) {
+        write_view(std::string_view("array begin\n"))
+    }
+    func on_array_end(&self) {
+        write_view(std::string_view("array end\n"))
+    }
+    func on_key(&self, data : *char, len : size_t) {
+        write_view(std::string_view("key : "))
+        stream.writeStr(data, len)
+        writeLine()
+    }
+
+}
+
 public struct ASTJsonHandler : public JsonSaxHandler {
 
     var stack : std::vector<JsonValue>
 
-    var current_key : std::string
-
-    var have_current_key : bool = false
+    var key_stack : std::vector<std::string>
 
     var root : JsonValue;
 
     var have_root : bool = false
+
+    // var d : DebugJsonSaxHandler
 
     @make
     func make() {
@@ -193,7 +245,7 @@ public struct ASTJsonHandler : public JsonSaxHandler {
                 values.push(v);
             } else if (top is JsonValue.Object) {
                 // it's an Object
-                if (!have_current_key) {
+                if (key_stack.empty()) {
                     // malformed SAX sequence -- object value without a key
                     // convert to None or ignore; here we'll insert with empty key to avoid crash
                     var key = std::string();
@@ -201,10 +253,7 @@ public struct ASTJsonHandler : public JsonSaxHandler {
                     values.insert(key, v);
                 } else {
                     var Object(values) = *top else unreachable
-                    values.insert(current_key.copy(), v);
-                    // consume the current key
-                    current_key.clear();
-                    have_current_key = false;
+                    values.insert(key_stack.take_last(), v);
                 }
             } else {
                 // top is something else (shouldn't happen). As a fallback, replace root.
@@ -220,16 +269,19 @@ public struct ASTJsonHandler : public JsonSaxHandler {
 
     @override
     func on_null(&self) {
+        // d.on_null()
         attach_value(JsonValue.Null())
     }
 
     @override
     func on_bool(&self, v : bool) {
+        // d.on_bool(v)
         attach_value(JsonValue.Bool(v))
     }
 
     @override
     func on_number(&self, s : *char, len : size_t) {
+        // d.on_number(s, len)
         var str = std::string()
         str.append_with_len(s, len)
         attach_value(JsonValue.Number(str))
@@ -237,6 +289,7 @@ public struct ASTJsonHandler : public JsonSaxHandler {
 
     @override
     func on_string(&self, s : *char, len : size_t) {
+        // d.on_string(s, len)
         var str = std::string()
         str.append_with_len(s, len)
         attach_value(JsonValue.String(str))
@@ -244,15 +297,14 @@ public struct ASTJsonHandler : public JsonSaxHandler {
 
     @override
     func on_object_begin(&self) {
+        // d.on_object_begin()
         // push an empty object
         stack.push(JsonValue::Object(std::unordered_map<std::string, JsonValue>()));
-        // clear any pending key (shouldn't be set when object begins, but safe)
-        current_key.clear();
-        have_current_key = false;
     }
 
     @override
     func on_object_end(&self) {
+        // d.on_object_end()
         if (stack.empty()) {
             // unmatched end; ignore
             return;
@@ -262,11 +314,13 @@ public struct ASTJsonHandler : public JsonSaxHandler {
 
     @override
     func on_array_begin(&self) {
+        // d.on_array_begin()
         stack.push(JsonValue.Array(std::vector<JsonValue>()));
     }
 
     @override
     func on_array_end(&self) {
+        // d.on_array_end()
         if (stack.empty()) {
             // unmatched end; ignore
             return;
@@ -276,9 +330,8 @@ public struct ASTJsonHandler : public JsonSaxHandler {
 
     @override
     func on_key(&self, s : *char, len : size_t) {
-        // copy the key into current_key; will be consumed by next value
-        current_key.append_with_len(s, len);
-        have_current_key = true;
+        // d.on_key(s, len)
+        key_stack.push(std::string(s, len))
     }
 
 };

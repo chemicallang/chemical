@@ -161,7 +161,7 @@ public namespace net {
                 // fall back to INADDR_ANY if addr was unspecified like "0.0.0.0"
                 // but report error for diagnostics
                 // (optional debug - remove #if when enabling)
-                perror("inet_pton failed" as *char);
+                perror("inet_pton failed");
                 // let it remain INADDR_ANY (s_addr = 0)
                 addr.sin_addr.s_addr = 0u;
             }
@@ -179,7 +179,7 @@ public namespace net {
                 // You can format e into string with FormatMessageA if needed (omitted here).
                 // For now we keep going.
             } else {
-                perror("setsockopt(SO_REUSEADDR) failed" as *char);
+                perror("setsockopt(SO_REUSEADDR) failed");
             }
         }
 
@@ -338,6 +338,295 @@ public namespace http {
         }
     }
 
+    // Body: lazy reader for request body. Does NOT close the socket by itself.
+    // It borrows a pointer to an io::Buffer containing already-read bytes (headers + maybe some body).
+    @direct_init
+    public struct Body {
+
+        var sock: net::Socket;               // underlying socket (do not close here)
+        var buf: *mut io::Buffer;            // pointer to buffer that holds bytes already read
+        var remaining: isize;                // -1 meaning unknown (no Content-Length), otherwise bytes left
+        var chunked: bool;                   // transfer-encoding: chunked
+        var timeout_secs: long;              // timeout for subsequent recv calls
+        var max_body: usize;                 // configured max body size (for limits)
+        var closed: bool;                    // has the handler closed this Body?
+        // chunked state
+        var cur_chunk_left: usize;           // bytes left in current chunk when chunked==true
+        var seen_total: usize;               // how many body bytes have been delivered to user (enforce max_body)
+
+        @make
+        func empty_make() {
+            sock = 0
+            buf = null
+            remaining = -1
+            chunked = false
+            timeout_secs = 0
+            max_body = 0
+            closed = false
+            cur_chunk_left = 0
+            seen_total = 0
+        }
+
+        // construct body from request metadata (call from handle_conn after parsing headers)
+        public func make_body(
+            sock: net::Socket,
+            buf_ptr: *mut io::Buffer,
+            content_len: isize,    // -1 if unknown
+            chunked: bool,
+            timeout_secs: long,
+            max_body: usize
+        ) : Body {
+            return Body{
+                sock: sock,
+                buf: buf_ptr,
+                remaining: content_len,
+                chunked: chunked,
+                timeout_secs: timeout_secs,
+                max_body: max_body,
+                closed: false,
+                cur_chunk_left: 0u,
+                seen_total: 0u
+            };
+        }
+
+    }
+
+    // low-level recv helper that honors timeout and returns <=0 on error/timeout
+    func body_recv(b:*mut Body, dst:*mut u8, cap: usize) : int {
+        // set timeout on socket
+        net::set_recv_timeout(b.sock, b.timeout_secs, 0);
+        return net::recv_all(b.sock, dst, cap);
+    }
+
+    // Helper: copy up to `want` bytes from the already-read buffer into dst, returning copied count.
+    func copy_from_buffer(b:*mut Body, dst:*mut u8, want: usize) : usize {
+        if(b.buf == null) { return 0u }
+        var bufref = b.buf;
+        var avail = bufref.len();
+        var take = if(avail < want) avail else want;
+        if(take == 0u) { return 0u }
+        // copy bytes
+        var i = 0u;
+        var srcp = bufref.as_ptr();
+        while(i < take) {
+            dst[i] = srcp[i];
+            i = i + 1u;
+        }
+        bufref.consume(take);
+        return take;
+    }
+
+    // PUBLIC: read up to `cap` bytes into dst; returns number of bytes read or <=0 on error.
+    // This function supports Content-Length and chunked transfer (basic).
+    func (b: &mut Body) read(dst:*mut u8, cap: usize) : int {
+        if(b.closed) { return 0 } // EOF for closed
+        // Enforce max_body
+        if(b.max_body > 0u && b.seen_total >= b.max_body) { return -1 } // too large
+        // If chunked mode -> decode chunk frames
+        if(b.chunked) {
+            // If current chunk has data, use it first
+            if(b.cur_chunk_left > 0u) {
+                var want = if(cap < b.cur_chunk_left) cap else b.cur_chunk_left;
+                // first copy from internal already-read buffer
+                var copied = copy_from_buffer(&mut b, dst, want);
+                var total_read = copied;
+                // if need more and socket provides, recv more
+                while(total_read < want) {
+                    var n = body_recv(&mut b, &mut dst[total_read], want - total_read);
+                    if(n <= 0) { return -1 }
+                    total_read = total_read + (n as usize);
+                }
+                b.cur_chunk_left = b.cur_chunk_left - want;
+                b.seen_total = b.seen_total + want;
+                if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
+                // if chunk finished, consume trailing CRLF from stream/buffer
+                if(b.cur_chunk_left == 0u) {
+                    // consume trailing \r\n after chunk data
+                    var tmp : [2]u8;
+                    // try to copy from buffer first
+                    var c = copy_from_buffer(&mut b, &mut tmp[0], 2);
+                    if(c < 2) {
+                        var rem = 2 - c;
+                        var n = body_recv(&mut b, &mut tmp[c], rem);
+                        if(n <= 0) { return -1 }
+                    }
+                    // ignore values, just discard
+                }
+                return (want as int);
+            }
+            // Need to read next chunk size line: it's ASCII hex then CRLF.
+            // We'll read bytes from buffer and socket until we find CRLF.
+            var linebuf = std::string::empty_str();
+            // first consume from buffer if present
+            if(b.buf != null && b.buf.len() > 0u) {
+                // attempt to read until CRLF appears in buffer
+                var i = 0u;
+                while(i + 1 < b.buf.len()) {
+                    var a = b.buf.get_byte(i);
+                    var bb = b.buf.get_byte(i + 1u);
+                    if(a == '\r' as u8 && bb == '\n' as u8) {
+                        // read the line from buffer
+                        var nline = i; // number of bytes before CRLF
+                        var ptr = b.buf.as_ptr();
+                        var tmpline = std::string::constructor(ptr as *char, nline as size_t);
+                        b.buf.consume(nline + 2u); // remove line + CRLF
+                        linebuf = tmpline;
+                        break;
+                    }
+                    i = i + 1u;
+                }
+            }
+            // if linebuf still empty, read bytes from socket until CRLF
+            while(linebuf.size() == 0u) {
+                var tmp : [64]u8;
+                var n = body_recv(&mut b, &mut tmp[0], 64);
+                if(n <= 0) { return -1 }
+                // append into a small temporary string searching for CRLF
+                var i = 0;
+                while(i < n) {
+                    var ch = tmp[i];
+                    linebuf.append(ch as char);
+                    var L = linebuf.size();
+                    if(L >= 2 && linebuf.get(L-2u) == '\r' && linebuf.get(L-1u) == '\n') {
+                        // strip trailing CRLF
+                        linebuf = linebuf.substring(0u, L-2u);
+                        break;
+                    }
+                    i = i + 1;
+                }
+            }
+            // parse hex chunk size
+            var hex_ok = true;
+            var hex_val : usize = 0u;
+            var ii = 0u;
+            while(ii < linebuf.size()) {
+                var c = linebuf.get(ii);
+                var v = hex_value(c);
+                if(v < 0) { hex_ok = false; break }
+                hex_val = (hex_val * 16u) + (v as usize);
+                ii = ii + 1u;
+            }
+            if(!hex_ok) { return -1 }
+            if(hex_val == 0u) {
+                // final chunk: consume optional trailer until blank line
+                // for simplicity, consume bytes until we see "\r\n\r\n"
+                var found = false;
+                while(!found) {
+                    // check buffer first
+                    if(b.buf != null) {
+                        var L = b.buf.len();
+                        if(L >= 4u) {
+                            var i = 0u;
+                            while(i + 3u < L) {
+                                if(b.buf.get_byte(i) == '\r' as u8 && b.buf.get_byte(i+1u) == '\n' as u8 &&
+                                   b.buf.get_byte(i+2u) == '\r' as u8 && b.buf.get_byte(i+3u) == '\n' as u8) {
+                                    b.buf.consume(i + 4u);
+                                    found = true;
+                                    break;
+                                }
+                                i = i + 1u;
+                            }
+                        }
+                    }
+                    if(!found) {
+                        var tmp : [DEFAULT_READ_BUF]u8;
+                        var n = body_recv(&mut b, &mut tmp[0], DEFAULT_READ_BUF);
+                        if(n <= 0) { return -1 }
+                        // append to buffer for next iteration
+                        if(b.buf != null) { b.buf.append_bytes(&mut tmp[0], n as usize) }
+                    }
+                }
+                // EOF for chunked body
+                b.closed = true;
+                return 0;
+            }
+            // set current chunk left and loop to read from it (recursive call)
+            b.cur_chunk_left = hex_val;
+            // recursive to read from cur_chunk_left portion
+            return b.read(dst, cap);
+        } // chunked end
+
+        // Non-chunked simple: Content-Length known or unknown.
+        if(b.remaining >= 0) {
+            // known length: read up to min(cap, remaining)
+            var want = if((b.remaining as usize) < cap) (b.remaining as usize) else cap;
+            // copy from buffer first
+            var copied = copy_from_buffer(&mut b, dst, want);
+            var total = copied;
+            while(total < want) {
+                var n = body_recv(&mut b, &mut dst[total], want - total);
+                if(n <= 0) { return -1 }
+                total = total + (n as usize);
+            }
+            b.remaining = b.remaining - (total as isize);
+            b.seen_total = b.seen_total + total;
+            if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
+            return (total as int);
+        } else {
+            // unknown length: read until peer closes (connection: close) — treat as stream
+            // copy from buffer first
+            var copied = copy_from_buffer(&mut b, dst, cap);
+            var total = copied;
+            if(total > 0u) {
+                b.seen_total = b.seen_total + total;
+                if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
+                return (total as int);
+            }
+            // otherwise, read from socket
+            var n = body_recv(&mut b, dst, cap);
+            if(n <= 0) { return (0) } // EOF or error -> return 0 for EOF
+            b.seen_total = b.seen_total + (n as usize);
+            if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
+            return n;
+        }
+    }
+
+    // read all remaining body into a string (useful for small bodies)
+    public func (b: &mut Body) read_to_string() : std::Option<std::string> {
+        var out = std::string::empty_str();
+        var tmp : [DEFAULT_READ_BUF]u8;
+        while(true) {
+            var n = b.read(&mut tmp[0], DEFAULT_READ_BUF);
+            if(n < 0) { return std::Option.None<std::string>() } // error
+            if(n == 0) { break } // EOF
+            out.append_view(std::string_view(&tmp[0] as *char, n as size_t))
+        }
+        return std::Option.Some<std::string>(out);
+    }
+
+    // read exactly `n` bytes (or return None on error/EOF)
+    public func (b: &mut Body) read_exact(n: usize) : std::Option<std::string> {
+        var out = std::string::empty_str();
+        out.reserve(n);
+        var rem = n;
+        var tmp : [DEFAULT_READ_BUF]u8;
+        while(rem > 0u) {
+            var want = if(rem < DEFAULT_READ_BUF) rem else DEFAULT_READ_BUF;
+            var r = b.read(&mut tmp[0], want);
+            if(r <= 0) { return std::Option.None<std::string>() }
+            var part = std::string::constructor(&tmp[0] as *char, r as size_t);
+            out.append_string(part);
+            rem = rem - (r as usize);
+        }
+        return std::Option.Some<std::string>(out);
+    }
+
+    // drain remaining body to /dev/null (useful when you want to discard the body)
+    public func (b: &mut Body) drain() : bool {
+        var tmp : [DEFAULT_READ_BUF]u8;
+        while(true) {
+            var n = b.read(&mut tmp[0], DEFAULT_READ_BUF);
+            if(n < 0) { return false }
+            if(n == 0) { break }
+        }
+        return true;
+    }
+
+    // close returns resources (no-op here except mark closed)
+    public func (b: &mut Body) close() {
+        b.closed = true;
+    }
+
     public struct Request {
         var method: std::string;
         var path: std::string;
@@ -345,7 +634,17 @@ public namespace http {
         var headers: HeaderMap;
         var body_len: usize;
         var remote: std::string;
-        @constructor func constructor() { method = std::string::empty_str(); path = std::string::empty_str(); proto = std::string::empty_str(); headers = HeaderMap(); body_len = 0u; remote = std::string::empty_str(); }
+        var body : Body
+
+        @constructor func constructor() {
+            method = std::string::empty_str();
+            path = std::string::empty_str();
+            proto = std::string::empty_str();
+            headers = HeaderMap();
+            body_len = 0u;
+            remote = std::string::empty_str();
+        }
+
     }
 
     public struct ResponseWriter {
@@ -615,7 +914,7 @@ public namespace http {
         }
 
         // Content-Length if present
-        var cl_opt = req.headers.get("Content-Length" as *char);
+        var cl_opt = req.headers.get("Content-Length");
         if(cl_opt is std::Option.Some) {
             var Some(v) = cl_opt else unreachable;
             var val = 0u; var ii = 0u;
@@ -728,7 +1027,7 @@ public namespace server {
         var max_header_bytes: usize;
         var max_headers: uint;
         var max_body_bytes: usize;
-        @constructor func constructor() { addr = std::string::make_no_len(":8080" as *char); worker_count = std.concurrent.hardware_threads() as uint; header_timeout_secs = 5; max_header_bytes = 64u * 1024u; max_headers = 512u; max_body_bytes = 10u * 1024u * 1024u }
+        @constructor func constructor() { addr = std::string::make_no_len(":8080"); worker_count = std.concurrent.hardware_threads() as uint; header_timeout_secs = 5; max_header_bytes = 64u * 1024u; max_headers = 512u; max_body_bytes = 10u * 1024u * 1024u }
     }
 
     public struct Server {
@@ -766,6 +1065,21 @@ public namespace server {
             printf("handle_conn: parsed request for socket=%d\n", s);
             var Some(req) = req_opt else unreachable;
 
+            // do NOT read the body yet — create a lazy Body and give it to the handler via req.body_source
+            var body_len: isize = -1;
+            var chunked = false;
+            // set body_len from req.body_len (was parsed from Content-Length), else -1
+            if(req.body_len > 0u) { body_len = req.body_len as isize; }
+            // detect chunked
+            var te_opt = req.headers.get("Transfer-Encoding");
+            if(te_opt is std::Option.Some) {
+                var Some(te) = te_opt else unreachable;
+                if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
+            }
+
+            // attach body source to request (we avoid copying the buffer: pass pointer)
+            req.body = http.Body.make_body(s, &mut buf as *mut io::Buffer, body_len, chunked, self.cfg.header_timeout_secs * 4, self.cfg.max_body_bytes);
+
             printf("handle_conn: method='%s' path='%s'\n", req.method.data(), req.path.data());
 
             var params = std::vector<std::pair<std::string,std::string>>();
@@ -786,8 +1100,8 @@ public namespace server {
             } else {
                 printf("handle_conn: no handler matched, sending 404 for socket={}\n");
                 resw.status = 404u;
-                resw.set_header(std::string::make_no_len("Content-Type" as *char), std::string::make_no_len("text/plain; charset=utf-8" as *char));
-                resw.write_string(std::string::make_no_len("Not Found\n" as *char));
+                resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
+                resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
             net::close_socket(s);
@@ -820,7 +1134,7 @@ public namespace server {
         func start(&mut self) {
             // parse addr into host and port
             // acceptor will call net.listen_addr
-            self.listen_sock = net.listen_addr("0.0.0.0" as *char, 8080u);
+            self.listen_sock = net.listen_addr("0.0.0.0", 8080u);
             self.run = true;
             var th = std.concurrent.spawn(accept_main, &mut self as *void);
             accept_thread = th;

@@ -9,7 +9,8 @@ public variant Option<T> {
             panic("cannot take on a option that's none")
         }
         var Some(value) = self else unreachable
-        // moved out
+        // moved out, TODO: pattern matching only provides a reference, this should not work
+        // TODO: we need to provide some way to take out values inside a variant
         var temp = value
         // assign without destruction None<T>
         new(&self) Option.None<T>()

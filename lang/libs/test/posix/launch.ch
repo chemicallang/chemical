@@ -1,4 +1,4 @@
-func launch_test(exe_path : *char, , id : int, state : &mut TestFunctionState) : int {
+func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : int {
 
     // Build argv for posix_spawnp (must be a NULL-terminated array)
     var id_str = std::string();

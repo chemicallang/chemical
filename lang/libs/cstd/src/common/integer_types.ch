@@ -1,6 +1,5 @@
 /**
- * signed integer type with width of
- * exactly 8 bits respectively
+ * signed integer type with width of exactly 8 bits respectively
  * with no padding bits and using 2's complement for negative values
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
@@ -8,8 +7,7 @@
 public type int8_t = i8
 
 /**
- * signed integer type with width of
- * exactly 16 bits respectively
+ * signed integer type with width of exactly 16 bits respectively
  * with no padding bits and using 2's complement for negative values
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
@@ -17,8 +15,7 @@ public type int8_t = i8
 public type int16_t = i16
 
 /**
- * signed integer type with width of
- * exactly 32 bits respectively
+ * signed integer type with width of exactly 32 bits respectively
  * with no padding bits and using 2's complement for negative values
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
@@ -26,8 +23,7 @@ public type int16_t = i16
 public type int32_t = i32
 
 /**
- * signed integer type with width of
- * exactly 64 bits respectively
+ * signed integer type with width of exactly 64 bits respectively
  * with no padding bits and using 2's complement for negative values
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
@@ -35,8 +31,7 @@ public type int32_t = i32
 public type int64_t = i64
 
 /**
- * fastest signed integer type with width of
- * at least 8 bits respectively
+ * fastest signed integer type with width of at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
@@ -46,8 +41,7 @@ if(def.windows) {
 }
 
 /**
- * fastest signed integer type with width of
- * at least 16 bits respectively
+ * fastest signed integer type with width of at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
@@ -57,8 +51,7 @@ if(def.windows) {
 }
 
 /**
- * fastest signed integer type with width of
- * at least 32 bits respectively
+ * fastest signed integer type with width of at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {

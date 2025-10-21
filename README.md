@@ -35,7 +35,7 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 ## ⚙️ Installation
 
 1. Download & Extract the latest ZIP from the [Releases](https://github.com/chemicallang/chemical/releases) page.
-2. Inside the folder, run `./chemical configure` or `./chemical.exe configure`
+2. Inside the folder, run `./chemical --configure` or `./chemical.exe --configure`
 3. Verify by running `chemical -v`
 
 ---

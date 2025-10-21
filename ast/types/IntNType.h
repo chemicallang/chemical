@@ -122,6 +122,8 @@ public:
                 return is64Bit ? 8 : 4;
             case IntNTypeKind::I64:
             case IntNTypeKind::U64:
+            case IntNTypeKind::LongLong:
+            case IntNTypeKind::ULongLong:
                 return 8;
             case IntNTypeKind::Int128:
             case IntNTypeKind::UInt128:

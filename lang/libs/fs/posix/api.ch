@@ -10,11 +10,11 @@ type __blkcnt_t = long
 type __syscall_slong_t = long
 type __time_t = long
 
-@extern
-public struct timespec {
-    var tv_sec : __time_t;		/* Seconds.  */
-    var tv_nsec : __syscall_slong_t;	/* Nanoseconds.  */
-};
+// @extern
+// public struct timespec {
+//     var tv_sec : __time_t;		/* Seconds.  */
+//     var tv_nsec : __syscall_slong_t;	/* Nanoseconds.  */
+// };
 
 @extern
 public struct stat {

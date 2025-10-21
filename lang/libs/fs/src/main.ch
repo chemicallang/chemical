@@ -69,6 +69,55 @@ public variant FsError {
 
 }
 
+if(def.posix) {
+    @extern public func realpath(path : *char, resolved : *mut char) : *char;
+    @extern public func chmod(path : *char, mode : u32) : int;
+
+    public type blksize_t = i64;
+    public type fsblkcnt_t = u64;
+    public type fsfilcnt_t = u64;
+
+    const AT_FDCWD = -100;               // use current working directory
+    const AT_SYMLINK_NOFOLLOW = 0x100;   // do not follow symlinks (Linux typical)
+    @extern public func utimensat(dirfd : int, pathname : *char, times : *timespec, flags : int) : int;
+    @extern public func fsync(fd : int) : int;
+
+    @extern public func link(oldpath : *char, newpath : *char) : int;
+    @extern public func symlink(target : *char, linkpath : *char) : int;
+
+    // Returns file descriptor on success, -1 on error (and modifies template in-place).
+    @extern public func mkstemp(template : *mut char) : int;
+
+    struct Statvfs {
+        var f_bsize   : ulong;   // file system block size
+        var f_frsize  : ulong;   // fragment size
+        var f_blocks  : fsblkcnt_t;      // size of fs in f_frsize units
+        var f_bfree   : fsblkcnt_t;      // # free blocks
+        var f_bavail  : fsblkcnt_t;      // # free blocks for unprivileged users
+        var f_files   : fsfilcnt_t;      // # inodes
+        var f_ffree   : fsfilcnt_t;      // # free inodes
+        var f_favail  : fsfilcnt_t;      // # free inodes for unprivileged users
+        var f_fsid    : ulong;   // file system ID
+        var f_flag    : ulong;   // mount flags
+        var f_namemax : ulong;   // maximum filename length
+    }
+    @extern public func statvfs(path : *char, out : *mut Statvfs) : int;
+
+    @extern public func flock(fd : int, operation : int) : int;
+
+    const LOCK_SH = 1;   // shared lock
+    const LOCK_EX = 2;   // exclusive lock
+    const LOCK_NB = 4;   // non-blocking
+    const LOCK_UN = 8;   // unlock
+
+    public type ssize_t = isize;
+
+    // POSIX readlink declaration:
+    // ssize_t readlink(const char *path, char *buf, size_t bufsiz);
+    @extern public func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t;
+
+}
+
 public struct Metadata {
     var is_file : bool;
     var is_dir : bool;
@@ -281,8 +330,7 @@ func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size
         return Result.Ok(n);
     } else {
         // POSIX: realpath
-        // extern "c" { func realpath(path : *char, resolved : *mut char) : *char; }
-        var resptr = realpath(path, out);
+        var resptr = fs::realpath(path, out);
         if(resptr == 0) {
             // errno must be mapped by user; assume errno accessor exists
             return Result.Err(FsError.Io(-1, "realpath failed\0"));
@@ -467,9 +515,9 @@ func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
     } else {
         // POSIX open
         var flags : int = 0;
-        if(opts.read && !opts.write) { flags = 0; } // O_RDONLY
-        else if(opts.read && opts.write) { flags = 2; } // O_RDWR
-        else if(!opts.read && opts.write) { flags = 1; } // O_WRONLY
+        if(opts.read && !opts.write) { flags = 0; /** O_RDONLY **/
+        } else if(opts.read && opts.write) { flags = 2; /** O_RDWR **/
+        } else if(!opts.read && opts.write) { flags = 1; /** O_WRONLY **/ }
         const O_CREAT = 0x40;
         const O_TRUNC = 0x200;
         const O_EXCL  = 0x80;
@@ -570,6 +618,7 @@ func file_flush(f : *mut File) : Result<UnitTy, FsError> {
     }
 }
 
+if(def.windows) {
 public func filetime_to_unix(ft : FILETIME) : i64 {
     const SECS_BETWEEN_EPOCHS : i64 = 11644473600;
     const HUNDRED_NANOSECONDS_PER_SEC : i64 = 10000000;
@@ -581,6 +630,7 @@ public func filetime_to_unix(ft : FILETIME) : i64 {
     var unix_time : i64 = (windows_time / HUNDRED_NANOSECONDS_PER_SEC) - SECS_BETWEEN_EPOCHS;
 
     return unix_time;
+}
 }
 
 // --------------------------
@@ -611,11 +661,11 @@ func metadata(path : *char) : Result<Metadata, FsError> {
         m.perms = attrs as u32;
         return Result.Ok(m);
     } else {
-        var st : stat;
-        var r = lstat(path, &st);
+        var st : Stat;
+        var r = lstat(path, &mut st);
         if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
         var m : Metadata;
-        var mode : int = st.st_mode;
+        var mode : int = st.st_mode as int;
         m.is_dir = ((mode & 0xF000) == 0x4000);
         m.is_file = ((mode & 0xF000) == 0x8000);
         m.is_symlink = ((mode & 0xF000) == 0xA000);
@@ -645,12 +695,13 @@ func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
         if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         return Result.Ok(UnitTy{});
     } else {
-        var r = chmod(path, perms as int);
+        var r = fs::chmod(path, perms as u32);
         if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
         return Result.Ok(UnitTy{});
     }
 }
 
+if(def.windows) {
 public func unix_to_filetime(unix_time : i64) : FILETIME {
     const SECS_BETWEEN_EPOCHS : i64 = 11644473600;   // seconds between 1601 and 1970
     const HUNDRED_NANOSECONDS_PER_SEC : i64 = 10000000;
@@ -664,6 +715,7 @@ public func unix_to_filetime(unix_time : i64) : FILETIME {
     ft.dwHighDateTime = ((windows_time >> 32) & 0xFFFFFFFF) as u32;
 
     return ft;
+}
 }
 
 func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
@@ -691,7 +743,7 @@ func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError>
         times[0].tv_nsec = 0;
         times[1].tv_sec = mtime;
         times[1].tv_nsec = 0;
-        var r = utimensat(0, path, &times, 0);
+        var r = utimensat(0, path, &times[0], 0);
         if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
         return Result.Ok(UnitTy{});
     }
@@ -731,7 +783,7 @@ public func create_dir(path : *char) : Result<UnitTy, FsError> {
         }
         return Result.Ok(UnitTy{});
     } else {
-        var r = mkdir(path, 0o777);
+        var r = posix_mkdir(path, 0o777);
         if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
         return Result.Ok(UnitTy{});
     }
@@ -827,10 +879,10 @@ if(def.windows) {
     struct dirent { var d_name : [PATH_MAX_BUF]char; }
     struct stat { var st_mode : u32; }
 
-    @extern public func opendir(path : *char) : DIR;
-    @extern public func readdir(dir : DIR) : *mut dirent;
-    @extern public func closedir(dir : DIR) : int;
-    @extern public func lstat(path : *char, out : *mut stat) : int;
+    // @extern public func opendir(path : *char) : DIR;
+    // @extern public func readdir(dir : DIR) : *mut dirent;
+    // @extern public func closedir(dir : DIR) : int;
+    // @extern public func lstat(path : *char, out : *mut Stat) : int;
     @extern public func unlink(path : *char) : int;
     @extern public func rmdir(path : *char) : int;
 }
@@ -864,7 +916,7 @@ public func remove_file_platform(path : *char) : Result<UnitTy, FsError> {
         if(deleted == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
     } else {
-        if(unlink(path) != 0) { return Result.Err(posix_errno_to_fs(-errno)); }
+        if(unlink(path) != 0) { return Result.Err(posix_errno_to_fs(-get_errno())); }
         return Result.Ok(UnitTy{});
     }
 }
@@ -969,13 +1021,13 @@ public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
         // POSIX
         var dir = opendir(path);
         if(dir == null) {
-            return Result.Err(posix_errno_to_fs(-errno));
+            return Result.Err(posix_errno_to_fs(-get_errno()));
         }
 
         loop {
             var ent = readdir(dir);
             if(ent == null) {
-                if(errno != 0) { closedir(dir); return Result.Err(posix_errno_to_fs(-errno)); }
+                if(get_errno() != 0) { closedir(dir); return Result.Err(posix_errno_to_fs(-get_errno())); }
                 break;
             }
 
@@ -993,22 +1045,22 @@ public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
             child[p + q] = 0;
 
             // lstat to check if directory (do not follow symlink)
-            var st : stat;
-            if(lstat(&child[0], &mut st) != 0) { var err = errno; closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
+            var st : Stat;
+            if(lstat(&child[0], &mut st) != 0) { var err = get_errno(); closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
             if((st.st_mode & S_IFMT) == S_IFDIR) {
                 // recurse
                 var rem = remove_dir_all_recursive(&child[0]);
                 if(rem is Result.Err) { var Err(e) = rem else unreachable; closedir(dir); return Result.Err(e); }
             } else {
                 // unlink file (or symlink)
-                if(unlink(&child[0]) != 0) { var err = errno; closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
+                if(unlink(&child[0]) != 0) { var err = get_errno(); closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
             }
         }
 
         closedir(dir);
 
         // remove the directory itself
-        if(rmdir(path) != 0) { var err = errno; return Result.Err(posix_errno_to_fs(-err)); }
+        if(rmdir(path) != 0) { var err = get_errno(); return Result.Err(posix_errno_to_fs(-err)); }
         return Result.Ok(UnitTy{});
     }
 }
@@ -1120,20 +1172,20 @@ func read_dir(path : *char, callback : std::function<(name : *char, name_len : s
         while(true) {
             var ent = readdir(d);
             if(ent == null) { break; }
-            var name_ptr = ent.d_name;
+            var name_ptr = &ent.d_name[0];
             var nl : size_t = 0; while(name_ptr[nl] != 0) { nl++ }
             var isdir : bool = false;
             // TODO:
             // if(def.HAVE_DIRENT_D_TYPE)
-            isdir = (ent.d_type == DT_DIR);
+            // isdir = (ent.d_type == DT_DIR);
             // else {
             // fallback: stat child
             var child : [PATH_MAX_BUF]char;
             var p : size_t = 0; while(path[p] != 0) { child[p] = path[p]; p++ }
             if(p > 0 && child[p-1] != '/') { child[p++] = '/'; }
             var q : size_t = 0; while(q <= nl) { child[p + q] = name_ptr[q]; q++ }
-            var st : stat;
-            var r = lstat(child.ptr(), &st);
+            var st : Stat;
+            var r = lstat(&child[0], &mut st);
             if(r == 0) { isdir = ((st.st_mode & 0xF000) == 0x4000); }
             // }
             var cont = callback(name_ptr, nl, isdir);
@@ -1196,31 +1248,32 @@ func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
         var dstopts : OpenOptions; dstopts.read = false; dstopts.write = true; dstopts.create = true; dstopts.truncate = true;
         var dres = file_open(dst, dstopts);
         if(dres is Result.Err) {
-            file_close(&sf)
+            file_close(&mut sf)
             var Err(e) = dres else unreachable
             return Result.Err(e)
         }
         var Ok(df) = dres else unreachable
-        var buf : [COPY_CHUNK]u8;
+        // TODO: use COPY_CHUNK as the array size here
+        var buf : [64 * 1024]u8;
         while(true) {
-            var r = file_read(&sf, buf.ptr(), COPY_CHUNK);
+            var r = file_read(&mut sf, &mut buf[0], sizeof(buf));
             if(r is Result.Err) {
-                file_close(&sf);
-                file_close(&df)
+                file_close(&mut sf);
+                file_close(&mut df)
                 var Err(e) = r else unreachable
                 return Result.Err(e)
             }
             var Ok(n) = r else unreachable
             if(n == 0) { break; }
-            var w = file_write_all(&df, buf.ptr(), n);
+            var w = file_write_all(&mut df, &mut buf[0], n);
             if(w is Result.Err) {
-                file_close(&sf)
-                file_close(&df)
+                file_close(&mut sf)
+                file_close(&mut df)
                 var Err(e) = w else unreachable
                 return Result.Err(e)
             }
         }
-        file_close(&sf); file_close(&df);
+        file_close(&mut sf); file_close(&mut df);
         return Result.Ok(UnitTy{});
     }
 }
@@ -1352,8 +1405,8 @@ func is_symlink(path : *char) : Result<bool, FsError> {
         var Ok(md) = m else unreachable;
         return Result.Ok(md.is_symlink);
     } else {
-        var st : stat;
-        var r = lstat(path, &st);
+        var st : Stat;
+        var r = lstat(path, &mut st);
         if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
         var islnk = ((st.st_mode & 0xF000) == 0xA000);
         return Result.Ok(islnk);
@@ -1425,7 +1478,7 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
         var r : size_t = 0; while(sfx[r] != 0) { tmpl[p + r] = sfx[r]; r++ }
         tmpl[p + r] = 0;
         // mkstemp modifies template
-        var fd = mkstemp(tmpl.ptr()); // user-provided extern
+        var fd = mkstemp(&mut tmpl[0]); // user-provided extern
         if(fd < 0) { return Result.Err(FsError.Io(-1, "mkstemp failed\0")); }
         // return path
         var i : size_t = 0; while(tmpl[i] != 0) { out_path[i] = tmpl[i]; i++ } out_path[i] = 0;
@@ -1450,12 +1503,12 @@ func disk_space(path : *char, total_out : *mut u64, free_out : *mut u64, avail_o
         if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         return Result.Ok(UnitTy{});
     } else {
-        var st : statvfs;
-        var r = statvfs(path, &st);
+        var st : Statvfs;
+        var r = statvfs(path, &mut st);
         if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
-        *total_out = st.f_blocks as u64 * st.f_frsize as u64;
-        *free_out = st.f_bfree as u64 * st.f_frsize as u64;
-        *avail_out = st.f_bavail as u64 * st.f_frsize as u64;
+        *total_out = (st.f_blocks as u64) * (st.f_frsize as u64);
+        *free_out = (st.f_bfree as u64) * (st.f_frsize as u64);
+        *avail_out = (st.f_bavail as u64) * (st.f_frsize as u64);
         return Result.Ok(UnitTy{});
     }
 }
@@ -1478,7 +1531,7 @@ func lock_file_shared(path : *char) : Result<File, FsError> {
         return Result.Ok(f);
     } else {
         var r = flock(f.unix.fd, LOCK_SH);
-        if(r != 0) { file_close(&f); return Result.Err(posix_errno_to_fs(-r)); }
+        if(r != 0) { file_close(&mut f); return Result.Err(posix_errno_to_fs(-r)); }
         return Result.Ok(f);
     }
 }
@@ -1497,7 +1550,7 @@ func lock_file_exclusive(path : *char) : Result<File, FsError> {
         return Result.Ok(f);
     } else {
         var r = flock(f.unix.fd, LOCK_EX);
-        if(r != 0) { file_close(&f); return Result.Err(posix_errno_to_fs(-r)); }
+        if(r != 0) { file_close(&mut f); return Result.Err(posix_errno_to_fs(-r)); }
         return Result.Ok(f);
     }
 }

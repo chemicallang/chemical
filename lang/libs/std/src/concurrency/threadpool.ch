@@ -53,7 +53,7 @@ public namespace std {
             }
         }
 
-        func spawn_native(entry:(arg : *void) => *void,arg:*void) : u32 {
+        func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
             comptime if(def.windows){
                 var tid:ulong=0u;
                 return CreateThread(null,0u,entry,arg,0u,&mut tid)
@@ -62,10 +62,10 @@ public namespace std {
                 if(pthread_create(&mut th,null,entry,arg)!=0){
                     panic("pthread_create")
                 }
-                return th as u32
+                return th
             }
         }
-        func join_native(h:u32){
+        func join_native(h:usize){
             comptime if(def.windows){
                 WaitForSingleObject(h as HANDLE, 0xFFFFFFFFu);
                 CloseHandle(h as HANDLE)
@@ -75,7 +75,7 @@ public namespace std {
         }
 
         public struct Thread {
-            var handle : u32
+            var handle : usize
             func join(&self) {
                 join_native(handle)
             }

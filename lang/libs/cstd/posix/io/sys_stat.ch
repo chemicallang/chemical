@@ -1,5 +1,3 @@
-public type off_t = long
-
 // TODO we're not sure about these three comptime constants
 
 // Socket.

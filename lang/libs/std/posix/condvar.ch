@@ -1,23 +1,23 @@
 @extern
-func pthread_cond_init(cond : *mut u8, attr : *void) : int
+public func pthread_cond_init(cond : *mut u8, attr : *void) : int
 
 @extern
-func pthread_cond_destroy(cond : *mut u8) : int
+public func pthread_cond_destroy(cond : *mut u8) : int
 
 @extern
-func pthread_cond_wait(cond : *mut u8, mutex : *mut u8) : int
+public func pthread_cond_wait(cond : *mut u8, mutex : *mut u8) : int
 
 @extern
-func pthread_cond_timedwait(cond : *mut u8, mutex : *mut u8, abstime : *timespec) : int
+public func pthread_cond_timedwait(cond : *mut u8, mutex : *mut u8, abstime : *timespec) : int
 
 @extern
-func pthread_cond_signal(cond : *mut u8) : int
+public func pthread_cond_signal(cond : *mut u8) : int
 
 @extern
-func pthread_cond_broadcast(cond : *mut u8) : int
+public func pthread_cond_broadcast(cond : *mut u8) : int
 
 @extern
-func clock_gettime(clk_id : int, ts : *mut timespec) : int
+public func clock_gettime(clk_id : int, ts : *mut timespec) : int
 
 public namespace std {
 

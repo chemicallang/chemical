@@ -543,7 +543,6 @@ set(COMMON_SOURCES
         ast/statements/EmbeddedNode.h
         compiler/cbi/bindings/ASTDiagnoserCBI.h
         compiler/cbi/bindings/ASTDiagnoserCBI.cpp
-        core/main/CrashHandling.h
         compiler/symres/DeclareTopLevel.cpp
         compiler/symres/DeclareTopLevel.h
         compiler/symres/LinkSignature.h

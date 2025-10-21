@@ -28,11 +28,8 @@ public func fabsl(arg : longdouble) : longdouble
 /**
  * TODO
  */
-@extern
 public type _Decimal32 = float
-@extern
 public type _Decimal64 = double
-@extern
 public type _Decimal128 = longdouble
 
 /**
@@ -2280,13 +2277,11 @@ public func copysignl(x : __float_128, y : __float_128) : __float_128
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-@extern
 public type float_t = float
 
 /**
  * @see https://en.cppreference.com/w/c/numeric/math/float_t
  */
-@extern
 public type double_t = double
 
 /**

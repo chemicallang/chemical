@@ -5,7 +5,6 @@
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int8_t = i8
 
 /**
@@ -15,7 +14,6 @@ public type int8_t = i8
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int16_t = i16
 
 /**
@@ -25,7 +23,6 @@ public type int16_t = i16
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int32_t = i32
 
 /**
@@ -35,7 +32,6 @@ public type int32_t = i32
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int64_t = i64
 
 /**
@@ -44,10 +40,8 @@ public type int64_t = i64
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type int_fast8_t = char
 } else {
-    @extern
     public type int_fast8_t = i8 // signed char
 }
 
@@ -57,10 +51,8 @@ if(def.windows) {
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type int_fast16_t = short
 } else {
-    @extern
     public type int_fast16_t = long
 }
 
@@ -70,10 +62,8 @@ if(def.windows) {
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type int_fast32_t = int
 } else {
-    @extern
     public type int_fast32_t = long
 }
 
@@ -83,10 +73,8 @@ if(def.windows) {
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type int_fast64_t = bigint
 } else {
-    @extern
     public type int_fast64_t = long
 }
 
@@ -95,7 +83,6 @@ if(def.windows) {
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int_least8_t = i8
 
 /**
@@ -103,7 +90,6 @@ public type int_least8_t = i8
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int_least16_t = short
 
 /**
@@ -111,7 +97,6 @@ public type int_least16_t = short
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int_least32_t = int
 
 /**
@@ -119,14 +104,12 @@ public type int_least32_t = int
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type int_least64_t = bigint
 
 /**
  * maximum width integer type
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type intmax_t = bigint
 
 /**
@@ -134,10 +117,8 @@ public type intmax_t = bigint
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type intptr_t = bigint
 } else {
-    @extern
     public type intptr_t = long
 }
 
@@ -147,7 +128,6 @@ if(def.windows) {
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint8_t = u8
 
 /**
@@ -156,7 +136,6 @@ public type uint8_t = u8
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint16_t = u16
 
 /**
@@ -165,7 +144,6 @@ public type uint16_t = u16
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint32_t = u32
 
 /**
@@ -174,7 +152,6 @@ public type uint32_t = u32
  * (provided only if the implementation directly supports the type)
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint64_t = u64
 
 /**
@@ -182,7 +159,6 @@ public type uint64_t = u64
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint_fast8_t = uchar
 
 /**
@@ -191,10 +167,8 @@ public type uint_fast8_t = uchar
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type uint_fast16_t = ushort
 } else {
-    @extern
     public type uint_fast16_t = ulong
 }
 
@@ -204,10 +178,8 @@ if(def.windows) {
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type uint_fast32_t = uint
 } else {
-    @extern
     public type uint_fast32_t = ulong
 }
 
@@ -217,10 +189,8 @@ if(def.windows) {
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type uint_fast64_t = ubigint
 } else {
-    @extern
     public type uint_fast64_t = ulong
 }
 
@@ -229,7 +199,6 @@ if(def.windows) {
  * at least 8 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint_least8_t = uchar
 
 /**
@@ -237,7 +206,6 @@ public type uint_least8_t = uchar
  * at least 16 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint_least16_t = ushort
 
 /**
@@ -245,7 +213,6 @@ public type uint_least16_t = ushort
  * at least 32 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint_least32_t = uint
 
 /**
@@ -253,14 +220,12 @@ public type uint_least32_t = uint
  * at least 64 bits respectively
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uint_least64_t = ubigint
 
 /**
  * maximum width unsigned integer type
  * @see https://en.cppreference.com/w/c/types/integer
  */
-@extern
 public type uintmax_t = ubigint
 
 /**
@@ -268,9 +233,7 @@ public type uintmax_t = ubigint
  * @see https://en.cppreference.com/w/c/types/integer
  */
 if(def.windows) {
-    @extern
     public type uintptr_t = ubigint
 } else {
-    @extern
     public type uintptr_t = ulong
 }

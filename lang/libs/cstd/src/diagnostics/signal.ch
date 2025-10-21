@@ -35,7 +35,6 @@ public func raise(sig : int) : int
  * An integer type which can be accessed as an atomic entity even in the presence of asynchronous interrupts made by signals.
  * @see https://en.cppreference.com/w/c/program/sig_atomic_t
  */
-@extern
 public type sig_atomic_t = int
 
 /**

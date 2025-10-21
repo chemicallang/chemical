@@ -732,10 +732,10 @@ public namespace http {
                 // POSIX / Linux: use open + lseek + sendfile
                 var fd = open(path, O_RDONLY, 0);
                 if (fd < 0) { return false; }
-                var size_ll = lseek(fd, 0 as longlong, SEEK_END);
+                var size_ll = net::lseek(fd, 0 as longlong, SEEK_END);
                 if (size_ll < 0) { close(fd); return false; }
                 // rewind
-                if (lseek(fd, 0 as longlong, SEEK_SET) < 0) { close(fd); return false; }
+                if (net::lseek(fd, 0 as longlong, SEEK_SET) < 0) { close(fd); return false; }
 
                 // send headers with Content-Length
                 self.send_headers((size_ll as usize));
@@ -746,7 +746,7 @@ public namespace http {
                     // send up to remaining bytes
                     var to_send = if(remaining > (1 << 30)) (1 << 30) as size_t else remaining as size_t;
                     // on Linux sendfile returns number of bytes sent (ssize_t)
-                    var sent = sendfile(self.sock as int, fd, &mut offset, to_send);
+                    var sent = net::sendfile(self.sock as int, fd, &mut offset, to_send);
                     if (sent <= 0) {
                         // error or EOF
                         break;

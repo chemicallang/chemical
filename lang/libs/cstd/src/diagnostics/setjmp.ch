@@ -9,7 +9,6 @@
  * TODO jmp_bug type not defined as it's implementation is unknown
  * @see https://en.cppreference.com/w/c/program/jmp_buf
  */
-@extern
 public type jmp_buf = int
 
 /**

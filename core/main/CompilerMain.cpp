@@ -23,7 +23,6 @@
 #ifdef _WIN32
 #include <crtdbg.h>
 #endif
-#include "CrashHandling.h"
 
 #ifdef COMPILER_BUILD
 
@@ -459,9 +458,6 @@ OutputMode get_output_mode(std::optional<std::string_view>& mode_opt, bool verbo
 }
 
 int compiler_main(int argc, char *argv[]) {
-
-    // this only works if invoked without a debugger
-    register_crash_handler();
 
 // enable this code if debugging heap allocations is required
 //#ifdef _WIN32

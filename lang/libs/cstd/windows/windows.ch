@@ -36,8 +36,6 @@ if(def.win64) {
 
 }
 
-public type off_t = long
-
 /** @brief Windows handle type. */
 public type HANDLE = *mut void
 /** @brief Module handle. */

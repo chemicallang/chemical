@@ -875,7 +875,7 @@ if(def.windows) {
     const CP_UTF8 = 65001u32;
 } else  {
     // POSIX externs
-    type DIR = *void;
+    // type DIR = *void;
     struct dirent { var d_name : [PATH_MAX_BUF]char; }
     struct stat { var st_mode : u32; }
 
@@ -885,6 +885,21 @@ if(def.windows) {
     // @extern public func lstat(path : *char, out : *mut Stat) : int;
     @extern public func unlink(path : *char) : int;
     @extern public func rmdir(path : *char) : int;
+
+
+    @extern public func openat(dirfd : int, path : *char, flags : int, mode : u32) : int;
+    @extern public func dup(fd : int) : int;
+    @extern public func fdopendir(fd : int) : *mut DIR;
+
+    @extern public func fstatat(dirfd : int, pathname : *char, out : *mut Stat, flags : int) : int;
+
+    @extern public func unlinkat(dirfd : int, pathname : *char, flags : int) : int;
+
+    // common flags (Linux values)
+    const O_RDONLY = 0;
+    const O_DIRECTORY = 0x20000;           // typical Linux value; adjust if your platform differs
+    const AT_REMOVEDIR = 0x200;            // unlinkat flag to remove a directory (Linux)
+
 }
 
 if(def.windows) {
@@ -936,6 +951,137 @@ public func remove_dir_platform(path : *char) : Result<UnitTy, FsError> {
     }
 }
 
+// ---------------------------
+// Helper: remove_dir_all_at(fd)
+// Remove contents of directory referenced by an open directory fd.
+// Does not remove the directory itself; caller should remove it by name (rmdir) or handle separately.
+// ---------------------------
+func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        // nothing here — this helper is POSIX-only
+        return Result.Ok(UnitTy{});
+    } else {
+        // Duplicate fd for fdopendir (fdopendir usually consumes the fd)
+        var ddup = dup(dirfd);
+        if(ddup < 0) {
+            var e = get_errno();
+            // printf("dup(%d) failed: errno=%d (%s)\n", dirfd, e, strerror(e));
+            return Result.Err(posix_errno_to_fs(-e));
+        }
+
+        var dir = fdopendir(ddup);
+        if(dir == null) {
+            var e = get_errno();
+            // printf("fdopendir(%d) failed: errno=%d (%s)\n", ddup, e, strerror(e));
+            close(ddup);
+            return Result.Err(posix_errno_to_fs(-e));
+        }
+
+        loop {
+            // IMPORTANT: clear errno before calling readdir so a leftover errno doesn't confuse us
+            set_errno(0);
+
+            var ent = readdir(dir);
+            if(ent == null) {
+                if(get_errno() != 0) {
+                    var re = get_errno();
+                    // printf("readdir(dirfd=%d) returned NULL with errno=%d (%s)\n", dirfd, re, strerror(re));
+                    closedir(dir);
+                    return Result.Err(posix_errno_to_fs(-re));
+                }
+                // end of directory
+                break;
+            }
+
+            // skip '.' and '..'
+            if(ent.d_name[0] == '.' && ent.d_name[1] == 0) { continue; }
+            if(ent.d_name[0] == '.' && ent.d_name[1] == '.' && ent.d_name[2] == 0) { continue; }
+
+            // Debug: print the entry name
+            // printf("entry: '%s' (dirfd=%d)\n", &ent.d_name[0], dirfd);
+
+            // fstatat relative to dirfd
+            var st : Stat;
+            set_errno(0);
+            if(fstatat(dirfd, &ent.d_name[0], &mut st, AT_SYMLINK_NOFOLLOW) != 0) {
+                var e = get_errno();
+                // printf("fstatat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e, strerror(e));
+                if(e == 2) { // ENOENT
+                    // printf("  (ENOENT) entry disappeared between readdir and fstatat — skipping\n");
+                    continue;
+                } else {
+                    closedir(dir);
+                    return Result.Err(posix_errno_to_fs(-e));
+                }
+            }
+
+            // Directory? recurse via openat
+            if((st.st_mode & S_IFMT) == S_IFDIR) {
+                // printf("  '%s' is DIR — openat\n", &ent.d_name[0]);
+
+                set_errno(0);
+                var childfd = openat(dirfd, &ent.d_name[0], O_RDONLY | O_DIRECTORY, 0);
+                if(childfd < 0) {
+                    var e2 = get_errno();
+                    // printf("  openat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e2, strerror(e2));
+                    if(e2 == 2) {
+                        // printf("  (ENOENT) was removed before openat; skipping\n");
+                        continue;
+                    } else {
+                        closedir(dir);
+                        return Result.Err(posix_errno_to_fs(-e2));
+                    }
+                }
+
+                // Recurse on the child's dirfd
+                // printf("  recursing into fd %d\n", childfd);
+                var rem = remove_dir_all_at(childfd);
+
+                // Always close the child fd we opened
+                close(childfd);
+
+                if(rem is Result.Err) { var Err(e) = rem else unreachable; closedir(dir); return Result.Err(e); }
+
+                // Remove the directory entry itself using unlinkat(AT_REMOVEDIR)
+                set_errno(0);
+                if(unlinkat(dirfd, &ent.d_name[0], AT_REMOVEDIR) != 0) {
+                    var e3 = get_errno();
+                    // printf("  unlinkat(AT_REMOVEDIR) dirfd=%d name='%s' -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e3, strerror(e3));
+                    if(e3 == 2) {
+                        // printf("  (ENOENT) entry gone before unlinkat; benign\n");
+                        continue;
+                    } else {
+                        closedir(dir);
+                        return Result.Err(posix_errno_to_fs(-e3));
+                    }
+                } else {
+                    // printf("  unlinkat(AT_REMOVEDIR) succeeded for '%s'\n", &ent.d_name[0]);
+                }
+
+            } else {
+                // Not a directory: remove with unlinkat
+                set_errno(0);
+                if(unlinkat(dirfd, &ent.d_name[0], 0) != 0) {
+                    var e4 = get_errno();
+                    // printf("  unlinkat(dirfd=%d, name='%s') -> errno=%d (%s)\n", dirfd, &ent.d_name[0], e4, strerror(e4));
+                    if(e4 == 2) {
+                        // printf("  (ENOENT) already removed — skipping\n");
+                        continue;
+                    } else {
+                        closedir(dir);
+                        return Result.Err(posix_errno_to_fs(-e4));
+                    }
+                } else {
+                    // printf("  unlinkat succeeded for '%s'\n", &ent.d_name[0]);
+                }
+            }
+        }
+
+        closedir(dir);
+        // printf("remove_dir_all_at(dirfd=%d) completed OK\n", dirfd);
+        return Result.Ok(UnitTy{});
+    }
+}
 
 // -----------------------------
 // Recursive remove_dir_all (public)
@@ -1019,48 +1165,33 @@ public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
 
     } else {
         // POSIX
-        var dir = opendir(path);
-        if(dir == null) {
-            return Result.Err(posix_errno_to_fs(-get_errno()));
+        // printf("remove_dir_all_recursive: opening '%s'\n", path);
+        var dirfd = open(path, O_RDONLY | O_DIRECTORY, 0);
+        if(dirfd < 0) {
+            var e = get_errno();
+            // printf("open('%s') -> errno=%d (%s)\n", path, e, strerror(e));
+            return Result.Err(posix_errno_to_fs(-e));
         }
 
-        loop {
-            var ent = readdir(dir);
-            if(ent == null) {
-                if(get_errno() != 0) { closedir(dir); return Result.Err(posix_errno_to_fs(-get_errno())); }
-                break;
+        var rem = remove_dir_all_at(dirfd);
+
+        // close dirfd regardless
+        var c = close(dirfd);
+
+        if(rem is Result.Err) { var Err(e) = rem else unreachable; return Result.Err(e); }
+
+        // remove the directory itself (rmdir)
+        set_errno(0);
+        if(rmdir(path) != 0) {
+            var er = get_errno();
+            // printf("rmdir('%s') -> errno=%d (%s)\n", path, er, strerror(er));
+            if(er == 2) {
+                // printf("rmdir: ENOENT: directory already removed — treating as success\n");
+                return Result.Ok(UnitTy{});
             }
-
-            // skip "." and ".."
-            if(ent.d_name[0] == '.' && ent.d_name[1] == 0) { continue; }
-            if(ent.d_name[0] == '.' && ent.d_name[1] == '.' && ent.d_name[2] == 0) { continue; }
-
-            // build child path: path + '/' + name
-            var child : [PATH_MAX_BUF]char;
-            var p : size_t = 0;
-            while(path[p] != 0) { child[p] = path[p]; p++ }
-            if(p > 0 && child[p - 1] != '/') { child[p] = '/'; p++ }
-            var q : size_t = 0;
-            while(ent.d_name[q] != 0) { child[p + q] = ent.d_name[q]; q++ }
-            child[p + q] = 0;
-
-            // lstat to check if directory (do not follow symlink)
-            var st : Stat;
-            if(lstat(&child[0], &mut st) != 0) { var err = get_errno(); closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
-            if((st.st_mode & S_IFMT) == S_IFDIR) {
-                // recurse
-                var rem = remove_dir_all_recursive(&child[0]);
-                if(rem is Result.Err) { var Err(e) = rem else unreachable; closedir(dir); return Result.Err(e); }
-            } else {
-                // unlink file (or symlink)
-                if(unlink(&child[0]) != 0) { var err = get_errno(); closedir(dir); return Result.Err(posix_errno_to_fs(-err)); }
-            }
+            return Result.Err(posix_errno_to_fs(-er));
         }
-
-        closedir(dir);
-
-        // remove the directory itself
-        if(rmdir(path) != 0) { var err = get_errno(); return Result.Err(posix_errno_to_fs(-err)); }
+        // printf("remove_dir_all_recursive: removed directory '%s' OK\n", path);
         return Result.Ok(UnitTy{});
     }
 }

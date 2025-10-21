@@ -1,11 +1,22 @@
+// add or replace these typedefs (if not already present)
+type ino_t = u64;
+type off_t = i64;
+type __d_reclen_t = u16;
+type __d_type_t = u8;
+const PATH_MAX_BUF = 4096; // already used elsewhere
+
 /**
  * @struct dirent
  * @brief Directory entry data.
  */
 public struct dirent {
-    var d_ino : ulong;        /**< File serial number */
-    var d_name : char[256]; /**< Null‑terminated filename */
-};
+    var d_ino    : ino_t;               // inode number
+    var d_off    : off_t;               // offset to next dirent
+    var d_reclen : __d_reclen_t;       // length of this record
+    var d_type   : __d_type_t;         // type of file
+    // name buffer (flexible in C; represent as a reasonably large array)
+    var d_name   : [4096]char;
+}
 
 /** @brief Opaque directory stream type. */
 // TODO implementation defined, maybe we should not introduce its implementation

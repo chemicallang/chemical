@@ -46,16 +46,16 @@ unzip_folder() {
 }
 
 # Windows Target
-windows_x64=false
-windows_x64_tcc=false
-windows_x64_lsp=false
+windows=false
+windows_tcc=false
+windows_lsp=false
 # Linux Target
-linux_x86_64=false
-linux_x86_64_tcc=false
-linux_x86_64_lsp=false
+linux=false
+linux_tcc=false
+linux_lsp=false
 # Alpine Target
-linux_x86_64_alpine=false
-linux_x86_64_alpine_tcc=false
+alpine=false
+alpine_tcc=false
 
 # Command line parameter variables
 zip_all_at_end=true
@@ -68,194 +68,198 @@ for param in "$@"; do
     elif [ "$param" = "--no-del-dirs" ]; then
         delete_dirs_at_end=false
     elif [ "$param" = "--windows" ]; then
-          windows_x64=true
-          windows_x64_tcc=true
-          windows_x64_lsp=true
+          windows=true
+          windows_tcc=true
+          windows_lsp=true
     elif [ "$param" = "--linux" ]; then
-          linux_x86_64=true
-          linux_x86_64_tcc=true
-          linux_x86_64_lsp=true
+          linux=true
+          linux_tcc=true
+          linux_lsp=true
     elif [ "$param" = "--alpine" ]; then
-          linux_x86_64_alpine=true
-          linux_x86_64_alpine_tcc=true
+          alpine=true
+          alpine_tcc=true
     fi
 done
 
 # Debug output for the packaging target variables
-echo "windows_x64: $windows_x64"
-echo "windows_x64_tcc: $windows_x64_tcc"
-echo "windows_x64_lsp: $windows_x64_tcc"
-echo "linux_x86_64: $linux_x86_64"
-echo "linux_x86_64_tcc: $linux_x86_64_tcc"
-echo "linux_x86_64_lsp: $linux_x86_64_tcc"
-echo "linux_x86_64_alpine: $linux_x86_64_alpine"
-echo "linux_x86_64_alpine_tcc: $linux_x86_64_alpine_tcc"
+echo "windows: $windows"
+echo "windows_tcc: $windows_tcc"
+echo "windows_lsp: $windows_tcc"
+echo "linux: $linux"
+echo "linux_tcc: $linux_tcc"
+echo "linux_lsp: $linux_tcc"
+echo "alpine: $alpine"
+echo "alpine_tcc: $alpine_tcc"
 
 # Create directory names
-win64dirname="windows-x64"
-lin64dirname="linux-x86-64"
-lin64_alpine_dirname="linux-x86-64_alpine"
-Win64TccDirName="$win64dirname-tcc"
-Lin64TccDirName="$lin64dirname-tcc"
-Lin64AlpineTccDirName="$lin64dirname-alpine-tcc"
-Win64LspDirName="$win64dirname-lsp"
-Lin64LspDirName="$lin64dirname-lsp"
+windows_dir_name="windows"
+linux_dir_name="linux"
+alpine_dir_name="linux-alpine"
+# Tcc directory names
+windows_tcc_dir_name="$windows_dir_name-tcc"
+linux_tcc_dir_name="$linux_dir_name-tcc"
+alpine_tcc_dir_name="$alpine_dir_name-tcc"
+# LSP directory names
+windows_lsp_dir_name="$windows_dir_name-lsp"
+linux_lsp_dir_name="$linux_dir_name-lsp"
 
 # Create directory paths
-windows64dir="out/release/$win64dirname"
-linux64dir="out/release/$lin64dirname"
-linux64AlpineDir="out/release/$lin64_alpine_dirname"
-Win64TccDir="out/release/$Win64TccDirName"
-Lin64TccDir="out/release/$Lin64TccDirName"
-Lin64AlpineTccDir="out/release/$Lin64AlpineTccDirName"
-Win64LspDir="out/release/$Win64LspDirName"
-Lin64LspDir="out/release/$Lin64LspDirName"
+windows_dir="out/release/$windows_dir_name"
+linux_dir="out/release/$linux_dir_name"
+alpine_dir="out/release/$alpine_dir_name"
+# Tcc directory paths
+windows_tcc_dir="out/release/$windows_tcc_dir_name"
+linux_tcc_dir="out/release/$linux_tcc_dir_name"
+alpine_tcc_dir="out/release/$alpine_tcc_dir_name"
+# LSP directory paths
+windows_lsp_dir="out/release/$windows_lsp_dir_name"
+linux_lsp_dir="out/release/$linux_lsp_dir_name"
 
 # Make directories required for each target
-if [ "$windows_x64" = true ]; then
-    mkdir -p "$windows64dir/packages/tcc"
+if [ "$windows" = true ]; then
+    mkdir -p "$windows_dir/packages/tcc"
 fi
-if [ "$linux_x86_64" = true ]; then
-    mkdir -p "$linux64dir/packages/tcc"
+if [ "$linux" = true ]; then
+    mkdir -p "$linux_dir/packages/tcc"
 fi
-if [ "$linux_x86_64_alpine" = true ]; then
-    mkdir -p "$linux64AlpineDir/packages/tcc"
+if [ "$alpine" = true ]; then
+    mkdir -p "$alpine_dir/packages/tcc"
 fi
-if [ "$windows_x64_tcc" = true ]; then
-    mkdir -p "$Win64TccDir/packages/tcc"
+if [ "$windows_tcc" = true ]; then
+    mkdir -p "$windows_tcc_dir/packages/tcc"
 fi
-if [ "$linux_x86_64_alpine_tcc" = true ]; then
-    mkdir -p "$Lin64AlpineTccDir/packages/tcc"
+if [ "$alpine_tcc" = true ]; then
+    mkdir -p "$alpine_tcc_dir/packages/tcc"
 fi
-if [ "$linux_x86_64_tcc" = true ]; then
-    mkdir -p "$Lin64TccDir/packages/tcc"
+if [ "$linux_tcc" = true ]; then
+    mkdir -p "$linux_tcc_dir/packages/tcc"
 fi
-if [ "$windows_x64_lsp" = true ]; then
-    mkdir -p "$Win64LspDir/packages/tcc"
+if [ "$windows_lsp" = true ]; then
+    mkdir -p "$windows_lsp_dir/packages/tcc"
 fi
-if [ "$linux_x86_64_tcc" = true ]; then
-    mkdir -p "$Lin64LspDir/packages/tcc"
+if [ "$linux_tcc" = true ]; then
+    mkdir -p "$linux_lsp_dir/packages/tcc"
 fi
 
-# -------------------------- windows x64
+# -------------------------- windows
 
-if [ "$windows_x64" = true ]; then
+if [ "$windows" = true ]; then
   # copy compiler
-  cp out/build/x64-release/Compiler.exe "$windows64dir/chemical.exe"
+  cp out/build/Compiler.exe "$windows_dir/chemical.exe"
   # copy resources
-  cp -r ./lib/include "$windows64dir/resources"
+  cp -r ./lib/include "$windows_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$windows64dir/"
+  cp -r lang/libs "$windows_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.dll "$windows64dir/libtcc.dll"
-  cp -r lib/tcc/include "$windows64dir/packages/tcc"
-  cp -r lib/tcc/lib "$windows64dir/packages/tcc"
+  cp lib/tcc/libtcc.dll "$windows_dir/libtcc.dll"
+  cp -r lib/tcc/include "$windows_dir/packages/tcc"
+  cp -r lib/tcc/lib "$windows_dir/packages/tcc"
 fi
 
-# -------------------------- linux x86-64
+# -------------------------- linux
 
-if [ "$linux_x86_64" = true ]; then
+if [ "$linux" = true ]; then
   # copy compiler
-  cp out/build/x64-release-wsl/Compiler "$linux64dir/chemical"
+  cp out/build/Compiler "$linux_dir/chemical"
   # copy resources
-  cp -r ./lib/include "$linux64dir/resources"
+  cp -r ./lib/include "$linux_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$linux64dir/"
+  cp -r lang/libs "$linux_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$linux64dir/libtcc.so"
-  cp -r lib/tcc/include "$linux64dir/packages/tcc"
-  cp -r lib/tcc/lib "$linux64dir/packages/tcc"
+  cp lib/tcc/libtcc.so "$linux_dir/libtcc.so"
+  cp -r lib/tcc/include "$linux_dir/packages/tcc"
+  cp -r lib/tcc/lib "$linux_dir/packages/tcc"
 fi
 
-# -------------------------- linux x86-64 alpine
+# -------------------------- linux alpine
 
-if [ "$linux_x86_64_alpine" = true ]; then
+if [ "$alpine" = true ]; then
   # copy compiler
-  cp out/build/x64-release-wsl/Compiler "$linux64AlpineDir/chemical"
+  cp out/build/Compiler "$alpine_dir/chemical"
   # copy resources
-  cp -r ./lib/include "$linux64AlpineDir/resources"
+  cp -r ./lib/include "$alpine_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$linux64AlpineDir/"
+  cp -r lang/libs "$alpine_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$linux64AlpineDir/libtcc.so"
-  cp -r lib/tcc/include "$linux64AlpineDir/packages/tcc"
-  cp -r lib/tcc/lib "$linux64AlpineDir/packages/tcc"
+  cp lib/tcc/libtcc.so "$alpine_dir/libtcc.so"
+  cp -r lib/tcc/include "$alpine_dir/packages/tcc"
+  cp -r lib/tcc/lib "$alpine_dir/packages/tcc"
 fi
 
-# -------------------------- windows x64 tcc
+# -------------------------- windows tcc
 
-if [ "$windows_x64_tcc" = true ]; then
+if [ "$windows_tcc" = true ]; then
   # copy tcc compiler
-  cp out/build/x64-release/TCCCompiler.exe "$Win64TccDir/chemical.exe"
+  cp out/build/TCCCompiler.exe "$windows_tcc_dir/chemical.exe"
   # copy resources (tcc build doesn't need resources)
-  # cp -r ./lib/include "$Win64TccDir/resources"
+  # cp -r ./lib/include "$windows_tcc_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$Win64TccDir/"
+  cp -r lang/libs "$windows_tcc_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.dll "$Win64TccDir/libtcc.dll"
-  cp -r lib/tcc/include "$Win64TccDir/packages/tcc"
-  cp -r lib/tcc/lib "$Win64TccDir/packages/tcc"
+  cp lib/tcc/libtcc.dll "$windows_tcc_dir/libtcc.dll"
+  cp -r lib/tcc/include "$windows_tcc_dir/packages/tcc"
+  cp -r lib/tcc/lib "$windows_tcc_dir/packages/tcc"
 fi
 
-# -------------------------- linux x86-64 tcc
+# -------------------------- linux tcc
 
-if [ "$linux_x86_64_tcc" = true ]; then
+if [ "$linux_tcc" = true ]; then
   # copy tcc compiler
-  cp out/build/x64-release-wsl/TCCCompiler "$Lin64TccDir/chemical"
+  cp out/build/TCCCompiler "$linux_tcc_dir/chemical"
   # copy resources (tcc build doesn't need resources)
-  # cp -r ./lib/include "$Lin64TccDir/resources"
+  # cp -r ./lib/include "$linux_tcc_dir/resources"
   # copy tiny cc dll
   # copy the libs directory
-  cp -r lang/libs "$Lin64TccDir/"
+  cp -r lang/libs "$linux_tcc_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$Lin64TccDir/libtcc.so"
-  cp -r lib/tcc/include "$Lin64TccDir/packages/tcc"
-  cp -r lib/tcc/lib "$Lin64TccDir/packages/tcc"
+  cp lib/tcc/libtcc.so "$linux_tcc_dir/libtcc.so"
+  cp -r lib/tcc/include "$linux_tcc_dir/packages/tcc"
+  cp -r lib/tcc/lib "$linux_tcc_dir/packages/tcc"
 fi
 
-# -------------------------- linux x86-64 alpine tcc
+# -------------------------- linux alpine tcc
 
-if [ "$linux_x86_64_alpine_tcc" = true ]; then
+if [ "$alpine_tcc" = true ]; then
   # copy tcc compiler
-  cp out/build/x64-release-wsl/TCCCompiler "$Lin64AlpineTccDir/chemical"
+  cp out/build/TCCCompiler "$alpine_tcc_dir/chemical"
   # copy resources (tcc build doesn't need resources)
-  # cp -r ./lib/include "$Lin64TccDir/resources"
+  # cp -r ./lib/include "$linux_tcc_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$Lin64AlpineTccDir/"
+  cp -r lang/libs "$alpine_tcc_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$Lin64AlpineTccDir/libtcc.so"
-  cp -r lib/tcc/include "$Lin64AlpineTccDir/packages/tcc"
-  cp -r lib/tcc/lib "$Lin64AlpineTccDir/packages/tcc"
+  cp lib/tcc/libtcc.so "$alpine_tcc_dir/libtcc.so"
+  cp -r lib/tcc/include "$alpine_tcc_dir/packages/tcc"
+  cp -r lib/tcc/lib "$alpine_tcc_dir/packages/tcc"
 fi
 
-# -------------------------- windows x64 lsp
+# -------------------------- windows lsp
 
-if [ "$windows_x64_lsp" = true ]; then
+if [ "$windows_lsp" = true ]; then
   # copy lsp
-  cp out/build/x64-release/ChemicalLsp.exe "$Win64LspDir/lsp.exe"
+  cp out/build/ChemicalLsp.exe "$windows_lsp_dir/lsp.exe"
   # copy resources (tcc build doesn't need resources)
-  # cp -r ./lib/include "$Win64LspDir/resources"
+  # cp -r ./lib/include "$windows_lsp_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$Win64LspDir/"
+  cp -r lang/libs "$windows_lsp_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.dll "$Win64LspDir/libtcc.dll"
-  cp -r lib/tcc/include "$Win64LspDir/packages/tcc"
-  cp -r lib/tcc/lib "$Win64LspDir/packages/tcc"
+  cp lib/tcc/libtcc.dll "$windows_lsp_dir/libtcc.dll"
+  cp -r lib/tcc/include "$windows_lsp_dir/packages/tcc"
+  cp -r lib/tcc/lib "$windows_lsp_dir/packages/tcc"
 fi
 
-# -------------------------- linux x86-64 lsp
+# -------------------------- linux lsp
 
-if [ "$linux_x86_64_lsp" = true ]; then
+if [ "$linux_lsp" = true ]; then
   # copy lsp
-  cp out/build/x64-release-wsl/ChemicalLsp "$Lin64LspDir/lsp"
+  cp out/build/ChemicalLsp "$linux_lsp_dir/lsp"
   # copy resources (tcc build doesn't need resources)
-  # cp -r ./lib/include "$Lin64LspDir/resources"
+  # cp -r ./lib/include "$linux_lsp_dir/resources"
   # copy the libs directory
-  cp -r lang/libs "$Lin64LspDir/"
+  cp -r lang/libs "$linux_lsp_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$Lin64LspDir/libtcc.so"
-  cp -r lib/tcc/include "$Lin64LspDir/packages/tcc"
-  cp -r lib/tcc/lib "$Lin64LspDir/packages/tcc"
+  cp lib/tcc/libtcc.so "$linux_lsp_dir/libtcc.so"
+  cp -r lib/tcc/include "$linux_lsp_dir/packages/tcc"
+  cp -r lib/tcc/lib "$linux_lsp_dir/packages/tcc"
 fi
 
 # ------------------------- done
@@ -263,57 +267,57 @@ fi
 if [ "$zip_all_at_end" = true ]; then
     echo "Zipping all"
     cd "out/release" || exit 1
-    if [ "$windows_x64" = true ]; then
-      zip_folder "$win64dirname" "windows-x64.zip"
+    if [ "$windows" = true ]; then
+      zip_folder "$windows_dir_name" "windows.zip"
     fi
-    if [ "$linux_x86_64" = true ]; then
-      zip_folder "$lin64dirname" "linux-x86-64.zip"
+    if [ "$linux" = true ]; then
+      zip_folder "$linux_dir_name" "linux.zip"
     fi
-    if [ "$linux_x86_64_alpine" = true ]; then
-      zip_folder "$lin64_alpine_dirname" "linux-x86-64-alpine.zip"
+    if [ "$alpine" = true ]; then
+      zip_folder "$alpine_dir_name" "linux-alpine.zip"
     fi
-    if [ "$windows_x64_tcc" = true ]; then
-      zip_folder "$Win64TccDirName" "windows-x64-tcc.zip"
+    if [ "$windows_tcc" = true ]; then
+      zip_folder "$windows_tcc_dir_name" "windows-tcc.zip"
     fi
-    if [ "$linux_x86_64_tcc" = true ]; then
-      zip_folder "$Lin64TccDirName" "linux-x86-64-tcc.zip"
+    if [ "$linux_tcc" = true ]; then
+      zip_folder "$linux_tcc_dir_name" "linux-tcc.zip"
     fi
-    if [ "$linux_x86_64_alpine_tcc" = true ]; then
-      zip_folder "$Lin64AlpineTccDirName" "linux-x86-64-alpine-tcc.zip"
+    if [ "$alpine_tcc" = true ]; then
+      zip_folder "$alpine_tcc_dir_name" "linux-alpine-tcc.zip"
     fi
-    if [ "$windows_x64_lsp" = true ]; then
-      zip_folder "$Win64LspDirName" "windows-x64-lsp.zip"
+    if [ "$windows_lsp" = true ]; then
+      zip_folder "$windows_lsp_dir_name" "windows-lsp.zip"
     fi
-    if [ "$linux_x86_64_lsp" = true ]; then
-      zip_folder "$Lin64LspDirName" "linux-x86-64-lsp.zip"
+    if [ "$linux_lsp" = true ]; then
+      zip_folder "$linux_lsp_dir_name" "linux-lsp.zip"
     fi
     cd ../../
 fi
 
 if [ "$delete_dirs_at_end" = true ]; then
     echo "Deleting Directories"
-    if [ "$windows_x64" = true ]; then
-      rm -rf "$windows64dir"
+    if [ "$windows" = true ]; then
+      rm -rf "$windows_dir"
     fi
-    if [ "$linux_x86_64" = true ]; then
-      rm -rf "$linux64dir"
+    if [ "$linux" = true ]; then
+      rm -rf "$linux_dir"
     fi
-    if [ "$linux_x86_64_alpine" = true ]; then
-      rm -rf "$linux64AlpineDir"
+    if [ "$alpine" = true ]; then
+      rm -rf "$alpine_dir"
     fi
-    if [ "$windows_x64_tcc" = true ]; then
-      rm -rf "$Win64TccDir"
+    if [ "$windows_tcc" = true ]; then
+      rm -rf "$windows_tcc_dir"
     fi
-    if [ "$linux_x86_64_tcc" = true ]; then
-      rm -rf "$Lin64TccDir"
+    if [ "$linux_tcc" = true ]; then
+      rm -rf "$linux_tcc_dir"
     fi
-    if [ "$linux_x86_64_alpine_tcc" = true ]; then
-      rm -rf "$Lin64AlpineTccDir"
+    if [ "$alpine_tcc" = true ]; then
+      rm -rf "$alpine_tcc_dir"
     fi
-    if [ "$windows_x64_lsp" = true ]; then
-      rm -rf "$Win64LspDir"
+    if [ "$windows_lsp" = true ]; then
+      rm -rf "$windows_lsp_dir"
     fi
-    if [ "$linux_x86_64_lsp" = true ]; then
-      rm -rf "$Lin64LspDir"
+    if [ "$linux_lsp" = true ]; then
+      rm -rf "$linux_lsp_dir"
     fi
 fi

@@ -522,3 +522,177 @@ jobs:
         with:
           name: linux-alpine-${{ matrix.arch }}-tcc.zip
           path: chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
+
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+    if: contains(github.event.head_commit.message, 'releaseIt')
+    strategy:
+      matrix:
+        arch: [x86_64]
+    steps:
+      # ––– Install dependencies –––
+      - name: Install Dependencies
+        run: |
+          brew update
+          brew install cmake ninja git python
+
+      # ––– Checkout repositories –––
+      - name: Checkout chemical-bootstrap repository
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical-bootstrap
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap
+
+      - name: Checkout chemical repository inside chemical-bootstrap
+        uses: actions/checkout@v3
+        with:
+          repository: chemicallang/chemical
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: chemical-bootstrap/chemical
+          submodules: recursive
+
+      # Get the SHA of the chemical-bootstrap repository
+      - name: Get SHA of chemical-bootstrap repository
+        id: get-sha
+        working-directory: chemical-bootstrap
+        run: |
+          SHA=$(git rev-parse HEAD | xargs)
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+
+      # Restore cache
+      - name: Restore cache for chemical-bootstrap
+        id: bootstrap-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: chemical-bootstrap/out/
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
+
+      # Build the chemical-bootstrap project (macOS) (only if not cached)
+      - name: Build chemical-bootstrap
+        working-directory: chemical-bootstrap
+        run: |
+          chmod +x build
+          ./build native-macos-none native
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
+
+      # Save cache
+      - name: Save cache for chemical-bootstrap
+        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
+        id: bootstrap-cache-save
+        uses: actions/cache/save@v4
+        with:
+          path: chemical-bootstrap/out/
+          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
+
+      # Configure chemical project
+      - name: Configure Chemical Project
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          mkdir -p out/build/${{ matrix.arch }}-release
+          cmake -S . -B out/build/${{ matrix.arch }}-release -DCMAKE_BUILD_TYPE=Release
+
+      # Run configure script
+      - name: Run configure script
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          chmod +x ./scripts/setup-tcc.sh
+          chmod +x ./scripts/configure.sh
+          ./scripts/configure.sh
+
+      # Build Compiler Targets
+      - name: Build Compiler Targets
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          cmake --build out/build --config Release --target Compiler
+          cmake --build out/build --config Release --target TCCCompiler
+          cmake --build out/build --config Release --target ChemicalLsp
+
+      # Run release packaging
+      - name: Run release packaging
+        working-directory: chemical-bootstrap/chemical
+        run: |
+          chmod +x ./scripts/release.sh
+          ./scripts/release.sh --macos
+
+      # Rename macOS release files to include the arch
+      - name: Rename macOS release files
+        shell: bash
+        run: |
+          mv chemical-bootstrap/chemical/out/release/macos.zip chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}.zip
+          mv chemical-bootstrap/chemical/out/release/macos-tcc.zip chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
+          mv chemical-bootstrap/chemical/out/release/macos-lsp.zip chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+
+      # Get latest release info
+      - name: Get latest release info
+        id: get_latest_release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const releasesResponse = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const validReleases = releasesResponse.data.filter(release => !release.draft);
+            if (validReleases.length === 0) {
+              throw new Error("No published or pre-releases found.");
+            }
+            const latestRelease = validReleases[0];
+            core.setOutput("tag", latestRelease.tag_name);
+            core.setOutput("id", latestRelease.id);
+
+      # Check and (conditionally) upload macOS archives
+      - name: Check if macos-${{ matrix.arch }}.zip exists in latest release
+        id: check_macos
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const tag = '${{ steps.get_latest_release.outputs.tag }}';
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+            const filenames = [
+              `macos-${{ matrix.arch }}.zip`,
+              `macos-${{ matrix.arch }}-tcc.zip`,
+              `macos-${{ matrix.arch }}-lsp.zip`
+            ];
+            const exists = release.assets.some(asset => filenames.includes(asset.name));
+            core.setOutput("exists", exists.toString());
+
+      # Upload artifacts
+      - name: Upload release artifacts
+        if: steps.check_macos.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_latest_release.outputs.tag }}
+          files: |
+            chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}.zip
+            chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
+            chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Save as artifact if already exists
+      - name: Save macos-${{ matrix.arch }}.zip as artifact if already exists
+        if: steps.check_macos.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}.zip
+          path: chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}.zip
+
+      - name: Save macos-${{ matrix.arch }}-tcc.zip as artifact if already exists
+        if: steps.check_macos.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-tcc.zip
+          path: chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
+
+      - name: Save macos-${{ matrix.arch }}-lsp.zip as artifact if already exists
+        if: steps.check_macos.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-lsp.zip
+          path: chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-lsp.zip

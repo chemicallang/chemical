@@ -98,7 +98,7 @@ jobs:
       # Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
         working-directory: chemical-bootstrap/chemical
-        run: bash ./scripts/release.sh
+        run: bash ./scripts/release.sh --windows
 
       # rename windows release files to include the aarch
       - name: Rename Windows release files
@@ -272,7 +272,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           chmod +x ./scripts/release.sh
-          ./scripts/release.sh
+          ./scripts/release.sh --linux
 
       # rename linux release files to include the aarch
       - name: Rename Linux release files
@@ -449,7 +449,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           chmod +x ./scripts/release.sh
-          ./scripts/release.sh
+          ./scripts/release.sh --alpine
 
       # rename linux release files to include the aarch
       - name: Rename Linux Alpine release files

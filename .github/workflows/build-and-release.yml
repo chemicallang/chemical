@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-windows:
-    name: Build on Windows
+    name: Build on Windows (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     # Only run when the commit message contains "releaseIt"
     if: contains(github.event.head_commit.message, 'releaseIt')
@@ -189,7 +189,7 @@ jobs:
           path: chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
 
   build-linux:
-    name: Build on Linux
+    name: Build on Linux (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:
@@ -366,7 +366,7 @@ jobs:
           path: chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
 
   build-alpine:
-    name: Build on Alpine Linux
+    name: Build on Alpine Linux (${{ matrix.arch }})
     container:
       image: alpine:3.20
     runs-on: ${{ matrix.runner }}
@@ -536,7 +536,7 @@ jobs:
           path: chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
 
   build-macos:
-    name: Build on macOS
+    name: Build on macOS (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:

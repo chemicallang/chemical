@@ -5,10 +5,6 @@
 #include "ASTAny.h"
 #include "utils/inline_attr.h"
 
-namespace std {
-    class mutex;
-}
-
 /**
  * ASTAllocator is supposed to be the simplest class that allows
  * to allocate different AST classes, it allocates a pre-allocated size on
@@ -82,9 +78,9 @@ protected:
     std::size_t heap_offset;
 
     /**
-     * the mutex used to ensure memory safety when using multiple threads
+     * this is the pointer to mutex
      */
-    std::mutex* allocator_mutex;
+    void* allocator_mutex;
 
     /**
      * does what it says

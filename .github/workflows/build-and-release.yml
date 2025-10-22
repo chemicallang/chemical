@@ -372,6 +372,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x64

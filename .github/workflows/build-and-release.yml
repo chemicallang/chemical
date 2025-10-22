@@ -11,12 +11,16 @@ on:
 jobs:
   build-windows:
     name: Build on Windows
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
     # Only run when the commit message contains "releaseIt"
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:
       matrix:
-        arch: [x64]
+        include:
+          - arch: x64
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
     steps:
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
@@ -186,11 +190,15 @@ jobs:
 
   build-linux:
     name: Build on Linux
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:
       matrix:
-        arch: [x86_64]
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
@@ -361,12 +369,16 @@ jobs:
     name: Build on Alpine Linux
     container:
       image: alpine:3.20
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     # Only run when the commit message contains "releaseIt"
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:
       matrix:
-        arch: [x86_64]
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
 
       # ––– Install dependencies –––
@@ -525,11 +537,15 @@ jobs:
 
   build-macos:
     name: Build on macOS
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
     if: contains(github.event.head_commit.message, 'releaseIt')
     strategy:
       matrix:
-        arch: [x86_64]
+        include:
+          - arch: x64
+            runner: macos-15-intel
+          - arch: arm64
+            runner: macos-26
     steps:
       # ––– Install dependencies –––
       - name: Install Dependencies

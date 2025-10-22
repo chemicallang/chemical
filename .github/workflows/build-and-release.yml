@@ -24,7 +24,7 @@ jobs:
     steps:
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical-bootstrap
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -32,7 +32,7 @@ jobs:
 
       # Checkout chemical repository inside chemical-bootstrap
       - name: Checkout chemical repository inside chemical-bootstrap
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -202,7 +202,7 @@ jobs:
     steps:
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical-bootstrap
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -210,7 +210,7 @@ jobs:
 
       # Checkout chemical repository inside chemical-bootstrap
       - name: Checkout chemical repository inside chemical-bootstrap
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -388,7 +388,7 @@ jobs:
 
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical-bootstrap
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -396,7 +396,7 @@ jobs:
 
       # Checkout chemical repository inside chemical-bootstrap
       - name: Checkout chemical repository inside chemical-bootstrap
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -555,14 +555,14 @@ jobs:
 
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical-bootstrap
           token: ${{ secrets.GITHUB_TOKEN }}
           path: chemical-bootstrap
 
       - name: Checkout chemical repository inside chemical-bootstrap
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}

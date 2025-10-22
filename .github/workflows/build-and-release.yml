@@ -428,8 +428,8 @@ jobs:
       - name: Configure Chemical Project
         working-directory: chemical-bootstrap/chemical
         run: |
-          mkdir -p out/build/${{ matrix.arch }}-release
-          cmake -S . -B out/build/${{ matrix.arch }}-release -DCMAKE_BUILD_TYPE=Release
+          mkdir -p out/build
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release
 
       # Configure project dependencies using configuration script
       - name: Run configure script
@@ -590,8 +590,8 @@ jobs:
       - name: Configure Chemical Project
         working-directory: chemical-bootstrap/chemical
         run: |
-          mkdir -p out/build/${{ matrix.arch }}-release
-          cmake -S . -B out/build/${{ matrix.arch }}-release -DCMAKE_BUILD_TYPE=Release
+          mkdir -p out/build
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release
 
       # Run configure script
       - name: Run configure script

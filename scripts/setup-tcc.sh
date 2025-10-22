@@ -8,52 +8,76 @@ set -euo pipefail
 REPO_URL="https://github.com/chemicallang/tcclib.git"
 TARGET_DIR="lib/tcc"
 
-# Detect OS
-UNAME_S="$(uname -s)"
-UNAME_M="$(uname -m)"
+UNAME_S="$(uname -s 2>/dev/null || echo Unknown)"
+UNAME_M="$(uname -m 2>/dev/null || echo unknown)"
 
-case "${UNAME_S}" in
-    Linux*)
-        case "${UNAME_M}" in
-            x86_64)   BRANCH="thirdparty-linux-amd64" ;;
-            armv7l)   BRANCH="thirdparty-linux-arm" ;;
-            arm64)    BRANCH="thirdparty-linux-arm64" ;;
-            aarch64)  BRANCH="thirdparty-linux-aarch64" ;;
-            riscv64)  BRANCH="thirdparty-linux-riscv64" ;;
-            *)        echo "Unsupported Linux arch: ${UNAME_M}" && exit 1 ;;
-        esac
-        ;;
-    Darwin*)
-        case "${UNAME_M}" in
-            x86_64)   BRANCH="thirdparty-macos-amd64" ;;
-            arm64)    BRANCH="thirdparty-macos-arm64" ;;
-            *)        echo "Unsupported macOS arch: ${UNAME_M}" && exit 1 ;;
-        esac
-        ;;
-    FreeBSD*)
-        case "${UNAME_M}" in
-            x86_64)   BRANCH="thirdparty-freebsd-amd64" ;;
-            arm64)    BRANCH="thirdparty-freebsd-arm64" ;;
-            aarch64)  BRANCH="thirdparty-freebsd-aarch64" ;;
-            *)        echo "Unsupported FreeBSD arch: ${UNAME_M}" && exit 1 ;;
-        esac
-        ;;
-    OpenBSD*)
-        case "${UNAME_M}" in
-            x86_64)   BRANCH="thirdparty-openbsd-amd64" ;;
-            *)        echo "Unsupported OpenBSD arch: ${UNAME_M}" && exit 1 ;;
-        esac
-        ;;
-    MINGW*|MSYS*|CYGWIN*)
-        case "${UNAME_M}" in
-            x86)      BRANCH="thirdparty-windows-i386" ;;
-            x86_64)   BRANCH="thirdparty-windows-amd64" ;;
-            *)        echo "Unsupported Windows arch: ${UNAME_M}" && exit 1 ;;
-        esac
-        ;;
-    *)
-        BRANCH="thirdparty-unknown-unknown"
-        ;;
+# normalize to lowercase to make matching simpler
+UNAME_S_L="$(printf '%s' "$UNAME_S" | tr '[:upper:]' '[:lower:]')"
+UNAME_M_L="$(printf '%s' "$UNAME_M" | tr '[:upper:]' '[:lower:]')"
+
+# normalize common arch names to a small known set
+case "$UNAME_M_L" in
+  x86_64|x86-64|amd64|x64) ARCH=amd64 ;;
+  i386|i486|i586|i686|x86) ARCH=i386 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  armv7l|armv7|armv6l) ARCH=armv7 ;;
+  riscv64) ARCH=riscv64 ;;
+  *) ARCH="unknown" ;;
+esac
+
+BRANCH="thirdparty-unknown-unknown"
+
+case "$UNAME_S_L" in
+  linux*)
+    case "$ARCH" in
+      amd64)  BRANCH="thirdparty-linux-amd64" ;;
+      arm64)  BRANCH="thirdparty-linux-arm64" ;;
+      armv7)  BRANCH="thirdparty-linux-arm" ;;
+      riscv64)BRANCH="thirdparty-linux-riscv64" ;;
+      i386)   BRANCH="thirdparty-linux-i386" ;;
+      *) printf '%s\n' "Unsupported Linux arch: $UNAME_M" >&2; exit 1 ;;
+    esac
+    ;;
+
+  darwin*)
+    case "$ARCH" in
+      amd64) BRANCH="thirdparty-macos-amd64" ;;
+      arm64) BRANCH="thirdparty-macos-arm64" ;;
+      *) printf '%s\n' "Unsupported macOS arch: $UNAME_M" >&2; exit 1 ;;
+    esac
+    ;;
+
+  freebsd*)
+    case "$ARCH" in
+      amd64) BRANCH="thirdparty-freebsd-amd64" ;;
+      arm64) BRANCH="thirdparty-freebsd-arm64" ;;
+      riscv64) BRANCH="thirdparty-freebsd-aarch64" ;; # adjust if you don't have this
+      i386) BRANCH="thirdparty-freebsd-i386" ;;
+      *) printf '%s\n' "Unsupported FreeBSD arch: $UNAME_M" >&2; exit 1 ;;
+    esac
+    ;;
+
+  openbsd*)
+    case "$ARCH" in
+      amd64) BRANCH="thirdparty-openbsd-amd64" ;;
+      i386) BRANCH="thirdparty-openbsd-i386" ;;
+      *) printf '%s\n' "Unsupported OpenBSD arch: $UNAME_M" >&2; exit 1 ;;
+    esac
+    ;;
+
+  mingw*|msys*|cygwin*)
+    case "$ARCH" in
+      amd64) BRANCH="thirdparty-windows-amd64" ;;
+      i386)  BRANCH="thirdparty-windows-i386" ;;
+      arm64) BRANCH="thirdparty-windows-arm64" ;;
+      *) printf '%s\n' "Unsupported Windows arch: $UNAME_M" >&2; exit 1 ;;
+    esac
+    ;;
+
+  *)
+    printf '%s\n' "Unsupported OS: $UNAME_S" >&2
+    exit 1
+    ;;
 esac
 
 echo "Detected OS=${UNAME_S}, Arch=${UNAME_M}"

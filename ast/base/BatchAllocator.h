@@ -14,8 +14,6 @@
 class BatchAllocator {
 public:
 
-    friend class SerialStrAllocator;
-
     /**
      * constructor
      */

@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-#
 # Copyright (c) Chemical Language Foundation 2025.
-#
-
 set -euo pipefail
 
 REPO_URL="https://github.com/chemicallang/tcclib.git"
@@ -25,18 +22,40 @@ case "$UNAME_M_L" in
   *) ARCH="unknown" ;;
 esac
 
+# Detect musl / alpine
+MUSL=false
+
+# 1) Check /etc/os-release for Alpine-ish ID (if readable)
+if [ -r /etc/os-release ]; then
+  if grep -qiE '^id=alpine' /etc/os-release 2>/dev/null || grep -qiE '^id_like=.*alpine' /etc/os-release 2>/dev/null; then
+    MUSL=true
+  fi
+fi
+
 BRANCH="thirdparty-unknown-unknown"
 
 case "$UNAME_S_L" in
   linux*)
-    case "$ARCH" in
-      amd64)  BRANCH="thirdparty-linux-amd64" ;;
-      arm64)  BRANCH="thirdparty-linux-arm64" ;;
-      armv7)  BRANCH="thirdparty-linux-arm" ;;
-      riscv64)BRANCH="thirdparty-linux-riscv64" ;;
-      i386)   BRANCH="thirdparty-linux-i386" ;;
-      *) printf '%s\n' "Unsupported Linux arch: $UNAME_M" >&2; exit 1 ;;
-    esac
+    if [ "$MUSL" = true ]; then
+      # use musl-specific branch names (example: thirdparty-linuxmusl-amd64)
+      case "$ARCH" in
+        amd64)  BRANCH="thirdparty-linuxmusl-amd64" ;;
+        arm64)  BRANCH="thirdparty-linuxmusl-arm64" ;;
+        armv7)  BRANCH="thirdparty-linuxmusl-arm" ;;
+        riscv64)BRANCH="thirdparty-linuxmusl-riscv64" ;;
+        i386)   BRANCH="thirdparty-linuxmusl-i386" ;;
+        *) printf '%s\n' "Unsupported Linux arch for musl: $UNAME_M" >&2; exit 1 ;;
+      esac
+    else
+      case "$ARCH" in
+        amd64)  BRANCH="thirdparty-linux-amd64" ;;
+        arm64)  BRANCH="thirdparty-linux-arm64" ;;
+        armv7)  BRANCH="thirdparty-linux-arm" ;;
+        riscv64)BRANCH="thirdparty-linux-riscv64" ;;
+        i386)   BRANCH="thirdparty-linux-i386" ;;
+        *) printf '%s\n' "Unsupported Linux arch: $UNAME_M" >&2; exit 1 ;;
+      esac
+    fi
     ;;
 
   darwin*)
@@ -80,7 +99,7 @@ case "$UNAME_S_L" in
     ;;
 esac
 
-echo "Detected OS=${UNAME_S}, Arch=${UNAME_M}"
+echo "Detected OS=${UNAME_S}, Arch=${UNAME_M}, MUSL=${MUSL}"
 echo "Using branch: ${BRANCH}"
 
 # Remove old checkout if exists

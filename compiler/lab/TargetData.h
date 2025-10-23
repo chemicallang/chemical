@@ -97,22 +97,22 @@ consteval TargetData create_target_data() {
 
 #ifdef __APPLE__
     d.macos = true;
-    d.unix = true;
+    d.isUnix = true;
 #endif
 
 #ifdef __FreeBSD__
     d.freebsd = true;
-    d.unix = true;
+    d.isUnix = true;
 #endif
 
 #ifdef __ANDROID__
     d.android = true;
-    d.unix = true;
+    d.isUnix = true;
 #endif
 
 #ifdef __CYGWIN__
     d.cygwin = true;
-    d.unix = true;
+    d.isUnix = true;
 #endif
 
 #ifdef __MINGW32__
@@ -130,7 +130,7 @@ consteval TargetData create_target_data() {
 #ifdef __EMSCRIPTEN__
     d.emscripten = true;
     // Emscripten typically targets WASM and behaves Unix-like for tooling
-    d.unix = true;
+    d.isUnix = true;
 #endif
 
     // Architecture detection

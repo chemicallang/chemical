@@ -2997,22 +2997,22 @@ void prepare_executable_target_data(TargetData& data) {
 
 #ifdef __APPLE__
     data.macos = true;
-    data.unix = true;
+    data.isUnix = true;
 #endif
 
 #ifdef __FreeBSD__
     data.freebsd = true;
-    data.unix = true;
+    data.isUnix = true;
 #endif
 
 #ifdef __ANDROID__
     data.android = true;
-    data.unix = true;
+    data.isUnix = true;
 #endif
 
 #ifdef __CYGWIN__
     data.cygwin = true;
-    data.unix = true;
+    data.isUnix = true;
 #endif
 
 #ifdef __MINGW32__

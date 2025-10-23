@@ -6,6 +6,7 @@
 #include "server/build/ContextSerialization.h"
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 #ifdef _WIN32
 
@@ -183,6 +184,33 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
 
 #else
 
+int timed_wait(sem_t* sem, const struct timespec* ts) {
+#ifdef __APPLE__
+    // macOS: sem_timedwait not available, emulate with polling
+    using namespace std::chrono;
+    auto timeout = seconds(ts->tv_sec) + nanoseconds(ts->tv_nsec);
+    auto start = steady_clock::now();
+    while (true) {
+        if (sem_trywait(sem) == 0) {
+            return 0; // success
+        }
+        if (errno != EAGAIN && errno != EINTR) {
+            return -1; // other error
+        }
+        auto now = steady_clock::now();
+        if (now - start >= timeout) {
+            errno = ETIMEDOUT;
+            return -1;
+        }
+        // Sleep a tiny bit to avoid busy loop
+        struct timespec sleepTs{0, 1000000}; // 1 ms
+        nanosleep(&sleepTs, nullptr);
+    }
+#else
+    return sem_timedwait(sem, ts);
+#endif
+}
+
 int launch_child_build(BasicBuildContext& context, const std::string_view& lspPath, const std::string_view& buildFilePath) {
 
     // 1) Generate unique names:
@@ -261,7 +289,7 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         ts.tv_nsec -= 1000000000;
     }
 
-    int semRes = sem_timedwait(semChildDone, &ts);
+    int semRes = timed_wait(semChildDone, &ts);
     ChildResult result;
 
     if (semRes == -1 && errno == ETIMEDOUT) {
@@ -306,7 +334,7 @@ int launch_child_build(BasicBuildContext& context, const std::string_view& lspPa
         }
     }
     else {
-        std::cerr << "[Parent] sem_timedwait(childDone) failed: " << strerror(errno) << "\n";
+        std::cerr << "[Parent] timedwait(childDone) failed: " << strerror(errno) << "\n";
         kill(childPid, SIGKILL);
         waitpid(childPid, nullptr, 0);
         sem_close(semChildDone);

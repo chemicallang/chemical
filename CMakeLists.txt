@@ -775,10 +775,13 @@ if (WIN32)
     # Linking Compiler executable statically is necessary because of LLVM
     # we link everything else statically on windows anyway
     target_compile_options(Compiler PRIVATE "/MT")
-elseif(UNIX)
+elseif(UNIX AND NOT APPLE)
     # Statically link C++ runtime + libgcc
     target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)
     target_link_options(TCCCompiler PRIVATE -static-libstdc++ -static-libgcc)
+elseif(APPLE)
+    # macOS: do nothing, can't fully statically link libc++
+    message(STATUS "macOS detected, skipping static linking of standard libraries")
 endif()
 
 # Linking interpreter

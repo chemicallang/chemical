@@ -88,7 +88,7 @@ void BatchAllocator::destroy_memory() {
 
 BatchAllocator::~BatchAllocator() {
     destroy_memory();
-    delete allocator_mutex;
+    delete ((std::mutex*) allocator_mutex);
 }
 
 void ASTAllocator::destruct_ptr_storage() {

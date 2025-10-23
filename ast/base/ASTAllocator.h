@@ -6,10 +6,6 @@
 #include "utils/inline_attr.h"
 #include "BatchAllocator.h"
 
-namespace std {
-    class mutex;
-}
-
 struct ASTCleanupFunction {
     void* instance_ptr;
     void(*cleanup_fn)(void*);

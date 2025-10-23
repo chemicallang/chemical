@@ -789,18 +789,10 @@ target_link_libraries(Interpreter)
 
 if(APPLE)
     target_link_libraries(Compiler PRIVATE
-            # ask linker to prefer static libraries from here onward
-            -Wl,-Bstatic
             ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
-            # switch back to dynamic mode for the next libs
-            -Wl,-Bdynamic
             ${LIBTCC_LIB}
     )
     target_link_libraries(TCCCompiler PRIVATE
-            # ask linker to prefer static libraries from here onward
-            -Wl,-Bstatic
-            # switch back to dynamic mode for the next libs
-            -Wl,-Bdynamic
             ${LIBTCC_LIB}
     )
 elseif(UNIX AND NOT APPLE)

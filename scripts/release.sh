@@ -13,6 +13,10 @@ case "$os_type" in
     echo "Detected Linux environment."
     IS_WINDOWS=false
     ;;
+  Darwin*)
+    echo "Detected macOS environment."
+    IS_WINDOWS=false
+    ;;
   MINGW*|MSYS*|CYGWIN*)
     echo "Detected Windows environment."
     IS_WINDOWS=true

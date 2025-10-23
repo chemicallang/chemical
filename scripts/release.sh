@@ -226,7 +226,7 @@ if [ "$macos" = true ]; then
   # copy the libs directory
   cp -r lang/libs "$macos_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$macos_dir/libtcc.so"
+  cp lib/tcc/libtcc.dylib "$macos_dir/libtcc.dylib"
   cp -r lib/tcc/include "$macos_dir/packages/tcc"
   cp -r lib/tcc/lib "$macos_dir/packages/tcc"
 fi
@@ -288,7 +288,7 @@ if [ "$macos_tcc" = true ]; then
   # copy the libs directory
   cp -r lang/libs "$macos_tcc_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$macos_tcc_dir/libtcc.so"
+  cp lib/tcc/libtcc.dylib "$macos_tcc_dir/libtcc.dylib"
   cp -r lib/tcc/include "$macos_tcc_dir/packages/tcc"
   cp -r lib/tcc/lib "$macos_tcc_dir/packages/tcc"
 fi
@@ -333,7 +333,7 @@ if [ "$macos_lsp" = true ]; then
   # copy the libs directory
   cp -r lang/libs "$macos_lsp_dir/"
   # copy the tinycc package
-  cp lib/tcc/libtcc.so "$macos_lsp_dir/libtcc.so"
+  cp lib/tcc/libtcc.dylib "$macos_lsp_dir/libtcc.dylib"
   cp -r lib/tcc/include "$macos_lsp_dir/packages/tcc"
   cp -r lib/tcc/lib "$macos_lsp_dir/packages/tcc"
 fi

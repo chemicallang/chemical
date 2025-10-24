@@ -91,7 +91,7 @@ jobs:
       # Run the configure script to configure the project
       - name: Run configure script (Windows)
         working-directory: chemical-bootstrap/chemical
-        run: bash ./scripts/configure.sh
+        run: bash ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       # Building the llvm based, tiny cc based compilers and lsp
       - name: Build Compiler Targets
@@ -267,9 +267,8 @@ jobs:
       - name: Run configure script
         working-directory: chemical-bootstrap/chemical
         run: |
-          chmod +x ./scripts/setup-tcc.sh
           chmod +x ./scripts/configure.sh
-          ./scripts/configure.sh
+          ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       - name: Build Compiler Targets
         working-directory: chemical-bootstrap/chemical
@@ -449,9 +448,8 @@ jobs:
       - name: Run configure script
         working-directory: chemical-bootstrap/chemical
         run: |
-          chmod +x ./scripts/setup-tcc.sh
           chmod +x ./scripts/configure.sh
-          ./scripts/configure.sh
+          ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       - name: Build Compiler Targets
         working-directory: chemical-bootstrap/chemical
@@ -615,9 +613,8 @@ jobs:
       - name: Run configure script
         working-directory: chemical-bootstrap/chemical
         run: |
-          chmod +x ./scripts/setup-tcc.sh
           chmod +x ./scripts/configure.sh
-          ./scripts/configure.sh
+          ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       # Build Compiler Targets
       - name: Build Compiler Targets

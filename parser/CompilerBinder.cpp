@@ -5,14 +5,7 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "utils/PathUtils.h"
 #include "integration/libtcc/LibTccInteg.h"
-#include "compiler/ASTProcessor.h"
-#include "ast/structures/FunctionDeclaration.h"
-#include "ast/structures/Namespace.h"
-#include "ast/structures/MultiFunctionNode.h"
-#include "ast/structures/MembersContainer.h"
-#include "ast/base/ExtendableMembersContainerNode.h"
 #include "compiler/cbi/bindings/CBI.h"
-#include "rang.hpp"
 
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
     prepare_cbi_maps(interface_maps);

@@ -8,19 +8,43 @@ TARGET_DIR="lib/tcc"
 UNAME_S="$(uname -s 2>/dev/null || echo Unknown)"
 UNAME_M="$(uname -m 2>/dev/null || echo unknown)"
 
-# normalize to lowercase to make matching simpler
+# normalize to lowercase
 UNAME_S_L="$(printf '%s' "$UNAME_S" | tr '[:upper:]' '[:lower:]')"
 UNAME_M_L="$(printf '%s' "$UNAME_M" | tr '[:upper:]' '[:lower:]')"
 
-# normalize common arch names to a small known set
-case "$UNAME_M_L" in
-  x86_64|x86-64|amd64|x64) ARCH=amd64 ;;
-  i386|i486|i586|i686|x86) ARCH=i386 ;;
-  aarch64|arm64) ARCH=arm64 ;;
-  armv7l|armv7|armv6l) ARCH=armv7 ;;
-  riscv64) ARCH=riscv64 ;;
-  *) ARCH="unknown" ;;
+# ---------- Determine ARCH (prefer host info on Windows) ----------
+ARCH="unknown"
+
+# If we're on MSYS/MINGW/Cygwin, prefer Windows env vars which reflect host CPU
+case "$UNAME_S_L" in
+  mingw*|msys*|cygwin*)
+    # PROCESSOR_ARCHITEW6432 is set for 32-bit process running under WOW64 and often
+    # contains the real host arch. Fall back to PROCESSOR_ARCHITECTURE.
+    WIN_PROC="${PROCESSOR_ARCHITEW6432:-${PROCESSOR_ARCHITECTURE:-}}"
+    WIN_PROC_L="$(printf '%s' "$WIN_PROC" | tr '[:upper:]' '[:lower:]')"
+
+    case "$WIN_PROC_L" in
+      amd64|x86_64) ARCH=amd64 ;;
+      arm64|aarch64) ARCH=arm64 ;;
+      x86|i386) ARCH=i386 ;;
+      *)
+        # fallback to uname -m if env vars weren't helpful
+        ;;
+    esac
+    ;;
 esac
+
+# If not determined yet, map uname -m outputs (Linux / mac / other)
+if [ "$ARCH" = "unknown" ]; then
+  case "$UNAME_M_L" in
+    x86_64|x86-64|amd64|x64) ARCH=amd64 ;;
+    i386|i486|i586|i686|x86) ARCH=i386 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    armv7l|armv7|armv6l) ARCH=armv7 ;;
+    riscv64) ARCH=riscv64 ;;
+    *) ARCH="unknown" ;;
+  esac
+fi
 
 # Detect musl / alpine
 MUSL=false
@@ -32,6 +56,7 @@ if [ -r /etc/os-release ]; then
   fi
 fi
 
+# ---------- Select branch ----------
 BRANCH="thirdparty-unknown-unknown"
 
 case "$UNAME_S_L" in
@@ -89,7 +114,7 @@ case "$UNAME_S_L" in
       amd64) BRANCH="thirdparty-windows-amd64" ;;
       i386)  BRANCH="thirdparty-windows-i386" ;;
       arm64) BRANCH="thirdparty-windows-arm64" ;;
-      *) printf '%s\n' "Unsupported Windows arch: $UNAME_M" >&2; exit 1 ;;
+      *) printf '%s\n' "Unsupported Windows arch: $UNAME_M / $WIN_PROC" >&2; exit 1 ;;
     esac
     ;;
 
@@ -99,7 +124,12 @@ case "$UNAME_S_L" in
     ;;
 esac
 
-echo "Detected OS=${UNAME_S}, Arch=${UNAME_M}, MUSL=${MUSL}"
+# Debug output (very helpful in CI)
+echo "Detected UNAME_S=${UNAME_S} UNAME_M=${UNAME_M}"
+echo "Derived UNAME_S_L=${UNAME_S_L} UNAME_M_L=${UNAME_M_L}"
+echo "Windows env PROCESSOR_ARCHITECTURE=${PROCESSOR_ARCHITECTURE:-unset}"
+echo "Windows env PROCESSOR_ARCHITEW6432=${PROCESSOR_ARCHITEW6432:-unset}"
+echo "Final ARCH=${ARCH}, MUSL=${MUSL}"
 echo "Using branch: ${BRANCH}"
 
 # Remove old checkout if exists

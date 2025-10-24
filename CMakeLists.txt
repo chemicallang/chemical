@@ -32,6 +32,10 @@ if (ZIG_SHARED_LLVM AND ZIG_STATIC_LLVM)
     message(SEND_ERROR "-DZIG_SHARED_LLVM and -DZIG_STATIC_LLVM cannot both be enabled simultaneously")
 endif()
 
+option(BUILD_COMPILER "Build full Compiler (requires LLVM/Clang/LLD). Turn OFF to avoid building LLVM-linked Compiler." ON)
+option(VERBOSE "Enable verbose output (for debugging)" OFF)
+option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds to catch bugs" OFF)
+
 # Debug builds error messages that are more helpful
 # set(CMAKE_BUILD_TYPE "Debug")
 if (CMAKE_BUILD_TYPE MATCHES Debug)
@@ -39,14 +43,10 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_compile_definitions(PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 endif ()
 
-# Verbose builds produce logs as well
-option(VERBOSE "Enable verbose output (for debugging)" OFF)
+# Verbose builds (should) produce logs as well
 if (VERBOSE)
     add_definitions(-DVERBOSE) # Define VERBOSE macro
 endif ()
-
-# enable the address sanitizer to catch bugs
-option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds" OFF)
 
 # For printing the version in the compiler
 configure_file(
@@ -59,18 +59,32 @@ configure_file(
 
 # include some compiler options for better support
 include(cmake/CompilerOptions.cmake)
-include(cmake/FeatureFlags.cmake)
 
 # find these packages
-find_package(llvm 17)
-find_package(clang 17)
-find_package(lld 17)
+if(BUILD_COMPILER)
 
-# Check if CLANG_LIBRARIES contains NOTFOUND
-if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
-    # Remove NOTFOUND from CLANG_LIBRARIES
-    string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
-endif ()
+    # Find llvm,clang,lld packages
+    find_package(llvm 17)
+    find_package(clang 17)
+    find_package(lld 17)
+
+    # Check if CLANG_LIBRARIES contains NOTFOUND
+    if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
+        # Remove NOTFOUND from CLANG_LIBRARIES
+        string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
+    endif ()
+
+    # Indicate which libraries are present in these vars
+    message(STATUS "LLvm Include Dirs ${LLVM_INCLUDE_DIRS}")
+    message(STATUS "LLVM Libs Dirs ${LLVM_LIBDIRS}")
+    message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
+    message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
+    message(STATUS "LLD Libs ${LLD_LIBRARIES}")
+
+    # find the libraries that correspond to llvm
+    # llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
+
+endif()
 
 # Base libtcc directory
 set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/tcc)
@@ -640,22 +654,17 @@ set(COMPILER_SOURCES
 )
 
 # add Compiler executable
-add_executable(Compiler Compiler.cpp ${COMMON_SOURCES} ${COMPILER_SOURCES})
+if(BUILD_COMPILER)
+    add_executable(Compiler Compiler.cpp ${COMMON_SOURCES} ${COMPILER_SOURCES})
+endif()
 
 # add TCC Compiler executable
 add_executable(TCCCompiler Compiler.cpp ${COMMON_SOURCES})
 
-# status messages
-message(STATUS "FEATURES ${COMPILER_FEATURES}")
-# Indicate which libraries are present in these vars
-message(STATUS "LLvm Include Dirs ${LLVM_INCLUDE_DIRS}")
-message(STATUS "LLVM Libs Dirs ${LLVM_LIBDIRS}")
-message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
-message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
-message(STATUS "LLD Libs ${LLD_LIBRARIES}")
-
-# Compiler uses llvm
-target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS ${COMPILER_FEATURES})
+# Compiler uses llvm, clang, lld
+if(BUILD_COMPILER)
+    target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS)
+endif()
 
 # TCC Compiler does not use llvm and clang
 target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
@@ -702,41 +711,37 @@ target_include_directories(Interpreter PRIVATE
 )
 
 # Add include directories for Compiler
-target_include_directories(Compiler PRIVATE
-        ${COMMON_INCLUDE_DIRS}
-        # Include llvm directories for the compiler executable
-        ${LLVM_INCLUDE_DIRS}
-        ${LLD_INCLUDE_DIRS}
-        ${CLANG_INCLUDE_DIRS}
-)
+if(BUILD_COMPILER)
+    target_include_directories(Compiler PRIVATE
+            ${COMMON_INCLUDE_DIRS}
+            # Include llvm directories for the compiler executable
+            ${LLVM_INCLUDE_DIRS}
+            ${LLD_INCLUDE_DIRS}
+            ${CLANG_INCLUDE_DIRS}
+    )
+endif()
 
 # Add include directories for TCCCompiler
 target_include_directories(TCCCompiler PRIVATE
         ${COMMON_INCLUDE_DIRS}
 )
 
-# find the libraries that correspond to llvm
-# llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
-
-# Indicate which libraries are present in these vars
-message(STATUS "LLvm Include Dirs ${LLVM_INCLUDE_DIRS}")
-message(STATUS "LLVM Libs Container ${LLVM_LIBDIRS}")
-message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
-message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
-message(STATUS "LLD Libs ${LLD_LIBRARIES}")
-
 if (MSVC)
     # Disable warning C4267: 'argument': conversion from 'size_t' to '...', possible loss of data
     # For Microsoft Visual Studio Compiler Only
-    target_compile_options(Compiler PRIVATE /wd4267)
+    if(BUILD_COMPILER)
+        target_compile_options(Compiler PRIVATE /wd4267)
+    endif()
     target_compile_options(TCCCompiler PRIVATE /wd4267)
     target_compile_options(Interpreter PRIVATE /wd4267)
     target_compile_options(ChemicalLsp PRIVATE /wd4267)
 endif()
 
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
-set(NO_RTTI "-fno-rtti")
-target_compile_options(Compiler PRIVATE ${NO_RTTI})
+if(BUILD_COMPILER)
+    set(NO_RTTI "-fno-rtti")
+    target_compile_options(Compiler PRIVATE ${NO_RTTI})
+endif()
 
 if (MSVC)
     # Force “Multi-threaded static CRT” everywhere:
@@ -748,10 +753,14 @@ endif()
 if (WIN32)
     # Linking Compiler executable statically is necessary because of LLVM
     # we link everything else statically on windows anyway
-    target_compile_options(Compiler PRIVATE "/MT")
+    if(BUILD_COMPILER)
+        target_compile_options(Compiler PRIVATE "/MT")
+    endif()
 elseif(UNIX AND NOT APPLE)
     # Statically link C++ runtime + libgcc
-    target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)
+    if(BUILD_COMPILER)
+        target_link_options(Compiler PRIVATE -static-libstdc++ -static-libgcc)
+    endif()
     target_link_options(TCCCompiler PRIVATE -static-libstdc++ -static-libgcc)
 elseif(APPLE)
     # macOS: do nothing, can't fully statically link libc++
@@ -762,22 +771,26 @@ endif()
 target_link_libraries(Interpreter)
 
 if(APPLE)
-    target_link_libraries(Compiler PRIVATE
-            ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
-            ${LIBTCC_LIB}
-    )
+    if(BUILD_COMPILER)
+        target_link_libraries(Compiler PRIVATE
+                ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
+                ${LIBTCC_LIB}
+        )
+    endif()
     target_link_libraries(TCCCompiler PRIVATE
             ${LIBTCC_LIB}
     )
 elseif(UNIX AND NOT APPLE)
-    target_link_libraries(Compiler PRIVATE
-            # ask linker to prefer static libraries from here onward
-            -Wl,-Bstatic
-            ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
-            # switch back to dynamic mode for the next libs
-            -Wl,-Bdynamic
-            ${LIBTCC_LIB}
-    )
+    if(BUILD_COMPILER)
+        target_link_libraries(Compiler PRIVATE
+                # ask linker to prefer static libraries from here onward
+                -Wl,-Bstatic
+                ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES}
+                # switch back to dynamic mode for the next libs
+                -Wl,-Bdynamic
+                ${LIBTCC_LIB}
+        )
+    endif()
     target_link_libraries(TCCCompiler PRIVATE
             # ask linker to prefer static libraries from here onward
             -Wl,-Bstatic
@@ -788,7 +801,9 @@ elseif(UNIX AND NOT APPLE)
 else()
     # Windows branch
     # llvm and clang will automatically be always statically linked (these paths point to .a on linux, .lib on windows)
-    target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
+    if(BUILD_COMPILER)
+        target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
+    endif()
     target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 endif()
 
@@ -799,10 +814,12 @@ if(UNIX)
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE
     )
-    set_target_properties(Compiler PROPERTIES
-            INSTALL_RPATH "$ORIGIN"
-            BUILD_WITH_INSTALL_RPATH TRUE
-    )
+    if(BUILD_COMPILER)
+        set_target_properties(Compiler PROPERTIES
+                INSTALL_RPATH "$ORIGIN"
+                BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    endif()
 endif()
 
 # Link Lsp

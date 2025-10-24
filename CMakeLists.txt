@@ -61,32 +61,6 @@ configure_file(
 include(cmake/CompilerOptions.cmake)
 include(cmake/FeatureFlags.cmake)
 
-# Use static libraries
-#set(Boost_USE_STATIC_LIBS ON)
-# Use debug version of Boost libraries
-#set(Boost_USE_DEBUG_LIBS ON)
-# Don't warn about boost new version
-#set(Boost_NO_WARN_NEW_VERSIONS 1)
-
-# set custom boost root (not required) (set BOOST_ROOT environment variable)
-# set(BOOST_ROOT "path\\to\\boost")
-
-# Enable this option if Boost Not Found to check for Boost
-# set(Boost_DEBUG 1)
-
-# Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
-#if (POLICY CMP0074)
-#    cmake_policy(SET CMP0074 NEW)
-#endif ()
-
-# Find Boost
-#find_package(Boost COMPONENTS program_options filesystem QUIET)
-
-# Check if boost not found
-#if(NOT Boost_FOUND)
-#    message(WARNING "Couldn't find Boost")
-#endif()
-
 # find these packages
 find_package(llvm 17)
 find_package(clang 17)

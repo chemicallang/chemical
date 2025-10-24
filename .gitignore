@@ -1,5 +1,7 @@
 /cmake-build-debug/
 /cmake-build-debugwsl/
+/cmake-build-debugubuntu/
+/cmake-build-debugalpine/
 out
 .vs
 debug

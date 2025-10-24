@@ -106,7 +106,9 @@ These features should give you an idea about features we have worked on
 
 1. Clone this repo
 2. Inside the repo, run `./scripts/configure.sh` (on windows, git bash must be installed)
-3. Open the repo in IDE (in CLion, you'll get automatic build configurations) or build using cmake
+3. If you are not going to install llvm/clang/lld use -DBUILD_COMPILER=OFF when generating the project
+    - in CLion, Settings -> Build,Execution,Deployment -> Cmake -> Select CMake Profile put in Cmake Options -DBUILD_COMPILER=OFF 
+4. Open the repo in IDE (in CLion, you'll get automatic build configurations)
 
 LSP also depends on Tiny CC Based Compiler Project and is built similarly
 

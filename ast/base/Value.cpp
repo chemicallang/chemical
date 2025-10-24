@@ -412,6 +412,7 @@ bool Value::add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Valu
     throw std::runtime_error("Value::add_member_index called on a value");
 #else
     std::cerr << "add_member_index called on base value " << representation();
+    return false;
 #endif
 }
 

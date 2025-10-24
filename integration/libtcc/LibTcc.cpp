@@ -149,9 +149,12 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
         return nullptr;
     }
 
-    if (jit) {
-        tcc_set_backtrace_func(s, nullptr, backtrace_handler);
-    }
+    // TODO: tcc_set_backtrace_func is currently not available on linux alpine (with musl)
+    // it would produce a linker error, if we try to use it
+    // maybe its available in a newer release, we are using a old commit
+    // if (jit) {
+    //     tcc_set_backtrace_func(s, nullptr, backtrace_handler);
+    // }
 
     int outputType = TCC_OUTPUT_EXE;
     if (jit || outputFileName.empty()) {

@@ -29,7 +29,7 @@ public struct TargetData {
     var linux : bool = false;
     var macos : bool = false;
     var freebsd : bool = false;
-    var unix : bool = false;
+    var isUnix : bool = false;
     var android : bool = false;
     var cygwin : bool = false;
     var mingw32 : bool = false;

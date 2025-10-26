@@ -226,25 +226,15 @@ jobs:
           sudo apt-get install -y build-essential cmake git
 
       # we use gcc 14 for better constexpr support
-      - name: Add toolchain PPA & install GCC-14
+      - name: Setup GCC 14 (prebuilt)
+        uses: egor-tensin/setup-gcc@v2
+        with:
+          version: '14'
+          platform: 'x64'
+
+      - name: Verify compiler installed
         run: |
-          set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y software-properties-common ca-certificates apt-transport-https
-          # Add the toolchain repo
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          sudo apt-get update -y
-          # Try to install gcc-14/g++-14. If these packages are missing the step will fail.
-          sudo apt-get install -y gcc-14 g++-14 || {
-            echo "g++-14 not available from PPA on this runner. Aborting. Consider using ubuntu-24.04 runner or a prebuilt toolchain image." >&2
-            exit 2
-          }
-          # Set alternatives so /usr/bin/gcc and /usr/bin/g++ point to version 14
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 200
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 200
-          sudo update-alternatives --set gcc /usr/bin/gcc-14
-          sudo update-alternatives --set g++ /usr/bin/g++-14
-          echo "After install:"
+          echo "g++ path: $(which g++)"
           g++ --version
           gcc --version
           g++ -v || true

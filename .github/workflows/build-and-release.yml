@@ -261,7 +261,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/build
-          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20
 
       # Configure project dependencies using configuration script
       - name: Run configure script
@@ -442,7 +442,7 @@ jobs:
         working-directory: chemical-bootstrap/chemical
         run: |
           mkdir -p out/build
-          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20
 
       # Configure project dependencies using configuration script
       - name: Run configure script

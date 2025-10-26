@@ -227,7 +227,7 @@ jobs:
 
       # we use gcc 14
       - name: Setup GCC 14 (prebuilt)
-        uses: egor-tensin/setup-gcc@v2
+        uses: egor-tensin/setup-gcc@v1
         with:
           version: '14'
           platform: 'x64'

@@ -198,9 +198,9 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
     steps:
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
@@ -224,27 +224,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git
-
-      # we use gcc 14 for better constexpr support
-      - name: install gcc-14
-        run: |
-          sudo apt install build-essential
-          sudo apt install libmpfr-dev libgmp3-dev libmpc-dev -y
-          wget http://ftp.gnu.org/gnu/gcc/gcc-14.1.0/gcc-14.1.0.tar.gz
-          tar -xf gcc-14.1.0.tar.gz
-          cd gcc-14.1.0
-          ./configure -v --build=$(uname -m)-linux-gnu --host=$(uname -m)-linux-gnu --target=$(uname -m)-linux-gnu --prefix=/usr/local/gcc-14.1.0 --enable-checking=release --enable-languages=c,c++ --disable-multilib --program-suffix=-14.1.0
-          make
-          sudo make install
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/local/gcc-14.1.0/bin/g++-14.1.0 14
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/local/gcc-14.1.0/bin/gcc-14.1.0 14
-
-      - name: Verify compiler installed
-        run: |
-          echo "g++ path: $(which g++)"
-          g++ --version
-          gcc --version
-          g++ -v || true
 
       # Get the SHA of the chemical-bootstrap repository
       - name: Get SHA of chemical-bootstrap repository
@@ -398,9 +377,9 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
     steps:
 
       # ––– Install dependencies –––

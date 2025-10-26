@@ -420,7 +420,7 @@ jobs:
           path: chemical-bootstrap/out/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
 
-      # Build the chemical-bootstrap project (Linux) (only if not cached)
+      # Build the chemical-bootstrap project (only if not cached)
       - name: Build chemical-bootstrap
         working-directory: chemical-bootstrap
         run: |

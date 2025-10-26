@@ -406,7 +406,7 @@ jobs:
       # ––– Install dependencies –––
       - name: Install dependencies
         run: |
-          apk add --no-cache build-base cmake ninja git bash python3 curl musl-dev linux-headers zip unzip
+          apk add --no-cache build-base cmake ninja git bash curl musl-dev linux-headers zip unzip
 
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository
@@ -572,7 +572,7 @@ jobs:
       - name: Install Dependencies
         run: |
           brew update
-          brew install cmake ninja git python
+          brew install cmake ninja git
 
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository

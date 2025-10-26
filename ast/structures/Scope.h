@@ -38,7 +38,7 @@ public:
     /**
      * constructor
      */
-    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, parent_node, location), nodes(std::move(nodes)) {
+    constexpr Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, SourceLocation location) : ASTNode(ASTNodeKind::Scope, parent_node, location), nodes(std::move(nodes)) {
 
     }
 

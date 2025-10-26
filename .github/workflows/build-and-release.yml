@@ -225,12 +225,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git
 
-      # we use gcc 14
-      - name: Setup GCC 14 (prebuilt)
-        uses: egor-tensin/setup-gcc@v1
-        with:
-          version: '14'
-          platform: 'x64'
+      # we use gcc 14 for better constexpr support
+      - name: Try install gcc-14 on jammy
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update -y
+          sudo apt-get install -y gcc-14 g++-14 || true
+          if command -v g++-14 >/dev/null 2>&1; then
+            sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 200
+            sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 200
+            sudo update-alternatives --set gcc /usr/bin/gcc-14
+            sudo update-alternatives --set g++ /usr/bin/g++-14
+            echo "g++-14 installed"
+            g++ --version
+          else
+            echo "g++-14 not available on this runner; aborting. Consider using ubuntu-24.04 or Docker image"
+            exit 1
+          fi
 
       - name: Verify compiler installed
         run: |

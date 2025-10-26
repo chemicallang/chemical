@@ -551,7 +551,7 @@ jobs:
       - name: Install Dependencies
         run: |
           brew update
-          brew install cmake ninja git python3
+          brew install cmake ninja git
 
       # ––– Checkout repositories –––
       - name: Checkout chemical-bootstrap repository

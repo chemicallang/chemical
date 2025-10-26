@@ -8,6 +8,7 @@
 #include "rang.hpp"
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 void handle_tcc_error(void *opaque, const char *msg){
     std::cout << rang::fg::red << msg << " in " << ((char*) opaque) << rang::fg::reset << std::endl;
@@ -28,10 +29,13 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMo
 
 #ifdef DEBUG
 
-    const auto source_dir_path = PROJECT_SOURCE_DIR;
-
     // the tcc dir contains everything tcc needs present relative to our compiler executable
-    const auto tcc_dir = resolve_rel_child_path_str(source_dir_path, "lib/tcc");
+    auto tcc_dir = resolve_non_canon_parent_path(exe_path, "lib/tcc");
+    if(!std::filesystem::exists(tcc_dir)) {
+        const auto source_dir_path = PROJECT_SOURCE_DIR;
+        // the tcc dir contains everything tcc needs present relative to our compiler executable
+        tcc_dir = resolve_rel_child_path_str(source_dir_path, "lib/tcc");
+    }
 
 #else
 

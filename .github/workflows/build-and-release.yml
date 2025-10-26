@@ -585,7 +585,7 @@ jobs:
           path: chemical-bootstrap/out/
           key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
 
-      # Build the chemical-bootstrap project (macOS) (only if not cached)
+      # Build chemical-bootstrap project (macOS) (only if not cached)
       - name: Build chemical-bootstrap
         working-directory: chemical-bootstrap
         run: |

@@ -225,7 +225,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git
 
-      # we use gcc 14 for better constexpr support
+      # we use gcc 14
       - name: Setup GCC 14 (prebuilt)
         uses: egor-tensin/setup-gcc@v2
         with:

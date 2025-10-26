@@ -226,22 +226,18 @@ jobs:
           sudo apt-get install -y build-essential cmake git
 
       # we use gcc 14 for better constexpr support
-      - name: Try install gcc-14 on jammy
+      - name: install gcc-14
         run: |
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          sudo apt-get update -y
-          sudo apt-get install -y gcc-14 g++-14 || true
-          if command -v g++-14 >/dev/null 2>&1; then
-            sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 200
-            sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 200
-            sudo update-alternatives --set gcc /usr/bin/gcc-14
-            sudo update-alternatives --set g++ /usr/bin/g++-14
-            echo "g++-14 installed"
-            g++ --version
-          else
-            echo "g++-14 not available on this runner; aborting. Consider using ubuntu-24.04 or Docker image"
-            exit 1
-          fi
+          sudo apt install build-essential
+          sudo apt install libmpfr-dev libgmp3-dev libmpc-dev -y
+          wget http://ftp.gnu.org/gnu/gcc/gcc-14.1.0/gcc-14.1.0.tar.gz
+          tar -xf gcc-14.1.0.tar.gz
+          cd gcc-14.1.0
+          ./configure -v --build=$(uname -m)-linux-gnu --host=$(uname -m)-linux-gnu --target=$(uname -m)-linux-gnu --prefix=/usr/local/gcc-14.1.0 --enable-checking=release --enable-languages=c,c++ --disable-multilib --program-suffix=-14.1.0
+          make
+          sudo make install
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/local/gcc-14.1.0/bin/g++-14.1.0 14
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/local/gcc-14.1.0/bin/gcc-14.1.0 14
 
       - name: Verify compiler installed
         run: |

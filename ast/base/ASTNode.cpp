@@ -612,6 +612,9 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
 // exclusive method for linked type
 ASTNode* child_provider_linked_type(ChildResolver* resolver, LinkedType* type, const chem::string_view& name, ASTNode* type_parent) {
     const auto linked = type->linked;
+    if(linked == nullptr) {
+        return nullptr;
+    }
     if(linked->kind() == ASTNodeKind::TypealiasStmt) {
         return provide_child(resolver, linked->as_typealias_unsafe()->actual_type, name, type_parent);
     } else {

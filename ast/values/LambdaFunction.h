@@ -9,6 +9,7 @@
 #include "ast/base/Value.h"
 #include "ast/structures/Scope.h"
 #include "ast/types/FunctionType.h"
+#include "std/except.h"
 
 class FunctionDeclaration;
 
@@ -96,7 +97,7 @@ public:
 
     void set_return(InterpretScope &scope, Value *value) override {
 #ifdef DEBUG
-      throw std::runtime_error("NOT YET IMPLEMENTED");
+        CHEM_THROW_RUNTIME("NOT YET IMPLEMENTED");
 #endif
     }
 

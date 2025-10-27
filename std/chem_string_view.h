@@ -39,19 +39,16 @@ namespace chem {
         explicit string_view(const std::string_view& view) : data_(view.data()), size_(view.size()) {}
 
         constexpr reference operator[](size_type idx) const {
-//            if (idx >= size_) throw std::out_of_range("string_view index out of range");
             return data_[idx];
         }
 
         [[nodiscard]]
         constexpr reference front() const {
-//            if (size_ == 0) throw std::out_of_range("string_view is empty");
             return data_[0];
         }
 
         [[nodiscard]]
         constexpr reference back() const {
-//            if (size_ == 0) throw std::out_of_range("string_view is empty");
             return data_[size_ - 1];
         }
 

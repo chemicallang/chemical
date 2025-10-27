@@ -23,10 +23,10 @@ void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
                 }
 #ifdef DEBUG
                 if(ty == nullptr) {
-                    throw std::runtime_error("generic active type doesn't exist");
+                    CHEM_THROW_RUNTIME("generic active type doesn't exist");
                 }
                 if(ty->kind() == BaseTypeKind::Linked && ty->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
-                    throw std::runtime_error("unexpected generic type parameter usage");
+                    CHEM_THROW_RUNTIME("unexpected generic type parameter usage");
                 }
 #endif
                 type = ty;
@@ -601,7 +601,7 @@ void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t it
     auto instantiations = container.getInstantiationTypesFor(gen_decl);
 #ifdef DEBUG
     if(itr >= instantiations.size()) {
-        throw std::runtime_error("iteration wasn't registered to instantiations container");
+        CHEM_THROW_RUNTIME("iteration wasn't registered to instantiations container");
     }
 #endif
     auto types = instantiations[itr];
@@ -609,7 +609,7 @@ void GenericInstantiator::activateIteration(BaseGenericDecl* gen_decl, size_t it
     for(const auto param : gen_decl->generic_params) {
 #ifdef DEBUG
         if(i >= types.size()) {
-            throw std::runtime_error("no type for generic parameter exists");
+            CHEM_THROW_RUNTIME("no type for generic parameter exists");
         }
 #endif
         param->set_active_type(types[i]);

@@ -185,7 +185,7 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
                 case ASTNodeKind::UnnamedUnion:
                     break;
                 default:
-                    throw std::runtime_error("why does this variable has empty name");
+                    CHEM_THROW_RUNTIME("why does this variable has empty name");
             }
 #endif
             continue;
@@ -1549,7 +1549,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
                     linker.error(call) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
                 } else {
 #ifdef DEBUG
-                    throw std::runtime_error("couldn't get param");
+                    CHEM_THROW_RUNTIME("couldn't get param");
 #endif
                 }
                 i++;
@@ -1588,7 +1588,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
                 }
             } else {
 #ifdef DEBUG
-                throw std::runtime_error("couldn't get param");
+                CHEM_THROW_RUNTIME("couldn't get param");
 #endif
             }
             i++;
@@ -1635,7 +1635,7 @@ void update_parent_val_linked(ChainValue* value, ASTNode* node, BaseType* type) 
             const auto last = value->as_access_chain_unsafe()->values.back();
 #ifdef DEBUG
             if(last->kind() != ValueKind::Identifier) {
-                throw std::runtime_error("this should always be an id");
+                CHEM_THROW_RUNTIME("this should always be an id");
             }
 #endif
             const auto id = last->as_identifier_unsafe();
@@ -2150,7 +2150,7 @@ instantiate_block:
 
     } else {
 #ifdef DEBUG
-        throw std::runtime_error("no condition satisfied in function call");
+        CHEM_THROW_RUNTIME("no condition satisfied in function call");
 #endif
     }
     goto ending_block;
@@ -2302,7 +2302,7 @@ void link_container(SymResLinkBody& visitor, VariablesContainer* container) {
                 break;
             default:
 #ifdef DEBUG
-                throw std::runtime_error("unknown type of variable member");
+                CHEM_THROW_RUNTIME("unknown type of variable member");
 #else
                 continue;
 #endif
@@ -2835,7 +2835,7 @@ void SymResLinkBody::VisitStringValue(StringValue* strValue) {
             strValue->length = strValue->value.size() + 1; // adding 1 for the last /0
         } else {
 #ifdef DEBUG
-            throw std::runtime_error("unknown");
+            CHEM_THROW_RUNTIME("unknown");
 #endif
         }
     }

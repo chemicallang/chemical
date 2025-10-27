@@ -316,7 +316,7 @@ llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
             return llvm::Function::InternalLinkage;
         default:
 #ifdef DEBUG
-            throw "unknown access specifier in to linkage type";
+            CHEM_THROW_RUNTIME("unknown access specifier in to linkage type");
 #endif
             return llvm::Function::InternalLinkage;
 
@@ -947,7 +947,7 @@ void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value*
 //    const auto node_kind = node->kind();
 //    if(node_kind == ASTNodeKind::UnnamedStruct || node_kind == ASTNodeKind::UnnamedUnion) {
 //#ifdef DEBUG
-//        throw std::runtime_error("requires implementing the union or struct move when unnamed");
+//        CHEM_THROW_RUNTIME("requires implementing the union or struct move when unnamed");
 //#endif
 //    }
 //    const auto container = node->as_members_container();
@@ -1101,7 +1101,7 @@ void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::Basi
         const auto condType = Cond->getType();
 #ifdef DEBUG
         if(!condType->isIntegerTy()) {
-            throw std::runtime_error("only integer / boolean values can be used as condition");
+            CHEM_THROW_RUNTIME("only integer / boolean values can be used as condition");
         }
 #endif
         const auto bitWidth = condType->getIntegerBitWidth();
@@ -1460,7 +1460,7 @@ void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options) {
             break;
 #ifdef DEBUG
         default:
-            throw std::runtime_error("[lab] unknown output mode");
+            CHEM_THROW_RUNTIME("[lab] unknown output mode");
 #endif
     }
 }

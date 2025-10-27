@@ -160,7 +160,7 @@ int ASTProcessor::compile_module(
                 }
 
             } else {
-                throw std::runtime_error("result is null");
+                CHEM_THROW_RUNTIME("result is null");
             }
         }
     }
@@ -239,7 +239,7 @@ int ASTProcessor::compile_module(
                 }
 
             } else {
-                throw std::runtime_error("result is null");
+                CHEM_THROW_RUNTIME("result is null");
             }
         }
     }

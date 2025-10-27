@@ -3,6 +3,7 @@
 #include "ModToLabConverter.h"
 #include "compiler/processor/ModuleFileData.h"
 #include "ast/statements/Import.h"
+#include "std/except.h"
 
 void writeWithSep(std::vector<chem::string_view>& list, char sep, std::ostream& output) {
     unsigned i = 0;
@@ -81,7 +82,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             }
             default:
 #ifdef DEBUG
-                throw std::runtime_error("expected import statement");
+                CHEM_THROW_RUNTIME("expected import statement");
 #endif
                 continue;
         }

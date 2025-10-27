@@ -6,6 +6,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/ast_fwd.h"
+#include "std/except.h"
 
 template<typename Derived>
 class NonRecursiveVisitor {
@@ -681,7 +682,7 @@ public:
                 return;
 #ifdef DEBUG
             default:
-                throw "UNHANDLED: node kind in non recursive visitor";
+                CHEM_THROW_RUNTIME("UNHANDLED: node kind in non recursive visitor");
 #endif
         }
     }
@@ -829,7 +830,7 @@ public:
                 return;
 #ifdef DEBUG
             default:
-                throw "UNHANDLED: value kind in non recursive visitor";
+                CHEM_THROW_RUNTIME("UNHANDLED: value kind in non recursive visitor");
 #endif
         }
     }
@@ -923,7 +924,7 @@ public:
                 return;
 #ifdef DEBUG
             default:
-                throw "UNHANDLED: type kind in non recursive visitor";
+                CHEM_THROW_RUNTIME("UNHANDLED: type kind in non recursive visitor");
 #endif
         }
     }

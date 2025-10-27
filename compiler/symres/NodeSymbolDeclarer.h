@@ -17,7 +17,7 @@ class NodeSymbolDeclarer {
 public:
     inline void declare(const chem::string_view& sym, ASTNode* node) {
 #ifdef DEBUG
-        throw std::runtime_error("this method is a stub");
+        CHEM_THROW_RUNTIME("this method is a stub");
 #endif
     }
     inline void casted_declare(const chem::string_view& sym, ASTNode* node) {

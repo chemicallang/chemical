@@ -88,7 +88,8 @@ llvm::Value *ArrayValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     // Well when user declares a multidimensional array, we allocate memory for the whole thing
     // then we call llvm_value on values, if we implement it, this would allocate memory for nested array as well
     // resulting in allocating memory two times for an array
-    throw std::runtime_error("memory for array value wasn't allocated");
+    CHEM_THROW_RUNTIME("memory for array value wasn't allocated");
+    return nullptr;
 }
 
 llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {

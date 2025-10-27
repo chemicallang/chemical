@@ -292,13 +292,13 @@ std::vector<ASTFileResult*> flatten(const std::span<ASTFileResult*>& files) {
 namespace fs = std::filesystem;
 
 bool copyFile(const fs::path& sourcePath, const fs::path& destinationPath) {
-    try {
-        fs::copy_file(sourcePath, destinationPath, fs::copy_options::overwrite_existing);
-        return true;
-    } catch (const fs::filesystem_error& e) {
-        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    std::error_code ec;
+    fs::copy_file(sourcePath, destinationPath, fs::copy_options::overwrite_existing, ec);
+    if(ec) {
+        std::cerr << "Filesystem error: " << ec.message() << std::endl;
         return false;
     }
+    return true;
 }
 
 bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
@@ -732,7 +732,7 @@ int LabBuildCompiler::process_module_tcc(
             c_visitor.writer.append_file(partial_c_out.c_str());
         } else {
 #ifdef DEBUG
-            throw std::runtime_error("missing partial.2c.c, even though module hasn't changed");
+            CHEM_THROW_RUNTIME("missing partial.2c.c, even though module hasn't changed");
 #endif
         }
 
@@ -2505,7 +2505,7 @@ TCCState* LabBuildCompiler::built_lab_file(
                 // debug safety check
 #ifdef DEBUG
                 if(total_written < 0 || total_written >= nameBufferSize) {
-                    throw std::runtime_error("integer conversion truncated or failed.");
+                    CHEM_THROW_RUNTIME("integer conversion truncated or failed.");
                 }
 #endif
 

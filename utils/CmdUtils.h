@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstring>
 #include "ordered_map.h"
+#include "std/except.h"
 
 enum class CmdOptionType {
     // an option that doesn't require a value --help, --version
@@ -241,7 +242,7 @@ struct CmdOptions {
             }
         }
 #ifdef DEBUG
-        throw std::runtime_error("data for option doesn't exist");
+        CHEM_THROW_RUNTIME("data for option doesn't exist");
 #endif
         return nullptr;
     }

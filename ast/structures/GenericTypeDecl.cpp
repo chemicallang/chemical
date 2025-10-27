@@ -4,6 +4,7 @@
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/utils/GenericUtils.h"
 #include "compiler/ASTDiagnoser.h"
+#include "std/except.h"
 
 void GenericTypeDecl::finalize_signature(ASTAllocator& allocator, TypealiasStatement* inst) {
     inst->actual_type = inst->actual_type.copy(allocator);
@@ -33,7 +34,7 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAP
 
     if(itr.first != instantiations.size()) {
 #ifdef DEBUG
-        throw std::runtime_error("not the index we expected");
+        CHEM_THROW_RUNTIME("not the index we expected");
 #endif
     }
 

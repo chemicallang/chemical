@@ -91,7 +91,7 @@ void DebugInfoBuilder::start_di_compile_unit(llvm::DICompileUnit* unit) {
     if(isEnabled) {
 #ifdef DEBUG
         if(!unit) {
-            throw std::runtime_error("cannot start an empty di compile unit");
+            CHEM_THROW_RUNTIME("cannot start an empty di compile unit");
         }
 #endif
         diCompileUnit = unit;
@@ -102,10 +102,10 @@ void DebugInfoBuilder::start_di_compile_unit(llvm::DICompileUnit* unit) {
 llvm::DILocation* DebugInfoBuilder::di_loc(const Position& position) {
 #ifdef DEBUG
     if(diScopes.empty()) {
-        throw std::runtime_error("expected a scope to be present, when creating a di location");
+        CHEM_THROW_RUNTIME("expected a scope to be present, when creating a di location");
     }
     if(diScopes.back() == diCompileUnit) {
-        throw std::runtime_error("scope for a location cannot be a di compile unit");
+        CHEM_THROW_RUNTIME("scope for a location cannot be a di compile unit");
     }
 #endif
     return llvm::DILocation::get(*gen.ctx, position.line + 1, position.character + 1, diScopes.back());
@@ -214,12 +214,12 @@ void DebugInfoBuilder::end_di_compile_unit() {
     if(isEnabled) {
 #ifdef DEBUG
         if(diCompileUnit != diScopes.back()) {
-            throw std::runtime_error("current scope is not a compile unit");
+            CHEM_THROW_RUNTIME("current scope is not a compile unit");
         }
 #endif
 #ifdef DEBUG
         if(!replaceAbleTypes.empty()) {
-            throw std::runtime_error("replaceable types isn't empty");
+            CHEM_THROW_RUNTIME("replaceable types isn't empty");
         }
 #endif
         diCompileUnit = nullptr;
@@ -241,7 +241,7 @@ void finalizeReplaceableType(DebugInfoBuilder& di) {
             rep.second->replaceAllUsesWith(finalizedType);
         } else {
 #ifdef DEBUG
-            throw std::runtime_error("type no longer temporary");
+            CHEM_THROW_RUNTIME("type no longer temporary");
 #endif
         }
     }
@@ -352,7 +352,7 @@ llvm::DIScope* DebugInfoBuilder::create(FunctionTypeBody* decl, llvm::Function* 
     const auto name_view = as_func ? to_ref(as_func->name_view()) : func->getName();
 #ifdef DEBUG
     if(diScopes.empty()) {
-        throw std::runtime_error("expected a compile unit scope to be present when starting a function scope");
+        CHEM_THROW_RUNTIME("expected a compile unit scope to be present when starting a function scope");
     }
 #endif
     std::vector<llvm::Metadata*> mds;
@@ -406,7 +406,7 @@ void DebugInfoBuilder::end_function_scope() {
         builder->finalizeSubprogram(subprogram);
     } else {
 #ifdef DEBUG
-        throw std::runtime_error("ending function scope is not a subprogram");
+        CHEM_THROW_RUNTIME("ending function scope is not a subprogram");
 #endif
     }
     diScopes.pop_back();
@@ -418,7 +418,7 @@ void DebugInfoBuilder::start_scope(SourceLocation source_loc) {
     }
 #ifdef DEBUG
     if(diScopes.empty()) {
-        throw std::runtime_error("expected a function scope to be present, when starting a lexical block");
+        CHEM_THROW_RUNTIME("expected a function scope to be present, when starting a lexical block");
     }
 #endif
     const auto start = loc_node(this, source_loc).start;

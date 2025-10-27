@@ -363,7 +363,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
 //                case ASTNodeKind::UnnamedUnion:
 //                    break;
 //                default:
-//                    throw std::runtime_error("why does this variable has empty name");
+//                    CHEM_THROW_RUNTIME("why does this variable has empty name");
 //            }
 //#endif
 //            continue;
@@ -782,8 +782,8 @@ bool MembersContainer::extends_node(ASTNode* other) {
                 return true;
             }
         }
-        return false;
     }
+    return false;
 }
 
 std::pair<long, BaseType*> VariablesContainer::variable_type_index(const chem::string_view& varName, bool consider_inherited_structs) {
@@ -937,11 +937,11 @@ chem::string_view InheritedType::ref_type_name() {
         return ((LinkedType*) type.getType())->linked_name();
     }
 #ifdef DEBUG
-    throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());
+    CHEM_THROW_RUNTIME("unable to retrieve referenced type name from type");
 #else
     std::cerr << "unable to retrieve referenced type name from type " + type->representation() << std::endl;
-    return "";
 #endif
+    return "";
 }
 
 InheritedType InheritedType::copy(ASTAllocator& allocator) const {

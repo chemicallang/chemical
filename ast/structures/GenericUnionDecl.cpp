@@ -5,6 +5,7 @@
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "compiler/ASTDiagnoser.h"
+#include "std/except.h"
 
 void GenericUnionDecl::finalize_signature(ASTAllocator& allocator, UnionDef* inst) {
 
@@ -48,7 +49,7 @@ UnionDef* GenericUnionDecl::register_generic_args(GenericInstantiatorAPI& instan
 
     if(itr.first != instantiations.size()) {
 #ifdef DEBUG
-        throw std::runtime_error("not the index we expected");
+        CHEM_THROW_RUNTIME("not the index we expected");
 #endif
     }
 

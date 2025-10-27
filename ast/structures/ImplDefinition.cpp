@@ -3,6 +3,7 @@
 #include "ImplDefinition.h"
 #include "StructMember.h"
 #include "ast/structures/StructDefinition.h"
+#include "std/except.h"
 
 #ifdef COMPILER_BUILD
 
@@ -56,7 +57,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
 
 uint64_t ImplDefinition::byte_size(bool is64Bit) {
 #ifdef DEBUG
-    throw std::runtime_error("ImplDefinition::byte_size byte_size on impl definition");
+    CHEM_THROW_RUNTIME("ImplDefinition::byte_size byte_size on impl definition");
 #endif
     return 0;
 }

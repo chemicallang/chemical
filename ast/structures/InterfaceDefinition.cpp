@@ -6,6 +6,7 @@
 #include "compiler/mangler/NameMangler.h"
 #include "ast/types/LinkedType.h"
 #include <sstream>
+#include "std/except.h"
 
 #ifdef COMPILER_BUILD
 
@@ -206,7 +207,7 @@ int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
 
 uint64_t InterfaceDefinition::byte_size(bool is64Bit) {
 #ifdef DEBUG
-throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size called");
+    CHEM_THROW_RUNTIME("InterfaceDefinition::byte_size interface byte_size called");
 #endif
     return 0;
 }

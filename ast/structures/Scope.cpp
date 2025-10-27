@@ -20,6 +20,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/statements/Break.h"
 #include "compiler/ASTDiagnoser.h"
+#include "std/except.h"
 
 // deduplicate the nodes, so nodes with same id appearing later will override the nodes appearing before them
 void top_level_dedupe(std::vector<ASTNode*>& nodes) {
@@ -72,7 +73,7 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
                     }
                 } else {
 #ifdef DEBUG
-                    throw std::runtime_error("unevaluated top level if statement");
+                    CHEM_THROW_RUNTIME("unevaluated top level if statement");
 #endif
                 }
                 break;

@@ -9,7 +9,7 @@
 #include <span>
 #include <cassert>
 #include <cstring>
-#include <stdexcept>
+#include "std/except.h"
 
 // Forward declaration.
 class ASTNode;
@@ -606,7 +606,7 @@ public:
             }
 #ifdef DEBUG
             else {
-                throw std::runtime_error("couldn't erase the symbol when scope ended");
+                CHEM_THROW_RUNTIME("couldn't erase the symbol when scope ended");
             }
 #endif
         }

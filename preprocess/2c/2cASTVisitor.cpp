@@ -1240,7 +1240,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             }
         } else {
 #ifdef DEBUG
-            throw std::runtime_error("couldn't get param");
+            CHEM_THROW_RUNTIME("couldn't get param");
 #endif
         }
         i++;
@@ -4449,7 +4449,7 @@ void do_patt_mat_expr_cond(ToCAstVisitor& visitor, PatternMatchExpr* value) {
     auto found = visitor.local_allocated.find(value);
 #ifdef DEBUG
     if(found == visitor.local_allocated.end()) {
-        throw std::runtime_error("this shouldn't fail");
+        CHEM_THROW_RUNTIME("this shouldn't fail");
     }
 #endif
     visitor.write(found->second);

@@ -57,6 +57,7 @@
 #include <iostream>
 #include "ChildResolution.h"
 #include "compiler/symres/ChildResolver.h"
+#include "std/except.h"
 
 #if !defined(DEBUG) && defined(COMPILER_BUILD)
 #include "compiler/Codegen.h"
@@ -232,7 +233,7 @@ uint64_t ASTNode::byte_size(bool is64Bit) {
     if(holdingType) return holdingType->byte_size(is64Bit);
     auto holdingValue = holding_value();
     if(holdingValue) return holdingValue->byte_size(is64Bit);
-    throw std::runtime_error("unknown byte size for linked node");
+    CHEM_THROW_RUNTIME("unknown byte size for linked node");
 }
 
 ASTNode* ASTNode::root_parent() {
@@ -596,7 +597,7 @@ ASTNode* child(ImportStatement* stmt, const chem::string_view &name) {
         return found != stmt->symbols->end() ? found->second : nullptr;
     } else {
 #ifdef DEBUG
-        throw std::runtime_error("symbols pointer doesn't exist in import statement");
+        CHEM_THROW_RUNTIME("symbols pointer doesn't exist in import statement");
 #endif
         return nullptr;
     }
@@ -833,7 +834,7 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
 
 llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
 #ifdef DEBUG
-    throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
+    CHEM_THROW_RUNTIME("llvm_pointer called on bare ASTNode");
 #else
     std::cerr << ("ASTNode::llvm_pointer called, on node : " + representation());
     return nullptr;
@@ -842,7 +843,7 @@ llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
 
 void ASTNode::code_gen(Codegen &gen) {
 #ifdef DEBUG
-    throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
+    CHEM_THROW_RUNTIME("ASTNode code_gen called on bare ASTNode");
 #else
     std::cerr << ("ASTNode::code_gen called, on node : " + representation());
 #endif
@@ -850,7 +851,7 @@ void ASTNode::code_gen(Codegen &gen) {
 
 bool ASTNode::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) {
 #ifdef DEBUG
-    throw std::runtime_error("add_child_index called on a ASTNode");
+    CHEM_THROW_RUNTIME("add_child_index called on a ASTNode");
 #else
     std::cerr << ("ASTNode::add_child_index called, on node : " + representation());
     return false;
@@ -859,7 +860,7 @@ bool ASTNode::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes,
 
 llvm::Value *ASTNode::llvm_load(Codegen& gen, SourceLocation location) {
 #ifdef DEBUG
-    throw std::runtime_error("llvm_load called on a ASTNode");
+    CHEM_THROW_RUNTIME("llvm_load called on a ASTNode");
 #else
     std::cerr << ("ASTNode::llvm_load called, on node : " + representation());
     return nullptr;

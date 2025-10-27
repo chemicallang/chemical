@@ -147,19 +147,19 @@ RepresentationVisitor::~RepresentationVisitor() = default;
 
 void RepresentationVisitor::VisitCommonNode(ASTNode* node) {
 #ifdef DEBUG
-    throw std::runtime_error("RepresentationVisitor::VisitCommonNode called");
+    CHEM_THROW_RUNTIME("RepresentationVisitor::VisitCommonNode called");
 #endif
 }
 
 void RepresentationVisitor::VisitCommonValue(Value* value) {
 #ifdef DEBUG
-    throw std::runtime_error("RepresentationVisitor::VisitCommonValue called");
+    CHEM_THROW_RUNTIME("RepresentationVisitor::VisitCommonValue called");
 #endif
 }
 
 void RepresentationVisitor::VisitCommonType(BaseType* type) {
 #ifdef DEBUG
-    throw std::runtime_error("RepresentationVisitor::VisitCommonType called");
+    CHEM_THROW_RUNTIME("RepresentationVisitor::VisitCommonType called");
 #endif
 }
 

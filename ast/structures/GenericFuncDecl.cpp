@@ -12,6 +12,7 @@
 #include "ast/types/LinkedType.h"
 #include "ast/values/FunctionCall.h"
 #include "compiler/ASTDiagnoser.h"
+#include "std/except.h"
 
 void GenericFuncDecl::finalize_signature(ASTAllocator& allocator, FunctionDeclaration* decl) {
 
@@ -92,7 +93,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         if(itr.first < instantiations.size()) {
             return instantiations[itr.first];
         }
-        throw std::runtime_error("iteration registered, that is not on the expected index");
+        CHEM_THROW_RUNTIME("iteration registered, that is not on the expected index");
     }
 #endif
 

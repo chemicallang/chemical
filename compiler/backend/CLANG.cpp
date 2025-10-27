@@ -1061,7 +1061,7 @@ clang::QualType to_clang_type(BaseType* type, clang::ASTContext &context) {
         case BaseTypeKind::Reference:
             return context.getPointerType(to_clang_type(type->as_pointer_type_unsafe(), context));
         default:
-            throw std::runtime_error("BaseType::clang_type called");
+            CHEM_THROW_RUNTIME("BaseType::clang_type called");
     }
 }
 

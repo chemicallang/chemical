@@ -35,6 +35,7 @@ endif()
 option(BUILD_COMPILER "Build full Compiler (requires LLVM/Clang/LLD). Turn OFF to avoid building LLVM-linked Compiler." ON)
 option(VERBOSE "Enable verbose output (for debugging)" OFF)
 option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds to catch bugs" OFF)
+option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets where safe" ON)
 
 # Debug builds error messages that are more helpful
 # set(CMAKE_BUILD_TYPE "Debug")
@@ -80,6 +81,7 @@ if(BUILD_COMPILER)
     message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
     message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
     message(STATUS "LLD Libs ${LLD_LIBRARIES}")
+    message(STATUS "LLVM built with RTTI=${LLVM_ENABLE_RTTI} EH=${LLVM_ENABLE_EH}")
 
     # find the libraries that correspond to llvm
     # llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
@@ -571,6 +573,8 @@ set(COMMON_SOURCES
         compiler/lab/backend/atomics.h
         ast/types/MaybeRuntimeType.h
         compiler/symres/BeforeLinkSignature.h
+        std/except.h
+        std/except.cpp
 )
 
 # Chemical LSP Executable Target
@@ -696,6 +700,61 @@ if(ENABLE_ASAN AND CMAKE_BUILD_TYPE MATCHES Debug)
     # For example, applying to TCCCompiler:
     target_compile_options(TCCCompiler PRIVATE ${ASAN_COMPILE_FLAG})
     target_link_options(TCCCompiler PRIVATE ${ASAN_LINK_FLAG})
+endif()
+
+# Helper: disable RTTI + exceptions for a given target in a portable way.
+# Usage: chem_disable_rtti_exceptions(<target> [ASSUME_NO_THIRD_PARTY])
+# If ASSUME_NO_THIRD_PARTY is provided we won't add extra warnings/defs.
+function(chem_disable_rtti_exceptions target)
+    if(NOT TARGET ${target})
+        message(WARNING "chem_disable_rtti_exceptions: target ${target} not found")
+        return()
+    endif()
+
+    # GCC/Clang flags
+    target_compile_options(${target} PRIVATE
+            # only apply these flags for GNU or Clang
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-fno-rtti -fno-exceptions>
+    )
+
+    # MSVC: disable RTTI with /GR-
+    target_compile_options(${target} PRIVATE
+            $<$<CXX_COMPILER_ID:MSVC>:/GR->
+    )
+
+    # MSVC: instruct libc++/STL headers not to use exceptions
+    # _HAS_EXCEPTIONS=0 is the usual macro used to compile MSVC STL without exceptions.
+    # WARNING: mixing CRT/third-party libs built with different _HAS_EXCEPTIONS values can break.
+    target_compile_definitions(${target} PRIVATE
+            $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0>
+    )
+
+    # Keep /EHsc to allow normal unwind metadata (so linking with libs that expect unwind works)
+    target_compile_options(${target} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/EHsc>)
+
+    # GCC/Clang: set compile definition to help conditional code
+    target_compile_definitions(${target} PRIVATE
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:DISABLE_RTTI_AND_EXCEPTIONS>
+    )
+
+    # Optionally: tell the linker to strip exceptions/RTTI symbols more aggressively at link-time
+    # (GCC/Clang only) — this can further reduce size when using -s or -Wl,--gc-sections.
+    target_link_options(${target} PRIVATE
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wl,--gc-sections>
+    )
+endfunction()
+
+# Disables rtti exceptions
+if(DISABLE_RTTI_EXCEPTIONS)
+    chem_disable_rtti_exceptions(Interpreter)
+    chem_disable_rtti_exceptions(TCCCompiler)
+    if(BUILD_COMPILER)
+        chem_disable_rtti_exceptions(Compiler)
+    endif()
+    # chemical lsp needs exceptions and dynamic cast support
+    # because it links with lsp-framework which uses exceptions and dynamic casts
+    # maybe we could eliminate it in the future
+    # chem_disable_rtti_exceptions(ChemicalLsp)
 endif()
 
 # Add include directories for LspCpp

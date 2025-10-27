@@ -5,6 +5,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/TypeLoc.h"
 #include "ast/base/Value.h"
+#include "std/except.h"
 
 /**
  * when user writes an if as a type
@@ -41,7 +42,7 @@ public:
      */
     bool is_same(BaseType *type) override {
 #ifdef DEBUG
-        throw std::runtime_error("comparison of if type is prohibited");
+        CHEM_THROW_RUNTIME("comparison of if type is prohibited");
 #endif
         return false;
     }
@@ -52,7 +53,7 @@ public:
      */
     bool satisfies(BaseType *type) override {
 #ifdef DEBUG
-        throw std::runtime_error("checking satisfaction on a if type is prohibited");
+        CHEM_THROW_RUNTIME("checking satisfaction on a if type is prohibited");
 #endif
         return false;
     }

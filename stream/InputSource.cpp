@@ -3,6 +3,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "FileInputSource.h"
+#include "std/except.h"
 
 #include <system_error>
 #include <stdexcept>
@@ -263,7 +264,7 @@ void FileInputSource::fallback_read(const std::filesystem::path& path, uint64_t 
         return;
     }
     if (fileSize > static_cast<uint64_t>(SIZE_MAX))
-        throw std::system_error(EOVERFLOW, std::generic_category(), "file too large for fallback allocation");
+        CHEM_THROW_SYSTEM(EOVERFLOW, "generic", nullptr, "file too large for fallback allocation");
 
     size_t sz = static_cast<size_t>(fileSize);
     std::unique_ptr<char[]> buf(new char[sz]);
@@ -278,7 +279,7 @@ void FileInputSource::fallback_read(const std::filesystem::path& path, uint64_t 
                             FILE_ATTRIBUTE_NORMAL,
                             nullptr);
     if (fh == INVALID_HANDLE_VALUE) {
-        throw std::system_error(GetLastError(), std::system_category(), "CreateFileW (fallback) failed");
+        CHEM_THROW_SYSTEM(GetLastError(), "system", nullptr, "CreateFileW (fallback) failed");
     }
     DWORD read = 0;
     DWORD toRead = (sz > static_cast<size_t>(~static_cast<DWORD>(0))?
@@ -290,7 +291,7 @@ void FileInputSource::fallback_read(const std::filesystem::path& path, uint64_t 
         BOOL ok = ReadFile(fh, buf.get() + offset, thisRead, &read, nullptr);
         if (!ok) {
             CloseHandle(fh);
-            throw std::system_error(GetLastError(), std::system_category(), "ReadFile failed in fallback");
+            CHEM_THROW_SYSTEM(GetLastError(), "system", std::system_category(), "ReadFile failed in fallback");
         }
         offset += read;
         if (read == 0) break; // EOF
@@ -299,14 +300,14 @@ void FileInputSource::fallback_read(const std::filesystem::path& path, uint64_t 
 #else
     // POSIX: open and read
     int fd = ::open(path.c_str(), O_RDONLY);
-    if (fd < 0) throw std::system_error(errno, std::generic_category(), "open failed (fallback)");
+    if (fd < 0) CHEM_THROW_SYSTEM(errno, "generic", nullptr, "open failed (fallback)");
     size_t offset = 0;
     while (offset < sz) {
         ssize_t r = ::read(fd, buf.get() + offset, sz - offset);
         if (r < 0) {
             int e = errno;
             ::close(fd);
-            throw std::system_error(e, std::generic_category(), "read failed (fallback)");
+            CHEM_THROW_SYSTEM(e, "generic", nullptr, "read failed (fallback)");
         }
         if (r == 0) break;
         offset += static_cast<size_t>(r);

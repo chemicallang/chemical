@@ -1108,7 +1108,7 @@ int ASTProcessor::translate_module(
 
                 external_declare_in_c(c_visitor, body, file.abs_path);
             } else {
-                throw std::runtime_error("result is null");
+                CHEM_THROW_RUNTIME("result is null");
             }
         }
     }

@@ -1,7 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "LocationManager.h"
-#include <stdexcept>
+#include "std/except.h"
 
 unsigned int LocationManager::encodeFile(const std::string& filePath) {
     std::lock_guard guard(file_mutex);
@@ -30,7 +30,7 @@ uint64_t LocationManager::addLocation(uint32_t fileId, uint32_t lineStart, uint3
     ) {
 #ifdef DEBUG
         if(lineEnd < lineStart || (lineEnd - lineStart) >= MAX_LINE_END_OFFSET) {
-            throw std::runtime_error("invalid line end provided to the addLocation");
+            CHEM_THROW_RUNTIME("invalid line end provided to the addLocation");
         }
 #endif
         uint64_t location = 0;
@@ -55,7 +55,7 @@ uint32_t LocationManager::getLineStartFast(SourceLocation loc) {
         uint64_t index = data & NOT_INDICATOR_BIT_MASK;
 #ifdef DEBUG
         if (index >= locations.size()) {
-            throw std::out_of_range("Location index out of range.");
+            CHEM_THROW_RUNTIME("Location index out of range.");
         }
 #endif
         return locations[index].lineStart;
@@ -69,7 +69,7 @@ LocationManager::LocationData LocationManager::getLocation(uint64_t data) const 
         uint64_t index = data & NOT_INDICATOR_BIT_MASK;
 #ifdef DEBUG
         if (index >= locations.size()) {
-            throw std::out_of_range("Location index out of range.");
+            CHEM_THROW_RUNTIME("Location index out of range.");
         }
 #endif
         return locations[index];

@@ -927,10 +927,10 @@ int compiler_main(int argc, char *argv[]) {
 
     // delete object file which was linked
     if(!temporary_obj.empty()) {
-        try {
-            std::filesystem::remove(temporary_obj);
-        } catch (const std::filesystem::filesystem_error &ex) {
-            std::cerr << rang::fg::red << "error: couldn't delete temporary object file " << temporary_obj << " because " << ex.what() << rang::fg::reset << std::endl;
+        std::error_code ec;
+        std::filesystem::remove(temporary_obj, ec);
+        if(ec) {
+            std::cerr << rang::fg::red << "error: couldn't delete temporary object file " << temporary_obj << " because " << ec.message() << rang::fg::reset << std::endl;
             return_int = 1;
         }
     }

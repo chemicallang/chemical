@@ -98,7 +98,8 @@
 // -------------------- Types
 
 llvm::Type *AnyType::llvm_type(Codegen &gen) {
-    throw std::runtime_error("llvm_type called on any type");
+    CHEM_THROW_RUNTIME("llvm_type called on any type");
+    return nullptr;
 }
 
 llvm::Type* NullPtrType::llvm_type(Codegen &gen) {
@@ -129,7 +130,7 @@ llvm::Type *IntNType::llvm_type(Codegen &gen) {
     const auto ty = gen.builder->getIntNTy(num_bits(gen.is64Bit));
 #ifdef DEBUG
     if(!ty) {
-        throw std::runtime_error("couldn't get int n type for bits");
+        CHEM_THROW_RUNTIME("couldn't get int n type for bits");
     }
 #endif
     return ty;
@@ -461,7 +462,7 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     }
 #ifdef DEBUG
     if(!type->isIntegerTy()) {
-        throw std::runtime_error("only integer / boolean values can be used with not");
+        CHEM_THROW_RUNTIME("only integer / boolean values can be used with not");
     }
 #endif
     const auto bitWidth = type->getIntegerBitWidth();
@@ -1609,7 +1610,7 @@ bool should_destruct_node(ASTNode* node, Value* returnValue) {
         }
         default:
 #ifdef DEBUG
-            throw std::runtime_error("unknown node, in should_destruct node");
+            CHEM_THROW_RUNTIME("unknown node, in should_destruct node");
 #endif
             return false;
     }
@@ -1994,7 +1995,7 @@ void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
         if(destruct_begin != 0) {
             // this happens when the scope contains top level declarations (top level var init)
             // or it can also happen when destruct_nodes contain top level variables (to destruct)
-            throw std::runtime_error("cannot destruct nodes while current function does not exist");
+            CHEM_THROW_RUNTIME("cannot destruct nodes while current function does not exist");
         }
 #endif
         int i = 0;
@@ -2073,7 +2074,7 @@ void InitBlock::code_gen(Codegen &gen) {
 }
 
 void ThrowStatement::code_gen(Codegen &gen) {
-    throw std::runtime_error("[UNIMPLEMENTED]");
+    CHEM_THROW_RUNTIME("[UNIMPLEMENTED]");
 }
 
 //bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {

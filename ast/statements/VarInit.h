@@ -14,6 +14,7 @@
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/LocatedIdentifier.h"
+#include "std/except.h"
 
 struct VarInitAttributes {
 
@@ -270,7 +271,7 @@ public:
         const auto k = known_type();
 #ifdef DEBUG
         if(!k) {
-            throw std::runtime_error("known_type not found");
+            CHEM_THROW_RUNTIME("known_type not found");
         }
 #endif
         return k;

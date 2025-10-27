@@ -15,6 +15,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/PointerValue.h"
+#include "std/except.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
@@ -68,7 +69,7 @@ bool operate(Operation op, bool first, bool second) {
             return first || second;
         default:
 #ifdef DEBUG
-            throw std::runtime_error("unknown operation between bool values");
+            CHEM_THROW_RUNTIME("unknown operation between bool values");
 #endif
             return false;
     }
@@ -110,7 +111,7 @@ uint64_t operate(Operation op, uint64_t first, uint64_t second) {
             return first ^ second;
         default:
 #ifdef DEBUG
-            throw std::runtime_error("UNKNOWN INTERPRET OPERATION");
+            CHEM_THROW_RUNTIME("UNKNOWN INTERPRET OPERATION");
 #endif
             return 0;
     }
@@ -140,7 +141,7 @@ double operate(Operation op, double first, double second) {
             return first <= second;
         default:
 #ifdef DEBUG
-            throw std::runtime_error("UNKNOWN INTERPRET OPERATION");
+            CHEM_THROW_RUNTIME("UNKNOWN INTERPRET OPERATION");
 #endif
             return 0;
     }

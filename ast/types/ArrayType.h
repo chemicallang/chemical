@@ -4,6 +4,7 @@
 
 #include "ast/base/TypeLoc.h"
 #include <memory>
+#include "std/except.h"
 
 class ArrayType : public BaseType {
 private:
@@ -47,7 +48,10 @@ public:
 
     uint64_t byte_size(bool is64Bit) final {
         if(has_no_array_size()) {
-            throw std::runtime_error("array size not known, byte size required");
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("array size not known, byte size required");
+#endif
+            return 0;
         } else {
             return array_size * elem_type->byte_size(is64Bit);
         }

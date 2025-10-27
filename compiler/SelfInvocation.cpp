@@ -58,11 +58,8 @@ std::vector<std::string> system_headers_path(const std::string_view &arg0) {
     // WARNING : Clang on linux creates this null.o file
     // even though we gave /dev/null BUT STILL, can you believe it !!!!
     // its probably in the current working dir
-    try {
-        std::remove("null.o");
-    } catch (...) {
-        // don't do anything
-    }
+    std::error_code ec;
+    std::filesystem::remove("null.o", ec);
 #endif
 
 //    std::cout << " OUTPUT : " << output << std::endl;

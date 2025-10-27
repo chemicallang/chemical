@@ -87,19 +87,25 @@ std::string resolve_sibling(const std::string_view& rel_to, const std::string_vi
 }
 
 std::string resolve_rel_parent_path_str(const std::string& root_path, const std::string& file_path) {
-    try {
-        return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
-    } catch (std::filesystem::filesystem_error& e) {
+    // build the path we want to canonicalize
+    auto p = std::filesystem::path(root_path).parent_path() / std::filesystem::path(file_path);
+    std::error_code ec;
+    auto result = std::filesystem::canonical(p, ec); // uses non-throwing overload
+    if (ec) {
+        // canonical failed (e.g. path doesn't exist, permission denied)
         return "";
     }
+    return result.string();
 }
 
 std::string resolve_rel_parent_path_str(const std::string_view& root_path, const std::string_view& file_path) {
-    try {
-        return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
-    } catch (std::filesystem::filesystem_error& e) {
+    auto p = ((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path);
+    std::error_code ec;
+    auto result = std::filesystem::canonical(p, ec);
+    if(ec) {
         return "";
     }
+    return result.string();
 }
 
 std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
@@ -113,11 +119,12 @@ std::string resources_path_rel_to_exe(const std::string_view& exe_path) {
 }
 
 std::string canonical(const std::string_view& path) {
-    try {
-        return std::filesystem::canonical(((std::filesystem::path) path)).string();
-    } catch (std::filesystem::filesystem_error& e) {
+    std::error_code ec;
+    auto result = std::filesystem::canonical(((std::filesystem::path) path), ec);
+    if(ec) {
         return "";
     }
+    return result.string();
 }
 
 std::string absolute_path(const std::string_view& relative) {

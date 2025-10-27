@@ -191,7 +191,7 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
     }
     gen.error("cannot assign struct value to pointer", lhs);
 #ifdef DEBUG
-    throw std::runtime_error("cannot allocate a struct without an identifier");
+    CHEM_THROW_RUNTIME("cannot allocate a struct without an identifier");
 #endif
 }
 

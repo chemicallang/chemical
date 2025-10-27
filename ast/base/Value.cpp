@@ -39,6 +39,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
 #include <iostream>
+#include "std/except.h"
 
 #ifdef COMPILER_BUILD
 
@@ -300,7 +301,7 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
 
 #ifdef DEBUG
     if(until == 0) {
-        throw std::runtime_error("index can't be zero, because it takes a parent pointer, parent exists at location zero");
+        CHEM_THROW_RUNTIME("index can't be zero, because it takes a parent pointer, parent exists at location zero");
     }
 #endif
 
@@ -400,16 +401,18 @@ void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, 
 }
 
 llvm::Value* Value::llvm_pointer(Codegen& gen) {
-    throw std::runtime_error("llvm_pointer called on bare Value");
+    CHEM_THROW_RUNTIME("llvm_pointer called on bare Value");
+    return nullptr;
 }
 
 llvm::Value* Value::llvm_value(Codegen& gen, BaseType* type) {
-    throw std::runtime_error("Value::llvm_value called on bare Value " + representation());
+    CHEM_THROW_RUNTIME("Value::llvm_value called on bare Value");
+    return nullptr;
 }
 
 bool Value::add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Value*>& indexes) {
 #ifdef DEBUG
-    throw std::runtime_error("Value::add_member_index called on a value");
+    CHEM_THROW_RUNTIME("Value::add_member_index called on a value");
 #else
     std::cerr << "add_member_index called on base value " << representation();
     return false;
@@ -550,11 +553,11 @@ bool Value::isValueRValue(ASTAllocator& allocator) {
 
 uint64_t Value::byte_size(bool is64Bit) {
 #ifdef DEBUG
-    throw std::runtime_error("byte_size called on base Value " + representation());
+    CHEM_THROW_RUNTIME("byte_size called on base Value");
 #else
     std::cerr << "Value::byte_size called on value " << representation() << std::endl;
-    return 0;
 #endif
+    return 0;
 }
 
 BaseType* Value::get_stored_value_type(ASTAllocator& allocator) {

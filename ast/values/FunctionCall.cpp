@@ -297,7 +297,7 @@ void to_llvm_args(
             }
         } else {
 #ifdef DEBUG
-            throw std::runtime_error("couldn't get function param");
+            CHEM_THROW_RUNTIME("couldn't get function param");
 #endif
         }
         i++;

@@ -4,6 +4,7 @@
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "std/except.h"
 
 void GenericImplDecl::finalize_signature(ASTAllocator& allocator, ImplDefinition* inst) {
 
@@ -55,7 +56,7 @@ ImplDefinition* GenericImplDecl::register_generic_args(GenericInstantiatorAPI& i
 
     if(itr.first != instantiations.size()) {
 #ifdef DEBUG
-        throw std::runtime_error("not the index we expected");
+        CHEM_THROW_RUNTIME("not the index we expected");
 #endif
     }
 

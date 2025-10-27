@@ -32,17 +32,14 @@ namespace chem {
                 : data_(container.data()), size_(container.size()) {}
 
         reference operator[](size_type idx) const {
-            if (idx >= size_) throw std::out_of_range("span index out of range");
             return data_[idx];
         }
 
         reference front() const {
-            if (size_ == 0) throw std::out_of_range("span is empty");
             return data_[0];
         }
 
         reference back() const {
-            if (size_ == 0) throw std::out_of_range("span is empty");
             return data_[size_ - 1];
         }
 

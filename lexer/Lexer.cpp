@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include "utils/StringHelpers.h"
 #include "compiler/cbi/model/CompilerBinder.h"
+#include "std/except.h"
 
 const auto EmptyCStr = "";
 const auto LBraceCStr = "{";
@@ -660,7 +661,7 @@ Token Lexer::getNextToken() {
             return t;
         } else {
 #ifdef DEBUG
-            throw std::runtime_error("unknown mode triggered");
+            CHEM_THROW_RUNTIME("unknown mode triggered");
 #endif
         }
     }

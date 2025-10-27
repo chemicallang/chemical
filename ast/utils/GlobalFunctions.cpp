@@ -2353,7 +2353,7 @@ public:
                             return write_call(typeBuilder, allocator, selfId, val, cache.getWriteULongLong(), "writeULongLong", parent_node, loc);
                         default:
 #ifdef DEBUG
-                            throw std::runtime_error("unexpected branch1: intrinsics::put_str_expr");
+                            CHEM_THROW_RUNTIME("unexpected branch1: intrinsics::put_str_expr");
 #endif
                             return nullptr;
                     }

@@ -1,9 +1,9 @@
 // add or replace these typedefs (if not already present)
-type ino_t = u64;
-type off_t = i64;
-type __d_reclen_t = u16;
-type __d_type_t = u8;
-const PATH_MAX_BUF = 4096; // already used elsewhere
+public type ino_t = u64;
+public type off_t = i64;
+public type __d_reclen_t = u16;
+public type __d_type_t = u8;
+public const PATH_MAX_BUF = 4096; // already used elsewhere
 
 /**
  * @struct dirent

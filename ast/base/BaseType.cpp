@@ -24,6 +24,7 @@
 #include <sstream>
 #include <iostream>
 #include "ASTNode.h"
+#include "std/except.h"
 
 std::string BaseType::representation() {
     std::ostringstream ostring;
@@ -102,7 +103,7 @@ chem::string_view BaseType::linked_name() {
         return ((GenericType*) (this))->referenced->linked_name();
     } else {
 #ifdef DEBUG
-        throw std::runtime_error("BaseType::linked_name called on unexpected type '" + representation() + "'");
+        CHEM_THROW_RUNTIME("BaseType::linked_name called on unexpected type'");
 #else
         std::cerr << "BaseType::linked_name called on unexpected type '" + representation() << "'" << std::endl;
         chem::string_view view("");
@@ -604,7 +605,8 @@ unsigned BaseType::type_alignment(bool is64Bit) {
 }
 
 uint64_t BaseType::byte_size(bool is64Bit) {
-    throw std::runtime_error("byte_size called on base type");
+    CHEM_THROW_RUNTIME("byte_size called on base type");
+    return 0;
 }
 
 BaseType::~BaseType() = default;

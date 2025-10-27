@@ -12,6 +12,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
 #include "UnnamedStruct.h"
+#include "std/except.h"
 
 #ifdef COMPILER_BUILD
 
@@ -181,7 +182,7 @@ llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
         }
     }
 #ifdef DEBUG
-    throw std::runtime_error("called pointer on struct member, using an unknown self pointer");
+    CHEM_THROW_RUNTIME("called pointer on struct member, using an unknown self pointer");
 #endif
     return nullptr;
 }

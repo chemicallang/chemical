@@ -5,11 +5,13 @@
 #include "ASTNode.h"
 #include "BaseType.h"
 #include <iostream>
+#include "std/except.h"
 
 #ifdef COMPILER_BUILD
 
 llvm::Type *ASTAny::llvm_type(Codegen &gen) {
-    throw std::runtime_error("llvm_type called on ASTAny");
+    CHEM_THROW_RUNTIME("llvm_type called on ASTAny");
+    return nullptr;
 }
 
 #endif

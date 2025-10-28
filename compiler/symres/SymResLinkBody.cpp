@@ -2006,29 +2006,33 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
     // enum member being used as a no value
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
     const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
-    // TODO
-//    if(func_decl) {
+    if(func_decl) {
 //        if(func_decl->is_unsafe() && resolver.safe_context) {
 //            resolver.error("unsafe function with name should be called in an unsafe block", this);
 //        }
-//        const auto self_param = func_decl->get_self_param();
-//        if(self_param) {
-//            if(grandpa) {
-//                if(self_param->type->is_mutable(BaseTypeKind::Reference)) {
-//                    if(!first_value->check_is_mutable(resolver.current_func_type, resolver, false)) {
-//                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
-//                    }
-//                }
-//            } else {
-//                const auto arg_self = resolver.current_func_type->get_self_param();
-//                if(!arg_self) {
-//                    resolver.error("cannot call function without an implicit self arg which is not present", this);
-//                } else if(self_param->type->is_mutable(BaseTypeKind::Reference) && !arg_self->type->is_mutable(BaseTypeKind::Reference)) {
-//                    resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", this);
-//                }
-//            }
-//        }
-//    }
+        const auto self_param = func_decl->get_self_param();
+        if(self_param) {
+            const auto grandpa = get_parent_from(parent_val);
+            if(grandpa) {
+                if(self_param->type->is_mutable()) {
+                    const auto first_value = get_first_chain_value(parent_val);
+                    if(first_value && !first_value->check_is_mutable(resolver.allocator, false)) {
+                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", call);
+                    }
+                }
+            } else {
+                const auto curr_func = resolver.current_func_type->as_function();
+                if(!curr_func || !curr_func->is_constructor_fn()) {
+                    const auto arg_self = resolver.current_func_type->get_self_param();
+                    if (!arg_self) {
+                        resolver.error("cannot call function without an implicit self arg which is not present", call);
+                    } else if (self_param->type->is_mutable() && !arg_self->type->is_mutable()) {
+                        resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", call);
+                    }
+                }
+            }
+        }
+    }
 
     call->relink_multi_func(resolver.allocator, &resolver);
     const auto gen_args_linked = link_call_gen_args(visitor, call);

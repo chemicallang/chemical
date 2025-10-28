@@ -541,7 +541,7 @@ public struct u16string {
         }
     }
 
-    func mutable_data(&self) : *mut u16 {
+    func mutable_data(&mut self) : *mut u16 {
         switch(state) {
             '0' => {
                 move_const_to_buffer();

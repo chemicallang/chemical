@@ -36,7 +36,7 @@ struct TestEnvImpl : TestEnv {
     }
 
     @override
-    func logIt(&self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
+    func logIt(&mut self, type : LogType, msgData : *char, lineNum : uint, charNum : uint) {
         var msg = std::string();
         msg.append_char_ptr("$log,")
         var buff : [2048]char
@@ -46,7 +46,7 @@ struct TestEnvImpl : TestEnv {
     }
 
     @override
-    func quit_current_group(&self, reason : *char) {
+    func quit_current_group(&mut self, reason : *char) {
         var msg = std::string();
         msg.append_char_ptr("$quit_group:");
         msg.append_char_ptr(reason)
@@ -54,7 +54,7 @@ struct TestEnvImpl : TestEnv {
     }
 
     @override
-    func quit_all_tests(&self, reason : *char) {
+    func quit_all_tests(&mut self, reason : *char) {
         var msg = std::string();
         msg.append_char_ptr("$quit_all:");
         msg.append_char_ptr(reason)

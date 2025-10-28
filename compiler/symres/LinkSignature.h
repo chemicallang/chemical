@@ -17,6 +17,12 @@ public:
     SourceLocation type_location = 0;
 
     /**
+     * this requires that all types that are linked
+     * with structs, variants, unions, type aliases be public
+     */
+    bool require_exported = false;
+
+    /**
      * constructor
      */
     TopLevelLinkSignature(SymbolResolver& linker) : linker(linker) {
@@ -122,9 +128,15 @@ public:
 
     void LinkMembersContainerNoScope(MembersContainer* container);
 
+    void LinkMembersContainerNoScopeExposed(MembersContainer* container);
+
     void LinkVariables(VariablesContainer* container);
 
     void LinkMembersContainer(MembersContainer* container);
+
+    void LinkMembersContainerExposed(MembersContainer* container);
+
+    void LinkMembersContainer(MembersContainer* container, AccessSpecifier specifier);
 
     void VisitUsingStmt(UsingStmt* node);
 

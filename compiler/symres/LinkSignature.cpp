@@ -69,6 +69,13 @@ ASTNode* get_chain_linked(Value* value) {
     return id ? id->linked : nullptr;
 }
 
+inline void check_type_exported(SymbolResolver& linker, ASTNode* linked, SourceLocation location) {
+    const auto spec = linked->specifier(AccessSpecifier::Public);
+    if(spec != AccessSpecifier::Public && spec != AccessSpecifier::Protected) {
+        linker.error("non exported type being used in a public type, please use 'public' or 'protected' to expose it", location);
+    }
+}
+
 void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
     if(type->is_value()) {
         const auto linked_type = (LinkedValueType*) type;
@@ -78,6 +85,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
         const auto linked = get_chain_linked(linked_type->value);
         if(linked) {
             type->linked = linked;
+            if(require_exported) check_type_exported(linker, linked, type_location);
         } else {
             type->linked = (ASTNode*) linker.get_unresolved_decl();
             linker.error(type_location) << "unresolved type not found";
@@ -87,6 +95,7 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
         const auto decl = linker.find(named->debug_link_name());
         if(decl) {
             type->linked = decl;
+            if(require_exported) check_type_exported(linker, decl, type_location);
         } else if(type->linked == nullptr) {
             linker.error(type_location) << "unresolved type, '" << named->debug_link_name() << "' not found";
             type->linked = (ASTNode*) linker.get_unresolved_decl();
@@ -503,7 +512,8 @@ void TopLevelLinkSignature::VisitTypealiasStmt(TypealiasStatement* stmt) {
     }
 }
 
-void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
+void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
+    auto& linker = sig.linker;
     linker.scope_start();
 
     // visiting the signature of the function
@@ -512,13 +522,13 @@ void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
             // implicit parameters are handled there
             param->link_implicit_param(linker);
         } else {
-            visit(param->type);
+            sig.visit(param->type);
         }
         if(param->defValue) {
-            visit(param->defValue);
+            sig.visit(param->defValue);
         }
     }
-    visit(node->returnType);
+    sig.visit(node->returnType);
 
     // TODO: we can't tell if signature resolved perfectly
     // TODO: eliminate this flag
@@ -528,6 +538,25 @@ void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
         node->put_as_extension_function(linker.allocator, linker);
     }
     linker.scope_end();
+}
+
+void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
+    if(!node->is_top_level()) {
+        visit_func_decl(*this, node);
+    } else {
+        const auto spec = node->specifier();
+        if(spec == AccessSpecifier::Public || spec == AccessSpecifier::Protected) {
+            if(require_exported) {
+                visit_func_decl(*this, node);
+            } else {
+                require_exported = true;
+                visit_func_decl(*this, node);
+                require_exported = false;
+            }
+        } else {
+            visit_func_decl(*this, node);
+        }
+    }
 }
 
 void TopLevelLinkSignature::LinkVariablesNoScope(VariablesContainer* container) {
@@ -548,6 +577,16 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
     }
 }
 
+void TopLevelLinkSignature::LinkMembersContainerNoScopeExposed(MembersContainer* container) {
+    if(require_exported) {
+        LinkMembersContainerNoScope(container);
+    } else {
+        require_exported = true;
+        LinkMembersContainerNoScope(container);
+        require_exported = false;
+    }
+}
+
 void TopLevelLinkSignature::LinkVariables(VariablesContainer* container) {
     linker.scope_start();
     LinkVariablesNoScope(container);
@@ -558,6 +597,24 @@ void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container) {
     linker.scope_start();
     LinkMembersContainerNoScope(container);
     linker.scope_end();
+}
+
+void TopLevelLinkSignature::LinkMembersContainerExposed(MembersContainer* container) {
+    linker.scope_start();
+    LinkMembersContainerNoScopeExposed(container);
+    linker.scope_end();
+}
+
+void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container, AccessSpecifier specifier) {
+    switch(specifier) {
+        case AccessSpecifier::Public:
+        case AccessSpecifier::Protected:
+            LinkMembersContainerExposed(container);
+            return;
+        default:
+            LinkMembersContainer(container);
+            return;
+    }
 }
 
 void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
@@ -954,8 +1011,7 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
 }
 
 void TopLevelLinkSignature::VisitInterfaceDecl(InterfaceDefinition* node) {
-    LinkMembersContainer(node);
-    node->ensure_inherited_visibility(linker, node->specifier());
+    LinkMembersContainer(node, node->specifier());
 }
 
 void BeforeLinkSignature::VisitNamespaceDecl(Namespace* node) {
@@ -1000,22 +1056,19 @@ void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
 
 void TopLevelLinkSignature::VisitStructDecl(StructDefinition* node) {
     auto& allocator = node->specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
-    LinkMembersContainer(node);
+    LinkMembersContainer(node, node->specifier());
     node->generate_functions(allocator, linker, node);
-    node->ensure_inherited_visibility(linker, node->specifier());
 }
 
 void TopLevelLinkSignature::VisitUnionDecl(UnionDef* node) {
-    LinkMembersContainer(node);
-    node->ensure_inherited_visibility(linker, node->specifier());
+    LinkMembersContainer(node, node->specifier());
 }
 
 void TopLevelLinkSignature::VisitVariantDecl(VariantDefinition* node) {
     auto& allocator = node->specifier() == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     auto& diagnoser = linker;
-    LinkMembersContainer(node);
+    LinkMembersContainer(node, node->specifier());
     node->generate_functions(allocator, diagnoser, node);
-    node->ensure_inherited_visibility(linker, node->specifier());
 }
 
 void TopLevelLinkSignature::VisitVariantMember(VariantMember* node) {

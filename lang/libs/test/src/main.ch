@@ -1,7 +1,7 @@
 // TODO: take it out
 const INFINITE = 0xffffff
 
-struct TestFunction {
+public struct TestFunction {
     var id : int
     var name : std::string_view
     var group : std::string_view

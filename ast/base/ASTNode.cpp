@@ -220,14 +220,6 @@ LocatedIdentifier* ASTNode::get_located_id() {
     }
 }
 
-BaseType* ASTNode::known_type_SymRes(ASTAllocator& allocator) {
-    if(kind() == ASTNodeKind::VarInitStmt) {
-        return as_var_init_unsafe()->known_type_SymRes(allocator);
-    } else {
-        return known_type();
-    }
-}
-
 uint64_t ASTNode::byte_size(bool is64Bit) {
     auto holdingType = known_type();
     if(holdingType) return holdingType->byte_size(is64Bit);

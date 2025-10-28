@@ -366,7 +366,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     // first we check if the value is mutable
     // immutable values cannot be used (even in operator overloading)
-    if(!lhs->check_is_mutable(linker.allocator, true)) {
+    if(!lhs->check_is_mutable(true)) {
         linker.error("cannot assign to a non mutable value", lhs);
     }
 
@@ -2016,7 +2016,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
             if(grandpa) {
                 if(self_param->type->is_mutable()) {
                     const auto first_value = get_first_chain_value(parent_val);
-                    if(first_value && !first_value->check_is_mutable(resolver.allocator, false)) {
+                    if(first_value && !first_value->check_is_mutable(false)) {
                         resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", call);
                     }
                 }

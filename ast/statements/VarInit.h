@@ -281,8 +281,6 @@ public:
         return type;
     }
 
-    BaseType* get_or_create_type(ASTAllocator& allocator);
-
 #ifdef COMPILER_BUILD
 
     inline void check_has_type(Codegen &gen);
@@ -311,10 +309,6 @@ public:
     void put_destructible(Codegen& gen);
 
 #endif
-
-    inline BaseType* known_type_SymRes(ASTAllocator& allocator) {
-        return get_or_create_type(allocator);
-    }
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared

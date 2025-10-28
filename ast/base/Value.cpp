@@ -681,14 +681,14 @@ bool Value::is_ref_l_value() {
     }
 }
 
-bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
+bool Value::check_is_mutable(bool assigning) {
     switch(val_kind()) {
         case ValueKind::Identifier: {
             const auto id = as_identifier_unsafe();
             if(assigning) {
                 return is_node_assignable(id->linked);
             } else {
-                const auto type = id->linked->known_type_SymRes(allocator);
+                const auto type = id->linked->known_type();
                 return type->is_mutable();
             }
         }
@@ -699,7 +699,7 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
         }
         case ValueKind::IndexOperator: {
             const auto index = as_index_op_unsafe();
-            return index->parent_val->check_is_mutable(allocator, false);
+            return index->parent_val->check_is_mutable(false);
         }
         case ValueKind::AccessChain: {
             const auto chain = as_access_chain_unsafe();
@@ -709,18 +709,18 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
             const auto last = chain_values[last_ind];
             const auto last_kind = last->val_kind();
             if(last_kind == ValueKind::FunctionCall || last_kind == ValueKind::IndexOperator) {
-                return last->check_is_mutable(allocator, assigning);
+                return last->check_is_mutable(assigning);
             }
             unsigned i = 0;
             while(i < chain_size) {
                 const auto value = chain_values[i];
                 if(i == last_ind) {
                     const auto is_last_id = last_kind == ValueKind::Identifier;
-                    if(!value->check_is_mutable(allocator, assigning && is_last_id)) {
+                    if(!value->check_is_mutable(assigning && is_last_id)) {
                         return false;
                     }
                 } else {
-                    if(!value->check_is_mutable(allocator, false)) {
+                    if(!value->check_is_mutable(false)) {
                         return false;
                     }
                 }
@@ -729,7 +729,7 @@ bool Value::check_is_mutable(ASTAllocator& allocator, bool assigning) {
             return true;
         }
         case ValueKind::DereferenceValue: {
-            return as_dereference_value_unsafe()->getValue()->check_is_mutable(allocator, false);
+            return as_dereference_value_unsafe()->getValue()->check_is_mutable(false);
         }
         case ValueKind::Expression: {
             const auto expr = as_expression_unsafe();

@@ -300,7 +300,7 @@ public:
      * this checks if this value is mutable
      * basically something that you can assign to
      */
-    bool check_is_mutable(ASTAllocator& allocator, bool assigning);
+    bool check_is_mutable(bool assigning);
 
     /**
      * is this value an l value, in C++ l values are those that have backing storage

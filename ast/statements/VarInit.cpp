@@ -233,14 +233,6 @@ llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<ChainVal
 
 #endif
 
-BaseType* VarInitStatement::get_or_create_type(ASTAllocator& allocator) {
-    if(type) {
-        return type;
-    } else {
-        return value->getType();
-    }
-}
-
 BaseType* VarInitStatement::known_type() {
     if(type) {
         return type;

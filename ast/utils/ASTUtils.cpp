@@ -35,6 +35,23 @@ bool has_function_call_before(ChainValue* value) {
     }
 }
 
+ChainValue* get_first_chain_value(ChainValue* value) {
+    switch(value->val_kind()) {
+        case ValueKind::Identifier:
+            return value;
+        case ValueKind::AccessChain:{
+            const auto chain = value->as_access_chain_unsafe();
+            return get_first_chain_value(chain->values.front());
+        }
+        case ValueKind::FunctionCall:
+            return get_first_chain_value(value->as_func_call_unsafe()->parent_val);
+        case ValueKind::IndexOperator:
+            return get_first_chain_value(value->as_index_op_unsafe()->parent_val);
+        default:
+            return nullptr;
+    }
+}
+
 ChainValue* get_parent_from(ChainValue* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:

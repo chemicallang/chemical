@@ -50,7 +50,7 @@ func test_submit_void_and_mutexed_counter() : bool {
         // capturing lambda must be wrapped into std.function when it captures
         var pool = std::concurrent::create_pool(2u);
         while (i < n) {
-            var inc: std.function<() => void> = |&m,&mut counter|() => {
+            var inc: std.function<() => void> = |&mut m,&mut counter|() => {
                 m.lock();
                 counter = counter + 1u;
                 m.unlock()
@@ -72,7 +72,12 @@ func test_destruction_waits() : bool {
     if(i == 0u) {
         var pool = std::concurrent::create_pool(3u);
         while (i < n) {
-            var f: std.function<() => void> = |&m,&mut counter|() => { std::concurrent::sleep_ms(20u); m.lock(); counter = counter + 1u; m.unlock() };
+            var f: std.function<() => void> = |&mut m,&mut counter|() => {
+                std::concurrent::sleep_ms(20u);
+                m.lock();
+                counter = counter + 1u;
+                m.unlock()
+            };
             pool.submit_void(f);
             i = i + 1u;
         }
@@ -91,7 +96,11 @@ func test_stress_many_tasks() : bool {
     if(i == 0u) {
         var pool = std::concurrent::create_pool(if (threads < 1u) 1u else threads);
         while (i < tasks) {
-            var inc: std.function<() => void> = |&m,&mut counter|() => { m.lock(); counter = counter + 1u; m.unlock() };
+            var inc: std.function<() => void> = |&mut m,&mut counter|() => {
+                m.lock();
+                counter = counter + 1u;
+                m.unlock()
+            };
             pool.submit_void(inc);
             i = i + 1u;
         }
@@ -189,7 +198,7 @@ func test_mutex_contention() : bool {
         var arg = malloc(sizeof(usize)) as *mut usize;
         var func_ptr = malloc(sizeof(*void)) as *mut *mut any
         *arg = incs_per_thread;
-        var inc_entry : std::function<(a : *void) => *void> = |&mut counter, arg, &m, func_ptr|() => {
+        var inc_entry : std::function<(a : *void) => *void> = |&mut counter, arg, &mut m, func_ptr|() => {
             var times = *(arg as *mut usize);
             var j = 0u;
             while (j < times) {
@@ -300,7 +309,11 @@ func test_mixed_quick_tasks() : bool {
     if(i == 0) {
         var pool = std::concurrent::create_pool(4u);
         while (i < 300u) {
-            var inc: std.function<() => void> = |&m,&mut counter|() => { m.lock(); counter = counter + 1u; m.unlock() };
+            var inc: std.function<() => void> = |&mut m,&mut counter|() => {
+                m.lock();
+                counter = counter + 1u;
+                m.unlock()
+            };
             pool.submit_void(inc);
             i = i + 1u;
         }

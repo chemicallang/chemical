@@ -32,13 +32,13 @@ public struct JsonStringPrinter : JsonStringEmitter {
 }
 
 public struct JsonStringBuilder : JsonStringEmitter {
-    var ptr : &std::string
+    var ptr : &mut std::string
     @override
-    func append_view(&self, view : &std::string_view) {
+    func append_view(&mut self, view : &std::string_view) {
         ptr.append_view(view)
     }
     @override
-    func append_char(&self, ch : char) {
+    func append_char(&mut self, ch : char) {
         ptr.append(ch)
     }
 }

@@ -9,6 +9,8 @@
 
 bool has_function_call_before(ChainValue* value);
 
+ChainValue* get_first_chain_value(ChainValue* value);
+
 ChainValue* get_parent_from(ChainValue* value);
 
 ChainValue* get_grandpa_from(ChainValue* value);

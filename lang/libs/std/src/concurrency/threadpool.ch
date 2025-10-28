@@ -131,7 +131,7 @@ public namespace std {
                 return r
             }
             @delete
-            func delete(&self) {
+            func delete(&mut self) {
                 if (p != null) {
                     p.m.lock();
                     if (!p.ready) {
@@ -220,7 +220,7 @@ public namespace std {
             }
 
             @delete
-            func delete(&self) {
+            func delete(&mut self) {
                 m.lock();
                 run=false;
                 cv.notify_all();

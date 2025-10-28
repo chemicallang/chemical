@@ -9,7 +9,11 @@
 
 bool has_function_call_before(ChainValue* value);
 
-ChainValue* get_first_chain_value(ChainValue* value);
+VariableIdentifier* get_first_chain_id(ChainValue* value);
+
+inline VariableIdentifier* get_first_chain_value(ChainValue* value) {
+    return get_first_chain_id(value);
+}
 
 ChainValue* get_parent_from(ChainValue* value);
 

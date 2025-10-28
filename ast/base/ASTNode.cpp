@@ -257,7 +257,7 @@ ASTNode* ASTNode::get_ancestor_by_kind(ASTNodeKind k) {
     }
 }
 
-AccessSpecifier ASTNode::specifier() {
+AccessSpecifier ASTNode::specifier(AccessSpecifier def_specifier) {
     const auto k = kind();
     switch(k) {
         case ASTNodeKind::StructDecl:
@@ -291,7 +291,7 @@ AccessSpecifier ASTNode::specifier() {
         case ASTNodeKind::TypealiasStmt:
             return as_typealias_unsafe()->specifier();
         default:
-            return AccessSpecifier::Private;
+            return def_specifier;
     }
 }
 

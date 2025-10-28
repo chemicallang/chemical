@@ -183,7 +183,7 @@ public:
     /**
      * get access specifier for this node
      */
-    AccessSpecifier specifier();
+    AccessSpecifier specifier(AccessSpecifier def_specifier = AccessSpecifier::Private);
 
     /**
      * will set the specifier to given, returns true if set

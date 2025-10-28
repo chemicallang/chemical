@@ -56,7 +56,7 @@ public struct once_flag {
  * TODO the values for enum members are implementation defined
  * @see https://en.cppreference.com/w/c/thread/thrd_errors
  */
-enum thrd_result {
+public enum thrd_result {
     // indicates successful return value
     thrd_success,
     // indicates unsuccessful return value due to out of memory condition

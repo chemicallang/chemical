@@ -27,7 +27,7 @@ public struct unordered_map<Key, Value> {
     }
 
     // Resize and rehash
-    func resize(&self) : void {
+    func resize(&mut self) : void {
         var newCapacity = capacity * 2;
         var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
 
@@ -81,7 +81,7 @@ public struct unordered_map<Key, Value> {
     }
 
     // Insert or update a key-value pair
-    func insert(&self, key : Key, value : Value) {
+    func insert(&mut self, key : Key, value : Value) {
 
         if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD) {
             resize();
@@ -138,7 +138,7 @@ public struct unordered_map<Key, Value> {
     }
 
     // Remove a key-value pair
-    func erase(&self, key : &Key) : bool {
+    func erase(&mut self, key : &Key) : bool {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
         var previousNode : *mut unordered_map_node<Key, Value> = null;

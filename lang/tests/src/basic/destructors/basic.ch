@@ -27,7 +27,7 @@ variant DestructibleVariant {
 
 struct CheckDestructVariant<T> {
     var my_value : T
-    func move_it(&self, value : T) {
+    func move_it(&mut self, value : T) {
         my_value = value
     }
 }

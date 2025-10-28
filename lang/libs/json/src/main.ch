@@ -234,7 +234,7 @@ public struct ASTJsonHandler : public JsonSaxHandler {
     }
 
     // helper: move value `v` into either current container or become the root
-    func attach_value(&self, v : JsonValue) {
+    func attach_value(&mut self, v : JsonValue) {
         if (!stack.empty()) {
             // attach into top container
             var top = stack.last_ptr();
@@ -268,19 +268,19 @@ public struct ASTJsonHandler : public JsonSaxHandler {
     }
 
     @override
-    func on_null(&self) {
+    func on_null(&mut self) {
         // d.on_null()
         attach_value(JsonValue.Null())
     }
 
     @override
-    func on_bool(&self, v : bool) {
+    func on_bool(&mut self, v : bool) {
         // d.on_bool(v)
         attach_value(JsonValue.Bool(v))
     }
 
     @override
-    func on_number(&self, s : *char, len : size_t) {
+    func on_number(&mut self, s : *char, len : size_t) {
         // d.on_number(s, len)
         var str = std::string()
         str.append_with_len(s, len)
@@ -288,7 +288,7 @@ public struct ASTJsonHandler : public JsonSaxHandler {
     }
 
     @override
-    func on_string(&self, s : *char, len : size_t) {
+    func on_string(&mut self, s : *char, len : size_t) {
         // d.on_string(s, len)
         var str = std::string()
         str.append_with_len(s, len)
@@ -296,14 +296,14 @@ public struct ASTJsonHandler : public JsonSaxHandler {
     }
 
     @override
-    func on_object_begin(&self) {
+    func on_object_begin(&mut self) {
         // d.on_object_begin()
         // push an empty object
         stack.push(JsonValue::Object(std::unordered_map<std::string, JsonValue>()));
     }
 
     @override
-    func on_object_end(&self) {
+    func on_object_end(&mut self) {
         // d.on_object_end()
         if (stack.empty()) {
             // unmatched end; ignore
@@ -313,13 +313,13 @@ public struct ASTJsonHandler : public JsonSaxHandler {
     }
 
     @override
-    func on_array_begin(&self) {
+    func on_array_begin(&mut self) {
         // d.on_array_begin()
         stack.push(JsonValue.Array(std::vector<JsonValue>()));
     }
 
     @override
-    func on_array_end(&self) {
+    func on_array_end(&mut self) {
         // d.on_array_end()
         if (stack.empty()) {
             // unmatched end; ignore
@@ -329,7 +329,7 @@ public struct ASTJsonHandler : public JsonSaxHandler {
     }
 
     @override
-    func on_key(&self, s : *char, len : size_t) {
+    func on_key(&mut self, s : *char, len : size_t) {
         // d.on_key(s, len)
         key_stack.push(std::string(s, len))
     }

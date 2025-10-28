@@ -80,7 +80,7 @@ public struct JsonParser {
         max_string = if(max_string_ > 0) max_string_ else 4096;
     }
 
-    func parse(&self, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
+    func parse(&mut self, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
         s = buffer; len = length; pos = 0; handler = &mut h;
         skip_ws();
         var r = parse_value(0);
@@ -98,9 +98,9 @@ private:
 
     func at_end(&self) : bool { return pos >= len; }
     func cur(&self) : char { return if(at_end()) '\0' else s[pos]; }
-    func advance(&self, n : size_t = 1)  { pos += n; }
+    func advance(&mut self, n : size_t = 1)  { pos += n; }
 
-    func skip_ws(&self) {
+    func skip_ws(&mut self) {
         while (pos < len) {
             var c = s[pos] as uchar;
             if (c == ' ' || c == '\n' || c == '\r' || c == '\t') { pos++; continue; }
@@ -108,7 +108,7 @@ private:
         }
     }
 
-    func parse_value(&self, depth : size_t) : ParseResult {
+    func parse_value(&mut self, depth : size_t) : ParseResult {
         if (depth > max_depth) return ParseResult::Err(pos, "exceeded max depth");
         if (at_end()) return ParseResult::Err(pos, "unexpected end");
         var c : char = cur();
@@ -134,7 +134,7 @@ private:
     }
 
     /* parse literal like true/false/null */
-    func parse_literal(&self, lit : *char, litlen : size_t, type : int) : ParseResult {
+    func parse_literal(&mut self, lit : *char, litlen : size_t, type : int) : ParseResult {
         if (pos + litlen > len) return ParseResult::Err(pos, "unexpected end in literal");
         var i : size_t;
         for (i = 0; i < litlen; ++i) {
@@ -149,7 +149,7 @@ private:
         return ParseResult::Ok();
     }
 
-    func parse_number(&self) : ParseResult {
+    func parse_number(&mut self) : ParseResult {
         var start : size_t = pos;
         if (cur() == '-') advance();
         if (at_end()) return ParseResult::Err(pos, "unexpected end in number");
@@ -177,7 +177,7 @@ private:
         return ParseResult::Ok();
     }
 
-    func parse_object(&self, depth : size_t) : ParseResult {
+    func parse_object(&mut self, depth : size_t) : ParseResult {
         /* expect '{' */
         if (cur() != '{') return ParseResult::Err(pos, "expected '{'");
         advance();
@@ -210,7 +210,7 @@ private:
         }
     }
 
-    func parse_array(&self, depth : size_t) : ParseResult {
+    func parse_array(&mut self, depth : size_t) : ParseResult {
         if (cur() != '[') return ParseResult::Err(pos, "expected '['");
         advance();
         handler.on_array_begin();
@@ -232,7 +232,7 @@ private:
        Unescape into provided out buffer with capacity outcap. outlen set to length.
        Uses strict rules: control characters (0x00-0x1F) are forbidden.
     */
-    func parse_string_inplace(&self, out : *mut char, outcap : size_t, outlen : &mut size_t) : ParseResult {
+    func parse_string_inplace(&mut self, out : *mut char, outcap : size_t, outlen : &mut size_t) : ParseResult {
         if (cur() != '"') return ParseResult::Err(pos, "expected '\"'");
         advance(); /* skip '"' */
         outlen = 0 as size_t;

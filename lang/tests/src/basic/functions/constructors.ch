@@ -106,7 +106,7 @@ struct constructor_calls_self_function {
         b = p;
         double_it()
     }
-    func double_it(&self) {
+    func double_it(&mut self) {
         a *= 2
         b *= 2
     }

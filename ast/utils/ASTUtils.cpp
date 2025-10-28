@@ -35,10 +35,10 @@ bool has_function_call_before(ChainValue* value) {
     }
 }
 
-ChainValue* get_first_chain_value(ChainValue* value) {
+VariableIdentifier* get_first_chain_id(ChainValue* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
-            return value;
+            return value->as_identifier_unsafe();
         case ValueKind::AccessChain:{
             const auto chain = value->as_access_chain_unsafe();
             return get_first_chain_value(chain->values.front());

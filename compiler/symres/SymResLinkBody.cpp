@@ -289,9 +289,6 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
     auto& value = identifier->value;
-    if(value == "Option") {
-        int i = 0;
-    }
     const auto linked = linker.find(value);
     if(linked) {
         identifier->linked = linked;
@@ -350,6 +347,15 @@ bool is_assignable(Value* lhs) {
     }
 }
 
+bool is_mutable_ref_type(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Reference:
+            return type->as_reference_type_unsafe()->is_mutable;
+        default:
+            return false;
+    }
+}
+
 void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     auto& lhs = assign->lhs;
     auto& value = assign->value;
@@ -368,6 +374,27 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     // immutable values cannot be used (even in operator overloading)
     if(!lhs->check_is_mutable(true)) {
         linker.error("cannot assign to a non mutable value", lhs);
+    }
+
+    // get the first value in chain, check if its a struct member
+    // if it is, assignment to struct member requires mutable self reference
+    const auto lhs_chain = lhs->as_chain_value();
+    if(lhs_chain) {
+        const auto first_chain_val = get_first_chain_id(lhs_chain);
+        if (first_chain_val) {
+            const auto linked = first_chain_val->linked;
+            if(linked->kind() == ASTNodeKind::StructMember) {
+                // check current function has a mutable self reference
+                const auto curr_func = linker.current_func_type;
+                const auto decl = curr_func->as_function();
+                if(decl && !decl->is_constructor_fn()) {
+                    const auto self_param = decl->get_self_param();
+                    if(self_param == nullptr || !is_mutable_ref_type(self_param->type)) {
+                        linker.error("mutating a struct member requires a mutable self reference", lhs);
+                    }
+                }
+            }
+        }
     }
 
     // check if operator is overloaded

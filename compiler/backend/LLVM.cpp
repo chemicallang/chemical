@@ -2042,8 +2042,8 @@ void InitBlock::code_gen(Codegen &gen) {
         auto value = init.second.value;
         auto variable = container->variable_type_index(init.first, true);
         std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
-        if(container->is_one_of_inherited_type(variable.second)) {
-            auto chain = value->as_access_chain();
+        if(container->is_one_of_inherited_type(variable.second) && value->kind() == ValueKind::AccessChain) {
+            auto chain = value->as_access_chain_unsafe();
             auto val = chain->values.back();
             auto call = val->as_func_call();
             auto called_struct = call->parent_val->linked_node();
@@ -2062,13 +2062,8 @@ void InitBlock::code_gen(Codegen &gen) {
             call->llvm_chain_value(gen, args, destructibles, elementPtr, nullptr, nullptr);
             Value::destruct(gen, destructibles);
         } else {
-//            if(gen.requires_memcpy_ref_struct(variable.second, value)) {
-//                auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
-//                gen.memcpy_struct(value->llvm_type(gen), elementPtr, value->llvm_value(gen, nullptr), value->encoded_location());
-//            } else {
-                // couldn't move struct
-                value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
-//            }
+            // couldn't move struct
+            value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
         }
     }
 }

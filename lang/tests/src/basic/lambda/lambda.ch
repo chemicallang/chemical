@@ -62,13 +62,6 @@ struct ProvideStructLamb {
     var lamb : (a : int, b : int) => PointSome
 }
 
-/** TODO implicit self in lambdas not working
-struct ProvideSelfRefStructLamb {
-    var mul : int
-    var lamb : (&self, a : int, b : int) => PointSome
-}
-**/
-
 struct LambFactory {
 
     func create_lamb() : () => int {
@@ -98,7 +91,7 @@ func test_lambda() {
     test("testing non capturing lambda works without body", () => {
         return dontCapture(() => true);
     });
-    /**
+    /** TODO: capturing lambdas without capturing types not working
     test("testing returning capturing lambda works", () => {
         var captured = true;
         var message = ret_cap_lambda(|captured|() => {
@@ -106,7 +99,6 @@ func test_lambda() {
         });
         return message();
     })
-    **/
     test("can initialize and call a capturing lambda", () => {
         var x = true;
         var message = |x|() => {
@@ -114,7 +106,6 @@ func test_lambda() {
         };
         return message();
     })
-    /**
     test("returned capturing lambda can be called directly", () => {
         var message = ret_new_cap_lamb()();
         return message;

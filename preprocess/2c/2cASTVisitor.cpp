@@ -5588,7 +5588,30 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     }
 
     if(canonical_parent->kind() == BaseTypeKind::CapturingFunction) {
+
         const auto capType = canonical_parent->as_capturing_func_type_unsafe();
+
+        const auto container = capType->instance_type->get_members_container();
+        if(container == nullptr) {
+            error("couldn't get members container for instance type in capturing function", call);
+            return;
+        }
+
+        const auto fn_ptr_func_node = container->child("get_fn_ptr");
+        if(fn_ptr_func_node == nullptr || fn_ptr_func_node->kind() != ASTNodeKind::FunctionDecl) {
+            error("couldn't get 'get_fn_ptr' function in instance type", call);
+            return;
+        }
+
+        const auto data_ptr_func_node = container->child("get_data_ptr");
+        if(data_ptr_func_node == nullptr || data_ptr_func_node->kind() != ASTNodeKind::FunctionDecl) {
+            error("couldn't get 'get_data_ptr' function in instance type", call);
+            return;
+        }
+
+        const auto fn_ptr_func = fn_ptr_func_node->as_function_unsafe();
+        const auto data_ptr_func = data_ptr_func_node->as_function_unsafe();
+
         auto temp_var = get_local_temp_var_name();
         write("({ ");
         VisitCapturingFunctionType(capType);
@@ -5607,12 +5630,16 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
         func_type_params(*this, func_type, 0, true);
         write(")");
         write(")");
-        write(temp_var);
-        write("->fn_pointer");
-        write(")");
+        mangle(fn_ptr_func);
         write('(');
         write(temp_var);
-        write("->fn_data_ptr");
+        write(')');
+        write(")");
+        write('(');
+        mangle(data_ptr_func);
+        write('(');
+        write(temp_var);
+        write(')');
         complete_func_call_args(*this, call, func_type, true);
         write(')');
         write("; })");

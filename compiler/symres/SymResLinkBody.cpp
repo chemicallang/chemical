@@ -470,21 +470,9 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
             break;
     }
 
-    // we should report has assignment
-    // even if it's a different operator
+    // we should report has assignment, even if it's a different operator
     // so the parameter can be allocated in a temporary variable for modification
-    auto id = lhs->get_single_id();
-    if(id) {
-        auto linked = id->linked;
-        auto linked_kind = linked->kind();
-        if(linked_kind == ASTNodeKind::VarInitStmt) {
-            auto init = linked->as_var_init_unsafe();
-            init->set_has_assignment();
-        } else if(linked_kind == ASTNodeKind::FunctionParam) {
-            auto param = linked->as_func_param_unsafe();
-            param->set_has_assignment();
-        }
-    }
+    lhs->report_assignment_of_chain_id();
 
     // if overloaded operator is being called, lhs will not be un-moved
     // because all operator overloaded take self (lhs) as mut ref
@@ -2224,8 +2212,12 @@ void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
 }
 
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
-    visit(value->getValue(), expected_type);
-    verify_mutation(linker, value->getValue());
+    const auto val = value->getValue();
+    visit(val, expected_type);
+    // check if we can modify the value
+    verify_mutation(linker, val);
+    // report assignment, if this is a linked parameter / var init
+    val->report_assignment_of_chain_id();
     // type determined at symbol resolution must be set
     value->setType(value->determine_type(linker));
 }
@@ -2388,14 +2380,17 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
             case ASTNodeKind::FunctionParam:
                 linked->as_func_param_unsafe()->set_has_address_taken(true);
                 break;
-            case ASTNodeKind::VarInitStmt:
-                if(linked->as_var_init_unsafe()->is_comptime()) {
+            case ASTNodeKind::VarInitStmt: {
+                const auto init = linked->as_var_init_unsafe();
+                if (init->is_comptime()) {
                     linker.error("taking address of a comptime variable is not allowed", addrOfValue);
                 }
-                if(linked->as_var_init_unsafe()->is_const() && !linked->as_var_init_unsafe()->is_top_level()) {
+                if (init->is_const() && !init->is_top_level()) {
                     linker.error("taking address of a constant is not allowed", addrOfValue);
                 }
+                init->set_has_addr_taken();
                 break;
+            }
             default:
                 break;
         }

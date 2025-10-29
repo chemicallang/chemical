@@ -356,6 +356,29 @@ bool is_mutable_ref_type(BaseType* type) {
     }
 }
 
+void verify_mutation(SymbolResolver& linker, Value* lhs) {
+    // get the first value in chain, check if its a struct member
+    // if it is, assignment to struct member requires mutable self reference
+    const auto lhs_chain = lhs->as_chain_value();
+    if(lhs_chain) {
+        const auto first_chain_val = get_first_chain_id(lhs_chain);
+        if (first_chain_val) {
+            const auto linked = first_chain_val->linked;
+            if(linked->kind() == ASTNodeKind::StructMember) {
+                // check current function has a mutable self reference
+                const auto curr_func = linker.current_func_type;
+                const auto decl = curr_func->as_function();
+                if(decl && !decl->is_constructor_fn()) {
+                    const auto self_param = decl->get_self_param();
+                    if(self_param == nullptr || !is_mutable_ref_type(self_param->type)) {
+                        linker.error("mutating a struct member requires a mutable self reference", lhs);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     auto& lhs = assign->lhs;
     auto& value = assign->value;
@@ -378,24 +401,7 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 
     // get the first value in chain, check if its a struct member
     // if it is, assignment to struct member requires mutable self reference
-    const auto lhs_chain = lhs->as_chain_value();
-    if(lhs_chain) {
-        const auto first_chain_val = get_first_chain_id(lhs_chain);
-        if (first_chain_val) {
-            const auto linked = first_chain_val->linked;
-            if(linked->kind() == ASTNodeKind::StructMember) {
-                // check current function has a mutable self reference
-                const auto curr_func = linker.current_func_type;
-                const auto decl = curr_func->as_function();
-                if(decl && !decl->is_constructor_fn()) {
-                    const auto self_param = decl->get_self_param();
-                    if(self_param == nullptr || !is_mutable_ref_type(self_param->type)) {
-                        linker.error("mutating a struct member requires a mutable self reference", lhs);
-                    }
-                }
-            }
-        }
-    }
+    verify_mutation(linker, lhs);
 
     // check if operator is overloaded
     // direct assignment cannot be overloaded
@@ -2219,6 +2225,7 @@ void SymResLinkBody::VisitComptimeValue(ComptimeValue* value) {
 
 void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     visit(value->getValue(), expected_type);
+    verify_mutation(linker, value->getValue());
     // type determined at symbol resolution must be set
     value->setType(value->determine_type(linker));
 }

@@ -437,26 +437,51 @@ llvm::Value *FunctionCall::llvm_linked_func_callee(Codegen& gen) {
 llvm::Value *call_capturing_lambda(
         Codegen &gen,
         FunctionCall* call,
+        CapturingFunctionType* cap_type,
         FunctionType* func_type,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     llvm::Value* grandpa = nullptr;
     llvm::Value* value = call->parent_val->llvm_value(gen);
-    auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
-    const auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
-    gen.di.instr(data, call);
+
+    const auto container = cap_type->instance_type->get_members_container();
+    if(container == nullptr) {
+        gen.error("couldn't get members container from instance type", call);
+        return value;
+    }
+
+    const auto fn_ptr_func_node = container->child("get_fn_ptr");
+    if(fn_ptr_func_node == nullptr || fn_ptr_func_node->kind() != ASTNodeKind::FunctionDecl) {
+        gen.error("couldn't get function pointer for calling capturing function", call);
+        return value;
+    }
+
+    const auto data_ptr_func_node = container->child("get_data_ptr");
+    if(data_ptr_func_node == nullptr || data_ptr_func_node->kind() != ASTNodeKind::FunctionDecl) {
+        gen.error("couldn't get function pointer for calling capturing function", call);
+        return value;
+    }
+
+    const auto fn_ptr_func = fn_ptr_func_node->as_function_unsafe();
+    const auto data_ptr_func = data_ptr_func_node->as_function_unsafe();
+
+    // loading the function pointer
+    const auto fn_ptr_val = gen.builder->CreateCall(fn_ptr_func->llvm_func(gen), { value });
+    gen.di.instr(fn_ptr_val, call);
+
+    // loading the data pointer
+    const auto data_ptr_val = gen.builder->CreateCall(data_ptr_func->llvm_func(gen), { value });
+    gen.di.instr(data_ptr_val, call);
+
     std::vector<llvm::Value *> args;
     // TODO self param is being put first, the problem is that user probably expects that arguments are loaded first
     //   functions that take a implicit self param, this is ok, because their first argument will be self and should be loaded
     //   however functions that don't take a self reference, should load arguments first and then the func callee
     put_self_param(gen, call, func_type, args, grandpa);
-    args.emplace_back(data);
+    args.emplace_back(data_ptr_val);
     to_llvm_args(gen, call, func_type, call->values, args, 0, destructibles);
     auto structType = gen.fat_pointer_type();
-    auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
-    const auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
-    gen.di.instr(lambda, call);
-    const auto instr = gen.builder->CreateCall(func_type->llvm_capturing_func_type(gen), lambda, args);
+    const auto instr = gen.builder->CreateCall(func_type->llvm_capturing_func_type(gen), fn_ptr_val, args);
     gen.di.instr(instr, call);
     return instr;
 }
@@ -599,8 +624,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto parent_type = parent_val->getType()->canonical();
     const auto func_type = func_type_from_parent_type(parent_type);
-    if(parent_type->kind() == BaseTypeKind::CapturingFunction || func_type->isCapturing()) {
-        return call_capturing_lambda(gen, this, func_type, destructibles);
+    if(parent_type->kind() == BaseTypeKind::CapturingFunction) {
+        return call_capturing_lambda(gen, this, parent_type->as_capturing_func_type_unsafe(), func_type, destructibles);
     }
 
     auto decl = ASTNode::isFunctionDecl(linked_kind) ? parent_linked->as_function_unsafe() : nullptr;

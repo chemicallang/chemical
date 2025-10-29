@@ -123,7 +123,6 @@ func get_moved_copy_i(m : ImpCopyObj) : int {
     return m.i;
 }
 
-@copy
 struct NonMovableObj {
     var a : int
     var b : int
@@ -161,7 +160,6 @@ func <T> test_non_movable_reassignment(value : T, value2 : T, test_lamb : (a : &
     return test_lamb(a)
 }
 
-@copy
 struct CopyableObj {
     var a : int
     var b : int

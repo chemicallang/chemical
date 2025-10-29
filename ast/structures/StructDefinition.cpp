@@ -282,7 +282,7 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             func->ensure_copy_fn(allocator, diagnoser, returnNode);
         }
     }
-    if(!has_def_constructor && all_members_has_def_constructor()) {
+    if(!has_def_constructor && all_members_def_constructible()) {
         if(create_def_constructor_checking(allocator, diagnoser, name_view(), returnNode)) {
             if (!has_constructor) {
                 attrs.is_direct_init = true;

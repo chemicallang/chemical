@@ -5771,7 +5771,7 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
     for(auto& init : initializers) {
         auto value = init.second.value;
         auto variable = container->variable_type_index(init.first, true);
-        if(container->is_one_of_inherited_type(variable.second)) {
+        if(container->is_one_of_inherited_type(variable.second) && value->kind() == ValueKind::AccessChain) {
             auto chain = value->as_access_chain_unsafe();
             auto val = chain->values.back();
             auto call = val->as_func_call();
@@ -5790,6 +5790,7 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
             }
             local_allocated[call] = "this->" + init.first.str();
             before_stmt->visit(chain);
+            continue;
         } else {
             write("this->");
             write(init.first);

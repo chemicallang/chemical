@@ -60,6 +60,7 @@ func run_executable_tests() {
     test_core_ops();
     test_atomics();
     test_thread_pool()
+    test_constructors_with_init()
 }
 
 public func main(argc : int, argv : **char) : int {

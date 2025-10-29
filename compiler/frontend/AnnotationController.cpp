@@ -243,15 +243,6 @@ void annot_handler_copy(Parser* parser, ASTNode* node, std::vector<Value*>& args
         case ASTNodeKind::FunctionDecl:
             node->as_function_unsafe()->set_copy_fn(true);
             return;
-        case ASTNodeKind::StructDecl:
-            node->as_struct_def_unsafe()->set_shallow_copyable(true);
-            return;
-        case ASTNodeKind::UnionDecl:
-            node->as_union_def_unsafe()->set_shallow_copyable(true);
-            return;
-        case ASTNodeKind::VariantDecl:
-            node->as_variant_def_unsafe()->set_shallow_copyable(true);
-            return;
         default:
             parser->error("unexpected copy annotation");
     }

@@ -5790,14 +5790,12 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
             }
             local_allocated[call] = "this->" + init.first.str();
             before_stmt->visit(chain);
-            continue;
-        } else {
-            write("this->");
-            write(init.first);
-            write(" = ");
-            visit(init.second.value);
-            write(';');
         }
+        write("this->");
+        write(init.first);
+        write(" = ");
+        visit(init.second.value);
+        write(';');
     }
 }
 

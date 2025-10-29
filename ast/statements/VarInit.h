@@ -80,6 +80,11 @@ struct VarInitAttributes {
      */
     bool is_thread_local = false;
 
+    /**
+     * has address been taken of this var init
+     */
+    bool has_address_taken = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -237,8 +242,16 @@ public:
     /**
      * assignment can be set to true
      */
-    inline void set_has_assignment() {
-        attrs.has_assignment = true;
+    inline void set_has_assignment(bool has = true) {
+        attrs.has_assignment = has;
+    }
+
+    inline bool get_has_addr_taken() {
+        return attrs.has_address_taken;
+    }
+
+    inline void set_has_addr_taken(bool taken = true) {
+        attrs.has_address_taken = taken;
     }
 
     inline bool is_no_mangle() {

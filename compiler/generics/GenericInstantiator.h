@@ -149,6 +149,8 @@ public:
         table.declare(node->name_view(), node);
     }
 
+    void VisitAssignmentStmt(AssignStatement *assign);
+
     void VisitLambdaFunction(LambdaFunction *func);
 
     void VisitSwitchStmt(SwitchStatement* node);

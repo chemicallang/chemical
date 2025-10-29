@@ -24,6 +24,42 @@ func <T> gen_take_addr_of(value : T) : T {
     return value
 }
 
+func <T> gen_assign_to_param_value(value : T) : T {
+    if(T is short) {
+        value = 2
+    } else if(T is int) {
+        value = 4
+    } else if(T is bigint) {
+        value = 8
+    } else {
+        value = 99
+    }
+    return value;
+}
+
+func <T> gen_assign_to_param_value2(value : T) : T {
+    if(T is short) {
+        value += 2
+    } else if(T is int) {
+        value += 4
+    } else if(T is bigint) {
+        value += 8
+    } else {
+        value += 99
+    }
+    return value;
+}
+
+func <T> gen_inc_param_value(value : T) : T {
+    value++
+    return value;
+}
+
+func <T> gen_dec_param_value(value : T) : T {
+    value--
+    return value;
+}
+
 func take_ref_to_r_val(value : &int) : bool {
     return value == 812
 }
@@ -64,6 +100,38 @@ func test_parameters() {
     test("taking address of generic parameters works - 3", () => {
         var result = gen_take_addr_of<bigint>(22)
         return result == 8
+    })
+    test("assignment to generic parameters works - 1", () => {
+        var result = gen_assign_to_param_value<short>(22)
+        return result == 2
+    })
+    test("assignment to generic parameters works - 2", () => {
+        var result = gen_assign_to_param_value<int>(22)
+        return result == 4
+    })
+    test("assignment to generic parameters works - 3", () => {
+        var result = gen_assign_to_param_value<bigint>(22)
+        return result == 8
+    })
+    test("assignment to generic parameters works - 4", () => {
+        var result = gen_assign_to_param_value2<short>(22)
+        return result == 24
+    })
+    test("assignment to generic parameters works - 5", () => {
+        var result = gen_assign_to_param_value2<int>(22)
+        return result == 26
+    })
+    test("assignment to generic parameters works - 6", () => {
+        var result = gen_assign_to_param_value2<bigint>(22)
+        return result == 30
+    })
+    test("increment to generic parameters works", () => {
+        var result = gen_inc_param_value<int>(22)
+        return result == 23
+    })
+    test("decrement to generic parameters works", () => {
+        var result = gen_dec_param_value<int>(22)
+        return result == 21
     })
     test("passing r value function params to references works", () => {
         return pass_r_val_to_ref(812)

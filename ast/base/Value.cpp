@@ -842,14 +842,50 @@ Value* Value::find_in(InterpretScope& scope, Value* parent) {
     return nullptr;
 }
 
-StructDefinition* Value::get_param_linked_struct() {
-    const auto linked = linked_node();
-    if(!linked) return nullptr;
-    const auto linked_kind = linked->kind();
-    if(linked_kind == ASTNodeKind::FunctionParam) {
-        return linked->as_func_param_unsafe()->type->get_direct_linked_struct();
+ASTNode* Value::get_chain_last_linked() {
+    switch(kind()) {
+        case ValueKind::Identifier: {
+            return as_identifier_unsafe()->linked;
+        }
+        case ValueKind::AccessChain: {
+            auto& values = as_access_chain_unsafe()->values;
+            return values.back()->get_chain_last_linked();
+        }
+        default:
+            return nullptr;
     }
-    return nullptr;
+}
+
+void Value::report_assignment_of_chain_id() {
+    const auto l = get_chain_last_linked();
+    if(l) {
+        switch(l->kind()) {
+            case ASTNodeKind::FunctionParam:
+                l->as_func_param_unsafe()->set_has_assignment();
+                return;
+            case ASTNodeKind::VarInitStmt:
+                l->as_var_init_unsafe()->set_has_assignment();
+                return;
+            default:
+                return;
+        }
+    }
+}
+
+void Value::report_addr_taken_of_chain_id() {
+    const auto l = get_chain_last_linked();
+    if(l) {
+        switch(l->kind()) {
+            case ASTNodeKind::FunctionParam:
+                l->as_func_param_unsafe()->set_has_address_taken(true);
+                return;
+            case ASTNodeKind::VarInitStmt:
+                l->as_var_init_unsafe()->set_has_assignment();
+                return;
+            default:
+                return;
+        }
+    }
 }
 
 bool Value::is_pointer() {

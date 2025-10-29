@@ -235,10 +235,19 @@ public:
     std::string representation();
 
     /**
-     * will get linked struct, if this is linked with a func param
-     * and the param's type is linked type with struct
+     * get the last linked if this is a chain value
      */
-    StructDefinition* get_param_linked_struct();
+    ASTNode* get_chain_last_linked();
+
+    /**
+     * if this is a chain id, we report assignment to function param, var init
+     */
+    void report_assignment_of_chain_id();
+
+    /**
+     * if this is a chain id, we report address has been taken to function param, var init
+     */
+    void report_addr_taken_of_chain_id();
 
     /**
      * get the pure type from known type directly

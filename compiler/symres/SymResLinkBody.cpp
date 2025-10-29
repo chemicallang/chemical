@@ -2898,7 +2898,10 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     }
     structValue->diagnose_missing_members_for_init(linker);
     if(!structValue->allows_direct_init()) {
-        linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
+        const auto curr_func = linker.current_func_type->as_function();
+        if(curr_func == nullptr || curr_func->parent() != structValue->linked_extendable()) {
+            linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
+        }
     }
     auto refTypeKind = structValue->getRefType()->kind();
     if(refTypeKind == BaseTypeKind::Generic) {

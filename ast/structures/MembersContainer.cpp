@@ -529,9 +529,9 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
     return nullptr;
 }
 
-bool all_variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*), bool variant_container) {
+bool all_variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*, Value*), bool variant_container) {
     for(const auto& inh : container.inherited) {
-        if(!requirement(inh.type)) {
+        if(!requirement(inh.type, nullptr)) {
             return false;
         }
     }
@@ -539,7 +539,7 @@ bool all_variables_type_require(VariablesContainer& container, bool(*requirement
         for(const auto var : container.variables()) {
             const auto mem = var->as_variant_member_unsafe();
             for(auto& val : mem->values) {
-                if(!requirement(val.second->type)) {
+                if(!requirement(val.second->type, val.second->def_value)) {
                     return false;
                 }
             }
@@ -559,7 +559,7 @@ bool all_variables_type_require(VariablesContainer& container, bool(*requirement
                     }
                     break;
                 case ASTNodeKind::StructMember:
-                    if(!requirement(var->as_struct_member_unsafe()->type)) {
+                    if(!requirement(var->as_struct_member_unsafe()->type, var->as_struct_member_unsafe()->defValue)) {
                         return false;
                     }
                     break;
@@ -621,14 +621,20 @@ inline bool one_member_type_requires(MembersContainer& container, bool(*requirem
     return variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
 }
 
-inline bool all_members_type_require(MembersContainer& container, bool(*requirement)(BaseType*)) {
+inline bool all_members_type_require(MembersContainer& container, bool(*requirement)(BaseType*, Value*)) {
     return all_variables_type_require(container, requirement, ASTNode::isVariantDecl(container.kind()));
 }
 
-bool MembersContainer::all_members_has_def_constructor() {
-    return all_members_type_require(*this, [](BaseType* type)-> bool {
+bool MembersContainer::all_members_def_constructible() {
+    return all_members_type_require(*this, [](BaseType* type, Value* defValue)-> bool {
         const auto container = type->get_members_container();
-        return container == nullptr || container->default_constructor_func() != nullptr;
+        if(container) {
+            return container->default_constructor_func() != nullptr;
+        } else {
+            // non container value must have default value
+            // for constructor to be generated
+            return defValue != nullptr;
+        }
     });
 }
 

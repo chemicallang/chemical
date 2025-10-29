@@ -258,7 +258,7 @@ func test_no_type_structs() {
 // in a generic container and generated as well
 
 struct existence_gen_container_21345<T> {
-    var a : T
+    var a : T = 99
 }
 
 func <T> give_existence_gen_container_2343() : existence_gen_container_21345<T> {

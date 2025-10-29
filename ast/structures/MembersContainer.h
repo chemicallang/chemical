@@ -209,7 +209,7 @@ public:
     /**
      * checks if any member has a default constructor
      */
-    bool all_members_has_def_constructor();
+    bool all_members_def_constructible();
 
     /**
      * checks if this struct type requires a destructor

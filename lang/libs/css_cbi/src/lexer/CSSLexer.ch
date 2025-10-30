@@ -1,4 +1,4 @@
-enum CSSLexerWhere {
+public enum CSSLexerWhere {
     GlobalBlock,    ///< inside an `@global { … }` block
     Selector,       ///< reading selector text
     Declaration,    ///< inside `{ … }` after a selector (handling both prop‑names and values)
@@ -9,7 +9,7 @@ enum CSSLexerWhere {
  * the lexer state is represented by this struct, which is created in initializeLexer function
  * this lexer must be able to encode itself into a 16 bit (short) integer
  */
-struct CSSLexer {
+public struct CSSLexer {
 
     /**
      * when other_mode is active it means, some other mode is active, we are lexing

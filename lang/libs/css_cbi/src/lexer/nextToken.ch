@@ -1,6 +1,6 @@
 
 func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
-    const provider = &lexer.provider;
+    const provider = &mut lexer.provider;
     // the position of the current symbol
     const position = provider.getPosition();
     const data_ptr = provider.current_data()

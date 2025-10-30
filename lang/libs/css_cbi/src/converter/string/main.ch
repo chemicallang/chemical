@@ -1111,7 +1111,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclaration) {
 
     const builder = converter.builder
-    const str = &converter.str;
+    const str = &mut converter.str;
 
     str.append_view(decl.property.name)
     str.append(':')
@@ -1187,7 +1187,7 @@ func generate_random_32bit() : uint32_t {
 
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const builder = converter.builder
-    const str = &converter.str
+    const str = &mut converter.str
     var size = om.declarations.size()
     if(size > 0) {
         if(om.has_dynamic_values()) {

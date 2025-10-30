@@ -110,12 +110,12 @@ public struct unordered_map<Key, Value> {
         _size++;
     }
 
-    func get_ptr(&self, key : &Key) : *Value {
+    func get_ptr(&self, key : &Key) : *mut Value {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
         while (currentNode != null) {
             if (compare_now(currentNode.key, key)) {
-                return &currentNode.value;
+                return &mut currentNode.value;
             }
             currentNode = currentNode.next;
         }

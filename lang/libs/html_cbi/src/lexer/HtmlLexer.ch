@@ -2,7 +2,7 @@
  * the lexer state is represented by this struct, which is created in initializeLexer function
  * this lexer must be able to encode itself into a 16 bit (short) integer
  */
-struct HtmlLexer {
+public struct HtmlLexer {
 
     /**
      * has a less than symbol '<', which means we are lexing a identifier inside '<' identifier '>'

@@ -195,7 +195,7 @@ func (converter : &mut ASTConverter) put_chemical_value_in(value : *mut Value) {
 }
 
 func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttribute) {
-    var str = &converter.str
+    var str = &mut converter.str
     var builder = converter.builder
     var parent = converter.parent
     var vec = converter.vec
@@ -242,7 +242,7 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
 
 func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
 
-    var str = &converter.str
+    var str = &mut converter.str
     var builder = converter.builder
     var parent = converter.parent
     var vec = converter.vec

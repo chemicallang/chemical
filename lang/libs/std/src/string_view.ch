@@ -47,6 +47,10 @@ public namespace std {
             return _size == 0;
         }
 
+        func get(&self, index : size_t) : char {
+            return *(_data + index)
+        }
+
         @override
         func equals(&self, other : &std::string_view) : bool {
             const self_size = _size;

@@ -88,7 +88,7 @@ if(def.posix) {
     // Returns file descriptor on success, -1 on error (and modifies template in-place).
     @extern public func mkstemp(template : *mut char) : int;
 
-    struct Statvfs {
+    public struct Statvfs {
         var f_bsize   : ulong;   // file system block size
         var f_frsize  : ulong;   // fragment size
         var f_blocks  : fsblkcnt_t;      // size of fs in f_frsize units

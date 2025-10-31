@@ -1,14 +1,14 @@
-type __dev_t = ulong
-type __ino_t = ulong
-type __nlink_t = ulong
-type __mode_t = uint
-type __uid_t = uint
-type __gid_t = uint
-type __off_t = long
-type __blksize_t = long
-type __blkcnt_t = long
-type __syscall_slong_t = long
-type __time_t = long
+public type __dev_t = ulong
+public type __ino_t = ulong
+public type __nlink_t = ulong
+public type __mode_t = uint
+public type __uid_t = uint
+public type __gid_t = uint
+public type __off_t = long
+public type __blksize_t = long
+public type __blkcnt_t = long
+public type __syscall_slong_t = long
+public type __time_t = long
 
 // @extern
 // public struct timespec {
@@ -41,8 +41,8 @@ public struct stat {
     var __glibc_reserved : __syscall_slong_t[3];
 };
 
-type __fsblkcnt_t = ulong
-type __fsfilcnt_t = ulong
+public type __fsblkcnt_t = ulong
+public type __fsfilcnt_t = ulong
 
 @extern
 public struct statvfs {

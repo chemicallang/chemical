@@ -71,12 +71,10 @@ func (cssParser : &mut CSSParser) parseBorder(
                         continue;
                     }
                 }
-                if(cssParser.isColor(token.value)) {
-                    parser.increment();
-                    alloc_named_color(builder, border.color, token.value);
+                if(cssParser.parseCSSColor(parser, builder, border.color)) {
                     return;
                 } else {
-                    parser.error("unknown value given");
+                    parser.error("expected a css color");
                 }
             }
             TokenType.Semicolon => {

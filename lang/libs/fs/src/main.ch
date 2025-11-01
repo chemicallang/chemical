@@ -678,7 +678,7 @@ func metadata(path : *char) : Result<Metadata, FsError> {
     }
 }
 
-func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
+public func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
         // map readonly bit
         var wbuf : [WIN_MAX_PATH]u16;

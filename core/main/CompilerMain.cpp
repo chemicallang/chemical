@@ -238,6 +238,7 @@ const auto no_pie_desc = "disable position independent code";
 const auto target_desc = "the target for which code is being generated";
 const auto job_type_desc = "change job type if compiling a .mod or .lab file";
 const auto jit_desc = "just in time compile the given input and run using tiny cc compiler";
+const auto use_tcc_desc = "force use tiny cc compiler for compilation";
 const auto output_desc = "the output at which file(s) will be generated";
 const auto resources_desc = "the path to resources directory required";
 const auto ignore_extension_desc = "compiler will ignore the extension of the file";
@@ -511,6 +512,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("target", "t", CmdOptionType::SingleValue, target_desc),
             CmdOption("job-type", "jt", CmdOptionType::SingleValue, job_type_desc),
             CmdOption("jit", "jit", CmdOptionType::NoValue, jit_desc),
+            CmdOption("use-tcc", "use-tcc", CmdOptionType::NoValue, use_tcc_desc),
             CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
             CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
             CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
@@ -637,6 +639,7 @@ int compiler_main(int argc, char *argv[]) {
         opts->debug_info = options.has_value("", "g") || (opts->outMode == OutputMode::Debug || opts->outMode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
+        opts->use_tcc = options.has_value("use-tcc", "use-tcc");
 #endif
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
         if(options.has_value("no-cache")) {

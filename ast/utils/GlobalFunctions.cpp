@@ -2036,7 +2036,7 @@ public:
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto& typeBuilder = call_scope->global->typeBuilder;
-#ifdef DEBUG
+#ifdef PROJECT_SOURCE_DIR
         auto source_dir = PROJECT_SOURCE_DIR;
         auto libs_dir = std::string(source_dir) + "/lang/libs";
 #else

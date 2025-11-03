@@ -46,6 +46,17 @@ struct InterfaceDefinitionAttrs {
 
 static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
 
+struct OverridableFunctionInfo {
+#ifdef COMPILER_BUILD
+    llvm::Function* func_pointer;
+#else
+    FunctionDeclaration* func_pointer;
+#endif
+    // this flag is set by struct (if it comes before interface and overrides)
+    // so that interface doesn't generate code for the default implementation
+    bool overridden = false;
+};
+
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
@@ -61,7 +72,7 @@ public:
      * users are registered so we can declare functions before hand
      */
 #ifdef COMPILER_BUILD
-    tsl::ordered_map<StructDefinition*, std::unordered_map<FunctionDeclaration*, llvm::Function*>> users;
+    tsl::ordered_map<StructDefinition*, std::unordered_map<FunctionDeclaration*, OverridableFunctionInfo>> users;
 #else
     tsl::ordered_map<StructDefinition*, bool> users;
 #endif
@@ -179,6 +190,11 @@ public:
     /**
      * this declaration will be generated for all the users of this interface
      */
+    void code_gen_declare_for_users(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
+     * this declaration will be generated for all the users of this interface
+     */
     void code_gen_for_users(Codegen& gen, FunctionDeclaration* decl);
 
     /**
@@ -192,6 +208,11 @@ public:
      * read the documentation in this decl
      */
     void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
+     * sets up function pointers for users of this interface
+     */
+    void code_gen_declare(Codegen &gen) override;
 
     /**
      * generate code for this interface

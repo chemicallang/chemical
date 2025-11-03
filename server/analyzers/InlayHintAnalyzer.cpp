@@ -84,7 +84,7 @@ void InlayHintAnalyzer::VisitVarInitStmt(VarInitStatement *init) {
         const auto encoded_loc = init->encoded_location();
         if(encoded_loc.isValid()) {
             const auto location = loc_man.getLocationPos(encoded_loc);
-            const auto known = init->get_or_create_type(allocator);
+            const auto known = init->known_type();
             if(known) {
                 const auto& start = location.end;
                 hints.emplace_back(lsp::InlayHint {

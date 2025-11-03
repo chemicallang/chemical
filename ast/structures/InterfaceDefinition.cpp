@@ -13,16 +13,36 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* func) {
+void InterfaceDefinition::code_gen_declare_for_users(Codegen& gen, FunctionDeclaration* func) {
     for(auto& use : users) {
         auto& user = users[use.first];
         active_user = use.first;
-        auto found = user.find(func);
-        if((found == user.end() || found->second == nullptr) && func->has_self_param()) {
+        if(func->has_self_param()) {
             func->code_gen_declare(gen, this);
-            func->code_gen_body(gen, this);
         }
-        user[func] = (llvm::Function*) func->llvm_pointer(gen);
+        user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
+    }
+    active_user = nullptr;
+}
+
+void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* func) {
+    if(!func->has_self_param()) {
+        return;
+    }
+    for(auto& use : users) {
+        auto llvm_itr = use.second.find(func);
+        if(llvm_itr == use.second.end()) {
+            gen.error("couldn't find overridable information for function", func);
+            continue;
+        }
+        auto& overridable_info = llvm_itr->second;
+        if(overridable_info.overridden) {
+            // if struct comes before interface, it can override the interface function and generate code
+            // in that case this flag is set by the struct so interface won't go ahead and generate default implementation
+            continue;
+        }
+        active_user = use.first;
+        func->code_gen_override(gen, overridable_info.func_pointer);
     }
     active_user = nullptr;
 }
@@ -41,6 +61,21 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
     // however since interface doesn't generate any (body) so we do nothing
 }
 
+void InterfaceDefinition::code_gen_declare(Codegen &gen) {
+    if(is_static()) {
+        // nothing to be done at the moment (unsure)
+    } else {
+        for (auto& func: instantiated_functions()) {
+            if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
+                func->code_gen_declare(gen, this);
+            }
+        }
+        for (const auto& function: instantiated_functions()) {
+            code_gen_declare_for_users(gen, function);
+        }
+    }
+}
+
 void InterfaceDefinition::code_gen(Codegen &gen) {
     if(is_static()) {
         for (auto& func: instantiated_functions()) {
@@ -49,7 +84,7 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
     } else {
         for (auto& func: instantiated_functions()) {
             if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
-                func->code_gen_declare(gen, this);
+                // func->code_gen_declare(gen, this);
                 func->code_gen_body(gen, this);
             }
         }
@@ -94,7 +129,7 @@ void InterfaceDefinition::code_gen_external_declare(Codegen &gen) {
                         func->code_gen_external_declare(gen);
                     }
                 }
-                user[func] = (llvm::Function*) func->llvm_pointer(gen);
+                user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
             }
             active_user = nullptr;
         }
@@ -140,7 +175,7 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
         for(auto& func : instantiated_functions()) {
             auto func_res = found->second.find(func);
             if(func_res != found->second.end()) {
-                llvm_pointers.emplace_back(func_res->second);
+                llvm_pointers.emplace_back(func_res->second.func_pointer);
             } else {
                 gen.error((AnnotableNode*) func) << "couldn't find function impl pointer, name '" << func->name_view() << "' for struct '" << for_struct->name_view() << "' for interface '" << name_view() << "'";
             }

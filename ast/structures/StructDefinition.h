@@ -268,7 +268,7 @@ public:
      * will try to override the given function if there's an interface and it exists
      * in the inherited struct / interface, otherwise returns false
      */
-    bool llvm_override(Codegen& gen, FunctionDeclaration* declaration);
+    void llvm_override(Codegen& gen, FunctionDeclaration* declaration);
 
     /**
      * generate code for all functions in this struct

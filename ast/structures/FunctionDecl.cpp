@@ -137,7 +137,7 @@ llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
                     const auto& found = use.find(overriding.second);
                     if(found != use.end()) {
                         // TODO this function is probably not declared in this module, if the interface is from outside
-                        return found->second;
+                        return found->second.func_pointer;
                     }
                 } else {
                     const auto parent_struct = overriding.first->as_struct_def();
@@ -324,9 +324,6 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl) {     // non generic fun
 }
 
 llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string_view& name) {
-    if(name == "std_stdconcurrentPoolDatasubmit__cfg_0") {
-        int i = 0;
-    }
     auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen), decl, runtime_specifier(decl));
     decl->set_llvm_data(gen, callee);
     return callee;

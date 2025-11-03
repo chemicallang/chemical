@@ -554,7 +554,7 @@ void set_generated_instantiations(ASTNode* node) {
             for(const auto func : interface->instantiated_functions()) {
                 for(auto& use : interface->users) {
                     auto& user = interface->users[use.first];
-                    user[func] = nullptr;
+                    user[func] = { nullptr, false };
                 }
             }
             // indicate vtables have been generated

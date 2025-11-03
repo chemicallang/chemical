@@ -43,9 +43,7 @@ void StructDefinition::struct_func_gen(
     } else {
         for (auto& function: funcs) {
             if (function->is_override()) {
-                if (!llvm_override(gen, function)) {
-                    gen.error("Failed to override the function", (AnnotableNode*) function);
-                }
+                llvm_override(gen, function);
                 continue;
             }
             function->code_gen_body(gen, this);
@@ -56,60 +54,69 @@ void StructDefinition::struct_func_gen(
 // tries to override the function present in interface
 // returns true if current function should be skipped because it has been overridden
 // or errored out
-bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function) {
+void StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function) {
     const auto info = get_func_overriding_info(function);
-    if(info.base_container) {
-        const auto interface = info.base_container->as_interface_def();
-        // we always assume base container as interface, it could be something else (abstract struct maybe)
-        if(interface->is_static()) {
-            const auto inh_type = info.type->type;
-            const auto func = info.base_func->llvm_func(gen);
-            const auto interfaceModule = func->getParent();
-            if(interfaceModule != gen.module.get()) {
-                // interface is present in another module
-                // we create a new function with strong linkage in this module
-                const auto new_func = gen.create_function(func->getName(), func->getFunctionType(), function, AccessSpecifier::Public);
-                function->set_llvm_data(gen, new_func);
-                function->code_gen_override(gen, new_func);
-            } else {
-                // internal interface, present in current module
-                // we will implement the interface in place, since its present in current module
-                function->set_llvm_data(gen, func);
-                if(func->size() == 1) {
-                    // remove the stub block present in functions internal to module
-                    auto& stubEntry = func->getEntryBlock();
-                    stubEntry.removeFromParent();
-                }
-                const auto final_specifier = is_linkage_public(interface->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
-                // change the function's linkage to internal
-                func->setLinkage(final_specifier);
-                gen.createFunctionBlock(func);
-                function->code_gen_override(gen, func);
-            }
+    if(info.base_container == nullptr) {
+        gen.error("failed to override function, couldn't find the base function or its container", function);
+        return;
+    }
+    const auto interface = info.base_container->as_interface_def();
+    // we always assume base container as interface, it could be something else (abstract struct maybe)
+    if(interface->is_static()) {
+        const auto inh_type = info.type->type;
+        const auto func = info.base_func->llvm_func(gen);
+        const auto interfaceModule = func->getParent();
+        if(interfaceModule != gen.module.get()) {
+            // interface is present in another module
+            // we create a new function with strong linkage in this module
+            const auto new_func = gen.create_function(func->getName(), func->getFunctionType(), function, AccessSpecifier::Public);
+            function->set_llvm_data(gen, new_func);
+            function->code_gen_override(gen, new_func);
         } else {
-            auto& user = interface->users[this];
-            auto llvm_data = user.find(info.base_func);
-            if (llvm_data == user.end()) {
-                return false;
+            // internal interface, present in current module
+            // we will implement the interface in place, since its present in current module
+            function->set_llvm_data(gen, func);
+            if(func->size() == 1) {
+                // remove the stub block present in functions internal to module
+                auto& stubEntry = func->getEntryBlock();
+                stubEntry.removeFromParent();
             }
-            // clean the function (any default implementation from interface may be there)
-            const auto func = llvm_data->second;
-            if(!(func->size() == 1 && func->front().empty())) {
-                while(!func->empty()) {
-                    auto& bb = func->back();
-                    bb.dropAllReferences();
-                    bb.eraseFromParent();
-                }
-                // create a new entry block
-                // ignore the return
-                llvm::BasicBlock::Create(*gen.ctx, "entry", func);
-            }
-            function->set_llvm_data(gen, llvm_data->second);
-            function->code_gen_override(gen, llvm_data->second);
+            const auto final_specifier = is_linkage_public(interface->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
+            // change the function's linkage to internal
+            func->setLinkage(final_specifier);
+            gen.createFunctionBlock(func);
+            function->code_gen_override(gen, func);
         }
-        return true;
     } else {
-        return false;
+        auto user_itr = interface->users.find(this);
+        if(user_itr == interface->users.end()) {
+            gen.error("failed to override function, couldn't find given struct as user of the interface", function);
+            return;
+        }
+        auto& user = user_itr.value();
+        auto llvm_data = user.find(info.base_func);
+        if (llvm_data == user.end()) {
+            gen.error("failed to override function, couldn't find the base function and its pointer", function);
+            return;
+        }
+        auto& overridable_info = llvm_data->second;
+        // indicate to interface that this function has been overridden
+        // so default implementation must not be generated (very important)
+        overridable_info.overridden = true;
+        // clean the function (any default implementation from interface may be there)
+        const auto func = overridable_info.func_pointer;
+        if(!(func->size() == 1 && func->front().empty())) {
+            while(!func->empty()) {
+                auto& bb = func->back();
+                bb.dropAllReferences();
+                bb.eraseFromParent();
+            }
+            // create a new entry block
+            // ignore the return
+            llvm::BasicBlock::Create(*gen.ctx, "entry", func);
+        }
+        function->set_llvm_data(gen, func);
+        function->code_gen_override(gen, func);
     }
 }
 
@@ -122,9 +129,7 @@ void StructDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclarati
 
 void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
     if(decl->is_override()) {
-        if(!llvm_override(gen, decl)) {
-            gen.error("Failed to override the function", (AnnotableNode*) decl);
-        }
+        llvm_override(gen, decl);
         return;
     }
     decl->code_gen_body(gen, this);

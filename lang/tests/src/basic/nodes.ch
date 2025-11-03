@@ -191,7 +191,28 @@ func call_it(z : dyn ZeroImplTestInterface) {
 }
 // --------- interface existence test (with dyn methods and zero implementation) end -------
 
+struct BeforeStructDefFunc : AfterInterfaceDefFunc {}
+struct BeforeStructOverrideFunc : AfterInterfaceDefFunc {
+    @override
+    func give(&self) : int {
+        return 91535
+    }
+}
+interface AfterInterfaceDefFunc {
+    func give(&self) : int {
+        return 987323
+    }
+}
+
 func test_nodes() {
+    test("struct that comes before interface and doesn't override function works", () => {
+        var b = BeforeStructDefFunc {}
+        return b.give() == 987323
+    })
+    test("struct that comes before interface and overrides function works", () => {
+        var b = BeforeStructOverrideFunc {}
+        return b.give() == 91535
+    })
     test("global constant int", () => {
         return MyInt == 5;
     })

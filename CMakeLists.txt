@@ -42,6 +42,12 @@ option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG)
     add_compile_definitions(PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    # Treat missing return as an error
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
+        add_compile_options(-Wall -Wextra -Werror=return-type)
+    elseif (MSVC)
+        add_compile_options(/W4 /we4715)
+    endif()
 endif ()
 
 # Verbose builds (should) produce logs as well

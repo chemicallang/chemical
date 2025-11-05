@@ -209,6 +209,9 @@ uint8_t to_precedence(Operation op) {
         case Operation::ExclusiveORWith:
         case Operation::InclusiveORWith:
             return 1;
+
+        default:
+            return 0;
     }
 }
 

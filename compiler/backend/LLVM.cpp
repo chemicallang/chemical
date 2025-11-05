@@ -647,6 +647,7 @@ llvm::Value* ComptimeValue::llvm_value(Codegen &gen, BaseType *type) {
         return evaluated->llvm_value(gen, type);
     } else {
         gen.error(this) << "couldn't evaluate comptime value";
+        return getValue()->llvm_value(gen);
     }
 }
 
@@ -1060,6 +1061,7 @@ llvm::Value* NewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
     }
 
     gen.error("unknown value given to new value", this);
+    return pointer_val;
 
 }
 
@@ -1086,6 +1088,7 @@ llvm::Value* PlacementNewValue::llvm_value(Codegen &gen, BaseType* exp_type) {
         }
     }
     gen.error("unknown value given to placement new", this);
+    return pointer_val;
 }
 
 llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {
@@ -1258,6 +1261,8 @@ llvm::Value* ExtractionValue::llvm_value(Codegen &gen, BaseType *type) {
         }
         case ExtractionKind::ReinterpretLLVMValue:
             return ((llvm::Value*) value);
+        default:
+            return NullValue::null_llvm_value(gen);
     }
 }
 
@@ -1270,13 +1275,14 @@ llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
     const auto replacement_fn = gen.binder.findHook(name, CBIFunctionType::ReplacementNode);
     if(!replacement_fn) {
         gen.error(this) << "couldn't find replacement function for embedded node with name '" << name << "'";
-        return nullptr;
+        return NullValue::null_llvm_value(gen);
     }
     const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, this);
     if(repl) {
         return repl->llvm_pointer(gen);
     } else {
         gen.error(this) << "couldn't replace embedded node with name '" << name << "'";
+        return NullValue::null_llvm_value(gen);
     }
 }
 
@@ -1302,7 +1308,7 @@ Value* replacement_value(EmbeddedValue* value, Codegen& gen) {
 llvm::Value* EmbeddedValue::llvm_pointer(Codegen &gen) {
     const auto repl = replacement_value(this, gen);
     if(!repl) return nullptr;
-    repl->llvm_pointer(gen);
+    return repl->llvm_pointer(gen);
 }
 
 llvm::Value* EmbeddedValue::llvm_value(Codegen &gen, BaseType *type) {
@@ -2441,6 +2447,7 @@ void LLVMBackendContext::destruct_call_site(SourceLocation location) {
 llvm::AtomicOrdering to_llvm_mo(BackendAtomicMemoryOrder order) {
     switch(order) {
         case BackendAtomicMemoryOrder::NotAtomic:
+        default:
             return llvm::AtomicOrdering::NotAtomic;
         case BackendAtomicMemoryOrder::Unordered:
             return llvm::AtomicOrdering::Unordered;
@@ -2460,6 +2467,7 @@ llvm::AtomicOrdering to_llvm_mo(BackendAtomicMemoryOrder order) {
 uint8_t to_llvm_ss(BackendAtomicSyncScope scope) {
     switch(scope) {
         case BackendAtomicSyncScope::System:
+        default:
             return llvm::SyncScope::System;
         case BackendAtomicSyncScope::SingleThread:
             return llvm::SyncScope::SingleThread;
@@ -2471,6 +2479,7 @@ llvm::AtomicRMWInst::BinOp to_llvm_op(BackendAtomicOp op) {
         case BackendAtomicOp::Xchg:
             return llvm::AtomicRMWInst::Xchg;
         case BackendAtomicOp::Add:
+        default:
             return llvm::AtomicRMWInst::Add;
         case BackendAtomicOp::Sub:
             return llvm::AtomicRMWInst::Sub;

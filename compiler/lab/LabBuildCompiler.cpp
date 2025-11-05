@@ -2262,6 +2262,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     auto& direct_files_in_lab = chemical_lab_module.direct_files;
     lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, direct_files_in_lab);
 
+    if(verbose) {
+        std::cout << "[lab] figured out direct imports, importing files" << std::endl;
+    }
+
     // if has imports, we import those files as well
     // it's required to build a proper import tree
     if(!direct_files_in_lab.empty()) {
@@ -2292,6 +2296,9 @@ TCCState* LabBuildCompiler::built_lab_file(
     ImportCycleCheckResult importCycle { false, loc_man };
     check_imports_for_cycles(importCycle, files_to_flatten);
     if(importCycle.has_cyclic_dependencies) {
+        if(verbose) {
+            std::cout << "[lab] " << "failure due to cyclic dependencies in '" << path_view << '\'' << std::endl;
+        }
         return nullptr;
     }
 
@@ -2322,6 +2329,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     // module dependencies we determined from directly imported files
     std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
 
+    if(verbose) {
+        std::cout << "[lab] figuring out module dependencies from imports" << std::endl;
+    }
+
     // based on imports figures out which modules have been imported
     // TODO: we aren't determining module dependency from other imported build.lab files
     // this just determines module dependencies from a single (root build.lab) file
@@ -2335,6 +2346,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     // direct module dependencies (in no valid order)
     auto& mod_dependencies = chemical_lab_module.dependencies;
 
+    if(verbose) {
+        std::cout << "[lab] processing build files of dependency modules" << std::endl;
+    }
+
     // these are modules imported by the build.lab
     // however we must build their build.lab or chemical.mod into a LabModule*
     for(auto& mod_ptr : buildLabModuleDependencies) {
@@ -2347,6 +2362,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
         mod_dependencies.emplace_back(mod);
 
+    }
+
+    if(verbose) {
+        std::cout << "[lab] determining files that belong to each dependency module" << std::endl;
     }
 
     // including all (+nested) dependencies in a single vector
@@ -2372,6 +2391,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // since caching, determine if any file has changed
     if(caching) {
+
+        if(verbose) {
+            std::cout << "[lab] " << "determining if files have changed of current module" << std::endl;
+        }
 
         // determine if build lab has changed
         const auto has_buildLabChanged = determine_if_files_have_changed(this, module_files, buildLabObj, buildLabTimestamp);
@@ -2433,6 +2456,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     }
 
+    if(verbose) {
+        std::cout << "[lab] translating each dependency module" << std::endl;
+    }
+
     // preparing translation
     c_visitor.prepare_translate();
 
@@ -2448,6 +2475,10 @@ TCCState* LabBuildCompiler::built_lab_file(
             return nullptr;
         }
 
+    }
+
+    if(verbose) {
+        std::cout << "[lab] symbol resolving current module" << std::endl;
     }
 
     // symbol resolve all the files in the module
@@ -2531,6 +2562,10 @@ TCCState* LabBuildCompiler::built_lab_file(
         i++;
     }
 
+    if(verbose) {
+        std::cout << "[lab] translating current module to C" << std::endl;
+    }
+
     // translating the build.lab module
     lab_processor.translate_module(
         c_visitor, &chemical_lab_module
@@ -2545,6 +2580,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     // TODO place a check to only output this when need be
     const auto labOutCPath = resolve_rel_child_path_str(labModDir, "build.lab.c");
     writeToFile(labOutCPath, str);
+
+    if(verbose) {
+        std::cout << "[lab] compiling current module to object file for caching" << std::endl;
+    }
 
     // let's first create an object file for build.lab (for caching)
     const auto objRes = compile_c_string(options->exe_path.data(), str.data(), buildLabObj, false, false, to_tcc_mode(options));

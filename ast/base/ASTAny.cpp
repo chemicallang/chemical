@@ -26,6 +26,8 @@ std::string to_string(AccessSpecifier specifier) {
             return "protected";
         case AccessSpecifier::Internal:
             return "internal";
+        default:
+            return "";
     }
 }
 
@@ -37,6 +39,8 @@ std::string ASTAny::representation() {
             return ((BaseType*) this)->representation();
         case ASTAnyKind::Node:
             return ((ASTNode*) this)->representation();
+        default:
+            return "[UnknownAstAny:representation]";
     }
 }
 

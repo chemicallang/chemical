@@ -240,6 +240,7 @@ ThrowStatement* Parser::parseThrowStatement(ASTAllocator& allocator) {
         } else {
             error("expected a value after 'throw'");;
         }
+        return stmt;
     } else {
         return nullptr;
     }

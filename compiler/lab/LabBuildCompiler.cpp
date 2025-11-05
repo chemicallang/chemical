@@ -89,6 +89,8 @@ TCCMode to_tcc_mode(OutputMode mode, bool debug_info) {
         case OutputMode::ReleaseSmall:
         case OutputMode::ReleaseSafe:
             return TCCMode::None;
+        default:
+            return TCCMode::None;
     }
 }
 
@@ -1194,6 +1196,7 @@ inline void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
 const char* to_string(OutputMode mode) {
     switch(mode) {
         case OutputMode::Debug:
+        default:
             return "debug";
         case OutputMode::DebugQuick:
             return "debug_quick";

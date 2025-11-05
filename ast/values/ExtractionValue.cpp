@@ -14,5 +14,7 @@ BaseType* create_extraction_value_type(TypeBuilder& builder, ExtractionKind kind
         case ExtractionKind::SizeOfLambdaCaptured:
         case ExtractionKind::AlignOfLambdaCaptured:
             return builder.getU64Type();
+        default:
+            return builder.getPtrToVoid();
     }
 }

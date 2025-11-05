@@ -407,6 +407,9 @@ bool RepresentationVisitor::write(AccessSpecifier specifier) {
             write("protected");
             return true;
         case AccessSpecifier::Internal:
+            write("internal");
+            return true;
+        default:
             return false;
     }
 }

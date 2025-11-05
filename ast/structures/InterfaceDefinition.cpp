@@ -196,6 +196,7 @@ static llvm::GlobalValue::LinkageTypes to_linkage(AccessSpecifier specifier) {
     switch(specifier) {
         case AccessSpecifier::Public:
         case AccessSpecifier::Protected:
+        default:
             return llvm::GlobalValue::ExternalLinkage;
         case AccessSpecifier::Internal:
         case AccessSpecifier::Private:

@@ -1013,6 +1013,7 @@ public:
         auto val = call->values[0]->evaluated_value(*call_scope);
         if(val->val_kind() != ValueKind::String) return new (allocator.allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), ZERO_LOC);
         call_scope->error(val->get_the_string().view(), call);
+        return new (allocator.allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), ZERO_LOC);
     }
 };
 
@@ -1147,7 +1148,7 @@ public:
 
     explicit InterpretMemCopy(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("copy"),
-            {cache.getBoolType(), ZERO_LOC},
+            {cache.getNullPtrType(), ZERO_LOC},
             false,
             parent_node,
             ZERO_LOC,
@@ -1164,9 +1165,10 @@ public:
         auto& backend = *call_scope->global->backend_context;
         if(call->values.size() != 2) {
             call_scope->error("std::mem::copy called with arguments of length not equal to two", call);
-            return nullptr;
+            return call_scope->global->typeBuilder.getNullValue();
         }
         backend.mem_copy(call->values[0], call->values[1]);
+        return call_scope->global->typeBuilder.getNullValue();
     }
 };
 

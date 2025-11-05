@@ -265,6 +265,8 @@ public:
             case AnnotationDefType::MarkerAndCollector:
                 mark_and_collect(node, definition, arguments);
                 return true;
+            default:
+                return false;
         }
     }
 

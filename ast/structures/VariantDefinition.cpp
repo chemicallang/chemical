@@ -189,6 +189,7 @@ bool VariantMember::add_child_index(Codegen& gen, std::vector<llvm::Value *>& in
     const auto index = found - values.begin();
     const auto p = parent();
     indexes.emplace_back(gen.builder->getInt32(direct_inh_composed_structs(p) + index));
+    return true;
 }
 
 llvm::Type* VariantMember::llvm_raw_struct_type(Codegen &gen) {

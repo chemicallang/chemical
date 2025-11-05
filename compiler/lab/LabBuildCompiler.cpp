@@ -2466,6 +2466,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     // processing flattened dependencies
     for(const auto mod : outModDependencies) {
 
+        if(verbose) {
+            std::cout << "[lab] " << "processing dependency module '" << mod->format() << '\'' << std::endl;
+        }
+
         // the timestamp file is what determines whether the module needs to be rebuilt again
         const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod, true);
 

@@ -38,7 +38,7 @@ public:
     }
 
     void destruct_call_site(SourceLocation location) final {
-        visitor->destruct_current_scope(nullptr);
+        visitor->destruct_scopes_above(nullptr);
     }
 
     /**

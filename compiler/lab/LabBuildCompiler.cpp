@@ -2292,6 +2292,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     ASTFileResult* files_to_flatten[] = { &labFileResult };
 
+    if(verbose) {
+        std::cout << "[lab] detecting import cycles in build.lab files" << std::endl;
+    }
+
     // check module files for import cycles (direct or indirect)
     ImportCycleCheckResult importCycle { false, loc_man };
     check_imports_for_cycles(importCycle, files_to_flatten);

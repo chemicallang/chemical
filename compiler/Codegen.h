@@ -232,6 +232,11 @@ public:
     llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter> *builder;
 
     /**
+     * continue statement uses it to limit destruction to this job index
+     */
+    int loop_destr_job_begin_index = 0;
+
+    /**
      * this is set to true when the branch instruction is executed
      * and set back to false, when a new block begins using SetInsertPoint
      */
@@ -699,6 +704,11 @@ public:
             Value* returnValue,
             SourceLocation location
     );
+
+    /**
+     * dispatches destruct jobs until the given index (reverse)
+     */
+    void dispatch_destruct_jobs(int until_begin, SourceLocation location);
 
     /**
      * this ensures that break and continue instructions work properly by pointing to the given blocks

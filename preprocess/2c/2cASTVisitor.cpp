@@ -1934,6 +1934,8 @@ public:
 
     using SubVisitor::SubVisitor;
 
+    int loop_job_begin_index = 0;
+
     bool destroy_current_scope = true;
 
     bool new_line_before = true;
@@ -2006,6 +2008,14 @@ public:
     }
 
 };
+
+void loop_scope(ToCAstVisitor& visitor, Scope& body) {
+    auto& destructor = *visitor.destructor.get();
+    const auto prev_loop_destr_start = destructor.loop_job_begin_index;
+    destructor.loop_job_begin_index = (int) destructor.destruct_jobs.size();
+    scope(visitor, body);
+    destructor.loop_job_begin_index = prev_loop_destr_start;
+}
 
 std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer) {
     return visitor.get_drop_flag_name(initializer);
@@ -3816,7 +3826,8 @@ void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
     write("break;");
 }
 
-void ToCAstVisitor::VisitContinueStmt(ContinueStatement *continueStatement) {
+void ToCAstVisitor::VisitContinueStmt(ContinueStatement *stmt) {
+    destruct_till_loop_scope_above();
     write("continue;");
 }
 
@@ -3930,16 +3941,20 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     }
 }
 
-void ToCAstVisitor::destruct_current_scope(Value* returnValue) {
+void ToCAstVisitor::destruct_scopes_above(Value* returnValue, int begin_until) {
     int i = ((int) destructor->destruct_jobs.size()) - 1;
     auto new_line_prev = destructor->new_line_before;
     destructor->new_line_before = false;
-    while(i >= 0) {
+    while(i >= begin_until) {
         destructor->destruct(destructor->destruct_jobs[i], returnValue);
         i--;
     }
     destructor->new_line_before = new_line_prev;
     destructor->destroy_current_scope = false;
+}
+
+void ToCAstVisitor::destruct_till_loop_scope_above() {
+    destruct_scopes_above(nullptr, destructor->loop_job_begin_index);
 }
 
 void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
@@ -3963,7 +3978,7 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
         write(';');
         new_line_and_indent();
     }
-    destruct_current_scope(returnValue);
+    destruct_scopes_above(returnValue);
     if(returnValue) {
 //        if(handle_return_after) {
             write("return");
@@ -3995,7 +4010,7 @@ void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
 
 void ToCAstVisitor::VisitDoWhileLoopStmt(DoWhileLoop *doWhileLoop) {
     write("do ");
-    scope(*this, doWhileLoop->body);
+    loop_scope(*this, doWhileLoop->body);
     write(" while(");
     visit(doWhileLoop->condition);
     write(");");
@@ -4025,7 +4040,7 @@ void ToCAstVisitor::VisitForLoopStmt(ForLoop *forLoop) {
             break;
     }
     write(')');
-    scope(*this, forLoop->body);
+    loop_scope(*this, forLoop->body);
 }
 
 void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
@@ -5142,12 +5157,12 @@ void ToCAstVisitor::VisitWhileLoopStmt(WhileLoop *whileLoop) {
     write("while(");
     visit(whileLoop->condition);
     write(") ");
-    scope(*this, whileLoop->body);
+    loop_scope(*this, whileLoop->body);
 }
 
 void ToCAstVisitor::VisitLoopBlock(LoopBlock *loop) {
     write("while(1)");
-    scope(*this, loop->body);
+    loop_scope(*this, loop->body);
 }
 
 void ToCAstVisitor::VisitVariantCase(VariantCase *variant_case) {

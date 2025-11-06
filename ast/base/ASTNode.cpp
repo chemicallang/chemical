@@ -249,6 +249,17 @@ ASTNode* ASTNode::get_ancestor_by_kind(ASTNodeKind k) {
     }
 }
 
+LoopASTNode* ASTNode::get_loop_node_above() {
+    if(ASTNode::isLoopASTNode(kind())) {
+        return as_loop_node_unsafe();
+    }
+    const auto p = parent();
+    if(p) {
+        return p->get_loop_node_above();
+    }
+    return nullptr;
+}
+
 AccessSpecifier ASTNode::specifier(AccessSpecifier def_specifier) {
     const auto k = kind();
     switch(k) {

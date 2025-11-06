@@ -33,26 +33,17 @@ void stop_interpretation_above(ASTNode* node) {
 }
 
 void stop_interpretation_above_once(ASTNode* node) {
-    if(ASTNode::isLoopASTNode(node->kind())) {
-        const auto loop_node = node->as_loop_node_unsafe();
+    const auto loop_node = node->get_loop_node_above();
+    if(loop_node) {
         loop_node->body.stopInterpretOnce();
         loop_node->stopInterpretation();
-        return;
-    }
-    const auto parent = node->parent();
-    if(parent) {
-        stop_interpretation_above_once(parent);
     }
 }
 
 void skip_interpretation_above_once(ASTNode* node) {
-    if(ASTNode::isLoopASTNode(node->kind())) {
-        node->as_loop_node_unsafe()->body.stopInterpretOnce();
-        return;
-    }
-    const auto parent = node->parent();
-    if(parent) {
-        skip_interpretation_above_once(parent);
+    const auto loop_node = node->get_loop_node_above();
+    if(loop_node) {
+        loop_node->body.stopInterpretOnce();
     }
 }
 

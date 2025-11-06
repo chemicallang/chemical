@@ -181,6 +181,11 @@ public:
     }
 
     /**
+     * get the LoopASTNode above
+     */
+    LoopASTNode* get_loop_node_above();
+
+    /**
      * get access specifier for this node
      */
     AccessSpecifier specifier(AccessSpecifier def_specifier = AccessSpecifier::Private);

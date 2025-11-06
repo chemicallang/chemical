@@ -461,9 +461,21 @@ public:
     }
 
     /**
-     * destruct the call site
+     * destructs the scopes above, limiting to job index (begin_until)
      */
-    void destruct_current_scope(Value* returnValue);
+    void destruct_scopes_above(Value* returnValue, int begin_until);
+
+    /**
+     * destruct the current scope and scopes above
+     */
+    inline void destruct_scopes_above(Value* returnValue) {
+        destruct_scopes_above(returnValue, 0);
+    }
+
+    /**
+     * destructs scopes above, however stops at recent loop (continue stmt does this)
+     */
+    void destruct_till_loop_scope_above();
 
     /**
      * this function mutates the value based on type, however it doesn't check for implicit constructors

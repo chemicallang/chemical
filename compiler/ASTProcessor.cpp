@@ -422,23 +422,16 @@ ASTFileResult* chem_file_concur_importer_recursive(
     return out_file;
 }
 
-struct future_ptr_union {
-    ASTFileResult* result = nullptr;
-    std::future<ASTFileResult*> future;
-};
-
 #ifdef DEBUG
-#define DEBUG_FUTURE true
+#define DEBUG_FUTURE false
 #endif
 
 bool ASTProcessor::import_chemical_files_direct(
         ctpl::thread_pool& pool,
         std::vector<ASTFileMetaData>& files
 ) {
-    std::vector<future_ptr_union> futures;
-
-    // pointer variable to be used inside the for loop
-    ASTFileResult* out_file;
+    std::vector<std::future<ASTFileResult*>> futures;
+    futures.reserve(files.size());
 
     // launch all files concurrently
     for(auto& fileData : files) {
@@ -446,33 +439,26 @@ bool ASTProcessor::import_chemical_files_direct(
         const auto file_id = fileData.file_id;
         const auto& abs_path = fileData.abs_path;
 
+        // we must try to store chem::string_view into the fileData, from the beginning
+        const auto ptr = new ASTFileResult(file_id, "", fileData.module);
+        // copy the metadata into it
+        *static_cast<ASTFileMetaData*>(ptr) = fileData;
+        fileData.result = ptr;
         {
-            std::lock_guard<std::mutex> guard(import_mutex);
-            auto found = cache.find(abs_path);
-            if (found != cache.end()) {
-//                 std::cout << "not launching file : " << fileData.abs_path << std::endl;
-                fileData.result = found->second.get();
-                futures.emplace_back(found->second.get());
-                continue;
-            }
-
-//            std::cout << "launching file : " << fileData.abs_path << std::endl;
-            // we must try to store chem::string_view into the fileData, from the beginning
-            const auto ptr = new ASTFileResult(file_id, "", fileData.module);
-            fileData.result = ptr;
+            // cache uses std::unique_ptr to destruct it
+            // we must store in cache, otherwise we'll have a memory leak
+            import_mutex.lock();
             cache.emplace(abs_path, ptr);
-            out_file = ptr;
+            import_mutex.unlock();
         }
 
-        // copy the metadata into it
-        *static_cast<ASTFileMetaData*>(out_file) = fileData;
-
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        futures.emplace_back(chem_file_concur_importer_direct(0, this, out_file, fileData, false));
+        std::promise<ASTFileResult*> promise;
+        promise.set_value(chem_file_concur_importer_direct(0, this, ptr, fileData, false));
+        futures.emplace_back(promise.get_future());
 #else
         futures.emplace_back(
-                nullptr,
-                pool.push(chem_file_concur_importer_direct, this, out_file, fileData, false)
+                pool.push(chem_file_concur_importer_direct, this, ptr, fileData, false)
         );
 #endif
 
@@ -480,7 +466,7 @@ bool ASTProcessor::import_chemical_files_direct(
 
     // put each file sequentially into the out_files
     for(auto& wrap : futures) {
-        const auto result = wrap.result ? wrap.result : wrap.future.get();
+        const auto result = wrap.get();
         if(!result->continue_processing) {
             return false;
         }
@@ -496,10 +482,8 @@ bool ASTProcessor::import_chemical_files_recursive(
         bool use_job_allocator
 ) {
 
-    std::vector<future_ptr_union> futures;
-
-    // pointer variable to be used inside the for loop
-    ASTFileResult* out_file;
+    std::vector<std::future<ASTFileResult*>> futures;
+    futures.reserve(files.size());
 
     // launch all files concurrently
     for(auto& fileData : files) {
@@ -507,13 +491,17 @@ bool ASTProcessor::import_chemical_files_recursive(
         const auto file_id = fileData.file_id;
         const auto& abs_path = fileData.abs_path;
 
+        ASTFileResult* out_file;
+
         {
             std::lock_guard<std::mutex> guard(import_mutex);
             auto found = cache.find(abs_path);
             if (found != cache.end()) {
 //                 std::cout << "not launching file : " << fileData.abs_path << std::endl;
                 fileData.result = found->second.get();
-                futures.emplace_back(found->second.get());
+                std::promise<ASTFileResult*> promise;
+                promise.set_value(found->second.get());
+                futures.emplace_back(promise.get_future());
                 continue;
             }
 
@@ -521,18 +509,17 @@ bool ASTProcessor::import_chemical_files_recursive(
             // we must try to store chem::string_view into the fileData, from the beginning
             const auto ptr = new ASTFileResult(file_id, "", fileData.module);
             fileData.result = ptr;
+            *static_cast<ASTFileMetaData*>(ptr) = fileData;
             cache.emplace(abs_path, ptr);
             out_file = ptr;
         }
 
-        // copy the metadata into it
-        *static_cast<ASTFileMetaData*>(out_file) = fileData;
-
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        futures.emplace_back(chem_file_concur_importer_recursive(0, this, pool, out_file, fileData, use_job_allocator));
+        std::promise<ASTFileResult*> promise;
+        promise.set_value(chem_file_concur_importer_recursive(0, this, pool, out_file, fileData, use_job_allocator));
+        futures.emplace_back(promise.get_future());
 #else
         futures.emplace_back(
-                nullptr,
                 pool.push(chem_file_concur_importer_recursive, this, std::ref(pool), out_file, fileData, use_job_allocator)
         );
 #endif
@@ -541,12 +528,8 @@ bool ASTProcessor::import_chemical_files_recursive(
 
     // put each file sequentially into the out_files
     for(auto& wrap : futures) {
-        if(wrap.result) {
-            out_files.emplace_back(wrap.result);
-        } else {
-            // ensure job completion
-            out_files.emplace_back(wrap.future.get());
-        }
+        // ensure job completion
+        out_files.emplace_back(wrap.get());
     }
 
     for(const auto file : out_files) {

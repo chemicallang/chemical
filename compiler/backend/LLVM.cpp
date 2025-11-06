@@ -1572,6 +1572,8 @@ unsigned int DynamicValue::store_in_array(Codegen &gen, Value *parent, llvm::Val
 // --------------------------------------- Statements
 
 void ContinueStatement::code_gen(Codegen &gen) {
+    gen.destroy_current_scope = false;
+    gen.dispatch_destruct_jobs(gen.loop_destr_job_begin_index, encoded_location());
     gen.CreateBr(gen.current_loop_continue, encoded_location());
 }
 
@@ -1899,25 +1901,6 @@ void ASTNode::code_gen_destruct(Codegen &gen, Value* returnValue, SourceLocation
     }
 }
 
-void Scope::destruct_current_scope(Codegen& gen, unsigned destruct_begin) {
-    const auto func_type = gen.current_func_type;
-    // VariableIdentifier temp_id("", encoded_location());
-    int i = ((int) gen.destruct_nodes.size()) - 1;
-    while (i >= (int) destruct_begin) {
-        auto& nodePair = gen.destruct_nodes[i];
-        // TODO use the location that represents the scope end
-        // we don't need to check if a nested member has been moved
-        // because we don't allow moving a nested member
-        // temp_id.linked = nodePair.getInitializer();
-        // if(func_type->find_moved_access_chain(&temp_id) == nullptr) {
-            gen.conditional_destruct(nodePair, nullptr, encoded_location());
-        // } else {
-        //     gen.error("cannot destruct uninit value at scope end because it's nested member has been moved, please use std::mem::replace or reinitialize the nested member, or use wrappers like Option", nodePair.getInitializer(), this);
-        // }
-        i--;
-    }
-}
-
 llvm::Value* Scope::code_gen_value_scope(Codegen& gen, bool allocate, unsigned destruct_begin) {
     if(nodes.size() > 1) {
         int i = 0;
@@ -1957,7 +1940,7 @@ llvm::Value* Scope::code_gen_value_scope(Codegen& gen, bool allocate, unsigned d
             break;
     }
     if(gen.destroy_current_scope) {
-        destruct_current_scope(gen, destruct_begin);
+        gen.dispatch_destruct_jobs(destruct_begin, encoded_location());
     } else {
         gen.destroy_current_scope = true;
     }
@@ -1980,7 +1963,7 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
             // automatically calls destructors
             return;
         }
-        destruct_current_scope(gen, destruct_begin);
+        gen.dispatch_destruct_jobs(destruct_begin, encoded_location());
     } else {
         gen.destroy_current_scope = true;
     }

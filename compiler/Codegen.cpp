@@ -500,6 +500,17 @@ void Codegen::enqueue_destructible(BaseType* nonCanonType, ASTNode* node, llvm::
     }
 }
 
+void Codegen::dispatch_destruct_jobs(int until_begin, SourceLocation location) {
+    const auto func_type = current_func_type;
+    int i = ((int) destruct_nodes.size()) - 1;
+    while (i >= until_begin) {
+        auto& nodePair = destruct_nodes[i];
+        // TODO use the location that represents the scope end
+        conditional_destruct(nodePair, nullptr, location);
+        i--;
+    }
+}
+
 llvm::Function* Codegen::getFreeFn() {
     const auto previousFunc = module->getFunction("free");
     if(previousFunc != nullptr) {
@@ -1120,7 +1131,10 @@ void Codegen::loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::B
     auto prev_loop_exit = current_loop_exit;
     current_loop_continue = currentBlock;
     current_loop_exit = endBlock;
+    const auto prev_job_ind = loop_destr_job_begin_index;
+    loop_destr_job_begin_index = (int) destruct_nodes.size();
     body.code_gen(*this);
+    loop_destr_job_begin_index = prev_job_ind;
     current_loop_continue = prev_loop_continue;
     current_loop_exit = prev_loop_exit;
 }

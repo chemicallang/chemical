@@ -29,7 +29,7 @@ struct ASTFileResult : ASTFileMetaData {
      * the imported files by this file, these files don't contain duplicates
      * or already imported files
      */
-    std::vector<ASTFileResult*> imports;
+    std::vector<ASTFileMetaData> imports;
 
     /**
      * if read error occurred this would contain it

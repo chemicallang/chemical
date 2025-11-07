@@ -133,10 +133,20 @@ public:
     /**
      * constructor
      */
-    explicit LabBuildCompiler(
+    LabBuildCompiler(
         LocationManager& loc_man,
         CompilerBinder& binder,
         LabBuildCompilerOptions* options
+    );
+
+    /**
+     * constructor
+     */
+    LabBuildCompiler(
+            LocationManager& loc_man,
+            CompilerBinder& binder,
+            LabBuildCompilerOptions* options,
+            int nThreads
     );
 
     /**

@@ -141,12 +141,24 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     return new_modules;
 }
 
+/**
+ * constructor
+ */
 LabBuildCompiler::LabBuildCompiler(
     LocationManager& loc_man,
     CompilerBinder& binder,
-    LabBuildCompilerOptions *options
-) : path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool((int) std::thread::hardware_concurrency()),
-    global_allocator(100000 /** 100 kb**/), type_builder(global_allocator)
+    LabBuildCompilerOptions* options,
+    int nThreads
+) : path_handler(options->exe_path), loc_man(loc_man), binder(binder), options(options), pool(nThreads),
+global_allocator(100000 /** 100 kb**/), type_builder(global_allocator) {
+
+}
+
+LabBuildCompiler::LabBuildCompiler(
+        LocationManager& loc_man,
+        CompilerBinder& binder,
+        LabBuildCompilerOptions *options
+) : LabBuildCompiler(loc_man, binder, options, (int) std::thread::hardware_concurrency())
 {
 
 }
@@ -207,7 +219,8 @@ typedef void(*ImportCycleHandler)(void* data_ptr, std::vector<unsigned int>& par
 
 void check_imports_for_cycles(void* data_ptr, ASTFileResult* parent_file, std::vector<unsigned int>& parents, ImportCycleHandler handler) {
     auto end_size = parents.size();
-    for(const auto imported : parent_file->imports) {
+    for(auto& importedFile : parent_file->imports) {
+        const auto imported = importedFile.result;
         // checking for direct cyclic dependency a imports a
         if(imported->file_id == parent_file->file_id) {
             // found direct cyclic dependency
@@ -272,7 +285,7 @@ void check_imports_for_cycles(ImportCycleCheckResult& out, const std::span<ASTFi
 
 void flatten(std::vector<ASTFileResult*>& flat_out, std::unordered_map<chem::string_view, bool, FastHashInternedView, FastEqInternedView>& done_files, ASTFileResult* single_file) {
     for(auto& file : single_file->imports) {
-        flatten(flat_out, done_files, file);
+        flatten(flat_out, done_files, file.result);
     }
     auto view = chem::string_view(single_file->abs_path);
     auto found = done_files.find(view);
@@ -2259,7 +2272,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // figure out direct imported by this build.lab file
-    auto& direct_files_in_lab = chemical_lab_module.direct_files;
+    auto& direct_files_in_lab = labFileResult.imports;
     lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, direct_files_in_lab);
 
     if(verbose) {
@@ -2269,11 +2282,15 @@ TCCState* LabBuildCompiler::built_lab_file(
     // if has imports, we import those files as well
     // it's required to build a proper import tree
     if(!direct_files_in_lab.empty()) {
-
+        // create a concurrent parsing state
+        ConcurrentParsingState state;
         // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
-        const auto parseSuccess = lab_processor.import_chemical_files_recursive(pool, labFileResult.imports, direct_files_in_lab, true);
+        const auto parseSuccess = lab_processor.import_chemical_files_recursive(pool, state, direct_files_in_lab, true);
+        // wait for all files to parse
+        auto fut = state.all_done_promise.get_future();
+        fut.wait();
 
         // lets print diagnostics for all files in module
         for(auto& file : direct_files_in_lab) {
@@ -2312,11 +2329,13 @@ TCCState* LabBuildCompiler::built_lab_file(
     // we figure out all the files that belong to this build.lab module
     direct_files_in_lab.clear();
     for(const auto f : module_files) {
-//        if(f->abs_path.ends_with(".lab")) {
-            f->result = f;
-            direct_files_in_lab.emplace_back(*f);
-//        }
+        f->result = f;
+        direct_files_in_lab.emplace_back(*f);
     }
+
+    // copy over the imported files metadata to chemical lab module
+    // because its processed by the symbol resolver
+    chemical_lab_module.direct_files = direct_files_in_lab;
 
     // the build lab object file (cached)
     const auto labDir = resolve_rel_child_path_str(options->build_dir, "lab");

@@ -9,6 +9,13 @@
 #include "ASTNode.h"
 #include "ast/structures/Scope.h"
 
+struct LoopASTNodeAttrs {
+    /**
+     * set by the break statement
+     */
+    bool has_break = false;
+};
+
 /**
  * Anything that's a loop (for, while..) inherits this LoopASTNode
  */
@@ -16,6 +23,7 @@ class LoopASTNode : public ASTNode {
 public:
 
     Scope body;
+    LoopASTNodeAttrs attrs;
 
     /**
      * constructor

@@ -7,6 +7,16 @@
 #include "ast/structures/Scope.h"
 #include <optional>
 
+struct SwitchStatementAttrs {
+
+    /**
+     * set during symbol resolution, when switching on a variant or enum which is closed
+     * when this is true, the default case is NOT required
+     */
+    bool operating_on_closed_value = false;
+
+};
+
 class SwitchStatement : public ASTNode {
 public:
 
@@ -15,6 +25,7 @@ public:
     // cases store the index of scope, if value is nullptr it means default case
     std::vector<std::pair<Value*, int>> cases;
     int defScopeInd = -1;
+    SwitchStatementAttrs attrs;
 
     constexpr SwitchStatement(
         Value* expression,

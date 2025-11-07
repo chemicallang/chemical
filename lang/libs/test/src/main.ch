@@ -544,7 +544,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
         }
         current++;
     }
-
+    return null;
 }
 
 public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {

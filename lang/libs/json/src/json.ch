@@ -184,7 +184,7 @@ private:
         handler.on_object_begin();
         skip_ws();
         if (!at_end() && cur() == '}') { advance(); handler.on_object_end(); return ParseResult::Ok(); }
-        while (1) {
+        loop {
             skip_ws();
             if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
             if (cur() != '"') return ParseResult::Err(pos, "expected string key");
@@ -216,7 +216,7 @@ private:
         handler.on_array_begin();
         skip_ws();
         if (!at_end() && cur() == ']') { advance(); handler.on_array_end(); return ParseResult::Ok(); }
-        while (1) {
+        loop {
             skip_ws();
             var r : ParseResult = parse_value(depth);
             if (!r.ok) return r;

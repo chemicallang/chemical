@@ -327,7 +327,7 @@ public namespace http {
     // helper: simple ASCII case-insensitive strcmp
     public func strcasecmp(a:*char, b:*char) : int {
         var i = 0;
-        while(true) {
+        loop {
             var ca = a[i]; var cb = b[i];
             if(ca == '\0' && cb == '\0') { return 0 }
             var la = ca; var lb = cb;
@@ -821,7 +821,7 @@ public namespace http {
         // set recv timeout
         net::set_recv_timeout(s, header_timeout_secs, 0);
         // read loop
-        while(true) {
+        loop {
             // check for CRLFCRLF in buffer (i.e. "\r\n\r\n")
             var i = 0u; var found = false; var crlfpos = 0u;
             while(i + 3 < buf.len()) {

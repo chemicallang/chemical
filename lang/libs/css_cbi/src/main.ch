@@ -41,6 +41,7 @@ public func css_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedVal
     const loc = value.getEncodedLocation();
     const root = value.getDataPtr() as *mut CSSOM;
     sym_res_root(root, resolver, loc)
+    return true;
 }
 
 @no_mangle

@@ -581,7 +581,6 @@ set(COMMON_SOURCES
         compiler/symres/BeforeLinkSignature.h
         std/except.h
         std/except.cpp
-        compiler/processor/ThreadPoolEx.h
 )
 
 # Chemical LSP Executable Target

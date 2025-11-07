@@ -2741,11 +2741,36 @@ void SymResLinkBody::VisitNewTypedValue(NewTypedValue* value) {
     visit(value->type);
 }
 
+void verify_placement_new(SymbolResolver& linker, TypeLoc ptrType, Value* value) {
+    switch(ptrType->kind()) {
+        case BaseTypeKind::Pointer:{
+            const auto child_type = ptrType->as_pointer_type_unsafe()->type;
+            if (!child_type->satisfies(value, false)) {
+                linker.error("value does not satisfy the pointer value type", value);
+            }
+            return;
+        }
+        case BaseTypeKind::Linked:{
+            const auto linked = ptrType->as_linked_type_unsafe()->linked;
+            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
+                verify_placement_new(linker, linked->as_typealias_unsafe()->actual_type, value);
+                return;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    linker.error("expected pointer value to be of pointer type", ptrType.encoded_location());
+}
+
 void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
     visit(value->pointer);
     visit(value->value);
     // type of the value determined at symbol resolution must be set
     value->ptr_type.type = value->value->getType();
+    // verify the type
+    verify_placement_new(linker, { value->pointer->getType(), value->pointer->encoded_location() }, value->value);
 }
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {

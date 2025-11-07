@@ -14,6 +14,17 @@ ASTNode *PointerType::linked_node() {
     return type->linked_node();
 }
 
+inline bool is_StrLikeIntNTypeKind(IntNTypeKind kind) {
+    switch(kind) {
+        case IntNTypeKind::Char:
+        case IntNTypeKind::UChar:
+        case IntNTypeKind::U8:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool PointerType::satisfies(BaseType *given) {
     const auto other_pure = given->canonical();
     const auto other_kind = other_pure->kind();
@@ -22,9 +33,9 @@ bool PointerType::satisfies(BaseType *given) {
     }
     const auto current = type->canonical();
     const auto type_kind = current->kind();
-    if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && current->as_intn_type_unsafe()->is_char_or_uchar_type())) {
+    if(other_kind == BaseTypeKind::String && !is_mutable) {
         // this is a char* or uchar* which is a string
-        if(other_kind == BaseTypeKind::String) {
+        if(type_kind == BaseTypeKind::Any || (type_kind == BaseTypeKind::IntN && is_StrLikeIntNTypeKind(current->as_intn_type_unsafe()->IntNKind()))) {
             return true;
         }
     }

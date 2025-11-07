@@ -145,12 +145,10 @@ func (parser : &mut Parser) parseNumberOrAngleOrNone(builder : *mut ASTBuilder) 
             if(token.value.equals("none")) {
                 parser.increment()
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : "none" }
-            } else {
-                break;
             }
         }
         default => {
-            break;
+
         }
     }
     return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }
@@ -172,12 +170,10 @@ func (parser : &mut Parser) parseNumberOrPercentageOrNone(builder : *mut ASTBuil
             if(token.value.equals("none")) {
                 parser.increment()
                 return CSSLengthValueData { kind : CSSLengthKind.None, value : "none" }
-            } else {
-                break;
             }
         }
         default => {
-            break;
+
         }
     }
     return CSSLengthValueData { kind : CSSLengthKind.Unknown, value : std::string_view() }

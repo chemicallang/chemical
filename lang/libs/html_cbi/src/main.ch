@@ -41,6 +41,7 @@ public func html_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedVa
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut HtmlRoot;
     sym_res_root(root, resolver, loc)
+    return true;
 }
 
 @no_mangle

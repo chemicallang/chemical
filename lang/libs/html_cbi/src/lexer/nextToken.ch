@@ -37,6 +37,11 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 
                     // its a directive
                     // TODO handle this case
+                    return Token {
+                        type : TokenType.Unexpected as int,
+                        value : view("expected directive or comment"),
+                        position : position
+                    }
 
                 } else {
                     return Token {

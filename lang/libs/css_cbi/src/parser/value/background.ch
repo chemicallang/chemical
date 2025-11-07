@@ -219,6 +219,8 @@ func (cssParser : &mut CSSParser) parseBackgroundImageInto(
         }
     }
 
+    return true;
+
 }
 
 func (cssParser : &mut CSSParser) parseBackgroundImage(

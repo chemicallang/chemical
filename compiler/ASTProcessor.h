@@ -7,6 +7,7 @@
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
 #include "ASTDiag.h"
+#include <future>
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
@@ -46,6 +47,20 @@ namespace ctpl {
 }
 
 class AnnotationController;
+
+struct ConcurrentParsingState {
+    std::atomic<int> outstanding;
+    std::promise<void> all_done_promise;
+    void pushed_task() {
+        outstanding.fetch_add(1, std::memory_order_relaxed);
+    }
+    void done_task() {
+        // decrement outstanding and possibly set promise
+        if (outstanding.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            all_done_promise.set_value();
+        }
+    }
+};
 
 /**
  * this will be called ASTProcessor
@@ -175,7 +190,7 @@ public:
      */
     bool import_chemical_files_recursive(
             ctpl::thread_pool& pool,
-            std::vector<ASTFileResult*>& out_files,
+            ConcurrentParsingState& state,
             std::vector<ASTFileMetaData>& files,
             bool use_job_allocator
     );
@@ -254,6 +269,7 @@ public:
     bool import_chemical_file_recursive(
             ASTFileResult& result,
             ctpl::thread_pool& pool,
+            ConcurrentParsingState& state,
             ASTFileMetaData& fileData,
             bool use_job_allocator
     );

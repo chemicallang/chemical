@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "CompilerMain.h"
+#include "parser/utils/parse_num.h"
 #ifdef COMPILER_BUILD
 #include <llvm/TargetParser/Host.h>
 #endif
@@ -207,53 +208,6 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
     }
     return 0;
 }
-
-const auto include_cmd_desc = "include a c header or a chemical file in compilation";
-const auto build_dir_desc = "specify a build directory to output build files or create module directory";
-const auto link_lib_cmd_desc = "link the given library when compiling";
-const auto cc_cmd_desc = "invokes the cc tool";
-const auto configure_cmd_desc = "configures the compiler for this OS";
-const auto linker_cmd_desc = "invoke the linker to link libraries";
-const auto tcc_jit_cmd_desc = "link object files arguments and run it using tiny cc";
-const auto ar_cmd_desc = "invoke the ar tool to archive libraries";
-const auto dlltool_cmd_desc = "invoke the dlltool to archive libraries";
-const auto ranlib_cmd_desc = "invoke the llvm ranlib tool";
-const auto lib_cmd_desc = "invoke the llvm lib tool";
-const auto mode_cmd_desc = "mode: debug, debug_quick, release_small, release_fast";
-const auto version_cmd_desc = "get the version of the compiler";
-const auto help_cmd_desc = "get help for command line options";
-const auto minify_c_desc = "minify the generated c code";
-const auto test_cmd_desc = "run tests";
-const auto benchmark_cmd_desc = "benchmark the compilation process";
-const auto print_ast_desc = "print representation of the ast";
-const auto print_cst_desc = "print representation of the cst";
-const auto print_ig_desc = "print representation of the import graph";
-const auto verbose_desc = "verbose enables complete logging";
-const auto debug_info_desc = "should debug information be emitted";
-const auto link_lib_desc = "link a library";
-const auto ignore_errors_desc = "ignore certain errors during compilation";
-const auto lto_desc = "enable link time optimization";
-const auto assertions_desc = "enable assertions for checking of generated code";
-const auto no_pie_desc = "disable position independent code";
-const auto target_desc = "the target for which code is being generated";
-const auto job_type_desc = "change job type if compiling a .mod or .lab file";
-const auto jit_desc = "just in time compile the given input and run using tiny cc compiler";
-const auto use_tcc_desc = "force use tiny cc compiler for compilation";
-const auto output_desc = "the output at which file(s) will be generated";
-const auto resources_desc = "the path to resources directory required";
-const auto ignore_extension_desc = "compiler will ignore the extension of the file";
-const auto ll_out_desc = "specify output path for .ll (llvm ir) file";
-const auto bc_out_desc = "specify output path for .bc (bitcode) file";
-const auto obj_out_desc = "specify output path for .o (object) file";
-const auto asm_out_desc = "specify output path for .s (assembly) file";
-const auto bin_out_desc = "specify output path for binary file";
-const auto debug_ir_desc = "set debug mode for generated llvm ir";
-const auto dash_c_desc = "generate objects without linking them into final executable";
-const auto no_cache_desc = "no caching will be done for future invocations";
-const auto cbi_m_desc = "compile a compiler binding interface that provides support for macros";
-const auto fno_unwind_desc = "no unwind tables would be generated";
-const auto mod_cmd_desc = "compile a dependency module, the argument must be in format <mod-scope:mod-name>=<path>";
-const auto out_dash_all_desc = "generate a corresponding file for every additional module specific via --mod";
 
 inline std::span<std::string_view> get_includes(CmdOptions& options) {
     return options.data.find("include")->second.get_multi_opt_values();
@@ -480,56 +434,57 @@ int compiler_main(int argc, char *argv[]) {
     // parsing the command
     CmdOptions options;
     CmdOption cmd_data[] = {
-            CmdOption("include", CmdOptionType::MultiValued, include_cmd_desc),
-            CmdOption("build-dir", CmdOptionType::SingleValue, build_dir_desc),
-            CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_cmd_desc),
-            CmdOption("cc", CmdOptionType::SubCommand, cc_cmd_desc),
-            CmdOption("configure", CmdOptionType::SubCommand, configure_cmd_desc),
-            CmdOption("linker", CmdOptionType::SubCommand, linker_cmd_desc),
-            CmdOption("tcc-jit", CmdOptionType::SubCommand, tcc_jit_cmd_desc),
-            CmdOption("ar", CmdOptionType::SubCommand, ar_cmd_desc),
-            CmdOption("dlltool", CmdOptionType::SubCommand, dlltool_cmd_desc),
-            CmdOption("ranlib", CmdOptionType::SubCommand, ranlib_cmd_desc),
-            CmdOption("lib", CmdOptionType::SubCommand, lib_cmd_desc),
-            CmdOption("mode", "m", CmdOptionType::SingleValue, mode_cmd_desc),
-            CmdOption("version", CmdOptionType::NoValue, version_cmd_desc),
-            CmdOption("help", CmdOptionType::NoValue, help_cmd_desc),
-            CmdOption("", "minify-c", CmdOptionType::NoValue, minify_c_desc),
-            CmdOption("test", "test", CmdOptionType::NoValue, test_cmd_desc),
-            CmdOption("benchmark", "bm", CmdOptionType::NoValue, benchmark_cmd_desc),
-            CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue, benchmark_cmd_desc),
-            CmdOption("benchmark-modules", "bm-modules", CmdOptionType::NoValue, benchmark_cmd_desc),
-            CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue, print_ast_desc),
-            CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue, print_cst_desc),
-            CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue, print_ig_desc),
-            CmdOption("verbose", "v", CmdOptionType::NoValue, verbose_desc),
-            CmdOption("", "g", CmdOptionType::NoValue, debug_info_desc),
-            CmdOption("library", "l", CmdOptionType::MultiValued, link_lib_desc),
-            CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue, ignore_errors_desc),
-            CmdOption("lto", CmdOptionType::NoValue, lto_desc),
-            CmdOption("assertions", CmdOptionType::NoValue, assertions_desc),
-            CmdOption("no-pie", "no-pie", CmdOptionType::NoValue, no_pie_desc),
-            CmdOption("target", "t", CmdOptionType::SingleValue, target_desc),
-            CmdOption("job-type", "jt", CmdOptionType::SingleValue, job_type_desc),
-            CmdOption("jit", "jit", CmdOptionType::NoValue, jit_desc),
-            CmdOption("use-tcc", "use-tcc", CmdOptionType::NoValue, use_tcc_desc),
-            CmdOption("output", "o", CmdOptionType::SingleValue, output_desc),
-            CmdOption("resources", "res", CmdOptionType::SingleValue, resources_desc),
-            CmdOption("ignore-extension", CmdOptionType::NoValue, ignore_extension_desc),
-            CmdOption("no-cache", CmdOptionType::NoValue, no_cache_desc),
-            CmdOption("out-ll", CmdOptionType::SingleValue, ll_out_desc),
-            CmdOption("out-bc", CmdOptionType::SingleValue, bc_out_desc),
-            CmdOption("out-obj", CmdOptionType::SingleValue, obj_out_desc),
-            CmdOption("out-asm", CmdOptionType::SingleValue, asm_out_desc),
-            CmdOption("out-bin", CmdOptionType::SingleValue, bin_out_desc),
-            CmdOption("out-ll-all", CmdOptionType::NoValue, out_dash_all_desc),
-            CmdOption("out-asm-all", CmdOptionType::NoValue, out_dash_all_desc),
-            CmdOption("debug-ir", CmdOptionType::NoValue, debug_ir_desc),
-            CmdOption("", "c", CmdOptionType::NoValue, dash_c_desc),
-            CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued, cbi_m_desc),
-            CmdOption("", "fno-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
-            CmdOption("", "fno-asynchronous-unwind-tables", CmdOptionType::NoValue, fno_unwind_desc),
-            CmdOption("mod", "", CmdOptionType::MultiValued, mod_cmd_desc),
+            CmdOption("include", CmdOptionType::MultiValued),
+            CmdOption("build-dir", CmdOptionType::SingleValue),
+            CmdOption("library", "l", CmdOptionType::MultiValued),
+            CmdOption("cc", CmdOptionType::SubCommand),
+            CmdOption("configure", CmdOptionType::SubCommand),
+            CmdOption("linker", CmdOptionType::SubCommand),
+            CmdOption("tcc-jit", CmdOptionType::SubCommand),
+            CmdOption("ar", CmdOptionType::SubCommand),
+            CmdOption("dlltool", CmdOptionType::SubCommand),
+            CmdOption("ranlib", CmdOptionType::SubCommand),
+            CmdOption("lib", CmdOptionType::SubCommand),
+            CmdOption("mode", "m", CmdOptionType::SingleValue),
+            CmdOption("version", CmdOptionType::NoValue),
+            CmdOption("help", CmdOptionType::NoValue),
+            CmdOption("", "minify-c", CmdOptionType::NoValue),
+            CmdOption("test", "test", CmdOptionType::NoValue),
+            CmdOption("benchmark", "bm", CmdOptionType::NoValue),
+            CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue),
+            CmdOption("benchmark-modules", "bm-modules", CmdOptionType::NoValue),
+            CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue),
+            CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue),
+            CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue),
+            CmdOption("verbose", "v", CmdOptionType::NoValue),
+            CmdOption("", "g", CmdOptionType::NoValue),
+            CmdOption("library", "l", CmdOptionType::MultiValued),
+            CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue),
+            CmdOption("lto", CmdOptionType::NoValue),
+            CmdOption("assertions", CmdOptionType::NoValue),
+            CmdOption("no-pie", "no-pie", CmdOptionType::NoValue),
+            CmdOption("target", "t", CmdOptionType::SingleValue),
+            CmdOption("jobs", "j", CmdOptionType::SingleValue),
+            CmdOption("job-type", "jt", CmdOptionType::SingleValue),
+            CmdOption("jit", "jit", CmdOptionType::NoValue),
+            CmdOption("use-tcc", "use-tcc", CmdOptionType::NoValue),
+            CmdOption("output", "o", CmdOptionType::SingleValue),
+            CmdOption("resources", "res", CmdOptionType::SingleValue),
+            CmdOption("ignore-extension", CmdOptionType::NoValue),
+            CmdOption("no-cache", CmdOptionType::NoValue),
+            CmdOption("out-ll", CmdOptionType::SingleValue),
+            CmdOption("out-bc", CmdOptionType::SingleValue),
+            CmdOption("out-obj", CmdOptionType::SingleValue),
+            CmdOption("out-asm", CmdOptionType::SingleValue),
+            CmdOption("out-bin", CmdOptionType::SingleValue),
+            CmdOption("out-ll-all", CmdOptionType::NoValue),
+            CmdOption("out-asm-all", CmdOptionType::NoValue),
+            CmdOption("debug-ir", CmdOptionType::NoValue),
+            CmdOption("", "c", CmdOptionType::NoValue),
+            CmdOption("cbi-m", "cbi-m", CmdOptionType::MultiValued),
+            CmdOption("", "fno-unwind-tables", CmdOptionType::NoValue),
+            CmdOption("", "fno-asynchronous-unwind-tables", CmdOptionType::NoValue),
+            CmdOption("mod", "", CmdOptionType::MultiValued),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);
@@ -691,6 +646,22 @@ int compiler_main(int argc, char *argv[]) {
     auto mode_opt = options.option_new("mode", "m");
     const auto mode = get_output_mode(mode_opt, verbose);
 
+    // check manual jobs argument to calculate concurrency
+    auto jobs_opt = options.option_new("jobs", "j");
+    int threadCount;
+    if(jobs_opt.has_value()) {
+        auto num_value = parse_num(jobs_opt.value().data(), jobs_opt.value().size(), strtol);
+        if(num_value.error.empty()) {
+            threadCount = (int) num_value.result;
+        } else {
+            std::cerr << rang::fg::yellow << "warning: " << rang::fg::reset << "failed to parse `jobs` argument as a number '" << jobs_opt.value() << "'" << std::endl;
+            threadCount = (int) std::thread::hardware_concurrency();
+        }
+    } else {
+        threadCount = (int) std::thread::hardware_concurrency();
+    }
+    if(threadCount <= 0) threadCount = 1;
+
     auto build_dir_opt = options.option_new("build-dir", "b");
     // TODO: handle this parameter
     const auto is_testing_env = options.has_value("test");
@@ -709,7 +680,7 @@ int compiler_main(int argc, char *argv[]) {
         LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, std::move(build_dir), is64Bit);
         CompilerBinder binder(compiler_exe_path);
         LocationManager loc_man;
-        LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
+        LabBuildCompiler compiler(loc_man, binder, &compiler_opts, threadCount);
         compiler.set_cmd_options(&options);
 
         // Prepare compiler options
@@ -801,7 +772,7 @@ int compiler_main(int argc, char *argv[]) {
     LabBuildCompilerOptions compiler_opts(compiler_exe_path, target, std::move(build_dir), is64Bit);
     CompilerBinder binder(compiler_exe_path);
     LocationManager loc_man;
-    LabBuildCompiler compiler(loc_man, binder, &compiler_opts);
+    LabBuildCompiler compiler(loc_man, binder, &compiler_opts, threadCount);
     compiler.set_cmd_options(&options);
 
     // set default compiler options

@@ -400,26 +400,11 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string_view
 ASTFileResult* chem_file_concur_importer_direct(
         int id,
         ASTProcessor* processor,
-        ASTFileResult* out_file,
         ASTFileMetaData& fileData,
         bool use_job_allocator
 ) {
-    processor->import_file(*out_file, fileData.file_id, fileData.abs_path, use_job_allocator);
-    return out_file;
-}
-
-// this imports a chemical file + imports
-// handles relative import statements inside the file
-ASTFileResult* chem_file_concur_importer_recursive(
-        int id,
-        ASTProcessor* processor,
-        ctpl::thread_pool& pool,
-        ASTFileResult* out_file,
-        ASTFileMetaData& fileData,
-        bool use_job_allocator
-) {
-    processor->import_chemical_file_recursive(*out_file, pool, fileData, use_job_allocator);
-    return out_file;
+    processor->import_file(*fileData.result, fileData.file_id, fileData.abs_path, use_job_allocator);
+    return fileData.result;
 }
 
 #ifdef DEBUG
@@ -444,21 +429,17 @@ bool ASTProcessor::import_chemical_files_direct(
         // copy the metadata into it
         *static_cast<ASTFileMetaData*>(ptr) = fileData;
         fileData.result = ptr;
-        {
-            // cache uses std::unique_ptr to destruct it
-            // we must store in cache, otherwise we'll have a memory leak
-            import_mutex.lock();
-            cache.emplace(abs_path, ptr);
-            import_mutex.unlock();
-        }
+        // cache uses std::unique_ptr to destruct it
+        // we must store in cache, otherwise we'll have a memory leak
+        cache.emplace(abs_path, ptr);
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        std::promise<ASTFileResult*> promise;
-        promise.set_value(chem_file_concur_importer_direct(0, this, ptr, fileData, false));
+        std::promise<bool> promise;
+        promise.set_value(chem_file_concur_importer_direct(0, this, fileData, false));
         futures.emplace_back(promise.get_future());
 #else
         futures.emplace_back(
-                pool.push(chem_file_concur_importer_direct, this, ptr, fileData, false)
+                pool.push(chem_file_concur_importer_direct, this, fileData, false)
         );
 #endif
 
@@ -477,65 +458,46 @@ bool ASTProcessor::import_chemical_files_direct(
 
 bool ASTProcessor::import_chemical_files_recursive(
         ctpl::thread_pool& pool,
-        std::vector<ASTFileResult*>& out_files,
+        ConcurrentParsingState& state,
         std::vector<ASTFileMetaData>& files,
         bool use_job_allocator
 ) {
 
-    std::vector<std::future<ASTFileResult*>> futures;
-    futures.reserve(files.size());
+    if(files.empty()) {
+        return true;
+    }
 
+    // if has imports, we import those files
     // launch all files concurrently
     for(auto& fileData : files) {
 
         const auto file_id = fileData.file_id;
         const auto& abs_path = fileData.abs_path;
 
-        ASTFileResult* out_file;
-
         {
             std::lock_guard<std::mutex> guard(import_mutex);
             auto found = cache.find(abs_path);
             if (found != cache.end()) {
-//                 std::cout << "not launching file : " << fileData.abs_path << std::endl;
                 fileData.result = found->second.get();
-                std::promise<ASTFileResult*> promise;
-                promise.set_value(found->second.get());
-                futures.emplace_back(promise.get_future());
                 continue;
             }
 
-//            std::cout << "launching file : " << fileData.abs_path << std::endl;
             // we must try to store chem::string_view into the fileData, from the beginning
             const auto ptr = new ASTFileResult(file_id, "", fileData.module);
             fileData.result = ptr;
             *static_cast<ASTFileMetaData*>(ptr) = fileData;
             cache.emplace(abs_path, ptr);
-            out_file = ptr;
         }
 
-#if defined(DEBUG_FUTURE) && DEBUG_FUTURE
-        std::promise<ASTFileResult*> promise;
-        promise.set_value(chem_file_concur_importer_recursive(0, this, pool, out_file, fileData, use_job_allocator));
-        futures.emplace_back(promise.get_future());
-#else
-        futures.emplace_back(
-                pool.push(chem_file_concur_importer_recursive, this, std::ref(pool), out_file, fileData, use_job_allocator)
-        );
-#endif
+        // this is done inside the mutex lock, so to prevent race conditions when appending
+        // to futures vector
+        state.pushed_task();
+        pool.push([this, &pool, &state, &fileData, use_job_allocator](int){
+            const auto result = import_chemical_file_recursive(*fileData.result, pool, state, fileData, use_job_allocator);
+            state.done_task();
+            return result;
+        });
 
-    }
-
-    // put each file sequentially into the out_files
-    for(auto& wrap : futures) {
-        // ensure job completion
-        out_files.emplace_back(wrap.get());
-    }
-
-    for(const auto file : out_files) {
-        if(!file->continue_processing) {
-            return false;
-        }
     }
 
     return true;
@@ -729,30 +691,22 @@ bool import_file_in_lab(
 bool ASTProcessor::import_chemical_file_recursive(
         ASTFileResult& result,
         ctpl::thread_pool& pool,
-        ASTFileMetaData& fileData,
+        ConcurrentParsingState& state,
+        ASTFileMetaData& parentFileData,
         bool use_job_allocator
 ) {
 
     // import the file into result (lex and parse)
-    const auto success = import_file_in_lab(*this, fileData, result, use_job_allocator);
+    const auto success = import_file_in_lab(*this, parentFileData, result, use_job_allocator);
     if(!success) {
         return false;
     }
 
     // figure out files imported by this file
-    std::vector<ASTFileMetaData> imports;
-    figure_out_direct_imports(fileData, result.unit.scope.body.nodes, imports);
+    figure_out_direct_imports(parentFileData, result.unit.scope.body.nodes, result.imports);
 
-    // if has imports, we import those files
-    if(!imports.empty()) {
-        const auto success2 = import_chemical_files_recursive(pool, result.imports, imports, use_job_allocator);
-        if(!success2) {
-            result.continue_processing = false;
-            return false;
-        }
-    }
-
-    return true;
+    // handle the imports of this file
+    return import_chemical_files_recursive(pool, state, result.imports, use_job_allocator);
 
 }
 

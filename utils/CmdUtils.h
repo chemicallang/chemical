@@ -41,11 +41,10 @@ public:
     std::string_view large_opt;
     std::string_view small_opt;
     CmdOptionType type;
-    std::string_view description;
     bool user_used_large_opt = false;
     bool is_initialized = false;
 
-    CmdOption(std::string_view large_opt, std::string_view small_opt, CmdOptionType type, std::string_view description) : large_opt(large_opt), small_opt(small_opt), type(type), description(description) {
+    CmdOption(std::string_view large_opt, std::string_view small_opt, CmdOptionType type) : large_opt(large_opt), small_opt(small_opt), type(type) {
 
     }
 
@@ -64,11 +63,11 @@ public:
         is_initialized = true;
     }
 
-    inline CmdOption(std::string_view large_opt, CmdOptionType type, std::string_view description) : CmdOption(large_opt, "", type, description) {
+    inline CmdOption(std::string_view large_opt, CmdOptionType type) : CmdOption(large_opt, "", type) {
 
     }
 
-    CmdOption(CmdOption&& other) : large_opt(other.large_opt), small_opt(other.small_opt), type(other.type), description(other.description) {
+    CmdOption(CmdOption&& other) : large_opt(other.large_opt), small_opt(other.small_opt), type(other.type) {
         if(!other.is_initialized) return;
         switch(type) {
             case CmdOptionType::NoValue:
@@ -386,6 +385,7 @@ struct CmdOptions {
                 } else {
 
                     put_option(option, is_option_large_opt, user_arg);
+                    option = "";
 
                 }
 

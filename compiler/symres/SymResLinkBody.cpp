@@ -520,6 +520,13 @@ void SymResLinkBody::VisitBreakStmt(BreakStatement* node) {
         //    where it is being assigned
         visit(node->value);
     }
+    const auto loop_node = node->get_loop_node_above();
+    if(loop_node) {
+        node->target_loop_node = loop_node;
+        loop_node->attrs.has_break = true;
+    } else {
+        linker.error("break statement requires a loop above that contains it", node);
+    }
 }
 
 void SymResLinkBody::VisitDeleteStmt(DestructStmt* node) {
@@ -658,10 +665,15 @@ void SymResLinkBody::VisitSwitchStmt(SwitchStatement *stmt) {
     visit(expression);
 
     variant_def = stmt->getVarDefFromExpr();
-    if (variant_def && (scopes.size() < variant_def->variables().size() && !stmt->has_default_case())) {
-        linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) stmt);
-        return;
+    if(variant_def) {
+        if (scopes.size() < variant_def->variables().size() && !stmt->has_default_case()) {
+            linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) stmt);
+            return;
+        }
+        // currently only checking for the variant
+        stmt->attrs.operating_on_closed_value = true;
     }
+
 
     std::vector<VariableIdentifier*> moved_ids;
     std::vector<AccessChain*> moved_chains;
@@ -986,6 +998,53 @@ bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
     }
 }
 
+const auto missing_return_err_msg = "missing return for function that has a non void return type";
+
+void verify_has_return(SymbolResolver& linker, Scope& scope, SourceLocation location) {
+    if(scope.nodes.empty()) {
+        linker.error(missing_return_err_msg, location);
+        return;
+    }
+    // go from the back to verify nodes
+    const auto last = scope.nodes.back();
+    switch(last->kind()) {
+        case ASTNodeKind::ReturnStmt:
+            return;
+        case ASTNodeKind::IfStmt: {
+            const auto stmt = last->as_if_stmt_unsafe();
+            if (!stmt->elseBody.has_value()) {
+                linker.error("missing return in else body for function that has non void return type", stmt->encoded_location());
+                return;
+            }
+            verify_has_return(linker, stmt->ifBody, stmt->ifBody.encoded_location());
+            for(auto& elseIf : stmt->elseIfs) {
+                verify_has_return(linker, elseIf.second, elseIf.second.encoded_location());
+            }
+            verify_has_return(linker, stmt->elseBody.value(), stmt->elseBody.value().encoded_location());
+            return;
+        }
+        case ASTNodeKind::SwitchStmt:{
+            const auto stmt = last->as_switch_stmt_unsafe();
+            if(stmt->defScopeInd == -1 && !stmt->attrs.operating_on_closed_value) {
+                linker.error("missing default case where switch is the last statement of the function", stmt->encoded_location());
+            }
+            for(auto& child_scope : stmt->scopes) {
+                verify_has_return(linker, child_scope, child_scope.encoded_location());
+            }
+            return;
+        }
+        case ASTNodeKind::LoopBlock:{
+            const auto stmt = last->as_loop_block_unsafe();
+            if(!stmt->attrs.has_break) {
+                return;
+            }
+        }
+        default:
+            break;
+    }
+    linker.error(missing_return_err_msg, location);
+}
+
 void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
     if(node->body.has_value()) {
         // if has body declare params
@@ -1000,6 +1059,9 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
                 linker.comptime_context = true;
             }
             link_seq(*this, node->body.value());
+            if(!node->is_constructor_fn() && !node->is_copy_fn() && node->returnType->canonical()->kind() != BaseTypeKind::Void) {
+                verify_has_return(linker, node->body.value(), node->encoded_location());
+            }
             linker.comptime_context = false;
         }
         linker.scope_end();

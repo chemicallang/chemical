@@ -35,12 +35,12 @@ func (mem : &MemLamb) ext_func_test() : TestStruct1 {
 }
 
 // this function forces our llvm backend to do a default return
-// because when generating while, we also generate a end block
+// because when generating loop, we also generate a end block
 // however since the end block doesn't end here, the function ends with a
 // default return of null pointer
 func last_block_while_ret_ptr() : *char {
     var i = 0
-    while(i < 5) {
+    loop {
         if(i > 2) {
             return null
         }

@@ -20,6 +20,13 @@ public:
     Value* value;
 
     /**
+     * this is calculated during symbol resolution once
+     * it finds the loop node which this break is targeting
+     *
+     */
+    LoopASTNode* target_loop_node = nullptr;
+
+    /**
      * constructor
      */
     constexpr BreakStatement(

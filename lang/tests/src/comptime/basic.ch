@@ -145,7 +145,7 @@ struct CompTimeCounter {
 }
 
 comptime func get_line_no() : ubigint {
-
+    return intrinsics::get_line_no()
 }
 
 comptime func give_caller_line_no() : ubigint {
@@ -237,7 +237,7 @@ comptime func compare_enums_result6(result : testable_comptime_enum) : bool {
 
 comptime func compare_enum_result7(result : testable_comptime_enum) : int {
     switch(result) {
-        testable_comptime_enum.First => { return 1; }
+        testable_comptime_enum.First, default => { return 1; }
         testable_comptime_enum.Second => { return 2; }
         testable_comptime_enum.Third => { return 3; }
     }
@@ -245,7 +245,7 @@ comptime func compare_enum_result7(result : testable_comptime_enum) : int {
 
 comptime func compare_enum_result8(a : int) : testable_comptime_enum {
     switch(a) {
-        1 => { return testable_comptime_enum.First }
+        1, default => { return testable_comptime_enum.First }
         2 => { return testable_comptime_enum.Second }
         3 => { return testable_comptime_enum.Third }
     }

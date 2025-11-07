@@ -115,7 +115,7 @@ comptime func mem_order_to_int(order : llvm_atomic_memory_order) : int {
         llvm_atomic_memory_order.acquire => { return 4; }
         llvm_atomic_memory_order.release => { return 5; }
         llvm_atomic_memory_order.acquire_release => { return 6; }
-        llvm_atomic_memory_order.sequentially_consistent => { return 7; }
+        llvm_atomic_memory_order.sequentially_consistent, default => { return 7; }
     }
 }
 
@@ -126,7 +126,7 @@ comptime func convert_mem_order_to_llvm(order : memory_order) : llvm_atomic_memo
         memory_order.acquire => { return llvm_atomic_memory_order.acquire; }
         memory_order.release => { return llvm_atomic_memory_order.release; }
         memory_order.acq_rel => { return llvm_atomic_memory_order.acquire_release; }
-        memory_order.seq_cst => { return llvm_atomic_memory_order.sequentially_consistent; }
+        memory_order.seq_cst, default => { return llvm_atomic_memory_order.sequentially_consistent; }
     }
 }
 
@@ -141,7 +141,7 @@ enum llvm_atomic_sync_scope {
 
 comptime func scope_to_int(scope : llvm_atomic_sync_scope) : int {
     switch(scope) {
-        llvm_atomic_sync_scope.system => { return 0; }
+        llvm_atomic_sync_scope.system, default => { return 0; }
         llvm_atomic_sync_scope.single_thread => { return 1; }
     }
 }
@@ -189,7 +189,7 @@ enum llvm_atomic_op : int {
 comptime func llvm_atomic_op_to_int(op : llvm_atomic_op) : int {
     switch(op) {
         llvm_atomic_op.Xchg => { return 0; }
-        llvm_atomic_op.Add => { return 1; }
+        llvm_atomic_op.Add, default => { return 1; }
         llvm_atomic_op.Sub => { return 2; }
         llvm_atomic_op.And => { return 3; }
         llvm_atomic_op.Nand => { return 4; }

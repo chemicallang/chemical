@@ -297,14 +297,14 @@ int main(int argc, char *argv[]) {
 
     CmdOptions options;
     CmdOption cmd_data[] = {
-            CmdOption("resources", "res", CmdOptionType::SingleValue, "path to the resources directory of the compiler"),
-            CmdOption("port", "port", CmdOptionType::SingleValue, "the port at which lsp should run"),
-            CmdOption("version", "v", CmdOptionType::NoValue, "get the version"),
-            CmdOption("build-lab", CmdOptionType::SingleValue, "build a lab file and report to parent process"),
-            CmdOption("cc", CmdOptionType::SubCommand, "run the compiler with the given command"),
-            CmdOption("shmName", CmdOptionType::SingleValue, "the shared memory name for reporting"),
-            CmdOption("evtChildDone", CmdOptionType::SingleValue, "the event for when child is done"),
-            CmdOption("evtParentAck", CmdOptionType::SingleValue, "the event for parent acknowledgement"),
+            CmdOption("resources", "res", CmdOptionType::SingleValue),
+            CmdOption("port", "port", CmdOptionType::SingleValue),
+            CmdOption("version", "v", CmdOptionType::NoValue),
+            CmdOption("build-lab", CmdOptionType::SingleValue),
+            CmdOption("cc", CmdOptionType::SubCommand),
+            CmdOption("shmName", CmdOptionType::SingleValue),
+            CmdOption("evtChildDone", CmdOptionType::SingleValue),
+            CmdOption("evtParentAck", CmdOptionType::SingleValue),
     };
     options.register_options(cmd_data, sizeof(cmd_data) / sizeof(CmdOption));
     options.parse_cmd_options(argc, argv, 1);

@@ -63,27 +63,55 @@ AccessChain grandparent_chain(ASTAllocator& allocator, FunctionCall* call, std::
     return parent_chain(allocator, call, chain, (int) chain.size() - 2);
 }
 
+/**
+ * check if chain is loadable, before loading it
+ */
+bool is_node_decl(ASTNode* linked) {
+    if(!linked) return false;
+    switch(linked->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::ImplDecl:
+        case ASTNodeKind::NamespaceDecl:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void put_self_param(
         Codegen& gen,
         FunctionCall* call,
         FunctionType* func_type,
         std::vector<llvm::Value *>& args,
-        llvm::Value* self_arg_val
+        llvm::Value* self_arg_val,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     // check function doesn't require a 'self' argument
     auto self_param = func_type->get_self_param();
     if(self_param) {
-        if (get_parent_from(call->parent_val)) {
+        const auto grandparent_val = get_parent_from(call->parent_val);
+        if (grandparent_val) {
+            if(self_arg_val == nullptr) {
+                const auto is_func_call = grandparent_val->val_kind() == ValueKind::FunctionCall;
+                if (is_func_call || !is_node_decl(grandparent_val->linked_node())) {
+                    const auto grandpa = build_parent_chain(call->parent_val, gen.allocator);
+                    if(self_param->type->is_reference() && !grandpa->is_stored_ptr_or_ref(gen.allocator)) {
+                        self_arg_val = grandpa->llvm_pointer(gen);
+                    } else {
+                        self_arg_val = grandpa->llvm_value(gen, nullptr);
+                    }
+                    if (is_func_call) {
+                        destructibles.emplace_back(grandpa, self_arg_val);
+                    }
+                }
+            }
             if(self_arg_val) {
                 args.emplace_back(self_arg_val);
             } else {
-                // a pointer to parent
-                // TODO we are doing this because parent chain is being loaded here again
-                if (has_function_call_before(call->parent_val)) {
-                    gen.error("cannot pass self when access chain has a function call", call);
-//                    return;
-                }
-                args.emplace_back(build_parent_chain(call->parent_val, gen.allocator)->llvm_value(gen, nullptr));
+                CHEM_THROW_RUNTIME("couldn't put self argument, unexpected case for self arg");
             }
         } else if(gen.current_func_type) {
             auto passing_self_arg = gen.current_func_type->get_self_param();
@@ -111,15 +139,16 @@ void put_implicit_params(
         FunctionCall* call,
         FunctionType* func_type,
         std::vector<llvm::Value *>& args,
-        llvm::Value* self_arg_val
+        llvm::Value* self_arg_val,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     if(func_type->isExtensionFn()) {
-        put_self_param(gen, call, func_type, args, self_arg_val);
+        put_self_param(gen, call, func_type, args, self_arg_val, destructibles);
     }
     for(auto& param : func_type->params) {
         if(param->is_implicit()) {
             if(param->name == "self") {
-                put_self_param(gen, call, func_type, args, self_arg_val);
+                put_self_param(gen, call, func_type, args, self_arg_val, destructibles);
             } else if(param->name == "other") {
                 gen.error("unknown other implicit parameter", call);
             } else {
@@ -315,7 +344,7 @@ void to_llvm_args(
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    put_implicit_params(gen, call, func_type, args, self_arg_val);
+    put_implicit_params(gen, call, func_type, args, self_arg_val, destructibles);
     to_llvm_args(gen, call, func_type, values, args, start, destructibles);
 }
 
@@ -477,31 +506,13 @@ llvm::Value *call_capturing_lambda(
     // TODO self param is being put first, the problem is that user probably expects that arguments are loaded first
     //   functions that take a implicit self param, this is ok, because their first argument will be self and should be loaded
     //   however functions that don't take a self reference, should load arguments first and then the func callee
-    put_self_param(gen, call, func_type, args, grandpa);
+    put_self_param(gen, call, func_type, args, grandpa, destructibles);
     args.emplace_back(data_ptr_val);
     to_llvm_args(gen, call, func_type, call->values, args, 0, destructibles);
     auto structType = gen.fat_pointer_type();
     const auto instr = gen.builder->CreateCall(func_type->llvm_capturing_func_type(gen), fn_ptr_val, args);
     gen.di.instr(instr, call);
     return instr;
-}
-
-/**
- * check if chain is loadable, before loading it
- */
-bool is_node_decl(ASTNode* linked) {
-    if(!linked) return false;
-    switch(linked->kind()) {
-        case ASTNodeKind::StructDecl:
-        case ASTNodeKind::VariantDecl:
-        case ASTNodeKind::UnionDecl:
-        case ASTNodeKind::InterfaceDecl:
-        case ASTNodeKind::ImplDecl:
-        case ASTNodeKind::NamespaceDecl:
-            return true;
-        default:
-            return false;
-    }
 }
 
 bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
@@ -709,24 +720,25 @@ llvm::Value* FunctionCall::llvm_chain_value(
                     const auto fnDataPtrLoaded = gen.builder->CreateLoad(gen.builder->getPtrTy(), fnDataPtr);
                     callee_value = fnPtrLoaded;
                     args.emplace_back(fnDataPtrLoaded);
-                } else {
-                    const auto g = get_parent_from(parent_val);
-                    if (g) {
-                        const auto is_func_call = g->val_kind() == ValueKind::FunctionCall;
-                        if (is_func_call || !is_node_decl(g->linked_node())) {
-                            const auto grandpa = build_parent_chain(parent_val, gen.allocator);
-                            grandparent = grandpa->llvm_value(gen, nullptr);
-                            if (is_func_call) {
-                                destructibles.emplace_back(grandpa, grandparent);
-                            }
-                        }
-                    }
                 }
             }
         }
     }
 
     if(decl && decl->is_copy_fn()) {
+        if(!grandparent) {
+            const auto g = get_parent_from(parent_val);
+            if (g) {
+                const auto is_func_call = g->val_kind() == ValueKind::FunctionCall;
+                if (is_func_call || !is_node_decl(g->linked_node())) {
+                    const auto grandpa = build_parent_chain(parent_val, gen.allocator);
+                    grandparent = grandpa->llvm_value(gen, nullptr);
+                    if (is_func_call) {
+                        destructibles.emplace_back(grandpa, grandparent);
+                    }
+                }
+            }
+        }
         if(!grandparent) {
             gen.error("couldn't figure out struct on which copy function is being called", this);
             return nullptr;

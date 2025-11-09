@@ -29,12 +29,17 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
             decl->set_llvm_data(gen, func_pointer);
             decl->code_gen_override(gen, func_pointer);
         } else {
-            decl->code_gen_override_declare(gen, overridden.second);
-            decl->code_gen_override(gen, overridden.second->llvm_func(gen));
+            const auto func_pointer = overridden.second->llvm_func(gen);
+            decl->set_llvm_data(gen, func_pointer);
+            decl->code_gen_override(gen, func_pointer);
         }
     } else {
         gen.error("failed to override function in impl because not found", (AnnotableNode*) decl);
     }
+}
+
+void ImplDefinition::code_gen_function_primitive(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked) {
+    decl->code_gen_body(gen);
 }
 
 void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
@@ -43,14 +48,35 @@ void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* d
     code_gen_function(gen, decl, linked, struct_def);
 }
 
+void ImplDefinition::code_gen_declare(Codegen &gen) {
+    // const auto linked = interface_type->linked_node()->as_interface_def();
+    if(struct_type == nullptr) return;
+    // struct type is given, but probably primitive
+    const auto struct_def = struct_type->get_direct_linked_struct();
+    if(struct_def) {
+        // nothing to do here
+    } else {
+        for (auto& function: instantiated_functions()) {
+            function->code_gen_declare_normal(gen);
+        }
+    }
+}
+
 void ImplDefinition::code_gen(Codegen &gen) {
     const auto linked = interface_type->linked_node()->as_interface_def();
-    const auto struct_def = struct_type ? struct_type->linked_struct_def() : nullptr;
-    for (auto& function: instantiated_functions()) {
-        code_gen_function(gen, function, linked, struct_def);
-    }
-    if(linked && struct_def) {
-        linked->llvm_global_vtable(gen, struct_def);
+    const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
+    // struct type is given, but probably primitive
+    if(struct_type != nullptr && struct_def == nullptr) {
+        for (auto& function: instantiated_functions()) {
+            code_gen_function_primitive(gen, function, linked);
+        }
+    } else {
+        for (auto& function: instantiated_functions()) {
+            code_gen_function(gen, function, linked, struct_def);
+        }
+        if (linked && struct_def) {
+            linked->llvm_global_vtable(gen, struct_def);
+        }
     }
 }
 

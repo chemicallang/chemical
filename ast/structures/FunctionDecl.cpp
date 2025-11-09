@@ -442,10 +442,6 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def)
     create_or_declare_fn(gen, this);
 }
 
-void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
-    set_llvm_data(gen, decl->llvm_func(gen));
-}
-
 void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* def) {
     if(def->is_static()) {
         declare_fn_weak(gen, this, def->specifier() == AccessSpecifier::Public);

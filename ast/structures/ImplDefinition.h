@@ -63,10 +63,14 @@ public:
      */
     void code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked_interface, StructDefinition* struct_def);
 
+    void code_gen_function_primitive(Codegen &gen, FunctionDeclaration* decl, InterfaceDefinition* linked_interface);
+
     /**
      * this is a helper function
      */
     void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
+
+    void code_gen_declare(Codegen &gen) override;
 
     void code_gen(Codegen &gen) final;
 

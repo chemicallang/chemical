@@ -28,20 +28,16 @@ bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, So
     const auto typeDecl = linked->as_gen_type_decl_unsafe();
     std::vector<TypeLoc> generic_args;
 
-    // default the generic args (to contain default type from generic parameters)
-    const auto success = default_generic_args(diagnoser, generic_args, typeDecl->generic_params, types);
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, typeDecl->generic_params, types);
     if(!success) {
         return false;
     }
 
     // check all types have been inferred
-    unsigned i = 0;
-    for(const auto arg : generic_args) {
-        if(arg == nullptr) {
-            diagnoser.error(arg.encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-            return false;
-        }
-        i++;
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, typeDecl->generic_params);
+    if(!success2) {
+        return false;
     }
 
     // create a copy

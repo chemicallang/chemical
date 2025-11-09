@@ -33,24 +33,6 @@ std::string BaseType::representation() {
     return ostring.str();
 }
 
-StructDefinition* BaseType::linked_struct_def() {
-    const auto linked = linked_node();
-    return linked ? linked->as_struct_def() : nullptr;
-}
-
-InterfaceDefinition* BaseType::linked_interface_def() {
-    const auto linked = linked_node();
-    return linked ? linked->as_interface_def() : nullptr;
-}
-
-InterfaceDefinition* BaseType::linked_dyn_interface() {
-    auto pure = canonical();
-    if(pure->kind() == BaseTypeKind::Dynamic) {
-        return pure->linked_node()->as_interface_def();
-    }
-    return nullptr;
-}
-
 bool BaseType::isStructLikeType() {
     switch(kind()) {
         case BaseTypeKind::Struct:
@@ -373,7 +355,9 @@ bool BaseType::requires_moving() {
 }
 
 FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
-    const auto linked_def = linked_struct_def();
+    const auto linked = linked_node();
+    if(linked == nullptr || linked->kind() != ASTNodeKind::StructDecl) return nullptr;
+    const auto linked_def = linked->as_struct_def_unsafe();
     if(linked_def) {
         const auto implicit_constructor = linked_def->implicit_constructor_func(value);
         return implicit_constructor;

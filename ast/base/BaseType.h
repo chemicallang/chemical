@@ -347,21 +347,6 @@ public:
     EnumDeclaration* get_direct_linked_enum();
 
     /**
-     * if this type is linked with a struct definition, it can be retrieved using this function
-     */
-    StructDefinition* linked_struct_def();
-
-    /**
-     * get linked interface definition
-     */
-    InterfaceDefinition* linked_interface_def();
-
-    /**
-     * get linked interface definition if it's dynamic
-     */
-    InterfaceDefinition* linked_dyn_interface();
-
-    /**
      * a movable directly referenced struct is returned otherwise nullptr
      * here movable means that the struct has a destructor or a move function or both
      * which means, it just can't be mem copied, after copied, move functions should be called

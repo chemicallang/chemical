@@ -99,20 +99,16 @@ InterfaceDefinition* GenericInterfaceDecl::instantiate_type(GenericInstantiatorA
 
     std::vector<TypeLoc> generic_args;
 
-    // default the generic args (to contain default type from generic parameters)
-    const auto success = default_generic_args(diagnoser, generic_args, generic_params, types);
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, types);
     if(!success) {
         return nullptr;
     }
 
     // check all types have been inferred
-    unsigned i = 0;
-    for(const auto arg : generic_args) {
-        if(arg == nullptr) {
-            diagnoser.error(arg.encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-            return nullptr;
-        }
-        i++;
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    if(!success2) {
+        return nullptr;
     }
 
     return register_generic_args(instantiator, generic_args);

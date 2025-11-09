@@ -369,28 +369,28 @@ void infer_types_by_args(
     }
 }
 
-bool default_generic_args(
+bool initialize_generic_args(
         ASTDiagnoser& diagnoser,
         std::vector<TypeLoc>& out_generic_args,
         std::vector<GenericTypeParameter*>& generic_params,
         std::vector<TypeLoc>& user_generic_list
 ) {
     // reserve the generic args
-    out_generic_args.reserve(generic_params.size());
-
-    // set all to default type (or nullptr automatically)
     const auto total = generic_params.size();
-    unsigned i = 0;
-    while(i < total) {
-        out_generic_args.emplace_back(generic_params[i]->def_type);
-        i++;
-    }
 
     // check if user gave way too many generic arguments
     const auto user_given = user_generic_list.size();
     if(user_given > total) {
         diagnoser.error(user_generic_list[total].encoded_location()) << "too many generic arguments given, expected " << std::to_string(total) << " given " << std::to_string(user_given);
         return false;
+    }
+
+    // set all to nullptr
+    out_generic_args.reserve(total);
+    unsigned i = 0;
+    while(i < total) {
+        out_generic_args.emplace_back(nullptr);
+        i++;
     }
 
     // set given generic args to generic parameters
@@ -400,5 +400,29 @@ bool default_generic_args(
         i++;
     }
 
+    return true;
+}
+
+bool check_inferred_generic_args(
+        ASTDiagnoser& diagnoser,
+        std::vector<TypeLoc>& generic_args,
+        std::vector<GenericTypeParameter*>& generic_params
+) {
+    unsigned i = 0;
+    const auto total = generic_args.size();
+    while(i < total) {
+        auto& typeLoc = generic_args[i];
+        if(typeLoc == nullptr) {
+            auto param = generic_params[i];
+            if(param->def_type != nullptr) {
+                typeLoc = param->def_type;
+                i++;
+                continue;
+            }
+            diagnoser.error(generic_args.front().encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i) << ", no default type has been given";
+            return false;
+        }
+        i++;
+    }
     return true;
 }

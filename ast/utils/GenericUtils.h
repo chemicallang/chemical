@@ -67,9 +67,19 @@ void infer_types_by_args(
  * assumes that out_generic_args has size equals to generic_params.size()
  * this just fixes the out_generic_args to have default types from generic type parameters
  */
-bool default_generic_args(
+bool initialize_generic_args(
         ASTDiagnoser& diagnoser,
         std::vector<TypeLoc>& out_generic_args,
         std::vector<GenericTypeParameter*>& generic_params,
         std::vector<TypeLoc>& user_generic_list
+);
+
+/**
+ * checks the generic args, if generic arg is nullptr, the default generic
+ * arg is checked and used if found
+ */
+bool check_inferred_generic_args(
+        ASTDiagnoser& diagnoser,
+        std::vector<TypeLoc>& generic_args,
+        std::vector<GenericTypeParameter*>& generic_params
 );

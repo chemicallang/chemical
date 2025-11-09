@@ -102,20 +102,16 @@ VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& 
 
     std::vector<TypeLoc> generic_args;
 
-    // default the generic args (to contain default type from generic parameters)
-    const auto success = default_generic_args(diagnoser, generic_args, generic_params, types);
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, types);
     if(!success) {
         return nullptr;
     }
 
     // check all types have been inferred
-    unsigned i = 0;
-    for(const auto arg : generic_args) {
-        if(arg == nullptr) {
-            diagnoser.error(arg.encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-            return nullptr;
-        }
-        i++;
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    if(!success2) {
+        return nullptr;
     }
 
     return register_generic_args(instantiator, generic_args);
@@ -130,8 +126,8 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
     const auto total = generic_params.size();
     std::vector<TypeLoc> generic_args;
 
-    // default the generic args (to contain default type from generic parameters)
-    const auto success = default_generic_args(diagnoser, generic_args, generic_params, call->generic_list);
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, call->generic_list);
     if(!success) {
         return nullptr;
     }
@@ -141,15 +137,12 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
         call->infer_generic_args(allocator, diagnoser, generic_args);
     }
 
-    // temporary variable
-    unsigned i = 0;
-
     // inferring type by expected type
     if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
         const auto type = ((GenericType*) expected_type);
         const auto linked = type->linked_node();
         if(linked && linked->kind() == ASTNodeKind::VariantDecl && linked->as_variant_def()->generic_parent == this) {
-            i = 0;
+            unsigned i = 0;
             for(auto& arg : type->types) {
                 generic_args[i] = arg;
                 i++;
@@ -158,13 +151,9 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
     }
 
     // check all types have been inferred
-    i = 0;
-    for(const auto arg : generic_args) {
-        if(arg == nullptr) {
-            diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-            return nullptr;
-        }
-        i++;
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    if(!success2) {
+        return nullptr;
     }
 
     // registers the generic args

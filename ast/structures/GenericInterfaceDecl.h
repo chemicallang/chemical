@@ -86,7 +86,7 @@ public:
     /**
      * a generic type for this generic variant is given, with the following generic argument types
      */
-    InterfaceDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    InterfaceDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
 
 #ifdef COMPILER_BUILD
 

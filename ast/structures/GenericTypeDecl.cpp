@@ -62,7 +62,7 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(GenericInstantiatorAP
 
 }
 
-TypealiasStatement* GenericTypeDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
+TypealiasStatement* GenericTypeDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location) {
 
     auto& diagnoser = instantiator.getDiagnoser();
 
@@ -75,7 +75,7 @@ TypealiasStatement* GenericTypeDecl::instantiate_type(GenericInstantiatorAPI& in
     }
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, location);
     if(!success2) {
         return nullptr;
     }

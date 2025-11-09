@@ -86,7 +86,7 @@ public:
     /**
      * a generic type for this generic variant is given, with the following generic argument types
      */
-    VariantDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    VariantDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
 
     /**
      * a variant call notifies a definition, during symbol resolution that it exists

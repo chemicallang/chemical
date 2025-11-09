@@ -382,7 +382,7 @@ bool StructValue::resolve_container(
                     auto gen_args = create_generic_list();
                     const auto gen_decl = found->as_gen_struct_def_unsafe();
                     if (specialize_generics) {
-                        const auto instantiatedType = gen_decl->instantiate_type(instantiator, gen_args);
+                        const auto instantiatedType = gen_decl->instantiate_type(instantiator, gen_args, encoded_location());
                         if(instantiatedType == nullptr) {
                             return false;
                         }
@@ -397,7 +397,7 @@ bool StructValue::resolve_container(
                     auto gen_args = create_generic_list();
                     const auto gen_decl = found->as_gen_union_decl_unsafe();
                     if (specialize_generics) {
-                        const auto instantiatedType = gen_decl->instantiate_type(instantiator, gen_args);
+                        const auto instantiatedType = gen_decl->instantiate_type(instantiator, gen_args, encoded_location());
                         if(instantiatedType == nullptr) {
                             return false;
                         }

@@ -87,7 +87,7 @@ public:
     /**
      * register generic args
      */
-    StructDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    StructDefinition* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
 
 #ifdef COMPILER_BUILD
 

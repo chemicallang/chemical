@@ -1648,34 +1648,50 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
         return;
     }
 
-    unsigned i = 0;
-    const auto values_size = values.size();
-    while (i < values_size) {
-        auto& value_ptr = values[i];
-        auto& value = *value_ptr;
-        const auto param = func_type ? func_type->func_param_for_arg_at(i) : nullptr;
-        const auto expected_type = param ? param->type : nullptr;
-        visitor.visit(&value, expected_type);
-        current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
-        i++;
-    }
-
     // checking arguments exist for all function call values
     if(func_type) {
+
         const auto func_param_size = func_type->expectedArgsSize();
+
+        unsigned i = 0;
+        const auto values_size = values.size();
+        while (i < values_size) {
+            auto& value_ptr = values[i];
+            auto& value = *value_ptr;
+            const auto param = func_type->func_param_for_arg_at(i);
+            if(param) {
+                const auto expected_type = param->type;
+                visitor.visit(&value, expected_type);
+                current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+            } else {
+                linker.error(value_ptr) << "too many arguments given, expected " << std::to_string(func_param_size) << " given " << std::to_string(values_size);
+            }
+            i++;
+        }
+
         while (i < func_param_size) {
             auto param = func_type->func_param_for_arg_at(i);
             if (param) {
                 if (param->defValue == nullptr && !func_type->isInVarArgs(i)) {
                     linker.error(call) << "function parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
                 }
-            } else {
-#ifdef DEBUG
-                CHEM_THROW_RUNTIME("couldn't get param");
-#endif
             }
             i++;
         }
+
+    } else {
+
+        unsigned i = 0;
+        const auto values_size = values.size();
+        while (i < values_size) {
+            auto& value_ptr = values[i];
+            auto& value = *value_ptr;
+            // expected_type -> nullptr (because user is probably calling constructor, and we can only know which constructor to call, after arguments are linked and their type is known)
+            visitor.visit(&value, nullptr);
+            current_func.mark_moved_value(linker.allocator, &value, nullptr, linker);
+            i++;
+        }
+
     }
 
 }

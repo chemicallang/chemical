@@ -179,6 +179,7 @@ int16_t get_iteration_for(
         const std::span<std::span<BaseType*>>& instantiations,
         std::vector<TypeLoc>& generic_list
 ) {
+    if(instantiations.empty()) return -1;
     int16_t i = 0;
     unsigned j;
     const auto total = instantiations.size();

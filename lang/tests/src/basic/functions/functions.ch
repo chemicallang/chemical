@@ -230,6 +230,7 @@ func test_functions() {
     })
     test("functions on returned structs do not result in multiple calls - 1", () => {
         total_func_ret_calls = 0;
+        // TODO: this fails in c backend, when you take it out as a variable
         return check_multiple_calls().give_calls() == 2;
     })
     test("functions on returned structs do not result in multiple calls - 2", () => {

@@ -861,6 +861,8 @@ public:
 class InterpretGetCallLoc : public FunctionDeclaration {
 public:
 
+    FunctionParam param;
+
     explicit InterpretGetCallLoc(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
             ZERO_LOC_ID("get_call_loc"),
             {cache.getUIntType(), ZERO_LOC},
@@ -869,8 +871,9 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ) {
+    ), param("back", { cache.getUIntType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
+        params = { &param };
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.empty()) {
@@ -899,6 +902,8 @@ public:
 class InterpretDecodeLocation : public FunctionDeclaration {
 public:
 
+    FunctionParam param;
+
     explicit InterpretDecodeLocation(TypeBuilder& cache, ASTNode* parent) : FunctionDeclaration(
         ZERO_LOC_ID("decode_location"),
         {cache.getAnyType(), ZERO_LOC},
@@ -907,8 +912,9 @@ public:
         ZERO_LOC,
         AccessSpecifier::Public,
         true
-    ) {
+    ), param("loc", {cache.getU64Type(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
+        params = { &param };
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.empty()) {
@@ -1197,6 +1203,8 @@ public:
 class InterpretGetLocFilePath : public FunctionDeclaration {
 public:
 
+    FunctionParam locParam;
+
     explicit InterpretGetLocFilePath(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
             ZERO_LOC_ID("get_loc_file_path"),
             {cache.getStringType(), ZERO_LOC},
@@ -1205,8 +1213,9 @@ public:
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ) {
+    ), locParam("loc", {cache.getU64Type(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
+        params = { &locParam };
     }
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
         if(call->values.size() != 1) {
@@ -1475,6 +1484,8 @@ public:
 class InterpretGetSingleMarkedDeclPointer : public FunctionDeclaration {
 public:
 
+    FunctionParam nameParam;
+
     explicit InterpretGetSingleMarkedDeclPointer(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
         ZERO_LOC_ID("get_single_marked_decl_ptr"),
         {cache.getAnyType(), ZERO_LOC},
@@ -1483,8 +1494,9 @@ public:
         ZERO_LOC,
         AccessSpecifier::Public,
         true
-    ) {
+    ), nameParam("name", {cache.getStringType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
+        params = { &nameParam };
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -2220,19 +2232,23 @@ public:
 class InterpretExprStrBlockValue : public FunctionDeclaration {
 public:
 
+    FunctionParam streamParam;
+    FunctionParam arg;
+
     explicit InterpretExprStrBlockValue(
             TypeBuilder& cache,
             ASTNode* parent_node
     ) : FunctionDeclaration(
             ZERO_LOC_ID("expr_str_block_value"),
             {cache.getI32Type(), ZERO_LOC},
-            false,
+            true,
             parent_node,
             ZERO_LOC,
             AccessSpecifier::Public,
             true
-    ) {
+    ), streamParam("stream", {cache.getAnyType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC), arg("arg", {cache.getAnyType(), ZERO_LOC}, 1, nullptr, false, this, ZERO_LOC) {
         set_compiler_decl(true);
+        params = { &streamParam, &arg };
     }
 
     ASTNode* write_obj_call(
@@ -2384,7 +2400,7 @@ public:
         const auto loc = call->encoded_location();
 
         if(call->values.size() < 2) {
-            call_scope->error("intrinsics::expr_str_block_value expects two arguments", call);
+            call_scope->error("intrinsics::expr_str_block_value expects atleast two arguments", call);
             return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), loc);
         }
 

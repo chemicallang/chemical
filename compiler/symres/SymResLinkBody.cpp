@@ -1341,7 +1341,7 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
         return;
     }
     linker.scope_start();
-    const auto struct_linked = node->struct_type ? node->struct_type->linked_struct_def() : nullptr;
+    const auto struct_linked = node->struct_type ? node->struct_type->get_direct_linked_struct() : nullptr;
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (const auto func: linked->functions()) {
@@ -2492,7 +2492,7 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
         elemType = arr_type->elem_type.copy(*linker.ast_allocator);
     }
     if(elemType) {
-        const auto def = elemType->linked_struct_def();
+        const auto def = elemType->get_direct_linked_struct();
         if(def) {
             unsigned i = 0;
             while (i < values.size()) {

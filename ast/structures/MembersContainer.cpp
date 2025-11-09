@@ -45,7 +45,7 @@ bool VariablesContainer::llvm_struct_child_index(
         int inherit_ind = 0;
         // checking the inherited structs for given child
         for(auto& inherits : inherited) {
-            auto linked_def = inherits.type->linked_struct_def();
+            auto linked_def = inherits.type->get_direct_linked_struct();
             if(linked_def) {
                 if(linked_def->add_child_index(gen, indexes, child_name)) {
                     const auto itr = indexes.begin() + curr_size;
@@ -86,7 +86,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables().size() + inherited.size());
     for(const auto &inherits : inherited) {
-        if(inherits.type->linked_struct_def()) {
+        if(inherits.type->get_direct_linked_struct()) {
             vec.emplace_back(inherits.type->llvm_type(gen));
         }
     }
@@ -100,7 +100,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables().size() + inherited.size());
     for(const auto &inherits : inherited) {
-        if(inherits.type->linked_struct_def()) {
+        if(inherits.type->get_direct_linked_struct()) {
             vec.emplace_back(inherits.type->llvm_chain_type(gen, chain, index + 1));
         }
     }
@@ -158,7 +158,7 @@ ASTNode *VariablesContainer::child_member_or_inherited_struct(const chem::string
     auto direct_var = direct_variable(name);
     if(direct_var) return direct_var;
     for(auto& inherits : inherited) {
-        const auto struct_def = inherits.type->linked_struct_def();
+        const auto struct_def = inherits.type->get_direct_linked_struct();
         if(struct_def && struct_def->name_view().data() == name) {
             return struct_def;
         }
@@ -168,7 +168,7 @@ ASTNode *VariablesContainer::child_member_or_inherited_struct(const chem::string
 
 BaseDefMember *VariablesContainer::inherited_member(const chem::string_view& name) {
     for(auto& inherits : inherited) {
-        const auto struct_def = inherits.type->linked_struct_def();
+        const auto struct_def = inherits.type->get_direct_linked_struct();
         if(struct_def) {
             const auto mem = struct_def->child_member(name);
             if(mem) return mem;
@@ -390,7 +390,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
 
 void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* definition) {
     for(auto& inherits : inherited) {
-        const auto interface = inherits.type->linked_interface_def();
+        const auto interface = inherits.type->get_direct_linked_interface();
         if(interface) {
             interface->register_use(definition);
             interface->register_use_to_inherited_interfaces(definition);
@@ -870,7 +870,7 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem:
     }
     auto inherit_index = 0;
     for(auto& inherits : inherited) {
-        const auto linked_struct = inherits.type->linked_struct_def();
+        const auto linked_struct = inherits.type->get_direct_linked_struct();
         if(linked_struct) {
             const auto curr_size = path.size();
             path.emplace_back(inherit_index);

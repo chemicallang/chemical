@@ -2886,7 +2886,7 @@ void CValueDeclarationVisitor::VisitArrayValue(ArrayValue *arrayVal) {
 
 //    // replace all values that call implicit constructors with actual calls
 //    const auto elem_type = arrayVal->element_type(visitor.allocator);
-//    const auto def = elem_type->linked_struct_def();
+//    const auto def = elem_type->get_direct_linked_struct();
 //    if(def) {
 //        for (auto& value : arrayVal->values) {
 //            const auto implicit = def->implicit_constructor_func(visitor.allocator, value);
@@ -3304,7 +3304,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def)
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
-        const auto struct_def = inherits.type->linked_struct_def();
+        const auto struct_def = inherits.type->get_direct_linked_struct();
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
@@ -3354,7 +3354,7 @@ void CTopLevelDeclarationVisitor::declare_union_def_only(UnionDef* def) {
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
-        const auto struct_def = inherits.type->linked_struct_def();
+        const auto struct_def = inherits.type->get_direct_linked_struct();
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
@@ -3436,7 +3436,7 @@ void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* de
     write(" {");
     visitor.indentation_level+=1;
     for(auto& inherits : def->inherited) {
-        const auto struct_def = inherits.type->linked_struct_def();
+        const auto struct_def = inherits.type->get_direct_linked_struct();
         if(struct_def) {
             visitor.new_line_and_indent();
             visitor.write("struct ");
@@ -4259,7 +4259,7 @@ void process_struct_members_using(
     void(*process_member)(ToCAstVisitor& visitor, BaseType* member_type, const chem::string_view& member_name)
 ) {
     for(auto& inherits : def->inherited) {
-        auto linked = inherits.type->linked_struct_def();
+        auto linked = inherits.type->get_direct_linked_struct();
         if(linked) {
             process_member(visitor, inherits.type, linked->name_view());
         }
@@ -4517,8 +4517,8 @@ void ToCAstVisitor::VisitIfStmt(IfStatement *decl) {
 
 void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     const auto overrides = def->struct_type != nullptr;
-    const auto linked_interface = def->interface_type->linked_interface_def();
-    const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
+    const auto linked_interface = def->interface_type->get_direct_linked_interface();
+    const auto linked_struct = def->struct_type ? def->struct_type->get_direct_linked_struct() : nullptr;
     // handle static interface implementation
     if(linked_interface && linked_interface->is_static()) {
         // stub implementation for the given interface should not be generated
@@ -5290,7 +5290,7 @@ void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, Extenda
     while(i < last) {
         const auto seg = path[i];
         auto& base = def->inherited[seg];
-        def = base.type->linked_struct_def();
+        def = base.type->get_direct_linked_struct();
         visitor.write(def->name_view());
         visitor.write('.');
         i++;

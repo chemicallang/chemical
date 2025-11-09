@@ -32,7 +32,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
     auto known_child_t = element_type(gen.allocator)->canonical();
-    const auto def = known_child_t->linked_struct_def();
+    const auto def = known_child_t->get_direct_linked_struct();
     auto parent_type = llvm_type(gen);
     bool moved = false;
     for (size_t i = 0; i < values.size(); ++i) {

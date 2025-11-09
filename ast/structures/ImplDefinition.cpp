@@ -44,7 +44,7 @@ void ImplDefinition::code_gen_function_primitive(Codegen& gen, FunctionDeclarati
 
 void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
     const auto linked = interface_type->linked_node()->as_interface_def();
-    const auto struct_def = struct_type ? struct_type->linked_struct_def() : nullptr;
+    const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
     code_gen_function(gen, decl, linked, struct_def);
 }
 
@@ -90,7 +90,7 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
 }
 
 void InterfaceDefinition::register_impl(ImplDefinition* definition) {
-    const auto struct_linked = definition->struct_type ? definition->struct_type->linked_struct_def() : nullptr;
+    const auto struct_linked = definition->struct_type ? definition->struct_type->get_direct_linked_struct() : nullptr;
     if(struct_linked) {
         register_use(struct_linked);
         register_use_to_inherited_interfaces(struct_linked);

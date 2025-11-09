@@ -23,7 +23,7 @@
 unsigned int direct_inh_composed_structs(VariantDefinition* def) {
     unsigned i = 0;
     for(const auto &inherits : def->inherited) {
-        if(inherits.type->linked_struct_def()) {
+        if(inherits.type->get_direct_linked_struct()) {
             i++;
         }
     }
@@ -36,7 +36,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, Variant
 
     elements.reserve(def->variables().size() + def->inherited.size());
     for(const auto &inherits : def->inherited) {
-        if(inherits.type->linked_struct_def()) {
+        if(inherits.type->get_direct_linked_struct()) {
             elements.emplace_back(inherits.type->llvm_type(gen));
         }
     }
@@ -147,7 +147,7 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
         int inherit_ind = 0;
         // checking the inherited structs for given child
         for(auto& inherits : inherited) {
-            auto linked_def = inherits.type->linked_struct_def();
+            auto linked_def = inherits.type->get_direct_linked_struct();
             if(linked_def) {
                 if(linked_def->add_child_index(gen, indexes, name)) {
                     const auto itr = indexes.begin() + curr_size;

@@ -200,7 +200,7 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                     write_mangle_parent_of(*this, stream, def);
                 }
             } else {
-                const auto& interface = def->interface_type->linked_interface_def();
+                const auto& interface = def->interface_type->get_direct_linked_interface();
                 mangle_non_func(stream, interface);
             }
             break;

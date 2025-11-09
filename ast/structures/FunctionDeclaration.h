@@ -656,14 +656,6 @@ public:
     void code_gen(Codegen &gen) final;
 
     /**
-     * (this) is the function that is overriding
-     * the given decl is the function that is being overridden
-     * in the struct when a function is overriding another function, this method is
-     * called on the overrider with the function that is being overridden
-     */
-    void code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl);
-
-    /**
      * use this function's body to override a llvm function
      * this function will get the entry block from given llvm function
      * and print it's body onto it, the function signatures should match

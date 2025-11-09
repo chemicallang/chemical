@@ -50,13 +50,24 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     auto& allocator = instantiator.getAllocator();
     auto& diagnoser = instantiator.getDiagnoser();
 
-    const auto total = generic_params.size();
-    std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
+    std::vector<TypeLoc> generic_args;
+
+    // initialize the generic args
+    const auto success = initialize_generic_args(diagnoser, generic_args, generic_params, call->generic_list);
+    if(!success) {
+        return nullptr;
+    }
+
+    // infer the generic arguments
     infer_generic_args(allocator, generic_args, generic_params, call, diagnoser, expected_type);
-    // purify generic args, this is done if this call is inside a generic function
-    // by calling pure we resolve that type to its specialized version
-    // because this function runs in a loop, below the function 'register_indirect_generic_iteration' calls this
-    // function on functions that registered as subscribers (generic calls were present inside this generic function)
+
+    // check all types have been inferred
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    if(!success2) {
+        return nullptr;
+    }
+
+    // canonicalize the generic arguments
     unsigned i = 0;
     while(i < generic_args.size()) {
         auto& type = generic_args[i];
@@ -73,13 +84,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         diagnoser.error("couldn't register generic instantiation", call);
         return nullptr;
     }
-    // we activate the iteration just registered, because below we make call to register_indirect_iteration below
-    // which basically calls register_call recursive on function calls present inside this function that are generic
-    // which resolve specialized type using pure_type we called in the above loop
-    // this function sets the iterations of the call_subscribers, however we haven't even
-    // set their corresponding iterations in their subscribed map, we're doing it in the loop below
-    // therefore we don't need to set generic iterations of subscribers
-//    set_gen_itr_no_subs(itr.first);
+
     if(!itr.second) { // itr.second -> new iteration has been registered for which previously didn't exist
 
         // instantiation already exists

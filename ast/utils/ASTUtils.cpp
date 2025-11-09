@@ -164,39 +164,13 @@ void infer_generic_args(
 
     const auto total = generic_params.size();
 
-    // set all to default type (if default type is not present, it would automatically be nullptr)
-    unsigned i = 0;
-    while(i < total) {
-        out_generic_args[i] = generic_params[i]->def_type;
-        i++;
-    }
-
-    // set given generic args to generic parameters
-    i = 0;
-    for(const auto arg : call->generic_list) {
-        out_generic_args[i] = arg;
-        i++;
-    }
-
     // infer args, if user gave less args than expected
     if(call->generic_list.size() != total) {
         call->infer_generic_args(allocator, diagnoser, out_generic_args);
     }
+
     if(expected_type) {
         call->infer_return_type(diagnoser, out_generic_args, expected_type);
-    }
-
-    // check all types have been inferred
-    i = 0;
-    for(const auto arg : out_generic_args) {
-        if(arg) {
-//            if(arg->kind() == BaseTypeKind::Linked && arg->as_linked_type_unsafe()->linked->kind() == ASTNodeKind::GenericTypeParam) {
-//                diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-//            }
-        } else {
-            diagnoser.error(call) << "couldn't infer type for generic parameter at index " << std::to_string(i);
-        }
-        i++;
     }
 
 }

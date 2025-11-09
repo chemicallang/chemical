@@ -1611,29 +1611,29 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
     if(parent) {
         const auto variant_mem = parent->as_variant_member();
         if (variant_mem) {
+
             unsigned i = 0;
             const auto values_size = values.size();
             const auto total_params = variant_mem->values.size();
             while (i < values_size) {
                 auto& value_ptr = values[i];
                 auto& value = *value_ptr;
-                const auto param = i < total_params ? (variant_mem->values.begin() + i)->second : nullptr;
-                const auto expected_type = param ? param->type : nullptr;
-                visitor.visit(&value, expected_type);
-                current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                if(i < total_params) {
+                    const auto param = (variant_mem->values.begin() + i)->second;
+                    const auto expected_type = param->type;
+                    visitor.visit(&value, expected_type);
+                    current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
+                } else {
+                    linker.error(value_ptr) << "too many arguments given, expected " << std::to_string(total_params) << " given " << std::to_string(values_size);
+                }
                 i++;
             }
 
             // checking arguments exist for all variant call parameters
-            const auto func_param_size = variant_mem->values.size();
-            while (i < func_param_size) {
+            while (i < total_params) {
                 auto param = (variant_mem->values.begin() + i)->second;
                 if (param) {
                     linker.error(call) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
-                } else {
-#ifdef DEBUG
-                    CHEM_THROW_RUNTIME("couldn't get param");
-#endif
                 }
                 i++;
             }

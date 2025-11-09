@@ -98,11 +98,13 @@ UnionDef* GenericUnionDecl::instantiate_type(GenericInstantiatorAPI& instantiato
 
     auto& diagnoser = instantiator.getDiagnoser();
 
-    const auto total = generic_params.size();
-    std::vector<TypeLoc> generic_args(total, TypeLoc(nullptr));
+    std::vector<TypeLoc> generic_args;
 
     // default the generic args (to contain default type from generic parameters)
-    default_generic_args(generic_args, generic_params, types);
+    const auto success = default_generic_args(diagnoser, generic_args, generic_params, types);
+    if(!success) {
+        return nullptr;
+    }
 
     // check all types have been inferred
     unsigned i = 0;

@@ -62,7 +62,7 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     infer_generic_args(allocator, generic_args, generic_params, call, diagnoser, expected_type);
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, call->encoded_location());
     if(!success2) {
         return nullptr;
     }

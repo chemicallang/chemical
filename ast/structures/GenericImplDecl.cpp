@@ -101,7 +101,7 @@ ImplDefinition* GenericImplDecl::register_generic_args(GenericInstantiatorAPI& i
 
 }
 
-ImplDefinition* GenericImplDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
+ImplDefinition* GenericImplDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location) {
     auto& diagnoser = instantiator.getDiagnoser();
 
     std::vector<TypeLoc> generic_args;
@@ -113,7 +113,7 @@ ImplDefinition* GenericImplDecl::instantiate_type(GenericInstantiatorAPI& instan
     }
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, location);
     if(!success2) {
         return nullptr;
     }

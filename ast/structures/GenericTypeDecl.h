@@ -69,7 +69,7 @@ public:
      */
     TypealiasStatement* register_generic_args(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
 
-    TypealiasStatement* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types);
+    TypealiasStatement* instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location);
 
 #ifdef COMPILER_BUILD
 

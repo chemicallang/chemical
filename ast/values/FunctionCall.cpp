@@ -1097,7 +1097,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
         case ASTNodeKind::GenericStructDecl:{
             const auto gen_struct = parent_id->linked->as_gen_struct_def_unsafe();
             if(!specialize_generic) return;
-            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list);
+            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list, call->encoded_location());
             if(parent_struct == nullptr) return;
             auto constructorFunc = parent_struct->constructor_func(call->values);
             if(constructorFunc) {
@@ -1111,7 +1111,7 @@ void link_constructor_id(VariableIdentifier* parent_id, ASTAllocator& allocator,
         case ASTNodeKind::GenericVariantDecl: {
             const auto gen_struct = parent_id->linked->as_gen_variant_decl_unsafe();
             if(!specialize_generic) return;
-            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list);
+            const auto parent_struct = gen_struct->instantiate_type(genApi, call->generic_list, call->encoded_location());
             if(parent_struct == nullptr) return;
             auto constructorFunc = parent_struct->constructor_func(call->values);
             if(constructorFunc) {
@@ -1215,7 +1215,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
         }
         case ASTNodeKind::GenericStructDecl: {
             const auto gen_struct = linked->as_gen_struct_def_unsafe();
-            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list);
+            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list, encoded_location());
             if(parent_struct == nullptr) return false;
             auto constructorFunc = parent_struct->constructor_func(values);
             if(constructorFunc) {
@@ -1229,7 +1229,7 @@ bool FunctionCall::instantiate_gen_call(GenericInstantiatorAPI& genApi, BaseType
         }
         case ASTNodeKind::GenericVariantDecl: {
             const auto gen_struct = linked->as_gen_variant_decl_unsafe();
-            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list);
+            const auto parent_struct = gen_struct->instantiate_type(genApi, generic_list, encoded_location());
             if(parent_struct == nullptr) return false;
             auto constructorFunc = parent_struct->constructor_func(values);
             if(constructorFunc) {

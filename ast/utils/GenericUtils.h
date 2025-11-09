@@ -81,5 +81,6 @@ bool initialize_generic_args(
 bool check_inferred_generic_args(
         ASTDiagnoser& diagnoser,
         std::vector<TypeLoc>& generic_args,
-        std::vector<GenericTypeParameter*>& generic_params
+        std::vector<GenericTypeParameter*>& generic_params,
+        SourceLocation location
 );

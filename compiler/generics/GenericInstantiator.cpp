@@ -340,6 +340,14 @@ bool are_types_generic(std::vector<TypeLoc>& arg_types, std::vector<GenericTypeP
     return true;
 }
 
+inline SourceLocation gen_type_loc(GenericInstantiator* inst, GenericType* type) {
+    if(type->types.empty()) {
+        return inst->type_location;
+    } else {
+        return type->types.front().encoded_location();
+    }
+}
+
 void GenericInstantiator::VisitGenericType(GenericType* type) {
 
     // we do this manually, first we replace any generic arguments given to this generic type
@@ -363,7 +371,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             if(alias->attrs.is_inlined) {
                 GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
                 GenericInstantiatorAPI genApi(&instantiator);
-                linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types);
+                linked_ptr = alias->generic_parent->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             }
             visit(type->referenced);
             return;
@@ -379,7 +387,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types);
+            linked_ptr = linked->as_gen_struct_def_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
         }
         case ASTNodeKind::GenericUnionDecl: {
@@ -393,7 +401,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types);
+            linked_ptr = linked->as_gen_union_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
         }
         case ASTNodeKind::GenericInterfaceDecl:{
@@ -407,7 +415,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types);
+            linked_ptr = linked->as_gen_interface_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
         }
         case ASTNodeKind::GenericVariantDecl:{
@@ -422,7 +430,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types);
+            linked_ptr = linked->as_gen_variant_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
         }
         case ASTNodeKind::GenericTypeDecl: {
@@ -436,7 +444,7 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             // relink generic struct decl with instantiated type
             GenericInstantiator instantiator(binder, child_resolver, container, getAllocator(), diagnoser, typeBuilder);
             GenericInstantiatorAPI genApi(&instantiator);
-            linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types);
+            linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type));
             return;
         }
         default:

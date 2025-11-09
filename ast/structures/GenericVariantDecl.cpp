@@ -96,7 +96,7 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
 
 }
 
-VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types) {
+VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& instantiator, std::vector<TypeLoc>& types, SourceLocation location) {
 
     auto& diagnoser = instantiator.getDiagnoser();
 
@@ -109,7 +109,7 @@ VariantDefinition* GenericVariantDecl::instantiate_type(GenericInstantiatorAPI& 
     }
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, location);
     if(!success2) {
         return nullptr;
     }
@@ -151,7 +151,7 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
     }
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params);
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, generic_params, call->encoded_location());
     if(!success2) {
         return nullptr;
     }

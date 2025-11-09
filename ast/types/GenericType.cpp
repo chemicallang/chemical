@@ -35,7 +35,7 @@ bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, So
     }
 
     // check all types have been inferred
-    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, typeDecl->generic_params);
+    const auto success2 = check_inferred_generic_args(diagnoser, generic_args, typeDecl->generic_params, loc);
     if(!success2) {
         return false;
     }
@@ -68,7 +68,7 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
     switch(linked->kind()) {
         case ASTNodeKind::GenericStructDecl:{
             // relink generic struct decl with instantiated type, only if all types are specialized
-            const auto impl = linked->as_gen_struct_def_unsafe()->instantiate_type(instantiatorApi, types);
+            const auto impl = linked->as_gen_struct_def_unsafe()->instantiate_type(instantiatorApi, types, loc);
             if(!impl) {
                 diagnoser.error("couldn't instantiate generic type", loc);
                 return false;
@@ -78,7 +78,7 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
         }
         case ASTNodeKind::GenericUnionDecl:{
             // relink generic struct decl with instantiated type, only if all types are specialized
-            const auto impl = linked->as_gen_union_decl_unsafe()->instantiate_type(instantiatorApi, types);
+            const auto impl = linked->as_gen_union_decl_unsafe()->instantiate_type(instantiatorApi, types, loc);
             if(!impl) {
                 diagnoser.error("couldn't instantiate generic type", loc);
                 return false;
@@ -88,7 +88,7 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
         }
         case ASTNodeKind::GenericInterfaceDecl:{
             // relink generic struct decl with instantiated type, only if all types are specialized
-            const auto impl = linked->as_gen_interface_decl_unsafe()->instantiate_type(instantiatorApi, types);
+            const auto impl = linked->as_gen_interface_decl_unsafe()->instantiate_type(instantiatorApi, types, loc);
             if(!impl) {
                 diagnoser.error("couldn't instantiate generic type", loc);
                 return false;
@@ -98,7 +98,7 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
         }
         case ASTNodeKind::GenericVariantDecl:{
             // relink generic struct decl with instantiated type, only if all types are specialized
-            const auto impl = linked->as_gen_variant_decl_unsafe()->instantiate_type(instantiatorApi, types);
+            const auto impl = linked->as_gen_variant_decl_unsafe()->instantiate_type(instantiatorApi, types, loc);
             if(!impl) {
                 diagnoser.error("couldn't instantiate generic type", loc);
                 return false;
@@ -108,7 +108,7 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
         }
         case ASTNodeKind::GenericTypeDecl: {
             // relink generic type decl with instantiated type, only if all types are specialized
-            const auto impl = linked->as_gen_type_decl_unsafe()->instantiate_type(instantiatorApi, types);
+            const auto impl = linked->as_gen_type_decl_unsafe()->instantiate_type(instantiatorApi, types, loc);
             if (!impl) {
                 diagnoser.error("couldn't instantiate generic type", loc);
                 return false;

@@ -381,7 +381,8 @@ bool initialize_generic_args(
 bool check_inferred_generic_args(
         ASTDiagnoser& diagnoser,
         std::vector<TypeLoc>& generic_args,
-        std::vector<GenericTypeParameter*>& generic_params
+        std::vector<GenericTypeParameter*>& generic_params,
+        SourceLocation location
 ) {
     unsigned i = 0;
     const auto total = generic_args.size();
@@ -394,7 +395,7 @@ bool check_inferred_generic_args(
                 i++;
                 continue;
             }
-            diagnoser.error(generic_args.front().encoded_location()) << "couldn't infer type for generic parameter at index " << std::to_string(i) << ", no default type has been given";
+            diagnoser.error(location) << "couldn't infer type for generic parameter at index " << std::to_string(i) << ", no default type has been given";
             return false;
         }
         i++;

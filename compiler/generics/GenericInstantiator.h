@@ -64,6 +64,11 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
+     * type location is tracked for diagnostics
+     */
+    SourceLocation type_location = 0;
+
+    /**
      * constructor
      * the allocator must be an ast allocator
      */
@@ -110,12 +115,15 @@ public:
         VisitValueNoNullCheck(value);
     }
     inline void visit(BaseType*& type_ref) {
+        type_location = 0;
         GenericInstantiator::make_gen_type_concrete(type_ref);
         VisitTypeNoNullCheck(type_ref);
     }
     inline void visit(TypeLoc& type) {
+        type_location = type.getLocation();
         auto changed = const_cast<BaseType*>(type.getType());
-        visit(changed);
+        GenericInstantiator::make_gen_type_concrete(changed);
+        VisitTypeNoNullCheck(changed);
         if(changed != type.getType()) {
             type = { changed, type.getLocation() };
         }

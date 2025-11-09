@@ -306,6 +306,20 @@ struct GenFuncDelegateProvider<T> {
     }
 }
 
+func <T = short> give_me_size_of_this_gen_kinda() : T {
+    if(T is short) {
+        return 2;
+    } else if(T is int) {
+        return 4;
+    } else {
+        return 8;
+    }
+}
+
+func get_an_int_and_ret_it(value : int) : int {
+    return value;
+}
+
 func test_basic_generics() {
     test("basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -645,5 +659,8 @@ func test_basic_generics() {
         var provider = GenFuncDelegateProvider<GenAddTestStruct> { ptr : &mut giver }
         var provided = provider.get_value()
         return provided.a == 9234 && provided.b == 347
+    })
+    test("inferred type is preferred over default type", () => {
+        return get_an_int_and_ret_it(give_me_size_of_this_gen_kinda()) == 4
     })
 }

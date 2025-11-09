@@ -886,9 +886,17 @@ llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value*
     return allocated;
 }
 
+InterfaceDefinition* getDynInterfaceDef(BaseType* type) {
+    const auto can = type->canonical();
+    if(can->kind() == BaseTypeKind::Dynamic) {
+        return can->as_dynamic_type_unsafe()->referenced->get_direct_linked_interface();
+    }
+    return nullptr;
+}
+
 llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
     if(!type) return nullptr;
-    const auto interface = type->linked_dyn_interface();
+    const auto interface = getDynInterfaceDef(type);
     if(!interface) return nullptr;
     const auto linked = value->getType();
     if(linked->isStructLikeType()) {
@@ -907,7 +915,7 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
 
 llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type, SourceLocation loc) {
     if(!type) return nullptr;
-    const auto interface = type->linked_dyn_interface();
+    const auto interface = getDynInterfaceDef(type);
     if(!interface) return nullptr;
     const auto allocaInst = builder->CreateAlloca(fat_pointer_type());
     di.instr(allocaInst, loc);

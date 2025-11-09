@@ -369,23 +369,36 @@ void infer_types_by_args(
     }
 }
 
-void default_generic_args(
+bool default_generic_args(
+        ASTDiagnoser& diagnoser,
         std::vector<TypeLoc>& out_generic_args,
         std::vector<GenericTypeParameter*>& generic_params,
         std::vector<TypeLoc>& user_generic_list
 ) {
-    // set all to default type (if default type is not present, it would automatically be nullptr)
+    // reserve the generic args
+    out_generic_args.reserve(generic_params.size());
+
+    // set all to default type (or nullptr automatically)
     const auto total = generic_params.size();
     unsigned i = 0;
     while(i < total) {
-        out_generic_args[i] = generic_params[i]->def_type;
+        out_generic_args.emplace_back(generic_params[i]->def_type);
         i++;
+    }
+
+    // check if user gave way too many generic arguments
+    const auto user_given = user_generic_list.size();
+    if(user_given > total) {
+        diagnoser.error(user_generic_list[total].encoded_location()) << "too many generic arguments given, expected " << std::to_string(total) << " given " << std::to_string(user_given);
+        return false;
     }
 
     // set given generic args to generic parameters
     i = 0;
-    for(auto& arg : user_generic_list) {
-        out_generic_args[i] = arg;
+    while(i < user_given) {
+        out_generic_args[i] = user_generic_list[i];
         i++;
     }
+
+    return true;
 }

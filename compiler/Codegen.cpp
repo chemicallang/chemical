@@ -892,7 +892,7 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
     if(!interface) return nullptr;
     const auto linked = value->getType();
     if(linked->isStructLikeType()) {
-        const auto def = linked->linked_struct_def();
+        const auto def = linked->get_direct_linked_struct();
         if(def) {
             const auto found = interface->llvm_global_vtable(*this, def);
             if(found != nullptr) {

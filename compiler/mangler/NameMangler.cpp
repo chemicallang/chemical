@@ -15,6 +15,9 @@
 #include "ast/statements/VarInit.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/StructValue.h"
+#include "ast/types/IntNType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include <sstream>
 
 inline void container_name(BufferedWriter& stream, ExtendableMembersContainerNode* container) {
@@ -165,6 +168,82 @@ bool NameMangler::mangle_non_func(BufferedWriter& stream, ASTNode* node) {
     }
 }
 
+std::string_view to_string(IntNTypeKind kind) {
+    switch(kind) {
+        case IntNTypeKind::Char:
+            return "char";
+        case IntNTypeKind::Short:
+            return "short";
+        case IntNTypeKind::Int:
+            return "int";
+        case IntNTypeKind::Long:
+            return "long";
+        case IntNTypeKind::LongLong:
+            return "longlong";
+        case IntNTypeKind::Int128:
+            return "int128";
+        case IntNTypeKind::I8:
+            return "i8";
+        case IntNTypeKind::I16:
+            return "i16";
+        case IntNTypeKind::I32:
+            return "i32";
+        case IntNTypeKind::I64:
+            return "i64";
+        case IntNTypeKind::UChar:
+            return "uchar";
+        case IntNTypeKind::UShort:
+            return "ushort";
+        case IntNTypeKind::UInt:
+            return "uint";
+        case IntNTypeKind::ULong:
+            return "ulong";
+        case IntNTypeKind::ULongLong:
+            return "ulonglong";
+        case IntNTypeKind::UInt128:
+            return "uint128";
+        case IntNTypeKind::U8:
+            return "u8";
+        case IntNTypeKind::U16:
+            return "u16";
+        case IntNTypeKind::U32:
+            return "u32";
+        case IntNTypeKind::U64:
+            return "u64";
+        default:
+            return "";
+    }
+}
+
+void write_primitive_type(BufferedWriter& stream, BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::IntN:
+            stream << to_string(type->as_intn_type_unsafe()->IntNKind());
+            stream << '_';
+            return;
+        case BaseTypeKind::Pointer: {
+            const auto ptr_type = type->as_pointer_type_unsafe();
+            if(ptr_type->is_mutable) {
+                stream << 'm';
+            }
+            stream << "p_";
+            write_primitive_type(stream, ptr_type->type);
+            return;
+        }
+        case BaseTypeKind::Reference: {
+            const auto ref_type = type->as_reference_type_unsafe();
+            if(ref_type->is_mutable) {
+                stream << 'm';
+            }
+            stream << "r_";
+            write_primitive_type(stream, ref_type->type);
+            return;
+        }
+        default:
+            return;
+    }
+}
+
 void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration* decl, ASTNode* parent) {
     switch(parent->kind()) {
         case ASTNodeKind::InterfaceDecl: {
@@ -195,9 +274,9 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                 if(can_node) {
                     mangle_non_func(stream, can_node);
                 } else {
-                    // TODO: this only covers module scope
                     // since this method is on native types, we need to figure out how to mangle it
                     write_mangle_parent_of(*this, stream, def);
+                    write_primitive_type(stream, def->struct_type);
                 }
             } else {
                 const auto& interface = def->interface_type->get_direct_linked_interface();

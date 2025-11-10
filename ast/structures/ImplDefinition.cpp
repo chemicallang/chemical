@@ -80,6 +80,10 @@ void ImplDefinition::code_gen(Codegen &gen) {
     }
 }
 
+void ImplDefinition::code_gen_external_declare(Codegen &gen) {
+    code_gen_declare(gen);
+}
+
 #endif
 
 uint64_t ImplDefinition::byte_size(bool is64Bit) {

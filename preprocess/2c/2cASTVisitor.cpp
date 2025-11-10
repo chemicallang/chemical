@@ -1327,16 +1327,8 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //    }
 //}
 
-void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call) {
-    if(!grandpa->is_pointer() && !is_value_type_pointer_like(grandpa)) {
-        visitor.write('&');
-    }
-    visitor.visit(grandpa);
-}
-
-// this checks the parameter type
-void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call, FunctionParam* param) {
-    switch(param->type->kind()) {
+bool primitive_non_ptr_like(BaseType* type) {
+    switch(type->kind()) {
         case BaseTypeKind::IntN:
         case BaseTypeKind::Double:
         case BaseTypeKind::Float:
@@ -1344,11 +1336,37 @@ void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* c
         case BaseTypeKind::LongDouble:
         case BaseTypeKind::Void:
         case BaseTypeKind::Any:
-            visitor.visit(grandpa);
-            return;
+            return true;
         default:
-            write_self_arg(visitor, grandpa, call);
+            return false;
     }
+}
+
+// this checks the parameter type
+void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call, FunctionParam* param) {
+    if(primitive_non_ptr_like(param->type)) {
+        visitor.visit(grandpa);
+        return;
+    }
+    // special check (impl *int, impl &int) where function takes a &self (double pointers must still)
+    if(param->type->is_reference()) {
+        const auto parent = param->parent();
+        if (parent) {
+            const auto grandparent = parent->parent();
+            if (grandparent && grandparent->kind() == ASTNodeKind::ImplDecl) {
+                const auto implDecl = grandparent->as_impl_def_unsafe();
+                if (implDecl->struct_type && implDecl->struct_type->is_pointer_or_ref()) {
+                    visitor.write('&');
+                    visitor.visit(grandpa);
+                    return;
+                }
+            }
+        }
+    }
+    if(!grandpa->is_pointer() && !is_value_type_pointer_like(grandpa)) {
+        visitor.write('&');
+    }
+    visitor.visit(grandpa);
 }
 
 bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call) {

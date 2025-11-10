@@ -21,6 +21,7 @@
 #include "ast/types/LinkedType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/ImplDefinition.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/DynamicType.h"
 #include "ast/types/VoidType.h"
@@ -56,6 +57,36 @@ llvm::Value* turnValueToPtr(Codegen& gen, llvm::Value* value, SourceLocation loc
     return allocated;
 }
 
+llvm::Value* getPtrToSelfArg(Codegen& gen, Value* grandpa, SourceLocation location) {
+    const auto self_arg_val = grandpa->llvm_pointer(gen);
+    const auto t = self_arg_val->getType();
+    if(!t->isPointerTy()) {
+        return turnValueToPtr(gen, self_arg_val, location);
+    }
+    return self_arg_val;
+}
+
+llvm::Value* getSelfArgFromGrandpa(Codegen& gen, FunctionParam* self_param, Value* grandpa, SourceLocation location) {
+    // special check (impl *int, impl &int) where function takes a &self (double pointers must still)
+    if(self_param->type->is_reference()) {
+        const auto parent = self_param->parent();
+        if (parent) {
+            const auto grandparent = parent->parent();
+            if (grandparent && grandparent->kind() == ASTNodeKind::ImplDecl) {
+                const auto implDecl = grandparent->as_impl_def_unsafe();
+                if (implDecl->struct_type && implDecl->struct_type->is_pointer_or_ref()) {
+                    return getPtrToSelfArg(gen, grandpa, location);
+                }
+            }
+        }
+    }
+    if(self_param->type->is_reference() && !grandpa->is_stored_ptr_or_ref(gen.allocator)) {
+        return getPtrToSelfArg(gen, grandpa, location);
+    } else {
+        return grandpa->llvm_value(gen, nullptr);
+    }
+}
+
 void put_self_param(
         Codegen& gen,
         FunctionCall* call,
@@ -73,15 +104,7 @@ void put_self_param(
                 const auto is_func_call = grandparent_val->val_kind() == ValueKind::FunctionCall;
                 if (is_func_call || !is_node_decl(grandparent_val->linked_node())) {
                     const auto grandpa = build_parent_chain(call->parent_val, gen.allocator);
-                    if(self_param->type->is_reference() && !grandpa->is_stored_ptr_or_ref(gen.allocator)) {
-                        self_arg_val = grandpa->llvm_pointer(gen);
-                        const auto t = self_arg_val->getType();
-                        if(!t->isPointerTy()) {
-                            self_arg_val = turnValueToPtr(gen, self_arg_val, call->encoded_location());
-                        }
-                    } else {
-                        self_arg_val = grandpa->llvm_value(gen, nullptr);
-                    }
+                    self_arg_val = getSelfArgFromGrandpa(gen, self_param, grandpa, call->encoded_location());
                     if (is_func_call) {
                         destructibles.emplace_back(grandpa, self_arg_val);
                     }

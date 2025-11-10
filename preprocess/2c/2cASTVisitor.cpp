@@ -3649,7 +3649,15 @@ void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
 }
 
 void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
-
+    if(def->struct_type) {
+        const auto container = def->struct_type->get_members_container();
+        if(container == nullptr) {
+            // native primitive type
+            for(const auto func : def->instantiated_functions()) {
+                declare_contained_func(this, func, false, nullptr);
+            }
+        }
+    }
 }
 
 void CTopLevelDeclarationVisitor::reset() {

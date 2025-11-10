@@ -1038,6 +1038,22 @@ void verify_has_return(SymbolResolver& linker, Scope& scope, SourceLocation loca
             if(!stmt->attrs.has_break) {
                 return;
             }
+            break;
+        }
+        case ASTNodeKind::ProvideStmt: {
+            const auto stmt = (ProvideStmt*) last;
+            verify_has_return(linker, stmt->body, stmt->body.encoded_location());
+            return;
+        }
+        case ASTNodeKind::UnsafeBlock: {
+            const auto blk = last->as_unsafe_block_unsafe();
+            verify_has_return(linker, blk->scope, blk->scope.encoded_location());
+            return;
+        }
+        case ASTNodeKind::ComptimeBlock: {
+            const auto blk = (ComptimeBlock*) last;
+            verify_has_return(linker, blk->body, blk->body.encoded_location());
+            return;
         }
         default:
             break;
@@ -2813,6 +2829,11 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
         lambVal->setIsCapturing(true);
 
+    }
+
+    // verify has return type
+    if(returnType->canonical()->kind() != BaseTypeKind::Void) {
+        verify_has_return(linker, lambVal->scope, lambVal->encoded_location());
     }
 
     linker.current_func_type = prev_func_type;

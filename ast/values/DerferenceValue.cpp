@@ -16,6 +16,9 @@ bool DereferenceValue::determine_type(TypeBuilder& typeBuilder) {
         case BaseTypeKind::Pointer:
             setType(type->as_pointer_type_unsafe()->type);
             return true;
+        case BaseTypeKind::Reference:
+            setType(type->as_reference_type_unsafe()->type);
+            return true;
         case BaseTypeKind::String:
             setType(typeBuilder.getCharType());
             return true;

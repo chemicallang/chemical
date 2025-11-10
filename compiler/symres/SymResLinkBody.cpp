@@ -2831,7 +2831,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     }
 
-    // verify has return type
+    // verify has return
     if(returnType->canonical()->kind() != BaseTypeKind::Void) {
         verify_has_return(linker, lambVal->scope, lambVal->encoded_location());
     }

@@ -32,37 +32,6 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain, int till) {
-    AccessChain member_access(ZERO_LOC);
-    unsigned i = 0;
-    while(i < till) {
-        if(chain[i] == call) {
-            break;
-        }
-        member_access.values.emplace_back((ChainValue*)chain[i]->copy(allocator));
-        i++;
-    }
-    return member_access;
-}
-
-AccessChain chain_range(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain, int till) {
-    AccessChain member_access(ZERO_LOC);
-    unsigned i = 0;
-    while(i <= till) {
-        member_access.values.emplace_back((ChainValue*) chain[i]->copy(allocator));
-        i++;
-    }
-    return member_access;
-}
-
-AccessChain parent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain) {
-    return parent_chain(allocator, call, chain, (int) chain.size() - 1);
-}
-
-AccessChain grandparent_chain(ASTAllocator& allocator, FunctionCall* call, std::vector<ChainValue*>& chain) {
-    return parent_chain(allocator, call, chain, (int) chain.size() - 2);
-}
-
 /**
  * check if chain is loadable, before loading it
  */
@@ -79,6 +48,12 @@ bool is_node_decl(ASTNode* linked) {
         default:
             return false;
     }
+}
+
+llvm::Value* turnValueToPtr(Codegen& gen, llvm::Value* value, SourceLocation location) {
+    const auto allocated = gen.llvm.CreateAlloca(value->getType(), location);
+    gen.llvm.CreateStore(value, allocated, location);
+    return allocated;
 }
 
 void put_self_param(
@@ -100,6 +75,10 @@ void put_self_param(
                     const auto grandpa = build_parent_chain(call->parent_val, gen.allocator);
                     if(self_param->type->is_reference() && !grandpa->is_stored_ptr_or_ref(gen.allocator)) {
                         self_arg_val = grandpa->llvm_pointer(gen);
+                        const auto t = self_arg_val->getType();
+                        if(!t->isPointerTy()) {
+                            self_arg_val = turnValueToPtr(gen, self_arg_val, call->encoded_location());
+                        }
                     } else {
                         self_arg_val = grandpa->llvm_value(gen, nullptr);
                     }
@@ -221,11 +200,7 @@ llvm::Value* FunctionCall::arg_value(
     ))) {
         // passing r values as pointers by allocating them
         if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue(gen.allocator)) {
-            const auto allocated = gen.builder->CreateAlloca(value->llvm_type(gen));
-            gen.di.instr(allocated, value);
-            const auto storeInstr = gen.builder->CreateStore(value->llvm_arg_value(gen, param_type), allocated);
-            gen.di.instr(storeInstr, value);
-            argValue = allocated;
+            argValue = turnValueToPtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
         } else {
             argValue = value->llvm_pointer(gen);
         }

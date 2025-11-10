@@ -1698,6 +1698,35 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
 
 void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* call){
     auto& linker = visitor.linker;
+
+    const auto parent = call->parent_val->linked_node();
+    if(parent) {
+        const auto variant_mem = parent->as_variant_member();
+        if (variant_mem) {
+
+            unsigned i = 0;
+            const auto values_size = call->values.size();
+            const auto total_params = variant_mem->values.size();
+            while (i < values_size) {
+                const auto value_ptr = call->values[i];
+                if(i < total_params) {
+                    const auto param = (variant_mem->values.begin() + i)->second;
+                    auto implicit_constructor = param->type->implicit_constructor_for(value_ptr);
+                    if (implicit_constructor) {
+                        link_with_implicit_constructor(visitor, implicit_constructor, value_ptr);
+                    } else if(!param->type->satisfies(value_ptr, false)) {
+                        linker.unsatisfied_type_err(value_ptr, param->type);
+                    }
+                } else {
+                    linker.error(value_ptr) << "too many arguments given, expected " << std::to_string(total_params) << " given " << std::to_string(values_size);
+                }
+                i++;
+            }
+
+            return;
+        }
+    }
+
     auto func_type = call->function_type();
     if(!func_type || !func_type->data.signature_resolved) return;
     unsigned i = 0;
@@ -1714,6 +1743,7 @@ void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* 
         }
         i++;
     }
+
 }
 
 bool link_call_gen_args(SymResLinkBody& visitor, FunctionCall* call) {

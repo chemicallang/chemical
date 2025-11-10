@@ -157,6 +157,23 @@ inline void write_mangle_parent_of(NameMangler& mangler, BufferedWriter& stream,
     }
 }
 
+inline void mangle_till_file(NameMangler& mangler, BufferedWriter& stream, ASTNode* node) {
+    if(!node) return;
+    switch(node->kind()) {
+        case ASTNodeKind::FileScope:
+        case ASTNodeKind::FunctionDecl:
+            return;
+        default:{
+            const auto id = node->get_located_id();
+            if(id) {
+                mangle_till_file(mangler, stream, node->parent());
+                mangler.mangle_no_parent(stream, node);
+            }
+            return;
+        }
+    }
+}
+
 bool NameMangler::mangle_non_func(BufferedWriter& stream, ASTNode* node) {
     const auto id = node->get_located_id();
     if(id) {
@@ -211,11 +228,11 @@ std::string_view to_string(IntNTypeKind kind) {
         case IntNTypeKind::U64:
             return "u64";
         default:
-            return "";
+            return "[mangler:unknown_int_n_kind]";
     }
 }
 
-void write_primitive_type(BufferedWriter& stream, BaseType* type) {
+void mangle_impl_type(NameMangler& mangler, BufferedWriter& stream, BaseType* type) {
     switch(type->kind()) {
         case BaseTypeKind::IntN:
             stream << to_string(type->as_intn_type_unsafe()->IntNKind());
@@ -227,7 +244,7 @@ void write_primitive_type(BufferedWriter& stream, BaseType* type) {
                 stream << 'm';
             }
             stream << "p_";
-            write_primitive_type(stream, ptr_type->type);
+            mangle_impl_type(mangler, stream, ptr_type->type);
             return;
         }
         case BaseTypeKind::Reference: {
@@ -236,9 +253,13 @@ void write_primitive_type(BufferedWriter& stream, BaseType* type) {
                 stream << 'm';
             }
             stream << "r_";
-            write_primitive_type(stream, ref_type->type);
+            mangle_impl_type(mangler, stream, ref_type->type);
             return;
         }
+        case BaseTypeKind::Linked:
+            mangle_till_file(mangler, stream, type->as_linked_type_unsafe()->linked);
+            stream << '_';
+            return;
         default:
             return;
     }
@@ -276,7 +297,7 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                 } else {
                     // since this method is on native types, we need to figure out how to mangle it
                     write_mangle_parent_of(*this, stream, def);
-                    write_primitive_type(stream, def->struct_type);
+                    mangle_impl_type(*this, stream, def->struct_type);
                 }
             } else {
                 const auto& interface = def->interface_type->get_direct_linked_interface();

@@ -123,15 +123,8 @@ unsigned int Value::store_in_struct(
 
     const auto value = llvm_value(gen, expected_type);
 
-    const auto value_pure = getType()->canonical();
-    const auto derefType = value_pure->getAutoDerefType(expected_type);
-
     llvm::Value* Val = value;
-    if(derefType) {
-        const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
-        gen.di.instr(loadInstr, this);
-        Val = loadInstr;
-    } else if(value->getType()->isIntegerTy()) {
+    if(value->getType()->isIntegerTy()) {
         const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
         Val = gen.implicit_cast(Val, expected_type, ll_type);
     }
@@ -169,15 +162,8 @@ unsigned int Value::store_in_array(
 
     const auto value = llvm_value(gen, expected_type);
 
-    const auto value_pure = getType()->canonical();
-    const auto derefType = value_pure->getAutoDerefType(expected_type);
-
     llvm::Value* Val = value;
-    if(derefType) {
-        const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), value);
-        gen.di.instr(loadInstr, this);
-        Val = loadInstr;
-    } else if(value->getType()->isIntegerTy()) {
+    if(value->getType()->isIntegerTy()) {
         const auto ll_type = expected_type->pure_type(gen.allocator)->llvm_type(gen);
         Val = gen.implicit_cast(Val, expected_type, ll_type);
     }

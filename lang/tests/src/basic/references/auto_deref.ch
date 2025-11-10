@@ -55,7 +55,7 @@ func test_auto_deref() {
     })
     test("OLD auto dereferences when calling variants", () => {
         var i = 34343;
-        var thing : OptIntStorage8373 = OptIntStorage8373.Some(give_ref(i))
+        var thing : OptIntStorage8373 = OptIntStorage8373.Some(*give_ref(i))
         switch(thing) {
             Some(value) => {
                 return value == 34343;
@@ -160,7 +160,7 @@ func test_auto_deref() {
         var i = 788
         var ref = give_ref(i)
         var str : [20]char = []
-        snprintf(&mut str[0], 19, "%d", ref);
+        snprintf(&mut str[0], 19, "%d", *ref);
         return strncmp(&str[0], "788", 3) == 0
     })
 }

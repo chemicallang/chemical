@@ -994,15 +994,8 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
         }
     }
     if(type) {
-        // automatic dereference
         if (type->get_direct_linked_canonical_node() != nullptr && is_value_param_hidden_pointer(value)) {
             write('*');
-        } else {
-            const auto value_type = value->getType();
-            const auto derefType = value_type->getAutoDerefType(type);
-            if (derefType) {
-                write('*');
-            }
         }
         // capturing function type
         const auto canonical = type->canonical();

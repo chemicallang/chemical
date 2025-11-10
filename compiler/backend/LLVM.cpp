@@ -1732,18 +1732,8 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
                     return_value = nullptr;
                 } else {
 
-                    // automatic dereference if required
-                    const auto derefType = value_type->getAutoDerefType(to_type);
-                    if (derefType) {
-                        const auto loadInst = gen.builder->CreateLoad(derefType->llvm_type(gen), return_value);
-                        gen.di.instr(loadInst, value);
-                        return_value = loadInst;
-                    } else {
-
-                        // implicit cast to value that's required
-                        return_value = gen.implicit_cast(return_value, to_type, to_type->llvm_type(gen));
-
-                    }
+                    // implicit cast to value that's required
+                    return_value = gen.implicit_cast(return_value, to_type, to_type->llvm_type(gen));
 
                 }
 

@@ -251,13 +251,7 @@ llvm::Value* FunctionCall::arg_value(
                 argValue = mutated;
             }
 
-            // automatic dereference arguments that are references
-            const auto derefType = val_type->getAutoDerefType(func_param->type);
-            if(derefType) {
-                const auto loadInstr = gen.builder->CreateLoad(derefType->llvm_type(gen), argValue);
-                gen.di.instr(loadInstr, value);
-                argValue = loadInstr;
-            } else if(pure_type->kind() != BaseTypeKind::Any) {
+            if(pure_type->kind() != BaseTypeKind::Any) {
                 argValue = gen.implicit_cast(argValue, pure_type, pure_type->llvm_param_type(gen));
             }
 

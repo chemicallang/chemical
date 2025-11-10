@@ -278,7 +278,7 @@ func test_closure_captures() : bool {
     var pool = std::concurrent::create_pool(2u);
     var value = 100u64;
     var byval: std.function<() => u64> = |value|() => { return value + 23u }; // capture by value
-    var byref: std.function<() => u64> = |&mut value|() => { value = value + 1u; return value };
+    var byref: std.function<() => u64> = |&mut value|() => { value = value + 1u; return *value };
     var f1 = pool.submit<u64>(byval);
     var f2 = pool.submit<u64>(byref);
     var r1 = f1.get();

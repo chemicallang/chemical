@@ -12,7 +12,7 @@ func give_ref_bool(i : &bool) : &bool {
 }
 
 func ret_auto_deref(i : &int) : int {
-    return i
+    return *i
 }
 
 struct IntStorageT3232 {
@@ -20,7 +20,7 @@ struct IntStorageT3232 {
 }
 
 func create_IntStorageT3232(i : &int) : IntStorageT3232 {
-    return IntStorageT3232 { i : i }
+    return IntStorageT3232 { i : *i }
 }
 
 variant OptIntStorage8373 {
@@ -31,12 +31,12 @@ variant OptIntStorage8373 {
 func test_auto_deref() {
     test("auto dereferences when value is being passed to function calls", () => {
         var i = 38
-        return take_int(give_ref(i)) == 38
+        return take_int(*give_ref(i)) == 38
     })
     test("auto dereference in assignment works", () => {
         var i = 33
         var j = 0
-        j = give_ref(i)
+        j = *give_ref(i)
         return j == 33
     })
     test("auto derefeences when a value is being returned", () => {
@@ -50,7 +50,7 @@ func test_auto_deref() {
     })
     test("auto dereferences when storing into an array", () => {
         var i = 356
-        var s : []int = [ give_ref(i) ]
+        var s : []int = [ *give_ref(i) ]
         return s[0] == 356
     })
     test("auto dereferences when calling variants", () => {

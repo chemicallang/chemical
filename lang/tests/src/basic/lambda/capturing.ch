@@ -154,7 +154,7 @@ func test_capturing_lambda() {
     test("can read captured reference", () => {
         var temp = 434
         return take_cap_func(|&temp|() => {
-            return temp;
+            return *temp;
         }) == 434
     })
     test("can modify captured reference", () => {

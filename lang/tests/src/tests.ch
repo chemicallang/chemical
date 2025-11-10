@@ -62,6 +62,7 @@ func run_executable_tests() {
     test_atomics();
     test_thread_pool()
     test_constructors_with_init()
+    test_primitive_implementations()
 }
 
 public func main(argc : int, argv : **char) : int {

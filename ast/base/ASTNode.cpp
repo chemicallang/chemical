@@ -643,7 +643,16 @@ ASTNode* direct_child_provider(ChildResolver* resolver, BaseType* type, const ch
 // dyn Phone <---- allowed ? YES
 ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent) {
     switch(type->kind()) {
-        case BaseTypeKind::IntN: {
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::String:
+        case BaseTypeKind::ExpressiveString:
+        case BaseTypeKind::Any: {
             if(resolver) {
                 return resolver->find_primitive_child(type, name);
             } else {

@@ -238,6 +238,33 @@ void mangle_impl_type(NameMangler& mangler, BufferedWriter& stream, BaseType* ty
             stream << to_string(type->as_intn_type_unsafe()->IntNKind());
             stream << '_';
             return;
+        case BaseTypeKind::Float:
+            stream << "float_";
+            return;
+        case BaseTypeKind::Float128:
+            stream << "float128_";
+            return;
+        case BaseTypeKind::Double:
+            stream << "double_";
+            return;
+        case BaseTypeKind::Bool:
+            stream << "bool_";
+            return;
+        case BaseTypeKind::LongDouble:
+            stream << "longdouble_";
+            return;
+        case BaseTypeKind::String:
+            stream << "str_";
+            return;
+        case BaseTypeKind::ExpressiveString:
+            stream << "expr_str_";
+            return;
+        case BaseTypeKind::Any:
+            stream << "any_";
+            return;
+        case BaseTypeKind::NullPtr:
+            stream << "nullptr_";
+            return;
         case BaseTypeKind::Pointer: {
             const auto ptr_type = type->as_pointer_type_unsafe();
             if(ptr_type->is_mutable) {

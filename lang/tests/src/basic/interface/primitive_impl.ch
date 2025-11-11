@@ -77,16 +77,14 @@ func test_primitive_implementations() {
     test("call through parameter, primitive impl method works - 2", () => {
         return param_call_long_prim_impl(10) == 30
     })
-    // TODO:
-    // test("call on referenced primitive impl method works - 1", () => {
-    //     var i : int = 20
-    //     return param_call_ref_int_prim_impl(i) == 50
-    // })
-    // TODO:
-    // test("call on referenced primitive impl method works - 2", () => {
-    //     var i : long = 20
-    //     return param_call_ref_long_prim_impl(i) == 60
-    // })
+    test("call on referenced primitive impl method works - 1", () => {
+        var i : int = 20
+        return param_call_ref_int_prim_impl(i) == 50
+    })
+    test("call on referenced primitive impl method works - 2", () => {
+        var i : long = 20
+        return param_call_ref_long_prim_impl(i) == 60
+    })
     test("direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20
         var j = &i
@@ -97,14 +95,12 @@ func test_primitive_implementations() {
         var j = &i
         return j.give() == 80
     })
-    // TODO:
-    // test("call through parameter on pointer primitive impl method works - 1", () => {
-    //     var i : int = 20
-    //     return param_call_ptr_int_prim_impl(&i) == 70
-    // })
-    // TODO:
-    // test("call through parameter on pointer primitive impl method works - 2", () => {
-    //     var i : long = 20
-    //     return param_call_ptr_long_prim_impl(&i) == 80
-    // })
+    test("call through parameter on pointer primitive impl method works - 1", () => {
+        var i : int = 20
+        return param_call_ptr_int_prim_impl(&i) == 70
+    })
+    test("call through parameter on pointer primitive impl method works - 2", () => {
+        var i : long = 20
+        return param_call_ptr_long_prim_impl(&i) == 80
+    })
 }

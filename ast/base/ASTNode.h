@@ -332,9 +332,21 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
-     * returns a llvm pointer
+     * helper to turn any llvm value to a loadable pointer
      */
-    virtual llvm::Value *llvm_pointer(Codegen &gen);
+    static llvm::Value* turnPtrValueToLoadablePtr(Codegen& gen, llvm::Value* ptrVal, SourceLocation location);
+
+    /**
+     * returns a llvm pointer, this returns the pointer to value
+     * its not a runtime pointer, its not stored in a variable (at runtime)
+     */
+    llvm::Value* llvm_pointer(Codegen& gen);
+
+    /**
+     * returns a llvm pointer, that's stored in a runtime variable
+     * which you can safely load using CreateLoad
+     */
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
 
     /**
      * return a llvm func type, so that this ASTNode can be called

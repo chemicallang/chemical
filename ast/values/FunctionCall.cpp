@@ -26,7 +26,6 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/InterfaceDefinition.h"
-#include "compiler/symres/SymResLinkBodyAPI.h"
 
 #ifdef COMPILER_BUILD
 
@@ -51,37 +50,43 @@ bool is_node_decl(ASTNode* linked) {
     }
 }
 
-llvm::Value* turnValueToPtr(Codegen& gen, llvm::Value* value, SourceLocation location) {
-    const auto allocated = gen.llvm.CreateAlloca(value->getType(), location);
-    gen.llvm.CreateStore(value, allocated, location);
-    return allocated;
-}
-
-llvm::Value* getPtrToSelfArg(Codegen& gen, Value* grandpa, SourceLocation location) {
-    const auto self_arg_val = grandpa->llvm_pointer(gen);
-    const auto t = self_arg_val->getType();
-    if(!t->isPointerTy()) {
-        return turnValueToPtr(gen, self_arg_val, location);
+bool isPrimitiveImplType(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::String:
+        case BaseTypeKind::ExpressiveString:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Any:
+        case BaseTypeKind::Void:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::Reference:
+            return true;
+        default:
+            return false;
     }
-    return self_arg_val;
 }
 
-llvm::Value* getSelfArgFromGrandpa(Codegen& gen, FunctionParam* self_param, Value* grandpa, SourceLocation location) {
-    // special check (impl *int, impl &int) where function takes a &self (double pointers must still)
+llvm::Value* getSelfArgFromGrandpa(Codegen& gen, FunctionParam* self_param, ChainValue* grandpa, SourceLocation location) {
+    // special check (impl *int, impl &int, impl int) where function takes a &self (double pointers must still)
     if(self_param->type->is_reference()) {
         const auto parent = self_param->parent();
         if (parent) {
             const auto grandparent = parent->parent();
             if (grandparent && grandparent->kind() == ASTNodeKind::ImplDecl) {
                 const auto implDecl = grandparent->as_impl_def_unsafe();
-                if (implDecl->struct_type && implDecl->struct_type->is_pointer_or_ref()) {
-                    return getPtrToSelfArg(gen, grandpa, location);
+                if (implDecl->struct_type && isPrimitiveImplType(implDecl->struct_type)) {
+                    return grandpa->loadable_llvm_pointer(gen, location);
                 }
             }
         }
     }
     if(self_param->type->is_reference() && !grandpa->is_stored_ptr_or_ref(gen.allocator)) {
-        return getPtrToSelfArg(gen, grandpa, location);
+        return grandpa->llvm_pointer(gen);
     } else {
         return grandpa->llvm_value(gen, nullptr);
     }
@@ -223,7 +228,7 @@ llvm::Value* FunctionCall::arg_value(
     ))) {
         // passing r values as pointers by allocating them
         if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue(gen.allocator)) {
-            argValue = turnValueToPtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
+            argValue = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
         } else {
             argValue = value->llvm_pointer(gen);
         }
@@ -817,6 +822,10 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
 
 llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
     return llvm_value(gen, nullptr);
+}
+
+llvm::Value* FunctionCall::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+    return ASTNode::turnPtrValueToLoadablePtr(gen, llvm_pointer(gen), location);
 }
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, BaseType *type) {

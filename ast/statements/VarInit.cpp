@@ -217,7 +217,14 @@ inline void VarInitStatement::check_has_type(Codegen &gen) {
     }
 }
 
-llvm::Value *VarInitStatement::llvm_pointer(Codegen &gen) {
+llvm::Value* VarInitStatement::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+    if(is_const()) {
+        // you write this code:
+        // const val = 3; take_ref(val); // func take_ref(r : &int) {}
+        // we pass the val as a loadable pointer to take_ref
+        // this makes const val = 3 basically a var val = 3, maybe this should be explicit
+        return ASTNode::turnPtrValueToLoadablePtr(gen, llvm_ptr, location);
+    }
     return llvm_ptr;
 }
 

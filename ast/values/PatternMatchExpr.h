@@ -76,7 +76,12 @@ public:
 
     llvm::Value* llvm_load(Codegen &gen, SourceLocation location) override;
 
-    llvm::Value* llvm_pointer(Codegen &gen) override;
+    llvm::Value* llvm_pointer(Codegen &gen);
+
+    inline llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+        // stored in a struct, always requires a load
+        return llvm_pointer(gen);
+    }
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override;
 

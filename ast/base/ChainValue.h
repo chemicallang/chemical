@@ -43,6 +43,11 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * gives a llvm::Value* which is a pointer that you can easily do CreateLoad on
+     */
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
+
+    /**
      * called by access chain on the last ref value in the chain
      * by default it allocates chain->llvm_type and stores chain->llvm_value in it
      */
@@ -90,6 +95,17 @@ public:
             std::vector<ChainValue*>& values,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             unsigned int until
+    );
+
+    /**
+     * the pointer you can load
+     */
+    llvm::Value* loadable_access_chain_pointer(
+            Codegen &gen,
+            std::vector<ChainValue*>& values,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            unsigned int until,
+            SourceLocation location
     );
 
     /**

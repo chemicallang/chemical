@@ -1270,20 +1270,36 @@ llvm::Type* EmbeddedNode::llvm_type(Codegen &gen) {
     return known_type()->llvm_type(gen);
 }
 
-llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
+ASTNode* get_repl(EmbeddedNode* node, Codegen& gen) {
     ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
-    const auto replacement_fn = gen.binder.findHook(name, CBIFunctionType::ReplacementNode);
+    const auto replacement_fn = gen.binder.findHook(node->name, CBIFunctionType::ReplacementNode);
     if(!replacement_fn) {
-        gen.error(this) << "couldn't find replacement function for embedded node with name '" << name << "'";
-        return NullValue::null_llvm_value(gen);
+        gen.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
+        return nullptr;
     }
-    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, this);
+    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, node);
     if(repl) {
-        return repl->llvm_pointer(gen);
+        return repl;
     } else {
-        gen.error(this) << "couldn't replace embedded node with name '" << name << "'";
+        gen.error(node) << "couldn't replace embedded node with name '" << node->name << "'";
+        return nullptr;
+    }
+}
+
+llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
+    const auto repl = get_repl(this, gen);
+    if(repl == nullptr) {
         return NullValue::null_llvm_value(gen);
     }
+    return repl->llvm_pointer(gen);
+}
+
+llvm::Value* EmbeddedNode::loadable_llvm_pointer(Codegen &gen, SourceLocation location) {
+    const auto repl = get_repl(this, gen);
+    if(repl == nullptr) {
+        return NullValue::null_llvm_value(gen);
+    }
+    return repl->loadable_llvm_pointer(gen, location);
 }
 
 llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
@@ -1375,6 +1391,13 @@ void AccessChain::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     auto value = values[values.size() - 1]->access_chain_pointer(gen, values, destructibles, values.size() - 1);
+    Value::destruct(gen, destructibles);
+    return value;
+}
+
+llvm::Value* AccessChain::loadable_llvm_pointer(Codegen &gen, SourceLocation location) {
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    auto value = values[values.size() - 1]->loadable_access_chain_pointer(gen, values, destructibles, values.size() - 1, location);
     Value::destruct(gen, destructibles);
     return value;
 }
@@ -1570,6 +1593,12 @@ unsigned int DynamicValue::store_in_array(Codegen &gen, Value *parent, llvm::Val
 }
 
 // --------------------------------------- Statements
+
+llvm::Value* ASTNode::turnPtrValueToLoadablePtr(Codegen& gen, llvm::Value* ptrVal, SourceLocation location) {
+    const auto allocated = gen.llvm.CreateAlloca(ptrVal->getType(), location);
+    gen.llvm.CreateStore(ptrVal, allocated, location);
+    return allocated;
+}
 
 void ContinueStatement::code_gen(Codegen &gen) {
     gen.destroy_current_scope = false;

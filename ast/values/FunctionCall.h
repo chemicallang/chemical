@@ -138,6 +138,8 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
+
     llvm::Value *llvm_value(Codegen &gen, BaseType *type = nullptr) override;
 
     llvm::Value* llvm_chain_value(

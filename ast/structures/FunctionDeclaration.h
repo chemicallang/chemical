@@ -525,8 +525,12 @@ public:
         return (llvm::Value*) get_llvm_data(gen);
     }
 
-    inline llvm::Value* llvm_pointer(Codegen &gen) final {
+    inline llvm::Value* llvm_pointer(Codegen &gen) {
         return (llvm::Value*) get_llvm_data(gen);
+    }
+
+    inline llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location) {
+        return ASTNode::turnPtrValueToLoadablePtr(gen, llvm_pointer(gen), location);
     }
 
     std::vector<llvm::Type *> param_types(Codegen &gen);

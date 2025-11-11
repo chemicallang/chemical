@@ -100,6 +100,8 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
+    llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location);
+
     llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
 
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;

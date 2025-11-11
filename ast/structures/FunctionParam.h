@@ -119,7 +119,11 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *llvm_pointer(Codegen &gen) final;
+    llvm::Value* arg_pointer(Codegen& gen);
+
+    llvm::Value *llvm_pointer(Codegen &gen);
+
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

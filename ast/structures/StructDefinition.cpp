@@ -11,6 +11,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
+#include "ast/values/NullValue.h"
 #include "UnnamedStruct.h"
 #include "std/except.h"
 
@@ -172,24 +173,38 @@ llvm::Value* child_of_self_ptr(Codegen& gen, BaseDefMember& member, llvm::Value*
 }
 
 llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
-    if(isAnyStructMember(kind())) {
-        const auto curr_func = gen.current_func_type->as_function();
-        if(curr_func && curr_func->is_constructor_fn()) {
-            // TODO hard coded the index for the constructor self param
-            auto self_ptr = gen.current_function->getArg(0);
-            return child_of_self_ptr(gen, *this, self_ptr);
-        } else {
-            auto self_param = curr_func->get_self_param();
-            if(self_param) {
-                auto self_ptr = gen.current_function->getArg(self_param->calculate_c_or_llvm_index(curr_func));
-                return child_of_self_ptr(gen, *this, self_ptr);
-            }
-        }
-    }
 #ifdef DEBUG
-    CHEM_THROW_RUNTIME("called pointer on struct member, using an unknown self pointer");
+    if(!isAnyStructMember(kind())) {
+        CHEM_THROW_RUNTIME("BaseDefMember: called llvm_pointer on a non struct member");
+    }
 #endif
-    return nullptr;
+    const auto curr_func = gen.current_func_type->as_function();
+    if(curr_func == nullptr) {
+        gen.error(encoded_location()) << "current function incapable of providing a pointer to struct member with name '" << name << '\'';
+        return NullValue::null_llvm_value(gen);
+    }
+    if(curr_func->is_constructor_fn()) {
+        // TODO hard coded the index for the constructor self param
+        auto self_ptr = gen.current_function->getArg(0);
+        return child_of_self_ptr(gen, *this, self_ptr);
+    } else {
+        auto self_param = curr_func->get_self_param();
+        if(self_param == nullptr) {
+            gen.error(encoded_location()) << "current function incapable of providing a pointer to struct member with name '" << name << '\'' << ", no self parameter";
+            return NullValue::null_llvm_value(gen);
+        }
+        auto self_ptr = gen.current_function->getArg(self_param->calculate_c_or_llvm_index(curr_func));
+        return child_of_self_ptr(gen, *this, self_ptr);
+    }
+}
+
+llvm::Value* BaseDefMember::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+    if(kind() == ASTNodeKind::StructMember) {
+        // already need to do a load always, so just return it
+        return llvm_pointer(gen);
+    } else {
+        return ASTNode::turnPtrValueToLoadablePtr(gen, llvm_pointer(gen), location);
+    }
 }
 
 llvm::Value* BaseDefMember::llvm_load(Codegen& gen, SourceLocation location) {

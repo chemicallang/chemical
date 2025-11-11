@@ -61,6 +61,12 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 
+    inline llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+        // overloaded operator returns reference
+        // by default its a struct gep, so always requires loading
+        return llvm_pointer(gen);
+    }
+
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
     llvm::Type *llvm_type(Codegen &gen) final;

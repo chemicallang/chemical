@@ -50,7 +50,12 @@ public:
 
     llvm::Value *llvm_load(Codegen& gen, SourceLocation location) final;
 
-    llvm::Value *llvm_pointer(Codegen &gen) final;
+    llvm::Value *llvm_pointer(Codegen &gen);
+
+    inline llvm::Value* loadable_llvm_pointer(Codegen& gen) {
+        // stored in a struct, always requires a load
+        return llvm_pointer(gen);
+    }
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

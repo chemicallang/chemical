@@ -47,6 +47,22 @@
 #include "compiler/llvmimpl.h"
 #include "ast/structures/StructMember.h"
 
+llvm::Value* ChainValue::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+    switch(kind()) {
+        case ValueKind::Identifier:
+            return as_identifier_unsafe()->linked->loadable_llvm_pointer(gen, location);
+        case ValueKind::IndexOperator:
+            return as_index_op_unsafe()->loadable_llvm_pointer(gen, location);
+        case ValueKind::FunctionCall:
+            return as_func_call_unsafe()->loadable_llvm_pointer(gen, location);
+        case ValueKind::AccessChain:
+            return as_access_chain_unsafe()->loadable_llvm_pointer(gen, location);
+        default:
+            CHEM_THROW_RUNTIME("nested access chain not supported for loadable llvm pointer");
+            return NullValue::null_llvm_value(gen);
+    }
+}
+
 llvm::AllocaInst* Value::llvm_alloca_store(Codegen& gen, BaseType* expected_type, llvm::Value* value) {
     const auto type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
     auto alloc = gen.builder->CreateAlloca(type, nullptr);
@@ -376,6 +392,45 @@ llvm::Value* ChainValue::access_chain_pointer(
     std::vector<llvm::Value*> idxList;
     auto parent_pointer = access_chain_parent_pointer(gen, values, destructibles, until, idxList);
     return create_gep(gen, values, parent_pointer.first, parent_pointer.second, idxList);
+}
+
+llvm::Value* ChainValue::loadable_access_chain_pointer(
+        Codegen &gen,
+        std::vector<ChainValue*>& values,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+        unsigned int until,
+        SourceLocation location
+) {
+    if(until == 0) {
+        return values[0]->loadable_llvm_pointer(gen, location);
+    }
+    // evaluate last comptime function call
+    const auto last = values[until];
+    const auto last_func_call = last->as_func_call();
+    if(last_func_call) {
+        const auto func_decl = last_func_call->safe_linked_func();
+        if(func_decl && func_decl->is_comptime()) {
+            auto& ret_value = gen.eval_comptime(last_func_call, func_decl);
+            if(ret_value) {
+                switch(ret_value->kind()) {
+                    case ValueKind::AccessChain:
+                    case ValueKind::Identifier:
+                    case ValueKind::IndexOperator:
+                    case ValueKind::FunctionCall:
+                        return ((ChainValue*) ret_value)->loadable_llvm_pointer(gen, location);
+                    default:
+                        return ret_value->llvm_pointer(gen);
+                }
+
+            } else {
+                return nullptr;
+            }
+        }
+    }
+    std::vector<llvm::Value*> idxList;
+    auto parent_pointer = access_chain_parent_pointer(gen, values, destructibles, until, idxList);
+    const auto gep = create_gep(gen, values, parent_pointer.first, parent_pointer.second, idxList);
+    return ASTNode::turnPtrValueToLoadablePtr(gen, gep, location);
 }
 
 void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {

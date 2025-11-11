@@ -836,13 +836,64 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
 #ifdef COMPILER_BUILD
 
 llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
+    switch(kind()) {
+        case ASTNodeKind::EmbeddedNode:
+            return as_embedded_node_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::VarInitStmt:
+            return as_var_init_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::UnnamedUnion:
+            return as_base_def_member_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::CapturedVariable:
+            return as_captured_var_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::FunctionParam:
+            return as_func_param_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::FunctionDecl:
+            return as_function_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::VariantCaseVariable:
+            return as_variant_case_var_unsafe()->llvm_pointer(gen);
+        case ASTNodeKind::PatternMatchId:
+            return as_patt_match_id_unsafe()->llvm_pointer(gen);
+        default:
 #ifdef DEBUG
-    CHEM_THROW_RUNTIME("llvm_pointer called on bare ASTNode");
+            CHEM_THROW_RUNTIME("unhandled llvm_pointer");
 #else
-    std::cerr << ("ASTNode::llvm_pointer called, on node : " + representation());
-    return nullptr;
+            std::cerr << "unhandled llvm_pointer, kind: " << static_cast<int>(kind()) << std::endl;
 #endif
+            return nullptr;
+    }
 };
+
+llvm::Value* ASTNode::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+    switch(kind()) {
+        case ASTNodeKind::EmbeddedNode:
+            return as_embedded_node_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::VarInitStmt:
+            return as_var_init_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::StructMember:
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::UnnamedUnion:
+            return as_base_def_member_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::CapturedVariable:
+            return as_captured_var_unsafe()->loadable_llvm_pointer(gen);
+        case ASTNodeKind::FunctionParam:
+            return as_func_param_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::FunctionDecl:
+            return as_function_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::VariantCaseVariable:
+            return as_variant_case_var_unsafe()->loadable_llvm_pointer(gen, location);
+        case ASTNodeKind::PatternMatchId:
+            return as_patt_match_id_unsafe()->loadable_llvm_pointer(gen, location);
+        default:
+#ifdef DEBUG
+            CHEM_THROW_RUNTIME("unhandled llvm_pointer");
+#else
+            std::cerr << "unhandled llvm_pointer, kind: " << static_cast<int>(kind()) << std::endl;
+#endif
+            return nullptr;
+    }
+}
 
 void ASTNode::code_gen(Codegen &gen) {
 #ifdef DEBUG

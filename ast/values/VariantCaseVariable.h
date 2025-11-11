@@ -45,7 +45,12 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value* llvm_pointer(Codegen &gen) final;
+    llvm::Value* llvm_pointer(Codegen &gen);
+
+    inline llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location) {
+        // stored in a struct, always requires a load
+        return llvm_pointer(gen);
+    }
 
     llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final;
 

@@ -74,7 +74,9 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) override;
 
-    llvm::Value* llvm_pointer(Codegen &gen) override;
+    llvm::Value* llvm_pointer(Codegen &gen);
+
+    llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location);
 
 #endif
 

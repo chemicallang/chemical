@@ -303,7 +303,11 @@ public:
      */
     llvm::Value* initializer_value(Codegen &gen);
 
-    llvm::Value *llvm_pointer(Codegen &gen) final;
+    inline llvm::Value *llvm_pointer(Codegen &gen) {
+        return llvm_ptr;
+    }
+
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
 
     llvm::Type *llvm_type(Codegen &gen) final;
 

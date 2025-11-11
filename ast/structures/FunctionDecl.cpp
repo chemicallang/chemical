@@ -56,32 +56,47 @@ void FunctionParam::code_gen(Codegen &gen) {
     llvm_pointer(gen);
 }
 
-llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
-    if(pointer) {
-        return pointer;
-    }
-    auto index = calculate_c_or_llvm_index(gen.current_func_type);
-    if(index >= gen.current_function->arg_size()) {
+llvm::Value* FunctionParam::arg_pointer(Codegen& gen) {
+    auto argIndex = calculate_c_or_llvm_index(gen.current_func_type);
+    if(argIndex >= gen.current_function->arg_size()) {
         gen.error(this) << "couldn't get argument with name " << name << " since function has " << std::to_string(gen.current_function->arg_size()) << " arguments";
         return nullptr;
     }
-    auto arg = gen.current_function->getArg(index);
+    auto arg = gen.current_function->getArg(argIndex);
     if (arg) {
-         if(has_address_taken() || get_has_assignment()) {
-            const auto pure = type->canonical();
-            if(pure->kind() == BaseTypeKind::Pointer || pure->isIntegerLikeStorage()) {
-                const auto allocaInstr = gen.llvm.CreateAlloca(pure->llvm_type(gen), this);
-                pointer = allocaInstr;
-                const auto storeInstr = gen.builder->CreateStore(arg, allocaInstr);
-                gen.di.instr(storeInstr, this);
-                return allocaInstr;
-            }
-         }
         return arg;
     } else {
         gen.error(this) << "couldn't get argument with name " << name;
         return nullptr;
     }
+}
+
+llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
+    if(pointer) {
+        return pointer;
+    }
+    const auto arg = arg_pointer(gen);
+    if(has_address_taken() || get_has_assignment()) {
+        const auto pure = type->canonical();
+        if(pure->kind() == BaseTypeKind::Pointer || pure->isIntegerLikeStorage()) {
+            // ASTNode::turnPtrValueToLoadablePtr(gen, arg, encoded_location());
+            const auto allocaInstr = gen.llvm.CreateAlloca(pure->llvm_type(gen), this);
+            pointer = allocaInstr;
+            const auto storeInstr = gen.builder->CreateStore(arg, allocaInstr);
+            gen.di.instr(storeInstr, this);
+            return allocaInstr;
+        }
+    }
+    return arg;
+}
+
+llvm::Value* FunctionParam::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+    if(pointer) {
+        return pointer;
+    }
+    const auto stored = ASTNode::turnPtrValueToLoadablePtr(gen, arg_pointer(gen), location);
+    pointer = stored;
+    return stored;
 }
 
 llvm::Value *FunctionParam::llvm_load(Codegen& gen, SourceLocation location) {

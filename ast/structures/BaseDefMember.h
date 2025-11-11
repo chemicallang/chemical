@@ -33,12 +33,12 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value* llvm_pointer(Codegen &gen) final;
+    llvm::Value* llvm_pointer(Codegen &gen);
+
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
 
     llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final;
 
 #endif
 
 };
-
-typedef tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> VariablesMembersType;

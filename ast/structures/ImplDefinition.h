@@ -12,11 +12,18 @@
 #include "ast/base/TypeLoc.h"
 #include "ast/structures/InterfaceDefinition.h"
 
+struct ImplDeclAttrs {
+
+    AccessSpecifier specifier;
+
+};
+
 class ImplDefinition : public MembersContainer {
 public:
 
     TypeLoc interface_type;
     TypeLoc struct_type;
+    ImplDeclAttrs attrs;
 
     /**
      * constructor
@@ -25,9 +32,10 @@ public:
             TypeLoc interface_type,
             TypeLoc struct_type,
             ASTNode* parent_node,
-            SourceLocation location
+            SourceLocation location,
+            AccessSpecifier specifier = AccessSpecifier::Internal
     ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(interface_type),
-        struct_type(struct_type)
+        struct_type(struct_type), attrs(specifier)
     {
 
     }
@@ -37,9 +45,15 @@ public:
      */
     ImplDefinition(
             ASTNode* parent_node,
-            SourceLocation location
-    ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(nullptr), struct_type(nullptr) {
+            SourceLocation location,
+            AccessSpecifier specifier = AccessSpecifier::Internal
+    ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(nullptr),
+        struct_type(nullptr), attrs(specifier) {
 
+    }
+
+    inline AccessSpecifier specifier() {
+        return attrs.specifier;
     }
 
     uint64_t byte_size(bool is64Bit) final;

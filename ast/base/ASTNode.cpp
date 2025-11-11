@@ -277,6 +277,8 @@ AccessSpecifier ASTNode::specifier(AccessSpecifier def_specifier) {
             return as_gen_interface_decl_unsafe()->master_impl->specifier();
         case ASTNodeKind::GenericVariantDecl:
             return as_gen_variant_decl_unsafe()->master_impl->specifier();
+        case ASTNodeKind::GenericImplDecl:
+            return as_gen_impl_decl_unsafe()->master_impl->specifier();
         case ASTNodeKind::VariantDecl:
             return as_variant_def_unsafe()->specifier();
         case ASTNodeKind::NamespaceDecl:
@@ -289,6 +291,8 @@ AccessSpecifier ASTNode::specifier(AccessSpecifier def_specifier) {
             return as_function_unsafe()->specifier();
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier();
+        case ASTNodeKind::ImplDecl:
+            return as_impl_def_unsafe()->specifier();
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->specifier();
         case ASTNodeKind::TypealiasStmt:

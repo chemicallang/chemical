@@ -344,8 +344,11 @@ llvm::Function* declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, cons
     return callee;
 }
 
-inline llvm::Function* external_declare_fn(Codegen& gen, FunctionDeclaration* decl) {
-    if(runtime_specifier(decl) != AccessSpecifier::Public) {
+inline llvm::Function* external_declare_fn(Codegen& gen, FunctionDeclaration* decl, AccessSpecifier specifier) {
+    // intentional check on public only (no protected)
+    // because protected functions need not be declared across modules
+    // because they won't be called
+    if(specifier != AccessSpecifier::Public) {
         // TODO this should not happen, we should not even include nodes
         // whats happening is, this module adds some extension function to interface imported from another module
         // when we declare this interface, we wrongly declare the imported interface and also the extension function
@@ -440,7 +443,14 @@ void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
     if(!exists_at_runtime()) {
         return;
     }
-    external_declare_fn(gen, this);
+    external_declare_fn(gen, this, runtime_specifier(this));
+}
+
+void FunctionDeclaration::code_gen_external_declare(Codegen& gen, AccessSpecifier specifier) {
+    if(!exists_at_runtime()) {
+        return;
+    }
+    external_declare_fn(gen, this, specifier);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {

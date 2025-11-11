@@ -672,6 +672,11 @@ public:
      */
     void code_gen_external_declare(Codegen &gen) final;
 
+    /**
+     * externally declare manually with the given specifier
+     */
+    void code_gen_external_declare(Codegen& gen, AccessSpecifier specifier);
+
 #endif
 
     /**

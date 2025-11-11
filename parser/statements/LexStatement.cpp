@@ -54,6 +54,8 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
             return parseVarInitializationTokens(allocator, spec, false, true, false, comptime);
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, spec);
+        case TokenType::ImplKw:
+            return (ASTNode*) parseImplTokens(allocator, spec);
         case TokenType::TypeKw:
             return (ASTNode*) parseTypealiasStatement(allocator, spec);
         case TokenType::NamespaceKw:

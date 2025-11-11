@@ -14,6 +14,24 @@ impl PrimitiveImplInterface1 for long {
     }
 }
 
+impl PrimitiveImplInterface1 for double {
+    func give(&self) : int {
+        return *self as int
+    }
+}
+
+impl PrimitiveImplInterface1 for float {
+    func give(&self) : int {
+        return (*self + 1.0f) as int
+    }
+}
+
+impl PrimitiveImplInterface1 for bool {
+    func give(&self) : int {
+        return if(*self) 69 else 96
+    }
+}
+
 impl PrimitiveImplInterface1 for &int {
     func give(&self) : int {
         return **self + 30
@@ -102,5 +120,21 @@ func test_primitive_implementations() {
     test("call through parameter on pointer primitive impl method works - 2", () => {
         var i : long = 20
         return param_call_ptr_long_prim_impl(&i) == 80
+    })
+    test("direct call on primitive impl method works - 3", () => {
+        var i : double = 3.0
+        return i.give() == 3
+    })
+    test("direct call on primitive impl method works - 4", () => {
+        var i : float = 3.0f
+        return i.give() == 4
+    })
+    test("direct call on primitive impl method works - 5", () => {
+        var i : bool = true
+        return i.give() == 69
+    })
+    test("direct call on primitive impl method works - 6", () => {
+        var i : bool = false
+        return i.give() == 96
     })
 }

@@ -9,17 +9,24 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/GenericImplDecl.h"
 
-ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseImplTokens(ASTAllocator& passed_allocator, AccessSpecifier specifier) {
 
     auto& tok = *token;
 
     if (tok.type == TokenType::ImplKw) {
 
+        // all the structs are allocated on global allocator
+        // WHY? because when used with imported public generics, the generics tend to instantiate with types
+        // referencing the internal structs, which now must be declared inside another module
+        // because generics don't check whether the type being used with it is valid in another module
+        // once we can be sure which instantiations of generics are being used in module, we can eliminate this
+        auto& allocator = global_allocator;
+
         token++;
 
         const auto location = loc_single(tok);
 
-        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, location);
+        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, location, specifier);
         annotate(impl);
 
         ASTNode* final_decl = impl;
@@ -69,7 +76,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, AccessSpecifier specif
             return final_decl;
         }
 
-        parseContainerMembersInto(impl, allocator, AccessSpecifier::Public, false);
+        parseContainerMembersInto(impl, passed_allocator, AccessSpecifier::Public, false);
         parent_node = prev_parent_node;
 
         if (!consumeToken(TokenType::RBrace)) {

@@ -81,7 +81,20 @@ void ImplDefinition::code_gen(Codegen &gen) {
 }
 
 void ImplDefinition::code_gen_external_declare(Codegen &gen) {
-    code_gen_declare(gen);
+    // const auto linked = interface_type->linked_node()->as_interface_def();
+    if(struct_type == nullptr) return;
+    // struct type is given, but probably primitive
+    const auto struct_def = struct_type->get_direct_linked_struct();
+    if(struct_def) {
+        // nothing to do here
+    } else {
+        if(!is_linkage_public(specifier())) {
+            return;
+        }
+        for (auto& function: instantiated_functions()) {
+            function->code_gen_external_declare(gen, AccessSpecifier::Public);
+        }
+    }
 }
 
 #endif

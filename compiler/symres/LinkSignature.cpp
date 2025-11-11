@@ -71,7 +71,7 @@ ASTNode* get_chain_linked(Value* value) {
 
 inline void check_type_exported(SymbolResolver& linker, ASTNode* linked, SourceLocation location) {
     const auto spec = linked->specifier(AccessSpecifier::Public);
-    if(spec != AccessSpecifier::Public && spec != AccessSpecifier::Protected) {
+    if(!is_linkage_public(spec)) {
         linker.error("non exported type being used in a public type, please use 'public' or 'protected' to expose it", location);
     }
 }

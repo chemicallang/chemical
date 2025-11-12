@@ -83,6 +83,7 @@
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/utils/ASTUtils.h"
+#include "InvokeUtils.h"
 
 Codegen::Codegen(
         CodegenOptions& options,
@@ -1463,11 +1464,12 @@ void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options) {
             options->is_debug = false;
             options->lto = true;
             options->is_small = false;
+            return;
         case OutputMode::ReleaseSmall:
             options->is_debug = false;
             options->lto = true;
             options->is_small = true;
-            break;
+            return;
 #ifdef DEBUG
         default:
             CHEM_THROW_RUNTIME("[lab] unknown output mode");
@@ -1595,89 +1597,136 @@ int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
 
 #endif
 
-int link_objects(
-    std::vector<std::string>& linkables,
-    const std::string& bin_out,
-    const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
-    const std::vector<std::string>& flags, // passed to clang or lld,
-    const std::vector<std::string>& link_libs,
-    const std::string_view& target_triple,
-    bool use_lld,
-    bool libc
+int lld_link_objects(
+        std::vector<chem::string>& linkables,
+        const std::string& bin_out,
+        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::vector<chem::string>& link_libs,
+        const std::string_view& target_triple,
+        LinkFlags& flags
 ) {
-    if(use_lld) {
 
-        // creating lld command
-        std::vector<std::string> command;
+    // creating lld command
+    std::vector<std::string> command;
 
-        // put the linkables into the command
-        for(auto& linkable : linkables) {
-            command.emplace_back(linkable);
-        }
+    // put the linkables into the command
+    for(auto& linkable : linkables) {
+        command.emplace_back(linkable.to_view());
+    }
 
-        // set output
+    // set output
 #if defined(_WIN32)
-        command.emplace_back("/OUT:"+bin_out);
+    command.emplace_back("/OUT:"+bin_out);
 #else
-        command.emplace_back("-o");
+    command.emplace_back("-o");
         command.emplace_back("./"+bin_out);
 #endif
 
-        // add user's linker flags
-        for(const auto& flag : flags) {
-            command.emplace_back(flag);
-        }
-
 #ifdef _WIN32
-        // add libraries user asked us to link
-        for(const auto& lib : link_libs) {
-            command.emplace_back("/DEFAULTLIB:" + lib);
-        }
+    // add libraries user asked us to link
+    for(const auto& lib : link_libs) {
+        std::string str("/DEFAULTLIB:");
+        str.append(lib.to_view());
+        command.emplace_back(std::move(str));
+    }
 #else
-        // add libraries user asked us to link
-        for(const auto& lib : link_libs) {
-            command.emplace_back("-l" + lib);
-        }
+    // add libraries user asked us to link
+    for(const auto& lib : link_libs) {
+        std::string str("-l");
+        str.append(lib.to_view());
+        command.emplace_back(std::move(str));
+    }
 #endif
 
-        // invoke lld to create executable
-        return invoke_lld(command, target_triple);
+    if(flags.no_pie) {
+#if defined(_WIN32)
+        command.emplace_back("/FIXED");
+#elif defined(__APPLE__)
+        command.emplace_back("-no_pie");
+#elif defined(__linux__)
+        command.emplace_back("-no-pie");
+#endif
+    }
 
-    } else {
-        // use clang by default
+    if(flags.debug_info) {
+#if defined(_WIN32)
+        command.emplace_back("/DEBUG");
+#elif defined(__APPLE__)
+        command.emplace_back("-g");
+#elif defined(__linux__)
+        command.emplace_back("-g");
+#endif
+    }
 
-        std::vector<std::string> clang_flags{comp_exe_path};
-        clang_flags.emplace_back("-target");
-        clang_flags.emplace_back(target_triple);
+    if(flags.verbose) {
+#if defined(_WIN32)
+        command.emplace_back("/VERBOSE");
+#elif defined(__APPLE__)
+        command.emplace_back("-v");
+#elif defined(__linux__)
+        command.emplace_back("-v");
+#endif
+    }
 
-        for(const auto& cland_fl : flags) {
-            clang_flags.emplace_back(cland_fl);
-        }
-        for(auto& linkable : linkables) {
-            clang_flags.emplace_back(linkable);
-        }
-        // add libraries user asked us to link
-        for(const auto& lib : link_libs) {
-            clang_flags.emplace_back("-l" + lib);
-        }
+    // invoke lld to create executable
+    return invoke_lld(command, target_triple);
+
+}
+
+int clang_link_objects(
+        std::vector<chem::string>& linkables,
+        const std::string& bin_out,
+        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::vector<chem::string>& link_libs,
+        const std::string_view& target_triple,
+        LinkFlags& flags
+) {
+    std::vector<std::string> clang_flags{comp_exe_path};
+    clang_flags.emplace_back("-target");
+    clang_flags.emplace_back(target_triple);
+
+    if(flags.debug_info) {
+        // on windows codeview is being used as .pdb and .ilk are being generated which aren't supported by gdb
+        // we can use -gdward-4 which is supported
+        // flags.emplace_back("-gdwarf-4");
+        clang_flags.emplace_back("-g");
+    }
+    if(flags.no_pie) {
+        clang_flags.emplace_back("-no-pie");
+    }
+    if(flags.verbose) {
+        clang_flags.emplace_back("-v");
+    }
+
+    for(auto& linkable : linkables) {
+        clang_flags.emplace_back(linkable.to_view());
+    }
+
+    // add libraries user asked us to link
+    for(const auto& lib : link_libs) {
+        std::string str("-l");
+        str.append(lib.to_view());
+        clang_flags.emplace_back(std::move(str));
+    }
+
 #if defined(_WINDOWS)
     if(bin_out.ends_with(".dll")) {
-            clang_flags.emplace_back("-shared");
+        clang_flags.emplace_back("-shared");
     }
 #elif defined(__APPLE__)
     if(bin_out.ends_with(".dylib")) {
-            clang_flags.emplace_back("-shared");
+        clang_flags.emplace_back("-shared");
     }
 #elif defined(__linux__)
     if(bin_out.ends_with(".so")) {
-            clang_flags.emplace_back("-shared");
+        clang_flags.emplace_back("-shared");
     }
 #endif
-        clang_flags.emplace_back("-o");
-        clang_flags.emplace_back(bin_out);
-        return chemical_clang_main2(clang_flags);
-    }
 
+    clang_flags.emplace_back("-o");
+    clang_flags.emplace_back(bin_out);
+
+    return chemical_clang_main2(clang_flags);
 }
 
 int compile_c_file_to_object(

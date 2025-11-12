@@ -79,9 +79,6 @@ void print_help() {
                  "--cpp-like          -[empty]      configure output of c translation to be like c++\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
                  "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
-                 "--print-ig          -pr-ig        print import graph of the source file\n"
-                 "--print-ast         -pr-ast       print representation of AST\n"
-                 "--print-cst         -pr-cst       print CST for debugging\n"
                  "" << std::endl;
 
 }
@@ -453,10 +450,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("benchmark", "bm", CmdOptionType::NoValue),
             CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue),
             CmdOption("benchmark-modules", "bm-modules", CmdOptionType::NoValue),
-            CmdOption("print-ast", "pr-ast", CmdOptionType::NoValue),
-            CmdOption("print-cst", "pr-cst", CmdOptionType::NoValue),
-            CmdOption("print-ig", "pr-ig", CmdOptionType::NoValue),
             CmdOption("verbose", "v", CmdOptionType::NoValue),
+            CmdOption("verbose-link", "vl", CmdOptionType::NoValue),
             CmdOption("", "g", CmdOptionType::NoValue),
             CmdOption("library", "l", CmdOptionType::MultiValued),
             CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue),
@@ -587,10 +582,8 @@ int compiler_main(int argc, char *argv[]) {
         opts->benchmark = options.has_value("benchmark", "bm");
         opts->benchmark_files = options.has_value("benchmark-files", "bm-files");
         opts->benchmark_modules = options.has_value("benchmark-modules", "bm-modules");
-        opts->print_representation = options.has_value("print-ast", "pr-ast");
-        opts->print_cst = options.has_value("print-cst", "pr-cst");
-        opts->print_ig = options.has_value("print-ig", "pr-ig");
         opts->verbose = verbose;
+        opts->verbose_link = options.has_value("verbose-link", "vl");
         opts->minify_c = options.has_value("minify-c");
         opts->debug_info = options.has_value("", "g") || (opts->outMode == OutputMode::Debug || opts->outMode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD

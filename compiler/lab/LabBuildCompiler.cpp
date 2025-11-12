@@ -1813,34 +1813,15 @@ int link_objects_linker(
         std::vector<chem::string>& link_libs,
         const std::string& output_path,
         const std::string_view& target_triple,
-        bool debug_info,
-        OutputMode mode,
-        bool no_pie,
-        bool verbose,
+        LinkFlags& flags,
         bool use_lld
 ) {
-    std::vector<std::string> data;
-    for (auto& obj: objects) {
-        data.emplace_back(obj.to_view());
+    int link_result;
+    if(use_lld) {
+        link_result = lld_link_objects(objects, output_path, comp_exe_path, link_libs, target_triple, flags);
+    } else {
+        link_result = clang_link_objects(objects, output_path, comp_exe_path, link_libs, target_triple, flags);
     }
-    std::vector<std::string> flags;
-    if(debug_info || is_debug_or_compl(mode)) {
-        // on windows codeview is being used as .pdb and .ilk are being generated which aren't supported by gdb
-        // we can use -gdward-4 which is supported
-        // flags.emplace_back("-gdwarf-4");
-        flags.emplace_back("-g");
-    }
-    if(no_pie) {
-        flags.emplace_back("-no-pie");
-    }
-    if(verbose) {
-        flags.emplace_back("-v");
-    }
-    std::vector<std::string> libs;
-    for(auto& lib : link_libs) {
-        libs.emplace_back(lib.to_view());
-    }
-    const auto link_result = link_objects(data, output_path, comp_exe_path, flags, libs, target_triple, use_lld);
     if(link_result != 0) {
         print_failed_to_link(objects, output_path);
     }
@@ -1869,7 +1850,11 @@ int link_objects_now(
     if(use_tcc) {
         return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));
     } else {
-        return link_objects_linker(options->exe_path, objects, link_libs, output_path, target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose, options->use_lld);
+        LinkFlags linkFlags;
+        linkFlags.debug_info = options->debug_info || is_debug_or_compl(options->outMode);
+        linkFlags.verbose = options->verbose_link;
+        linkFlags.no_pie = options->no_pie;
+        return link_objects_linker(options->exe_path, objects, link_libs, output_path, target_triple, linkFlags, options->use_lld);
     }
 #else
     return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));

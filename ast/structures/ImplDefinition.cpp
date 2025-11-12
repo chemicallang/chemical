@@ -70,7 +70,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
         for (auto& function: instantiated_functions()) {
             code_gen_function_primitive(gen, function, linked);
         }
-        linked->llvm_global_vtable(gen, this, struct_type);
+        linked->create_global_vtable(gen, this, struct_type, false);
     } else {
         for (auto& function: instantiated_functions()) {
             code_gen_function(gen, function, linked, struct_def);
@@ -92,9 +92,12 @@ void ImplDefinition::code_gen_external_declare(Codegen &gen) {
         if(!is_linkage_public(specifier())) {
             return;
         }
+        const auto interface = interface_type->get_direct_linked_interface();
         for (auto& function: instantiated_functions()) {
             function->code_gen_external_declare(gen, AccessSpecifier::Public);
         }
+        // just declare the global vtable for this primitive impl Again.
+        interface->create_global_vtable(gen, this, struct_type, true);
     }
 }
 

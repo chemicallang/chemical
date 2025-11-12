@@ -26,7 +26,8 @@ int link_objects_linker(
         bool debug_info,
         OutputMode mode,
         bool no_pie,
-        bool verbose
+        bool verbose,
+        bool use_lld
 );
 
 int link_objects_now(

@@ -1610,6 +1610,11 @@ int link_objects(
         // creating lld command
         std::vector<std::string> command;
 
+        // put the linkables into the command
+        for(auto& linkable : linkables) {
+            command.emplace_back(linkable);
+        }
+
         // set output
 #if defined(_WIN32)
         command.emplace_back("/OUT:"+bin_out);
@@ -1618,26 +1623,22 @@ int link_objects(
         command.emplace_back("./"+bin_out);
 #endif
 
-        // link with standard libc (unless user opts out)
-        if(!libc) {
-#if defined(_WIN32)
-            command.emplace_back("-defaultlib:libcmt");
-#elif defined(__APPLE__)
-            command.emplace_back("-lc");
-#elif defined(__linux__)
-            command.emplace_back("-lc");
-#endif
-        }
-
         // add user's linker flags
         for(const auto& flag : flags) {
             command.emplace_back(flag);
         }
 
+#ifdef _WIN32
+        // add libraries user asked us to link
+        for(const auto& lib : link_libs) {
+            command.emplace_back("/DEFAULTLIB:" + lib);
+        }
+#else
         // add libraries user asked us to link
         for(const auto& lib : link_libs) {
             command.emplace_back("-l" + lib);
         }
+#endif
 
         // invoke lld to create executable
         return invoke_lld(command, target_triple);

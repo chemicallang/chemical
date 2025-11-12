@@ -75,6 +75,13 @@ public:
     bool no_pie = false;
 #endif
 
+#ifdef COMPILER_BUILD
+    /**
+     * should the lld be used directly
+     */
+    bool use_lld = false;
+#endif
+
 
     /**
      * constructor

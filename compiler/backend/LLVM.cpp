@@ -94,6 +94,8 @@
 #include "ast/values/LoopValue.h"
 #include "ast/types/NullPtrType.h"
 #include "compiler/cbi/model/ASTBuilder.h"
+#include "preprocess/2c/BufferedWriter.h"
+#include "compiler/mangler/NameMangler.h"
 
 // -------------------- Types
 
@@ -1528,7 +1530,11 @@ void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr)
     if(value->kind() == ValueKind::StructValue) {
         ptr = value->llvm_value(gen);
     } else {
-        ptr = value->llvm_pointer(gen);
+        if(Value::isValueKindRValue(value->kind())) {
+            ptr = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_value(gen), value->encoded_location());
+        } else {
+            ptr = value->llvm_pointer(gen);
+        }
     };
 
     // get the interface
@@ -1540,18 +1546,36 @@ void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr)
     const auto interface = inter_node->as_interface_def_unsafe();
 
     // get the impl decl
-    const auto impl_node = value->getType()->get_direct_linked_canonical_node();
-    if(!impl_node || impl_node->kind() != ASTNodeKind::StructDecl) {
-        gen.error("couldn't get implementation declaration", dyn_value);
-        return;
+    const auto impl_type = value->getType();
+    const auto impl_node = impl_type->get_direct_linked_canonical_node();
+    if(impl_node == nullptr) {
+
+        ScratchString<128> temp_name;
+        gen.mangler.mangle_vtable_name(temp_name, interface, impl_type);
+        const auto vtable_ptr = gen.module->getGlobalVariable(llvm::StringRef(temp_name.data(), temp_name.size()), true);
+        if(vtable_ptr == nullptr) {
+            gen.error("couldn't get implementation declaration", dyn_value);
+            return;
+        }
+
+        // assign the dynamic object
+        gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, dyn_value->encoded_location());
+
+    } else {
+
+        if(impl_node->kind() != ASTNodeKind::StructDecl) {
+            gen.error("couldn't get implementation declaration", dyn_value);
+            return;
+        }
+        const auto impl_decl = impl_node->as_struct_def_unsafe();
+
+        // get the vtable pointer
+        const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);
+
+        // assign the dynamic object
+        gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, dyn_value->encoded_location());
+
     }
-    const auto impl_decl = impl_node->as_struct_def_unsafe();
-
-    // get the vtable pointer
-    const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);
-
-    // assign the dynamic object
-    gen.assign_dyn_obj(fat_ptr, ptr, vtable_ptr, dyn_value->encoded_location());
 
 }
 

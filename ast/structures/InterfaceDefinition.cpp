@@ -220,11 +220,6 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefin
             constant,
             (std::string_view) temp_name
     );
-    // an alias to the first pointer in the llvm_vtable
-    // since we are using structs, we don't need to create an alias to the first pointer
-//    std::vector<llvm::Constant*> idx { gen.builder->getInt32(0), gen.builder->getInt32(0) };
-//    const auto get_ele_ptr = llvm::ConstantExpr::getGetElementPtr(constant->getType(), table, idx, gen.inbounds);
-//    const auto alias = llvm::GlobalAlias::create(gen.builder->getPtrTy(), 0, llvm::GlobalValue::LinkageTypes::InternalLinkage, "", get_ele_ptr, gen.module.get());
     vtable_pointers[for_struct] = table;
     return table;
 }
@@ -252,7 +247,6 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, ImplDefinit
             constant,
             (std::string_view) temp_name
     );
-    vtable_pointers[implDef] = table;
     return table;
 }
 

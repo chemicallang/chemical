@@ -27,24 +27,14 @@ public:
     bool benchmark_modules = false;
 
     /**
-     * print the import graph
-     */
-    bool print_ig = false;
-
-    /**
-     * print the representation of files (ASTNodes)
-     */
-    bool print_representation = false;
-
-    /**
-     * print the tokens lexed
-     */
-    bool print_cst = false;
-
-    /**
      * verbose
      */
     bool verbose = false;
+
+    /**
+     * pass verbose to link
+     */
+    bool verbose_link = false;
 
     /**
      * allows to ignore errors during compilation

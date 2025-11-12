@@ -5,19 +5,45 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include "std/chem_string_view.h"
+#include "std/chem_string.h"
 
-/**
- * links different object files / bitcode files using compiler or lld
- */
-int link_objects(
-        std::vector<std::string>& linkables,
+struct LinkFlags {
+
+    bool no_pie = false;
+
+    bool debug_info = false;
+
+    bool verbose = false;
+
+};
+
+int lld_link_objects(
+        std::vector<chem::string>& linkables,
         const std::string& bin_out,
         const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
-        const std::vector<std::string>& flags, // passed to clang or lld,
-        const std::vector<std::string>& link_libs,
+        const std::vector<chem::string>& link_libs,
         const std::string_view& target_triple,
-        bool use_lld = false,
-        bool libc = true
+        LinkFlags& flags
+);
+
+int clang_link_objects(
+        std::vector<chem::string>& linkables,
+        const std::string& bin_out,
+        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::vector<chem::string>& link_libs,
+        const std::string_view& target_triple,
+        LinkFlags& flags
+);
+
+int link_objects_linker(
+        const std::string& comp_exe_path,
+        std::vector<chem::string>& objects,
+        std::vector<chem::string>& link_libs,
+        const std::string& output_path,
+        const std::string_view& target_triple,
+        LinkFlags& flags,
+        bool use_lld
 );
 
 /**

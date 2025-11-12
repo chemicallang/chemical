@@ -2,6 +2,7 @@
 
 #include "InterfaceDefinition.h"
 #include "StructDefinition.h"
+#include "ImplDefinition.h"
 #include "StructMember.h"
 #include "compiler/mangler/NameMangler.h"
 #include "ast/types/LinkedType.h"
@@ -225,6 +226,33 @@ llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefin
 //    const auto get_ele_ptr = llvm::ConstantExpr::getGetElementPtr(constant->getType(), table, idx, gen.inbounds);
 //    const auto alias = llvm::GlobalAlias::create(gen.builder->getPtrTy(), 0, llvm::GlobalValue::LinkageTypes::InternalLinkage, "", get_ele_ptr, gen.module.get());
     vtable_pointers[for_struct] = table;
+    return table;
+}
+
+llvm::Constant* primitive_impl_vtable(Codegen& gen, InterfaceDefinition* iDef, ImplDefinition* def) {
+    std::vector<llvm::Constant*> llvm_pointers;
+    for(const auto func : def->instantiated_functions()) {
+        llvm_pointers.emplace_back(func->known_func(gen));
+    }
+    return llvm::ConstantStruct::get(iDef->llvm_vtable_type(gen), llvm_pointers);
+}
+
+llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, ImplDefinition* implDef, BaseType* implType, bool declare_only) {
+    // building vtable
+    const auto constant = declare_only ? nullptr : primitive_impl_vtable(gen, this, implDef);
+    const auto vtable_type = declare_only ? llvm_vtable_type(gen) : constant->getType();
+    const auto linkage = to_linkage(specifier());
+    ScratchString<128> temp_name;
+    gen.mangler.mangle_vtable_name(temp_name, this, implType);
+    auto table = new llvm::GlobalVariable(
+            *gen.module,
+            vtable_type,
+            true,
+            linkage,
+            constant,
+            (std::string_view) temp_name
+    );
+    vtable_pointers[implDef] = table;
     return table;
 }
 

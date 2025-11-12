@@ -63,13 +63,14 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
 }
 
 void ImplDefinition::code_gen(Codegen &gen) {
-    const auto linked = interface_type->linked_node()->as_interface_def();
+    const auto linked = interface_type->get_direct_linked_interface();
     const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
     // struct type is given, but probably primitive
     if(struct_type != nullptr && struct_def == nullptr) {
         for (auto& function: instantiated_functions()) {
             code_gen_function_primitive(gen, function, linked);
         }
+        linked->llvm_global_vtable(gen, this, struct_type);
     } else {
         for (auto& function: instantiated_functions()) {
             code_gen_function(gen, function, linked, struct_def);

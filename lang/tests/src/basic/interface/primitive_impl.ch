@@ -80,6 +80,10 @@ func param_call_ptr_long_prim_impl(a : *long) : int {
     return a.give()
 }
 
+func dyn_prim_impl_give(i : dyn PrimitiveImplInterface1) : int {
+    return i.give()
+}
+
 func test_primitive_implementations() {
     test("direct call on primitive impl method works - 1", () => {
         var i : int = 234
@@ -192,5 +196,29 @@ func test_primitive_implementations() {
     test("external direct call on primitive impl method works - 6", () => {
         var i : bool = false
         return i.ext_give() == 96
+    })
+    test("direct call on primitive impl method works - 1", () => {
+        var i : int = 234
+        return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 244
+    })
+    test("dynamic call on primitive impl method works - 2", () => {
+        var i : long = 61
+        return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 81
+    })
+    test("dynamic call on primitive impl method works - 3", () => {
+        var i : double = 3.0
+        return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 3
+    })
+    test("dynamic call on primitive impl method works - 4", () => {
+        var i : float = 3.0f
+        return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 4
+    })
+    test("dynamic call on primitive impl method works - 5", () => {
+        var i : bool = true
+        return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 69
+    })
+    test("dynamic call on primitive impl method works - 6", () => {
+        var i : bool = false
+        return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 96
     })
 }

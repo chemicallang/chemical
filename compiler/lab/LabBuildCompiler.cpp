@@ -1816,7 +1816,8 @@ int link_objects_linker(
         bool debug_info,
         OutputMode mode,
         bool no_pie,
-        bool verbose
+        bool verbose,
+        bool use_lld
 ) {
     std::vector<std::string> data;
     for (auto& obj: objects) {
@@ -1839,7 +1840,7 @@ int link_objects_linker(
     for(auto& lib : link_libs) {
         libs.emplace_back(lib.to_view());
     }
-    const auto link_result = link_objects(data, output_path, comp_exe_path, flags, libs, target_triple);
+    const auto link_result = link_objects(data, output_path, comp_exe_path, flags, libs, target_triple, use_lld);
     if(link_result != 0) {
         print_failed_to_link(objects, output_path);
     }
@@ -1868,7 +1869,7 @@ int link_objects_now(
     if(use_tcc) {
         return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));
     } else {
-        return link_objects_linker(options->exe_path, objects, link_libs, output_path, target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose);
+        return link_objects_linker(options->exe_path, objects, link_libs, output_path, target_triple, options->debug_info, options->outMode, options->no_pie, options->verbose, options->use_lld);
     }
 #else
     return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));

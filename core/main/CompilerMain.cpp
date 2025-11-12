@@ -468,6 +468,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("job-type", "jt", CmdOptionType::SingleValue),
             CmdOption("jit", "jit", CmdOptionType::NoValue),
             CmdOption("use-tcc", "use-tcc", CmdOptionType::NoValue),
+            CmdOption("use-lld", "use-lld", CmdOptionType::NoValue),
             CmdOption("output", "o", CmdOptionType::SingleValue),
             CmdOption("resources", "res", CmdOptionType::SingleValue),
             CmdOption("ignore-extension", CmdOptionType::NoValue),
@@ -595,6 +596,7 @@ int compiler_main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
         opts->use_tcc = options.has_value("use-tcc", "use-tcc");
+        opts->use_lld = options.has_value("use-lld", "use-lld");
 #endif
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
         if(options.has_value("no-cache")) {

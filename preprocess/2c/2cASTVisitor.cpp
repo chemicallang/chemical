@@ -684,6 +684,15 @@ inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, 
     visitor.mangler.mangle_vtable_name(visitor.writer, interface, definition);
 }
 
+inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, BaseType* implType) {
+    const auto value_node = implType->get_direct_linked_canonical_node();
+    if(value_node) {
+        vtable_name(visitor, interface, value_node->as_struct_def_unsafe());
+    } else {
+        visitor.mangler.mangle_vtable_name(visitor.writer, interface, implType);
+    }
+}
+
 // structs, or variants or references to them are passed in functions as pointers
 // if you took address of using '&' of the parameter that is already reference or pointer
 // we must not write '&' in the output C
@@ -852,11 +861,11 @@ bool is_value_type_pointer_like(Value* value) {
 // for example my_func(3) <-- here parameter takes a constant reference, which means r values are allowed
 // so we must store 3 in a temporary variable and pass address of it
 // this returns whether the value has already been written, should not be re-written
-bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType* ref_type) {
+bool write_value_for_ref_with_val_type(ToCAstVisitor& visitor, Value* val, BaseType* value_type) {
     if(Value::isValueKindRValue(val->val_kind())) {
         const auto temp_var = visitor.get_local_temp_var_name();
         visitor.write("({ ");
-        visitor.visit(ref_type->type);
+        visitor.visit(value_type);
         visitor.write(' ');
         visitor.write_str(temp_var);
         visitor.write(" = ");
@@ -870,6 +879,10 @@ bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType*
         return false;
     }
     return false;
+}
+
+inline bool write_value_for_ref_type(ToCAstVisitor& visitor, Value* val, ReferenceType* ref_type) {
+    return write_value_for_ref_with_val_type(visitor, val, ref_type->type);
 }
 
 Value* evaluate_comptime_func(
@@ -3580,6 +3593,35 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     visitor.write(';');
 }
 
+void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, ImplDefinition* def) {
+
+    visitor.new_line_and_indent();
+    visitor.write("const");
+    visitor.space();
+    vtable_type_name(visitor, interface);
+
+    visitor.space();
+    visitor.mangler.mangle_vtable_name(visitor.writer, interface, def->struct_type);
+    visitor.write(" = ");
+    visitor.write('{');
+    visitor.indentation_level += 1;
+
+    // func pointer values
+    for (auto& func: def->instantiated_functions()) {
+        if (func->has_self_param()) {
+            visitor.new_line_and_indent();
+            visitor.mangle(func);
+            visitor.write(',');
+        }
+    }
+
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+
+    visitor.write(';');
+}
+
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def);
 
 static void contained_interface_functions(ToCAstVisitor& visitor, InterfaceDefinition* def) {
@@ -3661,12 +3703,19 @@ void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
 
 void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
     if(def->struct_type) {
+        const auto interface_def = def->interface_type->get_direct_linked_interface();
+        if(interface_def == nullptr) {
+            visitor.error("unknown interface", def);
+            return;
+        }
         const auto container = def->struct_type->get_members_container();
         if(container == nullptr) {
             // native primitive type
             for(const auto func : def->instantiated_functions()) {
                 declare_contained_func(this, func, false, nullptr);
             }
+            // generating a vtable
+            create_v_table_for_primitive_impl(visitor, interface_def, def);
         }
     }
 }
@@ -6810,31 +6859,17 @@ void ToCAstVisitor::VisitDynamicValue(DynamicValue* dyn_value) {
     const auto type = dyn_value->getInterfaceType();
     const auto value = dyn_value->value;
     const auto inter_node = dyn_value->getType()->referenced->get_direct_linked_canonical_node();
-    if(!inter_node || inter_node->kind() != ASTNodeKind::InterfaceDecl) {
-        error("couldn't get interface from dynamic value", dyn_value);
-        write("[error: couldn't get interface from dynamic value]");
-        return;
-    }
-    const auto value_node = value->getType()->get_direct_linked_canonical_node();
-    if(!value_node || value_node->kind() != ASTNodeKind::StructDecl) {
-        error("couldn't get struct from dynamic value", dyn_value);
-        write("[error: couldn't get struct from dynamic value]");
-        return;
-    }
     const auto interface = inter_node->as_interface_def_unsafe();
-    const auto impl_node = value_node->as_struct_def_unsafe();
     write('(');
     write(fat_pointer_type);
     write(')');
     write('{');
     space();
-    if(!is_value_param_pointer_like(value)) {
-        write('&');
-    }
-    visit(value);
+    const auto written = write_value_for_ref_with_val_type(*this, value, value->getType());
+    if(!written) visit(value);
     write(',');
-    write("(void*) &");
-    vtable_name(*this, interface, impl_node);
+    write(" (void*) &");
+    vtable_name(*this, interface, value->getType());
     space();
     write('}');
 }

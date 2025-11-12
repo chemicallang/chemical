@@ -232,39 +232,38 @@ std::string_view to_string(IntNTypeKind kind) {
     }
 }
 
-void mangle_impl_type(NameMangler& mangler, BufferedWriter& stream, BaseType* type) {
+bool mangle_impl_type(NameMangler& mangler, BufferedWriter& stream, BaseType* type) {
     switch(type->kind()) {
         case BaseTypeKind::IntN:
             stream << to_string(type->as_intn_type_unsafe()->IntNKind());
-            stream << '_';
-            return;
+            return true;
         case BaseTypeKind::Float:
-            stream << "float_";
-            return;
+            stream << "float";
+            return true;
         case BaseTypeKind::Float128:
-            stream << "float128_";
-            return;
+            stream << "float128";
+            return true;
         case BaseTypeKind::Double:
-            stream << "double_";
-            return;
+            stream << "double";
+            return true;
         case BaseTypeKind::Bool:
-            stream << "bool_";
-            return;
+            stream << "bool";
+            return true;
         case BaseTypeKind::LongDouble:
-            stream << "longdouble_";
-            return;
+            stream << "longdouble";
+            return true;
         case BaseTypeKind::String:
-            stream << "str_";
-            return;
+            stream << "str";
+            return true;
         case BaseTypeKind::ExpressiveString:
-            stream << "expr_str_";
-            return;
+            stream << "expr_str";
+            return true;
         case BaseTypeKind::Any:
-            stream << "any_";
-            return;
+            stream << "any";
+            return true;
         case BaseTypeKind::NullPtr:
-            stream << "nullptr_";
-            return;
+            stream << "nullptr";
+            return true;
         case BaseTypeKind::Pointer: {
             const auto ptr_type = type->as_pointer_type_unsafe();
             if(ptr_type->is_mutable) {
@@ -272,7 +271,7 @@ void mangle_impl_type(NameMangler& mangler, BufferedWriter& stream, BaseType* ty
             }
             stream << "p_";
             mangle_impl_type(mangler, stream, ptr_type->type);
-            return;
+            return true;
         }
         case BaseTypeKind::Reference: {
             const auto ref_type = type->as_reference_type_unsafe();
@@ -281,14 +280,13 @@ void mangle_impl_type(NameMangler& mangler, BufferedWriter& stream, BaseType* ty
             }
             stream << "r_";
             mangle_impl_type(mangler, stream, ref_type->type);
-            return;
+            return true;
         }
         case BaseTypeKind::Linked:
             mangle_till_file(mangler, stream, type->as_linked_type_unsafe()->linked);
-            stream << '_';
-            return;
+            return true;
         default:
-            return;
+            return false;
     }
 }
 
@@ -325,6 +323,7 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                     // since this method is on native types, we need to figure out how to mangle it
                     write_mangle_parent_of(*this, stream, def);
                     mangle_impl_type(*this, stream, def->struct_type);
+                    stream << '_';
                 }
             } else {
                 const auto& interface = def->interface_type->get_direct_linked_interface();
@@ -378,4 +377,10 @@ bool NameMangler::mangle(BufferedWriter& stream, ASTNode* node) {
 void NameMangler::mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, StructDefinition* def) {
     mangle(stream, interface);
     mangle(stream, def);
+}
+
+void NameMangler::mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, BaseType* implType) {
+    mangle(stream, interface);
+    stream << '_';
+    mangle_impl_type(*this, stream, implType);
 }

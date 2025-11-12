@@ -7,6 +7,8 @@
 
 class ASTNode;
 
+class BaseType;
+
 class StructValue;
 
 class FunctionDeclaration;
@@ -66,5 +68,10 @@ public:
      * mangle the vtable name for an interface and struct that implements the interface
      */
     void mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, StructDefinition* def);
+
+    /**
+     * mangle a vtable name for a impl type (primitive impl)
+     */
+    void mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, BaseType* implType);
 
 };

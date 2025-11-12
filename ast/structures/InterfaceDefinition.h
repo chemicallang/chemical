@@ -81,7 +81,7 @@ public:
      * this maps structs that implement this interface with their global variable pointers
      * for the vtable generated
      */
-    std::unordered_map<StructDefinition*, llvm::Value*> vtable_pointers;
+    std::unordered_map<void*, llvm::Value*> vtable_pointers;
 #endif
 
     /**
@@ -263,12 +263,25 @@ public:
     llvm::Value* create_global_vtable(Codegen& gen, StructDefinition* for_struct, bool declare_only);
 
     /**
+     * the vtable for primitive impl
+     */
+    llvm::Value* create_global_vtable(Codegen& gen, ImplDefinition* implDef, BaseType* implType, bool declare_only);
+
+    /**
      * the vtable will be created as a global constant for the given struct
      * if a vtable already exists for the given struct, we just return it without creating another one
      */
     llvm::Value* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
         auto found = vtable_pointers.find(for_struct);
         return found != vtable_pointers.end() ? found->second : create_global_vtable(gen, for_struct, false);
+    }
+
+    /**
+     * the primitive impl global vtable
+     */
+    llvm::Value* llvm_global_vtable(Codegen& gen, ImplDefinition* implDef, BaseType* implType) {
+        auto found = vtable_pointers.find(implDef);
+        return found != vtable_pointers.end() ? found->second : create_global_vtable(gen, implDef, implType, false);
     }
 
     /**

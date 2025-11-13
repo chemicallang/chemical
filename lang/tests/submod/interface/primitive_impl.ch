@@ -2,6 +2,11 @@ public interface ExtPrimitiveImplInterface1 {
     func ext_give(&self) : int
 }
 
+@static
+public interface PrimitiveImplInterface3 {
+    func curr_mod_give2(&self) : int
+}
+
 public impl ExtPrimitiveImplInterface1 for int {
     func ext_give(&self) : int {
         return *self + 10

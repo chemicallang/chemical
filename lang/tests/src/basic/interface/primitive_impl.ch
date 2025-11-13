@@ -95,6 +95,12 @@ impl PrimitiveImplInterface2 for int {
     }
 }
 
+impl PrimitiveImplInterface3 for int {
+    func curr_mod_give2(&self) : int {
+        return *self + 7;
+    }
+}
+
 func test_primitive_implementations() {
     test("direct call on primitive impl method works - 1", () => {
         var i : int = 234
@@ -235,5 +241,9 @@ func test_primitive_implementations() {
     test("primitive impl on static interface in current module works", () => {
         var i : int = 343
         return i.curr_mod_give() == 346
+    })
+    test("primitive impl on static interface from external module works", () => {
+        var i : int = 233
+        return i.curr_mod_give2() == 240
     })
 }

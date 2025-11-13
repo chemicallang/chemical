@@ -38,10 +38,6 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
     }
 }
 
-void ImplDefinition::code_gen_function_primitive(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked) {
-    decl->code_gen_body(gen);
-}
-
 void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
     const auto linked = interface_type->linked_node()->as_interface_def();
     const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
@@ -56,8 +52,45 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
     if(struct_def) {
         // nothing to do here
     } else {
-        for (auto& function: instantiated_functions()) {
-            function->code_gen_declare_normal(gen);
+        const auto linked = interface_type->get_direct_linked_interface();
+        if(linked->is_static()) {
+            for (const auto function: instantiated_functions()) {
+                // need to use the function pointer of the interface
+                const auto base_func = linked->direct_or_inherited_function(function->name_view());
+                if(base_func == nullptr) {
+                    gen.error("couldn't override function", function);
+                    function->code_gen_declare_normal(gen);
+                    continue;
+                }
+                const auto func_ptr = base_func->known_func(gen);
+                if(func_ptr == nullptr) {
+                    gen.error("couldn't override function", function);
+                    function->code_gen_declare_normal(gen);
+                    continue;
+                }
+                const auto mod = func_ptr->getParent();
+                if(mod != gen.module.get()) {
+                    // not current module
+                    function->code_gen_declare_normal(gen);
+                } else {
+                    // internal interface, present in current module
+                    // we will implement the interface in place, since its present in current module
+                    function->set_llvm_data(gen, func_ptr);
+                    if(func_ptr->size() == 1) {
+                        // remove the stub block present in functions internal to module
+                        auto& stubEntry = func_ptr->getEntryBlock();
+                        stubEntry.removeFromParent();
+                    }
+                    const auto final_specifier = is_linkage_public(linked->specifier()) || is_linkage_public(specifier()) ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::PrivateLinkage;
+                    // change the function's linkage to internal
+                    func_ptr->setLinkage(final_specifier);
+                    gen.createFunctionBlock(func_ptr);
+                }
+            }
+        } else {
+            for (auto& function: instantiated_functions()) {
+                function->code_gen_declare_normal(gen);
+            }
         }
     }
 }
@@ -67,10 +100,12 @@ void ImplDefinition::code_gen(Codegen &gen) {
     const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
     // struct type is given, but probably primitive
     if(struct_type != nullptr && struct_def == nullptr) {
-        for (auto& function: instantiated_functions()) {
-            code_gen_function_primitive(gen, function, linked);
+        for (const auto function: instantiated_functions()) {
+            function->code_gen_body(gen);
         }
-        linked->create_global_vtable(gen, this, struct_type, false);
+        if(!linked->is_static()) {
+            linked->create_global_vtable(gen, this, struct_type, false);
+        }
     } else {
         for (auto& function: instantiated_functions()) {
             code_gen_function(gen, function, linked, struct_def);
@@ -97,7 +132,9 @@ void ImplDefinition::code_gen_external_declare(Codegen &gen) {
             function->code_gen_external_declare(gen, AccessSpecifier::Public);
         }
         // just declare the global vtable for this primitive impl Again.
-        interface->create_global_vtable(gen, this, struct_type, true);
+        if(!interface->is_static()) {
+            interface->create_global_vtable(gen, this, struct_type, true);
+        }
     }
 }
 

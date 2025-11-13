@@ -321,9 +321,14 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
                     mangle_non_func(stream, can_node);
                 } else {
                     // since this method is on native types, we need to figure out how to mangle it
-                    write_mangle_parent_of(*this, stream, def);
-                    mangle_impl_type(*this, stream, def->struct_type);
-                    stream << '_';
+                    const auto interface = def->interface_type->get_direct_linked_interface();
+                    if(interface->is_static()) {
+                        mangle_non_func(stream, interface);
+                    } else {
+                        write_mangle_parent_of(*this, stream, def);
+                        mangle_impl_type(*this, stream, def->struct_type);
+                        stream << '_';
+                    }
                 }
             } else {
                 const auto& interface = def->interface_type->get_direct_linked_interface();

@@ -2,6 +2,10 @@ public interface ExtPrimitiveImplInterface1 {
     func ext_give(&self) : int
 }
 
+public func <T : ExtPrimitiveImplInterface1> ext_prim_impl_interface1_give_stat_dispatch(value : T) : int {
+    return value.ext_give()
+}
+
 @static
 public interface PrimitiveImplInterface3 {
     func curr_mod_give2(&self) : int

@@ -2,6 +2,10 @@ interface PrimitiveImplInterface1 {
     func give(&self) : int
 }
 
+func <T : PrimitiveImplInterface1> prim_impl_interface1_give_stat_dispatch(value : T) : int {
+    return value.give()
+}
+
 impl PrimitiveImplInterface1 for int {
     func give(&self) : int {
         return *self + 10
@@ -110,6 +114,14 @@ func test_primitive_implementations() {
         var i : long = 61
         return i.give() == 81
     })
+    test("static dispatch on primitive impl in current module method works - 1", () => {
+        var i : int = 234
+        return prim_impl_interface1_give_stat_dispatch(i) == 244
+    })
+    test("static dispatch on primitive impl in current module method works - 2", () => {
+        var i : long = 61
+        return prim_impl_interface1_give_stat_dispatch(i) == 81
+    })
     test("call through parameter, primitive impl method works - 1", () => {
         return param_call_int_prim_impl(10) == 20
     })
@@ -171,6 +183,14 @@ func test_primitive_implementations() {
     })
     test("external call through parameter, primitive impl method works - 2", () => {
         return ext_param_call_long_prim_impl(10) == 30
+    })
+    test("static dispatch on primitive impl in external module method works - 1", () => {
+        var i : int = 234
+        return ext_prim_impl_interface1_give_stat_dispatch(i) == 244
+    })
+    test("static dispatch on primitive impl in external module method works - 2", () => {
+        var i : long = 61
+        return ext_prim_impl_interface1_give_stat_dispatch(i) == 81
     })
     test("external call on referenced primitive impl method works - 1", () => {
         var i : int = 20

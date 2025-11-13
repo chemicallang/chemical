@@ -3714,8 +3714,10 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
             for(const auto func : def->instantiated_functions()) {
                 declare_contained_func(this, func, false, nullptr);
             }
-            // generating a vtable
-            create_v_table_for_primitive_impl(visitor, interface_def, def);
+            if(!interface_def->is_static()) {
+                // generating a vtable
+                create_v_table_for_primitive_impl(visitor, interface_def, def);
+            }
         }
     }
 }

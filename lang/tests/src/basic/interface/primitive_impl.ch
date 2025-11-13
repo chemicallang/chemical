@@ -84,6 +84,17 @@ func dyn_prim_impl_give(i : dyn PrimitiveImplInterface1) : int {
     return i.give()
 }
 
+@static
+interface PrimitiveImplInterface2 {
+    func curr_mod_give(&self) : int
+}
+
+impl PrimitiveImplInterface2 for int {
+    func curr_mod_give(&self) : int {
+        return *self + 3;
+    }
+}
+
 func test_primitive_implementations() {
     test("direct call on primitive impl method works - 1", () => {
         var i : int = 234
@@ -220,5 +231,9 @@ func test_primitive_implementations() {
     test("dynamic call on primitive impl method works - 6", () => {
         var i : bool = false
         return dyn_prim_impl_give(dyn<PrimitiveImplInterface1>(i)) == 96
+    })
+    test("primitive impl on static interface in current module works", () => {
+        var i : int = 343
+        return i.curr_mod_give() == 346
     })
 }

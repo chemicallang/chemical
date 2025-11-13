@@ -140,7 +140,7 @@ public:
      * map tells which static interfaces have implementations
      * at the end, we iterate over every static interface here and generate a stub
      */
-    std::unordered_map<InterfaceDefinition*, bool> has_implementations;
+    std::unordered_map<InterfaceDefinition*, bool> unimplemented_static_interfaces;
 
     /**
      * implicit arguments are stored on this unordered map
@@ -442,10 +442,10 @@ public:
      * store this static interface, for generation of stub implementation of it
      * unless it gets implemented by the user
      */
-    void store_static_interface_exists(InterfaceDefinition* def) {
-        auto found = has_implementations.find(def);
-        if(found == has_implementations.end()) {
-            has_implementations[def] = true;
+    void store_static_interface_for_stub_impl(InterfaceDefinition* def) {
+        auto found = unimplemented_static_interfaces.find(def);
+        if(found == unimplemented_static_interfaces.end()) {
+            unimplemented_static_interfaces[def] = true;
         }
     }
 
@@ -453,10 +453,10 @@ public:
      * remove this static interface from storage, so stub implementation for it
      * should not be generated
      */
-    void remove_static_interface_implemented(InterfaceDefinition* def) {
-        auto found = has_implementations.find(def);
-        if(found != has_implementations.end()) {
-            has_implementations.erase(found);
+    void remove_static_interface_for_stub_impl(InterfaceDefinition* def) {
+        auto found = unimplemented_static_interfaces.find(def);
+        if(found != unimplemented_static_interfaces.end()) {
+            unimplemented_static_interfaces.erase(found);
         }
     }
 

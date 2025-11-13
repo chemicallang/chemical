@@ -64,7 +64,9 @@ void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclarati
 
 void InterfaceDefinition::code_gen_declare(Codegen &gen) {
     if(is_static()) {
-        // nothing to be done at the moment (unsure)
+        for (auto& func: instantiated_functions()) {
+            func->code_gen_declare(gen, this);
+        }
     } else {
         for (auto& func: instantiated_functions()) {
             if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {
@@ -79,9 +81,7 @@ void InterfaceDefinition::code_gen_declare(Codegen &gen) {
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     if(is_static()) {
-        for (auto& func: instantiated_functions()) {
-            func->code_gen_declare(gen, this);
-        }
+        // nothing to be done at the moment (unsure)
     } else {
         for (auto& func: instantiated_functions()) {
             if(!func->has_self_param() && (attrs.has_implementation || !users.empty())) {

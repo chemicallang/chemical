@@ -3708,13 +3708,13 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
             visitor.error("unknown interface", def);
             return;
         }
-        const auto container = def->struct_type->get_members_container();
-        if(container == nullptr) {
-            // native primitive type
-            for(const auto func : def->instantiated_functions()) {
-                declare_contained_func(this, func, false, nullptr);
-            }
-            if(!interface_def->is_static()) {
+        if(!interface_def->is_static()) {
+            const auto container = def->struct_type->get_members_container();
+            if(container == nullptr) {
+                // native primitive type
+                for(const auto func : def->instantiated_functions()) {
+                    declare_contained_func(this, func, false, nullptr);
+                }
                 // generating a vtable
                 create_v_table_for_primitive_impl(visitor, interface_def, def);
             }

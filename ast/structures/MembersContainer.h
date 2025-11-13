@@ -174,6 +174,12 @@ public:
 
     FunctionDeclaration *direct_child_function(const chem::string_view& name);
 
+    inline FunctionDeclaration* direct_or_inherited_function(const chem::string_view& name) {
+        const auto func = direct_child_function(name);
+        if(func) return func;
+        return inherited_function(name);
+    }
+
     inline FunctionDeclaration *member(const chem::string_view &name) {
         return direct_child_function(name);
     }

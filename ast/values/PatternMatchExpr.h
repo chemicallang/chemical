@@ -5,6 +5,7 @@
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "std/chem_string_view.h"
+#include "ast/structures/VariantMemberParam.h"
 
 enum class PatternElseExprKind {
     None,
@@ -68,7 +69,9 @@ public:
         return copied;
     }
 
-    BaseType* known_type() override;
+    inline BaseType* known_type() {
+        return member_param->type;
+    }
 
 #ifdef COMPILER_BUILD
 

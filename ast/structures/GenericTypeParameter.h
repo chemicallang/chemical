@@ -46,7 +46,7 @@ public:
         active_type = nullptr;
     }
 
-    BaseType *known_type() final {
+    inline BaseType *known_type() {
         return active_type;
     }
 

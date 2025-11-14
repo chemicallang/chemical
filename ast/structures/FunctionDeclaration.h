@@ -505,7 +505,7 @@ public:
     /**
      * get known function type, which is this
      */
-    BaseType* known_type() final {
+    inline BaseType* known_type() {
         return this;
     }
 

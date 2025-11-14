@@ -29,6 +29,10 @@
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/LoopBlock.h"
+#include "ast/statements/UnresolvedDecl.h"
+#include "ast/statements/SwitchStatement.h"
+#include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Import.h"
@@ -158,6 +162,78 @@ bool ASTNode::is_top_level() {
             return true;
         default:
             return false;
+    }
+}
+
+BaseType* ASTNode::getType() {
+    switch(kind()) {
+        case ASTNodeKind::EmbeddedNode:
+            return as_embedded_node_unsafe()->known_type();
+        case ASTNodeKind::TypealiasStmt:
+            return as_typealias_unsafe()->known_type();
+        case ASTNodeKind::UnresolvedDecl:
+            return as_unresolved_decl_unsafe()->known_type();
+        case ASTNodeKind::VarInitStmt:
+            return as_var_init_unsafe()->known_type();
+        case ASTNodeKind::CapturedVariable:
+            return as_captured_var_unsafe()->known_type();
+        case ASTNodeKind::EnumDecl:
+            return as_enum_decl_unsafe()->known_type();
+        case ASTNodeKind::EnumMember:
+            return as_enum_member_unsafe()->known_type();
+        case ASTNodeKind::SwitchStmt:
+            return as_switch_stmt_unsafe()->known_type();
+        case ASTNodeKind::IfStmt:
+            return as_if_stmt_unsafe()->known_type();
+        case ASTNodeKind::FunctionDecl:
+            return as_function_unsafe()->known_type();
+        case ASTNodeKind::FunctionParam:
+            return as_func_param_unsafe()->known_type();
+        case ASTNodeKind::StructMember:
+            return as_struct_member_unsafe()->known_type();
+        case ASTNodeKind::GenericFuncDecl:
+            return as_gen_func_decl_unsafe()->known_type();
+        case ASTNodeKind::GenericInterfaceDecl:
+            return as_gen_interface_decl_unsafe()->known_type();
+        case ASTNodeKind::GenericStructDecl:
+            return as_gen_struct_def_unsafe()->known_type();
+        case ASTNodeKind::GenericVariantDecl:
+            return as_gen_variant_decl_unsafe()->known_type();
+        case ASTNodeKind::GenericTypeDecl:
+            return as_gen_type_decl_unsafe()->known_type();
+        case ASTNodeKind::GenericUnionDecl:
+            return as_gen_union_decl_unsafe()->known_type();
+        case ASTNodeKind::GenericImplDecl:
+            return as_gen_impl_decl_unsafe()->known_type();
+        case ASTNodeKind::GenericTypeParam:
+            return as_generic_type_param_unsafe()->known_type();
+        case ASTNodeKind::InterfaceDecl:
+            return as_interface_def_unsafe()->known_type();
+        case ASTNodeKind::LoopBlock:
+            return as_loop_block_unsafe()->known_type();
+        case ASTNodeKind::StructDecl:
+            return as_struct_def_unsafe()->known_type();
+        case ASTNodeKind::UnionDecl:
+            return as_union_def_unsafe()->known_type();
+        case ASTNodeKind::UnnamedStruct:
+            return as_unnamed_struct_unsafe()->known_type();
+        case ASTNodeKind::UnnamedUnion:
+            return as_unnamed_union_unsafe()->known_type();
+        case ASTNodeKind::VariantDecl:
+            return as_variant_def_unsafe()->known_type();
+        case ASTNodeKind::VariantMember:
+            return as_variant_member_unsafe()->known_type();
+        case ASTNodeKind::VariantMemberParam:
+            return as_variant_member_param_unsafe()->known_type();
+        case ASTNodeKind::PatternMatchId:
+            return as_patt_match_id_unsafe()->known_type();
+        case ASTNodeKind::VariantCaseVariable:
+            return as_variant_case_var_unsafe()->known_type();
+        case ASTNodeKind::StructType:
+            return ((StructType*) this);
+        case ASTNodeKind::ImportStmt:
+        default:
+            return (BaseType*) TypeBuilder::getVoidTypeInstance();
     }
 }
 

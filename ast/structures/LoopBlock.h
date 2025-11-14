@@ -43,7 +43,7 @@ public:
 
     Value* get_first_broken();
 
-    BaseType* known_type() final;
+    BaseType* known_type();
 
 #ifdef COMPILER_BUILD
 

@@ -49,7 +49,7 @@ public:
         return largest_member()->byte_size(is64Bit);
     }
 
-    BaseType* known_type() override {
+    inline BaseType* known_type() {
         return &linkedType;
     }
 

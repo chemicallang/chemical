@@ -63,7 +63,7 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    BaseType* known_type() override {
+    inline BaseType* known_type() {
         return &linkedType;
     }
 

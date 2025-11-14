@@ -17,6 +17,12 @@
 #include "ast/values/NullValue.h"
 #include "ast/types/ExpressiveStringType.h"
 
+static const VoidType voidTypeInstance;
+
+VoidType* TypeBuilder::getVoidTypeInstance() {
+    return const_cast<VoidType*>(&voidTypeInstance);
+}
+
 void TypeBuilder::initialize() {
 
     anyType = new (allocator.allocate<AnyType>()) AnyType();
@@ -26,7 +32,7 @@ void TypeBuilder::initialize() {
     floatType = new (allocator.allocate<FloatType>()) FloatType();
     longDoubleType = new (allocator.allocate<LongDoubleType>()) LongDoubleType();
     stringType = new (allocator.allocate<StringType>()) StringType();
-    voidType = new (allocator.allocate<VoidType>()) VoidType();
+    voidType = const_cast<VoidType*>(&voidTypeInstance);
     nullPtrType = new (allocator.allocate<NullPtrType>()) NullPtrType();
     ptrToVoid = new (allocator.allocate<PointerType>()) PointerType(voidType, true);
     ptrToAny = new (allocator.allocate<PointerType>()) PointerType(anyType, true);

@@ -50,7 +50,7 @@ public:
         return type->byte_size(is64Bit);
     }
 
-    BaseType* known_type() final {
+    inline BaseType* known_type() {
         return type;
     }
 

@@ -17,7 +17,7 @@ public:
 
     }
 
-    BaseType* known_type() override {
+    inline BaseType* known_type() {
         return (BaseType*) voidTy;
     }
 

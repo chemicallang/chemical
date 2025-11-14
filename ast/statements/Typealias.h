@@ -148,9 +148,13 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    uint64_t byte_size(bool is64Bit) final;
+    inline uint64_t byte_size(bool is64Bit) final {
+        return actual_type->byte_size(is64Bit);
+    }
 
-    BaseType* known_type() final;
+    inline BaseType* known_type() {
+        return actual_type;
+    }
 
 #ifdef COMPILER_BUILD
 

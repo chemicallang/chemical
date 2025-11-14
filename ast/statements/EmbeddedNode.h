@@ -66,7 +66,7 @@ public:
         );
     }
 
-    BaseType* known_type() override {
+    BaseType* known_type() {
         return known_type_fn(this);
     }
 

@@ -148,6 +148,11 @@ public:
     bool is_top_level();
 
     /**
+     * get the type of this node
+     */
+    BaseType* getType();
+
+    /**
      * create a deep copy of the node
      */
     virtual ASTNode* copy(ASTAllocator& allocator) {
@@ -297,8 +302,8 @@ public:
     /**
      * The type for this node, this could be type of value of var init
      */
-    virtual BaseType* known_type() {
-        return nullptr;
+    inline BaseType* known_type() {
+        return getType();
     }
 
     /**
@@ -1099,6 +1104,14 @@ public:
     inline TypealiasStatement *as_typealias_unsafe() {
         CHECK_CAST(ASTNodeKind::TypealiasStmt);
         return (TypealiasStatement*) this;
+    }
+
+    /**
+     * return if this is a unresolved decl
+     */
+    inline UnresolvedDecl* as_unresolved_decl_unsafe() {
+        CHECK_CAST(ASTNodeKind::UnresolvedDecl);
+        return (UnresolvedDecl*) this;
     }
 
     /**

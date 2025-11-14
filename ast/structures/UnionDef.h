@@ -125,7 +125,9 @@ public:
         return this;
     }
 
-    BaseType* known_type() final;
+    inline BaseType* known_type() {
+        return &linked_type;
+    }
 
 #ifdef COMPILER_BUILD
 

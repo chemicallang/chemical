@@ -278,7 +278,7 @@ public:
         return value;
     }
 
-    BaseType* known_type() final;
+    BaseType* known_type();
 
     BaseType* known_type_or_err() {
         const auto k = known_type();

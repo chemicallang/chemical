@@ -108,7 +108,7 @@ public:
 
     unsigned calculate_c_or_llvm_index(FunctionType* func_type);
 
-    BaseType *known_type() final {
+    inline BaseType *known_type() {
         return type;
     }
 

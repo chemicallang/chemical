@@ -105,6 +105,6 @@ public:
 
 #endif
 
-    BaseType* known_type() final;
+    BaseType* known_type();
 
 };

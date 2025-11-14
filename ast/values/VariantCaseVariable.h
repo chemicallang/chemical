@@ -4,8 +4,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/values/VariableIdentifier.h"
-
-class VariantMemberParam;
+#include "ast/structures/VariantMemberParam.h"
 
 class VariantCaseVariable : public ASTNode {
 public:
@@ -33,7 +32,9 @@ public:
         return (SwitchStatement*) ASTNode::parent();
     }
 
-    BaseType* known_type() final;
+    inline BaseType* known_type() {
+        return member_param->type;
+    }
 
     bool is_generic_param();
 

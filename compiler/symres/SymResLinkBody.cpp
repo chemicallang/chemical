@@ -111,6 +111,14 @@ void link_seq_backing_moves(
     curr_func->save_moved_chains_after(moved_chains, if_moved_chains_begin);
 }
 
+static BaseType* defaultType(SymbolResolver& resolver, BaseType* type) {
+    if(type) {
+        return type;
+    } else {
+        return resolver.comptime_scope.typeBuilder.getVoidType();
+    }
+}
+
 void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
     const auto container = this;
     for(const auto var : container->variables()) {

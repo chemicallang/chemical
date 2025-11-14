@@ -87,16 +87,14 @@ llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<Ch
     const auto dynObj = (llvm::AllocaInst*) gen.allocate_dyn_obj_based_on_type(expected_type, encoded_location());
     if(dynObj) {
         const auto value = val->access_chain_value(gen, values, until, expected_type);
-        const auto store = gen.builder->CreateStore(value, dynObj);
-        gen.di.instr(store, val);
+        gen.llvm.CreateStore(value, dynObj, val->encoded_location());
         return dynObj;
     } else {
         const auto value = val->access_chain_value(gen, values, until, expected_type);
-        const auto alloc = gen.builder->CreateAlloca(val->llvm_type(gen), nullptr);
-        gen.di.instr(alloc, val);
-        const auto store = gen.builder->CreateStore(value, alloc);
-        gen.di.instr(store, val);
-        return alloc;
+        const auto loc = val->encoded_location();
+        const auto alloc = gen.llvm.CreateAlloca(val->llvm_type(gen), loc);
+        const auto store = gen.llvm.CreateStore(value, alloc, loc);
+        return (llvm::AllocaInst*) alloc;
     }
 }
 

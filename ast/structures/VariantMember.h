@@ -8,6 +8,7 @@
 #include "ast/types/StructType.h"
 #include "ast/types/LinkedType.h"
 #include "VariantMemberParam.h"
+#include "ast/structures/VariantDefinition.h"
 
 struct VariantMemberAttributes {
 
@@ -82,7 +83,9 @@ public:
 
     bool requires_copy_fn();
 
-    BaseType* known_type() final;
+    BaseType* known_type() {
+        return parent()->known_type();
+    }
 
 #ifdef COMPILER_BUILD
 

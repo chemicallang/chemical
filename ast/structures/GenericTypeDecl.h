@@ -58,7 +58,7 @@ public:
 
     }
 
-    BaseType* known_type() override {
+    BaseType* known_type() {
         return master_impl->known_type();
     }
 

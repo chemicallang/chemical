@@ -409,6 +409,30 @@ OutputMode get_output_mode(std::optional<std::string_view>& mode_opt, bool verbo
     return OutputMode::Debug;
 }
 
+LabJobType getJobTypeFromOpt(std::optional<std::string_view>& job_type_opt, LabJobType defaultType) {
+    if(job_type_opt.has_value()) {
+        auto& view = job_type_opt.value();
+        if(view == "exe") {
+            return LabJobType::Executable;
+        } else if(view == "jit-exe") {
+            return LabJobType::JITExecutable;
+        } else if(view == "lib") {
+            return LabJobType::Library;
+        } else if(view == "2c") {
+            return LabJobType::ToCTranslation;
+        } else if(view == "2ch") {
+            return LabJobType::ToChemicalTranslation;
+        } else if(view == "inter") {
+            return LabJobType::Intermediate;
+        } else if(view == "proc") {
+            return LabJobType::ProcessingOnly;
+        } else {
+            // TODO: unknown job type, probably an error
+        }
+    }
+    return defaultType;
+}
+
 int compiler_main(int argc, char *argv[]) {
 
 // enable this code if debugging heap allocations is required
@@ -721,25 +745,7 @@ int compiler_main(int argc, char *argv[]) {
         }
 
         auto job_type_opt = options.option_new("job-type", "jt");
-        LabJobType final_job_type = LabJobType::Executable;
-        if(job_type_opt.has_value()) {
-            auto& view = job_type_opt.value();
-            if(view == "exe") {
-                final_job_type = LabJobType::Executable;
-            } else if(view == "lib") {
-                final_job_type = LabJobType::Library;
-            } else if(view == "2c") {
-                final_job_type = LabJobType::ToCTranslation;
-            } else if(view == "2ch") {
-                final_job_type = LabJobType::ToChemicalTranslation;
-            } else if(view == "inter") {
-                final_job_type = LabJobType::Intermediate;
-            } else if(view == "proc") {
-                final_job_type = LabJobType::ProcessingOnly;
-            } else {
-                // TODO: unknown job type, probably an error
-            }
-        }
+        LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
 
         if(is_lab_file) {
             // building the lab file
@@ -856,7 +862,9 @@ int compiler_main(int argc, char *argv[]) {
         }
     }
 
-    LabJob job(jit ? LabJobType::JITExecutable : LabJobType::Executable, chem::string("a"));
+    const auto defJobType = jit ? LabJobType::JITExecutable : LabJobType::Executable;
+    auto job_type_opt = options.option_new("job-type", "jt");
+    LabJob job(getJobTypeFromOpt(job_type_opt, defJobType), chem::string("a"));
     job.mode = mode;
     if(!target.empty()) {
         // TODO: update the target data according to target triple

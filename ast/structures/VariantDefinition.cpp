@@ -284,10 +284,6 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
     }
 }
 
-BaseType* VariantDefinition::known_type() {
-    return &ref_type;
-}
-
 bool VariantDefinition::requires_destructor() {
     for(const auto var : variables()) {
         auto member = var->as_variant_member();
@@ -332,15 +328,6 @@ bool VariantMember::requires_copy_fn() {
     }
     return false;
 }
-
-BaseType* VariantMember::known_type() {
-    return parent()->known_type();
-}
-
-BaseType* VariantCaseVariable::known_type() {
-    return member_param->type;
-}
-
 
 bool VariantCaseVariable::is_generic_param() {
     const auto linked = member_param->type->linked_node();

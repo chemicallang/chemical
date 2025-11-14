@@ -76,6 +76,11 @@ public:
     ASTAllocator& allocator;
 
     /**
+     * void type is stored globally statically
+     */
+    static VoidType* getVoidTypeInstance();
+
+    /**
      * constructor
      */
     inline TypeBuilder(

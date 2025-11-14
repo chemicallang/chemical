@@ -85,7 +85,7 @@ public:
         return defValue ? defValue : nullptr;
     }
 
-    BaseType *known_type() final {
+    inline BaseType *known_type() {
         return type;
     }
 

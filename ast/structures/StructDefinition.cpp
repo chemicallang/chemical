@@ -318,7 +318,3 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
         attrs.is_copy = true;
     }
 }
-
-BaseType* StructDefinition::known_type() {
-    return &linked_type;
-}

@@ -119,7 +119,9 @@ public:
         return decl;
     }
 
-    BaseType* known_type() final;
+    inline BaseType* known_type() {
+        return &linked_type;
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return underlying_type->byte_size(is64Bit);

@@ -107,7 +107,3 @@ llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*>
 }
 
 #endif
-
-BaseType* UnionDef::known_type() {
-    return &linked_type;
-}

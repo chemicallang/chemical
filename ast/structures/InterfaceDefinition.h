@@ -181,7 +181,7 @@ public:
 
     uint64_t byte_size(bool is64Bit) final;
 
-    BaseType* known_type() override {
+    inline BaseType* known_type() {
         return &linked_type;
     }
 

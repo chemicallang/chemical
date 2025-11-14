@@ -147,10 +147,6 @@ llvm::Type* PatternMatchExpr::llvm_type(Codegen &gen) {
 
 #endif
 
-BaseType* PatternMatchIdentifier::known_type() {
-    return member_param->type;
-}
-
 VariantMember* PatternMatchExpr::find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     const auto type = expression->getType();
     if(!type) {

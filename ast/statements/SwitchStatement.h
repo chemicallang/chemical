@@ -43,7 +43,7 @@ public:
 
     Value* get_value_node();
 
-    BaseType *known_type() final;
+    BaseType *known_type();
 
     inline bool has_default_case() {
         return defScopeInd != -1;

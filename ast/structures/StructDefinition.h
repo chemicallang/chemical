@@ -237,7 +237,9 @@ public:
      */
     void generate_functions(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
 
-    BaseType* known_type() final;
+    inline BaseType* known_type() {
+        return &linked_type;
+    }
 
     uint64_t byte_size(bool is64Bit) final {
         return total_byte_size(is64Bit);

@@ -470,19 +470,16 @@ func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size
     return Result.Ok<size_t, FsError>(pos);
 }
 
+public type path_ptr = if(def.windows) *u16 else *char
+
+public type mut_path_ptr = if(def.windows) *mut u16 else *mut char
+
 // --------------------------
 // File open/close/read/write/seek/flush
 // --------------------------
-func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+
+func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsError> {
     comptime if(def.windows) {
-        // Convert path to UTF-16 and call CreateFileW
-        var wbuf : [WIN_MAX_PATH]u16;
-        var r = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
-        if(r is Result.Err) {
-            var Err(e) = r else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = r else unreachable
         var access : u32 = 0;
         if(opts.read) { access = access | 0x80000000; } // GENERIC_READ
         if(opts.write) { access = access | 0x40000000; } // GENERIC_WRITE
@@ -505,7 +502,7 @@ func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
         }
         var share : u32 = 1u | 2u | 4u; // FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
         var flags : u32 = 0x80; // FILE_ATTRIBUTE_NORMAL as default
-        var handle = CreateFileW((&mut wbuf[0]) as LPCWSTR, access, share, null, create_disp, flags, null);
+        var handle = CreateFileW(path as LPCWSTR, access, share, null, create_disp, flags, null);
         if(handle == INVALID_HANDLE_VALUE) {
             var err = GetLastError();
             return Result.Err(winerr_to_fs(err as int));
@@ -636,17 +633,10 @@ public func filetime_to_unix(ft : FILETIME) : i64 {
 // --------------------------
 // Metadata, timestamps, permissions
 // --------------------------
-func metadata(path : *char) : Result<Metadata, FsError> {
+func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
     comptime if(def.windows) {
-        var wbuf : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = conv else unreachable
         var fi : WIN32_FILE_ATTRIBUTE_DATA;
-        var ok = GetFileAttributesExW((&mut wbuf[0]) as LPCWSTR, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &mut fi);
+        var ok = GetFileAttributesExW(path as LPCWSTR, GET_FILEEX_INFO_LEVELS.GetFileExInfoStandard, &mut fi);
         if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         var m : Metadata;
         var attrs = fi.dwFileAttributes;
@@ -678,20 +668,12 @@ func metadata(path : *char) : Result<Metadata, FsError> {
     }
 }
 
-public func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
+public func set_permissions_native(path : path_ptr, perms : u32) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        // map readonly bit
-        var wbuf : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = conv else unreachable
         // map perms -> FILE_ATTRIBUTE_READONLY
         var attrs : u32 = 0;
         if((perms & 0x200) != 0) { attrs = attrs | FILE_ATTRIBUTE_READONLY; } // owner write bit cleared -> readonly
-        var ok = SetFileAttributesW((&mut wbuf[0]) as LPCWSTR, attrs);
+        var ok = SetFileAttributesW(path as LPCWSTR, attrs);
         if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         return Result.Ok(UnitTy{});
     } else {
@@ -718,16 +700,9 @@ public func unix_to_filetime(unix_time : i64) : FILETIME {
 }
 }
 
-func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var wbuf : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = conv else unreachable;
-        var h = CreateFileW((&mut wbuf[0]) as LPCWSTR, 0x40000000 /*GENERIC_WRITE*/, 0, null, 3 /*OPEN_EXISTING*/, 0, null);
+        var h = CreateFileW(path as LPCWSTR, 0x40000000 /*GENERIC_WRITE*/, 0, null, 3 /*OPEN_EXISTING*/, 0, null);
         if(h == INVALID_HANDLE_VALUE) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         var cft = unix_to_filetime(0); // unused creation
         var aft = unix_to_filetime(atime);
@@ -767,16 +742,9 @@ func is_dir(path : *char) : Result<bool, FsError> {
 // --------------------------
 // Directory functions
 // --------------------------
-public func create_dir(path : *char) : Result<UnitTy, FsError> {
+public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var w : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = conv else unreachable;
-        var ok = CreateDirectoryW((&mut w[0]) as LPCWSTR, null);
+        var ok = CreateDirectoryW(path as LPCWSTR, null);
         if(ok == 0) {
             var e = GetLastError();
             return Result.Err(winerr_to_fs(e as int));
@@ -829,16 +797,9 @@ func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 }
 
 // remove_dir (non-recursive) and remove_dir_all (recursive)
-public func remove_dir(path : *char) : Result<UnitTy, FsError> {
+public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var w : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = conv else unreachable
-        var ok = RemoveDirectoryW((&mut w[0]) as LPCWSTR);
+        var ok = RemoveDirectoryW(path as LPCWSTR);
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
     } else {
@@ -903,14 +864,14 @@ if(def.windows) {
 }
 
 if(def.windows) {
-    public func utf8_to_utf16_inplace(src : *char, out : *mut u16, out_len : size_t) : Result<size_t, FsError> {
+    func utf8_to_utf16_inplace(src : *char, out : *mut u16, out_len : size_t) : Result<size_t, FsError> {
         var n = MultiByteToWideChar(CP_UTF8, 0u32, src, -1, out, (out_len as i32));
         if(n == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         // return length excluding null
         return Result.Ok((n as size_t) - 1);
     }
 
-    public func utf16_to_utf8_str(src : *u16) : std::string {
+    func utf16_to_utf8_str(src : *u16) : std::string {
         var out = std::string();
         var needed = WideCharToMultiByte(CP_UTF8, 0u32, src, -1, null, 0, null, null);
         if(needed <= 0) { return out; }
@@ -922,31 +883,13 @@ if(def.windows) {
     }
 }
 
-public func remove_file_platform(path : *char) : Result<UnitTy, FsError> {
+public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var w : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16_inplace(path, &mut w[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
-        var deleted = DeleteFileW((&mut w[0]) as LPCWSTR);
+        var deleted = DeleteFileW(path as LPCWSTR);
         if(deleted == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
     } else {
         if(unlink(path) != 0) { return Result.Err(posix_errno_to_fs(-get_errno())); }
-        return Result.Ok(UnitTy{});
-    }
-}
-
-public func remove_dir_platform(path : *char) : Result<UnitTy, FsError> {
-    comptime if(def.windows) {
-        var w : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16_inplace(path, &mut w[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
-        var ok = RemoveDirectoryW((&mut w[0]) as LPCWSTR);
-        if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
-        return Result.Ok(UnitTy{});
-    } else {
-        var r = rmdir(path);
-        if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
         return Result.Ok(UnitTy{});
     }
 }
@@ -1086,16 +1029,12 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
 // -----------------------------
 // Recursive remove_dir_all (public)
 // -----------------------------
-public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        // Convert path to wide
-        var wbuf : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16_inplace(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
         // Build pattern path\* for enumeration
         var search : [WIN_MAX_PATH]u16;
         var p : size_t = 0;
-        while(wbuf[p] != 0) { search[p] = wbuf[p]; p += 1; }
+        while(path[p] != 0) { search[p] = path[p]; p += 1; }
         if(p > 0) {
             var last = search[p - 1];
             if(last != '\\' as u16 && last != '/' as u16) { search[p] = '\\' as u16; p += 1; }
@@ -1121,7 +1060,7 @@ public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
                 var q : size_t = 0;
                 // copy original wide path
                 var i : size_t = 0;
-                while(wbuf[i] != 0) { child[i] = wbuf[i]; i += 1; }
+                while(path[i] != 0) { child[i] = path[i]; i += 1; }
                 if(i > 0) {
                     var last = child[i - 1];
                     if(last != '\\' as u16 && last != '/' as u16) { child[i] = '\\' as u16; i += 1; }
@@ -1159,7 +1098,7 @@ public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
         FindClose(h);
 
         // finally remove the directory itself
-        var remd = RemoveDirectoryW((&mut wbuf[0]) as LPCWSTR);
+        var remd = RemoveDirectoryW(path as LPCWSTR);
         if(remd == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
 
@@ -1327,43 +1266,12 @@ func read_dir(path : *char, callback : std::function<(name : *char, name_len : s
     }
 }
 
-// remove_file / unlink
-func remove_file(path : *char) : Result<UnitTy, FsError> {
-    comptime if(def.windows) {
-        var w : [WIN_MAX_PATH]u16;
-        var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e)
-        }
-        var Ok(wlen) = conv else unreachable;
-        var ok = DeleteFileW((&mut w[0]) as LPCWSTR);
-        if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
-        return Result.Ok(UnitTy{});
-    } else {
-        var r = unlink(path);
-        if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
-        return Result.Ok(UnitTy{});
-    }
-}
-
 // --------------------------
 // Copy & move (files and directories)
 // --------------------------
-func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
-        var r1 = utf8_to_utf16(src, &mut wsrc[0], WIN_MAX_PATH as size_t);
-        if(r1 is Result.Err) {
-            var Err(e) = r1 else unreachable
-            return Result.Err(e)
-        }
-        var r2 = utf8_to_utf16(dst, &mut wdst[0], WIN_MAX_PATH as size_t);
-        if(r2 is Result.Err) {
-            var Err(e) = r2 else unreachable
-            return Result.Err(e)
-        }
-        var ok = CopyFileW((&mut wsrc[0]) as LPCWSTR, (&mut wdst[0]) as LPCWSTR, 0); // overwrite
+        var ok = CopyFileW(src as LPCWSTR, dst as LPCWSTR, 0); // overwrite
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
     } else {
@@ -1447,20 +1355,9 @@ func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
 }
 
 // hard link / symlink
-func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsError> {
+func create_hard_link_native(existing : path_ptr, newpath : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var wexist : [WIN_MAX_PATH]u16; var wnew : [WIN_MAX_PATH]u16;
-        var f1 = utf8_to_utf16(existing, &mut wexist[0], WIN_MAX_PATH as size_t)
-        if(f1 is Result.Err) {
-            var Err(e) = f1 else unreachable
-            return Result.Err(e)
-        }
-        var f2 = utf8_to_utf16(newpath, &mut wnew[0], WIN_MAX_PATH as size_t)
-        if(f2 is Result.Err) {
-            var Err(e) = f2 else unreachable
-            return Result.Err(e)
-        }
-        var ok = CreateHardLinkW((&mut wnew[0]) as LPCWSTR, (&mut wexist[0]) as LPCWSTR, null);
+        var ok = CreateHardLinkW(newpath as LPCWSTR, existing as LPCWSTR, null);
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
     } else {
@@ -1470,22 +1367,11 @@ func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsErro
     }
 }
 
-func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitTy, FsError> {
+func create_symlink_native(target : path_ptr, linkpath : path_ptr, dir : bool) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var wtarget : [WIN_MAX_PATH]u16; var wlink : [WIN_MAX_PATH]u16;
-        var f1 = utf8_to_utf16(target, &mut wtarget[0], WIN_MAX_PATH as size_t)
-        if(f1 is Result.Err) {
-            var Err(e) = f1 else unreachable
-            return Result.Err(e)
-        }
-        var f2 = utf8_to_utf16(linkpath, &mut wlink[0], WIN_MAX_PATH as size_t)
-        if(f2 is Result.Err) {
-            var Err(e) = f2 else unreachable
-            return Result.Err(e)
-        }
         var flags : u32 = 0;
         if(dir) { flags = 1; } // SYMBOLIC_LINK_FLAG_DIRECTORY
-        var ok = CreateSymbolicLinkW((&mut wlink[0]) as LPCWSTR, (&mut wtarget[0]) as LPCWSTR, flags);
+        var ok = CreateSymbolicLinkW(linkpath as LPCWSTR, target as LPCWSTR, flags);
         if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         return Result.Ok(UnitTy{});
     } else {
@@ -1495,17 +1381,9 @@ func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitT
     }
 }
 
-func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+func read_link_native(path : path_ptr, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     comptime if(def.windows) {
-        // On Windows readlink is more involved; use DeviceIoControl or GetFinalPathNameByHandle
-        // Simpler approach: open file and call GetFinalPathNameByHandleW
-        var wpath : [WIN_MAX_PATH]u16;
-        var f1 = utf8_to_utf16(path, &mut wpath[0], WIN_MAX_PATH as size_t)
-        if(f1 is Result.Err) {
-            var Err(e) = f1 else unreachable;
-            return Result.Err(e);
-        }
-        var h = CreateFileW((&mut wpath[0]) as LPCWSTR, 0, 0, null, 3 /*OPEN_EXISTING*/, (FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS) as DWORD, null);
+        var h = CreateFileW(path as LPCWSTR, 0, 0, null, 3 /*OPEN_EXISTING*/, (FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS) as DWORD, null);
         if(h == INVALID_HANDLE_VALUE) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         var wout : [WIN_MAX_PATH]u16;
         var n = GetFinalPathNameByHandleW(h, (&mut wout[0]) as LPWSTR, WIN_MAX_PATH as u32, 0);
@@ -1567,30 +1445,13 @@ func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     }
 }
 
-func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
+func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mut_path_ptr, fh : *mut File) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var wdir : [WIN_MAX_PATH]u16; var wprefix : [TEMP_NAME_MAX]u16; var wout : [WIN_MAX_PATH]u16;
-        var f1 = utf8_to_utf16(dir, &mut wdir[0], WIN_MAX_PATH as size_t)
-        if(f1 is Result.Err) {
-            var Err(e) = f1 else unreachable
-            return Result.Err(e)
-        }
-        var f2 = utf8_to_utf16(prefix, &mut wprefix[0], TEMP_NAME_MAX as size_t)
-        if(f2 is Result.Err) {
-            var Err(e) = f2 else unreachable
-            return Result.Err(e)
-        }
-        var res = GetTempFileNameW((&mut wdir[0]) as LPCWSTR, (&mut wprefix[0]) as LPCWSTR, 0, (&mut wout[0]) as LPWSTR);
+        var res = GetTempFileNameW(dir as LPCWSTR, prefix as LPCWSTR, 0, out_path as LPWSTR);
         if(res == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
-        var conv = utf16_to_utf8(&mut wout[0], out_path, out_len);
-        if(conv is Result.Err) {
-            var Err(e) = conv else unreachable
-            return Result.Err(e);
-        }
-        var Ok(len) = conv else unreachable
         // open file
         var opts : OpenOptions; opts.read = true; opts.write = true; opts.create = false;
-        var fo = file_open(out_path, opts);
+        var fo = file_open_native(out_path, opts);
         if(fo is Result.Err) {
             var Err(e) = fo else unreachable
             return Result.Err(e)
@@ -1622,15 +1483,9 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
 // --------------------------
 // Disk capacity
 // --------------------------
-func disk_space(path : *char, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
+func disk_space_native(path : path_ptr, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        var w : [WIN_MAX_PATH]u16;
-        var f1 = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t)
-        if(f1 is Result.Err) {
-            var Err(e) = f1 else unreachable;
-            return Result.Err(e);
-        }
-        var ok = GetDiskFreeSpaceExW((&mut w[0]) as LPCWSTR, free_out as PULARGE_INTEGER, total_out as PULARGE_INTEGER, avail_out as PULARGE_INTEGER);
+        var ok = GetDiskFreeSpaceExW(path as LPCWSTR, free_out as PULARGE_INTEGER, total_out as PULARGE_INTEGER, avail_out as PULARGE_INTEGER);
         if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
         return Result.Ok(UnitTy{});
     } else {
@@ -1848,6 +1703,235 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
     if(r is Result.Err) { var Err(e) = r else unreachable; file_close(&mut f); return Result.Err(e); }
     file_close(&mut f);
     return Result.Ok(UnitTy{});
+}
+
+// --------------------------
+// Direct Path Alternatives
+// --------------------------
+
+
+func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+    comptime if(def.windows) {
+        // Convert path to UTF-16 and call CreateFileW
+        var wbuf : [WIN_MAX_PATH]u16;
+        var r = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+        if(r is Result.Err) {
+            var Err(e) = r else unreachable
+            return Result.Err(e)
+        }
+        return file_open_native(&mut wbuf[0], opts)
+    } else {
+        return file_open_native(path, opts)
+    }
+}
+
+func metadata(path : *char) : Result<Metadata, FsError> {
+    comptime if(def.windows) {
+        var wbuf : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) {
+            var Err(e) = conv else unreachable
+            return Result.Err(e)
+        }
+        return metadata_native(&mut wbuf[0])
+    } else {
+        return metadata_native(path)
+    }
+}
+
+public func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        // map readonly bit
+        var wbuf : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) {
+            var Err(e) = conv else unreachable
+            return Result.Err(e)
+        }
+        return set_permissions_native(&mut wbuf[0], perms)
+    } else {
+        return set_permissions_native(path, perms);
+    }
+}
+
+func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var wbuf : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) {
+            var Err(e) = conv else unreachable
+            return Result.Err(e)
+        }
+        return set_times_native(&mut wbuf[0], atime, mtime)
+    } else {
+        return set_times_native(path, atime, mtime)
+    }
+}
+
+public func create_dir(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var w : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) {
+            var Err(e) = conv else unreachable
+            return Result.Err(e)
+        }
+        return create_dir_native(&mut w[0]);
+    } else {
+        return create_dir_native(path);
+    }
+}
+
+public func remove_file(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var w : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16_inplace(path, &mut w[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
+        return remove_file_native(&mut w[0])
+    } else {
+        return remove_file_native(path);
+    }
+}
+
+public func remove_dir(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var w : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) {
+            var Err(e) = conv else unreachable
+            return Result.Err(e)
+        }
+        return remove_dir_native(&mut w[0])
+    } else {
+        return remove_dir_native(path)
+    }
+}
+
+public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var wbuf : [WIN_MAX_PATH]u16;
+        var conv = utf8_to_utf16_inplace(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
+        if(conv is Result.Err) { var Err(e) = conv else unreachable; return Result.Err(e); }
+        return remove_dir_all_recursive_native(&mut wbuf[0]);
+    } else {
+        return remove_dir_all_recursive_native(path)
+    }
+}
+
+func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
+        var r1 = utf8_to_utf16(src, &mut wsrc[0], WIN_MAX_PATH as size_t);
+        if(r1 is Result.Err) {
+            var Err(e) = r1 else unreachable
+            return Result.Err(e)
+        }
+        var r2 = utf8_to_utf16(dst, &mut wdst[0], WIN_MAX_PATH as size_t);
+        if(r2 is Result.Err) {
+            var Err(e) = r2 else unreachable
+            return Result.Err(e)
+        }
+        return copy_file_native(&mut wsrc[0], &mut wdst[0])
+    } else {
+        return copy_file_native(src, dst)
+    }
+}
+
+func create_symlink(target : *char, linkpath : *char, dir : bool) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var wtarget : [WIN_MAX_PATH]u16; var wlink : [WIN_MAX_PATH]u16;
+        var f1 = utf8_to_utf16(target, &mut wtarget[0], WIN_MAX_PATH as size_t)
+        if(f1 is Result.Err) {
+            var Err(e) = f1 else unreachable
+            return Result.Err(e)
+        }
+        var f2 = utf8_to_utf16(linkpath, &mut wlink[0], WIN_MAX_PATH as size_t)
+        if(f2 is Result.Err) {
+            var Err(e) = f2 else unreachable
+            return Result.Err(e)
+        }
+        return create_symlink_native(&mut wtarget[0], &mut wlink[0], dir)
+    } else {
+        return create_symlink_native(target, linkpath, dir)
+    }
+}
+
+func read_link(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+    comptime if(def.windows) {
+        // On Windows readlink is more involved; use DeviceIoControl or GetFinalPathNameByHandle
+        // Simpler approach: open file and call GetFinalPathNameByHandleW
+        var wpath : [WIN_MAX_PATH]u16;
+        var f1 = utf8_to_utf16(path, &mut wpath[0], WIN_MAX_PATH as size_t)
+        if(f1 is Result.Err) {
+            var Err(e) = f1 else unreachable;
+            return Result.Err(e);
+        }
+        return read_link_native(&mut wpath[0], out, out_len)
+    } else {
+        return read_link_native(path, out, out_len)
+    }
+}
+
+func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var wexist : [WIN_MAX_PATH]u16; var wnew : [WIN_MAX_PATH]u16;
+        var f1 = utf8_to_utf16(existing, &mut wexist[0], WIN_MAX_PATH as size_t)
+        if(f1 is Result.Err) {
+            var Err(e) = f1 else unreachable
+            return Result.Err(e)
+        }
+        var f2 = utf8_to_utf16(newpath, &mut wnew[0], WIN_MAX_PATH as size_t)
+        if(f2 is Result.Err) {
+            var Err(e) = f2 else unreachable
+            return Result.Err(e)
+        }
+        return create_hard_link_native(&mut wexist[0], &mut wnew[0])
+    } else {
+        return create_hard_link_native(existing, newpath)
+    }
+}
+
+func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var wdir : [WIN_MAX_PATH]u16; var wprefix : [TEMP_NAME_MAX]u16; var wout : [WIN_MAX_PATH]u16;
+        var f1 = utf8_to_utf16(dir, &mut wdir[0], WIN_MAX_PATH as size_t)
+        if(f1 is Result.Err) {
+            var Err(e) = f1 else unreachable
+            return Result.Err(e)
+        }
+        var f2 = utf8_to_utf16(prefix, &mut wprefix[0], TEMP_NAME_MAX as size_t)
+        if(f2 is Result.Err) {
+            var Err(e) = f2 else unreachable
+            return Result.Err(e)
+        }
+        var result = create_temp_file_in_native(&mut wdir[0], &mut wprefix[0], &mut wout[0], fh)
+        if(result is Result.Err) {
+            var Err(e) = result else unreachable
+            return Result.Err(e)
+        }
+        var conv = utf16_to_utf8(&mut wout[0], out_path, out_len);
+        if(conv is Result.Err) {
+            var Err(e) = conv else unreachable
+            return Result.Err(e);
+        }
+        return result
+    } else {
+        return create_temp_file_in_native(dir, prefix, out_path, out_len, fh)
+    }
+}
+
+func disk_space(path : *char, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
+    comptime if(def.windows) {
+        var w : [WIN_MAX_PATH]u16;
+        var f1 = utf8_to_utf16(path, &mut w[0], WIN_MAX_PATH as size_t)
+        if(f1 is Result.Err) {
+            var Err(e) = f1 else unreachable;
+            return Result.Err(e);
+        }
+        return disk_space_native(&mut w[0], total_out, free_out, avail_out)
+    } else {
+        return disk_space_native(path, total_out, free_out, avail_out)
+    }
 }
 
 } // end namespace fs

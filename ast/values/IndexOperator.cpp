@@ -10,6 +10,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/VoidType.h"
+#include "ast/statements/Typealias.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/IntNumValue.h"
@@ -77,6 +78,14 @@ BaseType* get_child_type(TypeBuilder& typeBuilder, BaseType* type, bool unwrap_r
             }
         case BaseTypeKind::String:
             return typeBuilder.getCharType();
+        case BaseTypeKind::Linked:{
+            const auto linked = type->as_linked_type_unsafe()->linked;
+            if(linked->kind() == ASTNodeKind::TypealiasStmt) {
+                return get_child_type(typeBuilder, linked->as_typealias_unsafe()->actual_type, unwrap_ref);
+            } else {
+                return nullptr;
+            }
+        }
         default:
             return nullptr;
     }

@@ -993,3 +993,17 @@ func declared_below() : int {
 var gv_dec_bel_two = 222
 
 const gc_dec_bel_three = 333
+
+// ------------- EXISTENCE TEST BEGIN ------------
+
+public struct SOME_FILE_LIKE_STRUCT_IDK {
+    struct { var handle : void*; } win;
+    var valid : bool;
+}
+
+func some_func_modifies_file_like_struct_idk() {
+    var f : SOME_FILE_LIKE_STRUCT_IDK;
+    f.valid = true;
+}
+
+// ------------- EXISTENCE TEST END --------------

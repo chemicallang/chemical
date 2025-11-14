@@ -24,46 +24,68 @@ llvm::Value* VarInitStatement::initializer_value(Codegen &gen) {
     return ty ? gen.implicit_cast(llvmValue, ty, ty->llvm_type(gen)) : llvmValue;
 }
 
-void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
-    llvm::Constant* initializer;
-    llvm::GlobalValue::LinkageTypes linkage;
-    switch(specifier()) {
+llvm::GlobalValue::LinkageTypes global_var_linkage(VarInitStatement* stmt) {
+    switch(stmt->specifier()) {
         case AccessSpecifier::Private:
-            linkage = llvm::GlobalValue::LinkageTypes::PrivateLinkage;
-            break;
+        default:
+            return llvm::GlobalValue::LinkageTypes::PrivateLinkage;
         case AccessSpecifier::Internal:
-            linkage = llvm::GlobalValue::LinkageTypes::InternalLinkage;
-            break;
+            return llvm::GlobalValue::LinkageTypes::InternalLinkage;
         case AccessSpecifier::Public:
         case AccessSpecifier::Protected:
-            linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;
-            break;
+            return llvm::GlobalValue::LinkageTypes::ExternalLinkage;
     }
-    if(value && initialize) {
-        const auto string_val = value->as_string_value();
-        if(string_val) {
-            ScratchString<128> temp_name;
-            gen.mangler.mangle(temp_name, this);
-            const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), (std::string_view) temp_name, 0, gen.module.get());
-            global->setLinkage(linkage);
-            global->setConstant(is_const());
-            llvm_ptr = global;
-            return;
+}
+
+void global_var_set_defaults(VarInitStatement* stmt, llvm::GlobalVariable* global) {
+    global->setDSOLocal(true);
+    if(stmt->is_thread_local()) {
+        global->setThreadLocal(true);
+        global->setThreadLocalMode(llvm::GlobalValue::LocalExecTLSModel);
+    }
+}
+
+void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize, bool initialize_strings) {
+    llvm::Constant* initializer;
+    if(value) {
+        if(value->kind() == ValueKind::String) {
+            if(initialize_strings) {
+                const auto string_val = value->as_string_unsafe();
+                ScratchString<128> temp_name;
+                gen.mangler.mangle(temp_name, this);
+                const auto global = gen.builder->CreateGlobalString(llvm::StringRef(string_val->value.data(), string_val->value.size()), (std::string_view) temp_name, 0, gen.module.get());
+                global->setLinkage(global_var_linkage(this));
+                global->setConstant(is_const());
+                global_var_set_defaults(this, global);
+                llvm_ptr = global;
+                return;
+            } else {
+                initializer = nullptr;
+            }
+        } else {
+            if(initialize) {
+                initializer = (llvm::Constant*) initializer_value(gen);
+            } else {
+                initializer = nullptr;
+            }
         }
-        initializer = (llvm::Constant*) initializer_value(gen);
     } else {
         initializer = nullptr;
     }
     ScratchString<128> temp_name;
     gen.mangler.mangle(temp_name, this);
     const auto global_type = llvm_type(gen);
-    const auto global = new llvm::GlobalVariable(*gen.module, global_type, is_const(), linkage, initializer, (std::string_view) temp_name);
-    global->setDSOLocal(true);
-    if(is_thread_local()) {
-        global->setThreadLocal(true);
-        global->setThreadLocalMode(llvm::GlobalValue::LocalExecTLSModel);
-    }
+    const auto global = new llvm::GlobalVariable(*gen.module, global_type, is_const(), global_var_linkage(this), initializer, (std::string_view) temp_name);
+    global_var_set_defaults(this, global);
     llvm_ptr = global;
+}
+
+void VarInitStatement::code_gen_declare(Codegen &gen) {
+    if(is_comptime()) {
+        return;
+    }
+    code_gen_global_var(gen, false, true);
+    gen.di.declare(this, llvm_ptr);
 }
 
 void VarInitStatement::code_gen(Codegen &gen) {
@@ -71,8 +93,16 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if(is_comptime()) {
             return;
         }
-        code_gen_global_var(gen, true);
-        gen.di.declare(this, llvm_ptr);
+        // strings are initialized
+        if(value->kind() == ValueKind::String) {
+            return;
+        }
+        const auto global = ((llvm::GlobalVariable*) llvm_ptr);
+        // probably done in code_gen_declare
+        // why are we doing this here ?
+        // well value can contain something that hasn't been declared yet
+        // so we have to wait for all calls to code_gen_declare to complete
+        global->setInitializer((llvm::Constant*) initializer_value(gen));
         return;
     } else {
         if (value) {
@@ -84,52 +114,34 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 return;
             }
 
-//            bool moved = false;
-//            if(value->is_ref_moved()) {
-//                auto known_t = value->pure_type_ptr();
-//                auto node = known_t->get_direct_linked_node();
-//                if(node && node->isStoredStructType(node->kind())) {
-//                    const auto& name_v = name_view();
-//                    const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
-//                    gen.di.instr(allocaInst, encoded_location());
-//                    llvm_ptr = allocaInst;
-//                    gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
-//                    moved = true;
-//                }
-//            }
+            // copy or move the struct, if required
+            const auto exp_type = known_type_or_err();
+            if(value->requires_memcpy_ref_struct(exp_type)) {
+                const auto& name_v = name_view();
+                const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
+                gen.di.instr(allocaInst, encoded_location());
+                llvm_ptr = allocaInst;
+                if(!gen.copy_or_move_struct(exp_type, value, allocaInst)) {
+                    gen.warn("couldn't copy or move the struct to location", this);
+                }
+                put_destructible(gen);
+                gen.di.declare(this, llvm_ptr);
+                return;
+            }
 
-                // copy or move the struct, if required
-                const auto exp_type = known_type_or_err();
-                if(value->requires_memcpy_ref_struct(exp_type)) {
-                    const auto& name_v = name_view();
-                    const auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, llvm::StringRef(name_v.data(), name_v.size()));
-                    gen.di.instr(allocaInst, encoded_location());
-                    llvm_ptr = allocaInst;
-                    if(!gen.copy_or_move_struct(exp_type, value, allocaInst)) {
-                        gen.warn("couldn't copy or move the struct to location", this);
-                    }
+            if(type) {
+                const auto canType = type->canonical();
+                const auto mutated = gen.mutate_capturing_function(canType, value);
+                if(mutated) {
+                    llvm_ptr = mutated;
                     put_destructible(gen);
                     gen.di.declare(this, llvm_ptr);
                     return;
                 }
+            }
 
-//            if(!moved) {
-
-                if(type) {
-                    const auto canType = type->canonical();
-                    const auto mutated = gen.mutate_capturing_function(canType, value);
-                    if(mutated) {
-                        llvm_ptr = mutated;
-                        put_destructible(gen);
-                        gen.di.declare(this, llvm_ptr);
-                        return;
-                    }
-                }
-
-                llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
-                gen.di.declare(this, llvm_ptr);
-
-//            }
+            llvm_ptr = value->llvm_allocate(gen, name_str(),type_ptr_fast());
+            gen.di.declare(this, llvm_ptr);
 
         } else {
             const auto t = llvm_type(gen);
@@ -158,7 +170,7 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
         llvm_ptr = initializer_value(gen);
         return;
     }
-    code_gen_global_var(gen, false);
+    code_gen_global_var(gen, false, false);
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) {
@@ -195,6 +207,10 @@ llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) 
         }
     }
     auto v = llvm_pointer(gen);
+    if(v == nullptr) {
+        gen.error("nullptr received from llvm_pointer in var init", location);
+        return gen.builder->getInt32(0);
+    }
     const auto& name = name_view();
     const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()));
     gen.di.instr(loadInst, location);

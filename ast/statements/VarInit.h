@@ -317,7 +317,9 @@ public:
 
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
 
-    void code_gen_global_var(Codegen &gen, bool initialize);
+    void code_gen_global_var(Codegen &gen, bool initialize, bool initialize_strings);
+
+    void code_gen_declare(Codegen &gen) override;
 
     void code_gen(Codegen &gen) final;
 

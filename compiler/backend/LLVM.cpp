@@ -1306,6 +1306,14 @@ llvm::Value* EmbeddedNode::loadable_llvm_pointer(Codegen &gen, SourceLocation lo
     return repl->loadable_llvm_pointer(gen, location);
 }
 
+void EmbeddedNode::code_gen(Codegen &gen) {
+    const auto repl = get_repl(this, gen);
+    if(repl == nullptr) {
+        return;
+    }
+    repl->code_gen(gen);
+}
+
 llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {
     const auto type = getType();
     return type->llvm_type(gen);

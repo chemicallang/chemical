@@ -81,10 +81,10 @@ TCCMode to_tcc_mode(OutputMode mode, bool debug_info) {
     }
     switch(mode) {
         case OutputMode::Debug:
+        case OutputMode::DebugQuick:
             return TCCMode::Debug;
         case OutputMode::DebugComplete:
             return TCCMode::DebugComplete;
-        case OutputMode::DebugQuick:
         case OutputMode::ReleaseFast:
         case OutputMode::ReleaseSmall:
         case OutputMode::ReleaseSafe:
@@ -1581,10 +1581,15 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         return 0;
     }
 
-    if(job_type == LabJobType::Intermediate) {
+    const auto intermediate_job = job_type == LabJobType::Intermediate;
+    const auto emit_c = intermediate_job || options->emit_c;
+
+    if(emit_c) {
+        writeToFile(resolve_rel_child_path_str(build_dir, "Translated.c"), program);
+    }
+
+    if(intermediate_job) {
         // skip compilation, only intermediates required
-        auto out_path = resolve_rel_child_path_str(build_dir, "Translated.c");
-        writeToFile(out_path, program);
         return 0;
     }
 

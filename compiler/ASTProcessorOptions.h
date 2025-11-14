@@ -48,6 +48,11 @@ public:
     bool debug_info = false;
 
     /**
+     * emit the translated c
+     */
+    bool emit_c = false;
+
+    /**
      * the target triple, which codegen is for
      */
     std::string target_triple;

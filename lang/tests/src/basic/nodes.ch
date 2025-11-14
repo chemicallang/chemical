@@ -978,8 +978,18 @@ func test_nodes() {
         var d = DefConsContainer {}
         return d.d.value == 897
     })
+    test("can access a global variable declared below", () => {
+        return gv_dec_bel_two == 222
+    })
+    test("can access a constant global variable declared below", () => {
+        return gc_dec_bel_three == 333
+    })
 }
 
 func declared_below() : int {
     return 1;
 }
+
+var gv_dec_bel_two = 222
+
+const gc_dec_bel_three = 333

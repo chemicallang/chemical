@@ -513,7 +513,8 @@ llvm::Type *StringValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value* StringValue::llvm_pointer(Codegen &gen) {
-    // TODO reuse the strings by declaring them once
+    // TODO put stricter defaults, way more stricter, do not change linkage
+    // llvm marks it mergable, so we don't want to mess that up
     return gen.builder->CreateGlobalStringPtr(llvm::StringRef(value.data(), value.size()));
 }
 
@@ -538,7 +539,8 @@ llvm::Value *StringValue::llvm_value(Codegen &gen, BaseType* expected_type) {
             initializer
         );
     } else {
-        // TODO reuse the strings by declaring them once
+        // TODO put stricter defaults, way more stricter, do not change linkage
+        // llvm marks it mergable, so we don't want to mess that up
         return gen.builder->CreateGlobalStringPtr(llvm::StringRef(value.data(), value.size()));
     }
 }

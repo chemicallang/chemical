@@ -693,6 +693,7 @@ Value* Parser::parsePreIncDecValue(ASTAllocator& allocator, bool increment) {
         } else {
             unexpected_error("expected an expression after the pre decrement");
         }
+        return nullptr;
     }
     return new (allocator.allocate<IncDecValue>()) IncDecValue(expr, increment, false, loc_single(t));
 }

@@ -104,8 +104,13 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
             vec.emplace_back(inherits.type->llvm_chain_type(gen, chain, index + 1));
         }
     }
-    for (auto &var: variables()) {
-        vec.emplace_back(var->llvm_chain_type(gen, chain, index + 1));
+    const auto linked = ((Value*) chain[index])->linked_node();
+    for (const auto var: variables()) {
+        if(linked == var) {
+            vec.emplace_back(var->llvm_chain_type(gen, chain, index + 1));
+        } else {
+            vec.emplace_back(var->llvm_type(gen));
+        }
     }
     return vec;
 }

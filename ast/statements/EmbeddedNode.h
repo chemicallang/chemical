@@ -78,6 +78,8 @@ public:
 
     llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location);
 
+    void code_gen(Codegen &gen) override;
+
 #endif
 
 

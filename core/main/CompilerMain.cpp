@@ -376,20 +376,20 @@ OutputMode get_output_mode(std::optional<std::string_view>& mode_opt, bool verbo
         if(mode_opt.value() == "debug") {
             // ignore
         } else if(mode_opt.value() == "debug_quick") {
-            return OutputMode::DebugQuick;
             if(verbose) {
                 std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
             }
+            return OutputMode::DebugQuick;
         } else if(mode_opt.value() == "debug_complete") {
-            return OutputMode::DebugComplete;
             if(verbose) {
                 std::cout << "mode: Debug Complete Enabled (debug_complete)" << std::endl;
             }
+            return OutputMode::DebugComplete;
         } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
-            return OutputMode::ReleaseFast;
             if(verbose) {
                 std::cout << "mode: Release Fast Enabled (release_fast)" << std::endl;
             }
+            return OutputMode::ReleaseFast;
         } else if(mode_opt.value() == "release_small") {
             if(verbose) {
                 std::cout << "mode: Release Small Enabled (release_small)" << std::endl;
@@ -445,7 +445,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("mode", "m", CmdOptionType::SingleValue),
             CmdOption("version", CmdOptionType::NoValue),
             CmdOption("help", CmdOptionType::NoValue),
-            CmdOption("", "minify-c", CmdOptionType::NoValue),
+            CmdOption("minify-c", "minify-c", CmdOptionType::NoValue),
+            CmdOption("emit-c", "emit-c", CmdOptionType::NoValue),
             CmdOption("test", "test", CmdOptionType::NoValue),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue),
             CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue),
@@ -585,6 +586,7 @@ int compiler_main(int argc, char *argv[]) {
         opts->verbose = verbose;
         opts->verbose_link = options.has_value("verbose-link", "vl");
         opts->minify_c = options.has_value("minify-c");
+        opts->emit_c = options.has_value("emit-c");
         opts->debug_info = options.has_value("", "g") || (opts->outMode == OutputMode::Debug || opts->outMode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();

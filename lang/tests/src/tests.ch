@@ -17,6 +17,7 @@ func run_executable_tests() {
     test_implicit_functions();
     test_destructors();
     test_continue_destruction()
+    test_break_destruction()
     test_unions();
     test_namespaces();
     test_comptime();

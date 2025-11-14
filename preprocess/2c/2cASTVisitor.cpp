@@ -3844,6 +3844,7 @@ void ToCAstVisitor::VisitBreakStmt(BreakStatement *node) {
         write(';');
         new_line_and_indent();
     }
+    destruct_till_loop_scope_above();
     write("break;");
 }
 

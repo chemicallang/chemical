@@ -1838,6 +1838,8 @@ void BreakStatement::code_gen(Codegen &gen) {
             gen.error("couldn't assign value in break statement", this);
         }
     }
+    gen.destroy_current_scope = false;
+    gen.dispatch_destruct_jobs(gen.loop_destr_job_begin_index, encoded_location());
     gen.CreateBr(gen.current_loop_exit, encoded_location());
 }
 

@@ -956,10 +956,17 @@ public namespace web {
                 var r = *routes.get_ptr(i);
                 if(r.method.equals_with_len(method.data(), method.size())) {
                     // match pattern vs path
-                    if(match_pattern(r.pattern, path, params_out)) { return std::Option.Some<Handler>(r.handler) }
+                    if(match_pattern(r.pattern, path, params_out)) {
+                        return std::Option.Some<Handler>(r.handler)
+                    } else {
+                        // printf("route path doesn't match, want %s, has pattern %s\n", path.data(), r.pattern.data());
+                    }
+                } else {
+                    // printf("route method doesn't match, want %s, has %s\n", method.data(), r.method.data());
                 }
                 i = i + 1u;
             }
+            // printf("no route matched, return\n");
             return std::Option.None<Handler>();
         }
 
@@ -1098,7 +1105,7 @@ public namespace server {
 
                 printf("handle_conn: handler returned for socket=%d\n", s);
             } else {
-                printf("handle_conn: no handler matched, sending 404 for socket={}\n");
+                printf("handle_conn: no handler matched, sending 404 for socket=%d\n", s);
                 resw.status = 404u;
                 resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
                 resw.write_string(std::string::make_no_len("Not Found\n"));

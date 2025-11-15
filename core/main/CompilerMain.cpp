@@ -29,9 +29,9 @@
 
 int chemical_clang_main(int argc, char **argv);
 
-int chemical_clang_main2(const std::vector<std::string> &command_args);
+int chemical_clang_main2(std::vector<chem::string>& command_args);
 
-int llvm_ar_main2(const std::span<chem::string_view> &command_args);
+int llvm_ar_main2(const std::span<chem::string>& command_args);
 
 #endif
 
@@ -539,7 +539,7 @@ int compiler_main(int argc, char *argv[]) {
     auto llvm_tool = [](int argc, char** argv, CmdOptions& options, const std::string_view& option) -> int {
         auto& cmd_opt = options.cmd_opt(option);
         if(cmd_opt.has_multi_value() && !cmd_opt.get_multi_opt_values().empty()) {
-            std::vector<chem::string_view> subc;
+            std::vector<chem::string> subc;
             subc.emplace_back(option);
             cmd_opt.get_multi_value_vec(subc);
             return llvm_ar_main2(subc);
@@ -561,7 +561,7 @@ int compiler_main(int argc, char *argv[]) {
     // use raw clang
     auto& cc_cmd_opt = options.cmd_opt("cc");
     if(!cc_cmd_opt.get_multi_opt_values().empty()) {
-        std::vector<std::string> subc;
+        std::vector<chem::string> subc;
         subc.emplace_back(getExecutablePath());
         cc_cmd_opt.get_multi_value_vec(subc);
 //        std::cout << "rclg  : ";

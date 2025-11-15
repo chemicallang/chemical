@@ -316,14 +316,14 @@ int main(int argc, char *argv[]) {
 
     auto& compileOpt = options.cmd_opt("cc");
     if(compileOpt.has_multi_value()) {
-        std::vector<std::string> subc;
+        std::vector<chem::string> subc;
         subc.emplace_back(argv[0]);
         compileOpt.get_multi_value_vec(subc);
         auto& command_args = subc;
-        char** pointers = convert_to_pointers(command_args);
+        char** pointers = chem_string_cmd_pointers(command_args);
         // invocation
         auto result = compiler_main(command_args.size(), pointers);
-        free_pointers(pointers, command_args.size());
+        free_chem_string_cmd_pointers(pointers, command_args.size());
         return result;
     }
 

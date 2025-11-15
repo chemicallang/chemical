@@ -577,24 +577,6 @@ public:
      */
     bool save_to_object_file(std::string &out_path, OutputMode mode);
 
-#ifdef LLD_LIBS
-
-    /**
-      * You can invoke lld with this function
-      */
-    int invoke_lld(const std::vector<std::string> &command_args);
-
-#endif
-
-#ifdef CLANG_LIBS
-
-    /**
-     * You can invoke clang with this function
-     */
-    int invoke_clang(const std::vector<std::string> &command_args);
-
-#endif
-
     /**
      * the given call is linked with given comptime function decl, that is evaluated to receive the return value
      * using this function, the evaluation is done once, so this function caches the return value

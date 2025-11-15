@@ -20,8 +20,8 @@ struct LinkFlags {
 
 int lld_link_objects(
         std::vector<chem::string>& linkables,
-        const std::string& bin_out,
-        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::string_view& bin_out,
+        const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
         const std::string_view& target_triple,
         LinkFlags& flags
@@ -29,21 +29,12 @@ int lld_link_objects(
 
 int clang_link_objects(
         std::vector<chem::string>& linkables,
-        const std::string& bin_out,
-        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::string_view& bin_out,
+        const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
         const std::string_view& target_triple,
-        LinkFlags& flags
-);
-
-int link_objects_linker(
-        const std::string& comp_exe_path,
-        std::vector<chem::string>& objects,
-        std::vector<chem::string>& link_libs,
-        const std::string& output_path,
-        const std::string_view& target_triple,
         LinkFlags& flags,
-        bool use_lld
+        const std::string_view& resource_dir
 );
 
 /**
@@ -51,8 +42,8 @@ int link_objects_linker(
  * it uses -c to generate object file from .c or a .cpp file
  */
 int compile_c_file_to_object(
-        const char* c_file,
-        const char* out_file,
-        const std::string& comp_exe_path,
-        const std::vector<std::string>& flags
+        const std::string_view& c_file,
+        const std::string_view& out_file,
+        const std::string_view& comp_exe_path,
+        const std::string_view& resource_dir
 );

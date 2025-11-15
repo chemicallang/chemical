@@ -1127,7 +1127,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     auto& gen_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
     std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
-    const auto compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), compiler->options->exe_path, {});
+    const auto compile_result = compile_c_file_to_object(mod->paths[0].data(), gen_path.data(), compiler->options->exe_path, {});
     if (compile_result == 1) {
         return 1;
     }
@@ -1154,10 +1154,10 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
 void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string_view& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto use_tcc = compiler->use_tcc(job_type);
-    const auto is_use_obj_format = use_tcc || compiler->options->use_mod_obj_format || mod->type == LabModuleType::CFile;
+    const auto is_use_obj_format = use_tcc || compiler->options->use_mod_obj_format;
     // creating the module directory
     auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
-    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (is_use_obj_format ? use_tcc ? "object_tcc.o" : "object.o" : "object.bc"));
+    auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (use_tcc ? "object_tcc.o" : (is_use_obj_format ? "object.o" : "object.bc")));
     if (!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
         const auto mod_dir_exists = fs::exists(module_dir_path);
         if (!mod_dir_exists) {
@@ -1746,7 +1746,11 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
                 if(!mod->has_changed.has_value() || mod->has_changed.value()) {
                     const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
                     if(c_res == 0) {
-                        job->objects.emplace_back(mod->object_path.copy());
+                        if(is_use_obj_format) {
+                            job->objects.emplace_back(mod->object_path.copy());
+                        } else {
+                            job->objects.emplace_back(mod->bitcode_path.copy());
+                        }
                         continue;
                     } else {
                         return 1;
@@ -1774,7 +1778,11 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             return result;
         }
 
-        job->objects.emplace_back(mod->object_path.copy());
+        if(is_use_obj_format) {
+            job->objects.emplace_back(mod->object_path.copy());
+        } else {
+            job->objects.emplace_back(mod->bitcode_path.copy());
+        }
 
     }
 

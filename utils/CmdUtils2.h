@@ -6,9 +6,10 @@
 #include <span>
 #include <string>
 #include "std/chem_string_view.h"
+#include "std/chem_string.h"
 
-char** convert_to_pointers(const std::vector<std::string> &command_args);
+char** chem_string_cmd_pointers(chem::string& front, const std::span<chem::string>& command_args);
 
-char** convert_to_pointers(const std::span<chem::string_view> &command_args);
+char** chem_string_cmd_pointers(const std::span<chem::string>& command_args);
 
-void free_pointers(char** pointers, size_t size);
+void free_chem_string_cmd_pointers(char** pointers, size_t size);

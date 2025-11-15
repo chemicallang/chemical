@@ -15,7 +15,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 
 #ifdef COMPILER_BUILD
-int llvm_ar_main2(const std::span<chem::string_view> &command_args);
+int llvm_ar_main2(const std::span<chem::string>& command_args);
 #endif
 
 LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies) {
@@ -210,7 +210,8 @@ void AppBuildContexton_finished(LabBuildContext* self, void(*lambda)(void*), voi
 
 int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<chem::string_view> arr;
+    std::vector<chem::string> arr;
+    arr.reserve(string_arr->size + 1);
     arr.emplace_back("dlltool");
     for(auto i = 0; i < string_arr->size; i++) {
         arr.emplace_back(string_arr->ptr[i]);
@@ -223,7 +224,8 @@ int BuildContextinvoke_dlltool(LabBuildContext* self, StringViewSpan* string_arr
 
 int BuildContextinvoke_ranlib(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<chem::string_view> arr;
+    std::vector<chem::string> arr;
+    arr.reserve(string_arr->size + 1);
     arr.emplace_back("ranlib");
     for(auto i = 0; i < string_arr->size; i++) {
         arr.emplace_back(string_arr->ptr[i]);
@@ -236,7 +238,8 @@ int BuildContextinvoke_ranlib(LabBuildContext* self, StringViewSpan* string_arr)
 
 int BuildContextinvoke_lib(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<chem::string_view> arr;
+    std::vector<chem::string> arr;
+    arr.reserve(string_arr->size + 1);
     arr.emplace_back("lib");
     for(auto i = 0; i < string_arr->size; i++) {
         arr.emplace_back(string_arr->ptr[i]);
@@ -249,7 +252,8 @@ int BuildContextinvoke_lib(LabBuildContext* self, StringViewSpan* string_arr) {
 
 int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr) {
 #ifdef COMPILER_BUILD
-    std::vector<chem::string_view> arr;
+    std::vector<chem::string> arr;
+    arr.reserve(string_arr->size + 1);
     arr.emplace_back("ar");
     for(auto i = 0; i < string_arr->size; i++) {
         arr.emplace_back(string_arr->ptr[i]);

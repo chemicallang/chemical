@@ -1522,24 +1522,20 @@ int chemical_clang_main(int argc, char **argv);
 
 int ChemLlvmAr_main(int argc, char **argv);
 
-int chemical_clang_main2(const std::vector<std::string> &command_args) {
-    char** pointers = convert_to_pointers(command_args);
+int chemical_clang_main2(std::vector<chem::string> &command_args) {
+    char** pointers = chem_string_cmd_pointers(command_args);
     // invocation
     auto result = chemical_clang_main(command_args.size(), pointers);
-    free_pointers(pointers, command_args.size());
+    free_chem_string_cmd_pointers(pointers, command_args.size());
     return result;
 }
 
-int llvm_ar_main2(const std::span<chem::string_view> &command_args) {
-    char** pointers = convert_to_pointers(command_args);
+int llvm_ar_main2(const std::span<chem::string> &command_args) {
+    char** pointers = chem_string_cmd_pointers(command_args);
     // invocation
     auto result = ChemLlvmAr_main(command_args.size(), pointers);
-    free_pointers(pointers, command_args.size());
+    free_chem_string_cmd_pointers(pointers, command_args.size());
     return result;
-}
-
-int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
-    return chemical_clang_main2(command_args);
 }
 
 #endif
@@ -1568,29 +1564,24 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 
 }
 
-int invoke_lld(const std::vector<std::string> &command_args, const std::string_view& targetTripleString) {
-    // Convert the vector of strings to an ArrayRef<const char *>
-    std::vector<const char *> args_cstr;
-    args_cstr.reserve(command_args.size() + 1);
-    std::string lld_driver;
+int invoke_lld(std::vector<chem::string>& command_args, const std::string_view& targetTripleString) {
+    // figure out the lld driver
+    chem::string lld_driver;
     auto triple = llvm::Triple(targetTripleString);
-    if (triple.isOSDarwin())
-        lld_driver = "ld64.lld";
-    else if (triple.isOSWindows())
-        lld_driver = "lld-link";
-    else
-        lld_driver = "ld.lld";
-    args_cstr.push_back(lld_driver.c_str());
-    for (const std::string& arg : command_args) {
-        args_cstr.push_back(arg.c_str());
+    if (triple.isOSDarwin()){
+        lld_driver.append(std::string_view("ld64.lld"));
+    } else if (triple.isOSWindows()) {
+        lld_driver.append(std::string_view("lld-link"));
+    } else {
+        lld_driver.append(std::string_view("ld.lld"));
     }
+    auto pointer = chem_string_cmd_pointers(lld_driver, command_args);
     // invocation
     ToolContext context{};
-    return lld_main(args_cstr.size(), const_cast<char**>(args_cstr.data()), context);
-}
-
-int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
-    return ::invoke_lld(command_args, target_triple);
+    const auto command_size = command_args.size() + 1;
+    const auto status = lld_main(command_size, pointer, context);
+    free_chem_string_cmd_pointers(pointer, command_size);
+    return status;
 }
 
 #endif
@@ -1599,15 +1590,15 @@ int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
 
 int lld_link_objects(
         std::vector<chem::string>& linkables,
-        const std::string& bin_out,
-        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::string_view& bin_out,
+        const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
         const std::string_view& target_triple,
         LinkFlags& flags
 ) {
 
     // creating lld command
-    std::vector<std::string> command;
+    std::vector<chem::string> command;
 
     // put the linkables into the command
     for(auto& linkable : linkables) {
@@ -1616,25 +1607,25 @@ int lld_link_objects(
 
     // set output
 #if defined(_WIN32)
-    command.emplace_back("/OUT:"+bin_out);
+    command.emplace_back("/OUT:");
+    command.back().append(bin_out);
 #else
-    command.emplace_back("-o");
-        command.emplace_back("./"+bin_out);
+    command.emplace_back(chem::string("-o"));
+    command.emplace_back(chem::string("./"));
+    command.back().append(bin_out);
 #endif
 
 #ifdef _WIN32
     // add libraries user asked us to link
     for(const auto& lib : link_libs) {
-        std::string str("/DEFAULTLIB:");
-        str.append(lib.to_view());
-        command.emplace_back(std::move(str));
+        command.emplace_back("/DEFAULTLIB:");
+        command.back().append(lib.data(), lib.size());
     }
 #else
     // add libraries user asked us to link
     for(const auto& lib : link_libs) {
-        std::string str("-l");
-        str.append(lib.to_view());
-        command.emplace_back(std::move(str));
+        command.emplace_back("-l");
+        command.back().append(lib.data(), lib.size());
     }
 #endif
 
@@ -1675,15 +1666,23 @@ int lld_link_objects(
 
 int clang_link_objects(
         std::vector<chem::string>& linkables,
-        const std::string& bin_out,
-        const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+        const std::string_view& bin_out,
+        const std::string_view& comp_exe_path, // our compiler's executable path, needed for self invocation
         const std::vector<chem::string>& link_libs,
         const std::string_view& target_triple,
-        LinkFlags& flags
+        LinkFlags& flags,
+        const std::string_view& resource_dir
 ) {
-    std::vector<std::string> clang_flags{comp_exe_path};
+    std::vector<chem::string> clang_flags{chem::string(comp_exe_path)};
+
+    // set the target triple
     clang_flags.emplace_back("-target");
     clang_flags.emplace_back(target_triple);
+
+    // handle the resource directory
+    clang_flags.emplace_back("-resource-dir=");
+    auto& resource_dir_arg = clang_flags.back();
+    resource_dir_arg.append(resource_dir);
 
     if(flags.debug_info) {
         // on windows codeview is being used as .pdb and .ilk are being generated which aren't supported by gdb
@@ -1704,9 +1703,9 @@ int clang_link_objects(
 
     // add libraries user asked us to link
     for(const auto& lib : link_libs) {
-        std::string str("-l");
+        clang_flags.emplace_back("-l");
+        auto& str = clang_flags.back();
         str.append(lib.to_view());
-        clang_flags.emplace_back(std::move(str));
     }
 
 #if defined(_WINDOWS)
@@ -1730,18 +1729,22 @@ int clang_link_objects(
 }
 
 int compile_c_file_to_object(
-        const char* c_file,
-        const char* out_file,
-        const std::string& comp_exe_path,
-        const std::vector<std::string>& flags
+        const std::string_view& c_file,
+        const std::string_view& out_file,
+        const std::string_view& comp_exe_path,
+        const std::string_view& resource_dir
 ) {
-    std::vector<std::string> clang_flags{comp_exe_path};
-    for(const auto& cland_fl : flags) {
-        clang_flags.emplace_back(cland_fl);
-    }
+    std::vector<chem::string> clang_flags{ chem::string(comp_exe_path) };
+
+    // resource dir
+    clang_flags.emplace_back("-resource-dir=");
+    auto& resource_dir_arg = clang_flags.back();
+    resource_dir_arg.append(resource_dir);
+
     clang_flags.emplace_back("-c");
     clang_flags.emplace_back(c_file);
     clang_flags.emplace_back("-o");
     clang_flags.emplace_back(out_file);
+
     return chemical_clang_main2(clang_flags);
 }

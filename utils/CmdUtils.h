@@ -85,8 +85,20 @@ public:
     /**
      * this gets the values as strings into the vector
      */
+    void get_multi_value_vec(std::vector<chem::string>& outArgs) {
+        if(!is_initialized) return;
+        outArgs.reserve(multi_value.values.size());
+        for(auto& value : multi_value.values) {
+            outArgs.emplace_back(value);
+        }
+    }
+
+    /**
+     * this gets the values as strings into the vector
+     */
     void get_multi_value_vec(std::vector<std::string>& outArgs) {
         if(!is_initialized) return;
+        outArgs.reserve(multi_value.values.size());
         for(auto& value : multi_value.values) {
             outArgs.emplace_back(value);
         }
@@ -97,6 +109,7 @@ public:
      */
     void get_multi_value_vec(std::vector<chem::string_view>& outArgs) {
         if(!is_initialized) return;
+        outArgs.reserve(multi_value.values.size());
         for(auto& value : multi_value.values) {
             outArgs.emplace_back(value);
         }

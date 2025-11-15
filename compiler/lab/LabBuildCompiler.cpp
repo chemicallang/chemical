@@ -1127,7 +1127,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     auto& gen_path = is_use_obj_format ? mod->object_path : mod->bitcode_path;
     std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
-    const auto compile_result = compile_c_file_to_object(mod->paths[0].data(), gen_path.data(), compiler->options->exe_path, {});
+    const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), compiler->options->exe_path, compiler->options->resources_path);
     if (compile_result == 1) {
         return 1;
     }
@@ -1818,31 +1818,6 @@ int link_objects_tcc(
     return link_result;
 }
 
-#ifdef COMPILER_BUILD
-
-int link_objects_linker(
-        const std::string& comp_exe_path,
-        std::vector<chem::string>& objects,
-        std::vector<chem::string>& link_libs,
-        const std::string& output_path,
-        const std::string_view& target_triple,
-        LinkFlags& flags,
-        bool use_lld
-) {
-    int link_result;
-    if(use_lld) {
-        link_result = lld_link_objects(objects, output_path, comp_exe_path, link_libs, target_triple, flags);
-    } else {
-        link_result = clang_link_objects(objects, output_path, comp_exe_path, link_libs, target_triple, flags);
-    }
-    if(link_result != 0) {
-        print_failed_to_link(objects, output_path);
-    }
-    return link_result;
-}
-
-#endif
-
 int link_objects_now(
     bool use_tcc,
     LabBuildCompilerOptions* options,
@@ -1867,7 +1842,16 @@ int link_objects_now(
         linkFlags.debug_info = options->debug_info || is_debug_or_compl(options->outMode);
         linkFlags.verbose = options->verbose_link;
         linkFlags.no_pie = options->no_pie;
-        return link_objects_linker(options->exe_path, objects, link_libs, output_path, target_triple, linkFlags, options->use_lld);
+        int link_result;
+        if(options->use_lld) {
+            link_result = lld_link_objects(objects, output_path, options->exe_path, link_libs, target_triple, linkFlags);
+        } else {
+            link_result = clang_link_objects(objects, output_path, options->exe_path, link_libs, target_triple, linkFlags, options->resources_path);
+        }
+        if(link_result != 0) {
+            print_failed_to_link(objects, output_path);
+        }
+        return link_result;
     }
 #else
     return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));

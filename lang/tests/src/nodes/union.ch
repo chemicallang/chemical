@@ -37,6 +37,44 @@ func (u : &mut ShortFloatUnion) sfu_float_plus() : float {
     return u.b + 3.0f;
 }
 
+public struct test_string_union {
+
+    union {
+        struct {
+            var data : *char;
+            var length : size_t
+        } constant;
+        struct {
+            var data : *mut char;
+            var length : size_t;
+            var capacity : size_t;
+        } heap;
+        struct {
+            var buffer : [16]char;
+            var length : uchar;
+        } sso;
+    } storage;
+    var state : char
+
+    func size(&self) : size_t {
+        switch(state) {
+            '0' => {
+                return storage.constant.length;
+            }
+            '1' => {
+                return storage.sso.length as size_t;
+            }
+            '2' => {
+                return storage.heap.length;
+            }
+            default => {
+                return 0
+            }
+        }
+    }
+
+}
+
 func test_unions() {
     test("int float union works - 1", () => {
         var u : IntFloatUnion
@@ -84,5 +122,11 @@ func test_unions() {
     test("extension methods work on unions - 2", () => {
         var u = ShortFloatUnion { b : 32.0f }
         return u.sfu_float_plus() == 35.0f
+    })
+    test("union access doesn't fail through method", () => {
+        var t : test_string_union
+        t.storage.sso.length = 0
+        t.state = '1'
+        return (t.size() as int) == (t.storage.sso.length as int)
     })
 }

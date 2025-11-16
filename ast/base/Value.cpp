@@ -92,8 +92,9 @@ llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<Ch
     } else {
         const auto value = val->access_chain_value(gen, values, until, expected_type);
         const auto loc = val->encoded_location();
-        const auto alloc = gen.llvm.CreateAlloca(val->llvm_type(gen), loc);
-        const auto store = gen.llvm.CreateStore(value, alloc, loc);
+        const auto val_type = val->llvm_type(gen);
+        const auto alloc = gen.llvm.CreateAlloca(val_type, loc);
+        gen.aggregate_store(val_type, alloc, value, loc);
         return (llvm::AllocaInst*) alloc;
     }
 }

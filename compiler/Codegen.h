@@ -451,6 +451,11 @@ public:
     void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location);
 
     /**
+     * stores non aggregate types using a single store instruction, others with memcpy
+     */
+    void aggregate_store(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location);
+
+    /**
      * writes the return statement for the given return value, also accounting
      * for destructors and other stuff
      */

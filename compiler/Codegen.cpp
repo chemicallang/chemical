@@ -951,6 +951,24 @@ void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value*
     di.instr(callInst, location);
 }
 
+inline bool needsMemcpy(llvm::Type* ty) {
+    switch (ty->getTypeID()) {
+        case llvm::Type::StructTyID:
+        case llvm::Type::ArrayTyID:
+            return true;
+        default:
+            return false;
+    }
+}
+
+void Codegen::aggregate_store(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {
+    if(needsMemcpy(type)) {
+        memcpy_struct(type, pointer, value, location);
+    } else {
+        llvm.CreateStore(value, pointer, location);
+    }
+}
+
 //void Codegen::move_by_memcpy(ASTNode* node, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
 //    const auto node_kind = node->kind();
 //    if(node_kind == ASTNodeKind::UnnamedStruct || node_kind == ASTNodeKind::UnnamedUnion) {

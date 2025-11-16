@@ -4,6 +4,7 @@ func run_executable_tests() {
     test_bodmas();
     test_floating_expr();
     test_nodes();
+    test_if_switch_loop_value();
     test_numbers();
     test_structs();
     test_enum();

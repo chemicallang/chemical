@@ -584,7 +584,12 @@ func writeColor(ptr : &mut CSSColorValueData, str : &mut std::string) {
             str.append(')')
         }
         CSSColorKind.COLOR => {
-
+            // TODO:
+        }
+        CSSColorKind.VAR => {
+            str.append_view(std::string_view("var("))
+            str.append_view(ptr.value.view)
+            str.append(')')
         }
 
         CSSColorKind.Unknown => {

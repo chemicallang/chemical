@@ -1,0 +1,71 @@
+import lab
+import std
+
+import "@cstd/build.lab" as cstdMod
+import "@std/build.lab" as stdMod
+import "@compiler/build.lab" as compilerMod
+
+using namespace std;
+
+var did_once = false;
+
+public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+
+    const already_std = ctx.get_cached(user_job, "", "std");
+
+    // the std module
+    var user_std_module = if(already_std != null) already_std else stdMod.build(ctx, user_job);
+    if(user_std_module == null) {
+        return null
+    }
+
+    if(did_once) return user_std_module;
+    did_once = true;
+
+    var cbi = ctx.build_cbi(std::string_view("js"))
+    const job = cbi;
+
+    // makes sure this job is done before the user_job
+    ctx.put_job_before(job, user_job)
+
+    var std_module = stdMod.build(ctx, job);
+    if(std_module == null) {
+        return null
+    }
+
+    // the cstd module
+    var cstd_module = cstdMod.build(ctx, job);
+    if(cstd_module == null) {
+        return null
+    }
+
+    // the std module
+    var compiler_module = compilerMod.build(ctx, job);
+    if(compiler_module == null) {
+        return null
+    }
+
+    const dependencies = [ cstd_module, std_module, compiler_module ]
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("js_cbi"), lab::rel_path_to("src").to_view(), dependencies);
+
+    ctx.add_module(cbi, module)
+
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_symResValue"), CBIFunctionType.SymResValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementNode"), CBIFunctionType.ReplacementNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementValue"), CBIFunctionType.ReplacementValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_traversalNode"), CBIFunctionType.TraversalNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("js_traversalValue"), CBIFunctionType.TraversalValue);
+
+    comptime if(def.lsp) {
+        // this will let the lsp know that methods are present
+        ctx.index_def_cbi_fn(cbi, std::string_view("js_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+        ctx.index_def_cbi_fn(cbi, std::string_view("js_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
+    }
+
+    return user_std_module;
+
+}

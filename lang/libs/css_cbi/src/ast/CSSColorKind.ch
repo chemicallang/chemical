@@ -19,9 +19,10 @@ enum CSSColorKind {
     OKLAB,
     OKLCH,
     COLOR,
+    VAR, // custom variable
 
     // Indexes into the enum itself
     FunctionsStart = RGB,
-    FunctionsEnd = COLOR
+    FunctionsEnd = VAR
 
 }

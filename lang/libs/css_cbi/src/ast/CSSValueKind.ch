@@ -5,6 +5,7 @@ enum CSSValueKind {
     Multiple,
     Pair,
     ChemicalValue,
+    Variable, // var(--)
 
     // keywords like auto
     Keyword,

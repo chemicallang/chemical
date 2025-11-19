@@ -99,6 +99,15 @@ public func (provider : &SourceProvider) current_data() : *char {
     return provider.data_ptr;
 }
 
+// returns zero if stream ends before that
+public func (provider : &SourceProvider) peek2() : char {
+    const current = *provider.data_ptr;
+    if(current == 0) return 0;
+    const next = *(provider.data_ptr + 1)
+    if(next == 0) return 0;
+    return *(provider.data_ptr + 2)
+}
+
 public func (provider : &SourceProvider) getPosition() : Position {
     return Position {
         line : provider.lineNumber,

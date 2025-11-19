@@ -307,4 +307,52 @@ func test_if_switch_loop_value() {
         var s = if(!isl_int_container_sel_first) if(!isl_int_container_sel_second) first else second else if(isl_int_container_sel_second) first else second
         return s.data == 10
     })
+    test("if value in switch works with struct based values - 1", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 100 }
+        var i = 1;
+        var tens = false;
+        var j = switch(i) {
+            1 => { if(tens) first else second }
+            2 => { if(tens) first else second }
+            default => nd_isl_int_container { data : 0 }
+        }
+        return j.data == 100
+    })
+    test("if value in switch works with struct based values - 2", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 100 }
+        var i = 1;
+        var tens = true;
+        var j = switch(i) {
+            1 => { if(tens) first else second }
+            2 => { if(tens) first else second }
+            default => nd_isl_int_container { data : 0 }
+        }
+        return j.data == 10
+    })
+    test("if value in switch works with struct based values - 3", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 100 }
+        var i = 2;
+        var tens = false;
+        var j = switch(i) {
+            1 => { if(tens) first else second }
+            2 => { if(tens) first else second }
+            default => nd_isl_int_container { data : 0 }
+        }
+        return j.data == 100
+    })
+    test("if value in switch works with struct based values - 4", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 100 }
+        var i = 2;
+        var tens = true;
+        var j = switch(i) {
+            1 => { if(tens) first else second }
+            2 => { if(tens) first else second }
+            default => nd_isl_int_container { data : 0 }
+        }
+        return j.data == 10
+    })
 }

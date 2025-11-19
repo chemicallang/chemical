@@ -6,11 +6,11 @@ func (cssParser : &mut CSSParser) parseBorderRadius(
 ) {
 
     const ptr = builder.allocate<CSSBorderRadiusValueData>();
-    if(parser.parseLengthInto(builder, ptr.first)) {
+    if(cssParser.parseLengthInto(parser, builder, ptr.first)) {
 
-        parser.parseLengthInto(builder, ptr.second)
-        parser.parseLengthInto(builder, ptr.third)
-        parser.parseLengthInto(builder, ptr.fourth)
+        cssParser.parseLengthInto(parser, builder, ptr.second)
+        cssParser.parseLengthInto(parser, builder, ptr.third)
+        cssParser.parseLengthInto(parser, builder, ptr.fourth)
 
         ptr.next = null
 
@@ -21,11 +21,11 @@ func (cssParser : &mut CSSParser) parseBorderRadius(
             const next = builder.allocate<CSSBorderRadiusValueData>();
             next.next = null;
 
-            if(parser.parseLengthInto(builder, next.first)) {
+            if(cssParser.parseLengthInto(parser, builder, next.first)) {
 
-                parser.parseLengthInto(builder, next.second)
-                parser.parseLengthInto(builder, next.third)
-                parser.parseLengthInto(builder, next.fourth)
+                cssParser.parseLengthInto(parser, builder, next.second)
+                cssParser.parseLengthInto(parser, builder, next.third)
+                cssParser.parseLengthInto(parser, builder, next.fourth)
 
                 ptr.next = next;
 

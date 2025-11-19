@@ -2,6 +2,7 @@
 func getWidthCSSKeywordKind(hash : size_t) : CSSKeywordKind {
     switch(hash) {
         comptime_fnv1_hash("auto") => { return CSSKeywordKind.Auto }
+        comptime_fnv1_hash("var") => { return CSSKeywordKind.Var }
         comptime_fnv1_hash("min-content") => { return CSSKeywordKind.MinContent }
         comptime_fnv1_hash("max-content") => { return CSSKeywordKind.MaxContent }
         comptime_fnv1_hash("fit-content") => { return CSSKeywordKind.FitContent }
@@ -16,7 +17,8 @@ func getWidthCSSKeywordKind(hash : size_t) : CSSKeywordKind {
     }
 }
 
-func (parser : &mut Parser) parseFitContentCall(
+func (cssParser : &mut CSSParser) parseFitContentCall(
+     parser : *mut Parser,
      builder : *mut ASTBuilder,
      value : &mut CSSValue
 ) {
@@ -35,7 +37,7 @@ func (parser : &mut Parser) parseFitContentCall(
     value.data = funcData
 
     funcData.name = CSSKeywordValueData { value : std::string_view("fit-content"), kind : CSSKeywordKind.FitContent }
-    if(!parser.parseLengthInto(builder, funcData.length)) {
+    if(!cssParser.parseLengthInto(parser, builder, funcData.length)) {
         parser.error("expected a length for fit-content");
     }
 
@@ -65,11 +67,17 @@ func (cssParser : &mut CSSParser) parseWidthOrHeightValue(
             const hash = token.fnv1()
             const kind = getWidthCSSKeywordKind(hash)
             switch(kind) {
+                CSSKeywordKind.Var => {
+                    parser.increment()
+                    const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                    alloc_value_length_var(parser, builder, value, colorValue)
+                    return;
+                }
                 CSSKeywordKind.FitContent => {
                     parser.increment()
                     const next = parser.getToken()
                     if(next.type == TokenType.LParen) {
-                        parser.parseFitContentCall(builder, value)
+                        cssParser.parseFitContentCall(parser, builder, value)
                     } else {
                         alloc_value_keyword(builder, value, kind, token.value);
                         return;

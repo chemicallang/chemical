@@ -1,5 +1,5 @@
 
-func (parser : &mut Parser) parseLinearEasingPoints(builder : *mut ASTBuilder) : *CSSLinearEasingPoint {
+func (cssParser : &mut CSSParser) parseLinearEasingPoints(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSLinearEasingPoint {
 
     const lpTok = parser.getToken()
     if(lpTok.type == TokenType.LParen) {
@@ -14,13 +14,13 @@ func (parser : &mut Parser) parseLinearEasingPoints(builder : *mut ASTBuilder) :
 
     while(true) {
 
-        if(!parser.parseNumberOrLengthInto(builder, point.point)) {
+        if(!cssParser.parseNumberOrLengthInto(parser, builder, point.point)) {
             parser.error("expected a number for linear");
         }
 
-        parser.parseLengthInto(builder, point.start)
+        cssParser.parseLengthInto(parser, builder, point.start)
 
-        parser.parseLengthInto(builder, point.stop)
+        cssParser.parseLengthInto(parser, builder, point.stop)
 
         const token = parser.getToken()
         if(token.type == TokenType.Comma) {
@@ -52,7 +52,7 @@ func (parser : &mut Parser) parseLinearEasingPoints(builder : *mut ASTBuilder) :
 
 }
 
-func (parser : &mut Parser) parseCubicBezierCall(builder : *mut ASTBuilder) : *CSSCubicBezierEasingData {
+func (cssParser : &mut CSSParser) parseCubicBezierCall(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSCubicBezierEasingData {
 
     const lpTok = parser.getToken()
     if(lpTok.type == TokenType.LParen) {
@@ -64,25 +64,25 @@ func (parser : &mut Parser) parseCubicBezierCall(builder : *mut ASTBuilder) : *C
     var bezier = builder.allocate<CSSCubicBezierEasingData>()
     new (bezier) CSSCubicBezierEasingData()
 
-    if(!parser.parseNumberInto(builder, bezier.x1)) {
+    if(!cssParser.parseNumberInto(parser, builder, bezier.x1)) {
         parser.error("expected a number for x1 in bezier-curve");
     }
 
     parser.consume(TokenType.Comma)
 
-    if(!parser.parseNumberInto(builder, bezier.y1)) {
+    if(!cssParser.parseNumberInto(parser, builder, bezier.y1)) {
         parser.error("expected a number for y1 in bezier-curve");
     }
 
     parser.consume(TokenType.Comma)
 
-    if(!parser.parseNumberInto(builder, bezier.x2)) {
+    if(!cssParser.parseNumberInto(parser, builder, bezier.x2)) {
         parser.error("expected a number for x2 in bezier-curve");
     }
 
     parser.consume(TokenType.Comma)
 
-    if(!parser.parseNumberInto(builder, bezier.y2)) {
+    if(!cssParser.parseNumberInto(parser, builder, bezier.y2)) {
         parser.error("expected a number for y2 in bezier-curve");
     }
 
@@ -109,7 +109,7 @@ func getStepPositionKeywordKind(hash : size_t) : CSSKeywordKind {
     }
 }
 
-func (parser : &mut Parser) parseStepsFnCall(builder : *mut ASTBuilder) : *CSSStepsEasingData {
+func (cssParser : &mut CSSParser) parseStepsFnCall(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSStepsEasingData {
 
     const lpTok = parser.getToken()
     if(lpTok.type == TokenType.LParen) {
@@ -121,7 +121,7 @@ func (parser : &mut Parser) parseStepsFnCall(builder : *mut ASTBuilder) : *CSSSt
     var steps = builder.allocate<CSSStepsEasingData>()
     new (steps) CSSStepsEasingData()
 
-    if(!parser.parseNumberInto(builder, steps.step)) {
+    if(!cssParser.parseNumberInto(parser, builder, steps.step)) {
         parser.error("expected a number in steps");
     }
 
@@ -177,7 +177,7 @@ func (cssParser : &mut CSSParser) parseTransition(
                     const next = parser.getToken()
                     if(next.type == TokenType.LParen) {
                         // parse linear function
-                        transition.easing.data.linear = parser.parseLinearEasingPoints(builder)
+                        transition.easing.data.linear = cssParser.parseLinearEasingPoints(parser, builder)
                         transition.easing.kind = CSSKeywordKind.Linear
                     } else {
                         transition.easing.data.linear = null
@@ -187,11 +187,11 @@ func (cssParser : &mut CSSParser) parseTransition(
                 }
             } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
                 parser.increment()
-                transition.easing.data.bezier = parser.parseCubicBezierCall(builder)
+                transition.easing.data.bezier = cssParser.parseCubicBezierCall(parser, builder)
                 transition.easing.kind = CSSKeywordKind.CubicBezier
             } else if(hash == comptime_fnv1_hash("step")) {
                 parser.increment()
-                transition.easing.data.steps = parser.parseStepsFnCall(builder)
+                transition.easing.data.steps = cssParser.parseStepsFnCall(parser, builder)
                 transition.easing.kind = CSSKeywordKind.Steps
             } else if(transition.property.empty()) {
                 parser.increment()
@@ -209,13 +209,13 @@ func (cssParser : &mut CSSParser) parseTransition(
        } else if(token.type == TokenType.Number) {
             if(has_duration) {
                 if(transition.delay.kind == CSSLengthKind.Unknown) {
-                    parser.parseLengthInto(builder, transition.delay)
+                    cssParser.parseLengthInto(parser, builder, transition.delay)
                 } else {
                     parser.error("too many lengths given");
                     break;
                 }
             } else {
-                parser.parseLengthInto(builder, transition.duration)
+                cssParser.parseLengthInto(parser, builder, transition.duration)
                 has_duration = true;
             }
         } else if(token.type == TokenType.Comma) {
@@ -258,7 +258,7 @@ func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
                 const next = parser.getToken()
                 if(next.type == TokenType.LParen) {
                     // parse linear function
-                    easing.data.linear = parser.parseLinearEasingPoints(builder)
+                    easing.data.linear = cssParser.parseLinearEasingPoints(parser, builder)
                     easing.kind = CSSKeywordKind.Linear
                 } else {
                     easing.data.linear = null
@@ -268,11 +268,11 @@ func (cssParser : &mut CSSParser) parseTransitionTimingFunction(
             }
         } else if(hash == comptime_fnv1_hash("cubic-bezier")) {
             parser.increment()
-            easing.data.bezier = parser.parseCubicBezierCall(builder)
+            easing.data.bezier = cssParser.parseCubicBezierCall(parser, builder)
             easing.kind = CSSKeywordKind.CubicBezier
         } else if(hash == comptime_fnv1_hash("steps")) {
             parser.increment()
-            easing.data.steps = parser.parseStepsFnCall(builder)
+            easing.data.steps = cssParser.parseStepsFnCall(parser, builder)
             easing.kind = CSSKeywordKind.Steps
         } else {
             parser.error("unknown identifier given");

@@ -64,6 +64,22 @@ func alloc_value_number(
     value.data = number_value
 }
 
+func alloc_value_length_var(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    view : &std::string_view,
+) {
+    var number_value = builder.allocate<CSSLengthValueData>()
+    new (number_value) CSSLengthValueData {
+        kind : CSSLengthKind.Unknown,
+        value : builder.allocate_view(view)
+    }
+    number_value.kind = CSSLengthKind.Variable;
+    value.kind = CSSValueKind.Length
+    value.data = number_value
+}
+
 func alloc_value_length_raw(
     parser : *mut Parser,
     builder : *mut ASTBuilder,

@@ -276,6 +276,12 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
 }
 
 func writeLength(ptr : &mut CSSLengthValueData, str : &mut std::string) {
+    if(ptr.kind == CSSLengthKind.Variable) {
+        str.append_view(std::string_view("var("))
+        str.append_view(ptr.value);
+        str.append(')');
+        return;
+    }
     // writing the length
     str.append_view(ptr.value)
     // writing the unit

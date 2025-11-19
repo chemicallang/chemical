@@ -79,7 +79,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
 
-        if(!parser.parseLengthInto(builder, lin_data.angle)) {
+        if(!cssParser.parseLengthInto(parser, builder, lin_data.angle)) {
             parser.error("expected length for angle");
         }
 

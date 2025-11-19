@@ -477,6 +477,9 @@ void TopLevelLinkSignature::VisitVarInitStmt(VarInitStatement* node) {
     } else {
         RecursiveVisitor<TopLevelLinkSignature>::VisitVarInitStmt(node);
     }
+    if(node->known_type()->kind() == BaseTypeKind::Void) {
+        linker.error(node) << "variable with name '" << node->name_view() << "' type can't be of type void";
+    }
     const auto value = node->value;
     const auto type = node->type.getType();
     if(type && value) {

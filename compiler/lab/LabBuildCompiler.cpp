@@ -726,11 +726,11 @@ int LabBuildCompiler::process_module_tcc(
 
     // symbol resolve all the files in the module
     const auto sym_res_status = processor.sym_res_module(mod);
-    if(sym_res_status == 1) {
+    if(sym_res_status != 0) {
         if(verbose) {
-            std::cout << "[lab] " << "failure resolving symbols in the module " << *mod << std::endl;
+            std::cout << "[lab] " << "failure during symbol resolution in the module " << *mod << std::endl;
         }
-        return 1;
+        return sym_res_status;
     }
 
     // check if module has not changed, and use cache appropriately
@@ -930,7 +930,7 @@ int LabBuildCompiler::process_module_gen(
 
     // symbol resolve all the files in the module
     const auto sym_res_status = processor.sym_res_module(mod);
-    if(sym_res_status == 1) {
+    if(sym_res_status != 0) {
         return 1;
     }
 
@@ -1128,8 +1128,8 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     std::cout << "at path '" << gen_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
     const auto compile_result = compile_c_file_to_object(mod->paths[0].to_view(), gen_path.to_view(), compiler->options->exe_path, compiler->options->resources_path);
-    if (compile_result == 1) {
-        return 1;
+    if (compile_result != 0) {
+        return compile_result;
     }
 #else
     if(mod->type == LabModuleType::CPPFile) {
@@ -1137,8 +1137,8 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         return 1;
     }
     const auto compile_result = compile_adding_file(compiler->options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, to_tcc_mode(compiler->options));
-    if (compile_result == 1) {
-        return 1;
+    if (compile_result != 0) {
+        return compile_result;
     }
 #endif
     if(caching) {
@@ -1595,11 +1595,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     // compiling the entire C to a single object file
     const auto compile_c_result = compile_c_string(options->exe_path.data(), program.data(), job_obj_path, false, options->benchmark, to_tcc_mode(options));
-    if (compile_c_result == 1) {
+    if (compile_c_result != 0) {
         auto out_path = resolve_rel_child_path_str(build_dir, "2c.debug.c");
         writeToFile(out_path, program);
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't build c program due to error in translation, written at " << out_path << std::endl;
-        return 1;
+        return compile_c_result;
     }
 
     // cbi and jit jobs are here
@@ -1860,8 +1860,8 @@ int link_objects_now(
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
     auto result = process_modules(job);
-    if(result == 1) {
-        return 1;
+    if(result != 0) {
+        return result;
     }
     // link will automatically detect the extension at the end
     return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->abs_path.to_std_string(), job->target_triple.to_view());
@@ -1869,8 +1869,8 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
     auto result = process_modules(job);
-    if(result == 1) {
-        return 1;
+    if(result != 0) {
+        return result;
     }
     // link will automatically detect the extension at the end
     return link_objects_now(use_tcc(job), options, job->objects, job->link_libs, job->abs_path.to_std_string(), job->target_triple.to_view());
@@ -2493,7 +2493,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // symbol resolve all the files in the module
     const auto sym_res_status = lab_processor.sym_res_module_seq(&chemical_lab_module);
-    if(sym_res_status == 1) {
+    if(sym_res_status != 0) {
         return nullptr;
     }
 
@@ -2840,8 +2840,8 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, LabJobType final_
         current_job = exe.get();
 
         job_result = do_job(exe.get());
-        if(job_result == 1) {
-            std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code 1" << rang::fg::reset << std::endl;
+        if(job_result != 0) {
+            std::cerr << rang::fg::red << "[lab] " << "error performing job '" << exe->name.data() << "', returned status code " << job_result << rang::fg::reset << std::endl;
             break;
         }
 
@@ -2947,7 +2947,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_
     current_job = &final_job;
 
     const auto job_result = do_job(&final_job);
-    if(job_result == 1) {
+    if(job_result != 0) {
         std::cerr << rang::fg::red << "[lab] " << "error emitting executable, returned status code 1" << rang::fg::reset << std::endl;
     }
 

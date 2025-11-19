@@ -787,8 +787,9 @@ void SymResLinkBody::VisitVarInitStmt(VarInitStatement* node) {
     if(value) {
         visit(value, node->type_ptr_fast());
     }
-    const auto type_resolved = true;
-    const auto value_resolved = true;
+    if(node->known_type()->kind() == BaseTypeKind::Void) {
+        linker.error(node) << "variable with name '" << node->name_view() << "' type can't be of type void";
+    }
     linker.declare(node->id_view(), node);
     if (attrs.signature_resolved) {
         if(value) {

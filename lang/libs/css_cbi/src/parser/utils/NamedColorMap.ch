@@ -171,8 +171,7 @@ struct NamedColorMap {
     }
 
     func isColor(&self, name : &std::string_view) : bool {
-        var value : bool = false;
-        return map.find(name, value)
+        return map.contains(name)
     }
 
 }

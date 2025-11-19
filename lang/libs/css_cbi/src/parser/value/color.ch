@@ -45,12 +45,12 @@ func isSystemColor(hash : size_t) : bool {
 func hashSmallColorValue(view : &std::string_view) : size_t {
 
     const size = view.size();
-    if(size > 25) {
+    if(size > 50) {
         return 0;
     }
 
     // copy the token value
-    var arr : char[27] = []
+    var arr : char[50] = []
     strncpy(&mut arr[0], view.data(), size);
     arr[size] = '\0'
 
@@ -105,6 +105,9 @@ func getHashColorKind(hash : size_t) : CSSColorKind {
             }
             comptime_fnv1_hash("color") => {
                 return CSSColorKind.COLOR
+            }
+            comptime_fnv1_hash("var") => {
+                return CSSColorKind.VAR
             }
             default => {
                 return CSSColorKind.Unknown;
@@ -376,6 +379,31 @@ func (cssParser : &mut CSSParser) parseOKLCHColor(parser : *mut Parser, builder 
 
 }
 
+func (cssParser : &mut CSSParser) parseCSSVariableFunc(parser : *mut Parser, builder : *mut ASTBuilder) : std::string_view {
+    const next = parser.getToken()
+    if(next.type == TokenType.LParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a '(' after 'var'")
+    }
+
+    const colorToken = parser.getToken()
+    if(colorToken.type != TokenType.Identifier) {
+        parser.error("expected a identifier after 'var'");
+    }
+    parser.increment()
+
+    const last = parser.getToken()
+    if(last.type == TokenType.RParen) {
+        parser.increment()
+    } else {
+        parser.error("expected a ')' after 'var' arguments")
+    }
+
+    return colorToken.value
+}
+
+
 func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -388,6 +416,12 @@ func (cssParser : &mut CSSParser) parseIdentifierCSSColor(
     } else if(kind >= CSSColorKind.FunctionsStart && kind <= CSSColorKind.FunctionsEnd) {
         // detected a function
         switch(kind) {
+            CSSColorKind.VAR => {
+                parser.increment();
+                const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                alloc_color_val_data(builder, value, colorValue, kind)
+                return true;
+            }
             CSSColorKind.RGB, CSSColorKind.RGBA => {
 
                 parser.increment()

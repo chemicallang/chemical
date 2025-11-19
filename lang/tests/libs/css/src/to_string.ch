@@ -52,6 +52,15 @@ public func chemical_dynamic_values_work5(env : &mut TestEnv) {
 }
 
 @test
+public func css_variables_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color:var(--custom-color);
+    }
+    css_equals(env, page.toStringCssOnly(), "color:var(--custom-color);");
+}
+
+@test
 public func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

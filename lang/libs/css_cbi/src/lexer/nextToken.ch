@@ -1,3 +1,6 @@
+func is_ident_start(next : char) : bool {
+    return next == '_' || isalpha(next) || (next >= 0x80) || (next == '\\') || (next == '-');
+}
 
 func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
     const provider = &mut lexer.provider;
@@ -48,20 +51,42 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '-' => {
-            if(isdigit(provider.peek())) {
-                provider.read_floating_digits();
+            const next = provider.peek()
+            const next2 = provider.peek2()
+
+            if(isdigit(next) || (next == '.' && isdigit(next2))) {
+                provider.read_floating_digits()
                 return Token {
                     type : TokenType.Number as int,
                     value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                     position : position
                 }
-            } else {
-                return Token {
-                    type : TokenType.Minus as int,
-                    value : view("-"),
-                    position : position
+            }
+
+            if (next == '-' || is_ident_start(next)) {
+                provider.read_css_id();
+                const value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                if (css.where == CSSLexerWhere.Declaration) {
+                    return Token{
+                        type: TokenType.PropertyName as int,
+                        value: value,
+                        position: position
+                    };
+                } else {
+                    return Token{
+                        type: TokenType.Identifier as int,
+                        value: value,
+                        position: position
+                    };
                 }
             }
+
+            return Token {
+                type : TokenType.Minus as int,
+                value : view("-"),
+                position : position
+            }
+
         }
         '.' => {
             if(css.where == CSSLexerWhere.GlobalBlock || css.where == CSSLexerWhere.Selector) {
@@ -337,16 +362,17 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 provider.read_css_id()
+                var value = std::string_view(data_ptr, provider.current_data() - data_ptr)
                 if(css.where == CSSLexerWhere.Declaration) {
                     return Token {
                         type : TokenType.PropertyName as int,
-                        value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                        value : value,
                         position : position
                     }
                 } else {
                     return Token {
                         type : TokenType.Identifier as int,
-                        value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                        value : value,
                         position : position
                     }
                 }

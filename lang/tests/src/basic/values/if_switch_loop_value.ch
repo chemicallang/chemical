@@ -4,6 +4,7 @@ struct nd_isl_int_container {
 }
 
 comptime const isl_int_container_sel_first = true
+comptime const isl_int_container_sel_second = true
 
 func test_if_switch_loop_value() {
     test("different integer types in if value works", () => {
@@ -281,5 +282,29 @@ func test_if_switch_loop_value() {
         var second = nd_isl_int_container { data : 20 }
         var s = if(!isl_int_container_sel_first) first else second
         return s.data == 20
+    })
+    test("nested if value can be used as a condition to select struct based values - 1", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 20 }
+        var s = if(isl_int_container_sel_first) if(isl_int_container_sel_second) second else first else if(isl_int_container_sel_second) second else first
+        return s.data == 20
+    })
+    test("nested if value can be used as a condition to select struct based values - 2", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 20 }
+        var s = if(!isl_int_container_sel_first) if(isl_int_container_sel_second) first else second else if(!isl_int_container_sel_second) first else second
+        return s.data == 20
+    })
+    test("nested if value can be used as a condition to select struct based values - 3", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 20 }
+        var s = if(isl_int_container_sel_first) if(!isl_int_container_sel_second) second else first else if(!isl_int_container_sel_second) second else first
+        return s.data == 10
+    })
+    test("nested if value can be used as a condition to select struct based values - 4", () => {
+        var first = nd_isl_int_container { data : 10 }
+        var second = nd_isl_int_container { data : 20 }
+        var s = if(!isl_int_container_sel_first) if(!isl_int_container_sel_second) first else second else if(isl_int_container_sel_second) first else second
+        return s.data == 10
     })
 }

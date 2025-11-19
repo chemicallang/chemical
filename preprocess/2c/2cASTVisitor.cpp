@@ -4964,7 +4964,6 @@ void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
         write(" ? ");
         write("({ ");
         visit_value_scope(&elseIf.second, destructor->destruct_jobs.size());
-        VisitScope(&elseIf.second);
         write("; })");
     }
     write(" : ");

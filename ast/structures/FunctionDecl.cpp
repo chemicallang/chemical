@@ -275,23 +275,28 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
 }
 
 void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
-    if(attrs.is_inline) {
-        // do nothing at the moment
-    }
-    if(attrs.always_inline) {
-        func->addFnAttr(llvm::Attribute::AlwaysInline);
-    }
-    if(attrs.no_inline) {
-        func->addFnAttr(llvm::Attribute::NoInline);
-    }
-    if(attrs.inline_hint) {
-        func->addFnAttr(llvm::Attribute::InlineHint);
-    }
-    if(attrs.opt_size) {
-        func->addFnAttr(llvm::Attribute::OptimizeForSize);
-    }
-    if(attrs.min_size) {
-        func->addFnAttr(llvm::Attribute::MinSize);
+    switch(attrs.inline_strategy) {
+        case InlineStrategy::None:
+        default:
+            break;
+        case InlineStrategy::InlineHint:
+            func->addFnAttr(llvm::Attribute::InlineHint);
+            break;
+        case InlineStrategy::AlwaysInline:
+            func->addFnAttr(llvm::Attribute::AlwaysInline);
+            break;
+        case InlineStrategy::NoInline:
+            func->addFnAttr(llvm::Attribute::NoInline);
+            break;
+        case InlineStrategy::OptSize:
+            func->addFnAttr(llvm::Attribute::OptimizeForSize);
+            break;
+        case InlineStrategy::MinSize:
+            func->addFnAttr(llvm::Attribute::MinSize);
+            break;
+        case InlineStrategy::CompilerInline:
+            // not supported at the moment
+            break;
     }
 }
 

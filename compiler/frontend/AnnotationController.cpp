@@ -14,7 +14,7 @@
 void annot_handler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
-        func->attrs.is_inline = true;
+        func->attrs.inline_strategy = InlineStrategy::InlineHint;
     } else {
         parser->error("couldn't make the function inline");
     }
@@ -23,7 +23,7 @@ void annot_handler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& ar
 void annot_handler_inline_always(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
-        func->attrs.always_inline = true;
+        func->attrs.inline_strategy = InlineStrategy::AlwaysInline;
     } else {
         parser->error("couldn't make the function inline always");
     }
@@ -32,25 +32,16 @@ void annot_handler_inline_always(Parser* parser, ASTNode* node, std::vector<Valu
 void annot_handler_noinline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
-        func->attrs.no_inline = true;
+        func->attrs.inline_strategy = InlineStrategy::NoInline;
     } else {
         parser->error("couldn't make the function noinline");
-    }
-}
-
-void annot_handler_inline_hint(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    auto func = node->as_function();
-    if(func) {
-        func->attrs.inline_hint = true;
-    } else {
-        parser->error("couldn't make the function inline hint");
     }
 }
 
 void annot_handler_compiler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
-        func->attrs.compiler_inline = true;
+        func->attrs.inline_strategy = InlineStrategy::CompilerInline;
     } else {
         parser->error("couldn't make the function compiler inline");
     }
@@ -59,7 +50,7 @@ void annot_handler_compiler_inline(Parser* parser, ASTNode* node, std::vector<Va
 void annot_handler_size_opt(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
-        func->attrs.opt_size = true;
+        func->attrs.inline_strategy = InlineStrategy::OptSize;
     } else {
         parser->error("couldn't make the function opt size");
     }
@@ -68,7 +59,7 @@ void annot_handler_size_opt(Parser* parser, ASTNode* node, std::vector<Value*>& 
 void annot_handler_size_min(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
     if(func) {
-        func->attrs.min_size = true;
+        func->attrs.inline_strategy = InlineStrategy::MinSize;
     } else {
         parser->error("couldn't make the function min size");
     }
@@ -282,11 +273,9 @@ AnnotationController::AnnotationController() {
     // initialize intrinsic annotations
     definitions = {
             { "inline", { annot_handler_inline, "inline", AnnotationDefType::Handler } },
-            { "inline:always", { annot_handler_inline_always, "inline:always", AnnotationDefType::Handler } },
             { "inline.always", { annot_handler_inline_always, "inline.always", AnnotationDefType::Handler } },
             { "noinline", { annot_handler_noinline, "noinline", AnnotationDefType::Handler } },
-            { "inline:no", { annot_handler_noinline, "inline:no", AnnotationDefType::Handler } },
-            { "inline:hint", { annot_handler_inline_hint, "inline:hint", AnnotationDefType::Handler } },
+            { "inline.no", { annot_handler_noinline, "inline.no", AnnotationDefType::Handler } },
             { "compiler.inline", { annot_handler_compiler_inline, "compiler.inline", AnnotationDefType::Handler } },
             { "size:opt", { annot_handler_size_opt, "size:opt", AnnotationDefType::Handler } },
             { "size:min", { annot_handler_size_min, "size:min", AnnotationDefType::Handler } },

@@ -570,6 +570,21 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_typ
     visitor.write(name);
 }
 
+void write_function_attrs(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
+    switch(func_decl->attrs.inline_strategy) {
+        case InlineStrategy::InlineHint:
+        case InlineStrategy::AlwaysInline:
+        case InlineStrategy::OptSize:
+        case InlineStrategy::MinSize:
+            visitor.write("inline ");
+            break;
+            // TODO: inline attributes require special syntax for each compiler
+            // we, would need inline definition for each compiler
+        default:
+            break;
+    }
+}
+
 void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, bool is_static) {
     if(func_decl->is_extern()) {
         visitor.write("extern ");
@@ -577,6 +592,7 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* f
     if(is_static) {
         visitor.write("static ");
     }
+    write_function_attrs(visitor, func_decl);
     if(func_decl->is_dll_import()) {
         visitor.write("__chem_dllimport ");
     }
@@ -2923,6 +2939,7 @@ void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* d
     if(decl->body.has_value() && !decl->is_linkage_public()) {
         visitor.write("static ");
     }
+    write_function_attrs(visitor, decl);
     accept_func_return(visitor, retFunc->returnType);
     visitor.write("(");
     func_ret_func_proto_after_l_paren(visitor, decl, retFunc);

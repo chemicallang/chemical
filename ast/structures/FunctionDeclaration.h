@@ -23,6 +23,38 @@
 
 class ExtendableMembersContainerNode;
 
+enum class InlineStrategy : uint8_t {
+    /**
+     * does nothing
+     */
+    None,
+    /**
+     * is the function marked inline
+     */
+    InlineHint,
+    /**
+     * is the function marked always_inline
+     */
+    AlwaysInline,
+    /**
+     * is the function marked no_inline
+     */
+    NoInline,
+    /**
+     * is the function marked opt_size
+     */
+    OptSize,
+    /**
+     * is the function marked min_size
+     */
+    MinSize,
+    /**
+     * the strongest inline, compiler inline is done by our compiler
+     * upon failure an error is generated
+     */
+    CompilerInline
+};
+
 /**
  * Function declaration's extra data
  * this is stored here, to avoid making declarations memory size insane
@@ -45,35 +77,12 @@ struct FuncDeclAttributes {
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
+
     /**
-     * is the function marked inline
+     * the inline strategy to use
      */
-    bool is_inline = false;
-    /**
-     * is the function marked always_inline
-     */
-    bool always_inline = false;
-    /**
-     * is the function marked no_inline
-     */
-    bool no_inline = false;
-    /**
-     * is the function marked inline_hint
-     */
-    bool inline_hint = false;
-    /**
-     * is the function marked opt_size
-     */
-    bool opt_size = false;
-    /**
-     * is the function marked min_size
-     */
-    bool min_size = false;
-    /**
-     * the strongest inline, compiler inline is done by our compiler
-     * upon failure an error is generated
-     */
-    bool compiler_inline = false;
+    InlineStrategy inline_strategy = InlineStrategy::None;
+
     /**
      * is function external (in another module), user marks a function
      * external and we basically declare it like that
@@ -205,7 +214,7 @@ public:
             ASTNodeKind k = ASTNodeKind::FunctionDecl
     )  : ASTNode(k, parent_node, location), FunctionTypeBody(returnType, isVariadic, false, signature_resolved),
          identifier(identifier),
-         attrs(specifier, false, false, 0, false, false, false, false, false, false, false, false, false, false, false, false, false, false) {
+         attrs(specifier, false, false, 0, InlineStrategy::None, false, false, false, false, false, false, false, false, false, false, false, false, false) {
     }
 
     /**

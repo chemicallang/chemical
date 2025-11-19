@@ -3006,6 +3006,11 @@ void SymResLinkBody::VisitSwitchValue(SwitchValue* value) {
         return;
     }
 
+    if(!value->stmt.attrs.operating_on_closed_value && !value->stmt.has_default_case()) {
+        // we can check for closed enums and allow it some day
+        linker.error("switch value must always have a default case", value);
+    }
+
 
 }
 

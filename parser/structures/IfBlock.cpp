@@ -146,8 +146,12 @@ void Parser::parseIfStatement(
                     return;
                 }
             }
-            return;
+            break;
         }
+    }
+
+    if(is_value && !statement->elseBody.has_value()) {
+        error(statement->encoded_location()) << "if value always requires an else block";
     }
 
 }
@@ -185,10 +189,6 @@ IfValue* Parser::parseIfValue(ASTAllocator& allocator, bool top_level) {
     const auto val = new (allocator.allocate<IfValue>()) IfValue(nullptr, parent_node, loc_single(first));
 
     parseIfStatement(allocator, &val->stmt, true, true, top_level);
-
-    if(!val->stmt.elseBody.has_value()) {
-        error("if value always requires an else block", first.position);
-    }
 
     return val;
 

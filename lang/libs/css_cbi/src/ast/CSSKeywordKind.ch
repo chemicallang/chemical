@@ -10,6 +10,9 @@ enum CSSKeywordKind {
     // Sizing Keywords
     Auto,
 
+    // var(--my-var)
+    Var,
+
     // Font Weights
     Normal,
     Bold,

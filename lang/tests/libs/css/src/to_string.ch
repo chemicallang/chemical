@@ -61,6 +61,15 @@ public func css_variables_work(env : &mut TestEnv) {
 }
 
 @test
+public func css_variables_work2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        width:var(--custom-width);
+    }
+    css_equals(env, page.toStringCssOnly(), "color:var(--custom-width);");
+}
+
+@test
 public func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

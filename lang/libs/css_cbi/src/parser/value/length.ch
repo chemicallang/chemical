@@ -110,7 +110,8 @@ func parseLengthKind(parser : *mut Parser, builder : *mut ASTBuilder) : CSSLengt
     }
 }
 
-func (parser : &mut Parser) parseLengthInto(
+func (cssParser : &mut CSSParser) parseLengthInto(
+    parser : *mut Parser,
     builder : *mut ASTBuilder,
     length : &mut CSSLengthValueData,
     required_unit : bool = true
@@ -120,7 +121,7 @@ func (parser : &mut Parser) parseLengthInto(
         TokenType.Number => {
             parser.increment();
             length.value = builder.allocate_view(token.value)
-            const lenKind = parseLengthKindSafe(&mut parser, builder)
+            const lenKind = parseLengthKindSafe(parser, builder)
             if(lenKind != CSSLengthKind.Unknown) {
                 length.kind = lenKind
             } else {
@@ -136,6 +137,17 @@ func (parser : &mut Parser) parseLengthInto(
             }
             return true;
         }
+        TokenType.Identifier => {
+            if(token.value.equals("var")) {
+                parser.increment()
+                length.value = cssParser.parseCSSVariableFunc(parser, builder)
+                return true;
+            } else {
+                length.value = std::string_view("")
+                length.kind = CSSLengthKind.Unknown
+                return false;
+            }
+        }
         default => {
             length.value = std::string_view("")
             length.kind = CSSLengthKind.Unknown
@@ -144,7 +156,8 @@ func (parser : &mut Parser) parseLengthInto(
     }
 }
 
-func (parser : &mut Parser) parseNumberInto(
+func (cssParser: &mut CSSParser) parseNumberInto(
+    parser : *mut Parser,
     builder : *mut ASTBuilder,
     length : &mut CSSLengthValueData
 ) : bool {
@@ -155,6 +168,17 @@ func (parser : &mut Parser) parseNumberInto(
             length.value = builder.allocate_view(token.value)
             return true;
         }
+        TokenType.Identifier => {
+            if(token.value.equals("var")) {
+                parser.increment()
+                length.value = cssParser.parseCSSVariableFunc(parser, builder)
+                return true;
+            } else {
+                length.value = std::string_view("")
+                length.kind = CSSLengthKind.Unknown
+                return false;
+            }
+        }
         default => {
             length.value = std::string_view("")
             length.kind = CSSLengthKind.Unknown
@@ -163,7 +187,8 @@ func (parser : &mut Parser) parseNumberInto(
     }
 }
 
-func (parser : &mut Parser) parseNumberOrLengthInto(
+func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
+    parser : *mut Parser,
     builder : *mut ASTBuilder,
     length : &mut CSSLengthValueData
 ) : bool {
@@ -172,13 +197,24 @@ func (parser : &mut Parser) parseNumberOrLengthInto(
         TokenType.Number => {
             parser.increment();
             length.value = builder.allocate_view(token.value)
-            const lengthKind = parseLengthKindSafe(&mut parser, builder);
+            const lengthKind = parseLengthKindSafe(parser, builder);
             if(lengthKind == CSSLengthKind.Unknown) {
                 length.kind = CSSLengthKind.None
             } else {
                 length.kind = lengthKind
             }
             return true;
+        }
+        TokenType.Identifier => {
+            if(token.value.equals("var")) {
+                parser.increment()
+                length.value = cssParser.parseCSSVariableFunc(parser, builder)
+                return true;
+            } else {
+                length.value = std::string_view("")
+                length.kind = CSSLengthKind.Unknown
+                return false;
+            }
         }
         default => {
             length.value = std::string_view("")
@@ -205,6 +241,16 @@ func (cssParser : &mut CSSParser) parseLength(
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
+        TokenType.Identifier => {
+            if(token.value.equals("var")) {
+                parser.increment()
+                const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                alloc_value_length_var(parser, builder, value, colorValue)
+                return true;
+            } else {
+                return false;
+            }
+        }
         default => {
             return false;
         }
@@ -228,6 +274,16 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
+        TokenType.Identifier => {
+            if(token.value.equals("var")) {
+                parser.increment()
+                const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                alloc_value_length_var(parser, builder, value, colorValue)
+                return true;
+            } else {
+                return false;
+            }
+        }
         default => {
             return false;
         }
@@ -247,7 +303,12 @@ func (cssParser : &mut CSSParser) parseNumberOrAuto(
             return true;
         }
         TokenType.Identifier => {
-            if(token.value.equals("auto")) {
+            if(token.value.equals("var")) {
+                parser.increment()
+                const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                alloc_value_length_var(parser, builder, value, colorValue)
+                return true;
+            } else if(token.value.equals("auto")) {
                 parser.increment();
                 alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
                 return true;
@@ -278,7 +339,12 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
             return true;
         }
         TokenType.Identifier => {
-            if(token.value.equals("auto")) {
+            if(token.value.equals("var")) {
+                parser.increment()
+                const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                alloc_value_length_var(parser, builder, value, colorValue)
+                return true;
+            } else if(token.value.equals("auto")) {
                 parser.increment();
                 alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
                 return true;

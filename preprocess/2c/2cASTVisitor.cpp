@@ -4972,7 +4972,7 @@ void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
         visit_value_scope(&stmt.elseBody.value(), destructor->destruct_jobs.size());
         write("; })");
     } else {
-        error("if value always require an else block", stmt.encoded_location());
+        error("no else block for if value", stmt.encoded_location());
     }
 
     if(is_pmatt_expr) {

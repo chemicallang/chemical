@@ -281,6 +281,13 @@ public:
     }
 
     /**
+     * create info diagnostic at current token position
+     */
+    inline Diag& error(SourceLocation location) {
+        return ASTDiagnoser::empty_diagnostic(location, DiagSeverity::Error);
+    }
+
+    /**
      * create hint diagnostic with the following message at current token position
      */
     inline void hint(const chem::string_view& message) {

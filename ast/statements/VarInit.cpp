@@ -167,6 +167,15 @@ void VarInitStatement::put_destructible(Codegen& gen) {
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {
     if(is_comptime() && is_const()) {
+        if(value->kind() == ValueKind::String) {
+            // llvm_ptr is not null, belongs to previous module
+            if(llvm_ptr != nullptr) {
+                // lets declare this string (aleady present in the executable
+                code_gen_global_var(gen, false, false);
+            }
+            // if llvm_ptr is null, since this is a comptime constant string, we'll declare once anyone loads it
+            return;
+        }
         llvm_ptr = initializer_value(gen);
         return;
     }
@@ -180,6 +189,14 @@ llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) 
             return gen.builder->getInt32(0);
         }
         if(is_const()) {
+            if(value->kind() == ValueKind::String) {
+                if(llvm_ptr == nullptr) {
+                    // string doesn't exist in the executable, lets put it there
+                    code_gen_global_var(gen, true, true);
+                }
+                // string exists in the executable
+                return llvm_ptr;
+            }
             // quickly create a value that we already hold
             return initializer_value(gen);
         } else {

@@ -302,6 +302,14 @@ void FunctionDeclaration::llvm_attributes(llvm::Function* func) {
             // not supported at the moment
             break;
     }
+    if(attrs.std_call) {
+        func->setCallingConv(llvm::CallingConv::X86_StdCall);
+    }
+    if (attrs.dll_import) {
+        func->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
+    } else if (attrs.dll_export) {
+        func->setDLLStorageClass(llvm::GlobalValue::DLLExportStorageClass);
+    }
 }
 
 void FunctionDeclaration::set_llvm_data(Codegen& gen, llvm::Function* func) {

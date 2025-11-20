@@ -164,7 +164,7 @@ VariantDefinition* GenericVariantDecl::instantiate_call(GenericInstantiatorAPI& 
 #ifdef COMPILER_BUILD
 
 void GenericVariantDecl::code_gen_declare(Codegen &gen) {
-    auto i = total_bodied_instantiations;
+    auto& i = total_declared_instantiations;
     const auto total = instantiations.size();
     while(i < total) {
         instantiations[i]->code_gen_declare(gen);

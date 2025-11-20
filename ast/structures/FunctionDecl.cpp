@@ -126,7 +126,11 @@ llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
 
 llvm::Function* FunctionDeclaration::known_func(Codegen& gen) {
     auto ptr_found = gen.mod_ptr_cache.find(this);
-    return ptr_found != gen.mod_ptr_cache.end() ? (llvm::Function*) ptr_found->second : nullptr;
+    if(ptr_found != gen.mod_ptr_cache.end()) {
+        return (llvm::Function*) ptr_found->second;
+    } else {
+        return nullptr;
+    }
 }
 
 llvm::FunctionType *FunctionDeclaration::known_func_type(Codegen& gen) {

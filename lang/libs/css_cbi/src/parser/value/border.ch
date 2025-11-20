@@ -40,7 +40,7 @@ func (cssParser : &mut CSSParser) parseBorder(
     value.kind = CSSValueKind.Border
     value.data = border
 
-
+    var has_length = false;
     var has_style = false;
 
     var i = -1;
@@ -52,29 +52,46 @@ func (cssParser : &mut CSSParser) parseBorder(
                 if(!cssParser.parseLength(parser, builder, border.width)) {
                     parser.error("expected a length in border");
                 }
+                has_length = true;
             }
             TokenType.Identifier => {
-                const style = getLineStyleKeyword(token.value)
-                if(style != CSSKeywordKind.Unknown) {
-                    parser.increment()
-                    alloc_value_keyword(builder, border.style, style, token.value)
-                    if(has_style) {
-                        parser.error("there should be a single style in border")
+                if(token.value.equals("var")) {
+                    parser.increment();
+                    const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
+                    var valueRef : *mut CSSValue
+                    if(has_length) {
+                        if(has_style) {
+                            valueRef = &mut border.color
+                        } else {
+                            valueRef = &mut border.style
+                        }
+                    } else {
+                        valueRef = &mut border.width
                     }
-                    has_style = true;
-                    continue;
+                    alloc_value_length_var(parser, builder, *valueRef, colorValue)
                 } else {
-                    const width = getLineWidthKeyword(token.value);
-                    if(width != CSSKeywordKind.Unknown) {
+                    const style = getLineStyleKeyword(token.value)
+                    if(style != CSSKeywordKind.Unknown) {
                         parser.increment()
-                        alloc_value_keyword(builder, border.width, width, token.value)
+                        alloc_value_keyword(builder, border.style, style, token.value)
+                        if(has_style) {
+                            parser.error("there should be a single style in border")
+                        }
+                        has_style = true;
                         continue;
+                    } else {
+                        const width = getLineWidthKeyword(token.value);
+                        if(width != CSSKeywordKind.Unknown) {
+                            parser.increment()
+                            alloc_value_keyword(builder, border.width, width, token.value)
+                            continue;
+                        }
                     }
-                }
-                if(cssParser.parseCSSColor(parser, builder, border.color)) {
-                    return;
-                } else {
-                    parser.error("expected a css color");
+                    if(cssParser.parseCSSColor(parser, builder, border.color)) {
+                        return;
+                    } else {
+                        parser.error("expected a css color");
+                    }
                 }
             }
             TokenType.Semicolon => {

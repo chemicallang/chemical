@@ -66,7 +66,16 @@ public func css_variables_work2(env : &mut TestEnv) {
     #css {
         width:var(--custom-width);
     }
-    css_equals(env, page.toStringCssOnly(), "color:var(--custom-width);");
+    css_equals(env, page.toStringCssOnly(), "width:var(--custom-width);");
+}
+
+@test
+public func css_variables_work3(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        border:var(--custom-width) solid green;
+    }
+    css_equals(env, page.toStringCssOnly(), "border:var(--custom-width) solid green;");
 }
 
 @test

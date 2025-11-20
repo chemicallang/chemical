@@ -140,7 +140,8 @@ func (cssParser : &mut CSSParser) parseLengthInto(
         TokenType.Identifier => {
             if(token.value.equals("var")) {
                 parser.increment()
-                length.value = cssParser.parseCSSVariableFunc(parser, builder)
+                const view = cssParser.parseCSSVariableFunc(parser, builder)
+                length.value = builder.allocate_view(view)
                 return true;
             } else {
                 length.value = std::string_view("")
@@ -171,7 +172,8 @@ func (cssParser: &mut CSSParser) parseNumberInto(
         TokenType.Identifier => {
             if(token.value.equals("var")) {
                 parser.increment()
-                length.value = cssParser.parseCSSVariableFunc(parser, builder)
+                const view = cssParser.parseCSSVariableFunc(parser, builder)
+                length.value = builder.allocate_view(view)
                 return true;
             } else {
                 length.value = std::string_view("")
@@ -208,7 +210,8 @@ func (cssParser: &mut CSSParser) parseNumberOrLengthInto(
         TokenType.Identifier => {
             if(token.value.equals("var")) {
                 parser.increment()
-                length.value = cssParser.parseCSSVariableFunc(parser, builder)
+                const view = cssParser.parseCSSVariableFunc(parser, builder)
+                length.value = builder.allocate_view(view)
                 return true;
             } else {
                 length.value = std::string_view("")

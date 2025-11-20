@@ -24,6 +24,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/If.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/NullValue.h"
 #include "ast/types/CapturingFunctionType.h"
@@ -147,6 +148,19 @@ void external_implement_node(Codegen& gen, ASTNode* node, bool declare) {
                 external_implement_node(gen, child_node, declare);
             }
             return;
+        case ASTNodeKind::IfStmt:{
+            const auto stmt = node->as_if_stmt_unsafe();
+            if(!stmt->computed_scope.has_value()) {
+                return;
+            }
+            const auto scope = stmt->computed_scope.value();
+            if(scope) {
+                for(const auto child : scope->nodes) {
+                    external_implement_node(gen, child, declare);
+                }
+            }
+            return;
+        }
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::UnionDecl:
         case ASTNodeKind::VariantDecl:

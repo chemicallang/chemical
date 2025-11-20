@@ -1,6 +1,6 @@
 if(def.windows){
 
-@dllimport @stdcall @extern public func CreateThread(lpThreadAttributes:*void,dwStackSize:ulong,lpStartAddress:*void,lpParameter:*void,dwCreationFlags:ulong,lpThreadId:*mut ulong):DWORD;
+@dllimport @stdcall @extern public func CreateThread(lpThreadAttributes:*void,dwStackSize:ulong,lpStartAddress:*void,lpParameter:*void,dwCreationFlags:ulong,lpThreadId:*mut ulong):HANDLE;
 @dllimport @stdcall @extern public func Sleep(ms:ulong):void
 
 
@@ -56,7 +56,7 @@ public namespace std {
         func spawn_native(entry:(arg : *void) => *void,arg:*void) : usize {
             comptime if(def.windows){
                 var tid:ulong=0u;
-                return CreateThread(null,0u,entry,arg,0u,&mut tid)
+                return CreateThread(null,0u,entry,arg,0u,&mut tid) as usize
             } else {
                 var th:usize=0u;
                 if(pthread_create(&mut th,null,entry,arg)!=0){

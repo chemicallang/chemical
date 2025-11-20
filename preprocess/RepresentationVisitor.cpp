@@ -610,7 +610,7 @@ void RepresentationVisitor::VisitBoolValue(BoolValue *boolVal) {
 }
 
 void RepresentationVisitor::VisitArrayValue(ArrayValue *arr) {
-    write('{');
+    write('[');
     unsigned i = 0;
     while(i < arr->values.size()) {
         visit(arr->values[i]);
@@ -619,7 +619,7 @@ void RepresentationVisitor::VisitArrayValue(ArrayValue *arr) {
         }
         i++;
     }
-    write('}');
+    write(']');
 }
 
 void RepresentationVisitor::VisitStructValue(StructValue *val) {

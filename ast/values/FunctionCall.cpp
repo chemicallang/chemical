@@ -13,6 +13,7 @@
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/NullValue.h"
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/IntNType.h"
@@ -643,7 +644,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
     if(decl && decl->is_comptime()) {
         auto val = gen.eval_comptime(this, decl);
         if(!val) {
-            return nullptr;
+            return NullValue::null_llvm_value(gen);
         }
         if(returnsStruct) {
             if(!returnedStruct) {
@@ -703,8 +704,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
             if(callee_value == nullptr) {
                 callee_value = parent_val->llvm_value(gen, nullptr);
                 if(callee_value == nullptr) {
-                    gen.error(this) << "Couldn't get callee value for the function call to " << representation();
-                    return nullptr;
+                    gen.error(this) << "couldn't get callee value for the function call to " << representation();
+                    return NullValue::null_llvm_value(gen);
                 }
             } else {
                 // lets check if this is a call to capturing function type
@@ -738,7 +739,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
         if(!grandparent) {
             gen.error("couldn't figure out struct on which copy function is being called", this);
-            return nullptr;
+            return NullValue::null_llvm_value(gen);
         }
         auto data = decl->llvm_func(gen);
         args.emplace_back(grandparent);

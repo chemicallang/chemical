@@ -1,5 +1,12 @@
 public const SameStringContents = "This string has same contents in two modules"
 
+public comptime const ext_mod_string_const = "Hello World"
+public comptime const used_mod_string_const = "Hello World"
+
+public func use_the_string_here() : *char {
+    return used_mod_string_const
+}
+
 public func extern_imported_sum(a : int, b : int) : int {
     return a + b + 20;
 }

@@ -3,6 +3,8 @@ public const SameStringContentsSame2 = "This string has same contents in same mo
 
 public const SameStringContents2 = "This string has same contents in two modules"
 
+public comptime const curr_mod_string_const = "Good Morning"
+
 struct Str {
     var value : *char
 }
@@ -48,5 +50,14 @@ klmnopqrstuvwxyz"""
     test("multi line strings end with a null terminator", () => {
         var myStr = """abc"""
         return myStr[3] == '\0'
+    })
+    test("comptime string constant unused in other module works when imported", () => {
+        return ext_mod_string_const[0] == 'H' && ext_mod_string_const[1] == 'e' && ext_mod_string_const[2] == 'l' && ext_mod_string_const[6] == 'W'
+    })
+    test("comptime string constant used in other module works when imported", () => {
+        return used_mod_string_const[0] == 'H' && used_mod_string_const[1] == 'e' && used_mod_string_const[2] == 'l' && used_mod_string_const[6] == 'W'
+    })
+    test("comptime string constant in current module works", () => {
+        return curr_mod_string_const[0] == 'G' && curr_mod_string_const[1] == 'o' && curr_mod_string_const[2] == 'o' && curr_mod_string_const[5] == 'M' && curr_mod_string_const[6] == 'o'
     })
 }

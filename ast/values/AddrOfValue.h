@@ -29,9 +29,7 @@ public:
     }
 
 
-    uint64_t byte_size(bool is64Bit) final {
-        return is64Bit ? 8 : 4;
-    }
+    uint64_t byte_size(TargetData& target) final;
 
     AddrOfValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<AddrOfValue>()) AddrOfValue(

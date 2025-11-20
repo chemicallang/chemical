@@ -30,6 +30,8 @@ class EnumMember;
 
 class CapturedVariable;
 
+struct TargetData;
+
 class VariantCaseVariable;
 
 class ExtendableMembersContainerNode;
@@ -332,7 +334,7 @@ public:
     /**
      * get the byte size, of this type
      */
-    virtual uint64_t byte_size(bool is64Bit);
+    virtual uint64_t byte_size(TargetData& target);
 
 #ifdef COMPILER_BUILD
 

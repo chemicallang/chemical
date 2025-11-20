@@ -54,7 +54,7 @@ public:
     [[nodiscard]]
     GenericType* copy(ASTAllocator& allocator) final;
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(TargetData& target) override;
 
 #ifdef COMPILER_BUILD
 

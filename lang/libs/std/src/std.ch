@@ -79,6 +79,6 @@ public func fflush(stream : *mut FILE) : int
 /**
 public func exit(code : int)
 public func quick_exit(code : int)
-public func abort()
+
 public void perror(error_message : *char)
 **/

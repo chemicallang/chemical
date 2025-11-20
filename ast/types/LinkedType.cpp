@@ -11,8 +11,8 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/types/ReferenceType.h"
 
-uint64_t LinkedType::byte_size(bool is64Bit) {
-    return linked->byte_size(is64Bit);
+uint64_t LinkedType::byte_size(TargetData& data) {
+    return linked->byte_size(data);
 }
 
 bool is_struct_linked_satisfies(ASTNode* linked, ASTNode* other_linked, bool reference) {

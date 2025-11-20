@@ -907,8 +907,8 @@ default_case:
 
 #endif
 
-uint64_t FunctionCall::byte_size(bool is64Bit) {
-    return getType()->byte_size(is64Bit);
+uint64_t FunctionCall::byte_size(TargetData& target) {
+    return getType()->byte_size(target);
 }
 
 FunctionType* FunctionCall::func_type_from_parent_type(BaseType* can_type) {

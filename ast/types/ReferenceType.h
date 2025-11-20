@@ -27,9 +27,7 @@ public:
         return type->known_child_type();
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return is64Bit ? 8 : 4;
-    }
+    uint64_t byte_size(TargetData& targetData) final;
 
     bool satisfies(BaseType* given, Value* value, bool assignment);
 

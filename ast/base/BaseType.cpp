@@ -533,7 +533,7 @@ bool BaseType::satisfies(Value* value, bool assignment) {
     return satisfies(val_type->canonical());
 }
 
-unsigned BaseType::type_alignment(bool is64Bit) {
+unsigned BaseType::type_alignment(TargetData& data) {
     switch(kind()) {
         case BaseTypeKind::Any:
         case BaseTypeKind::Array:
@@ -559,7 +559,7 @@ unsigned BaseType::type_alignment(bool is64Bit) {
         case BaseTypeKind::Float:
             return 4;
         case BaseTypeKind::IntN:
-            switch(as_intn_type_unsafe()->num_bits(is64Bit)) {
+            switch(as_intn_type_unsafe()->num_bits(data)) {
                 case 8:
                     return 1;
                 case 16:
@@ -571,13 +571,13 @@ unsigned BaseType::type_alignment(bool is64Bit) {
                     return 8;
             }
         case BaseTypeKind::Literal:
-            return as_literal_type_unsafe()->underlying->type_alignment(is64Bit);
+            return as_literal_type_unsafe()->underlying->type_alignment(data);
         case BaseTypeKind::Linked: {
             const auto pure = as_linked_type_unsafe()->canonical();
             if(pure == this) {
                 return 8;
             } else {
-                return pure->type_alignment(is64Bit);
+                return pure->type_alignment(data);
             }
         }
         case BaseTypeKind::ExpressionType:
@@ -588,7 +588,7 @@ unsigned BaseType::type_alignment(bool is64Bit) {
     }
 }
 
-uint64_t BaseType::byte_size(bool is64Bit) {
+uint64_t BaseType::byte_size(TargetData& data) {
     CHEM_THROW_RUNTIME("byte_size called on base type");
     return 0;
 }

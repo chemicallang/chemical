@@ -8,6 +8,8 @@
 
 class TypeBuilder;
 
+struct TargetData;
+
 class IntNType : public BaseType {
 private:
 
@@ -60,81 +62,13 @@ public:
      * the number of bits, int means int32 which has 32 bits
      */
     [[nodiscard]]
-    unsigned int num_bits(bool is64Bit) const noexcept {
-        switch(_kind) {
-            case IntNTypeKind::Char:
-            case IntNTypeKind::UChar:
-            case IntNTypeKind::I8:
-            case IntNTypeKind::U8:
-                return 8;
-            case IntNTypeKind::Short:
-            case IntNTypeKind::UShort:
-            case IntNTypeKind::I16:
-            case IntNTypeKind::U16:
-                return 16;
-            case IntNTypeKind::Int:
-            case IntNTypeKind::UInt:
-            case IntNTypeKind::I32:
-            case IntNTypeKind::U32:
-                return 32;
-            case IntNTypeKind::Long:
-            case IntNTypeKind::ULong:
-                return is64Bit ? 64 : 32;
-            case IntNTypeKind::LongLong:
-            case IntNTypeKind::ULongLong:
-            case IntNTypeKind::I64:
-            case IntNTypeKind::U64:
-                return 64;
-            case IntNTypeKind::Int128:
-            case IntNTypeKind::UInt128:
-                return 128;
-            default:
-#ifdef DEBUG
-                abort();
-#endif
-                return 0;
-        }
-    }
+    unsigned int num_bits(TargetData& target) const noexcept;
 
     /**
      * get the byte size of this type
      */
     [[nodiscard]]
-    uint64_t byte_size(bool is64Bit) final {
-        switch(_kind) {
-            case IntNTypeKind::Char:
-            case IntNTypeKind::UChar:
-            case IntNTypeKind::I8:
-            case IntNTypeKind::U8:
-                return 1;
-            case IntNTypeKind::Short:
-            case IntNTypeKind::UShort:
-            case IntNTypeKind::I16:
-            case IntNTypeKind::U16:
-                return 2;
-            case IntNTypeKind::Int:
-            case IntNTypeKind::UInt:
-            case IntNTypeKind::I32:
-            case IntNTypeKind::U32:
-                return 4;
-            case IntNTypeKind::Long:
-            case IntNTypeKind::ULong:
-                return is64Bit ? 8 : 4;
-            case IntNTypeKind::I64:
-            case IntNTypeKind::U64:
-            case IntNTypeKind::LongLong:
-            case IntNTypeKind::ULongLong:
-                return 8;
-            case IntNTypeKind::Int128:
-            case IntNTypeKind::UInt128:
-                return 16;
-            default:
-#ifdef DEBUG
-                abort();
-#endif
-                return 0;
-        }
-    }
+    uint64_t byte_size(TargetData& target) final;
 
     /**
      * check if this is a character type
@@ -159,10 +93,10 @@ public:
      * *mut u8 doesn't satisfy *mut u64
      */
     bool pointee_satisfies(IntNType* type) {
-        if(is_unsigned() != type->is_unsigned()) {
+        if(_kind != type->_kind) {
             return false;
         }
-        if(byte_size(true) != type->byte_size(true)) {
+        if(is_unsigned() != type->is_unsigned()) {
             return false;
         }
         return true;

@@ -821,10 +821,22 @@ const FILE_ATTRIBUTE_DIRECTORY = 0x10;
 // Platform APIs & helpers
 // -----------------------------
 if(def.windows) {
-    struct WIN32_FIND_DATAW {
-        var dwFileAttributes : DWORD;
-        // additional fields omitted
-        var cFileName : [WIN_MAX_PATH]u16;
+    public struct FILETIME {
+        var dwLowDateTime: DWORD;
+        var dwHighDateTime: DWORD;
+    }
+
+    public struct WIN32_FIND_DATAW {
+        var dwFileAttributes: DWORD;
+        var ftCreationTime: FILETIME;
+        var ftLastAccessTime: FILETIME;
+        var ftLastWriteTime: FILETIME;
+        var nFileSizeHigh: DWORD;
+        var nFileSizeLow: DWORD;
+        var dwReserved0: DWORD;
+        var dwReserved1: DWORD;
+        var cFileName: [WIN_MAX_PATH]u16;
+        var cAlternateFileName: [14]u16;
     }
     @extern @dllimport @stdcall public func FindFirstFileW(pattern : LPCWSTR, out : *mut WIN32_FIND_DATAW) : HANDLE;
     @extern @dllimport @stdcall public func FindNextFileW(h : HANDLE, out : *mut WIN32_FIND_DATAW) : BOOL;
@@ -865,7 +877,7 @@ if(def.windows) {
 
 if(def.windows) {
     func utf8_to_utf16_inplace(src : *char, out : *mut u16, out_len : size_t) : Result<size_t, FsError> {
-        var n = MultiByteToWideChar(CP_UTF8, 0u32, src, -1, out, (out_len as i32));
+        var n = MultiByteToWideChar(CP_UTF8, 0u32, src, -1, out as LPWSTR, (out_len as i32));
         if(n == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
         // return length excluding null
         return Result.Ok((n as size_t) - 1);
@@ -1072,9 +1084,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
 
                 var is_dir = (finddata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                 if(is_dir) {
-                    // convert child to utf-8 and recurse
-                    var child_utf = utf16_to_utf8_str(&mut child[0]);
-                    var rem = remove_dir_all_recursive(child_utf.data());
+                    var rem = remove_dir_all_recursive_native(&mut child[0]);
                     if(rem is Result.Err) { var Err(e) = rem else unreachable; FindClose(h); return Result.Err(e); }
                 } else {
                     // delete file

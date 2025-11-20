@@ -41,8 +41,8 @@ public:
 
     bool satisfies(BaseType *type) override;
 
-    uint64_t byte_size(bool is64Bit) override {
-        return instance_type->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) override {
+        return instance_type->byte_size(target);
     }
 
 #ifdef COMPILER_BUILD

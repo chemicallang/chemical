@@ -8,9 +8,9 @@
 #include "ast/values/IntNumValue.h"
 
 Value* SizeOfValue::evaluated_value(InterpretScope &scope) {
-    return new (scope.allocate<IntNumValue>()) IntNumValue(for_type->byte_size(scope.global->target_data.is64Bit), scope.global->typeBuilder.getU64Type(), encoded_location());
+    return new (scope.allocate<IntNumValue>()) IntNumValue(for_type->byte_size(scope.global->target_data), scope.global->typeBuilder.getU64Type(), encoded_location());
 }
 
 Value* AlignOfValue::evaluated_value(InterpretScope &scope) {
-    return new (scope.allocate<IntNumValue>()) IntNumValue(for_type->type_alignment(scope.global->target_data.is64Bit), scope.global->typeBuilder.getU64Type(), encoded_location());
+    return new (scope.allocate<IntNumValue>()) IntNumValue(for_type->type_alignment(scope.global->target_data), scope.global->typeBuilder.getU64Type(), encoded_location());
 }

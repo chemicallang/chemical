@@ -14,7 +14,7 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) final {
+    uint64_t byte_size(TargetData& target) final {
         return 1;
     }
 

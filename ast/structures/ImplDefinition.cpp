@@ -140,7 +140,7 @@ void ImplDefinition::code_gen_external_declare(Codegen &gen) {
 
 #endif
 
-uint64_t ImplDefinition::byte_size(bool is64Bit) {
+uint64_t ImplDefinition::byte_size(TargetData& target) {
 #ifdef DEBUG
     CHEM_THROW_RUNTIME("ImplDefinition::byte_size byte_size on impl definition");
 #endif

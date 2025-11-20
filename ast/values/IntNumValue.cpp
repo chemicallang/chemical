@@ -9,6 +9,8 @@
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/values/NullValue.h"
+#include "ast/values/AddrOfValue.h"
 
 IntNumValue* IntNumValue::create_number(
         ASTAllocator& alloc,
@@ -71,4 +73,12 @@ BaseType* IncDecValue::determine_type(ASTDiagnoser& diagnoser) {
     } else {
         return type;
     }
+}
+
+uint64_t NullValue::byte_size(TargetData& data) {
+    return data.is64Bit ? 8 : 4;
+}
+
+uint64_t AddrOfValue::byte_size(TargetData& target) {
+    return target.is64Bit ? 8 : 4;
 }

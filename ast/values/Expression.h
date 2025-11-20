@@ -52,7 +52,7 @@ public:
      */
     void replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType);
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(TargetData& target) final;
 
 #ifdef COMPILER_BUILD
 

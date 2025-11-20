@@ -296,11 +296,11 @@ LocatedIdentifier* ASTNode::get_located_id() {
     }
 }
 
-uint64_t ASTNode::byte_size(bool is64Bit) {
+uint64_t ASTNode::byte_size(TargetData& target) {
     auto holdingType = known_type();
-    if(holdingType) return holdingType->byte_size(is64Bit);
+    if(holdingType) return holdingType->byte_size(target);
     auto holdingValue = holding_value();
-    if(holdingValue) return holdingValue->byte_size(is64Bit);
+    if(holdingValue) return holdingValue->byte_size(target);
     CHEM_THROW_RUNTIME("unknown byte size for linked node");
 }
 

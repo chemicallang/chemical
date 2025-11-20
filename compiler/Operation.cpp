@@ -7,6 +7,7 @@
 #include "ast/values/IntNumValue.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 #ifdef COMPILER_BUILD
 
@@ -101,7 +102,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
                 final = builder->CreateSub(lhs, rhs);
             }
             llvm::Value* sdivRhs;
-            auto byteSize = ((PointerType*) firstType)->type->byte_size(is64Bit);
+            auto byteSize = ((PointerType*) firstType)->type->byte_size(comptime_scope.target_data);
             if(is64Bit) {
                 sdivRhs = builder->getInt64(byteSize);
             } else {

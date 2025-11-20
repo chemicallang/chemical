@@ -148,8 +148,8 @@ public:
         return specifier() == AccessSpecifier::Public;
     }
 
-    inline uint64_t byte_size(bool is64Bit) final {
-        return actual_type->byte_size(is64Bit);
+    inline uint64_t byte_size(TargetData& target) final {
+        return actual_type->byte_size(target);
     }
 
     inline BaseType* known_type() {

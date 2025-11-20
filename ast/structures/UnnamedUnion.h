@@ -45,8 +45,8 @@ public:
         return unnamed;
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return largest_member()->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return largest_member()->byte_size(target);
     }
 
     inline BaseType* known_type() {

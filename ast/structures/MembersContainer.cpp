@@ -199,8 +199,11 @@ BaseDefMember *VariablesContainer::child_member(const chem::string_view& name) {
 
 BaseDefMember* VariablesContainer::largest_member() {
     BaseDefMember* member = nullptr;
+    // TODO: using default target data
+    // this function is being used by other functions
+    auto created = create_target_data();
     for(const auto var : variables()) {
-        if(member == nullptr || var->byte_size(true) > member->byte_size(true)) {
+        if(member == nullptr || var->byte_size(created) > member->byte_size(created)) {
             member = var;
         }
     }
@@ -218,19 +221,19 @@ void VariablesContainer::ensure_inherited_visibility(ASTDiagnoser& diagnoser, Ac
     }
 }
 
-uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
+uint64_t VariablesContainer::total_byte_size(TargetData& target) {
     size_t offset = 0;
     size_t maxAlignment = 1;
     for (const auto member : variables()) {
         // Update max alignment
-        const auto member_alignment = (size_t) member->known_type()->type_alignment(is64Bit);
+        const auto member_alignment = (size_t) member->known_type()->type_alignment(target);
         maxAlignment = std::max(maxAlignment, member_alignment);
         // Align the current offset
         size_t padding = (member_alignment - (offset % member_alignment)) % member_alignment;
         offset += padding;
 
         // Add the size of the member
-        offset += member->byte_size(is64Bit);
+        offset += member->byte_size(target);
     }
     // Align the total size to the largest alignment
     size_t totalPadding = (maxAlignment - (offset % maxAlignment)) % maxAlignment;
@@ -238,11 +241,11 @@ uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
     return offset;
 }
 
-uint64_t VariablesContainer::largest_member_byte_size(bool is64Bit) {
+uint64_t VariablesContainer::largest_member_byte_size(TargetData& target) {
     uint64_t size = 0;
     uint64_t previous;
     for (const auto mem: variables()) {
-        previous = mem->byte_size(is64Bit);
+        previous = mem->byte_size(target);
         if (previous > size) {
             size = previous;
         }

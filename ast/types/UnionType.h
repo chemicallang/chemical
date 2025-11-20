@@ -28,12 +28,23 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) {
-        return largest_member_byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) {
+        return largest_member_byte_size(target);
     }
 
     bool equals(UnionType *type) const {
-        return type->byte_size(true) == const_cast<UnionType*>(this)->byte_size(true);
+        if(type == this) return true;
+        unsigned i = 0;
+        const auto size = variables_container.size();
+        while(i < size) {
+            const auto mem = variables_container[i];
+            const auto other_mem = type->variables_container[i];
+            if(!mem->known_type()->is_same(other_mem->known_type())) {
+                return false;
+            }
+            i++;
+        }
+        return true;
     }
 
     bool is_same(BaseType *type) final {

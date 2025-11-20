@@ -152,8 +152,8 @@ void Expression::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnose
     setType(::determine_type(this, typeBuilder, diagnoser));
 }
 
-uint64_t Expression::byte_size(bool is64Bit) {
-    return getType()->byte_size(is64Bit);
+uint64_t Expression::byte_size(TargetData& target) {
+    return getType()->byte_size(target);
 }
 
 ASTNode* Expression::linked_node() {

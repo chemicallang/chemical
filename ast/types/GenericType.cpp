@@ -11,8 +11,8 @@
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/utils/GenericUtils.h"
 
-uint64_t GenericType::byte_size(bool is64Bit) {
-    return referenced->byte_size(is64Bit);
+uint64_t GenericType::byte_size(TargetData& target) {
+    return referenced->byte_size(target);
 }
 
 bool GenericType::instantiate_inline(GenericInstantiatorAPI& instantiatorApi, SourceLocation loc) {

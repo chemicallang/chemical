@@ -23,7 +23,7 @@ public:
         // do nothing
     }
 
-    uint64_t byte_size(bool is64Bit) override {
+    uint64_t byte_size(TargetData& target) override {
         return 0;
     }
 

@@ -241,8 +241,8 @@ public:
         return &linked_type;
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return total_byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return total_byte_size(target);
     }
 
 //    [[nodiscard]]

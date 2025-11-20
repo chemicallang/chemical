@@ -18,6 +18,8 @@ class PointerType;
 
 class FunctionType;
 
+struct TargetData;
+
 class Value;
 
 class MembersContainer;
@@ -78,7 +80,7 @@ public:
     /**
      * get the byte size, of this type
      */
-    virtual uint64_t byte_size(bool is64Bit);
+    virtual uint64_t byte_size(TargetData& data);
 
     /**
      * this creates the child type
@@ -90,7 +92,7 @@ public:
     /**
      * get the type alignment
      */
-    unsigned type_alignment(bool is64Bit);
+    unsigned type_alignment(TargetData& data);
 
     /**
      * get known child type

@@ -46,8 +46,8 @@ public:
         );
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return type->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return type->byte_size(target);
     }
 
     inline BaseType* known_type() {

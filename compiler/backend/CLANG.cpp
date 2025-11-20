@@ -1036,11 +1036,11 @@ clang::ASTUnit *ClangLoadFromCommandLine(
 //--------------------------------------------------------------------------
 //--------------------------------------------------------------------------
 
-clang::QualType to_clang_type(BaseType* type, clang::ASTContext &context) {
+clang::QualType to_clang_type(TargetData& target, BaseType* type, clang::ASTContext &context) {
     switch(type->kind()) {
         case BaseTypeKind::IntN: {
             const auto intNType = type->as_intn_type_unsafe();
-            return context.getIntTypeForBitwidth(intNType->num_bits(sizeof(void*) == 8), !intNType->is_unsigned());
+            return context.getIntTypeForBitwidth(intNType->num_bits(target), !intNType->is_unsigned());
         }
         case BaseTypeKind::Bool:
             return context.BoolTy;
@@ -1053,13 +1053,13 @@ clang::QualType to_clang_type(BaseType* type, clang::ASTContext &context) {
         case BaseTypeKind::LongDouble:
             return context.LongDoubleTy;
         case BaseTypeKind::Complex:
-            return context.getComplexType(to_clang_type(type->as_complex_type_unsafe()->elem_type, context));
+            return context.getComplexType(to_clang_type(target, type->as_complex_type_unsafe()->elem_type, context));
         case BaseTypeKind::Void:
             return context.VoidTy;
         case BaseTypeKind::Pointer:
-            return context.getPointerType(to_clang_type(type->as_pointer_type_unsafe(), context));
+            return context.getPointerType(to_clang_type(target, type->as_pointer_type_unsafe(), context));
         case BaseTypeKind::Reference:
-            return context.getPointerType(to_clang_type(type->as_pointer_type_unsafe(), context));
+            return context.getPointerType(to_clang_type(target, type->as_pointer_type_unsafe(), context));
         default:
             CHEM_THROW_RUNTIME("BaseType::clang_type called");
     }
@@ -1153,12 +1153,15 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     clang::ASTContext &context = impl->compiler.getASTContext();
     auto unit = context.getTranslationUnitDecl();
 
-    clang::QualType returnType = to_clang_type(decl->returnType, context);
+    // TODO: get the target data, instead of creating it
+    auto target = create_target_data();
+
+    clang::QualType returnType = to_clang_type(target, decl->returnType, context);
     clang::FunctionProtoType::ExtProtoInfo protoInfo;
 
     std::vector<clang::QualType> args;
     for(auto& arg : decl->params) {
-        args.emplace_back(to_clang_type(arg->type, context));
+        args.emplace_back(to_clang_type(target, arg->type, context));
     }
 
     auto funcType = context.getFunctionType(returnType, args, protoInfo);
@@ -1179,7 +1182,7 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
         clang::IdentifierInfo &paramId = context.Idents.get(llvm::StringRef(paramNameV.data(), paramNameV.size()));
         clang::ParmVarDecl *clangParam = clang::ParmVarDecl::Create(
                 context, unit, clang::SourceLocation(), clang::SourceLocation(),
-                &paramId, to_clang_type(param->type, context), nullptr, clang::SC_None, nullptr);
+                &paramId, to_clang_type(target, param->type, context), nullptr, clang::SC_None, nullptr);
         params.emplace_back(clangParam);
     }
     funcDecl->setParams(params);

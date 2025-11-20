@@ -53,7 +53,7 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(TargetData& targetData) final;
 
     Value *child(InterpretScope &scope, const chem::string_view &name) final;
 

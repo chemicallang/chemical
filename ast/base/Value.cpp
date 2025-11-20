@@ -589,7 +589,7 @@ bool Value::isValueRValue(ASTAllocator& allocator) {
     }
 }
 
-uint64_t Value::byte_size(bool is64Bit) {
+uint64_t Value::byte_size(TargetData& target) {
 #ifdef DEBUG
     CHEM_THROW_RUNTIME("byte_size called on base Value");
 #else

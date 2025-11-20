@@ -239,7 +239,7 @@ public:
     /**
      * get the byte size
      */
-    virtual uint64_t byte_size(bool is64Bit) = 0;
+    virtual uint64_t byte_size(TargetData& target) = 0;
 
     /**
      * shallow copy this container

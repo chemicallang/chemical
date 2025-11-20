@@ -11,8 +11,8 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/base/ASTAllocator.h"
 
-uint64_t AccessChain::byte_size(bool is64Bit) {
-    return values[values.size() - 1]->byte_size(is64Bit);
+uint64_t AccessChain::byte_size(TargetData& target) {
+    return values[values.size() - 1]->byte_size(target);
 }
 
 void AccessChain::relink_parent() {

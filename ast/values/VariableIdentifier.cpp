@@ -18,8 +18,8 @@ VarInitStatement* declaration(Value* value) {
     }
 }
 
-uint64_t VariableIdentifier::byte_size(bool is64Bit) {
-    return linked->byte_size(is64Bit);
+uint64_t VariableIdentifier::byte_size(TargetData& target) {
+    return linked->byte_size(target);
 }
 
 void VariableIdentifier::process_linked() {

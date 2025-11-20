@@ -37,7 +37,7 @@ public:
         setType(newValue->getType());
     }
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(TargetData& data) final;
 
     bool primitive() final;
 

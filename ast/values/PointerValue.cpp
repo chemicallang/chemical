@@ -13,7 +13,7 @@ PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
 }
 
 void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
-    const auto castedTypeSize = getType()->byte_size(scope.isInterpret64Bit());
+    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes < ahead) {
         data = ((char*) data) + amountBytes;
@@ -25,7 +25,7 @@ void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Valu
 }
 
 void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
-    const auto castedTypeSize = getType()->byte_size(scope.isInterpret64Bit());
+    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes <= behind) {
         data = ((char*) data) - amountBytes;
@@ -37,7 +37,7 @@ void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Valu
 }
 
 PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, SourceLocation new_loc, Value* debugValue) {
-    const auto castedTypeSize = getType()->byte_size(scope.isInterpret64Bit());
+    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes < ahead) {
         return new (scope.allocate<PointerValue>()) PointerValue(
@@ -50,7 +50,7 @@ PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, Sour
 }
 
 PointerValue* PointerValue::decrement(InterpretScope& scope, size_t amount, SourceLocation new_loc, Value* debugValue) {
-    const auto castedTypeSize = getType()->byte_size(scope.isInterpret64Bit());
+    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     const auto amountBytes = castedTypeSize * amount;
     if(amountBytes <= behind) {
         return new (scope.allocate<PointerValue>()) PointerValue(
@@ -77,7 +77,7 @@ uint64_t deref_pointer(void* data, uint64_t type_size) {
 }
 
 Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Value* debugValue) {
-    const auto castedTypeSize = getType()->byte_size(scope.isInterpret64Bit());
+    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
     if(castedTypeSize > ahead) {
         scope.error("cannot dereference pointer while type size is larger than bytes available", debugValue ? debugValue : this);
         return nullptr;

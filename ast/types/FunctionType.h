@@ -184,7 +184,7 @@ public:
 
     unsigned int expectedArgsSize();
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(TargetData& target) final;
 
     ASTNode* linked_node() override {
         return returnType->linked_node();

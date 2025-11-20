@@ -178,8 +178,8 @@ public:
 
 #endif
 
-    uint64_t byte_size(bool is64Bit) final {
-        return definition->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return definition->byte_size(target);
     }
 
 };

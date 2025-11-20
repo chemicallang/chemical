@@ -105,11 +105,11 @@ bool FunctionType::isInVarArgs(unsigned index) const {
     return isVariadic() && index >= (params.size() - 1);
 }
 
-uint64_t FunctionType::byte_size(bool is64Bit) {
+uint64_t FunctionType::byte_size(TargetData& target) {
     if(isCapturing()) {
-        return is64Bit ? 16 : 8;
+        return target.is64Bit ? 16 : 8;
     } else {
-        return is64Bit ? 8 : 4;
+        return target.is64Bit ? 8 : 4;
     }
 }
 unsigned FunctionType::total_implicit_params() {

@@ -46,8 +46,8 @@ public:
         return false;
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return value->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return value->byte_size(target);
     }
 
     bool determine_type(TypeBuilder& typeBuilder);

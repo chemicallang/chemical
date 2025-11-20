@@ -17,6 +17,8 @@ class SymbolResolver;
 
 class TypeBuilder;
 
+struct TargetData;
+
 #ifdef COMPILER_BUILD
 class Codegen;
 #include "compiler/llvmfwd.h"
@@ -187,7 +189,7 @@ public:
     /**
      * get byte size of this value
      */
-    virtual uint64_t byte_size(bool is64Bit);
+    virtual uint64_t byte_size(TargetData& data);
 
     /**
      * if this value has a child by this name, it should return a pointer to it

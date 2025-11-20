@@ -69,13 +69,13 @@ public:
      * get the bytesize for this intn value
      */
     [[nodiscard]]
-    inline uint64_t byte_size(bool is64Bit) final { return getType()->byte_size(is64Bit); }
+    inline uint64_t byte_size(TargetData& data) final { return getType()->byte_size(data); }
 
     /**
      * provide the number of bits used by this value
      */
     [[nodiscard]]
-    inline unsigned int get_num_bits(bool is64Bit) noexcept { return getType()->num_bits(is64Bit); }
+    inline unsigned int get_num_bits(TargetData& target) noexcept { return getType()->num_bits(target); }
 
     /**
      * get number value

@@ -123,8 +123,8 @@ public:
         return &linked_type;
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return underlying_type->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return underlying_type->byte_size(target);
     }
 
 #ifdef COMPILER_BUILD

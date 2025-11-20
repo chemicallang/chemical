@@ -179,7 +179,7 @@ public:
 
     int vtable_function_index(FunctionDeclaration* decl);
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(TargetData& target) final;
 
     inline BaseType* known_type() {
         return &linked_type;

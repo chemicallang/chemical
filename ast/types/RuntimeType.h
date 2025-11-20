@@ -21,8 +21,8 @@ public:
         // do nothing
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return underlying->byte_size(is64Bit);
+    uint64_t byte_size(TargetData& data) final {
+        return underlying->byte_size(data);
     }
 
     bool satisfies(BaseType *type) override {

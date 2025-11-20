@@ -117,8 +117,8 @@ public:
         return def;
     }
 
-    uint64_t byte_size(bool is64Bit) final {
-        return largest_member_byte_size(is64Bit);
+    uint64_t byte_size(TargetData& target) final {
+        return largest_member_byte_size(target);
     }
 
     VariablesContainer *as_variables_container() final {

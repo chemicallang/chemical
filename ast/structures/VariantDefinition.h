@@ -132,7 +132,7 @@ public:
         return &ref_type;
     }
 
-    uint64_t byte_size(bool is64Bit) final;
+    uint64_t byte_size(TargetData& target) final;
 
     /**
      * check if it includes any member who has a struct, that requires a destructor

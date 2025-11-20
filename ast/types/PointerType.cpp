@@ -8,6 +8,7 @@
 #include <memory>
 #include "VoidType.h"
 #include "ReferenceType.h"
+#include "compiler/lab/TargetData.h"
 #include "IntNType.h"
 
 ASTNode *PointerType::linked_node() {
@@ -93,4 +94,12 @@ bool ReferenceType::satisfies(BaseType* giveNonCan, Value* value, bool assignmen
 bool ReferenceType::satisfies(Value* value, bool assignment) {
     const auto val_type = value->getType();
     return val_type != nullptr && satisfies(val_type, value, assignment);
+}
+
+uint64_t PointerType::byte_size(TargetData& target) {
+    return target.is64Bit ? 8 : 4;
+}
+
+uint64_t ReferenceType::byte_size(TargetData& target) {
+    return target.is64Bit ? 8 : 4;
 }

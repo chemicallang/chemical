@@ -5,6 +5,7 @@
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
+#include "compiler/lab/TargetData.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/DoubleValue.h"
@@ -20,6 +21,94 @@ bool BoolType::satisfies(BaseType *type) {
             return type->as_reference_type_unsafe()->type->kind() == BaseTypeKind::Bool;
         default:
             return false;
+    }
+}
+
+unsigned int IntNType::num_bits(TargetData& target) const noexcept {
+    switch(_kind) {
+        case IntNTypeKind::Char:
+        case IntNTypeKind::UChar:
+        case IntNTypeKind::I8:
+        case IntNTypeKind::U8:
+            return 8;
+        case IntNTypeKind::Short:
+        case IntNTypeKind::UShort:
+        case IntNTypeKind::I16:
+        case IntNTypeKind::U16:
+            return 16;
+        case IntNTypeKind::Int:
+        case IntNTypeKind::UInt:
+        case IntNTypeKind::I32:
+        case IntNTypeKind::U32:
+            return 32;
+        case IntNTypeKind::Long:
+        case IntNTypeKind::ULong:
+            if(target.is64Bit) {
+                if(target.windows) {
+                    return 32;
+                } else {
+                    return 64;
+                }
+            } else {
+                return 32;
+            }
+        case IntNTypeKind::LongLong:
+        case IntNTypeKind::ULongLong:
+        case IntNTypeKind::I64:
+        case IntNTypeKind::U64:
+            return 64;
+        case IntNTypeKind::Int128:
+        case IntNTypeKind::UInt128:
+            return 128;
+        default:
+#ifdef DEBUG
+            abort();
+#endif
+            return 0;
+    }
+}
+
+uint64_t IntNType::byte_size(TargetData& target) {
+    switch(_kind) {
+        case IntNTypeKind::Char:
+        case IntNTypeKind::UChar:
+        case IntNTypeKind::I8:
+        case IntNTypeKind::U8:
+            return 1;
+        case IntNTypeKind::Short:
+        case IntNTypeKind::UShort:
+        case IntNTypeKind::I16:
+        case IntNTypeKind::U16:
+            return 2;
+        case IntNTypeKind::Int:
+        case IntNTypeKind::UInt:
+        case IntNTypeKind::I32:
+        case IntNTypeKind::U32:
+            return 4;
+        case IntNTypeKind::Long:
+        case IntNTypeKind::ULong:
+            if(target.is64Bit) {
+                if(target.windows) {
+                    return 4;
+                } else {
+                    return 8;
+                }
+            } else {
+                return 4;
+            }
+        case IntNTypeKind::I64:
+        case IntNTypeKind::U64:
+        case IntNTypeKind::LongLong:
+        case IntNTypeKind::ULongLong:
+            return 8;
+        case IntNTypeKind::Int128:
+        case IntNTypeKind::UInt128:
+            return 16;
+        default:
+    #ifdef DEBUG
+            abort();
+    #endif
+            return 0;
     }
 }
 

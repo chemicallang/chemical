@@ -64,7 +64,11 @@ func test_sizeof_alignof() {
     test("sizeof long", () => {
         var i = sizeof(long)
         comptime if(def.is64Bit) {
-            return i == 8;
+            comptime if(def.windows) {
+                return i == 4;
+            } else {
+                return i == 8;
+            }
         } else {
             return i == 4;
         }

@@ -75,9 +75,9 @@ public:
 
     long direct_child_index(const chem::string_view &varName);
 
-    uint64_t total_byte_size(bool is64Bit);
+    uint64_t total_byte_size(TargetData& target);
 
-    uint64_t largest_member_byte_size(bool is64Bit);
+    uint64_t largest_member_byte_size(TargetData& target);
 
     ASTNode* get_child(const chem::string_view& name) {
         auto found = indexes.find(name);

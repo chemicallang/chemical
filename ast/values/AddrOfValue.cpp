@@ -4,6 +4,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/structures/FunctionParam.h"
+
 void AddrOfValue::determine_type() {
     const auto valueType = value->getType();
     const auto can = valueType->canonical();

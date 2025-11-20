@@ -141,7 +141,7 @@ llvm::DIType* to_di_type(DebugInfoBuilder& di, BaseType* type, bool replaceable)
     switch(type->kind()) {
         case BaseTypeKind::IntN: {
             const auto intNType = type->as_intn_type_unsafe();
-            const auto num_bits = intNType->num_bits(di.gen.is64Bit);
+            const auto num_bits = intNType->num_bits(di.gen.comptime_scope.target_data);
             switch(intNType->IntNKind()) {
                 case IntNTypeKind::I8:
                     return di.builder->createBasicType("i8", num_bits, llvm::dwarf::DW_ATE_signed_char);

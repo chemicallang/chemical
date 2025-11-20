@@ -9,9 +9,9 @@
 #include "ast/types/IntNType.h"
 #include "compiler/ASTDiagnoser.h"
 
-uint64_t NegativeValue::byte_size(bool is64Bit) {
+uint64_t NegativeValue::byte_size(TargetData& data) {
 // TODO check this out
-    return value->byte_size(is64Bit);
+    return value->byte_size(data);
 }
 
 //TODO: make this function on IntNType

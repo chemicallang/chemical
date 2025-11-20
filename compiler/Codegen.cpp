@@ -129,35 +129,52 @@ void Codegen::external_declare_nodes(std::vector<ASTNode*>& nodes_vec) {
     }
 }
 
-void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
-    auto& gen = *this;
-    for(const auto node : nodes) {
-        switch(node->kind()) {
-            case ASTNodeKind::GenericFuncDecl:
-            case ASTNodeKind::GenericStructDecl:
-            case ASTNodeKind::GenericUnionDecl:
-            case ASTNodeKind::GenericInterfaceDecl:
-            case ASTNodeKind::GenericVariantDecl:
+void external_implement_node(Codegen& gen, ASTNode* node, bool declare) {
+    switch(node->kind()) {
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericVariantDecl:
+            if(declare) {
                 node->code_gen_declare(gen);
+            } else {
                 node->code_gen(gen);
-                break;
-            case ASTNodeKind::NamespaceDecl:
-                external_implement_nodes(node->as_namespace_unsafe()->nodes);
-                break;
-            case ASTNodeKind::StructDecl:
-            case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::VariantDecl:
-                // gotta handle the generic functions inside the structs
-                for(const auto func : node->as_members_container_unsafe()->functions()) {
-                    if(func->kind() == ASTNodeKind::GenericFuncDecl) {
+            }
+            return;
+        case ASTNodeKind::NamespaceDecl:
+            for(const auto child_node : node->as_namespace_unsafe()->nodes) {
+                external_implement_node(gen, child_node, declare);
+            }
+            return;
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+            // gotta handle the generic functions inside the structs
+            for(const auto func : node->as_members_container_unsafe()->functions()) {
+                if(func->kind() == ASTNodeKind::GenericFuncDecl) {
+                    if(declare) {
                         func->code_gen_declare(gen);
+                    } else {
                         func->code_gen(gen);
                     }
                 }
-                break;
-            default:
-                break;
-        }
+            }
+            return;
+        default:
+            return;
+    }
+}
+
+void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
+    auto& gen = *this;
+    // first declare
+    for(const auto node : nodes) {
+        external_implement_node(gen, node, true);
+    }
+    // then implement
+    for(const auto node : nodes) {
+        external_implement_node(gen, node, false);
     }
 }
 

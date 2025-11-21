@@ -114,9 +114,10 @@ func alloc_value_length(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue,
-    view : &std::string_view
+    view : &std::string_view,
+    required_unit : bool = true
 ) {
-    alloc_value_length_raw(parser, builder, value, builder.allocate_view(view))
+    alloc_value_length_raw(parser, builder, value, builder.allocate_view(view), required_unit)
 }
 
 func alloc_value_num_length_raw(

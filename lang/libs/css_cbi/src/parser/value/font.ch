@@ -86,7 +86,7 @@ func (parser : &mut Parser) parseFontFamiliesList(builder : *mut ASTBuilder, fam
     while(true) {
         const token = parser.getToken()
         switch(token.type) {
-            TokenType.Identifier, TokenType.DoubleQuotedValue => {
+            TokenType.Identifier, TokenType.DoubleQuotedValue, TokenType.SingleQuotedValue => {
 
                 parser.increment()
 

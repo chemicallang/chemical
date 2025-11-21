@@ -21,7 +21,7 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
-            alloc_value_length(parser, builder, value, token.value);
+            alloc_value_length(parser, builder, value, token.value, false);
             return
         }
         TokenType.Identifier => {

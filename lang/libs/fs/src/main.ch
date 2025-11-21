@@ -1038,62 +1038,93 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
     }
 }
 
+struct CustomDeletor<T> {
+    var _value : *mut T
+    @make
+    func make(value: *mut T) {
+        _value = value
+    }
+    @delete
+    func delete(&self) {
+        // destruct + free
+        delete _value;
+    }
+}
+
 // -----------------------------
 // Recursive remove_dir_all (public)
 // -----------------------------
 public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
-        // Build pattern path\* for enumeration
-        var search : [WIN_MAX_PATH]u16;
-        var p : size_t = 0;
-        while(path[p] != 0) { search[p] = path[p]; p += 1; }
-        if(p > 0) {
-            var last = search[p - 1];
-            if(last != '\\' as u16 && last != '/' as u16) { search[p] = '\\' as u16; p += 1; }
-        }
-        search[p] = '*' as u16; p += 1;
-        search[p] = 0;
 
-        var finddata : WIN32_FIND_DATAW;
-        var h = FindFirstFileW((&mut search[0]) as LPCWSTR, &mut finddata);
+        // Build pattern path\* for enumeration
+        var search_ptr = malloc(sizeof(u16) * WIN_MAX_PATH) as *mut u16
+        if (search_ptr == null) {
+            return Result.Err(winerr_to_fs(8 as int)); // ERROR_NOT_ENOUGH_MEMORY
+        }
+        var deletor = CustomDeletor<u16>(search_ptr)
+
+        var p : size_t = 0;
+        while(path[p] != 0) {
+            search_ptr[p] = path[p]; p += 1;
+        }
+        if(p > 0) {
+            var last = search_ptr[p - 1];
+            if(last != '\\' as u16 && last != '/' as u16) { search_ptr[p] = '\\' as u16; p += 1; }
+        }
+        search_ptr[p] = '*' as u16; p += 1;
+        search_ptr[p] = 0;
+
+        var finddata_ptr = malloc(sizeof(WIN32_FIND_DATAW)) as *mut WIN32_FIND_DATAW
+        if (finddata_ptr == null) {
+            return Result.Err(winerr_to_fs(8 as int));
+        }
+        var deletor2 = CustomDeletor<WIN32_FIND_DATAW>(finddata_ptr)
+
+        var h = FindFirstFileW(search_ptr as LPCWSTR, finddata_ptr);
         if(h == INVALID_HANDLE_VALUE) {
             // If directory cannot be opened, return mapped error
             var err = GetLastError();
             return Result.Err(winerr_to_fs(err as int));
         }
 
+        // allocate child buffer on heap (was previously on stack)
+        var child_ptr = malloc(sizeof(u16) * WIN_MAX_PATH) as *mut u16;
+        if (child_ptr == null) {
+            return Result.Err(winerr_to_fs(8 as int));
+        }
+
         loop {
             // skip "." and ".."
-            var name_w = &mut finddata.cFileName[0];
+            var name_w = &mut finddata_ptr.cFileName[0];
             if(!(name_w[0] == '.' as u16 && name_w[1] == 0) &&
                !(name_w[0] == '.' as u16 && name_w[1] == '.' as u16 && name_w[2] == 0)) {
-                // build child wide path: original path + '\' + name
-                var child : [WIN_MAX_PATH]u16;
+
                 var q : size_t = 0;
                 // copy original wide path
                 var i : size_t = 0;
-                while(path[i] != 0) { child[i] = path[i]; i += 1; }
+                while(path[i] != 0) { child_ptr[i] = path[i]; i += 1; }
                 if(i > 0) {
-                    var last = child[i - 1];
-                    if(last != '\\' as u16 && last != '/' as u16) { child[i] = '\\' as u16; i += 1; }
+                    var last = child_ptr[i - 1];
+                    if(last != '\\' as u16 && last != '/' as u16) { child_ptr[i] = '\\' as u16; i += 1; }
                 }
                 // append name_w
                 var j : size_t = 0;
-                while(name_w[j] != 0) { child[i + j] = name_w[j]; j += 1; }
-                child[i + j] = 0;
+                while(name_w[j] != 0) { child_ptr[i + j] = name_w[j]; j += 1; }
+                child_ptr[i + j] = 0;
 
-                var is_dir = (finddata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+                var is_dir = (finddata_ptr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                 if(is_dir) {
-                    var rem = remove_dir_all_recursive_native(&mut child[0]);
+                    var rem = remove_dir_all_recursive_native(child_ptr);
                     if(rem is Result.Err) { var Err(e) = rem else unreachable; FindClose(h); return Result.Err(e); }
                 } else {
                     // delete file
-                    var del = DeleteFileW((&mut child[0]) as LPCWSTR);
+                    var del = DeleteFileW(child_ptr as LPCWSTR);
                     if(del == 0) { var err = GetLastError(); FindClose(h); return Result.Err(winerr_to_fs(err as int)); }
                 }
             }
 
-            var more = FindNextFileW(h, &mut finddata);
+            var more = FindNextFileW(h, finddata_ptr);
             if(more == 0) {
                 var lasterr = GetLastError();
                 if(lasterr == 18u32) { // ERROR_NO_MORE_FILES

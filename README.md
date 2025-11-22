@@ -75,7 +75,7 @@ Chemical is an innovative, performant, type-safe, and user-friendly programming 
 
 ## 📚 Language Features
 
-These features should give you an idea about features we have worked on
+These features should give you an idea about features I have worked on
 
 - C-like syntax with structs & namespaces
 - Arrays, enums, unions

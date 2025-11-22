@@ -16,6 +16,7 @@
 #include "server/analyzers/DocumentLinksAnalyzer.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
+#include "utils/FileUtils.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/processor/ASTFileMetaData.h"
@@ -111,14 +112,6 @@ void WorkspaceManager::post_build_lab() {
     }
 
 }
-
-inline void create_dir(const std::string& build_dir) {
-    // create the build directory for this executable
-    if (!std::filesystem::exists(build_dir)) {
-        std::filesystem::create_directory(build_dir);
-    }
-}
-
 
 int WorkspaceManager::compile_cbi(LabJobCBI* job) {
 

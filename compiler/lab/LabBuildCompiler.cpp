@@ -1141,31 +1141,6 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     return 0;
 }
 
-bool exists_with_error(const std::string& build_dir) {
-    std::error_code ec;
-    const auto result = std::filesystem::exists(build_dir, ec);
-    if(ec) {
-        std::cerr << "error: couldn't check directory '" << build_dir << "' because '" << ec.message() << '\'' << std::endl;
-        return false;
-    } else {
-        return result;
-    }
-}
-
-void create_dir_no_check(const std::string& build_dir) {
-    std::error_code ec;
-    std::filesystem::create_directory(build_dir, ec);
-    if(ec) {
-        std::cerr << "error: couldn't create directory '" << build_dir << "' because '" << ec.message() << '\'' << std::endl;
-    }
-}
-
-void create_dir(const std::string& build_dir) {
-    if (!exists_with_error(build_dir)) {
-        create_dir_no_check(build_dir);
-    }
-}
-
 void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string_view& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto use_tcc = compiler->use_tcc(job_type);

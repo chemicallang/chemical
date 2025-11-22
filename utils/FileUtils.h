@@ -8,6 +8,12 @@
 
 #include <string>
 
+bool exists_with_error(const std::string& build_dir);
+
+bool create_dir_no_check(const std::string& build_dir);
+
+bool create_dir(const std::string& build_dir);
+
 void writeToFile(const std::string &path, const std::string_view& text);
 
 /**

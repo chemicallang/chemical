@@ -306,16 +306,6 @@ std::vector<ASTFileResult*> flatten(const std::span<ASTFileResult*>& files) {
 
 namespace fs = std::filesystem;
 
-bool copyFile(const fs::path& sourcePath, const fs::path& destinationPath) {
-    std::error_code ec;
-    fs::copy_file(sourcePath, destinationPath, fs::copy_options::overwrite_existing, ec);
-    if(ec) {
-        std::cerr << "Filesystem error: " << ec.message() << std::endl;
-        return false;
-    }
-    return true;
-}
-
 bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
 
     auto& direct_files = mod->direct_files;
@@ -1151,6 +1141,31 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
     return 0;
 }
 
+bool exists_with_error(const std::string& build_dir) {
+    std::error_code ec;
+    const auto result = std::filesystem::exists(build_dir, ec);
+    if(ec) {
+        std::cerr << "error: couldn't check directory '" << build_dir << "' because '" << ec.message() << '\'' << std::endl;
+        return false;
+    } else {
+        return result;
+    }
+}
+
+void create_dir_no_check(const std::string& build_dir) {
+    std::error_code ec;
+    std::filesystem::create_directory(build_dir, ec);
+    if(ec) {
+        std::cerr << "error: couldn't create directory '" << build_dir << "' because '" << ec.message() << '\'' << std::endl;
+    }
+}
+
+void create_dir(const std::string& build_dir) {
+    if (!exists_with_error(build_dir)) {
+        create_dir_no_check(build_dir);
+    }
+}
+
 void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::string_view& build_dir, LabModule* mod) {
     const auto verbose = compiler->options->verbose;
     const auto use_tcc = compiler->use_tcc(job_type);
@@ -1159,12 +1174,11 @@ void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::
     auto module_dir_path = resolve_rel_child_path_str(build_dir, mod->format('.'));
     auto mod_obj_path = resolve_rel_child_path_str(module_dir_path, (use_tcc ? "object_tcc.o" : (is_use_obj_format ? "object.o" : "object.bc")));
     if (!module_dir_path.empty() && job_type != LabJobType::ToCTranslation) {
-        const auto mod_dir_exists = fs::exists(module_dir_path);
-        if (!mod_dir_exists) {
+        if (!exists_with_error(module_dir_path)) {
             if (verbose) {
                 std::cout << "[lab] " << "creating module directory at path '" << module_dir_path << "'" << std::endl;
             }
-            fs::create_directory(module_dir_path);
+            create_dir_no_check(module_dir_path);
         }
     }
     switch(job_type) {
@@ -1183,13 +1197,6 @@ void create_mod_dir(LabBuildCompiler* compiler, LabJobType job_type, const std::
             }
         default:
             break;
-    }
-}
-
-inline void create_dir(const std::string& build_dir) {
-    // create the build directory for this executable
-    if (!std::filesystem::exists(build_dir)) {
-        std::filesystem::create_directory(build_dir);
     }
 }
 

@@ -1957,7 +1957,7 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
         }
         return result
     } else {
-        return create_temp_file_in_native(dir, prefix, out_path, out_len, fh)
+        return create_temp_file_in_native(dir, prefix, out_path, fh)
     }
 }
 

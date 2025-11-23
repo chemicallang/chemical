@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  LLVM_RELEASE_TAG: "v1"
+
 jobs:
   build-windows:
     name: Build on Windows (${{ matrix.arch }})
@@ -21,24 +24,19 @@ jobs:
         include:
           - arch: x64
             runner: windows-2025
+            llvm_asset: windows-x64.zip
           - arch: arm64
             runner: windows-11-arm
+            llvm_asset: windows-arm64.zip
     steps:
-      # ––– Checkout repositories –––
-      - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v4
-        with:
-          repository: chemicallang/chemical-bootstrap
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap
 
-      # Checkout chemical repository inside chemical-bootstrap
-      - name: Checkout chemical repository inside chemical-bootstrap
+      # Checkout chemical repository
+      - name: Checkout chemical repository
         uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap/chemical
+          path: chemical
           submodules: recursive
 
       # ––– Setup build environment –––
@@ -47,55 +45,32 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
 
-      # Get the SHA of the chemical-bootstrap repository
-      - name: Get SHA of chemical-bootstrap repository
-        id: get-sha
+      # Download prebuilt LLVM and unzip it
+      - name: Download prebuilt LLVM
         shell: pwsh
-        working-directory: chemical-bootstrap
         run: |
-          $sha = (git rev-parse HEAD).Trim()
-          echo "sha=$sha" >> $env:GITHUB_OUTPUT
-
-      # split cache into restore + save
-      - name: Restore cache for chemical-bootstrap/out-win
-        id: bootstrap-cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: ./chemical-bootstrap/out-win/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
-
-      # Build the chemical-bootstrap project (only if not cached)
-      - name: Build chemical-bootstrap (Windows)
-        working-directory: chemical-bootstrap
-        run: .\build.bat native-windows-gnu native
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
-
-      # Save the out-win folder as cache
-      - name: Save cache for chemical-bootstrap/out-win
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
-        id: bootstrap-cache-save
-        uses: actions/cache/save@v4
-        with:
-          path: chemical-bootstrap/out-win/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
+          $url = "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          Write-Host "Downloading LLVM from $url"
+          curl.exe -L -o llvm.zip -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" $url
+          7z x llvm.zip -y
 
       # Configure the project
       - name: Map workspace to X and configure
         shell: pwsh
         run: |
           subst X: $PWD
-          cd X:\chemical-bootstrap\chemical
+          cd X:\chemical
           mkdir out\build
           cmake -S . -B out\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON
 
       # Run the configure script to configure the project
       - name: Run configure script (Windows)
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: bash ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       # Building the llvm based, tiny cc based compilers and lsp
       - name: Build Compiler Targets
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           cmake --build out\build --config Release --target Compiler
           cmake --build out\build --config Release --target TCCCompiler
@@ -103,16 +78,16 @@ jobs:
 
       # Run the release script to create ZIP files
       - name: Run release packaging script (Windows)
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: bash ./scripts/release.sh --windows
 
       # rename windows release files to include the aarch
       - name: Rename Windows release files
         shell: bash
         run: |
-          mv chemical-bootstrap/chemical/out/release/windows.zip chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}.zip
-          mv chemical-bootstrap/chemical/out/release/windows-tcc.zip chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
-          mv chemical-bootstrap/chemical/out/release/windows-lsp.zip chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
+          mv chemical/out/release/windows.zip chemical/out/release/windows-${{ matrix.arch }}.zip
+          mv chemical/out/release/windows-tcc.zip chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
+          mv chemical/out/release/windows-lsp.zip chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
@@ -163,9 +138,9 @@ jobs:
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
-            chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}.zip
-            chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
-            chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
+            chemical/out/release/windows-${{ matrix.arch }}.zip
+            chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
+            chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -174,21 +149,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}.zip
-          path: chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}.zip
+          path: chemical/out/release/windows-${{ matrix.arch }}.zip
 
       - name: Save windows-${{ matrix.arch }}-tcc.zip as artifact if already exists
         if: steps.check_windows.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}-tcc.zip
-          path: chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
+          path: chemical/out/release/windows-${{ matrix.arch }}-tcc.zip
 
       - name: Save windows-${{ matrix.arch }}-lsp.zip as artifact if already exists
         if: steps.check_windows.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}-lsp.zip
-          path: chemical-bootstrap/chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
+          path: chemical/out/release/windows-${{ matrix.arch }}-lsp.zip
 
   build-linux:
     name: Build on Linux (${{ matrix.arch }})
@@ -199,24 +174,19 @@ jobs:
         include:
           - arch: x64
             runner: ubuntu-24.04
+            llvm_asset: linux-x64.tar.gz
           - arch: arm64
             runner: ubuntu-24.04-arm
+            llvm_asset: linux-arm64.tar.gz
     steps:
-      # ––– Checkout repositories –––
-      - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v4
-        with:
-          repository: chemicallang/chemical-bootstrap
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap
 
-      # Checkout chemical repository inside chemical-bootstrap
-      - name: Checkout chemical repository inside chemical-bootstrap
+      # Checkout chemical repository
+      - name: Checkout chemical repository
         uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap/chemical
+          path: chemical
           submodules: recursive
 
       # ––– Install dependencies –––
@@ -225,60 +195,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git
 
-      # Get the SHA of the chemical-bootstrap repository
-      - name: Get SHA of chemical-bootstrap repository
-        id: get-sha
-        working-directory: chemical-bootstrap
+      - name: Download prebuilt LLVM
         run: |
-          SHA=$(git rev-parse HEAD | xargs)
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
-
-      # split cache into restore + save
-      - name: Restore cache for chemical-bootstrap
-        id: bootstrap-cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
-
-      # Build the chemical-bootstrap project (Linux) (only if not cached)
-      - name: Build chemical-bootstrap
-        working-directory: chemical-bootstrap
-        run: ./build native-linux-gnu native
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
-
-      # saves the out folder in cache
-      - name: Save cache for chemical-bootstrap
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
-        id: bootstrap-cache-save
-        uses: actions/cache/save@v4
-        with:
-          path: chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
+          curl -L -o llvm.tar.gz \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          tar -xzf llvm.tar.gz
 
       # Configure chemical project
       - name: Configure Chemical Project
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           mkdir -p out/build
           cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       # Configure project dependencies using configuration script
       - name: Run configure script
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           chmod +x ./scripts/configure.sh
           ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       - name: Build Compiler Targets
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           cmake --build out/build --config Release --target Compiler
           cmake --build out/build --config Release --target TCCCompiler
           cmake --build out/build --config Release --target ChemicalLsp
 
       - name: Run release packaging
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           chmod +x ./scripts/release.sh
           ./scripts/release.sh --linux
@@ -287,9 +233,9 @@ jobs:
       - name: Rename Linux release files
         shell: bash
         run: |
-          mv chemical-bootstrap/chemical/out/release/linux.zip chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}.zip
-          mv chemical-bootstrap/chemical/out/release/linux-tcc.zip chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
-          mv chemical-bootstrap/chemical/out/release/linux-lsp.zip chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
+          mv chemical/out/release/linux.zip chemical/out/release/linux-${{ matrix.arch }}.zip
+          mv chemical/out/release/linux-tcc.zip chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
+          mv chemical/out/release/linux-lsp.zip chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
 
       # ––– Get information about the latest release –––
       - name: Get latest release info
@@ -339,9 +285,9 @@ jobs:
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
-            chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}.zip
-            chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
-            chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
+            chemical/out/release/linux-${{ matrix.arch }}.zip
+            chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
+            chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -350,21 +296,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}.zip
-          path: chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}.zip
+          path: chemical/out/release/linux-${{ matrix.arch }}.zip
 
       - name: Save linux-${{ matrix.arch }}-tcc.zip as artifact if already exists
         if: steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}-tcc.zip
-          path: chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
+          path: chemical/out/release/linux-${{ matrix.arch }}-tcc.zip
 
       - name: Save linux-${{ matrix.arch }}-lsp.zip as artifact if already exists
         if: steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}-lsp.zip
-          path: chemical-bootstrap/chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
+          path: chemical/out/release/linux-${{ matrix.arch }}-lsp.zip
 
   build-alpine:
     name: Build on Alpine Linux (${{ matrix.arch }})
@@ -378,8 +324,10 @@ jobs:
         include:
           - arch: x64
             runner: ubuntu-24.04
+            llvm_asset: linux-alpine-x64.tar.gz
           - arch: arm64
             runner: ubuntu-24.04-arm
+            llvm_asset: linux-alpine-arm64.tar.gz
     steps:
 
       # ––– Install dependencies –––
@@ -387,78 +335,44 @@ jobs:
         run: |
           apk add --no-cache build-base cmake ninja git bash python3 curl musl-dev linux-headers zip unzip
 
-      # ––– Checkout repositories –––
-      - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v4
-        with:
-          repository: chemicallang/chemical-bootstrap
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap
-
-      # Checkout chemical repository inside chemical-bootstrap
-      - name: Checkout chemical repository inside chemical-bootstrap
+      # Checkout chemical repository
+      - name: Checkout chemical repository
         uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap/chemical
+          path: chemical
           submodules: recursive
 
-      # Get the SHA of the chemical-bootstrap repository
-      - name: Get SHA of chemical-bootstrap repository
-        id: get-sha
-        working-directory: chemical-bootstrap
+      - name: Download prebuilt LLVM
         run: |
-          SHA=$(git rev-parse HEAD | xargs)
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
-
-      # split cache into restore + save
-      - name: Restore cache for chemical-bootstrap
-        id: bootstrap-cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
-
-      # Build the chemical-bootstrap project (only if not cached)
-      - name: Build chemical-bootstrap
-        working-directory: chemical-bootstrap
-        run: |
-          chmod +x build
-          ./build native-linux-gnu native
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
-
-      # saves the out folder in cache
-      - name: Save cache for chemical-bootstrap
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
-        id: bootstrap-cache-save
-        uses: actions/cache/save@v4
-        with:
-          path: chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
+          curl -L -o llvm.tar.gz \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          tar -xzf llvm.tar.gz
 
       # Linux steps unchanged
       - name: Configure Chemical Project
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           mkdir -p out/build
           cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       # Configure project dependencies using configuration script
       - name: Run configure script
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           chmod +x ./scripts/configure.sh
           ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       - name: Build Compiler Targets
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           cmake --build out/build --config Release --target Compiler
           cmake --build out/build --config Release --target TCCCompiler
 
       - name: Run release packaging
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           chmod +x ./scripts/release.sh
           ./scripts/release.sh --alpine
@@ -467,8 +381,8 @@ jobs:
       - name: Rename Linux Alpine release files
         shell: bash
         run: |
-          mv chemical-bootstrap/chemical/out/release/linux-alpine.zip chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
-          mv chemical-bootstrap/chemical/out/release/linux-alpine-tcc.zip chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
+          mv chemical/out/release/linux-alpine.zip chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
+          mv chemical/out/release/linux-alpine-tcc.zip chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
 
       - name: Get latest release info
         id: get_latest_release
@@ -516,8 +430,8 @@ jobs:
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
-            chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
-            chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
+            chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
+            chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -526,14 +440,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-alpine-${{ matrix.arch }}.zip
-          path: chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
+          path: chemical/out/release/linux-alpine-${{ matrix.arch }}.zip
 
       - name: Save linux-alpine-${{ matrix.arch }}-tcc.zip as artifact if already exists
         if: steps.check_linux.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: linux-alpine-${{ matrix.arch }}-tcc.zip
-          path: chemical-bootstrap/chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
+          path: chemical/out/release/linux-alpine-${{ matrix.arch }}-tcc.zip
 
   build-macos:
     name: Build on macOS (${{ matrix.arch }})
@@ -544,8 +458,10 @@ jobs:
         include:
           - arch: x64
             runner: macos-15-intel
+            llvm_asset: macos-x64.tar.gz
           - arch: arm64
             runner: macos-26
+            llvm_asset: macos-arm64.tar.gz
     steps:
       # ––– Install dependencies –––
       - name: Install Dependencies
@@ -553,72 +469,38 @@ jobs:
           brew update
           brew install cmake ninja git
 
-      # ––– Checkout repositories –––
-      - name: Checkout chemical-bootstrap repository
-        uses: actions/checkout@v4
-        with:
-          repository: chemicallang/chemical-bootstrap
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap
-
-      - name: Checkout chemical repository inside chemical-bootstrap
+      - name: Checkout chemical repository
         uses: actions/checkout@v4
         with:
           repository: chemicallang/chemical
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: chemical-bootstrap/chemical
+          path: chemical
           submodules: recursive
 
-      # Get the SHA of the chemical-bootstrap repository
-      - name: Get SHA of chemical-bootstrap repository
-        id: get-sha
-        working-directory: chemical-bootstrap
+      - name: Download prebuilt LLVM
         run: |
-          SHA=$(git rev-parse HEAD | xargs)
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
-
-      # Restore cache
-      - name: Restore cache for chemical-bootstrap
-        id: bootstrap-cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
-
-      # Build chemical-bootstrap project (macOS) (only if not cached)
-      - name: Build chemical-bootstrap
-        working-directory: chemical-bootstrap
-        run: |
-          chmod +x build
-          ./build native-macos-none native
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true'
-
-      # Save cache
-      - name: Save cache for chemical-bootstrap
-        if: steps.bootstrap-cache-restore.outputs.cache-hit != 'true' && success()
-        id: bootstrap-cache-save
-        uses: actions/cache/save@v4
-        with:
-          path: chemical-bootstrap/out/
-          key: ${{ runner.os }}-${{ steps.get-sha.outputs.sha }}-${{ matrix.arch }}
+          curl -L -o llvm.tar.gz \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            "https://github.com/chemicallang/llvm-prebuilt/releases/download/${{ env.LLVM_RELEASE_TAG }}/${{ matrix.llvm_asset }}"
+          tar -xzf llvm.tar.gz
 
       # Configure chemical project
       - name: Configure Chemical Project
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           mkdir -p out/build
           cmake -S . -B out/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
       # Run configure script
       - name: Run configure script
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           chmod +x ./scripts/configure.sh
           ./scripts/configure.sh --arch ${{ matrix.arch }}
 
       # Build Compiler Targets
       - name: Build Compiler Targets
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           cmake --build out/build --config Release --target Compiler
           cmake --build out/build --config Release --target TCCCompiler
@@ -626,7 +508,7 @@ jobs:
 
       # Run release packaging
       - name: Run release packaging
-        working-directory: chemical-bootstrap/chemical
+        working-directory: chemical
         run: |
           chmod +x ./scripts/release.sh
           ./scripts/release.sh --macos
@@ -635,9 +517,9 @@ jobs:
       - name: Rename macOS release files
         shell: bash
         run: |
-          mv chemical-bootstrap/chemical/out/release/macos.zip chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}.zip
-          mv chemical-bootstrap/chemical/out/release/macos-tcc.zip chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
-          mv chemical-bootstrap/chemical/out/release/macos-lsp.zip chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+          mv chemical/out/release/macos.zip chemical/out/release/macos-${{ matrix.arch }}.zip
+          mv chemical/out/release/macos-tcc.zip chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
+          mv chemical/out/release/macos-lsp.zip chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
 
       # Get latest release info
       - name: Get latest release info
@@ -684,9 +566,9 @@ jobs:
         with:
           tag_name: ${{ steps.get_latest_release.outputs.tag }}
           files: |
-            chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}.zip
-            chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
-            chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+            chemical/out/release/macos-${{ matrix.arch }}.zip
+            chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
+            chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -696,18 +578,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}.zip
-          path: chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}.zip
+          path: chemical/out/release/macos-${{ matrix.arch }}.zip
 
       - name: Save macos-${{ matrix.arch }}-tcc.zip as artifact if already exists
         if: steps.check_macos.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}-tcc.zip
-          path: chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
+          path: chemical/out/release/macos-${{ matrix.arch }}-tcc.zip
 
       - name: Save macos-${{ matrix.arch }}-lsp.zip as artifact if already exists
         if: steps.check_macos.outputs.exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}-lsp.zip
-          path: chemical-bootstrap/chemical/out/release/macos-${{ matrix.arch }}-lsp.zip
+          path: chemical/out/release/macos-${{ matrix.arch }}-lsp.zip

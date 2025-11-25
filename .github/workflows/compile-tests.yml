@@ -2,19 +2,29 @@ name: Build Compiler Tests
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
   test-linux:
-    runs-on: ubuntu-latest
+    name: Test on Linux (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+            asset_suffix: x64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            asset_suffix: arm64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # These commands use the compiler executable (chemical) from the release asset.
       COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-      ASSET_REGULAR: "linux-x86-64.zip"
-      ASSET_TCC: "linux-x86-64-tcc.zip"
+      ASSET_REGULAR: "linux-${{ matrix.asset_suffix }}.zip"
+      ASSET_TCC: "linux-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
       - name: Checkout repository (tests)
         uses: actions/checkout@v3
@@ -64,7 +74,7 @@ jobs:
           echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
           eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
           popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-regular-output.txt"
+          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-regular-output.txt"
         shell: bash
 
       - name: Process Linux TCC Variant
@@ -97,23 +107,253 @@ jobs:
           echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
           eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
           popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-tcc-output.txt"
+          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-tcc-output.txt"
         shell: bash
 
       - name: Upload Linux Outputs
         uses: actions/upload-artifact@v4
         with:
-          name: linux-tests-output
+          name: linux-${{ matrix.arch }}-tests-output
+          path: output
+
+  test-alpine:
+    name: Test on Alpine Linux (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: alpine:3.20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+            asset_suffix: x64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            asset_suffix: arm64
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      ASSET_REGULAR: "linux-alpine-${{ matrix.asset_suffix }}.zip"
+      ASSET_TCC: "linux-alpine-${{ matrix.asset_suffix }}-tcc.zip"
+    steps:
+      - name: Install dependencies
+        run: apk add --no-cache bash curl jq zip unzip
+
+      - name: Checkout repository (tests)
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Clean repository, Keep only lang/tests
+        run: |
+          echo "Cleaning repository: Removing all directories except 'lang'"
+          find . -maxdepth 1 -mindepth 1 -type d ! -name "lang" -exec rm -rf {} +
+          echo "Inside lang, removing all directories except 'tests'"
+          cd lang
+          find . -maxdepth 1 -mindepth 1 -type d ! -name "tests" -exec rm -rf {} +
+          cd ..
+        shell: bash
+
+      - name: Create output directory
+        run: mkdir -p output
+
+      - name: Process Alpine Regular Variant
+        run: |
+          echo "== Processing Alpine Regular Variant =="
+          echo "Fetching release information..."
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "Error: Asset ${ASSET_REGULAR} not found."
+            exit 1
+          fi
+          echo "Downloading asset from $ASSET_URL"
+          curl -L -o asset.zip "$ASSET_URL"
+          unzip -o -q asset.zip || true
+          release_root="${ASSET_REGULAR%.zip}"
+          if [ ! -d "$release_root" ]; then
+            echo "Error: expected directory '$release_root' not found."
+            exit 1
+          fi
+          echo "Using release root: $release_root"
+          if [ ! -d "$release_root/lang/tests" ]; then
+            mkdir -p "$release_root/lang"
+            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+          fi
+          pushd "$release_root"
+          echo "Running compile command for Alpine Regular Variant:"
+          echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
+          eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
+          popd
+          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-regular-output.txt"
+        shell: bash
+
+      - name: Process Alpine TCC Variant
+        run: |
+          echo "== Processing Alpine TCC Variant =="
+          echo "Fetching release information..."
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "Error: Asset ${ASSET_TCC} not found."
+            exit 1
+          fi
+          echo "Downloading asset from $ASSET_URL"
+          curl -L -o asset.zip "$ASSET_URL"
+          unzip -o -q asset.zip || true
+          release_root="${ASSET_TCC%.zip}"
+          if [ ! -d "$release_root" ]; then
+            echo "Error: expected directory '$release_root' not found."
+            exit 1
+          fi
+          echo "Using release root: $release_root"
+          if [ ! -d "$release_root/lang/tests" ]; then
+            mkdir -p "$release_root/lang"
+            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+          fi
+          pushd "$release_root"
+          rm -rf lang/tests/build
+          echo "Running compile command for Alpine TCC Variant:"
+          echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
+          eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
+          popd
+          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-tcc-output.txt"
+        shell: bash
+
+      - name: Upload Alpine Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpine-${{ matrix.arch }}-tests-output
+          path: output
+
+  test-macos:
+    name: Test on macOS (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-15-intel
+            asset_suffix: x64
+          - arch: arm64
+            runner: macos-26
+            asset_suffix: arm64
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
+      ASSET_REGULAR: "macos-${{ matrix.asset_suffix }}.zip"
+      ASSET_TCC: "macos-${{ matrix.asset_suffix }}-tcc.zip"
+    steps:
+      - name: Checkout repository (tests)
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Clean repository, Keep only lang/tests
+        run: |
+          echo "Cleaning repository: Removing all directories except 'lang'"
+          find . -maxdepth 1 -mindepth 1 -type d ! -name "lang" -exec rm -rf {} +
+          echo "Inside lang, removing all directories except 'tests'"
+          cd lang
+          find . -maxdepth 1 -mindepth 1 -type d ! -name "tests" -exec rm -rf {} +
+          cd ..
+        shell: bash
+
+      - name: Create output directory
+        run: mkdir -p output
+
+      - name: Process macOS Regular Variant
+        run: |
+          echo "== Processing macOS Regular Variant =="
+          echo "Fetching release information..."
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "Error: Asset ${ASSET_REGULAR} not found."
+            exit 1
+          fi
+          echo "Downloading asset from $ASSET_URL"
+          curl -L -o asset.zip "$ASSET_URL"
+          unzip -o -q asset.zip || true
+          release_root="${ASSET_REGULAR%.zip}"
+          if [ ! -d "$release_root" ]; then
+            echo "Error: expected directory '$release_root' not found."
+            exit 1
+          fi
+          echo "Using release root: $release_root"
+          if [ ! -d "$release_root/lang/tests" ]; then
+            mkdir -p "$release_root/lang"
+            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+          fi
+          pushd "$release_root"
+          echo "Running compile command for macOS Regular Variant:"
+          echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
+          eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
+          popd
+          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-regular-output.txt"
+        shell: bash
+
+      - name: Process macOS TCC Variant
+        run: |
+          echo "== Processing macOS TCC Variant =="
+          echo "Fetching release information..."
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+          ASSET_URL=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_TCC}"'"))] | .[0].assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "Error: Asset ${ASSET_TCC} not found."
+            exit 1
+          fi
+          echo "Downloading asset from $ASSET_URL"
+          curl -L -o asset.zip "$ASSET_URL"
+          unzip -o -q asset.zip || true
+          release_root="${ASSET_TCC%.zip}"
+          if [ ! -d "$release_root" ]; then
+            echo "Error: expected directory '$release_root' not found."
+            exit 1
+          fi
+          echo "Using release root: $release_root"
+          if [ ! -d "$release_root/lang/tests" ]; then
+            mkdir -p "$release_root/lang"
+            cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+          fi
+          pushd "$release_root"
+          rm -rf lang/tests/build
+          echo "Running compile command for macOS TCC Variant:"
+          echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
+          eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
+          popd
+          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-tcc-output.txt"
+        shell: bash
+
+      - name: Upload macOS Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-tests-output
           path: output
 
   test-windows:
-    runs-on: windows-latest
+    name: Test on Windows (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+            asset_suffix: x64
+          - arch: arm64
+            runner: windows-11-arm
+            asset_suffix: arm64
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
       COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete"
-      ASSET_REGULAR: "windows-x64.zip"
-      ASSET_TCC: "windows-x64-tcc.zip"
+      ASSET_REGULAR: "windows-${{ matrix.asset_suffix }}.zip"
+      ASSET_TCC: "windows-${{ matrix.asset_suffix }}-tcc.zip"
     steps:
       - name: Checkout repository (tests)
         uses: actions/checkout@v3
@@ -164,7 +404,7 @@ jobs:
           Write-Host "Running compile command for Windows Regular Variant:"
           Write-Host $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt -Append
-          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-regular-output.txt
+          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-regular-output.txt
         shell: pwsh
 
       - name: Process Windows TCC Variant
@@ -198,11 +438,11 @@ jobs:
           Write-Host "Running compile command for Windows TCC Variant:"
           Write-Host $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt
           Invoke-Expression $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt -Append
-          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-tcc-output.txt
+          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt
         shell: pwsh
 
       - name: Upload Windows Outputs
         uses: actions/upload-artifact@v4
         with:
-          name: windows-tests-output
+          name: windows-${{ matrix.arch }}-tests-output
           path: output

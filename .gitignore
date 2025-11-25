@@ -2,6 +2,8 @@
 /cmake-build-debugwsl/
 /cmake-build-debugubuntu/
 /cmake-build-debugalpine/
+/cmake-build-debugalpinewsl/
+/cmake-build-debugubuntuwsl/
 out
 .vs
 debug

@@ -106,35 +106,41 @@ echo "macos: $macos"
 echo "macos_tcc: $macos_tcc"
 echo "macos_lsp: $macos_lsp"
 
-# Create directory names
-windows_dir_name="windows"
-linux_dir_name="linux"
-alpine_dir_name="linux-alpine"
-macos_dir_name="macos"
-# Tcc directory names
-windows_tcc_dir_name="$windows_dir_name-tcc"
-linux_tcc_dir_name="$linux_dir_name-tcc"
-alpine_tcc_dir_name="$alpine_dir_name-tcc"
-macos_tcc_dir_name="$macos_dir_name-tcc"
-# LSP directory names
-windows_lsp_dir_name="$windows_dir_name-lsp"
-linux_lsp_dir_name="$linux_dir_name-lsp"
-macos_lsp_dir_name="$macos_dir_name-lsp"
+# Create staging directory names
+windows_stage="windows_stage"
+linux_stage="linux_stage"
+alpine_stage="alpine_stage"
+macos_stage="macos_stage"
+
+windows_tcc_stage="windows_tcc_stage"
+linux_tcc_stage="linux_tcc_stage"
+alpine_tcc_stage="alpine_tcc_stage"
+macos_tcc_stage="macos_tcc_stage"
+
+windows_lsp_stage="windows_lsp_stage"
+linux_lsp_stage="linux_lsp_stage"
+macos_lsp_stage="macos_lsp_stage"
+
+# Standardized directory names inside the archives
+std_dir_name="chemical"
+std_tcc_dir_name="chemical-tcc"
+std_lsp_dir_name="chemical-lsp"
 
 # Create directory paths
-windows_dir="out/release/$windows_dir_name"
-linux_dir="out/release/$linux_dir_name"
-alpine_dir="out/release/$alpine_dir_name"
-macos_dir="out/release/$macos_dir_name"
-# Tcc directory paths
-windows_tcc_dir="out/release/$windows_tcc_dir_name"
-linux_tcc_dir="out/release/$linux_tcc_dir_name"
-alpine_tcc_dir="out/release/$alpine_tcc_dir_name"
-macos_tcc_dir="out/release/$macos_tcc_dir_name"
-# LSP directory paths
-windows_lsp_dir="out/release/$windows_lsp_dir_name"
-linux_lsp_dir="out/release/$linux_lsp_dir_name"
-macos_lsp_dir="out/release/$macos_lsp_dir_name"
+# We use staging directories to hold the standardized folders
+windows_dir="out/release/$windows_stage/$std_dir_name"
+linux_dir="out/release/$linux_stage/$std_dir_name"
+alpine_dir="out/release/$alpine_stage/$std_dir_name"
+macos_dir="out/release/$macos_stage/$std_dir_name"
+
+windows_tcc_dir="out/release/$windows_tcc_stage/$std_tcc_dir_name"
+linux_tcc_dir="out/release/$linux_tcc_stage/$std_tcc_dir_name"
+alpine_tcc_dir="out/release/$alpine_tcc_stage/$std_tcc_dir_name"
+macos_tcc_dir="out/release/$macos_tcc_stage/$std_tcc_dir_name"
+
+windows_lsp_dir="out/release/$windows_lsp_stage/$std_lsp_dir_name"
+linux_lsp_dir="out/release/$linux_lsp_stage/$std_lsp_dir_name"
+macos_lsp_dir="out/release/$macos_lsp_stage/$std_lsp_dir_name"
 
 # Make directories required for each target
 if [ "$windows" = true ]; then
@@ -342,76 +348,69 @@ fi
 
 if [ "$zip_all_at_end" = true ]; then
     echo "Zipping all"
-    cd "out/release" || exit 1
+    # Helper to zip from stage
+    # $1: stage dir name (e.g. windows_stage)
+    # $2: folder to zip (e.g. chemical)
+    # $3: output zip name (e.g. windows.zip) - relative to out/release
+    zip_from_stage() {
+        local stage_dir=$1
+        local folder_to_zip=$2
+        local output_zip=$3
+        
+        pushd "out/release/$stage_dir" > /dev/null
+        zip_folder "$folder_to_zip" "../$output_zip"
+        popd > /dev/null
+    }
+
     if [ "$windows" = true ]; then
-      zip_folder "$windows_dir_name" "windows.zip"
+      zip_from_stage "$windows_stage" "$std_dir_name" "windows.zip"
     fi
     if [ "$linux" = true ]; then
-      zip_folder "$linux_dir_name" "linux.zip"
+      zip_from_stage "$linux_stage" "$std_dir_name" "linux.zip"
     fi
     if [ "$alpine" = true ]; then
-      zip_folder "$alpine_dir_name" "linux-alpine.zip"
+      zip_from_stage "$alpine_stage" "$std_dir_name" "linux-alpine.zip"
     fi
     if [ "$macos" = true ]; then
-      zip_folder "$macos_dir_name" "macos.zip"
+      zip_from_stage "$macos_stage" "$std_dir_name" "macos.zip"
     fi
     if [ "$windows_tcc" = true ]; then
-      zip_folder "$windows_tcc_dir_name" "windows-tcc.zip"
+      zip_from_stage "$windows_tcc_stage" "$std_tcc_dir_name" "windows-tcc.zip"
     fi
     if [ "$linux_tcc" = true ]; then
-      zip_folder "$linux_tcc_dir_name" "linux-tcc.zip"
+      zip_from_stage "$linux_tcc_stage" "$std_tcc_dir_name" "linux-tcc.zip"
     fi
     if [ "$alpine_tcc" = true ]; then
-      zip_folder "$alpine_tcc_dir_name" "linux-alpine-tcc.zip"
+      zip_from_stage "$alpine_tcc_stage" "$std_tcc_dir_name" "linux-alpine-tcc.zip"
     fi
     if [ "$macos_tcc" = true ]; then
-      zip_folder "$macos_tcc_dir_name" "macos-tcc.zip"
+      zip_from_stage "$macos_tcc_stage" "$std_tcc_dir_name" "macos-tcc.zip"
     fi
     if [ "$windows_lsp" = true ]; then
-      zip_folder "$windows_lsp_dir_name" "windows-lsp.zip"
+      zip_from_stage "$windows_lsp_stage" "$std_lsp_dir_name" "windows-lsp.zip"
     fi
     if [ "$linux_lsp" = true ]; then
-      zip_folder "$linux_lsp_dir_name" "linux-lsp.zip"
+      zip_from_stage "$linux_lsp_stage" "$std_lsp_dir_name" "linux-lsp.zip"
     fi
     if [ "$macos_lsp" = true ]; then
-      zip_folder "$macos_lsp_dir_name" "macos-lsp.zip"
+      zip_from_stage "$macos_lsp_stage" "$std_lsp_dir_name" "macos-lsp.zip"
     fi
-    cd ../../
 fi
 
 if [ "$delete_dirs_at_end" = true ]; then
     echo "Deleting Directories"
-    if [ "$windows" = true ]; then
-      rm -rf "$windows_dir"
-    fi
-    if [ "$linux" = true ]; then
-      rm -rf "$linux_dir"
-    fi
-    if [ "$alpine" = true ]; then
-      rm -rf "$alpine_dir"
-    fi
-    if [ "$macos" = true ]; then
-      rm -rf "$macos_dir"
-    fi
-    if [ "$windows_tcc" = true ]; then
-      rm -rf "$windows_tcc_dir"
-    fi
-    if [ "$linux_tcc" = true ]; then
-      rm -rf "$linux_tcc_dir"
-    fi
-    if [ "$alpine_tcc" = true ]; then
-      rm -rf "$alpine_tcc_dir"
-    fi
-    if [ "$macos_tcc" = true ]; then
-      rm -rf "$macos_tcc_dir"
-    fi
-    if [ "$windows_lsp" = true ]; then
-      rm -rf "$windows_lsp_dir"
-    fi
-    if [ "$linux_lsp" = true ]; then
-      rm -rf "$linux_lsp_dir"
-    fi
-    if [ "$macos_lsp" = true ]; then
-      rm -rf "$macos_lsp_dir"
-    fi
+    # Delete the staging directories
+    rm -rf "out/release/$windows_stage"
+    rm -rf "out/release/$linux_stage"
+    rm -rf "out/release/$alpine_stage"
+    rm -rf "out/release/$macos_stage"
+    
+    rm -rf "out/release/$windows_tcc_stage"
+    rm -rf "out/release/$linux_tcc_stage"
+    rm -rf "out/release/$alpine_tcc_stage"
+    rm -rf "out/release/$macos_tcc_stage"
+    
+    rm -rf "out/release/$windows_lsp_stage"
+    rm -rf "out/release/$linux_lsp_stage"
+    rm -rf "out/release/$macos_lsp_stage"
 fi

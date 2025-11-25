@@ -57,8 +57,8 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          # Determine the release root from the ZIP name:
-          release_root="${ASSET_REGULAR%.zip}"
+          # Determine the release root (fixed name inside archive)
+          release_root="linux"
           if [ ! -d "$release_root" ]; then
             echo "Error: expected directory '$release_root' not found."
             exit 1
@@ -90,8 +90,8 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          # Determine the release root from the ZIP name:
-          release_root="${ASSET_TCC%.zip}"
+          # Determine the release root (fixed name inside archive)
+          release_root="linux-tcc"
           if [ ! -d "$release_root" ]; then
             echo "Error: expected directory '$release_root' not found."
             exit 1
@@ -172,7 +172,8 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          release_root="${ASSET_REGULAR%.zip}"
+          # Determine the release root (fixed name inside archive)
+          release_root="linux-alpine"
           if [ ! -d "$release_root" ]; then
             echo "Error: expected directory '$release_root' not found."
             exit 1
@@ -203,7 +204,8 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          release_root="${ASSET_TCC%.zip}"
+          # Determine the release root (fixed name inside archive)
+          release_root="linux-alpine-tcc"
           if [ ! -d "$release_root" ]; then
             echo "Error: expected directory '$release_root' not found."
             exit 1
@@ -279,7 +281,8 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          release_root="${ASSET_REGULAR%.zip}"
+          # Determine the release root (fixed name inside archive)
+          release_root="macos"
           if [ ! -d "$release_root" ]; then
             echo "Error: expected directory '$release_root' not found."
             exit 1
@@ -310,7 +313,8 @@ jobs:
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          release_root="${ASSET_TCC%.zip}"
+          # Determine the release root (fixed name inside archive)
+          release_root="macos-tcc"
           if [ ! -d "$release_root" ]; then
             echo "Error: expected directory '$release_root' not found."
             exit 1
@@ -389,8 +393,8 @@ jobs:
           Write-Host "Downloading asset from $assetUrl"
           Invoke-WebRequest -Uri $assetUrl -OutFile asset.zip
           Expand-Archive -Path asset.zip -DestinationPath . -Force
-          # determine release root from ZIP name
-          $dirName = $env:ASSET_REGULAR -replace '\.zip$',''
+          # determine release root (fixed name inside archive)
+          $dirName = "windows"
           $releaseRoot = (Get-ChildItem -Directory | Where-Object { $_.Name -eq $dirName } | Select-Object -First 1).FullName
           if (-not $releaseRoot) {
             Write-Error "Error: expected directory '$dirName' not found."
@@ -422,8 +426,8 @@ jobs:
           Write-Host "Downloading asset from $assetUrl"
           Invoke-WebRequest -Uri $assetUrl -OutFile asset.zip
           Expand-Archive -Path asset.zip -DestinationPath . -Force
-          # determine release root from ZIP name
-          $dirName = $env:ASSET_TCC -replace '\.zip$',''
+          # determine release root (fixed name inside archive)
+          $dirName = "windows-tcc"
           $releaseRoot = (Get-ChildItem -Directory | Where-Object { $_.Name -eq $dirName } | Select-Object -First 1).FullName
           if (-not $releaseRoot) {
             Write-Error "Error: expected directory '$dirName' not found."

@@ -746,12 +746,9 @@ int compiler_main(int argc, char *argv[]) {
             }
         }
 
-        auto job_type_opt = options.option_new("job-type", "jt");
-        LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
-
         if(is_lab_file) {
             // building the lab file
-            const auto result = compiler.build_lab_file(context, final_job_type, args[0]);
+            const auto result = compiler.build_lab_file(context, args[0]);
             return result;
         } else {
             // building the mod file
@@ -765,7 +762,12 @@ int compiler_main(int argc, char *argv[]) {
                 outputPath.append("a");
 #endif
             }
-            const auto result = compiler.build_mod_file(context, final_job_type, args[0], std::move(outputPath));
+            auto job_type_opt = options.option_new("job-type", "jt");
+            LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
+            LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(compiler_opts.build_dir));
+            final_job.mode = compiler_opts.outMode;
+            final_job.target_triple.append(compiler_opts.target_triple);
+            const auto result = compiler.build_mod_file(context, args[0], &final_job);
             return result;
         }
 

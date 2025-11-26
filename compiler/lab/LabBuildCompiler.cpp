@@ -1922,7 +1922,7 @@ LabModule* LabBuildCompiler::create_module_for_dependency(
 
         // build lab file into a tcc state
         // TODO verify the build method signature in the build.lab file
-        const auto state = built_lab_file(context, buildLabPath, false, job);
+        const auto state = built_lab_file(context, buildLabPath, false);
 
         // emit a warning or error
         if(state == nullptr) {
@@ -2699,8 +2699,7 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
         const std::string_view& path,
-        bool mod_file_source,
-        LabJob* job
+        bool mod_file_source
 ) {
 
     // this is host target data
@@ -2753,16 +2752,21 @@ TCCState* LabBuildCompiler::built_lab_file(
     create_dir(lab_dir);
     create_dir(lab_mods_dir);
 
+    // lets create the job for jit of build.lab/chemical.mod file
+    LabJob build_job(LabJobType::JITExecutable, chem::string("build"), chem::string(""), chem::string(options->build_dir));
+    build_job.mode = options->outMode;
+    build_job.target_triple.append(options->target_triple);
+
     // get build lab file into a tcc state
     const auto state = built_lab_file(
-            context, path, lab_processor, c_visitor, mod_file_source, job
+            context, path, lab_processor, c_visitor, mod_file_source, &build_job
     );
 
     return state;
 
 }
 
-int LabBuildCompiler::build_lab_file(LabBuildContext& context, LabJobType final_job_type, const std::string_view& path) {
+int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string_view& path) {
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -2780,13 +2784,8 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, LabJobType final_
     // mkdir the build directory
     create_dir(options->build_dir);
 
-    // create the final job
-    LabJob final_job(final_job_type, chem::string("main"), chem::string(""), chem::string(options->build_dir));
-    final_job.mode = options->outMode;
-    final_job.target_triple.append(options->target_triple);
-
     // get build lab file into a tcc state
-    const auto state = built_lab_file(context, path, false, &final_job);
+    const auto state = built_lab_file(context, path, false);
     if(!state) {
         return 1;
     }
@@ -2843,7 +2842,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, LabJobType final_
 
 }
 
-int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_job_type, const std::string_view& path, chem::string outputPath) {
+int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string_view& path, LabJob* final_job) {
 
     // allocating ast allocators
     const auto job_mem_size = 100000; // 100 kb
@@ -2861,13 +2860,8 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_
     // mkdir the build directory
     create_dir(options->build_dir);
 
-    // create the final job
-    LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(options->build_dir));
-    final_job.mode = options->outMode;
-    final_job.target_triple.append(options->target_triple);
-
     // get chemical.mod file into a tcc state
-    const auto state = built_lab_file(context, path, true, &final_job);
+    const auto state = built_lab_file(context, path, true);
     if(!state) {
         return 1;
     }
@@ -2893,7 +2887,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_
     context.storage.clear();
 
     // call the root chemical.mod build's function
-    const auto main_module = build(&context, &final_job);
+    const auto main_module = build(&context, final_job);
 
     // lets compile any cbi jobs user may have specified
     for(auto& job : context.executables) {
@@ -2912,7 +2906,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_
         if(has_ll || has_asm) {
             for(auto& modPtr : mod_storage.get_modules()) {
                 auto& module = *modPtr.get();
-                const auto mod_dir = resolve_rel_child_path_str(final_job.build_dir.to_view(), module.name.to_view());
+                const auto mod_dir = resolve_rel_child_path_str(final_job->build_dir.to_view(), module.name.to_view());
                 if (has_ll) {
                     module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
                 }
@@ -2923,12 +2917,12 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, LabJobType final_
         }
     }
 
-    // just put all the modules as this job's dependency
-    final_job.dependencies.emplace_back(main_module);
+    // just put main the module as this job's dependency
+    final_job->dependencies.emplace_back(main_module);
 
-    current_job = &final_job;
+    current_job = final_job;
 
-    const auto job_result = do_job(&final_job);
+    const auto job_result = do_job(final_job);
     if(job_result != 0) {
         std::cerr << rang::fg::red << "[lab] " << "error emitting executable, returned status code 1" << rang::fg::reset << std::endl;
     }

@@ -2754,8 +2754,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // lets create the job for jit of build.lab/chemical.mod file
     LabJob build_job(LabJobType::JITExecutable, chem::string("build"), chem::string(""), chem::string(options->build_dir));
-    build_job.mode = options->outMode;
-    build_job.target_triple.append(options->target_triple);
+    LabBuildContext::initialize_job(&build_job, options);;
 
     // get build lab file into a tcc state
     const auto state = built_lab_file(

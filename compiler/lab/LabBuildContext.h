@@ -170,6 +170,11 @@ public:
     }
 
     /**
+     * initialize a new job from compiler options
+     */
+    static void initialize_job(LabJob* job, LabBuildCompilerOptions* options);
+
+    /**
      * add given dependencies to the given module
      */
     static void add_dependencies(std::vector<LabModule*>& into, LabModule** dependencies, unsigned int dep_len);

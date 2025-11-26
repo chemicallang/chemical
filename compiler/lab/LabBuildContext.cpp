@@ -96,8 +96,8 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
 
 }
 
-void initialize_job(LabJob* job, LabBuildCompilerOptions* options) {
-    initialize_job(job, options, options->target_triple);
+void LabBuildContext::initialize_job(LabJob* job, LabBuildCompilerOptions* options) {
+    ::initialize_job(job, options, options->target_triple);
 }
 
 void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string, StringHash, StringEqual>& aliases, std::string alias, std::string path) {

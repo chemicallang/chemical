@@ -14,7 +14,6 @@
 #include "compiler/lab/TargetData.h"
 #include "TypeLoc.h"
 #include "compiler/OutputMode.h"
-#include "ast/utils/GlobalContainerAPI.h"
 
 class BackendContext;
 

@@ -567,7 +567,6 @@ set(COMMON_SOURCES
         ast/utils/IffyConditional.h
         ast/values/ExpressiveString.h
         ast/types/ExpressiveStringType.h
-        ast/utils/GlobalContainerAPI.h
         ast/base/ChildResolution.h
         compiler/symres/ChildResolver.h
         std/chem_string_view_fast.h
@@ -581,6 +580,8 @@ set(COMMON_SOURCES
         compiler/symres/BeforeLinkSignature.h
         std/except.h
         std/except.cpp
+        compiler/lab/LabJob.cpp
+        compiler/lab/TargetConditionAPI.h
 )
 
 # Chemical LSP Executable Target

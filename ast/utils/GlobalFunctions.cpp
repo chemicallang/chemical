@@ -3333,68 +3333,6 @@ GlobalContainer* GlobalInterpretScope::create_container(SymbolResolver& resolver
     return container_ptr;
 }
 
-BoolValue* get_global_condition(GlobalContainer* container, const chem::string_view& name) {
-    auto& values = container->defThing.defValue.values;
-    auto found = values.find(name);
-    if(found != values.end()) {
-        const auto val = found->second.value;
-        if(val->kind() == ValueKind::Bool) {
-            return val->as_bool_unsafe();
-        }
-    }
-    return nullptr;
-}
-
-//bool set_global_condition(GlobalContainer* container, const chem::string_view& name, bool enable) {
-//    const auto cond = get_global_condition(container, name);
-//    if(cond) {
-//        cond->value = enable;
-//        return true;
-//    } else {
-//        return false;
-//    }
-//}
-
-std::optional<bool> is_condition_enabled(GlobalContainer* container, const chem::string_view& name) {
-    const auto cond = get_global_condition(container, name);
-    if(cond) {
-        return cond->value;
-    } else {
-        return std::nullopt;
-    }
-}
-
-std::optional<bool> is_condition_enabled(GlobalContainer* container, IffyBase* base) {
-    if(base == nullptr) return std::nullopt;
-    if(base->is_id) {
-        const auto if_id = (IffyCondId*) base;
-        auto value = is_condition_enabled(container, if_id->value);
-        if(value.has_value()) {
-            if(if_id->is_negative) {
-                return !value.value();
-            }
-        }
-        return value;
-    } else {
-        const auto if_expr = (IffyCondExpr*) base;
-        auto value = is_condition_enabled(container, if_expr->left);
-        if(value.has_value()) {
-            if(value.value() && if_expr->op == IffyExprOp::Or) {
-                // value is true, in or expression, we do not need to resolve second
-                return true;
-            } else if(!value.value() && if_expr->op == IffyExprOp::And) {
-                // value is false, in and expression, we do not need to resolve second
-                return false;
-            } else {
-                // in 'and', first is true, depends on second (true if second is true, false if second is false)
-                // in 'or' , first is false, depends on second (true if second is true, false if second is false)
-                return is_condition_enabled(container, if_expr->right);
-            }
-        }
-    }
-    return std::nullopt;
-}
-
 void GlobalInterpretScope::dispose_container(GlobalContainer* container) {
     delete container;
 }

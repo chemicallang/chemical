@@ -116,10 +116,10 @@ public:
      * this function figures out those dependencies
      */
     void figure_out_mod_dep_using_imports(
+            TargetData& targetData,
             const std::string_view& base_path,
             std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
-            std::vector<ASTNode*>& nodes,
-            GlobalContainer* container
+            std::vector<ASTNode*>& nodes
     );
 
 

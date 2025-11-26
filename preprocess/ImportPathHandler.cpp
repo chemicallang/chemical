@@ -6,6 +6,7 @@
 #include "utils/PathUtils.h"
 #include "ast/statements/Import.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "compiler/lab/TargetConditionAPI.h"
 
 AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::string_view& filePath, unsigned int slash) {
     auto headerPath = filePath.substr(slash + 1);
@@ -243,10 +244,10 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
 }
 
 void ImportPathHandler::figure_out_mod_dep_using_imports(
+        TargetData& targetData,
         const std::string_view& base_path,
         std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
-        std::vector<ASTNode*>& nodes,
-        GlobalContainer* container
+        std::vector<ASTNode*>& nodes
 ) {
     // some variables for processing
     std::string imp_module_dir_path;
@@ -260,7 +261,7 @@ void ImportPathHandler::figure_out_mod_dep_using_imports(
                 continue;
             }
             if(impStmt->if_condition != nullptr) {
-                auto enabled = is_condition_enabled(container, impStmt->if_condition);
+                auto enabled = resolve_target_condition(targetData, impStmt->if_condition);
                 if(enabled.has_value()) {
                     if(!enabled.value()) {
                         continue;

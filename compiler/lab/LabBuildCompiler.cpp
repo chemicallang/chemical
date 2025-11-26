@@ -24,6 +24,7 @@
 #include "parser/utils/ParseModDecl.h"
 #include "compiler/lab/timestamp/Timestamp.h"
 #include "std/chem_string_view_fast.h"
+#include "TargetConditionAPI.h"
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -2101,7 +2102,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         if(src.if_cond == nullptr) {
             module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
         } else {
-            auto resolved = is_condition_enabled(container, src.if_cond);
+            auto resolved = resolve_target_condition(job->target_data, src.if_cond);
             if (resolved.has_value()) {
                 if(resolved.value()) {
                     module->paths.emplace_back(resolve_sibling(modFilePathView, src.path.view()));
@@ -2128,7 +2129,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // import any link libraries into the executable user requested for this module
     for(auto& linkLib : modFileData.link_libs) {
-        auto resolved = is_condition_enabled(container, linkLib.if_cond);
+        auto resolved = resolve_target_condition(job->target_data, linkLib.if_cond);
         if(resolved.has_value()) {
             if(resolved.value()) {
                 switch(linkLib.kind) {
@@ -2155,10 +2156,10 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // this function figures out dependencies based on import statements
     path_handler.figure_out_mod_dep_using_imports(
+            job->target_data,
             modFilePathView,
             buildLabModuleDependencies,
-            modFileData.scope.body.nodes,
-            container
+            modFileData.scope.body.nodes
     );
 
     // these are modules imported by the build.lab
@@ -2325,10 +2326,10 @@ TCCState* LabBuildCompiler::built_lab_file(
     // TODO: we aren't determining module dependency from other imported build.lab files
     // this just determines module dependencies from a single (root build.lab) file
     path_handler.figure_out_mod_dep_using_imports(
+        job->target_data,
         path_view,
         buildLabModuleDependencies,
-        labFileResult.unit.scope.body.nodes,
-        container
+        labFileResult.unit.scope.body.nodes
     );
 
     // direct module dependencies (in no valid order)

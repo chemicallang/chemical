@@ -268,3 +268,15 @@ public func double_values_in_html_automatically_converted2(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringHtmlOnly(), "<div>876.123</div>");
 }
+
+@test
+public func putting_elements_in_head_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var value = 876.123
+    #html {
+        <head>
+            <link rel="stylesheet" src="file.css" />
+        </head>
+    }
+    string_equals(env, page.toStringHeadOnly(), "<link rel=\"stylesheet\" src=\"file.css\"/>")
+}

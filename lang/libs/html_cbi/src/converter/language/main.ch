@@ -15,6 +15,8 @@ struct ASTConverter {
 
     var str : std::string
 
+    var in_head : bool = false
+
 }
 
 func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut FunctionCallNode {
@@ -22,8 +24,18 @@ func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut Functi
     const support = converter.support;
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-    var name : std::string_view = std::string_view("append_html_char")
-    var id = builder.make_identifier(name, support.appendHtmlCharFn, false, location);
+    
+    var name : std::string_view
+    var fnPtr : *mut ASTNode
+    if(converter.in_head) {
+        name = std::string_view("append_head_char")
+        fnPtr = support.appendHeadCharFn
+    } else {
+        name = std::string_view("append_html_char")
+        fnPtr = support.appendHtmlCharFn
+    }
+
+    var id = builder.make_identifier(name, fnPtr, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
@@ -45,26 +57,44 @@ func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn
 }
 
 func (converter : &mut ASTConverter) make_char_ptr_value_call(value : *mut Value) : *mut FunctionCallNode {
+    if(converter.in_head) {
+        return converter.make_value_call_with(value, std::string_view("append_head_char_ptr"), converter.support.appendHeadCharPtrFn)
+    }
     return converter.make_value_call_with(value, std::string_view("append_html_char_ptr"), converter.support.appendHtmlCharPtrFn)
 }
 
 func (converter : &mut ASTConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
+    if(converter.in_head) {
+        return converter.make_value_call_with(value, std::string_view("append_head_char"), converter.support.appendHeadCharFn)
+    }
     return converter.make_value_call_with(value, std::string_view("append_html_char"), converter.support.appendHtmlCharFn)
 }
 
 func (converter : &mut ASTConverter) make_integer_value_call(value : *mut Value) : *mut FunctionCallNode {
+    if(converter.in_head) {
+        return converter.make_value_call_with(value, std::string_view("append_head_integer"), converter.support.appendHeadIntFn)
+    }
     return converter.make_value_call_with(value, std::string_view("append_html_integer"), converter.support.appendHtmlIntFn)
 }
 
 func (converter : &mut ASTConverter) make_uinteger_value_call(value : *mut Value) : *mut FunctionCallNode {
+    if(converter.in_head) {
+        return converter.make_value_call_with(value, std::string_view("append_head_uinteger"), converter.support.appendHeadUIntFn)
+    }
     return converter.make_value_call_with(value, std::string_view("append_html_uinteger"), converter.support.appendHtmlUIntFn)
 }
 
 func (converter : &mut ASTConverter) make_float_value_call(value : *mut Value) : *mut FunctionCallNode {
+    if(converter.in_head) {
+        return converter.make_value_call_with(value, std::string_view("append_head_float"), converter.support.appendHeadFloatFn)
+    }
     return converter.make_value_call_with(value, std::string_view("append_html_float"), converter.support.appendHtmlFloatFn)
 }
 
 func (converter : &mut ASTConverter) make_double_value_call(value : *mut Value) : *mut FunctionCallNode {
+    if(converter.in_head) {
+        return converter.make_value_call_with(value, std::string_view("append_head_double"), converter.support.appendHeadDoubleFn)
+    }
     return converter.make_value_call_with(value, std::string_view("append_html_double"), converter.support.appendHtmlDoubleFn)
 }
 
@@ -73,17 +103,36 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var name : std::string_view
+    
     if(len == 0) {
-        name = std::string_view("append_html_char_ptr")
+        if(converter.in_head) {
+            name = std::string_view("append_head_char_ptr")
+        } else {
+            name = std::string_view("append_html_char_ptr")
+        }
     } else {
-        name = std::string_view("append_html")
+        if(converter.in_head) {
+            name = std::string_view("append_head")
+        } else {
+            name = std::string_view("append_html")
+        }
     }
+
     var node : *mut ASTNode
     if(len == 0) {
-        node = converter.support.appendHtmlCharPtrFn
+        if(converter.in_head) {
+            node = converter.support.appendHeadCharPtrFn
+        } else {
+            node = converter.support.appendHtmlCharPtrFn
+        }
     } else {
-        node = converter.support.appendHtmlFn
+        if(converter.in_head) {
+            node = converter.support.appendHeadFn
+        } else {
+            node = converter.support.appendHtmlFn
+        }
     }
+
     var id = builder.make_identifier(name, node, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
@@ -254,6 +303,27 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
         }
         HtmlChildKind.Element => {
             var element = child as *mut HtmlElement
+            
+            if(element.name.equals(std::string_view("head"))) {
+                if(!str.empty()) {
+                    converter.put_chain_in();
+                }
+                const old = converter.in_head
+                converter.in_head = true
+                var i : uint = 0;
+                var s = element.children.size();
+                while(i < s) {
+                    var nested_child = element.children.get(i)
+                    converter.convertHtmlChild(nested_child)
+                    i++;
+                }
+                if(!str.empty()) {
+                    converter.put_chain_in();
+                }
+                converter.in_head = old
+                return;
+            }
+
             str.append('<')
             str.append_view(element.name)
 

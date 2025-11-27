@@ -16,4 +16,18 @@ struct SymResSupport {
 
     var appendHtmlDoubleFn : *mut ASTNode = null
 
+    var appendHeadCharFn : *mut ASTNode = null
+
+    var appendHeadCharPtrFn : *mut ASTNode = null
+
+    var appendHeadFn : *mut ASTNode = null
+
+    var appendHeadIntFn : *mut ASTNode = null
+
+    var appendHeadUIntFn : *mut ASTNode = null
+
+    var appendHeadFloatFn : *mut ASTNode = null
+
+    var appendHeadDoubleFn : *mut ASTNode = null
+
 }

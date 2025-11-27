@@ -873,10 +873,28 @@ else()
     target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 endif()
 
-# This instructs the linux build to always search for the libtcc.so in the
-# executable directory
-if(UNIX)
+# always search for the libtcc.so in the executable directory
+if(APPLE)
     set_target_properties(TCCCompiler PROPERTIES
+        INSTALL_RPATH "@executable_path"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+    set_target_properties(ChemicalLsp PROPERTIES
+        INSTALL_RPATH "@executable_path"
+        BUILD_WITH_INSTALL_RPATH TRUE
+    )
+    if(BUILD_COMPILER)
+        set_target_properties(Compiler PROPERTIES
+            INSTALL_RPATH "@executable_path"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    endif()
+elseif(UNIX)
+    set_target_properties(TCCCompiler PROPERTIES
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+    )
+    set_target_properties(ChemicalLsp PROPERTIES
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE
     )

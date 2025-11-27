@@ -39,6 +39,34 @@ public struct HtmlPage {
         pageHtml.append_double(value, 3)
     }
 
+    func append_head(&mut self, value : *char, len : size_t) {
+        pageHead.append_with_len(value, len);
+    }
+
+    func append_head_char_ptr(&mut self, value : *char) {
+        pageHead.append_char_ptr(value);
+    }
+
+    func append_head_char(&mut self, value : char) {
+        pageHead.append(value)
+    }
+
+    func append_head_integer(&mut self, value : bigint) {
+        pageHead.append_integer(value)
+    }
+
+    func append_head_uinteger(&mut self, value : ubigint) {
+        pageHead.append_uinteger(value)
+    }
+
+    func append_head_float(&mut self, value : float) {
+        pageHead.append_float(value, 3)
+    }
+
+    func append_head_double(&mut self, value : double) {
+        pageHead.append_double(value, 3)
+    }
+
     func append_css(&mut self, value : *char, len : size_t, hash : size_t) {
         if(!doneClasses.contains(hash)) {
             doneClasses.insert(hash, true)
@@ -88,6 +116,10 @@ public struct HtmlPage {
         str.append_string(pageHtml)
         str.append_view(std::string_view("</body></html>"))
         return str;
+    }
+
+    func toStringHeadOnly(&self) : std::string {
+        return pageHead.copy();
     }
 
     func toStringHtmlOnly(&self) : std::string {

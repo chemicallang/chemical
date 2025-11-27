@@ -62,6 +62,56 @@ func sym_res_root(
     support.appendHtmlFloatFn = appendHtmlFloatFn;
     support.appendHtmlDoubleFn = appendHtmlDoubleFn;
 
+    const appendHeadCharFn = page.child("append_head_char")
+    if(appendHeadCharFn == null) {
+        resolver.error("'append_head_char' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendHeadCharPtrFn = page.child("append_head_char_ptr")
+    if(appendHeadCharPtrFn == null) {
+        resolver.error("'append_head_char_ptr' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendHeadFn = page.child("append_head");
+    if(appendHeadFn == null) {
+        resolver.error("'append_head' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendHeadIntFn = page.child("append_head_integer");
+    if(appendHeadIntFn == null) {
+        resolver.error("'append_head_integer' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendHeadUIntFn = page.child("append_head_uinteger");
+    if(appendHeadUIntFn == null) {
+        resolver.error("'append_head_uinteger' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendHeadFloatFn = page.child("append_head_float");
+    if(appendHeadFloatFn == null) {
+        resolver.error("'append_head_float' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    const appendHeadDoubleFn = page.child("append_head_double");
+    if(appendHeadDoubleFn == null) {
+        resolver.error("'append_head_double' function is required on 'page' for html to work", loc);
+        return false;
+    }
+
+    support.appendHeadCharFn = appendHeadCharFn
+    support.appendHeadCharPtrFn = appendHeadCharPtrFn
+    support.appendHeadFn = appendHeadFn
+    support.appendHeadIntFn = appendHeadIntFn;
+    support.appendHeadUIntFn = appendHeadUIntFn;
+    support.appendHeadFloatFn = appendHeadFloatFn;
+    support.appendHeadDoubleFn = appendHeadDoubleFn;
+
     return true;
 
 }

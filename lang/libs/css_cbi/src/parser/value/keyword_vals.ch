@@ -828,6 +828,15 @@ func getUnicodeBidiKeywordKind(hash : size_t) : CSSKeywordKind {
     }
 }
 
+func getBackgroundBoxKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("border-box") => { return CSSKeywordKind.BorderBox; }
+        comptime_fnv1_hash("padding-box") => { return CSSKeywordKind.PaddingBox; }
+        comptime_fnv1_hash("content-box") => { return CSSKeywordKind.ContentBox; }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func getBackgroundRepeatKeywordKind(hash : size_t) : CSSKeywordKind {
     switch(hash) {
         comptime_fnv1_hash("repeat") => { return CSSKeywordKind.Repeat }

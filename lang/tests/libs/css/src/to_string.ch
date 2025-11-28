@@ -359,6 +359,15 @@ public func row_and_column_gap_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "row-gap:8px;column-gap:12px;");
 }
 
+@test
+public func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: url("img.png") no-repeat center/cover;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:url(\"img.png\") center/cover no-repeat;");
+}
+
 /**
 
 @test
@@ -368,15 +377,6 @@ public func font_shorthand_full_works(env : &mut TestEnv) {
         font: italic small-caps 600 18px/1.4 \"Open Sans\", Arial, sans-serif;
     }
     css_equals(env, page.toStringCssOnly(), "font:italic small-caps 600 18px/1.4 \"Open Sans\",Arial,sans-serif;");
-}
-
-@test
-public func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: url("img.png") no-repeat center/cover;
-    }
-    css_equals(env, page.toStringCssOnly(), "background:url(\"img.png\") no-repeat center/cover;");
 }
 
 @test

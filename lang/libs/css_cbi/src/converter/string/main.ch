@@ -923,6 +923,77 @@ func (converter : &mut ASTConverter) str_ref() : &mut std::string {
     return converter.str;
 }
 
+func (converter : &mut ASTConverter) writeBackgroundValueData(ptr : &mut CSSBackgroundValueData, str : &mut std::string) {
+    
+    var start = ptr.layers.data();
+    const end = start + ptr.layers.size();
+    while(start != end) {
+
+        if(start != ptr.layers.data()) {
+            str.append(',');
+            str.append(' ');
+        }
+        
+        var has_val = false;
+
+        if(start.image.kind != CSSValueKind.Unknown) {
+            converter.writeValue(start.image);
+            has_val = true;
+        }
+
+        if(start.positionX.kind != CSSValueKind.Unknown) {
+
+            if(has_val) str.append(' ');
+            converter.writeValue(start.positionX);
+            if(start.positionY.kind != CSSValueKind.Unknown) {
+                str.append(' ');
+                converter.writeValue(start.positionY);
+            }
+
+            if(start.size.kind != CSSValueKind.Unknown) {
+                str.append('/');
+                converter.writeValue(start.size);
+            }
+            has_val = true;
+        }
+
+        if(start.repeat.kind != CSSValueKind.Unknown) {
+            if(has_val) str.append(' ');
+            converter.writeValue(start.repeat);
+            has_val = true;
+        }
+
+        if(start.attachment.kind != CSSValueKind.Unknown) {
+            if(has_val) str.append(' ');
+            converter.writeValue(start.attachment);
+            has_val = true;
+        }
+
+        if(start.origin.kind != CSSValueKind.Unknown) {
+            if(has_val) str.append(' ');
+            converter.writeValue(start.origin);
+            has_val = true;
+        }
+
+        if(start.clip.kind != CSSValueKind.Unknown) {
+            if(has_val) str.append(' ');
+            converter.writeValue(start.clip);
+            has_val = true;
+        }
+
+
+        start++;
+    }
+
+    if(ptr.color.kind != CSSValueKind.Unknown) {
+        if(!ptr.layers.empty()) {
+            str.append(' ');
+        }
+        converter.writeValue(ptr.color);
+    }
+
+}
+
 func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
     // make this a reference
@@ -1088,7 +1159,7 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
         }
 
-        CSSValueKind.BackgroundImage => {
+        CSSValueKind.MultipleBackgroundImage => {
 
             const ptr = value.data as *mut MultipleBackgroundImageData
             var start = ptr.images.data()
@@ -1098,6 +1169,18 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
                 start++;
             }
 
+        }
+
+        CSSValueKind.BackgroundImage => {
+
+            const ptr = value.data as *mut BackgroundImageData
+            converter.writeBackgroundImageData(*ptr, str)
+
+        }
+
+        CSSValueKind.Background => {
+            const ptr = value.data as *mut CSSBackgroundValueData
+            converter.writeBackgroundValueData(*ptr, str);
         }
 
         CSSValueKind.ChemicalValue => {

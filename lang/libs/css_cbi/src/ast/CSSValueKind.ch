@@ -24,8 +24,9 @@ enum CSSValueKind {
     Transition,
     TransitionTimingFunction,
     Transform,
-
+    Background,
     BackgroundImage,
+    MultipleBackgroundImage,
 
 
 }

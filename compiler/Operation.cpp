@@ -63,6 +63,7 @@ llvm::Value* cast_int_to_ptr(Codegen& gen, llvm::Value* value, llvm::Type* targe
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
 
     // automatically dereference reference types
+    // TODO: this code block should be removed, once we stop hitting these paths
     if(firstType->kind() == BaseTypeKind::Reference) {
         const auto ref_type = firstType->as_reference_type_unsafe();
         const auto referred = ref_type->type->pure_type(allocator);
@@ -74,6 +75,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
             firstType = referred;
         }
     }
+    // TODO: this code block should be removed, once we stop hitting these paths
     if(secondType->kind() == BaseTypeKind::Reference) {
         const auto ref_type = secondType->as_reference_type_unsafe();
         const auto referred = ref_type->type->pure_type(allocator);

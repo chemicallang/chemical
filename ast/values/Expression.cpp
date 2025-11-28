@@ -48,15 +48,6 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
     }
 }
 
-BaseType* unwrap_reference(BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::Reference:
-            return type->as_reference_type_unsafe()->type;
-        default:
-            return type;
-    }
-}
-
 bool isPrimitive(BaseType* type);
 
 FunctionDeclaration* get_overloaded_func(Expression* expr) {
@@ -164,13 +155,17 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
         }
     }
 
+    // check first type is primitive
+    if(!isPrimitive(firstType)) {
+        diagnoser.error("expected the value to have primitive type", expr->firstValue);
+    }
     // check second type is primitive
     if(!isPrimitive(secondType)) {
         diagnoser.error("expected the value to have primitive type", expr->secondValue);
     }
 
-    const auto first = unwrap_reference(first_canonical->canonicalize_enum());
-    const auto second = unwrap_reference(secondType->canonical()->canonicalize_enum());
+    const auto first = first_canonical->canonicalize_enum();
+    const auto second = secondType->canonical()->canonicalize_enum();
     const auto first_kind = first->kind();
     const auto second_kind = second->kind();
     // operation between integer and float/double results in float/double

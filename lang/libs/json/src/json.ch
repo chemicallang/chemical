@@ -40,22 +40,22 @@ public interface JsonSaxHandler {
 /* Helper: append codepoint as UTF-8 into out buffer. Return false if not enough space. */
 func append_utf8(cp : uint32_t, out : *mut char, outpos : &mut size_t, outcap : size_t) : bool {
     if (cp <= 0x7F) {
-        if (outpos + 1 > outcap) return false;
+        if (*outpos + 1 > outcap) return false;
         out[outpos++] = cp as char;
         return true;
     } else if (cp <= 0x7FF) {
-        if (outpos + 2 > outcap) return false;
+        if (*outpos + 2 > outcap) return false;
         out[outpos++] = (0xC0 | ((cp >> 6) & 0x1F)) as char;
         out[outpos++] = (0x80 | (cp & 0x3F)) as char;
         return true;
     } else if (cp <= 0xFFFF) {
-        if (outpos + 3 > outcap) return false;
+        if (*outpos + 3 > outcap) return false;
         out[outpos++] = (0xE0 | ((cp >> 12) & 0x0F)) as char;
         out[outpos++] = (0x80 | ((cp >> 6) & 0x3F)) as char;
         out[outpos++] = (0x80 | (cp & 0x3F)) as char;
         return true;
     } else if (cp <= 0x10FFFF) {
-        if (outpos + 4 > outcap) return false;
+        if (*outpos + 4 > outcap) return false;
         out[outpos++] = (0xF0 | ((cp >> 18) & 0x07)) as char;
         out[outpos++] = (0x80 | ((cp >> 12) & 0x3F)) as char;
         out[outpos++] = (0x80 | ((cp >> 6) & 0x3F)) as char;
@@ -247,21 +247,21 @@ private:
                 var e = cur() as uchar;
                 advance();
                 if (e == '"') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '"';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '"';
                 } else if (e == '\\') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\\';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\\';
                 } else if (e == '/') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '/';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '/';
                 } else if (e == 'b') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\b';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\b';
                 } else if (e == 'f') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\f';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\f';
                 } else if (e == 'n') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\n';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\n';
                 } else if (e == 'r') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\r';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\r';
                 } else if (e == 't') {
-                    if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\t';
+                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\t';
                 } else if (e == 'u') {
                     /* expect 4 hex digits */
                     if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
@@ -301,7 +301,7 @@ private:
                 if (*outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
             } else {
                 /* regular character: copy as-is (assume UTF-8 in source) */
-                if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long");
+                if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long");
                 out[outlen++] = c as char;
                 advance();
                 if (*outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");

@@ -48,8 +48,6 @@ void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typ
     }
 }
 
-bool isPrimitive(BaseType* type);
-
 FunctionDeclaration* get_overloaded_func(Expression* expr) {
     const auto first_canonical = expr->firstValue->getType()->canonical();
     const auto node = first_canonical->get_linked_canonical_node(true, false);
@@ -76,7 +74,7 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     auto secondType = expr->secondValue->getType();
     if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
         // check first type is primitive
-        if(!isPrimitive(firstType)) {
+        if(!firstType->isPrimitive()) {
             // check if overloaded operator exists
             const auto overloaded = get_overloaded_func(expr);
             if(overloaded != nullptr) {
@@ -96,7 +94,7 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
                 diagnoser.error("expected the value to have primitive type or have operator overloaded", expr->firstValue);
             }
         }
-        if(!isPrimitive(secondType)) {
+        if(!secondType->isPrimitive()) {
             diagnoser.error("expected the value to have primitive type", expr->secondValue);
         }
         return typeBuilder.getBoolType();
@@ -156,11 +154,11 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     }
 
     // check first type is primitive
-    if(!isPrimitive(firstType)) {
+    if(!firstType->isPrimitive()) {
         diagnoser.error("expected the value to have primitive type", expr->firstValue);
     }
     // check second type is primitive
-    if(!isPrimitive(secondType)) {
+    if(!secondType->isPrimitive()) {
         diagnoser.error("expected the value to have primitive type", expr->secondValue);
     }
 

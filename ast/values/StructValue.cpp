@@ -172,27 +172,22 @@ void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lh
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         const auto value = llvm_allocate(gen, "", nullptr);
         gen.assign_store(lhs, lhsPtr, this, value, encoded_location());
-        return;
     } else if(lhs->as_deref_value()) {
         if(!definition->destructor_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
             const auto deref_type = deref->getValue()->getType();
-            if (deref_type->pure_type(gen.allocator)->is_pointer()) {
-                auto allocated = deref->llvm_pointer(gen);
-                initialize_alloca(allocated, gen, nullptr);
+            if (!deref_type->pure_type(gen.allocator)->is_pointer_or_ref()) {
+                gen.error("expected a pointer or a reference", lhs);
                 return;
             }
+            const auto allocated = deref->llvm_pointer(gen);
+            initialize_alloca(allocated, gen, nullptr);
         } else {
             gen.error("definition has either a destructor function or does not allow direct init", lhs);
         }
     } else {
         initialize_alloca(lhsPtr, gen, nullptr);
-        return;
     }
-    gen.error("cannot assign struct value to pointer", lhs);
-#ifdef DEBUG
-    CHEM_THROW_RUNTIME("cannot allocate a struct without an identifier");
-#endif
 }
 
 llvm::Value *StructValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {

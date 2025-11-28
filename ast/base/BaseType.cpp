@@ -186,6 +186,52 @@ BaseType* BaseType::canonicalize_enum() {
     return decl ? decl->get_underlying_integer_type() : this;
 }
 
+inline bool isLinkedTypePrimitive(LinkedType* type, bool isAnyPrimitive) {
+    const auto linked = type->linked;
+    switch(linked->kind()) {
+        case ASTNodeKind::TypealiasStmt:
+            return linked->as_typealias_unsafe()->actual_type->isPrimitive(isAnyPrimitive);
+        case ASTNodeKind::EnumDecl:
+        case ASTNodeKind::EnumMember:
+            return true;
+        case ASTNodeKind::GenericTypeParam:
+            // TODO: generic type parameters must be checked to meet primitive type constraint here
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool BaseType::isPrimitive(bool isAnyPrimitive) {
+    switch(kind()) {
+        case BaseTypeKind::Any:
+            return isAnyPrimitive;
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Complex:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Function:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::String:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Literal:
+            return true;
+        case BaseTypeKind::MaybeRuntime:
+            return as_maybe_runtime_type_unsafe()->underlying->isPrimitive(isAnyPrimitive);
+        case BaseTypeKind::Runtime:
+            return as_runtime_type_unsafe()->underlying->isPrimitive(isAnyPrimitive);
+        case BaseTypeKind::Linked:
+            return isLinkedTypePrimitive(as_linked_type_unsafe(), isAnyPrimitive);
+        case BaseTypeKind::Generic:
+            return isLinkedTypePrimitive(as_generic_type_unsafe()->referenced, isAnyPrimitive);
+        default:
+            return false;
+    }
+}
+
 ASTNode* BaseType::get_direct_linked_node() {
     switch(kind()) {
         case BaseTypeKind::Linked:

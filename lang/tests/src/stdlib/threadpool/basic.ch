@@ -52,7 +52,7 @@ func test_submit_void_and_mutexed_counter() : bool {
         while (i < n) {
             var inc: std.function<() => void> = |&mut m,&mut counter|() => {
                 m.lock();
-                counter = *counter + 1u;
+                *counter = *counter + 1u;
                 m.unlock()
             };
             pool.submit_void(inc);
@@ -75,7 +75,7 @@ func test_destruction_waits() : bool {
             var f: std.function<() => void> = |&mut m,&mut counter|() => {
                 std::concurrent::sleep_ms(20u);
                 m.lock();
-                counter = *counter + 1u;
+                *counter = *counter + 1u;
                 m.unlock()
             };
             pool.submit_void(f);
@@ -98,7 +98,7 @@ func test_stress_many_tasks() : bool {
         while (i < tasks) {
             var inc: std.function<() => void> = |&mut m,&mut counter|() => {
                 m.lock();
-                counter = *counter + 1u;
+                *counter = *counter + 1u;
                 m.unlock()
             };
             pool.submit_void(inc);
@@ -203,7 +203,7 @@ func test_mutex_contention() : bool {
             var j = 0u;
             while (j < times) {
                 m.lock();
-                counter = *counter + 1u;
+                *counter = *counter + 1u;
                 m.unlock();
                 j = j + 1u;
             }
@@ -278,7 +278,7 @@ func test_closure_captures() : bool {
     var pool = std::concurrent::create_pool(2u);
     var value = 100u64;
     var byval: std.function<() => u64> = |value|() => { return value + 23u }; // capture by value
-    var byref: std.function<() => u64> = |&mut value|() => { value = *value + 1u; return *value };
+    var byref: std.function<() => u64> = |&mut value|() => { *value = *value + 1u; return *value };
     var f1 = pool.submit<u64>(byval);
     var f2 = pool.submit<u64>(byref);
     var r1 = f1.get();
@@ -311,7 +311,7 @@ func test_mixed_quick_tasks() : bool {
         while (i < 300u) {
             var inc: std.function<() => void> = |&mut m,&mut counter|() => {
                 m.lock();
-                counter = *counter + 1u;
+                *counter = *counter + 1u;
                 m.unlock()
             };
             pool.submit_void(inc);

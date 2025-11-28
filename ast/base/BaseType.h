@@ -202,6 +202,11 @@ public:
     chem::string_view linked_name();
 
     /**
+     * checks if the current type is primitive
+     */
+    bool isPrimitive(bool isAnyPrimitive = true);
+
+    /**
      * check if this kind is a pointer
      */
     static inline bool is_pointer(BaseTypeKind k) {

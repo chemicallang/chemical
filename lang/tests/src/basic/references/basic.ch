@@ -44,7 +44,7 @@ func compare_refs(a : &int, b : int) : bool {
     // which further is dereferenced, so output in C would be *(*(a + 1) > b) which is wrong
     // it should understand that comparison with reference means unwrap the reference type
     // when determining type of the expression
-    if(a + 1 > b) {
+    if(*a + 1 > b) {
         return true;
     }
     return false;

@@ -61,7 +61,7 @@ func <T> gen_dec_param_value(value : T) : T {
 }
 
 func take_ref_to_r_val(value : &int) : bool {
-    return value == 812
+    return *value == 812
 }
 
 func pass_r_val_to_ref(value : int) : bool {

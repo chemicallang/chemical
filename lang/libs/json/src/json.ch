@@ -298,13 +298,13 @@ private:
                         if (!append_utf8(code, out, outlen, outcap)) return ParseResult::Err(pos, "string too long or invalid unicode");
                     }
                 } else return ParseResult::Err(pos, "invalid escape");
-                if (outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
+                if (*outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
             } else {
                 /* regular character: copy as-is (assume UTF-8 in source) */
                 if (outlen + 1 > outcap) return ParseResult::Err(pos, "string too long");
                 out[outlen++] = c as char;
                 advance();
-                if (outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
+                if (*outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
             }
         }
         return ParseResult::Err(pos, "unterminated string");

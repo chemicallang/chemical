@@ -137,24 +137,24 @@ func test_auto_deref() {
     test("automatic dereferences in expressions work - 1", () => {
         var i = 545
         var ref = give_ref(i)
-        return ref == i;
+        return *ref == i;
     })
     test("automatic dereferences in expressions work - 2", () => {
         var i = 547
         var ref = give_ref(i)
-        return i == ref;
+        return i == *ref;
     })
     test("automatic dereferences in expressions work - 3", () => {
         var i = 545
         var ref = give_ref(i)
         var ref2 = give_ref(i)
-        return ref == ref2;
+        return *ref == *ref2;
     })
     test("automatic dereferences in expressions work - 2", () => {
         var i = 547
         var ref = give_ref(i)
         var ref2 = ref
-        return ref == ref2;
+        return *ref == *ref2;
     })
     test("automatic dereferences when passing to var args parameter", () => {
         var i = 788

@@ -26,9 +26,13 @@ public interface Eq {
 
 }
 
+comptime func compare_numbers(value : any, value2 : any) : bool {
+    return intrinsics::wrap(value == value2) as bool
+}
+
 comptime func <T> compare(value : T, value2 : T) : bool {
     if(T is char || T is uchar || is_type_number<T>() || intrinsics::satisfies<*any, T>()) {
-        return intrinsics::wrap(value == value2) as bool
+        return compare_numbers(value, value2)
     } else if(T is Eq) {
        const comp = value as Eq
        return intrinsics::wrap(comp.equals(value2 as Eq)) as bool

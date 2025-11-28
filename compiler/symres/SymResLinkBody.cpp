@@ -2603,6 +2603,53 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     }
 }
 
+bool isPrimitive(BaseType* type);
+
+inline bool isLinkedTypePrimitive(LinkedType* type) {
+    const auto linked = type->linked;
+    switch(linked->kind()) {
+        case ASTNodeKind::TypealiasStmt:
+            return isPrimitive(linked->as_typealias_unsafe()->actual_type);
+        case ASTNodeKind::EnumDecl:
+        case ASTNodeKind::EnumMember:
+            return true;
+        case ASTNodeKind::GenericTypeParam:
+            // TODO: generic type parameters must be checked to meet primitive type constraint here
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool isPrimitive(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Any:
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Complex:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::Function:
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::String:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Literal:
+            return true;
+        case BaseTypeKind::MaybeRuntime:
+            return isPrimitive(type->as_maybe_runtime_type_unsafe()->underlying);
+        case BaseTypeKind::Runtime:
+            return isPrimitive(type->as_runtime_type_unsafe()->underlying);
+        case BaseTypeKind::Linked:
+            return isLinkedTypePrimitive(type->as_linked_type_unsafe());
+        case BaseTypeKind::Generic:
+            return isLinkedTypePrimitive(type->as_generic_type_unsafe()->referenced);
+        default:
+            return false;
+    }
+}
+
 void SymResLinkBody::VisitExpression(Expression* value) {
     visit(value->firstValue);
     visit(value->secondValue);

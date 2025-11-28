@@ -218,7 +218,7 @@ func test_references() {
     test("stored reference inside struct is returned properly according to type - 2", () => {
         var i = 34;
         var p = RefPassRet { ref : i }
-        return p.give2() == 34
+        return *p.give2() == 34
     })
     test("stored reference inside struct is returned properly according to type - 3", () => {
         var i = 98;

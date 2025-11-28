@@ -21,11 +21,6 @@ inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
 }
 
-// will use underlying integer type for enums
-inline BaseType* canonicalize_enum(BaseType* type) {
-    return type->canonicalize_enum();
-}
-
 void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         if(firstValue->val_kind() == ValueKind::IntN) {
@@ -62,16 +57,59 @@ BaseType* unwrap_reference(BaseType* type) {
     }
 }
 
-BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
-    if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
-        return typeBuilder.getBoolType();
-    }
-    auto firstType = expr->firstValue->getType();
-    auto secondType = expr->secondValue->getType();
-    if(firstType == nullptr || secondType == nullptr) {
+bool isPrimitive(BaseType* type);
+
+FunctionDeclaration* get_overloaded_func(Expression* expr) {
+    const auto first_canonical = expr->firstValue->getType()->canonical();
+    const auto node = first_canonical->get_linked_canonical_node(true, false);
+    if(node == nullptr) return nullptr;
+    const auto container = node->get_members_container();
+    if(container == nullptr) return nullptr;
+    const auto op_info = operator_impl_info(expr->operation);
+    if (op_info.name.empty()) return nullptr;
+    const auto child_node = container->child(op_info.name);
+    if(child_node == nullptr) return nullptr;
+    if(child_node->kind() == ASTNodeKind::FunctionDecl) {
+        return child_node->as_function_unsafe();
+    } else if(child_node->kind() == ASTNodeKind::MultiFunctionNode) {
+        const auto multi_node = child_node->as_multi_func_node_unsafe();
+        std::vector<Value*> args { expr->firstValue, expr->secondValue };
+        return multi_node->func_for_call(args);
+    } else {
         return nullptr;
     }
+}
 
+BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
+    auto firstType = expr->firstValue->getType();
+    auto secondType = expr->secondValue->getType();
+    if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
+        // check first type is primitive
+        if(!isPrimitive(firstType)) {
+            // check if overloaded operator exists
+            const auto overloaded = get_overloaded_func(expr);
+            if(overloaded != nullptr) {
+                if(overloaded->params.size() != 2) {
+                    // since this expression has two values, we always expect two parameters
+                    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
+                    return (BaseType*) typeBuilder.getVoidType();
+                }
+                // check the second type here that it matches the overloaded parameter
+                if(!overloaded->params[1]->type->satisfies(expr->secondValue, false)) {
+                    diagnoser.error(expr->secondValue) << "value doesn't satisfy the overloaded operator parameter";
+                    return (BaseType*) typeBuilder.getVoidType();
+                }
+                // return early second type has been checked
+                return typeBuilder.getBoolType();
+            } else {
+                diagnoser.error("expected the value to have primitive type or have operator overloaded", expr->firstValue);
+            }
+        }
+        if(!isPrimitive(secondType)) {
+            diagnoser.error("expected the value to have primitive type", expr->secondValue);
+        }
+        return typeBuilder.getBoolType();
+    }
     // check if its overloading operator
     const auto first_canonical = firstType->canonical();
     const auto node = first_canonical->get_linked_canonical_node(true, false);
@@ -111,6 +149,11 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
                     diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
                     return (BaseType*) typeBuilder.getVoidType();
                 }
+                // check the second type here that it matches the overloaded parameter
+                if(!func->params[1]->type->satisfies(expr->secondValue, false)) {
+                    diagnoser.error(expr->secondValue) << "value doesn't satisfy the overloaded operator parameter";
+                    return (BaseType*) typeBuilder.getVoidType();
+                }
                 // yes, its overloading an operator
                 return func->returnType;
             } else {
@@ -119,6 +162,11 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
             }
 
         }
+    }
+
+    // check second type is primitive
+    if(!isPrimitive(secondType)) {
+        diagnoser.error("expected the value to have primitive type", expr->secondValue);
     }
 
     const auto first = unwrap_reference(first_canonical->canonicalize_enum());

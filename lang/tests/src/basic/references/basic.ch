@@ -11,7 +11,7 @@ func in_between_ref_pass(r : &ReferencableStruct) : int {
 }
 
 func assign_to_passed_ref(r : &mut int) {
-    r = 434
+    *r = 434
 }
 
 struct ReferencableStructRef {
@@ -24,7 +24,7 @@ variant ReferencableStructOpt {
 }
 
 struct ReferencableInt {
-    var i : &int
+    var i : &mut int
 }
 
 func take_int_ref(a : &int) : int {
@@ -51,7 +51,7 @@ func compare_refs(a : &int, b : int) : bool {
 }
 
 variant OptRefInt {
-    Some(i : &int)
+    Some(i : &mut int)
     None()
 }
 
@@ -166,12 +166,12 @@ func test_references() {
     })
     test("can assign to a int n reference", () => {
         var i = 0;
-        give_int_ref_32(i) = 43
+        *give_int_ref_32(i) = 43
         return i == 43;
     })
     test("can assign to a struct type reference", () => {
         var p = ReferencableStruct { i : 32 }
-        give_ref_struct_ref(p) = ReferencableStruct { i : 98 }
+        *give_ref_struct_ref(p) = ReferencableStruct { i : 98 }
         return p.i == 98
     })
     test("assignment to passed reference works", () => {
@@ -194,20 +194,20 @@ func test_references() {
     test("assignment to stored reference inside struct works", () => {
         var i = 0
         var r = ReferencableInt { i : i }
-        r.i = 458
+        *r.i = 458
         return i == 458;
     })
     test("assignment to stored reference inside variant works", () => {
         var j = 0
         var opt = OptRefInt.Some(j)
         var Some(i) = opt else unreachable
-        i = 873
+        *i = 873
         return j == 873
     })
     test("assignment to stored reference inside array works", () => {
         var i = 0
         var arr = [ give_int_ref_32(i) ]
-        arr[0] = 827
+        *arr[0] = 827
         return i == 827
     })
     test("stored reference inside struct is returned properly according to type - 1", () => {

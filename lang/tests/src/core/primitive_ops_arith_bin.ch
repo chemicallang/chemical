@@ -91,7 +91,7 @@ struct PrimArithBinOpStruct : core::ops::Add<int, int>,
 }
 
 func assign_mut_ref_op_overloaded(ref : &mut int) {
-    ref = 834
+    *ref = 834
 }
 
 func test_arithmetic_bin_op_with_primitive() {

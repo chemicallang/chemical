@@ -160,7 +160,7 @@ func test_capturing_lambda() {
     test("can modify captured reference", () => {
         var temp = 0
         take_cap_func(|&mut temp|() => {
-            temp = 121;
+            *temp = 121;
             return 0;
         })
         return temp == 121;

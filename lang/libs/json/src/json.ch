@@ -235,7 +235,7 @@ private:
     func parse_string_inplace(&mut self, out : *mut char, outcap : size_t, outlen : &mut size_t) : ParseResult {
         if (cur() != '"') return ParseResult::Err(pos, "expected '\"'");
         advance(); /* skip '"' */
-        outlen = 0 as size_t;
+        *outlen = 0 as size_t;
         while (!at_end()) {
             var c = cur() as uchar;
             if (c == '"') { advance(); return ParseResult::Ok(); }

@@ -272,11 +272,27 @@ struct MultipleBackgroundImageData {
 
 struct CSSBackgroundLayerData {
 
-    var attachment : CSSKeywordValueData
+    var image : CSSValue
+
+    var positionX : CSSValue
+
+    var positionY : CSSValue
+
+    var size : CSSValue
+
+    var repeat : CSSValue
+
+    var attachment : CSSValue
+
+    var origin : CSSValue
+
+    var clip : CSSValue
 
 }
 
 struct CSSBackgroundValueData {
+
+    var color : CSSValue
 
     var layers : std::vector<CSSBackgroundLayerData>
 

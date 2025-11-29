@@ -52,31 +52,15 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
     const support = converter.support
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-    var name : std::string_view
-    if(len == 0) {
-        name = std::string_view("append_css_char_ptr")
-    } else {
-        name = std::string_view("append_css_nh")
-    }
-    var node : *mut ASTNode
-    if(len == 0) {
-        node = support.appendCssCharPtrFn
-    } else {
-        node = support.appendCssNhFn
-    }
+    var name : std::string_view = std::string_view("append_css_nh")
+    var node : *mut ASTNode = support.appendCssNhFn
     var id = builder.make_identifier(name, node, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
-    if(len != 0) {
-        args.push(builder.make_ubigint_value(len, location));
-    }
+    args.push(builder.make_ubigint_value(len, location));
     return call;
-}
-
-func (converter : &mut ASTConverter) make_expr_chain_of(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_chain(value, 0);
 }
 
 func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {

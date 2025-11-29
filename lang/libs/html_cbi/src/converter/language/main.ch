@@ -103,44 +103,23 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     var name : std::string_view
-    
-    if(len == 0) {
-        if(converter.in_head) {
-            name = std::string_view("append_head_char_ptr")
-        } else {
-            name = std::string_view("append_html_char_ptr")
-        }
+    if(converter.in_head) {
+        name = std::string_view("append_head")
     } else {
-        if(converter.in_head) {
-            name = std::string_view("append_head")
-        } else {
-            name = std::string_view("append_html")
-        }
+        name = std::string_view("append_html")
     }
-
     var node : *mut ASTNode
-    if(len == 0) {
-        if(converter.in_head) {
-            node = converter.support.appendHeadCharPtrFn
-        } else {
-            node = converter.support.appendHtmlCharPtrFn
-        }
+    if(converter.in_head) {
+        node = converter.support.appendHeadFn
     } else {
-        if(converter.in_head) {
-            node = converter.support.appendHeadFn
-        } else {
-            node = converter.support.appendHtmlFn
-        }
+        node = converter.support.appendHtmlFn
     }
-
     var id = builder.make_identifier(name, node, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
-    if(len != 0) {
-        args.push(builder.make_ubigint_value(len, location));
-    }
+    args.push(builder.make_ubigint_value(len, location));
     return call;
 }
 

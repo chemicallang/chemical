@@ -377,6 +377,15 @@ public func background_linear_gradient_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "background:linear-gradient(45deg,#ff0000 0%,#0000ff 100%);");
 }
 
+@test
+public func background_with_position_and_size_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: url("hero.jpg") no-repeat 20% 30%/contain;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:url(\"hero.jpg\") 20% 30%/contain no-repeat;");
+}
+
 /**
 
 @test
@@ -508,15 +517,6 @@ public func perspective_and_origin_works(env : &mut TestEnv) {
         perspective-origin: 50% 25%;
     }
     css_equals(env, page.toStringCssOnly(), "perspective:500px;perspective-origin:50% 25%;");
-}
-
-@test
-public func background_with_position_and_size_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: url("hero.jpg") no-repeat 20% 30%/contain;
-    }
-    css_equals(env, page.toStringCssOnly(), "background:url(\"hero.jpg\") no-repeat 20% 30%/contain;");
 }
 
 @test

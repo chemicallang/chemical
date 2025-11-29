@@ -40,10 +40,10 @@ func (cssParser : &mut CSSParser) parseLinearColorStop(parser : *mut Parser, bui
     return true;
 }
 
-func (cssParser : &mut CSSParser) parseColorStopList(parser : *mut Parser, builder : *mut ASTBuilder, lin_data : *mut LinearGradientData) {
+func (cssParser : &mut CSSParser) parseColorStopList(parser : *mut Parser, builder : *mut ASTBuilder, list : &mut std::vector<LinearColorStopWHint>) {
     while(true) {
-        lin_data.color_stop_list.push(LinearColorStopWHint())
-        const stop = lin_data.color_stop_list.last_ptr()
+        list.push(LinearColorStopWHint())
+        const stop = list.last_ptr()
 
         // optional hint
         cssParser.parseLength(parser, builder, stop.hint)
@@ -88,7 +88,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
             parser.increment()
         }
 
-        cssParser.parseColorStopList(parser, builder, lin_data)
+        cssParser.parseColorStopList(parser, builder, lin_data.color_stop_list)
 
     } else if(token.type == TokenType.Identifier) {
         if(token.value.equals("to")) {
@@ -119,7 +119,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
                 parser.increment()
             }
 
-            cssParser.parseColorStopList(parser, builder, lin_data)
+            cssParser.parseColorStopList(parser, builder, lin_data.color_stop_list)
 
         } else {
 
@@ -132,7 +132,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
                 parser.increment()
             }
 
-            cssParser.parseColorStopList(parser, builder, lin_data)
+            cssParser.parseColorStopList(parser, builder, lin_data.color_stop_list)
 
         }
     }
@@ -155,8 +155,16 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
         parser.error("expected a '(' after 'radial-gradient'");
     }
 
-    const next3 = parser.getToken()
-    parser.error("TODO: Not yet implemented");
+    const rad_data = builder.allocate<RadialGradientData>()
+    new (rad_data) RadialGradientData()
+
+    data.kind = CSSGradientKind.Radial
+    data.data = rad_data;
+
+    // TODO: Parse shape, size, position
+    // For now, let's just parse color stops as that's the most common case and what we likely need for basic support.
+    
+    cssParser.parseColorStopList(parser, builder, rad_data.color_stop_list)
 
     const next2 = parser.getToken()
     if(next2.type == TokenType.RParen) {
@@ -175,8 +183,16 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
         parser.error("expected a '(' after 'conic-gradient'");
     }
 
-    const next3 = parser.getToken()
-    parser.error("TODO: Not yet implemented");
+    const con_data = builder.allocate<ConicGradientData>()
+    new (con_data) ConicGradientData()
+
+    data.kind = CSSGradientKind.Conic
+    data.data = con_data;
+
+    // TODO: Parse from <angle> at <position>
+    
+    // Parse color stops
+    cssParser.parseColorStopList(parser, builder, con_data.color_stop_list)
 
     const next2 = parser.getToken()
     if(next2.type == TokenType.RParen) {
@@ -309,8 +325,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSizeValue(
     // But size in CSSBackgroundLayerData is a single CSSValue.
     // If we have two values, we can use CSSValueKind.Pair.
     
-    var first : CSSValue;
-    first.empty();
+    var first = CSSValue();
     
     if(cssParser.parseLength(parser, builder, first)) {
         // parsed first length
@@ -327,8 +342,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSizeValue(
     
     if(!first.isUnknown()) {
         // check for second value
-        var second : CSSValue;
-        second.empty();
+        var second = CSSValue();
         
         if(cssParser.parseLength(parser, builder, second)) {
             // parsed second length
@@ -347,7 +361,7 @@ func (cssParser : &mut CSSParser) parseBackgroundSizeValue(
             size.kind = CSSValueKind.Pair;
             size.data = pair;
         } else {
-            size = first;
+            *size = first;
         }
     }
     

@@ -823,11 +823,63 @@ func (converter : &mut ASTConverter) writeLinearGradientData(data : &mut LinearG
 }
 
 func (converter : &mut ASTConverter) writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
+    // TODO: Write shape, size, position
+    
+    var start = data.color_stop_list.data()
+    const end = start + data.color_stop_list.size()
+    while(start != end) {
 
+        converter.writeValue(start.hint)
+
+        converter.writeValue(start.stop.color)
+
+        if(start.stop.length.kind != CSSValueKind.Unknown) {
+
+            str.append(' ');
+            converter.writeValue(start.stop.length)
+
+            if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+                str.append(' ');
+                converter.writeValue(start.stop.optSecLength)
+            }
+
+        }
+
+        start++;
+
+        if(start != end) str.append(',');
+
+    }
 }
 
 func (converter : &mut ASTConverter) writeConicGradientData(data : &mut ConicGradientData, str : &mut std::string) {
+    // TODO: Write from <angle> at <position>
 
+    var start = data.color_stop_list.data()
+    const end = start + data.color_stop_list.size()
+    while(start != end) {
+
+        converter.writeValue(start.hint)
+
+        converter.writeValue(start.stop.color)
+
+        if(start.stop.length.kind != CSSValueKind.Unknown) {
+
+            str.append(' ');
+            converter.writeValue(start.stop.length)
+
+            if(start.stop.optSecLength.kind != CSSValueKind.Unknown) {
+                str.append(' ');
+                converter.writeValue(start.stop.optSecLength)
+            }
+
+        }
+
+        start++;
+
+        if(start != end) str.append(',');
+
+    }
 }
 
 func (converter : &mut ASTConverter) writeBackgroundImageData(ptr : &mut BackgroundImageData, str : &mut std::string) {

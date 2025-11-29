@@ -54,6 +54,8 @@ struct RadialGradientData {
 
     var position : CSSValue
 
+    var color_stop_list : std::vector<LinearColorStopWHint>
+
 }
 
 enum RectangularColorSpaceKind {
@@ -76,7 +78,7 @@ enum RectangularColorSpaceKind {
 
 struct RectangularColorSpace {
 
-    var kind : RectangularColorSpaceKind
+    var kind : RectangularColorSpaceKind = RectangularColorSpaceKind.None
 
     var value : std::string_view
 
@@ -92,7 +94,7 @@ enum PolarColorSpaceKind {
 
 struct PolarColorSpace {
 
-    var kind : PolarColorSpaceKind
+    var kind : PolarColorSpaceKind = PolarColorSpaceKind.None
 
     var value : std::string_view
 
@@ -121,6 +123,8 @@ struct ConicGradientData {
     var at : CSSValue
 
     var interpolation : ColorInterpolationMethod
+
+    var color_stop_list : std::vector<LinearColorStopWHint>
 
 }
 

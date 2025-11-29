@@ -32,7 +32,7 @@ func (converter : &mut ASTConverter) make_char_call(value : char) : *mut Functio
     return call;
 }
 
-func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Value, len : size_t, hash : size_t) : *mut FunctionCallNode {
+func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Value, len : size_t) : *mut FunctionCallNode {
     const builder = converter.builder
     const support = converter.support
     const location = intrinsics::get_raw_location();
@@ -43,7 +43,6 @@ func (converter : &mut ASTConverter) make_append_css_value_chain(value : *mut Va
     var args = call.get_args();
     args.push(value)
     args.push(builder.make_ubigint_value(len, location));
-    args.push(builder.make_ubigint_value(hash, location))
     return call;
 }
 
@@ -53,7 +52,7 @@ func (converter : &mut ASTConverter) make_value_chain(value : *mut Value, len : 
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
     var name : std::string_view = std::string_view("append_css_nh")
-    var node : *mut ASTNode = support.appendCssNhFn
+    var node : *mut ASTNode = support.appendCssFn
     var id = builder.make_identifier(name, node, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
@@ -126,11 +125,11 @@ func (converter : &mut ASTConverter) put_view_chain(view : &std::string_view) {
     converter.vec.push(chain);
 }
 
-func (converter : &mut ASTConverter) put_append_css_value_chain(view : &std::string_view, hash : size_t) {
+func (converter : &mut ASTConverter) put_append_css_value_chain(view : &std::string_view) {
     const location = intrinsics::get_raw_location();
     const builder = converter.builder
     const value = builder.make_string_value(builder.allocate_view(view), location)
-    const chain = converter.make_append_css_value_chain(value, view.size(), hash);
+    const chain = converter.make_append_css_value_chain(value, view.size());
     converter.vec.push(chain);
 }
 
@@ -1353,14 +1352,6 @@ func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::str
     return std::string_view(ptr, total_size)
 }
 
-func (converter : &mut ASTConverter) put_hashed_string_chain() {
-    const builder = converter.builder
-    // calculate the hash before making any changes
-    const hash = fnv1a_hash_32(converter.str.data());
-    const classNameView = allocate_view_with_classname(builder, converter.str, hash)
-    converter.put_append_css_value_chain(classNameView, hash)
-}
-
 func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefix : char) {
     var className : char[10] = [];
     className[0] = '.'
@@ -1378,13 +1369,66 @@ func generate_random_32bit() : uint32_t {
     return (rand() as uint32_t << 16) | rand() as uint32_t;
 }
 
+func (converter : &mut ASTConverter) make_func_call_with_arg(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCall {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var id = builder.make_identifier(fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_value(chain, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
+func (converter : &mut ASTConverter) make_require_css_hash_call(hash : size_t) : *mut FunctionCall {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    return converter.make_func_call_with_arg(value, std::string_view("require_css_hash"), converter.support.requireCssHashFn)
+}
+
+func (converter : &mut ASTConverter) make_set_css_hash_call(hash : size_t) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    return converter.make_value_call_with(value, std::string_view("set_css_hash"), converter.support.setCssHashFn)
+}
+
+func (converter : &mut ASTConverter) make_require_random_css_hash_call(hash : size_t) : *mut FunctionCall {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    return converter.make_func_call_with_arg(value, std::string_view("require_random_css_hash"), converter.support.requireRandomCssHashFn)
+}
+
+func (converter : &mut ASTConverter) make_set_random_css_hash_call(hash : size_t) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    return converter.make_value_call_with(value, std::string_view("set_random_css_hash"), converter.support.setRandomCssHashFn)
+}
+
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const builder = converter.builder
     const str = &mut converter.str
     var size = om.declarations.size()
     if(size > 0) {
+        const location = intrinsics::get_raw_location();
         if(om.has_dynamic_values()) {
             const hash = generate_random_32bit();
+            
+            // if(page.require_random_css_hash(hash))
+            var ifStmt = builder.make_if_stmt(converter.make_require_random_css_hash_call(hash), converter.parent, location);
+            var body = ifStmt.get_body();
+            
+            // page.set_random_css_hash(hash)
+            body.push(converter.make_set_random_css_hash_call(hash));
+            
+            // redirect output to if body
+            var oldVec = converter.vec;
+            converter.vec = body;
+
             var className : char[10] = [];
             className[0] = '.'
             className[1] = 'r'
@@ -1393,29 +1437,57 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
             className[9] = '\0'
             const total = builder.allocate_view(std::string_view(&className[0], 9u));
             converter.put_view_chain(total)
-            // TODO this doesn't work
-            // const dataPtr = total.data() + 1
-            // om.className = std::string_view(dataPtr, 7)
-        }
-        var i : uint = 0
-        while(i < size) {
-            var decl = om.declarations.get(i)
-            converter.convertDeclaration(decl)
-            i++;
-        }
-        if(str.empty()) {
-            converter.put_char_chain('}')
-        } else {
-            // end the string here
-            if(!om.has_dynamic_values()) {
-                // calculate the hash before making any changes
-                const hash = fnv1a_hash_32(str.data());
-                const totalView = allocate_view_with_classname(builder, *str, hash)
-                om.className = std::string_view(totalView.data() + 1, 7u)
-                converter.put_append_css_value_chain(totalView, hash)
+            
+            var i : uint = 0
+            while(i < size) {
+                var decl = om.declarations.get(i)
+                converter.convertDeclaration(decl)
+                i++;
+            }
+            
+            if(str.empty()) {
+                converter.put_char_chain('}')
             } else {
                 str.append('}')
                 converter.put_chain_in();
+            }
+            
+            // restore output
+            converter.vec = oldVec;
+            converter.vec.push(ifStmt);
+
+        } else {
+            var i : uint = 0
+            while(i < size) {
+                var decl = om.declarations.get(i)
+                converter.convertDeclaration(decl)
+                i++;
+            }
+            if(str.empty()) {
+                // empty block?
+            } else {
+                // end the string here
+                // calculate the hash before making any changes
+                const hash = fnv1a_hash_32(str.data());
+                
+                // if(page.require_css_hash(hash))
+                var ifStmt = builder.make_if_stmt(converter.make_require_css_hash_call(hash), converter.parent, location);
+                var body = ifStmt.get_body();
+                
+                // page.set_css_hash(hash)
+                body.push(converter.make_set_css_hash_call(hash));
+                
+                // redirect output to if body
+                var oldVec = converter.vec;
+                converter.vec = body;
+
+                const totalView = allocate_view_with_classname(builder, *str, hash)
+                om.className = std::string_view(totalView.data() + 1, 7u)
+                converter.put_append_css_value_chain(totalView)
+                
+                // restore output
+                converter.vec = oldVec;
+                converter.vec.push(ifStmt);
             }
         }
     }

@@ -11,6 +11,9 @@ public struct HtmlPage {
     // TODO using ubigint, instead need to use size_t
     var doneClasses : std::unordered_map<ubigint, bool>
 
+    // track random CSS classes (for dynamic values) to prevent duplicates
+    var doneRandomClasses : std::unordered_map<ubigint, bool>
+
     func append_html(&mut self, value : *char, len : size_t) {
         pageHtml.append_with_len(value, len);
     }
@@ -67,17 +70,24 @@ public struct HtmlPage {
         pageHead.append_double(value, 3)
     }
 
-    func append_css(&mut self, value : *char, len : size_t, hash : size_t) {
-        if(!doneClasses.contains(hash)) {
-            doneClasses.insert(hash, true)
-            pageCss.append_with_len(value, len);
-        }
+    func append_css(&mut self, value : *char, len : size_t) {
+        pageCss.append_with_len(value, len);
     }
 
-    // append css no hash
-    // used by dynamic values to insert css no matter what (by randomizing class name)
-    func append_css_nh(&mut self, value : *char, len : size_t) {
-        pageCss.append_with_len(value, len)
+    func require_css_hash(&self, hash : size_t) : bool {
+        return !doneClasses.contains(hash)
+    }
+
+    func set_css_hash(&mut self, hash : size_t) {
+        doneClasses.insert(hash, true)
+    }
+
+    func require_random_css_hash(&self, hash : size_t) : bool {
+        return !doneRandomClasses.contains(hash)
+    }
+
+    func set_random_css_hash(&mut self, hash : size_t) {
+        doneRandomClasses.insert(hash, true)
     }
 
     func append_css_char_ptr(&mut self, value : *char) {

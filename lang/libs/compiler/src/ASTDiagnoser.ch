@@ -1,5 +1,5 @@
 public struct ASTDiagnoser {
 
-    func error(msg : &std::string_view, loc : ubigint);
+    func error(&self, msg : &std::string_view, loc : ubigint);
 
 }

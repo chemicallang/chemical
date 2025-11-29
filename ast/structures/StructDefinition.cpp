@@ -56,16 +56,20 @@ void StructDefinition::struct_func_gen(
 // returns true if current function should be skipped because it has been overridden
 // or errored out
 void StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function) {
-    const auto info = get_func_overriding_info(function);
-    if(info.base_container == nullptr) {
-        gen.error("failed to override function, couldn't find the base function or its container", function);
+    const auto inherited_func = inherited_function(function->name_view());
+    if(inherited_func == nullptr) {
+        gen.error("couldn't find base function", function);
         return;
     }
-    const auto interface = info.base_container->as_interface_def();
+    const auto func_parent = inherited_func->parent();
+    if(func_parent == nullptr || func_parent->kind() != ASTNodeKind::InterfaceDecl) {
+        gen.error("couldn't find base function container", function);
+        return;
+    }
+    const auto interface = func_parent->as_interface_def_unsafe();
     // we always assume base container as interface, it could be something else (abstract struct maybe)
     if(interface->is_static()) {
-        const auto inh_type = info.type->type;
-        const auto func = info.base_func->llvm_func(gen);
+        const auto func = inherited_func->llvm_func(gen);
         const auto interfaceModule = func->getParent();
         if(interfaceModule != gen.module.get()) {
             // interface is present in another module
@@ -95,7 +99,7 @@ void StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
             return;
         }
         auto& user = user_itr.value();
-        auto llvm_data = user.find(info.base_func);
+        auto llvm_data = user.find(inherited_func);
         if (llvm_data == user.end()) {
             gen.error("failed to override function, couldn't find the base function and its pointer", function);
             return;

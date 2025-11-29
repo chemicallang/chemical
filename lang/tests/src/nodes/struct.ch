@@ -271,6 +271,32 @@ func gen_existence_gen_container_43534() {
 
 // ------------ existence test ends here ----------------
 
+interface GrandpaInterface {
+    func give(&self) : int
+}
+
+func call_grandpa_interface_func(a : dyn GrandpaInterface) : int {
+    return a.give()
+}
+
+interface ParentInterface : GrandpaInterface {}
+
+struct ChildStructImplementsGrandpa : ParentInterface {
+    var a : int
+    var b : int
+    @override
+    func give(&self) : int {
+        return a + b;
+    }
+}
+
+struct PlaceboOverrideGrandparentChild : ParentInterface {
+    @override
+    func give(&self) : int {
+        return 383
+    }
+}
+
 func test_structs() {
     test_no_type_structs();
     test_structs_aliases();
@@ -449,6 +475,18 @@ func test_structs() {
     test("inherited default initialized structs work", () => {
         var f = TDISF {}
         return f.a == 124 && f.b == 453 && f.c == 938 && f.d == 89
+    })
+    test("grandparent interface can be implemented by a child struct - 1", () => {
+        var s = ChildStructImplementsGrandpa { a : 23, b : 37 }
+        return s.give() == 60
+    })
+    test("grandparent interface can be implemented by a child struct - 2", () => {
+        var s = ChildStructImplementsGrandpa { a : 34, b : 3 }
+        return call_grandpa_interface_func(dyn<GrandpaInterface>(s)) == 37
+    })
+    test("grandparent interface can be implemented by a child struct - 3", () => {
+        var s = PlaceboOverrideGrandparentChild { }
+        return call_grandpa_interface_func(dyn<GrandpaInterface>(s)) == 383
     })
 }
 

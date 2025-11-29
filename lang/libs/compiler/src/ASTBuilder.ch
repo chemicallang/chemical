@@ -293,7 +293,7 @@ public struct EnumMember : ASTNode {}
 
 public struct ForLoop : LoopASTNode {
 
-    func get_body(&self) : *VecRef<ASTNode>;
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 
@@ -303,9 +303,9 @@ public struct SwitchStatement {
 
 public struct FunctionDeclaration : ASTNode {
 
-    func get_params(&self) : *VecRef<FunctionParam>;
+    func get_params(&self) : *mut VecRef<FunctionParam>;
 
-    func add_body(&self) : *VecRef<ASTNode>
+    func add_body(&self) : *mut VecRef<ASTNode>
 
 }
 
@@ -315,11 +315,11 @@ public struct GenericTypeParameter : ASTNode {}
 
 public struct IfStatement : ASTNode {
 
-    func get_body(&self) : *VecRef<ASTNode>
+    func get_body(&self) : *mut VecRef<ASTNode>
 
-    func add_else_body(&self) : *VecRef<ASTNode>
+    func add_else_body(&self) : *mut VecRef<ASTNode>
 
-    func add_else_if(&self, condition : *Value) : *VecRef<ASTNode>
+    func add_else_if(&self, condition : *Value) : *mut VecRef<ASTNode>
 
 }
 

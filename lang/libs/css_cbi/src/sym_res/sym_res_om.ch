@@ -28,12 +28,6 @@ func sym_res_root(
         return false;
     }
 
-    const appendCssNhFn = page.child("append_css_nh");
-    if(appendCssNhFn == null) {
-        resolver.error("'append_css_nh' function is required on 'page' for css to work", loc);
-        return false;
-    }
-
     const appendCssIntFn = page.child("append_css_integer");
     if(appendCssIntFn == null) {
         resolver.error("'append_css_integer' function is required on 'page' for css to work", loc);
@@ -63,11 +57,39 @@ func sym_res_root(
     support.appendCssCharFn = appendCssCharFn
     support.appendCssCharPtrFn = appendCssCharPtrFn
     support.appendCssFn = appendCssFn
-    support.appendCssNhFn = appendCssNhFn
     support.appendCssIntFn = appendCssIntFn;
     support.appendCssUIntFn = appendCssUIntFn;
     support.appendCssFloatFn = appendCssFloatFn;
     support.appendCssDoubleFn = appendCssDoubleFn;
+
+    const requireCssHashFn = page.child("require_css_hash");
+    if(requireCssHashFn == null) {
+        resolver.error("'require_css_hash' function is required on 'page' for css to work", loc);
+        return false;
+    }
+
+    const setCssHashFn = page.child("set_css_hash");
+    if(setCssHashFn == null) {
+        resolver.error("'set_css_hash' function is required on 'page' for css to work", loc);
+        return false;
+    }
+
+    const requireRandomCssHashFn = page.child("require_random_css_hash");
+    if(requireRandomCssHashFn == null) {
+        resolver.error("'require_random_css_hash' function is required on 'page' for css to work", loc);
+        return false;
+    }
+
+    const setRandomCssHashFn = page.child("set_random_css_hash");
+    if(setRandomCssHashFn == null) {
+        resolver.error("'set_random_css_hash' function is required on 'page' for css to work", loc);
+        return false;
+    }
+
+    support.requireCssHashFn = requireCssHashFn
+    support.setCssHashFn = setCssHashFn
+    support.requireRandomCssHashFn = requireRandomCssHashFn
+    support.setRandomCssHashFn = setRandomCssHashFn
 
     return true;
 

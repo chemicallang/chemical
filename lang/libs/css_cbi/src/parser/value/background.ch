@@ -79,7 +79,7 @@ func (cssParser : &mut CSSParser) parseColorStopList(parser : *mut Parser, build
     }
 }
 
-func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData) {
+func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData, repeating : bool) {
 
     const next = parser.getToken()
     if(next.type == TokenType.LParen) {
@@ -91,7 +91,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
     const lin_data = builder.allocate<LinearGradientData>()
     new (lin_data) LinearGradientData()
 
-    data.kind = CSSGradientKind.Linear
+    data.kind = if(repeating) CSSGradientKind.RepeatingLinear else CSSGradientKind.Linear
     data.data = lin_data;
 
     const token = parser.getToken()
@@ -165,7 +165,7 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
 
 }
 
-func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData) {
+func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData, repeating : bool) {
     const next = parser.getToken()
     if(next.type == TokenType.LParen) {
         parser.increment()
@@ -176,7 +176,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
     const rad_data = builder.allocate<RadialGradientData>()
     new (rad_data) RadialGradientData()
 
-    data.kind = CSSGradientKind.Radial
+    data.kind = if(repeating) CSSGradientKind.RepeatingRadial else CSSGradientKind.Radial
     data.data = rad_data;
 
     // Parse shape, size, position
@@ -311,7 +311,7 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
 
 }
 
-func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData) {
+func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, builder : *mut ASTBuilder, data : &mut GradientData, repeating : bool) {
     const next = parser.getToken()
     if(next.type == TokenType.LParen) {
         parser.increment()
@@ -322,7 +322,7 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
     const con_data = builder.allocate<ConicGradientData>()
     new (con_data) ConicGradientData()
 
-    data.kind = CSSGradientKind.Conic
+    data.kind = if(repeating) CSSGradientKind.RepeatingConic else CSSGradientKind.Conic
     data.data = con_data;
 
     // Parse from <angle> at <position>
@@ -406,25 +406,37 @@ func (cssParser : &mut CSSParser) parseBackgroundImageInto(
             comptime_fnv1_hash("linear-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseLinearGradient(parser, builder, image.gradient)
+                cssParser.parseLinearGradient(parser, builder, image.gradient, false)
                 return true
             }
             comptime_fnv1_hash("repeating-linear-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseLinearGradient(parser, builder, image.gradient)
+                cssParser.parseLinearGradient(parser, builder, image.gradient, true)
                 return true
             }
             comptime_fnv1_hash("radial-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseRadialGradient(parser, builder, image.gradient)
+                cssParser.parseRadialGradient(parser, builder, image.gradient, false)
+                return true
+            }
+            comptime_fnv1_hash("repeating-radial-gradient") => {
+                parser.increment()
+                image.is_url = false;
+                cssParser.parseRadialGradient(parser, builder, image.gradient, true)
                 return true
             }
             comptime_fnv1_hash("conic-gradient") => {
                 parser.increment()
                 image.is_url = false;
-                cssParser.parseConicGradient(parser, builder, image.gradient)
+                cssParser.parseConicGradient(parser, builder, image.gradient, false)
+                return true
+            }
+            comptime_fnv1_hash("repeating-conic-gradient") => {
+                parser.increment()
+                image.is_url = false;
+                cssParser.parseConicGradient(parser, builder, image.gradient, true)
                 return true
             }
         }

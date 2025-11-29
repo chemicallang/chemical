@@ -936,6 +936,21 @@ func (converter : &mut ASTConverter) writeBackgroundImageData(ptr : &mut Backgro
         writeBackgroundImageUrl(ptr.url, str)
     } else {
         switch(ptr.gradient.kind) {
+            CSSGradientKind.RepeatingLinear => {
+                str.append_view(std::string_view("repeating-linear-gradient("))
+                converter.writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)
+                str.append(')')
+            }
+            CSSGradientKind.RepeatingRadial => {
+                str.append_view(std::string_view("repeating-radial-gradient("))
+                converter.writeRadialGradientData(*(ptr.gradient.data as *mut RadialGradientData), str)
+                str.append(')')
+            }
+            CSSGradientKind.RepeatingConic => {
+                str.append_view(std::string_view("repeating-conic-gradient("))
+                converter.writeConicGradientData(*(ptr.gradient.data as *mut ConicGradientData), str)
+                str.append(')')
+            }
             CSSGradientKind.Linear => {
                 str.append_view(std::string_view("linear-gradient("))
                 converter.writeLinearGradientData(*(ptr.gradient.data as *mut LinearGradientData), str)

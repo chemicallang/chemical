@@ -422,6 +422,33 @@ public func background_gradient_and_image_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "background:linear-gradient(90deg,#fff 0%,#ddd 100%), url(\"bg.jpg\") center/cover;");
 }
 
+@test
+public func multi_value_background_properties_with_gradients_and_positions_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: linear-gradient(45deg,#f00 0%,#0f0 50%,#00f 100%) center/80% no-repeat, url("texture.png") repeat;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:linear-gradient(45deg,#f00 0%,#0f0 50%,#00f 100%) center/80% no-repeat, url(\"texture.png\") repeat;");
+}
+
+@test
+public func gradient_position_sizes_and_percentages_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: linear-gradient(135deg, rgba(255,0,0,0.8) 10%, rgba(0,0,255,0.6) 90%) center/60% no-repeat;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:linear-gradient(135deg,rgba(255 0 0 / 0.8) 10%,rgba(0 0 255 / 0.6) 90%) center/60% no-repeat;");
+}
+
+@test
+public func gradient_repeating_and_conic_variants_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: repeating-linear-gradient(0deg,#000 0 5px,#fff 5px 10px), conic-gradient(from 45deg, #f00, #0f0 50%, #00f);
+    }
+    css_equals(env, page.toStringCssOnly(), "background:repeating-linear-gradient(0deg,#000 0 5px,#fff 5px 10px), conic-gradient(from 45deg,#f00,#0f0 50%,#00f);");
+}
+
 /**
 
 @test
@@ -1175,39 +1202,12 @@ public func text_overflow_and_multi_part_clamping_works(env : &mut TestEnv) {
 }
 
 @test
-public func multi_value_background_properties_with_gradients_and_positions_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: linear-gradient(45deg,#f00 0%,#0f0 50%,#00f 100%) center/80% no-repeat, url(\"texture.png\") repeat;
-    }
-    css_equals(env, page.toStringCssOnly(), "background:linear-gradient(45deg,#f00 0%,#0f0 50%,#00f 100%) center/80% no-repeat,url(\"texture.png\") repeat;");
-}
-
-@test
 public func complex_border_image_slice_and_repeat_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
         border-image: url(\"slice.png\") 30 30 30 30 round stretch;
     }
     css_equals(env, page.toStringCssOnly(), "border-image:url(\"slice.png\") 30 30 30 30 round stretch;");
-}
-
-@test
-public func gradient_repeating_and_conic_variants_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: repeating-linear-gradient(0deg,#000 0 5px,#fff 5px 10px), conic-gradient(from 45deg, #f00, #0f0 50%, #00f);
-    }
-    css_equals(env, page.toStringCssOnly(), "background:repeating-linear-gradient(0deg,#000 0 5px,#fff 5px 10px),conic-gradient(from 45deg,#f00,#0f0 50%,#00f);");
-}
-
-@test
-public func gradient_position_sizes_and_percentages_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: linear-gradient(135deg, rgba(255,0,0,0.8) 10%, rgba(0,0,255,0.6) 90%) center/60% no-repeat;
-    }
-    css_equals(env, page.toStringCssOnly(), "background:linear-gradient(135deg,rgba(255,0,0,0.8) 10%,rgba(0,0,255,0.6) 90%) center/60% no-repeat;");
 }
 
 @test

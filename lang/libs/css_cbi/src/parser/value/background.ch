@@ -409,6 +409,12 @@ func (cssParser : &mut CSSParser) parseBackgroundImageInto(
                 cssParser.parseLinearGradient(parser, builder, image.gradient)
                 return true
             }
+            comptime_fnv1_hash("repeating-linear-gradient") => {
+                parser.increment()
+                image.is_url = false;
+                cssParser.parseLinearGradient(parser, builder, image.gradient)
+                return true
+            }
             comptime_fnv1_hash("radial-gradient") => {
                 parser.increment()
                 image.is_url = false;

@@ -421,7 +421,7 @@ FunctionDeclaration* MembersContainer::inherited_function(const chem::string_vie
             const auto func = container->direct_child_function(name);
             if(func) return func;
             const auto func2 = container->inherited_function(name);
-            return func2;
+            if(func2) return func2;
         }
     }
     return nullptr;

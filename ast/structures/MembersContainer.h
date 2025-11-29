@@ -375,6 +375,7 @@ public:
     /**
      * get the overriding info for the given function (to know which function is the given function overriding and in which interface / struct)
      */
+    [[deprecated]]
     FunctionOverridingInfo get_func_overriding_info(FunctionDeclaration* function);
 
     /**

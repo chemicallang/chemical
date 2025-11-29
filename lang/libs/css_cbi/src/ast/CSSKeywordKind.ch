@@ -468,6 +468,13 @@ enum CSSKeywordKind {
     Shorter,
     Longer,
     Increasing,
-    Decreasing
+    Decreasing,
+
+    Ellipse,
+
+    ClosestSide,
+    ClosestCorner,
+    FarthestSide,
+    FarthestCorner
 
 }

@@ -30,6 +30,24 @@ func getSideOrCornerKeywordKind(hash : size_t) : CSSKeywordKind {
     }
 }
 
+func getRadialShapeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("circle") => { return CSSKeywordKind.Circle }
+        comptime_fnv1_hash("ellipse") => { return CSSKeywordKind.Ellipse }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
+func getRadialSizeKeywordKind(hash : size_t) : CSSKeywordKind {
+    switch(hash) {
+        comptime_fnv1_hash("closest-side") => { return CSSKeywordKind.ClosestSide }
+        comptime_fnv1_hash("closest-corner") => { return CSSKeywordKind.ClosestCorner }
+        comptime_fnv1_hash("farthest-side") => { return CSSKeywordKind.FarthestSide }
+        comptime_fnv1_hash("farthest-corner") => { return CSSKeywordKind.FarthestCorner }
+        default => { return CSSKeywordKind.Unknown }
+    }
+}
+
 func (cssParser : &mut CSSParser) parseLinearColorStop(parser : *mut Parser, builder : *mut ASTBuilder, stop : &mut LinearColorStop) : bool {
     if(!cssParser.parseCSSColor(parser, builder, stop.color)) {
         return false;
@@ -161,9 +179,127 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
     data.kind = CSSGradientKind.Radial
     data.data = rad_data;
 
-    // TODO: Parse shape, size, position
-    // For now, let's just parse color stops as that's the most common case and what we likely need for basic support.
+    // Parse shape, size, position
+    // Syntax: [ <ending-shape> || <size> ]? [ at <position> ]? , <color-stop-list>
     
+    var has_shape_or_size = false
+    
+    // Try parsing shape or size keywords
+    var token = parser.getToken()
+    if(token.type == TokenType.Identifier) {
+        var hash = token.fnv1()
+        
+        // Check for shape
+        var shapeKind = getRadialShapeKeywordKind(hash)
+        if(shapeKind != CSSKeywordKind.Unknown || hash == comptime_fnv1_hash("ellipse")) {
+            parser.increment()
+            alloc_keyword_data(builder, rad_data.shape, shapeKind, token.value)
+            has_shape_or_size = true
+            
+            // Check for size after shape
+            token = parser.getToken()
+            if(token.type == TokenType.Identifier) {
+                hash = token.fnv1()
+                const sizeKind = getRadialSizeKeywordKind(hash)
+                if(sizeKind != CSSKeywordKind.Unknown) {
+                    parser.increment()
+                    alloc_keyword_data(builder, rad_data.size.extent, sizeKind, token.value)
+                }
+            } else if(token.type == TokenType.Number) {
+                 // Length size
+                 cssParser.parseLength(parser, builder, rad_data.size.length)
+                 // If ellipse, can have second length
+                 if(rad_data.shape.kind == CSSKeywordKind.Unknown && rad_data.shape.value.equals("ellipse")) { // Ellipse is Unknown kind with value "ellipse"
+                     // Try second length
+                     var second = CSSValue()
+                     if(cssParser.parseLength(parser, builder, second)) {
+                         const pair = builder.allocate<CSSValuePair>()
+                         pair.first = rad_data.size.length
+                         pair.second = second
+                         rad_data.size.length.kind = CSSValueKind.Pair
+                         rad_data.size.length.data = pair
+                     }
+                 }
+            }
+        } else {
+            // Check for size keyword first
+            const sizeKind = getRadialSizeKeywordKind(hash)
+            if(sizeKind != CSSKeywordKind.Unknown) {
+                parser.increment()
+                alloc_keyword_data(builder, rad_data.size.extent, sizeKind, token.value)
+                has_shape_or_size = true
+                
+                // Check for shape after size
+                token = parser.getToken()
+                if(token.type == TokenType.Identifier) {
+                    hash = token.fnv1()
+                    shapeKind = getRadialShapeKeywordKind(hash)
+                    if(shapeKind != CSSKeywordKind.Unknown) {
+                        parser.increment()
+                        alloc_keyword_data(builder, rad_data.shape, shapeKind, token.value)
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we didn't find keywords, maybe we have lengths (size)
+    if(!has_shape_or_size) {
+        if(cssParser.parseLength(parser, builder, rad_data.size.length)) {
+            has_shape_or_size = true
+            // Try second length
+             var second = CSSValue()
+             if(cssParser.parseLength(parser, builder, second)) {
+                 const pair = builder.allocate<CSSValuePair>()
+                 pair.first = rad_data.size.length
+                 pair.second = second
+                 rad_data.size.length.kind = CSSValueKind.Pair
+                 rad_data.size.length.data = pair
+             }
+             
+             // Check for shape after length size
+             token = parser.getToken()
+             if(token.type == TokenType.Identifier) {
+                const hash = token.fnv1()
+                const shapeKind = getRadialShapeKeywordKind(hash)
+                if(shapeKind != CSSKeywordKind.Unknown) {
+                    parser.increment()
+                    alloc_keyword_data(builder, rad_data.shape, shapeKind, token.value)
+                }
+             }
+        }
+    }
+
+    // Parse 'at <position>'
+    token = parser.getToken()
+    if(token.type == TokenType.Identifier && token.value.equals("at")) {
+        parser.increment()
+        
+        var posX = CSSValue()
+        var posY = CSSValue()
+        if(cssParser.parsePositionValue(parser, builder, posX, posY)) {
+            if(!posY.isUnknown()) {
+                const pair = builder.allocate<CSSValuePair>()
+                pair.first = posX
+                pair.second = posY
+                rad_data.position.kind = CSSValueKind.Pair
+                rad_data.position.data = pair
+            } else {
+                rad_data.position = posX
+            }
+        } else {
+            parser.error("expected position after 'at'")
+        }
+    }
+    
+    // Comma before color stops if we parsed anything before
+    if(has_shape_or_size || !rad_data.position.isUnknown()) {
+        const t = parser.getToken()
+        if(t.type == TokenType.Comma) {
+            parser.increment()
+        }
+    }
+
     cssParser.parseColorStopList(parser, builder, rad_data.color_stop_list)
 
     const next2 = parser.getToken()
@@ -189,7 +325,56 @@ func (cssParser : &mut CSSParser) parseConicGradient(parser : *mut Parser, build
     data.kind = CSSGradientKind.Conic
     data.data = con_data;
 
-    // TODO: Parse from <angle> at <position>
+    // Parse from <angle> at <position>
+    var has_from_or_at = false
+    
+    var token = parser.getToken()
+    if(token.type == TokenType.Identifier) {
+        if(token.value.equals("from")) {
+            parser.increment()
+            if(!cssParser.parseLength(parser, builder, con_data.from)) { // reusing parseLengthInto for angle
+                 // parseLengthInto expects CSSLengthValueData, but from is CSSValue.
+                 // We need to parse angle into CSSValue.
+                 // Let's use parseLength which parses into CSSValue.
+                 // But parseLength parses lengths. Angles are lengths in this parser context?
+                 // Usually yes, or we have parseAngle.
+                 // parseLength calls parseLengthInto.
+                 // Let's use parseLength.
+                 if(!cssParser.parseLength(parser, builder, con_data.from)) {
+                     parser.error("expected angle after 'from'")
+                 }
+            }
+            has_from_or_at = true
+        }
+    }
+    
+    token = parser.getToken()
+    if(token.type == TokenType.Identifier && token.value.equals("at")) {
+        parser.increment()
+        var posX = CSSValue()
+        var posY = CSSValue()
+        if(cssParser.parsePositionValue(parser, builder, posX, posY)) {
+            if(!posY.isUnknown()) {
+                const pair = builder.allocate<CSSValuePair>()
+                pair.first = posX
+                pair.second = posY
+                con_data.at.kind = CSSValueKind.Pair
+                con_data.at.data = pair
+            } else {
+                con_data.at = posX
+            }
+            has_from_or_at = true
+        } else {
+            parser.error("expected position after 'at'")
+        }
+    }
+    
+    if(has_from_or_at) {
+        const t = parser.getToken()
+        if(t.type == TokenType.Comma) {
+            parser.increment()
+        }
+    }
     
     // Parse color stops
     cssParser.parseColorStopList(parser, builder, con_data.color_stop_list)
@@ -216,26 +401,30 @@ func (cssParser : &mut CSSParser) parseBackgroundImageInto(
             comptime_fnv1_hash("url") => {
                 parser.increment()
                 cssParser.parseUrlValue(parser, builder, image.url)
+                return true
             }
             comptime_fnv1_hash("linear-gradient") => {
                 parser.increment()
                 image.is_url = false;
                 cssParser.parseLinearGradient(parser, builder, image.gradient)
+                return true
             }
             comptime_fnv1_hash("radial-gradient") => {
                 parser.increment()
                 image.is_url = false;
                 cssParser.parseRadialGradient(parser, builder, image.gradient)
+                return true
             }
             comptime_fnv1_hash("conic-gradient") => {
                 parser.increment()
                 image.is_url = false;
                 cssParser.parseConicGradient(parser, builder, image.gradient)
+                return true
             }
         }
     }
 
-    return true;
+    return false;
 
 }
 

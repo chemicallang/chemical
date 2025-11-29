@@ -360,6 +360,15 @@ public func row_and_column_gap_works(env : &mut TestEnv) {
 }
 
 @test
+public func simplest_background_works_with_named_color(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: red;
+    }
+    css_equals(env, page.toStringCssOnly(), "background: red;");
+}
+
+@test
 public func background_shorthand_with_url_and_size_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -384,6 +393,33 @@ public func background_with_position_and_size_works(env : &mut TestEnv) {
         background: url("hero.jpg") no-repeat 20% 30%/contain;
     }
     css_equals(env, page.toStringCssOnly(), "background:url(\"hero.jpg\") 20% 30%/contain no-repeat;");
+}
+
+@test
+public func multi_backgrounds_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: url("a.png") left top no-repeat, linear-gradient(180deg,#fff 0%,#eee 100%);
+    }
+    css_equals(env, page.toStringCssOnly(), "background:url(\"a.png\") left top no-repeat, linear-gradient(180deg,#fff 0%,#eee 100%);");
+}
+
+@test
+public func background_multiple_layers_with_positions_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: url("a.png") left top no-repeat, url("b.png") right bottom repeat;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:url(\"a.png\") left top no-repeat, url(\"b.png\") right bottom repeat;");
+}
+
+@test
+public func background_gradient_and_image_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background: linear-gradient(90deg,#fff 0%,#ddd 100%), url("bg.jpg") center/cover;
+    }
+    css_equals(env, page.toStringCssOnly(), "background:linear-gradient(90deg,#fff 0%,#ddd 100%), url(\"bg.jpg\") center/cover;");
 }
 
 /**
@@ -557,15 +593,6 @@ public func unicode_range_and_font_face_like_value_simulation_works(env : &mut T
 }
 
 @test
-public func multi_backgrounds_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: url("a.png") left top no-repeat, linear-gradient(180deg,#fff 0%,#eee 100%);
-    }
-    css_equals(env, page.toStringCssOnly(), "background:url(\"a.png\") left top no-repeat,linear-gradient(180deg,#fff 0%,#eee 100%);");
-}
-
-@test
 public func border_sides_different_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -575,24 +602,6 @@ public func border_sides_different_works(env : &mut TestEnv) {
         border-left: 4px groove #ccc;
     }
     css_equals(env, page.toStringCssOnly(), "border-top:1px solid red;border-right:2px dotted green;border-bottom:3px double blue;border-left:4px groove #ccc;");
-}
-
-@test
-public func background_multiple_layers_with_positions_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: url("a.png") left top no-repeat, url("b.png") right bottom repeat;
-    }
-    css_equals(env, page.toStringCssOnly(), "background:url(\"a.png\") left top no-repeat,url(\"b.png\") right bottom repeat;");
-}
-
-@test
-public func background_gradient_and_image_works(env : &mut TestEnv) {
-    var page = HtmlPage()
-    #css {
-        background: linear-gradient(90deg,#fff 0%,#ddd 100%), url("bg.jpg") center/cover;
-    }
-    css_equals(env, page.toStringCssOnly(), "background:linear-gradient(90deg,#fff 0%,#ddd 100%),url(\"bg.jpg\") center/cover;");
 }
 
 @test

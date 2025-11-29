@@ -823,7 +823,36 @@ func (converter : &mut ASTConverter) writeLinearGradientData(data : &mut LinearG
 }
 
 func (converter : &mut ASTConverter) writeRadialGradientData(data : &mut RadialGradientData, str : &mut std::string) {
-    // TODO: Write shape, size, position
+    // Write shape, size, position
+    // Syntax: [ <ending-shape> || <size> ]? [ at <position> ]? , <color-stop-list>
+    
+    var has_shape_or_size = false
+    
+    if(data.shape.kind != CSSKeywordKind.Unknown) {
+        str.append_view(data.shape.value)
+        has_shape_or_size = true
+    }
+    
+    if(data.size.extent.kind != CSSKeywordKind.Unknown) {
+        if(has_shape_or_size) str.append(' ')
+        str.append_view(data.size.extent.value)
+        has_shape_or_size = true
+    } else if(data.size.length.kind != CSSValueKind.Unknown) {
+        if(has_shape_or_size) str.append(' ')
+        converter.writeValue(data.size.length)
+        has_shape_or_size = true
+    }
+    
+    if(data.position.kind != CSSValueKind.Unknown) {
+        if(has_shape_or_size) str.append(' ')
+        str.append_view(std::string_view("at "))
+        converter.writeValue(data.position)
+        has_shape_or_size = true // effectively
+    }
+    
+    if(has_shape_or_size) {
+        str.append(',')
+    }
     
     var start = data.color_stop_list.data()
     const end = start + data.color_stop_list.size()
@@ -853,7 +882,26 @@ func (converter : &mut ASTConverter) writeRadialGradientData(data : &mut RadialG
 }
 
 func (converter : &mut ASTConverter) writeConicGradientData(data : &mut ConicGradientData, str : &mut std::string) {
-    // TODO: Write from <angle> at <position>
+    // Write from <angle> at <position>
+    
+    var has_from_or_at = false
+    
+    if(data.from.kind != CSSValueKind.Unknown) {
+        str.append_view(std::string_view("from "))
+        converter.writeValue(data.from)
+        has_from_or_at = true
+    }
+    
+    if(data.at.kind != CSSValueKind.Unknown) {
+        if(has_from_or_at) str.append(' ')
+        str.append_view(std::string_view("at "))
+        converter.writeValue(data.at)
+        has_from_or_at = true
+    }
+    
+    if(has_from_or_at) {
+        str.append(',')
+    }
 
     var start = data.color_stop_list.data()
     const end = start + data.color_stop_list.size()

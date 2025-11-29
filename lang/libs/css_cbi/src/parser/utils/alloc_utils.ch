@@ -1,4 +1,14 @@
 
+func alloc_keyword_data(
+    builder : *mut ASTBuilder,
+    kw_value : &mut CSSKeywordValueData,
+    kind : CSSKeywordKind,
+    view : &std::string_view
+) {
+    kw_value.kind = kind
+    kw_value.value = builder.allocate_view(view)
+}
+
 func alloc_value_keyword(
     builder : *mut ASTBuilder,
     value : &mut CSSValue,

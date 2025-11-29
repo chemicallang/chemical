@@ -161,6 +161,21 @@ func call_func_ret_void() {
     return func_ret_void()
 }
 
+@inline
+func curr_inline_sum_1(a : int, b : int) : int {
+    return a + b;
+}
+
+@inline.always
+func curr_inline_sum_2(a : int, b : int) : int {
+    return a + b;
+}
+
+@noinline
+func curr_inline_sum_3(a : int, b : int) : int {
+    return a + b;
+}
+
 func test_functions() {
     test("struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
@@ -253,5 +268,14 @@ func test_functions() {
     })
     test("function that returns a pointer has a last while block, can exist", () => {
         return last_block_while_ret_ptr() == null
+    })
+    test("inline functions in current module work - 1", () => {
+        return curr_inline_sum_1(29, 2) == 31
+    })
+    test("inline functions in current module work - 2", () => {
+        return curr_inline_sum_2(65, 9) == 74
+    })
+    test("inline functions in current module work - 3", () => {
+        return curr_inline_sum_3(87, 4) == 91
     })
 }

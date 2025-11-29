@@ -278,4 +278,13 @@ func test_functions() {
     test("inline functions in current module work - 3", () => {
         return curr_inline_sum_3(87, 4) == 91
     })
+    test("inline functions from external module work - 1", () => {
+        return ext_inline_sum_1(29, 2) == 32
+    })
+    test("inline functions from external module work - 2", () => {
+        return ext_inline_sum_2(65, 9) == 75
+    })
+    test("inline functions from external module work - 3", () => {
+        return ext_inline_sum_3(87, 4) == 92
+    })
 }

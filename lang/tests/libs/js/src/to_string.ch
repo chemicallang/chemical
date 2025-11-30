@@ -188,10 +188,8 @@ public func switch_stmt_works(env : &mut TestEnv) {
 
 }
 
-/**
-
 @test
-public func switch_stmt_works(env : &mut TestEnv) {
+public func try_catch_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {
         try {
@@ -202,14 +200,6 @@ public func switch_stmt_works(env : &mut TestEnv) {
             console.log("done");
         }
     }
-    string_equals(env, page.toStringJsOnly(), """try {
-    throw "error";
-} catch(e) {
-    console.log(e);
-} finally {
-    console.log("done");
-}""");
+    string_equals(env, page.toStringJsOnly(), """try {throw "error";} catch(e) {console.log(e);} finally {console.log("done");}""");
 
 }
-
-**/

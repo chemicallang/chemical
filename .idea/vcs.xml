@@ -4,5 +4,6 @@
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/lsp-framework" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lib/tcc" vcs="Git" />
   </component>
 </project>

@@ -10,7 +10,12 @@ public enum JsNodeKind {
     Block,
     If,
     Return,
-    BinaryOp
+    BinaryOp,
+    ArrowFunction,
+    ArrayLiteral,
+    ObjectLiteral,
+    For,
+    While
 }
 
 public struct JsNode {
@@ -27,6 +32,7 @@ public struct JsVarDecl {
     var base : JsNode
     var name : std::string_view
     var value : *mut JsNode
+    var keyword : std::string_view
 }
 
 public struct JsLiteral {
@@ -90,4 +96,39 @@ public struct JsMemberAccess {
 public struct JsExpressionStatement {
     var base : JsNode
     var expression : *mut JsNode
+}
+
+public struct JsArrowFunction {
+    var base : JsNode
+    var params : std::vector<std::string_view>
+    var body : *mut JsNode
+}
+
+public struct JsArrayLiteral {
+    var base : JsNode
+    var elements : std::vector<*mut JsNode>
+}
+
+public struct JsProperty {
+    var key : std::string_view
+    var value : *mut JsNode
+}
+
+public struct JsObjectLiteral {
+    var base : JsNode
+    var properties : std::vector<JsProperty>
+}
+
+public struct JsFor {
+    var base : JsNode
+    var init : *mut JsNode
+    var condition : *mut JsNode
+    var update : *mut JsNode
+    var body : *mut JsNode
+}
+
+public struct JsWhile {
+    var base : JsNode
+    var condition : *mut JsNode
+    var body : *mut JsNode
 }

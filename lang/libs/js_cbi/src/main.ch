@@ -198,6 +198,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.EqualEqual as int, value : view("=="), position : position }
+            } else if(provider.peek() == '>') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.Arrow as int, value : view("=>"), position : position }
             }
             return Token { type : JsTokenType.Equal as int, value : view("="), position : position }
         }
@@ -242,6 +245,14 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 const val = std::string_view(data_ptr, provider.current_data() - data_ptr);
                 if(val.equals(view("var"))) {
                     return Token { type : JsTokenType.Var as int, value : val, position : position }
+                } else if(val.equals(view("const"))) {
+                    return Token { type : JsTokenType.Const as int, value : val, position : position }
+                } else if(val.equals(view("let"))) {
+                    return Token { type : JsTokenType.Let as int, value : val, position : position }
+                } else if(val.equals(view("for"))) {
+                    return Token { type : JsTokenType.For as int, value : val, position : position }
+                } else if(val.equals(view("while"))) {
+                    return Token { type : JsTokenType.While as int, value : val, position : position }
                 } else if(val.equals(view("function"))) {
                     return Token { type : JsTokenType.Function as int, value : val, position : position }
                 } else if(val.equals(view("return"))) {

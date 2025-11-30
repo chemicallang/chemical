@@ -234,18 +234,18 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.convertJsNode(binOp.right)
         }
         JsNodeKind.FunctionDecl => {
-            var func = node as *mut JsFunctionDecl
+            var func_decl = node as *mut JsFunctionDecl
             converter.str.append_view("function ")
-            converter.str.append_view(func.name)
+            converter.str.append_view(func_decl.name)
             converter.str.append_view("(")
             var i = 0u
-            while(i < func.params.size()) {
+            while(i < func_decl.params.size()) {
                 if(i > 0) converter.str.append_view(", ")
-                converter.str.append_view(func.params.get(i))
+                converter.str.append_view(func_decl.params.get(i))
                 i++
             }
             converter.str.append_view(")")
-            converter.convertJsNode(func.body)
+            converter.convertJsNode(func_decl.body)
         }
         JsNodeKind.MemberAccess => {
             var access = node as *mut JsMemberAccess
@@ -257,6 +257,93 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var stmt = node as *mut JsExpressionStatement
             converter.convertJsNode(stmt.expression)
             converter.str.append_view(";")
+        }
+        JsNodeKind.ArrowFunction => {
+            var arrow = node as *mut JsArrowFunction
+            converter.str.append_view("(")
+            var i = 0u
+            while(i < arrow.params.size()) {
+                if(i > 0) converter.str.append_view(", ")
+                converter.str.append_view(arrow.params.get(i))
+                i++
+            }
+            converter.str.append_view(") => ")
+            
+            // Check if body is a block or expression
+            if(arrow.body != null) {
+                var bodyNode = arrow.body as *mut JsNode
+                if(bodyNode.kind == JsNodeKind.Block) {
+                    converter.convertJsNode(arrow.body)
+                } else {
+                    converter.convertJsNode(arrow.body)
+                }
+            }
+        }
+        JsNodeKind.ArrayLiteral => {
+            var arr = node as *mut JsArrayLiteral
+            converter.str.append_view("[")
+            var i = 0u
+            while(i < arr.elements.size()) {
+                if(i > 0) converter.str.append_view(", ")
+                converter.convertJsNode(arr.elements.get(i))
+                i++
+            }
+            converter.str.append_view("]")
+        }
+        JsNodeKind.ObjectLiteral => {
+            var obj = node as *mut JsObjectLiteral
+            converter.str.append_view("{ ")
+            var i = 0u
+            while(i < obj.properties.size()) {
+                if(i > 0) converter.str.append_view(", ")
+                var prop = obj.properties.get(i)
+                converter.str.append_view(prop.key)
+                converter.str.append_view(": ")
+                converter.convertJsNode(prop.value)
+                i++
+            }
+            converter.str.append_view(" }")
+        }
+        JsNodeKind.For => {
+            var forStmt = node as *mut JsFor
+            converter.str.append_view("for(")
+            if(forStmt.init != null) {
+                // Init might be VarDecl or ExpressionStatement
+                // We need to output it without the trailing ; that statements add
+                var initNode = forStmt.init as *mut JsNode
+                if(initNode.kind == JsNodeKind.VarDecl) {
+                    var decl = forStmt.init as *mut JsVarDecl
+                    converter.str.append_view(decl.keyword)
+                    converter.str.append_view(" ")
+                    converter.str.append_view(decl.name)
+                    if(decl.value != null) {
+                        converter.str.append_view(" = ")
+                        converter.convertJsNode(decl.value)
+                    }
+                } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
+                    var stmt = forStmt.init as *mut JsExpressionStatement
+                    converter.convertJsNode(stmt.expression)
+                } else {
+                    converter.convertJsNode(forStmt.init)
+                }
+            }
+            converter.str.append_view("; ")
+            if(forStmt.condition != null) {
+                converter.convertJsNode(forStmt.condition)
+            }
+            converter.str.append_view("; ")
+            if(forStmt.update != null) {
+                converter.convertJsNode(forStmt.update)
+            }
+            converter.str.append_view(")")
+            converter.convertJsNode(forStmt.body)
+        }
+        JsNodeKind.While => {
+            var whileStmt = node as *mut JsWhile
+            converter.str.append_view("while(")
+            converter.convertJsNode(whileStmt.condition)
+            converter.str.append_view(")")
+            converter.convertJsNode(whileStmt.body)
         }
     }
 }

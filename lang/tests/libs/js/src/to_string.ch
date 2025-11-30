@@ -53,3 +53,30 @@ public func complex_chaining_calls_work(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), "window.console.log(\"hello\");window.document.getElementById(\"app\").innerHTML = \"Content\";");
 }
+
+@test
+public func object_literal_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var x = { a : 10, b : "hello" }
+    }
+    string_equals(env, page.toStringJsOnly(), "var x = { a: 10, b: \"hello\" };");
+}
+
+@test
+public func array_literal_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var x = [10, 20]
+    }
+    string_equals(env, page.toStringJsOnly(), "var x = [10, 20];");
+}
+
+@test
+public func arrow_lambda_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var x = () => 10
+    }
+    string_equals(env, page.toStringJsOnly(), "var x = () => 10;");
+}

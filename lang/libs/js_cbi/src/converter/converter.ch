@@ -247,6 +247,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view(")")
             converter.convertJsNode(func.body)
         }
+        JsNodeKind.MemberAccess => {
+            var access = node as *mut JsMemberAccess
+            converter.convertJsNode(access.object)
+            converter.str.append_view(".")
+            converter.str.append_view(access.property)
+        }
     }
 }
 

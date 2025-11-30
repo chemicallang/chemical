@@ -43,3 +43,13 @@ public func expression_and_calls_work(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), "if(window != null){log(\"hello\")}");
 }
+
+@test
+public func complex_chaining_calls_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        window.console.log("hello");
+        window.document.getElementById("app").innerHTML = "Content";
+    }
+    string_equals(env, page.toStringJsOnly(), "window.console.log(\"hello\");window.document.getElementById(\"app\").innerHTML = \"Content\";");
+}

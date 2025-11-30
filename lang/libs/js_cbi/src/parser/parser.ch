@@ -35,7 +35,9 @@ public enum JsTokenType {
 }
 
 func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+    var node : *mut JsNode = null;
     const token = parser.getToken();
+    
     if(token.type == JsTokenType.Number as int) {
         parser.increment();
         var literal = builder.allocate<JsLiteral>()
@@ -43,7 +45,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
             base : JsNode { kind : JsNodeKind.Literal },
             value : builder.allocate_view(token.value)
         }
-        return literal as *mut JsNode;
+        node = literal as *mut JsNode;
     } else if(token.type == JsTokenType.String as int) {
         parser.increment();
         var literal = builder.allocate<JsLiteral>()
@@ -51,7 +53,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
             base : JsNode { kind : JsNodeKind.Literal },
             value : builder.allocate_view(token.value)
         }
-        return literal as *mut JsNode;
+        node = literal as *mut JsNode;
     } else if(token.type == JsTokenType.Identifier as int) {
         parser.increment();
         var id = builder.allocate<JsIdentifier>()
@@ -59,14 +61,57 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
             base : JsNode { kind : JsNodeKind.Identifier },
             value : builder.allocate_view(token.value)
         }
-        
-        // Check for function call
-        if(parser.getToken().type == JsTokenType.LParen as int) {
+        node = id as *mut JsNode;
+    } else if(token.type == JsTokenType.ChemicalStart as int) {
+        parser.increment();
+        var val = parser.parseExpression(builder);
+        if(!parser.increment_if(JsTokenType.RBrace as int)) {
+            parser.error("expected } after chemical value");
+        }
+        var chem = builder.allocate<JsChemicalValue>()
+        new (chem) JsChemicalValue {
+            base : JsNode { kind : JsNodeKind.ChemicalValue },
+            value : val
+        }
+        node = chem as *mut JsNode;
+    } else if(token.type == JsTokenType.LParen as int) {
+        parser.increment();
+        var expr = parseExpression(parser, builder);
+        if(!parser.increment_if(JsTokenType.RParen as int)) {
+            parser.error("expected )");
+        }
+        node = expr;
+    } else {
+        parser.error("unexpected token in expression");
+        return null;
+    }
+    
+    // Postfix loop
+    while(true) {
+        const t = parser.getToken();
+        if(t.type == JsTokenType.Dot as int) {
+            parser.increment();
+            const idToken = parser.getToken();
+            if(idToken.type != JsTokenType.Identifier as int) {
+                parser.error("expected identifier after dot");
+                break;
+            }
+            var prop = builder.allocate_view(idToken.value);
+            parser.increment();
+            
+            var access = builder.allocate<JsMemberAccess>()
+            new (access) JsMemberAccess {
+                base : JsNode { kind : JsNodeKind.MemberAccess },
+                object : node,
+                property : prop
+            }
+            node = access as *mut JsNode;
+        } else if(t.type == JsTokenType.LParen as int) {
             parser.increment(); // consume (
             var call = builder.allocate<JsFunctionCall>()
             new (call) JsFunctionCall {
                 base : JsNode { kind : JsNodeKind.FunctionCall },
-                callee : id as *mut JsNode,
+                callee : node,
                 args : std::vector<*mut JsNode>()
             }
             
@@ -87,33 +132,13 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
             if(!parser.increment_if(JsTokenType.RParen as int)) {
                 parser.error("expected )");
             }
-            return call as *mut JsNode;
+            node = call as *mut JsNode;
+        } else {
+            break;
         }
-        
-        return id as *mut JsNode;
-    } else if(token.type == JsTokenType.ChemicalStart as int) {
-        parser.increment();
-        var val = parser.parseExpression(builder);
-        if(!parser.increment_if(JsTokenType.RBrace as int)) {
-            parser.error("expected } after chemical value");
-        }
-        var chem = builder.allocate<JsChemicalValue>()
-        new (chem) JsChemicalValue {
-            base : JsNode { kind : JsNodeKind.ChemicalValue },
-            value : val
-        }
-        return chem as *mut JsNode;
-    } else if(token.type == JsTokenType.LParen as int) {
-        parser.increment();
-        var expr = parseExpression(parser, builder);
-        if(!parser.increment_if(JsTokenType.RParen as int)) {
-            parser.error("expected )");
-        }
-        return expr;
     }
     
-    parser.error("unexpected token in expression");
-    return null;
+    return node;
 }
 
 func parseExpression(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {

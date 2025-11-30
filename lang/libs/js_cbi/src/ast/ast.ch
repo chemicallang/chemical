@@ -15,7 +15,16 @@ public enum JsNodeKind {
     ArrayLiteral,
     ObjectLiteral,
     For,
-    While
+    While,
+    DoWhile,
+    Switch,
+    Case,
+    Break,
+    Continue,
+    TryCatch,
+    Throw,
+    Ternary,
+    UnaryOp
 }
 
 public struct JsNode {
@@ -131,4 +140,56 @@ public struct JsWhile {
     var base : JsNode
     var condition : *mut JsNode
     var body : *mut JsNode
+}
+
+public struct JsDoWhile {
+    var base : JsNode
+    var condition : *mut JsNode
+    var body : *mut JsNode
+}
+
+public struct JsCase {
+    var test : *mut JsNode  // null for default
+    var body : std::vector<*mut JsNode>
+}
+
+public struct JsSwitch {
+    var base : JsNode
+    var discriminant : *mut JsNode
+    var cases : std::vector<JsCase>
+}
+
+public struct JsBreak {
+    var base : JsNode
+}
+
+public struct JsContinue {
+    var base : JsNode
+}
+
+public struct JsTryCatch {
+    var base : JsNode
+    var tryBlock : *mut JsNode
+    var catchParam : std::string_view
+    var catchBlock : *mut JsNode
+    var finallyBlock : *mut JsNode
+}
+
+public struct JsThrow {
+    var base : JsNode
+    var argument : *mut JsNode
+}
+
+public struct JsTernary {
+    var base : JsNode
+    var condition : *mut JsNode
+    var consequent : *mut JsNode
+    var alternate : *mut JsNode
+}
+
+public struct JsUnaryOp {
+    var base : JsNode
+    var operator : std::string_view
+    var operand : *mut JsNode
+    var prefix : bool
 }

@@ -253,6 +253,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view(".")
             converter.str.append_view(access.property)
         }
+        JsNodeKind.ExpressionStatement => {
+            var stmt = node as *mut JsExpressionStatement
+            converter.convertJsNode(stmt.expression)
+            converter.str.append_view(";")
+        }
     }
 }
 

@@ -6,6 +6,7 @@ public enum JsNodeKind {
     Identifier,
     MemberAccess,
     FunctionCall,
+    ExpressionStatement,
     Block,
     If,
     Return,
@@ -84,4 +85,9 @@ public struct JsMemberAccess {
     var base : JsNode
     var object : *mut JsNode
     var property : std::string_view
+}
+
+public struct JsExpressionStatement {
+    var base : JsNode
+    var expression : *mut JsNode
 }

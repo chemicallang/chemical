@@ -331,7 +331,12 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         var expr = parseExpression(parser, builder);
         if(expr != null) {
             parser.increment_if(JsTokenType.SemiColon as int);
-            return expr;
+            var stmt = builder.allocate<JsExpressionStatement>()
+            new (stmt) JsExpressionStatement {
+                base : JsNode { kind : JsNodeKind.ExpressionStatement },
+                expression : expr
+            }
+            return stmt as *mut JsNode;
         }
     }
     

@@ -4,6 +4,7 @@ public enum JsNodeKind {
     Literal,
     ChemicalValue,
     Identifier,
+    MemberAccess,
     FunctionCall,
     Block,
     If,
@@ -77,4 +78,10 @@ public struct JsFunctionDecl {
     var name : std::string_view
     var params : std::vector<std::string_view>
     var body : *mut JsNode
+}
+
+public struct JsMemberAccess {
+    var base : JsNode
+    var object : *mut JsNode
+    var property : std::string_view
 }

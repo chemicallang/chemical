@@ -105,6 +105,44 @@ public func js_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) :
 }
 
 public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
+    
+    if(js.chemical_mode) {
+        var nested = lexer.getEmbeddedToken();
+        if(nested.type == ChemicalTokenType.LBrace) {
+            js.lb_count++;
+        } else if(nested.type == ChemicalTokenType.RBrace) {
+            js.lb_count--;
+            // If we drop back to the level where we started chemical mode?
+            // Wait, ${ starts chemical mode.
+            // { -> lb_count 1 (macro start)
+            // ${ -> lb_count 1 (still 1?) No, ${ should probably act like an opening brace for counting?
+            // If we treat ${ as {.
+            // But getEmbeddedToken returns tokens.
+            // If we are in chemical mode, we are parsing chemical code.
+            // We need to know when to stop.
+            // We stop when we hit the closing brace matching the opening brace of the interpolation.
+            // But ${ uses { as the opener.
+            // So if we increment lb_count on ${, we should decrement on }.
+            
+            // Let's say:
+            // #js { ... ${ ... } ... }
+            // { -> lb=1
+            // ${ -> lb=2 (chemical mode on)
+            // } -> lb=1 (chemical mode off)
+            // } -> lb=0 (macro end)
+            
+            if(js.lb_count == 1) {
+                 // This means we closed the chemical block (assuming we started at 1 and went to 2)
+                 // Wait, if we are at lb=1, we are back to JS mode?
+                 // If we started chemical mode at lb=1 (transition to 2).
+                 // Then when we drop to 1, we are done.
+                 js.chemical_mode = false;
+                 return Token { type : JsTokenType.RBrace as int, value : view("}"), position : nested.position }
+            }
+        }
+        return nested;
+    }
+
     const provider = &mut lexer.provider;
     const position = provider.getPosition();
     const data_ptr = provider.current_data()
@@ -113,6 +151,16 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
     switch(c) {
         '\0' => {
             return Token { type : JsTokenType.EndOfFile as int, value : view(""), position : position }
+        }
+        '$' => {
+            if(provider.peek() == '{') {
+                provider.readCharacter(); // consume {
+                js.lb_count++;
+                js.chemical_mode = true;
+                return Token { type : JsTokenType.ChemicalStart as int, value : view("${"), position : position }
+            }
+            // Treat as identifier start or just $
+            return Token { type : JsTokenType.Identifier as int, value : view("$"), position : position }
         }
         '{' => {
             js.lb_count++;
@@ -127,6 +175,21 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             }
             return Token { type : JsTokenType.RBrace as int, value : view("}"), position : position }
         }
+        '(' => { return Token { type : JsTokenType.LParen as int, value : view("("), position : position } }
+        ')' => { return Token { type : JsTokenType.RParen as int, value : view(")"), position : position } }
+        '[' => { return Token { type : JsTokenType.LBracket as int, value : view("["), position : position } }
+        ']' => { return Token { type : JsTokenType.RBracket as int, value : view("]"), position : position } }
+        ';' => { return Token { type : JsTokenType.SemiColon as int, value : view(";"), position : position } }
+        ',' => { return Token { type : JsTokenType.Comma as int, value : view(","), position : position } }
+        ':' => { return Token { type : JsTokenType.Colon as int, value : view(":"), position : position } }
+        '.' => { return Token { type : JsTokenType.Dot as int, value : view("."), position : position } }
+        '+' => { return Token { type : JsTokenType.Plus as int, value : view("+"), position : position } }
+        '-' => { return Token { type : JsTokenType.Minus as int, value : view("-"), position : position } }
+        '*' => { return Token { type : JsTokenType.Star as int, value : view("*"), position : position } }
+        '/' => { 
+            // TODO handle comments
+            return Token { type : JsTokenType.Slash as int, value : view("/"), position : position } 
+        }
         ' ', '\t', '\n', '\r' => {
             provider.skip_whitespaces();
             return getNextToken(js, lexer);
@@ -134,12 +197,34 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         '=' => {
             return Token { type : JsTokenType.Equal as int, value : view("="), position : position }
         }
+        '"', '\'' => {
+            // String literal
+            // TODO: handle escaping
+            // For now simple string
+             // provider.read_string_literal(c);
+             // We don't have read_string_literal exposed maybe?
+             // html_cbi uses read_double_quoted_value
+             if(c == '"') {
+                 provider.read_double_quoted_value();
+             } else {
+                 provider.read_single_quoted_value();
+             }
+             return Token { type : JsTokenType.String as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+        }
         default => {
-            if(isalpha(c as int)) {
+            if(isalpha(c as int) || c == '_') {
                 provider.read_identifier();
                 const val = std::string_view(data_ptr, provider.current_data() - data_ptr);
                 if(val.equals(view("var"))) {
                     return Token { type : JsTokenType.Var as int, value : val, position : position }
+                } else if(val.equals(view("function"))) {
+                    return Token { type : JsTokenType.Function as int, value : val, position : position }
+                } else if(val.equals(view("return"))) {
+                    return Token { type : JsTokenType.Return as int, value : val, position : position }
+                } else if(val.equals(view("if"))) {
+                    return Token { type : JsTokenType.If as int, value : val, position : position }
+                } else if(val.equals(view("else"))) {
+                    return Token { type : JsTokenType.Else as int, value : val, position : position }
                 }
                 return Token { type : JsTokenType.Identifier as int, value : val, position : position }
             } else if(isdigit(c)) {
@@ -156,7 +241,8 @@ public func js_initializeLexer(lexer : *mut Lexer) {
     const file_allocator = lexer.getFileAllocator();
     const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;
     new (ptr) JsLexer {
-        lb_count : 0
+        lb_count : 0,
+        chemical_mode : false
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

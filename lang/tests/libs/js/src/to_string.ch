@@ -156,8 +156,6 @@ public func while_loop_break_continue(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), "while(true){if(i == 3)continue;if(i == 7)break;console.log(i);}");
 }
 
-/**
-
 @test
 public func do_while_loop_works(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -167,8 +165,10 @@ public func do_while_loop_works(env : &mut TestEnv) {
             x++
         } while(x < 3);
     }
-    string_equals(env, page.toStringJsOnly(), "let x = 0; do { x++; } while(x < 3);");
+    string_equals(env, page.toStringJsOnly(), "let x = 0;do {x++;} while(x < 3);");
 }
+
+/**
 
 @test
 public func switch_stmt_works(env : &mut TestEnv) {

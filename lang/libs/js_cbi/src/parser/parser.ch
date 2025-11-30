@@ -24,7 +24,14 @@ public enum JsTokenType {
     Plus,
     Minus,
     Star,
-    Slash
+    Slash,
+    EqualEqual,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
+    Exclamation
 }
 
 func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
@@ -120,7 +127,13 @@ func parseExpression(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsN
            token.type == JsTokenType.Minus as int || 
            token.type == JsTokenType.Star as int || 
            token.type == JsTokenType.Slash as int ||
-           token.type == JsTokenType.Equal as int) { // Assignment is also handled here for simplicity
+           token.type == JsTokenType.Equal as int ||
+           token.type == JsTokenType.EqualEqual as int ||
+           token.type == JsTokenType.NotEqual as int ||
+           token.type == JsTokenType.LessThan as int ||
+           token.type == JsTokenType.GreaterThan as int ||
+           token.type == JsTokenType.LessThanEqual as int ||
+           token.type == JsTokenType.GreaterThanEqual as int) { // Assignment is also handled here for simplicity
             
             var op = builder.allocate_view(token.value);
             parser.increment();

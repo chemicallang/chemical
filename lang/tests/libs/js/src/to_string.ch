@@ -32,3 +32,14 @@ public func function_decl_works(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), "function give(thing){var x = 0;return x;}");
 }
+
+@test
+public func expression_and_calls_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        if(window != null) {
+            log("hello")
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), "if(window != null){log(\"hello\")}");
+}

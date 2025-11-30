@@ -195,7 +195,32 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             return getNextToken(js, lexer);
         }
         '=' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.EqualEqual as int, value : view("=="), position : position }
+            }
             return Token { type : JsTokenType.Equal as int, value : view("="), position : position }
+        }
+        '!' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.NotEqual as int, value : view("!="), position : position }
+            }
+            return Token { type : JsTokenType.Exclamation as int, value : view("!"), position : position }
+        }
+        '<' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.LessThanEqual as int, value : view("<="), position : position }
+            }
+            return Token { type : JsTokenType.LessThan as int, value : view("<"), position : position }
+        }
+        '>' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.GreaterThanEqual as int, value : view(">="), position : position }
+            }
+            return Token { type : JsTokenType.GreaterThan as int, value : view(">"), position : position }
         }
         '"', '\'' => {
             // String literal

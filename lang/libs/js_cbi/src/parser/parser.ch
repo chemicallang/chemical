@@ -469,6 +469,7 @@ func parseBlock(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
 func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int) {
+        var keyword = builder.allocate_view(token.value);
         parser.increment();
         const idToken = parser.getToken();
         if(idToken.type != JsTokenType.Identifier as int) {
@@ -485,7 +486,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
                 base : JsNode { kind : JsNodeKind.VarDecl },
                 name : name,
                 value : val,
-                keyword : std::string_view()
+                keyword : keyword
             }
             parser.increment_if(JsTokenType.SemiColon as int);
             return varDecl as *mut JsNode;
@@ -495,7 +496,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
                 base : JsNode { kind : JsNodeKind.VarDecl },
                 name : name,
                 value : null,
-                keyword : std::string_view()
+                keyword : keyword
             }
             parser.increment_if(JsTokenType.SemiColon as int);
             return varDecl as *mut JsNode;

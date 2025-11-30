@@ -162,7 +162,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
     switch(node.kind) {
         JsNodeKind.VarDecl => {
             var varDecl = node as *mut JsVarDecl
-            converter.str.append_view("var ")
+            if(varDecl.keyword.empty()) {
+                converter.str.append_view("var ")
+            } else {
+                converter.str.append_view(varDecl.keyword)
+                converter.str.append_view(" ")
+            }
             converter.str.append_view(varDecl.name)
             if(varDecl.value != null) {
                 converter.str.append_view(" = ")

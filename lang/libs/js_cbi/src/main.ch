@@ -183,12 +183,41 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         ',' => { return Token { type : JsTokenType.Comma as int, value : view(","), position : position } }
         ':' => { return Token { type : JsTokenType.Colon as int, value : view(":"), position : position } }
         '.' => { return Token { type : JsTokenType.Dot as int, value : view("."), position : position } }
-        '+' => { return Token { type : JsTokenType.Plus as int, value : view("+"), position : position } }
-        '-' => { return Token { type : JsTokenType.Minus as int, value : view("-"), position : position } }
+        '+' => {
+            if(provider.peek() == '+') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.PlusPlus as int, value : view("++"), position : position }
+            }
+            return Token { type : JsTokenType.Plus as int, value : view("+"), position : position }
+        }
+        '-' => {
+            if(provider.peek() == '-') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.MinusMinus as int, value : view("--"), position : position }
+            }
+            return Token { type : JsTokenType.Minus as int, value : view("-"), position : position }
+        }
         '*' => { return Token { type : JsTokenType.Star as int, value : view("*"), position : position } }
-        '/' => { 
+        '/' => {
             // TODO handle comments
-            return Token { type : JsTokenType.Slash as int, value : view("/"), position : position } 
+            return Token { type : JsTokenType.Slash as int, value : view("/"), position : position }
+        }
+        '&' => {
+            if(provider.peek() == '&') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.LogicalAnd as int, value : view("&&"), position : position }
+            }
+            return Token { type : JsTokenType.Identifier as int, value : view("&"), position : position }
+        }
+        '|' => {
+            if(provider.peek() == '|') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.LogicalOr as int, value : view("||"), position : position }
+            }
+            return Token { type : JsTokenType.Identifier as int, value : view("|"), position : position }
+        }
+        '?' => {
+            return Token { type : JsTokenType.Question as int, value : view("?"), position : position }
         }
         ' ', '\t', '\n', '\r' => {
             provider.skip_whitespaces();
@@ -253,6 +282,26 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                     return Token { type : JsTokenType.For as int, value : val, position : position }
                 } else if(val.equals(view("while"))) {
                     return Token { type : JsTokenType.While as int, value : val, position : position }
+                } else if(val.equals(view("break"))) {
+                    return Token { type : JsTokenType.Break as int, value : val, position : position }
+                } else if(val.equals(view("continue"))) {
+                    return Token { type : JsTokenType.Continue as int, value : val, position : position }
+                } else if(val.equals(view("switch"))) {
+                    return Token { type : JsTokenType.Switch as int, value : val, position : position }
+                } else if(val.equals(view("case"))) {
+                    return Token { type : JsTokenType.Case as int, value : val, position : position }
+                } else if(val.equals(view("default"))) {
+                    return Token { type : JsTokenType.Default as int, value : val, position : position }
+                } else if(val.equals(view("do"))) {
+                    return Token { type : JsTokenType.Do as int, value : val, position : position }
+                } else if(val.equals(view("try"))) {
+                    return Token { type : JsTokenType.Try as int, value : val, position : position }
+                } else if(val.equals(view("catch"))) {
+                    return Token { type : JsTokenType.Catch as int, value : val, position : position }
+                } else if(val.equals(view("finally"))) {
+                    return Token { type : JsTokenType.Finally as int, value : val, position : position }
+                } else if(val.equals(view("throw"))) {
+                    return Token { type : JsTokenType.Throw as int, value : val, position : position }
                 } else if(val.equals(view("function"))) {
                     return Token { type : JsTokenType.Function as int, value : val, position : position }
                 } else if(val.equals(view("return"))) {

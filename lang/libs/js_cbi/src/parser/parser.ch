@@ -36,12 +36,47 @@ public enum JsTokenType {
     Const,
     Let,
     For,
-    While
+    While,
+    LogicalAnd,      // &&
+    LogicalOr,       // ||
+    Question,        // ?
+    PlusPlus,        // ++
+    MinusMinus,      // --
+    Break,
+    Continue,
+    Switch,
+    Case,
+    Default,
+    Do,
+    Try,
+    Catch,
+    Finally,
+    Throw,
+    TemplateLiteral,  // `string`
 }
 
 func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     var node : *mut JsNode = null;
     const token = parser.getToken();
+    
+    // Check for unary operators first
+    if(token.type == JsTokenType.Exclamation as int || 
+       token.type == JsTokenType.Plus as int || 
+       token.type == JsTokenType.Minus as int ||
+       token.type == JsTokenType.PlusPlus as int ||
+       token.type == JsTokenType.MinusMinus as int) {
+        var op = builder.allocate_view(token.value);
+        parser.increment();
+        var operand = parsePrimary(parser, builder);
+        var unary = builder.allocate<JsUnaryOp>()
+        new (unary) JsUnaryOp {
+            base : JsNode { kind : JsNodeKind.UnaryOp },
+            operator : op,
+            operand : operand,
+            prefix : true
+        }
+        return unary as *mut JsNode;
+    }
     
     if(token.type == JsTokenType.Number as int) {
         parser.increment();
@@ -324,6 +359,17 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
                 parser.error("expected )");
             }
             node = call as *mut JsNode;
+        } else if(t.type == JsTokenType.PlusPlus as int || t.type == JsTokenType.MinusMinus as int) {
+            var op = builder.allocate_view(t.value);
+            parser.increment();
+            var unary = builder.allocate<JsUnaryOp>()
+            new (unary) JsUnaryOp {
+                base : JsNode { kind : JsNodeKind.UnaryOp },
+                operator : op,
+                operand : node,
+                prefix : false
+            }
+            node = unary as *mut JsNode;
         } else {
             break;
         }
@@ -346,7 +392,9 @@ func parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder
            token.type == JsTokenType.LessThan as int ||
            token.type == JsTokenType.GreaterThan as int ||
            token.type == JsTokenType.LessThanEqual as int ||
-           token.type == JsTokenType.GreaterThanEqual as int) {
+           token.type == JsTokenType.GreaterThanEqual as int ||
+           token.type == JsTokenType.LogicalAnd as int ||
+           token.type == JsTokenType.LogicalOr as int) {
             
             var op = builder.allocate_view(token.value);
             parser.increment();
@@ -360,6 +408,21 @@ func parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder
                 op : op
             }
             node = binOp as *mut JsNode;
+        } else if(token.type == JsTokenType.Question as int) {
+            parser.increment();
+            var consequent = parseExpression(parser, builder);
+            if(!parser.increment_if(JsTokenType.Colon as int)) {
+                parser.error("expected : in ternary");
+            }
+            var alternate = parseExpression(parser, builder);
+            var ternary = builder.allocate<JsTernary>()
+            new (ternary) JsTernary {
+                base : JsNode { kind : JsNodeKind.Ternary },
+                condition : node,
+                consequent : consequent,
+                alternate : alternate
+            }
+            node = ternary as *mut JsNode;
         } else {
             break;
         }
@@ -405,7 +468,7 @@ func parseBlock(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
 
 func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
-    if(token.type == JsTokenType.Var as int) {
+    if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int) {
         parser.increment();
         const idToken = parser.getToken();
         if(idToken.type != JsTokenType.Identifier as int) {
@@ -520,6 +583,145 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
             body : body
         }
         return funcDecl as *mut JsNode;
+    } else if(token.type == JsTokenType.Break as int) {
+        parser.increment();
+        parser.increment_if(JsTokenType.SemiColon as int);
+        var breakStmt = builder.allocate<JsBreak>()
+        new (breakStmt) JsBreak {
+            base : JsNode { kind : JsNodeKind.Break }
+        }
+        return breakStmt as *mut JsNode;
+    } else if(token.type == JsTokenType.Continue as int) {
+        parser.increment();
+        parser.increment_if(JsTokenType.SemiColon as int);
+        var continueStmt = builder.allocate<JsContinue>()
+        new (continueStmt) JsContinue {
+            base : JsNode { kind : JsNodeKind.Continue }
+        }
+        return continueStmt as *mut JsNode;
+    } else if(token.type == JsTokenType.Do as int) {
+        parser.increment();
+        var body = parseStatement(parser, builder);
+        if(!parser.increment_if(JsTokenType.While as int)) {
+            parser.error("expected while after do body");
+        }
+        if(!parser.increment_if(JsTokenType.LParen as int)) {
+            parser.error("expected ( after while");
+        }
+        var condition = parseExpression(parser, builder);
+        if(!parser.increment_if(JsTokenType.RParen as int)) {
+            parser.error("expected ) after condition");
+        }
+        parser.increment_if(JsTokenType.SemiColon as int);
+        var doWhile = builder.allocate<JsDoWhile>()
+        new (doWhile) JsDoWhile {
+            base : JsNode { kind : JsNodeKind.DoWhile },
+            condition : condition,
+            body : body
+        }
+        return doWhile as *mut JsNode;
+    } else if(token.type == JsTokenType.Switch as int) {
+        parser.increment();
+        if(!parser.increment_if(JsTokenType.LParen as int)) {
+            parser.error("expected ( after switch");
+        }
+        var discriminant = parseExpression(parser, builder);
+        if(!parser.increment_if(JsTokenType.RParen as int)) {
+            parser.error("expected ) after switch discriminant");
+        }
+        if(!parser.increment_if(JsTokenType.LBrace as int)) {
+            parser.error("expected { for switch body");
+        }
+        
+        var cases = std::vector<JsCase>();
+        while(parser.getToken().type != JsTokenType.RBrace as int) {
+            if(parser.getToken().type == JsTokenType.Case as int) {
+                parser.increment();
+                var test = parseExpression(parser, builder);
+                if(!parser.increment_if(JsTokenType.Colon as int)) {
+                    parser.error("expected : after case");
+                }
+                var body = std::vector<*mut JsNode>();
+                while(parser.getToken().type != JsTokenType.Case as int &&
+                      parser.getToken().type != JsTokenType.Default as int &&
+                      parser.getToken().type != JsTokenType.RBrace as int) {
+                    var stmt = parseStatement(parser, builder);
+                    if(stmt != null) body.push(stmt);
+                    else break;
+                }
+                cases.push(JsCase { test : test, body : body });
+            } else if(parser.getToken().type == JsTokenType.Default as int) {
+                parser.increment();
+                if(!parser.increment_if(JsTokenType.Colon as int)) {
+                    parser.error("expected : after default");
+                }
+                var body = std::vector<*mut JsNode>();
+                while(parser.getToken().type != JsTokenType.Case as int &&
+                      parser.getToken().type != JsTokenType.Default as int &&
+                      parser.getToken().type != JsTokenType.RBrace as int) {
+                    var stmt = parseStatement(parser, builder);
+                    if(stmt != null) body.push(stmt);
+                    else break;
+                }
+                cases.push(JsCase { test : null, body : body });
+            } else {
+                break;
+            }
+        }
+        if(!parser.increment_if(JsTokenType.RBrace as int)) {
+            parser.error("expected closing }");
+        }
+        var switchStmt = builder.allocate<JsSwitch>()
+        new (switchStmt) JsSwitch {
+            base : JsNode { kind : JsNodeKind.Switch },
+            discriminant : discriminant,
+            cases : cases
+        }
+        return switchStmt as *mut JsNode;
+    } else if(token.type == JsTokenType.Throw as int) {
+        parser.increment();
+        var arg = parseExpression(parser, builder);
+        parser.increment_if(JsTokenType.SemiColon as int);
+        var throwStmt = builder.allocate<JsThrow>()
+        new (throwStmt) JsThrow {
+            base : JsNode { kind : JsNodeKind.Throw },
+            argument : arg
+        }
+        return throwStmt as *mut JsNode;
+    } else if(token.type == JsTokenType.Try as int) {
+        parser.increment();
+        var tryBlock = parseBlock(parser, builder);
+        var catchParam = std::string_view();
+        var catchBlock : *mut JsNode = null;
+        var finallyBlock : *mut JsNode = null;
+        
+        if(parser.increment_if(JsTokenType.Catch as int)) {
+            if(parser.increment_if(JsTokenType.LParen as int)) {
+                const paramToken = parser.getToken();
+                if(paramToken.type == JsTokenType.Identifier as int) {
+                    catchParam = builder.allocate_view(paramToken.value);
+                    parser.increment();
+                }
+                if(!parser.increment_if(JsTokenType.RParen as int)) {
+                    parser.error("expected )");
+                }
+            }
+            catchBlock = parseBlock(parser, builder);
+        }
+        
+        if(parser.increment_if(JsTokenType.Finally as int)) {
+            finallyBlock = parseBlock(parser, builder);
+        }
+        
+        var tryCatch = builder.allocate<JsTryCatch>()
+        new (tryCatch) JsTryCatch {
+            base : JsNode { kind : JsNodeKind.TryCatch },
+            tryBlock : tryBlock,
+            catchParam : catchParam,
+            catchBlock : catchBlock,
+            finallyBlock : finallyBlock
+        }
+        return tryCatch as *mut JsNode;
     } else if(token.type == JsTokenType.LBrace as int) {
         return parseBlock(parser, builder);
     } else {
@@ -559,8 +761,7 @@ func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
         if(stmt != null) {
             root.statements.push(stmt);
         } else {
-            // Error recovery or break
-            if(token.type == JsTokenType.EndOfFile as int) break;
+            break;
         }
     }
     return root;

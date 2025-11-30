@@ -675,6 +675,7 @@ IncDecNode* Parser::parsePreIncDecNode(ASTAllocator& allocator, bool increment) 
         } else {
             unexpected_error("expected an expression after the pre decrement");
         }
+        return nullptr;
     }
     return new (allocator.allocate<IncDecNode>()) IncDecNode(expr, increment, false, loc_single(t), parent_node);
 }

@@ -345,6 +345,87 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view(")")
             converter.convertJsNode(whileStmt.body)
         }
+        JsNodeKind.DoWhile => {
+            var doWhile = node as *mut JsDoWhile
+            converter.str.append_view("do ")
+            converter.convertJsNode(doWhile.body)
+            converter.str.append_view(" while(")
+            converter.convertJsNode(doWhile.condition)
+            converter.str.append_view(");")
+        }
+        JsNodeKind.Break => {
+            converter.str.append_view("break;")
+        }
+        JsNodeKind.Continue => {
+            converter.str.append_view("continue;")
+        }
+        JsNodeKind.Switch => {
+            var switchStmt = node as *mut JsSwitch
+            converter.str.append_view("switch(")
+            converter.convertJsNode(switchStmt.discriminant)
+            converter.str.append_view(") {")
+            var i = 0u
+            while(i < switchStmt.cases.size()) {
+                var c = switchStmt.cases.get(i)
+                if(c.test == null) {
+                    converter.str.append_view("default:")
+                } else {
+                    converter.str.append_view("case ")
+                    converter.convertJsNode(c.test)
+                    converter.str.append_view(":")
+                }
+                var j = 0u
+                while(j < c.body.size()) {
+                    converter.convertJsNode(c.body.get(j))
+                    j++
+                }
+                i++
+            }
+            converter.str.append_view("}")
+        }
+        JsNodeKind.Throw => {
+            var throwStmt = node as *mut JsThrow
+            converter.str.append_view("throw ")
+            converter.convertJsNode(throwStmt.argument)
+            converter.str.append_view(";")
+        }
+        JsNodeKind.TryCatch => {
+            var tryCatch = node as *mut JsTryCatch
+            converter.str.append_view("try ")
+            converter.convertJsNode(tryCatch.tryBlock)
+            if(tryCatch.catchBlock != null) {
+                converter.str.append_view(" catch")
+                if(!tryCatch.catchParam.empty()) {
+                    converter.str.append_view("(")
+                    converter.str.append_view(tryCatch.catchParam)
+                    converter.str.append_view(")")
+                }
+                converter.str.append_view(" ")
+                converter.convertJsNode(tryCatch.catchBlock)
+            }
+            if(tryCatch.finallyBlock != null) {
+                converter.str.append_view(" finally ")
+                converter.convertJsNode(tryCatch.finallyBlock)
+            }
+        }
+        JsNodeKind.Ternary => {
+            var ternary = node as *mut JsTernary
+            converter.convertJsNode(ternary.condition)
+            converter.str.append_view(" ? ")
+            converter.convertJsNode(ternary.consequent)
+            converter.str.append_view(" : ")
+            converter.convertJsNode(ternary.alternate)
+        }
+        JsNodeKind.UnaryOp => {
+            var unary = node as *mut JsUnaryOp
+            if(unary.prefix) {
+                converter.str.append_view(unary.operator)
+                converter.convertJsNode(unary.operand)
+            } else {
+                converter.convertJsNode(unary.operand)
+                converter.str.append_view(unary.operator)
+            }
+        }
     }
 }
 

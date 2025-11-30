@@ -130,8 +130,6 @@ public func unary_operator_inc_dec_work(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), "let count = 0;++count;count++;--count;count--;");
 }
 
-/**
-
 @test
 public func for_loop_break_continue(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -142,8 +140,23 @@ public func for_loop_break_continue(env : &mut TestEnv) {
             console.log(i);
         }
     }
-    string_equals(env, page.toStringJsOnly(), "for(let i = 0; i < 10; i++) { if(i == 3) continue; if(i == 7) break; console.log(i); }");
+    string_equals(env, page.toStringJsOnly(), "for(let i = 0; i < 10; i++){if(i == 3)continue;if(i == 7)break;console.log(i);}");
 }
+
+@test
+public func while_loop_break_continue(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        while(true) {
+            if(i == 3) continue;
+            if(i == 7) break;
+            console.log(i);
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), "while(true){if(i == 3)continue;if(i == 7)break;console.log(i);}");
+}
+
+/**
 
 @test
 public func do_while_loop_works(env : &mut TestEnv) {

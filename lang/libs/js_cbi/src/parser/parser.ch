@@ -584,6 +584,80 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
             body : body
         }
         return funcDecl as *mut JsNode;
+    } else if(token.type == JsTokenType.For as int) {
+        parser.increment();
+        if(!parser.increment_if(JsTokenType.LParen as int)) {
+            parser.error("expected ( after for");
+        }
+        
+        var initNode : *mut JsNode = null;
+        if(parser.getToken().type != JsTokenType.SemiColon as int) {
+            if(parser.getToken().type == JsTokenType.Var as int || 
+               parser.getToken().type == JsTokenType.Const as int || 
+               parser.getToken().type == JsTokenType.Let as int) {
+                initNode = parseStatement(parser, builder);
+            } else {
+                var expr = parseExpression(parser, builder);
+                if(expr != null) {
+                    parser.increment_if(JsTokenType.SemiColon as int);
+                    var stmt = builder.allocate<JsExpressionStatement>()
+                    new (stmt) JsExpressionStatement {
+                        base : JsNode { kind : JsNodeKind.ExpressionStatement },
+                        expression : expr
+                    }
+                    initNode = stmt as *mut JsNode;
+                } else {
+                     parser.increment_if(JsTokenType.SemiColon as int);
+                }
+            }
+        } else {
+            parser.increment();
+        }
+        
+        var condition : *mut JsNode = null;
+        if(parser.getToken().type != JsTokenType.SemiColon as int) {
+            condition = parseExpression(parser, builder);
+        }
+        if(!parser.increment_if(JsTokenType.SemiColon as int)) {
+            parser.error("expected ; after condition");
+        }
+        
+        var update : *mut JsNode = null;
+        if(parser.getToken().type != JsTokenType.RParen as int) {
+            update = parseExpression(parser, builder);
+        }
+        if(!parser.increment_if(JsTokenType.RParen as int)) {
+            parser.error("expected )");
+        }
+        
+        var body = parseStatement(parser, builder);
+        
+        var forStmt = builder.allocate<JsFor>()
+        new (forStmt) JsFor {
+            base : JsNode { kind : JsNodeKind.For },
+            init : initNode,
+            condition : condition,
+            update : update,
+            body : body
+        }
+        return forStmt as *mut JsNode;
+    } else if(token.type == JsTokenType.While as int) {
+        parser.increment();
+        if(!parser.increment_if(JsTokenType.LParen as int)) {
+            parser.error("expected ( after while");
+        }
+        var condition = parseExpression(parser, builder);
+        if(!parser.increment_if(JsTokenType.RParen as int)) {
+            parser.error("expected )");
+        }
+        var body = parseStatement(parser, builder);
+        var whileStmt = builder.allocate<JsWhile>()
+        new (whileStmt) JsWhile {
+            base : JsNode { kind : JsNodeKind.While },
+            condition : condition,
+            body : body
+        }
+        return whileStmt as *mut JsNode;
     } else if(token.type == JsTokenType.Break as int) {
         parser.increment();
         parser.increment_if(JsTokenType.SemiColon as int);

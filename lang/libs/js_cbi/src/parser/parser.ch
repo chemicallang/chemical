@@ -707,8 +707,13 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         if(!parser.increment_if(JsTokenType.LBrace as int)) {
             parser.error("expected { for switch body");
         }
-        
-        var cases = std::vector<JsCase>();
+        var switchStmt = builder.allocate<JsSwitch>()
+        new (switchStmt) JsSwitch {
+            base : JsNode { kind : JsNodeKind.Switch },
+            discriminant : discriminant,
+            cases : std::vector<JsCase>()
+        }
+        var cases = &mut switchStmt.cases;
         while(parser.getToken().type != JsTokenType.RBrace as int) {
             if(parser.getToken().type == JsTokenType.Case as int) {
                 parser.increment();
@@ -716,41 +721,34 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
                 if(!parser.increment_if(JsTokenType.Colon as int)) {
                     parser.error("expected : after case");
                 }
-                var body = std::vector<*mut JsNode>();
+                cases.push(JsCase { test : test, body : std::vector<*mut JsNode>() });
+                const casePtr = cases.last_ptr()
                 while(parser.getToken().type != JsTokenType.Case as int &&
                       parser.getToken().type != JsTokenType.Default as int &&
                       parser.getToken().type != JsTokenType.RBrace as int) {
                     var stmt = parseStatement(parser, builder);
-                    if(stmt != null) body.push(stmt);
-                    else break;
+                    if(stmt != null) casePtr.body.push(stmt); else break;
                 }
-                cases.push(JsCase { test : test, body : body });
             } else if(parser.getToken().type == JsTokenType.Default as int) {
                 parser.increment();
                 if(!parser.increment_if(JsTokenType.Colon as int)) {
                     parser.error("expected : after default");
                 }
-                var body = std::vector<*mut JsNode>();
+                cases.push(JsCase { test : null, body : std::vector<*mut JsNode>() });
+                const casePtr = cases.last_ptr()
                 while(parser.getToken().type != JsTokenType.Case as int &&
                       parser.getToken().type != JsTokenType.Default as int &&
                       parser.getToken().type != JsTokenType.RBrace as int) {
                     var stmt = parseStatement(parser, builder);
-                    if(stmt != null) body.push(stmt);
-                    else break;
+                    if(stmt != null) casePtr.body.push(stmt); else break;
                 }
-                cases.push(JsCase { test : null, body : body });
+
             } else {
                 break;
             }
         }
         if(!parser.increment_if(JsTokenType.RBrace as int)) {
             parser.error("expected closing }");
-        }
-        var switchStmt = builder.allocate<JsSwitch>()
-        new (switchStmt) JsSwitch {
-            base : JsNode { kind : JsNodeKind.Switch },
-            discriminant : discriminant,
-            cases : cases
         }
         return switchStmt as *mut JsNode;
     } else if(token.type == JsTokenType.Throw as int) {

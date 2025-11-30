@@ -168,8 +168,6 @@ public func do_while_loop_works(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), "let x = 0;do {x++;} while(x < 3);");
 }
 
-/**
-
 @test
 public func switch_stmt_works(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -186,18 +184,11 @@ public func switch_stmt_works(env : &mut TestEnv) {
                 console.log("Unknown");
         }
     }
-    string_equals(env, page.toStringJsOnly(), """const day = 2; switch(day) {
-case 1:
-   console.log("Monday");
-   break;
-case 2:
-   console.log("Tuesday");
-   break;
-default:
-   console.log("Unknown");
-}""");
+    string_equals(env, page.toStringJsOnly(), """const day = 2;switch(day) {case 1:console.log("Monday");break;case 2:console.log("Tuesday");break;default:console.log("Unknown");}""");
 
 }
+
+/**
 
 @test
 public func switch_stmt_works(env : &mut TestEnv) {

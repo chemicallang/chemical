@@ -371,7 +371,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view(") {")
             var i = 0u
             while(i < switchStmt.cases.size()) {
-                var c = switchStmt.cases.get(i)
+                var c = switchStmt.cases.get_ptr(i)
                 if(c.test == null) {
                     converter.str.append_view("default:")
                 } else {

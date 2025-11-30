@@ -18,7 +18,7 @@ public func if_decl_works(env : &mut TestEnv) {
             x = 5
         }
     }
-    string_equals(env, page.toStringJsOnly(), "var x = 0;if(x){x = 3} else {x = 5}");
+    string_equals(env, page.toStringJsOnly(), "var x = 0;if(x){x = 3;} else {x = 5;}");
 }
 
 @test
@@ -41,7 +41,7 @@ public func expression_and_calls_work(env : &mut TestEnv) {
             log("hello")
         }
     }
-    string_equals(env, page.toStringJsOnly(), "if(window != null){log(\"hello\")}");
+    string_equals(env, page.toStringJsOnly(), "if(window != null){log(\"hello\");}");
 }
 
 @test

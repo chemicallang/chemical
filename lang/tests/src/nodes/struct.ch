@@ -297,6 +297,23 @@ struct PlaceboOverrideGrandparentChild : ParentInterface {
     }
 }
 
+struct DefaultConstructedPoint {
+    var a : int
+    var b : int
+    @make
+    func make() {
+        a = 73
+        b = 953
+    }
+}
+
+struct DefaultConstructedPointContainer {
+    var x : int
+    var y : int
+    var p : DefaultConstructedPoint
+}
+
+
 func test_structs() {
     test_no_type_structs();
     test_structs_aliases();
@@ -487,6 +504,10 @@ func test_structs() {
     test("grandparent interface can be implemented by a child struct - 3", () => {
         var s = PlaceboOverrideGrandparentChild { }
         return call_grandpa_interface_func(dyn<GrandpaInterface>(s)) == 383
+    })
+    test("default constructable struct is properly initialized after specified values", () => {
+        var c = DefaultConstructedPointContainer { x : 921, y : 2347 }
+        return c.x == 921 && c.y == 2347 && c.p.a == 73 && c.p.b == 953
     })
 }
 

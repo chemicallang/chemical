@@ -331,7 +331,51 @@ func test_variant_conditional_destruction(count : *mut int, condition : bool) {
     }
 }
 
+interface DestructibleInterface {
+    func give(&self) : int
+}
+
+// this function moves the value inside it
+func <T : DestructibleInterface> give_destructible_gen_disp(value : T) : int {
+    return value.give()
+}
+
+struct FirstDestructibleImpl : DestructibleInterface {
+    var counter : *mut int
+    @override
+    func give(&self) : int {
+        return 11;
+    }
+    @delete
+    func delete(&self) {
+        *counter = *counter + 1;
+    }
+}
+struct SecondDestructibleImpl : DestructibleInterface {
+    var counter : *mut int
+    @override
+    func give(&self) : int {
+        return 21;
+    }
+    @delete
+    func delete(&self) {
+        *counter = *counter + 2;
+    }
+}
+
 func test_destructors() {
+    test("destructor is called when struct moved with generic dispatch into a function call - 1", () => {
+        var counter = 0;
+        var d = FirstDestructibleImpl { counter : &mut counter }
+        var result = give_destructible_gen_disp(d)
+        return result == 11 && counter == 1
+    })
+    test("destructor is called when struct moved with generic dispatch into a function call - 2", () => {
+        var counter = 0;
+        var d = SecondDestructibleImpl { counter : &mut counter }
+        var result = give_destructible_gen_disp(d)
+        return result == 21 && counter == 2
+    })
     test("var init struct value destructs", () => {
         var count = 0;
         var data_usable = false;

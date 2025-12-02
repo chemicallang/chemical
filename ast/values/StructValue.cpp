@@ -94,7 +94,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
                 if (node->kind() == ASTNodeKind::StructDecl) {
                     auto variable = container->variable_type_index(value->name);
                     const auto decl = node->as_struct_def_unsafe();
-                    const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(variable.first) });
+                    const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(0), gen.builder->getInt32(variable.first) });
                     gen.default_initialize_struct(decl, ptr, this);
                 } else {
                     gen.error(this) << "expected a default value for '" << value->name << "'";

@@ -6261,6 +6261,11 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                 if(container) {
                     const auto child_def = container->as_struct_def();;
                     if(child_def) {
+                        if(has_value_before) {
+                            write(", ");
+                        } else {
+                            has_value_before = true;
+                        }
                         new_line_and_indent(val->encoded_location());
                         write('.');
                         write(var->name);

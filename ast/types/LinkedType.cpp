@@ -99,6 +99,17 @@ bool LinkedType::satisfies(BaseType *other_impure) {
         case ASTNodeKind::GenericTypeParam :{
             const auto param = linked->as_generic_type_param_unsafe();
             if(param->at_least_type) {
+                if(other_kind == BaseTypeKind::Linked) {
+                    const auto l = other->as_linked_type_unsafe()->linked;
+                    if(l->kind() == ASTNodeKind::GenericTypeParam) {
+                        const auto o_gen = l->as_generic_type_param_unsafe();
+                        if(o_gen->at_least_type) {
+                            return param->at_least_type->satisfies(o_gen->at_least_type);
+                        } else {
+                            return false;
+                        }
+                    }
+                }
                 return param->at_least_type->satisfies(other);
             } else {
                 const auto known = param->known_type();

@@ -36,26 +36,30 @@ impl PrimitiveImplInterface1 for bool {
     }
 }
 
-impl PrimitiveImplInterface1 for &int {
-    func give(&self) : int {
+interface PrimitiveImplInterfaceRef1 {
+    func give_ref(&self) : int
+}
+
+impl PrimitiveImplInterfaceRef1 for &int {
+    func give_ref(&self) : int {
         return **self + 30
     }
 }
 
-impl PrimitiveImplInterface1 for &long {
-    func give(&self) : int {
+impl PrimitiveImplInterfaceRef1 for &long {
+    func give_ref(&self) : int {
         return (**self + 40) as int
     }
 }
 
-impl PrimitiveImplInterface1 for *int {
-    func give(&self) : int {
+impl PrimitiveImplInterfaceRef1 for *int {
+    func give_ref(&self) : int {
         return **self + 50
     }
 }
 
-impl PrimitiveImplInterface1 for *long {
-    func give(&self) : int {
+impl PrimitiveImplInterfaceRef1 for *long {
+    func give_ref(&self) : int {
         return (**self + 60) as int
     }
 }
@@ -69,19 +73,19 @@ func param_call_long_prim_impl(a : long) : int {
 }
 
 func param_call_ref_int_prim_impl(a : &int) : int {
-    return a.give()
+    return a.give_ref()
 }
 
 func param_call_ref_long_prim_impl(a : &long) : int {
-    return a.give()
+    return a.give_ref()
 }
 
 func param_call_ptr_int_prim_impl(a : *int) : int {
-    return a.give()
+    return a.give_ref()
 }
 
 func param_call_ptr_long_prim_impl(a : *long) : int {
-    return a.give()
+    return a.give_ref()
 }
 
 func dyn_prim_impl_give(i : dyn PrimitiveImplInterface1) : int {
@@ -139,12 +143,12 @@ func test_primitive_implementations() {
     test("direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20
         var j = &i
-        return j.give() == 70
+        return j.give_ref() == 70
     })
     test("direct call on pointer primitive impl method works - 2", () => {
         var i : long = 20
         var j = &i
-        return j.give() == 80
+        return j.give_ref() == 80
     })
     test("call through parameter on pointer primitive impl method works - 1", () => {
         var i : int = 20
@@ -203,12 +207,12 @@ func test_primitive_implementations() {
     test("external direct call on pointer primitive impl method works - 1", () => {
         var i : int = 20
         var j = &i
-        return j.ext_give() == 70
+        return j.ext_give_ref() == 70
     })
     test("external direct call on pointer primitive impl method works - 2", () => {
         var i : long = 20
         var j = &i
-        return j.ext_give() == 80
+        return j.ext_give_ref() == 80
     })
     test("external call through parameter on pointer primitive impl method works - 1", () => {
         var i : int = 20

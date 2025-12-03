@@ -3621,6 +3621,14 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
             create_v_table_type(visitor, def);
         }
 
+        // auto create a status
+        auto& status = delayed_primitive_impls[def];
+        for(const auto q : status.queued) {
+            create_v_table_for_primitive_impl(visitor, def, q);
+        }
+        status.queued.clear();
+        status.has_declared = true;
+
         // either create or declare the vtable, depending on whether it has been declared before
         for(auto& user : def->users) {
             const auto linked_struct = user.first;
@@ -3683,8 +3691,13 @@ void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
                 for(const auto func : def->instantiated_functions()) {
                     declare_contained_func(this, func, false, nullptr);
                 }
-                // generating a vtable
-                create_v_table_for_primitive_impl(visitor, interface_def, def);
+                // queue generating a vtable
+                auto& status = delayed_primitive_impls[interface_def];
+                if(status.has_declared) {
+                    create_v_table_for_primitive_impl(visitor, interface_def, def);
+                } else {
+                    status.queued.emplace_back(def);
+                }
             }
         }
     }

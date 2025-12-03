@@ -9,10 +9,17 @@
 
 class CValueDeclarationVisitor;
 
+struct InterfaceVTableTypeStatus {
+    bool has_declared = false;
+    std::vector<ImplDefinition*> queued;
+};
+
 class CTopLevelDeclarationVisitor : public NonRecursiveVisitor<CTopLevelDeclarationVisitor>, public SubVisitor {
 public:
 
     using NonRecursiveVisitor<CTopLevelDeclarationVisitor>::visit;
+
+    std::unordered_map<InterfaceDefinition*, InterfaceVTableTypeStatus> delayed_primitive_impls;
 
     CValueDeclarationVisitor* value_visitor;
 

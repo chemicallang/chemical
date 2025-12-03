@@ -744,7 +744,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
         case BaseTypeKind::Runtime:
             return provide_child(resolver, type->as_maybe_runtime_type_unsafe()->underlying, name, type_parent);
         case BaseTypeKind::Pointer:{
-            const auto child = direct_child_provider(resolver, type->as_pointer_type_unsafe()->type, name, type_parent);
+            const auto child = provide_child(resolver, type->as_pointer_type_unsafe()->type, name, type_parent);
             if(child) {
                 return child;
             } else {
@@ -756,7 +756,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
             }
         }
         case BaseTypeKind::Reference:{
-            const auto child = direct_child_provider(resolver, type->as_reference_type_unsafe()->type, name, type_parent);
+            const auto child = provide_child(resolver, type->as_reference_type_unsafe()->type, name, type_parent);
             if(child) {
                 return child;
             } else {

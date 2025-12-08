@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "2cASTVisitor.h"
-#include <memory>
 #include <ostream>
 #include <iostream>
 #include "compiler/cbi/model/CompilerBinder.h"
@@ -3397,13 +3396,7 @@ void vtable_type_name(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
     visitor.write("_vt_t");
 }
 
-void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
-    visitor.new_line_and_indent();
-    visitor.write("typedef struct ");
-    vtable_type_name(visitor, interface);
-    visitor.write(" {");
-    visitor.indentation_level += 1;
-    interface->active_user = nullptr;
+void v_table_func_types(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
     // type pointers
     for(auto& func : interface->instantiated_functions()) {
         auto self_param = func->get_self_param();
@@ -3418,12 +3411,55 @@ void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface)
             visitor.write(';');
         }
     }
+}
+
+void v_table_func_types_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
+    for(auto& inh : interface->inherited) {
+        const auto inherited = inh.type->get_direct_linked_interface();
+        if(inherited) {
+            v_table_func_types_recursive(visitor, inherited);
+        }
+    }
+    v_table_func_types(visitor, interface);
+}
+
+void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
+    visitor.new_line_and_indent();
+    visitor.write("typedef struct ");
+    vtable_type_name(visitor, interface);
+    visitor.write(" {");
+    visitor.indentation_level += 1;
+    interface->active_user = nullptr;
+    v_table_func_types_recursive(visitor, interface);
     visitor.indentation_level -=1;
     visitor.new_line_and_indent();
     visitor.write('}');
     visitor.space();
     vtable_type_name(visitor, interface);
     visitor.write(';');
+}
+
+void v_table_func_names(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
+    for (auto& func: interface->instantiated_functions()) {
+        if (func->has_self_param()) {
+            visitor.new_line_and_indent();
+            visitor.mangle(func);
+            visitor.write(',');
+        }
+    }
+}
+
+void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+    for(auto& inh : interface->inherited) {
+        const auto inherited = inh.type->get_direct_linked_interface();
+        if(inherited) {
+            v_table_func_names_recursive(visitor, inherited, definition);
+        }
+    }
+    const auto prev_user = interface->active_user;
+    interface->active_user = definition;
+    v_table_func_names(visitor, interface);
+    interface->active_user = prev_user;
 }
 
 void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
@@ -3443,13 +3479,7 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Stru
     visitor.indentation_level += 1;
 
     // func pointer values
-    for (auto& func: interface->instantiated_functions()) {
-        if (func->has_self_param()) {
-            visitor.new_line_and_indent();
-            visitor.mangle(func);
-            visitor.write(',');
-        }
-    }
+    v_table_func_names_recursive(visitor, interface, definition);
 
     visitor.indentation_level -= 1;
     visitor.new_line_and_indent();

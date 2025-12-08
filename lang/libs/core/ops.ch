@@ -128,7 +128,7 @@ public interface PartialEq<Rhs = Self> {
     func ne(&self, other : Rhs) : bool;
 }
 
-public interface Eq : PartialEq {}   // marker for total equality
+public interface Eq : PartialEq<Eq> {}   // marker for total equality
 
 public enum Ordering { Less, Equal, Greater }
 

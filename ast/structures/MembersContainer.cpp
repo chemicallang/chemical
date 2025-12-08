@@ -146,7 +146,7 @@ void MembersContainer::external_declare(Codegen& gen) {
 
 void MembersContainer::llvm_build_inherited_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types) {
     for(auto& inherits : inherited) {
-        const auto linked = inherits.type->linked_node()->as_interface_def();
+        const auto linked = inherits.type->get_direct_linked_interface();
         if(linked) {
             linked->llvm_build_inherited_vtable_type(gen, struct_types);
             linked->llvm_vtable_type(gen, struct_types);
@@ -156,7 +156,7 @@ void MembersContainer::llvm_build_inherited_vtable_type(Codegen& gen, std::vecto
 
 void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
     for(auto& inherits : inherited) {
-        const auto linked = inherits.type->linked_node()->as_interface_def();
+        const auto linked = inherits.type->get_direct_linked_interface();
         if(linked) {
             linked->llvm_build_inherited_vtable(gen, for_struct, llvm_pointers);
             linked->llvm_build_vtable(gen, for_struct, llvm_pointers);

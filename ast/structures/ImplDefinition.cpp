@@ -40,20 +40,39 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
 }
 
 void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
-    const auto linked = interface_type->linked_node()->as_interface_def();
+    const auto linked = interface_type->get_direct_linked_interface();
     const auto struct_def = struct_type ? struct_type->get_direct_linked_struct() : nullptr;
     code_gen_function(gen, decl, linked, struct_def);
 }
 
 void ImplDefinition::code_gen_declare(Codegen &gen) {
-    // const auto linked = interface_type->linked_node()->as_interface_def();
     if(struct_type == nullptr) return;
+    const auto linked = interface_type->get_direct_linked_interface();
     // struct type is given, but probably primitive
     const auto struct_def = struct_type->get_direct_linked_struct();
     if(struct_def) {
-        // nothing to do here
+        for (auto& function : instantiated_functions()) {
+            auto overridden = linked->get_func_with_signature(function);
+            if(overridden.second == nullptr) {
+                gen.error("couldn't get base function when determining function pointer", (AnnotableNode*) function);
+            } else {
+                const auto func = overridden.second;
+                const auto func_ptr = func->known_func(gen);
+                if(func_ptr == nullptr) {
+                    // impl probably came before the interface, so now we declare it before interface
+                    if(func->has_self_param()) {
+                        func->code_gen_declare(gen, linked);
+                    }
+                    auto& use = linked->users[struct_def];
+                    const auto new_func_ptr = func->get_llvm_data(gen);
+                    use[func] = { new_func_ptr, false };
+                    function->set_llvm_data(gen, new_func_ptr);
+                } else {
+                    function->set_llvm_data(gen, func_ptr);
+                }
+            }
+        }
     } else {
-        const auto linked = interface_type->get_direct_linked_interface();
         if(linked->is_static()) {
             for (const auto function: instantiated_functions()) {
                 // need to use the function pointer of the interface

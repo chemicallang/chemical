@@ -1,15 +1,15 @@
+impl PrimitiveImplInterface1 for int {
+    func give(&self) : int {
+        return *self + 10
+    }
+}
+
 interface PrimitiveImplInterface1 {
     func give(&self) : int
 }
 
 func <T : PrimitiveImplInterface1> prim_impl_interface1_give_stat_dispatch(value : T) : int {
     return value.give()
-}
-
-impl PrimitiveImplInterface1 for int {
-    func give(&self) : int {
-        return *self + 10
-    }
 }
 
 impl PrimitiveImplInterface1 for long {

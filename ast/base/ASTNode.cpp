@@ -889,7 +889,7 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
             return ::child(as_import_stmt_unsafe(), name);
         case ASTNodeKind::InterfaceDecl:
         case ASTNodeKind::UnionDecl:
-            return ::child(as_members_container_unsafe(), name);
+            return ::container_child(resolver, as_members_container_unsafe(), name);
         case ASTNodeKind::VariantMemberParam: {
             return provide_child(resolver, as_variant_member_param_unsafe()->type, name, this);
         }

@@ -655,7 +655,7 @@ public struct string : Hashable, Eq {
 
 }
 
-struct StringStream : Stream {
+public struct StringStream : Stream {
 
     var str : &mut std::string
 

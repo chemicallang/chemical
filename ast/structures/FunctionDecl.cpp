@@ -145,28 +145,6 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function* FunctionDeclaration::get_llvm_data(Codegen &gen) {
-    if(is_override()) {
-        const auto struct_def = parent()->as_struct_def();
-        if(struct_def) {
-            const auto overriding = struct_def->get_overriding_info(this);
-            if(overriding.first) {
-                const auto interface = overriding.first->as_interface_def();
-                if(interface) {
-                    auto& use = interface->users[struct_def];
-                    const auto& found = use.find(overriding.second);
-                    if(found != use.end()) {
-                        // TODO this function is probably not declared in this module, if the interface is from outside
-                        return found->second.func_pointer;
-                    }
-                } else {
-                    const auto parent_struct = overriding.first->as_struct_def();
-                    if(parent_struct) {
-                        // TODO: do this;
-                    }
-                }
-            }
-        }
-    }
     return known_func(gen);
 }
 

@@ -125,10 +125,10 @@ ToCAstVisitor::ToCAstVisitor(
     bool debug_info,
     bool minify
 ) : binder(binder), comptime_scope(scope), mangler(mangler), allocator(allocator),
-    declarer(*this), before_stmt(*this), after_stmt(*this), tld(*this, &declarer),
+    declarer(*this), before_stmt(*this), after_stmt(*this), tld(*this, &declarer), destructor(*this),
     loc_man(manager), line_directives(debug_info), minify(minify), ASTDiagnoser(manager)
 {
-    destructor = std::make_unique<CDestructionVisitor>(*this);
+
 }
 
 void write_escape_encoded(BufferedWriter& stream, char value) {
@@ -949,7 +949,7 @@ std::string* get_drop_flag(CDestructionVisitor& visitor, ASTNode* initializer);
 void set_ref_drop_flag(ToCAstVisitor& visitor, Value* value, bool drop_or_not) {
     const auto id = get_single_id(value);
     if(id) {
-        const auto flag = get_drop_flag(*visitor.destructor, id->linked);
+        const auto flag = get_drop_flag(visitor.destructor, id->linked);
         if(flag) {
             visitor.write(*flag);
             visitor.write(" = ");
@@ -1899,112 +1899,13 @@ CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
 
 }
 
-enum class DestructionJobType {
-    Default,
-    Array
-};
-
-struct DestructionJob {
-    DestructionJobType type;
-    chem::string_view self_name;
-    std::string drop_flag_name;
-    ASTNode* initializer;
-    union {
-        struct {
-            MembersContainer* parent_node;
-            FunctionDeclaration* destructor;
-            bool is_pointer;
-        } default_job;
-        struct {
-            int array_size;
-            MembersContainer* linked;
-            FunctionDeclaration* destructorFunc;
-        } array_job;
-    };
-};
-
-class CDestructionVisitor : public SubVisitor {
-public:
-
-    using SubVisitor::SubVisitor;
-
-    int loop_job_begin_index = 0;
-
-    bool destroy_current_scope = true;
-
-    bool new_line_before = true;
-
-    std::vector<DestructionJob> destruct_jobs;
-
-    void destruct(
-            const chem::string_view& self_name,
-            MembersContainer* linked,
-            FunctionDeclaration* destructor,
-            bool is_pointer
-    );
-
-    void conditional_destruct(
-            const chem::string_view& condition,
-            const chem::string_view& self_name,
-            MembersContainer* linked,
-            FunctionDeclaration* destructor,
-            bool is_pointer
-    );
-
-    void queue_destruct(
-            const chem::string_view& self_name,
-            ASTNode* initializer,
-            MembersContainer* linked,
-            bool is_pointer = false,
-            bool has_drop_flag = true
-    );
-
-    std::string* get_drop_flag_name(ASTNode* initializer) {
-        for(auto& d : destruct_jobs) {
-            if(d.initializer == initializer) {
-                return &d.drop_flag_name;
-            }
-        }
-        return nullptr;
-    }
-
-    void queue_destruct(const chem::string_view& self_name, ASTNode* initializer, FunctionCall* call);
-
-    void destruct_arr_ptr(const chem::string_view& self_name, Value* array_size, MembersContainer* linked, FunctionDeclaration* destructor);
-
-    void destruct_arr(const chem::string_view& self_name, int array_size, MembersContainer* linked, FunctionDeclaration* destructor) {
-        IntNumValue siz(array_size, visitor.comptime_scope.typeBuilder.getIntType(), ZERO_LOC);
-        destruct_arr_ptr(self_name, &siz, linked, destructor);
-    }
-
-    void destruct(const DestructionJob& job, Value* current_return);
-
-    bool queue_destruct_arr(const chem::string_view& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
-
-    void queue_destruct_varInit_type(BaseType* type, ASTNode* initializer, const chem::string_view& self_name);
-
-    void VisitVarInitStmt(VarInitStatement *init);
-
-    void dispatch_jobs_from_no_clean(int begin);
-
-    void dispatch_jobs_from(int begin);
-
-    void queue_destruct_type(const chem::string_view& self_name, ASTNode* initializer, BaseType* type);
-
-    void queue_destruct_decl_params(FunctionType* decl);
-
-    void process_init_value(VarInitStatement *init, Value* value);
-
-    void reset() final {
-        destroy_current_scope = true;
-        new_line_before = true;
-        destruct_jobs.clear();
-    }
-
-};
+void CDestructionVisitor::destruct_arr(const chem::string_view& self_name, int array_size, MembersContainer* linked, FunctionDeclaration* destructor) {
+    IntNumValue siz(array_size, visitor.comptime_scope.typeBuilder.getIntType(), ZERO_LOC);
+    destruct_arr_ptr(self_name, &siz, linked, destructor);
+}
 
 void loop_scope(ToCAstVisitor& visitor, Scope& body) {
-    auto& destructor = *visitor.destructor.get();
+    auto& destructor = visitor.destructor;
     const auto prev_loop_destr_start = destructor.loop_job_begin_index;
     destructor.loop_job_begin_index = (int) destructor.destruct_jobs.size();
     scope(visitor, body);
@@ -2248,7 +2149,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                     if(destructor) {
                         auto destructible = visitor.local_allocated.find(call);
                         if (destructible != visitor.local_allocated.end()) {
-                            visitor.destructor->destruct(
+                            visitor.destructor.destruct(
                                     chem::string_view(destructible->second.data(), destructible->second.size()),
                                     struct_def,
                                     destructor,
@@ -2687,9 +2588,9 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
 
 // this will also destruct given function type's params at the end of scope
 void scope_no_parens(ToCAstVisitor& visitor, Scope& scope, FunctionType* decl) {
-    unsigned begin = visitor.destructor->destruct_jobs.size();
+    unsigned begin = visitor.destructor.destruct_jobs.size();
     visitor.indentation_level+=1;
-    visitor.destructor->queue_destruct_decl_params(decl);
+    visitor.destructor.queue_destruct_decl_params(decl);
     visitor.visit_scope(&scope, (int) begin);
     visitor.indentation_level-=1;
     visitor.new_line_and_indent();
@@ -2825,15 +2726,15 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     }
     func_type_params(visitor, lamb, i);
     write(')');
-    auto prev_destroy_scope = visitor.destructor->destroy_current_scope;
-    visitor.destructor->destroy_current_scope = true;
-    auto previous_destruct_jobs = std::move(visitor.destructor->destruct_jobs);
+    auto prev_destroy_scope = visitor.destructor.destroy_current_scope;
+    visitor.destructor.destroy_current_scope = true;
+    auto previous_destruct_jobs = std::move(visitor.destructor.destruct_jobs);
     auto prev_func_type = visitor.current_func_type;
     visitor.current_func_type = lamb;
     scope(visitor, lamb->scope, lamb);
     visitor.current_func_type = prev_func_type;
-    visitor.destructor->destruct_jobs = std::move(previous_destruct_jobs);
-    visitor.destructor->destroy_current_scope = prev_destroy_scope;
+    visitor.destructor.destruct_jobs = std::move(previous_destruct_jobs);
+    visitor.destructor.destroy_current_scope = prev_destroy_scope;
 }
 
 void CValueDeclarationVisitor::VisitReturnStmt(ReturnStatement *stmt) {
@@ -3807,7 +3708,7 @@ void ToCAstVisitor::reset() {
     tld.reset();
     before_stmt.reset();
     after_stmt.reset();
-    destructor->reset();
+    destructor.reset();
     tld.reset();
 }
 
@@ -3847,7 +3748,7 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
     }
     auto init_type = init->known_type();
     var_init(*this, init, init_type);
-    destructor->VisitVarInitStmt(init);
+    destructor.VisitVarInitStmt(init);
 }
 
 void ToCAstVisitor::VisitAssignmentStmt(AssignStatement *assign) {
@@ -3991,19 +3892,19 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
 }
 
 void ToCAstVisitor::destruct_scopes_above(Value* returnValue, int begin_until) {
-    int i = ((int) destructor->destruct_jobs.size()) - 1;
-    auto new_line_prev = destructor->new_line_before;
-    destructor->new_line_before = false;
+    int i = ((int) destructor.destruct_jobs.size()) - 1;
+    auto new_line_prev = destructor.new_line_before;
+    destructor.new_line_before = false;
     while(i >= begin_until) {
-        destructor->destruct(destructor->destruct_jobs[i], returnValue);
+        destructor.destruct(destructor.destruct_jobs[i], returnValue);
         i--;
     }
-    destructor->new_line_before = new_line_prev;
-    destructor->destroy_current_scope = false;
+    destructor.new_line_before = new_line_prev;
+    destructor.destroy_current_scope = false;
 }
 
 void ToCAstVisitor::destruct_till_loop_scope_above() {
-    destruct_scopes_above(nullptr, destructor->loop_job_begin_index);
+    destruct_scopes_above(nullptr, destructor.loop_job_begin_index);
 }
 
 void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
@@ -4015,7 +3916,7 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
         return_value(val, return_type);
         write(';');
         new_line_and_indent();
-    } else if(val && BaseType::isPrimitiveType(return_type->pure_type(allocator)->kind()) && !destructor->destruct_jobs.empty()) {
+    } else if(val && BaseType::isPrimitiveType(return_type->pure_type(allocator)->kind()) && !destructor.destruct_jobs.empty()) {
         saved_into_temp_var = get_local_temp_var_name();
         write("const ");
         auto type = val->getType();
@@ -4435,8 +4336,8 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     }
     const auto struc_def = def ? def->as_struct_def() : nullptr;
     const auto variant_def = def ? def->as_variant_def() : nullptr;
-    unsigned begin = visitor.destructor->destruct_jobs.size();
-    visitor.destructor->queue_destruct_decl_params(decl);
+    unsigned begin = visitor.destructor.destruct_jobs.size();
+    visitor.destructor.queue_destruct_decl_params(decl);
     if(is_copy_fn) {
         if(struc_def) {
             process_struct_members_using(visitor, struc_def, call_struct_members_copy_fn);
@@ -4654,13 +4555,13 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
                 break;
         }
     }
-    if(destructor->destroy_current_scope) {
-        destructor->dispatch_jobs_from_no_clean((int) destruct_begin);
+    if(destructor.destroy_current_scope) {
+        destructor.dispatch_jobs_from_no_clean((int) destruct_begin);
     } else {
-        destructor->destroy_current_scope = true;
+        destructor.destroy_current_scope = true;
     }
-    auto itr = destructor->destruct_jobs.begin() + destruct_begin;
-    destructor->destruct_jobs.erase(itr, destructor->destruct_jobs.end());
+    auto itr = destructor.destruct_jobs.begin() + destruct_begin;
+    destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
 }
 
 void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
@@ -4670,17 +4571,17 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
         visit(node);
         after_stmt.visit(node);
     }
-    if(destructor->destroy_current_scope) {
-        destructor->dispatch_jobs_from_no_clean((int) destruct_begin);
+    if(destructor.destroy_current_scope) {
+        destructor.dispatch_jobs_from_no_clean((int) destruct_begin);
     } else {
-        destructor->destroy_current_scope = true;
+        destructor.destroy_current_scope = true;
     }
-    auto itr = destructor->destruct_jobs.begin() + destruct_begin;
-    destructor->destruct_jobs.erase(itr, destructor->destruct_jobs.end());
+    auto itr = destructor.destruct_jobs.begin() + destruct_begin;
+    destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
 }
 
 void ToCAstVisitor::VisitScope(Scope *scope) {
-    visit_scope(scope, destructor->destruct_jobs.size());
+    visit_scope(scope, destructor.destruct_jobs.size());
 }
 
 void ToCAstVisitor::VisitUnnamedUnion(UnnamedUnion *def) {
@@ -4844,9 +4745,9 @@ void ToCAstVisitor::VisitDeleteStmt(DestructStmt *stmt) {
     if(data.destructor_func != nullptr) {
         IntNumValue siz_val(data.array_size, comptime_scope.typeBuilder.getU64Type(), ZERO_LOC);
         if (stmt->is_array) {
-            destructor->destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
+            destructor.destruct_arr_ptr(chem::string_view(self_name.data(), self_name.size()), data.array_size != 0 ? &siz_val : stmt->array_value, data.parent_node, data.destructor_func);
         } else {
-            destructor->destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
+            destructor.destruct(chem::string_view(self_name.data(), self_name.size()), data.parent_node, data.destructor_func, true);
         }
     }
 
@@ -4983,20 +4884,20 @@ void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
     // generating ternary for if statement
     write(" ? ");
     write("({ ");
-    visit_value_scope(&stmt.ifBody, destructor->destruct_jobs.size());
+    visit_value_scope(&stmt.ifBody, destructor.destruct_jobs.size());
     write("; })");
     for(auto& elseIf : stmt.elseIfs) {
         write(" : ");
         visit(elseIf.first);
         write(" ? ");
         write("({ ");
-        visit_value_scope(&elseIf.second, destructor->destruct_jobs.size());
+        visit_value_scope(&elseIf.second, destructor.destruct_jobs.size());
         write("; })");
     }
     write(" : ");
     if(stmt.elseBody.has_value()) {
         write("({ ");
-        visit_value_scope(&stmt.elseBody.value(), destructor->destruct_jobs.size());
+        visit_value_scope(&stmt.elseBody.value(), destructor.destruct_jobs.size());
         write("; })");
     } else {
         error("no else block for if value", stmt.encoded_location());
@@ -5096,7 +4997,7 @@ void ToCAstVisitor::writeSwitchStmtValue(SwitchStatement& stmt, BaseType* type) 
         write(resultVarName);
         write(" = ");
         write("({ ");
-        visit_value_scope(&scope, destructor->destruct_jobs.size());
+        visit_value_scope(&scope, destructor.destruct_jobs.size());
         write("; });");
         new_line_and_indent();
         write("break;");
@@ -6878,7 +6779,7 @@ void visit_wrapped_value(ToCAstVisitor& visitor, ASTNode* node, Value* value) {
             visitor.write(" = ");
             visitor.visit(value);
             visitor.write(';');
-            visitor.destructor->queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
+            visitor.destructor.queue_destruct(temp_name, node, destr->parent()->as_extendable_member_container(), false, false);
             return;
         }
     }
@@ -7243,7 +7144,7 @@ void ToCAstVisitor::VisitNullPtrType(NullPtrType* type) {
 }
 
 bool ToCBackendContext::forget(ASTNode* targetNode) {
-    auto& jobs = visitor->destructor->destruct_jobs;
+    auto& jobs = visitor->destructor.destruct_jobs;
     auto it = std::find_if(
             jobs.begin(),
             jobs.end(),

@@ -4,15 +4,14 @@
 
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/ASTAny.h"
-#include <iosfwd>
 #include <string>
 #include <vector>
-#include <memory>
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
 #include "CValueDeclVisitor.h"
+#include "CDestructionVisitor.h"
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 #include "compiler/mangler/NameMangler.h"
@@ -175,7 +174,7 @@ public:
     /**
      * this destruction visitor, calls destructors on things when it's required
      */
-    std::unique_ptr<CDestructionVisitor> destructor;
+    CDestructionVisitor destructor;
 
     /**
      * the function type for which code is being generated

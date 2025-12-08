@@ -582,6 +582,7 @@ set(COMMON_SOURCES
         std/except.cpp
         compiler/lab/LabJob.cpp
         compiler/lab/TargetConditionAPI.h
+        preprocess/2c/CDestructionVisitor.h
 )
 
 # Chemical LSP Executable Target

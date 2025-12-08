@@ -18,10 +18,15 @@ void InterfaceDefinition::code_gen_declare_for_users(Codegen& gen, FunctionDecla
     for(auto& use : users) {
         auto& user = users[use.first];
         active_user = use.first;
-        if(func->has_self_param()) {
-            func->code_gen_declare(gen, this);
+        auto found = user.find(func);
+        if(found == user.end()) {
+            if(func->has_self_param()) {
+                func->code_gen_declare(gen, this);
+            }
+            user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
+        } else {
+            // impl probably came first and basically set the function pointer
         }
-        user[func] = { (llvm::Function*) func->llvm_pointer(gen), false };
     }
     active_user = nullptr;
 }

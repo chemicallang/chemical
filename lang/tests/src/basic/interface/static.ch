@@ -82,6 +82,20 @@ struct StructRetStaticInterImpl : StructRetStaticInter {
 
 }
 
+struct MultiplierBeforeInterface : StaticMultiplierInterface {
+    var a : int
+    var b : int
+    @override
+    func multiply(&self) : int {
+        return a * b;
+    }
+}
+
+@static
+interface StaticMultiplierInterface {
+    func multiply(&self) : int
+}
+
 func test_static_interfaces() {
 
     test("methods in static interfaces work", () => {
@@ -137,6 +151,11 @@ func test_static_interfaces() {
     test("methods of static interfaces can return structs", () => {
         var thing = StructRetStaticInterImpl { x : 32, y : 87 };
         return thing.sum_provider() == 32 + 87;
+    })
+
+    test("static interface can come after implementation", () => {
+        var p = MultiplierBeforeInterface { a : 3, b : 9 }
+        return p.multiply() == 27
     })
 
 }

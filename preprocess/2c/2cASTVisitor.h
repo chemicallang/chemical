@@ -10,6 +10,9 @@
 #include <memory>
 #include <unordered_map>
 #include "CTopLevelDeclVisitor.h"
+#include "CBeforeStmtVisitor.h"
+#include "CAfterStmtVisitor.h"
+#include "CValueDeclVisitor.h"
 #include "std/chem_string_view.h"
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 #include "compiler/mangler/NameMangler.h"
@@ -19,12 +22,7 @@
 class GlobalInterpretScope;
 class ASTAllocator;
 class CompilerBinder;
-
-class CTopLevelDeclarationVisitor;
-class CValueDeclarationVisitor;
 class CDestructionVisitor;
-class CBeforeStmtVisitor;
-class CAfterStmtVisitor;
 
 class FunctionType;
 class MembersContainer;
@@ -151,7 +149,7 @@ public:
      * this visitor takes out values like lambda from within functions
      * to file level scope
      */
-    std::unique_ptr<CValueDeclarationVisitor> declarer;
+    CValueDeclarationVisitor declarer;
 
     /**
      * top level declarations will be declared by this visitor
@@ -164,7 +162,7 @@ public:
      * this allows to take out some values, or do preparation, for example to allocate struct values
      * before passing them to functions for initialization
      */
-    std::unique_ptr<CBeforeStmtVisitor> before_stmt;
+    CBeforeStmtVisitor before_stmt;
 
     /**
      * after writing a statement, the whole usage of the value has been final for example
@@ -172,7 +170,7 @@ public:
      * after this statement completes, we've stored d in a variable, the struct returned by z
      * may have a destructor we may like to call
      */
-    std::unique_ptr<CAfterStmtVisitor> after_stmt;
+    CAfterStmtVisitor after_stmt;
 
     /**
      * this destruction visitor, calls destructors on things when it's required

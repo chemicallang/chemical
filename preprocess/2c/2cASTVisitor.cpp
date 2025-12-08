@@ -125,12 +125,9 @@ ToCAstVisitor::ToCAstVisitor(
     bool debug_info,
     bool minify
 ) : binder(binder), comptime_scope(scope), mangler(mangler), allocator(allocator),
-    declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), loc_man(manager),
-    line_directives(debug_info), minify(minify), ASTDiagnoser(manager)
+    declarer(*this), before_stmt(*this), after_stmt(*this), tld(*this, &declarer),
+    loc_man(manager), line_directives(debug_info), minify(minify), ASTDiagnoser(manager)
 {
-    // TODO do the same as tld
-    before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
-    after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
     destructor = std::make_unique<CDestructionVisitor>(*this);
 }
 
@@ -190,7 +187,7 @@ void ToCAstVisitor::declare_before_translation(std::vector<ASTNode*>& nodes) {
 void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
     // take out values like lambda from within functions
     for(const auto node : nodes) {
-        declarer->visit(node);
+        declarer.visit(node);
     }
     // writing
     for(const auto node : nodes) {
@@ -345,7 +342,7 @@ void ToCAstVisitor::external_declare(std::vector<ASTNode*>& nodes) {
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl);
 
 void external_implement_gen_func(ToCAstVisitor& visitor, GenericFuncDecl* node) {
-    auto& declarer = *visitor.declarer;
+    auto& declarer = visitor.declarer;
     auto& i = node->total_bodied_instantiations;
     const auto total = node->instantiations.size();
     while(i < total) {
@@ -997,7 +994,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                         const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
                         const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_cons_call);
 
-                        auto aliases = declarer->aliases;
+                        auto aliases = declarer.aliases;
                         auto found = aliases.find(value);
                         if(found == aliases.end()) {
                             write("[error: couldn't find lambda alias]");
@@ -3806,10 +3803,10 @@ void ToCAstVisitor::reset() {
     local_temp_var_i = 0;
     nested_value = false;
     return_redirect_block = "";
-    declarer->reset();
+    declarer.reset();
     tld.reset();
-    before_stmt->reset();
-    after_stmt->reset();
+    before_stmt.reset();
+    after_stmt.reset();
     destructor->reset();
     tld.reset();
 }
@@ -4614,9 +4611,9 @@ void ToCAstVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
 
 inline void visit_scope_node(ToCAstVisitor& visitor, ASTNode* node) {
     visitor.new_line_and_indent(node->encoded_location());
-    visitor.before_stmt->visit(node);
+    visitor.before_stmt.visit(node);
     visitor.visit(node);
-    visitor.after_stmt->visit(node);
+    visitor.after_stmt.visit(node);
 }
 
 // this is only done in scopes where it is inside if value and switch value
@@ -4634,22 +4631,22 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
         const auto node = *end;
         switch(node->kind()) {
             case ASTNodeKind::IfStmt:
-                before_stmt->visit(node);
+                before_stmt.visit(node);
                 writeIfStmtValue(*node->as_if_stmt_unsafe());
-                after_stmt->visit(node);
+                after_stmt.visit(node);
                 break;
             case ASTNodeKind::SwitchStmt: {
                 const auto stmt = node->as_switch_stmt_unsafe();
-                before_stmt->visit(stmt);
+                before_stmt.visit(stmt);
                 writeSwitchStmtValue(*stmt, stmt->known_type());
-                after_stmt->visit(stmt);
+                after_stmt.visit(stmt);
                 break;
             }
             case ASTNodeKind::LoopBlock: {
                 const auto stmt = node->as_loop_block_unsafe();
-                before_stmt->visit(stmt);
+                before_stmt.visit(stmt);
                 writeLoopStmtValue(*stmt, stmt->known_type());
-                after_stmt->visit(stmt);
+                after_stmt.visit(stmt);
                 break;
             }
             default:
@@ -4669,9 +4666,9 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
 void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     for(const auto node : scope->nodes) {
         new_line_and_indent(node->encoded_location());
-        before_stmt->visit(node);
+        before_stmt.visit(node);
         visit(node);
-        after_stmt->visit(node);
+        after_stmt.visit(node);
     }
     if(destructor->destroy_current_scope) {
         destructor->dispatch_jobs_from_no_clean((int) destruct_begin);
@@ -5885,7 +5882,7 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
                 }
             }
             local_allocated[call] = "this->" + init.first.str();
-            before_stmt->visit(chain);
+            before_stmt.visit(chain);
         }
         write("this->");
         write(init.first);
@@ -6378,8 +6375,8 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 break;
             }
             case ASTNodeKind::CapturedVariable:{
-                auto found = declarer->aliases.find(linked->as_captured_var_unsafe());
-                if(found == declarer->aliases.end()) {
+                auto found = declarer.aliases.find(linked->as_captured_var_unsafe());
+                if(found == declarer.aliases.end()) {
                     write("this->");
                 } else {
                     write("((struct ");
@@ -6750,8 +6747,8 @@ void ToCAstVisitor::VisitNullValue(NullValue *nullValue) {
 void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
 
     const auto src = value->value;
-    auto& aliases = declarer->aliases;
-    auto found = declarer->aliases.find(src);
+    auto& aliases = declarer.aliases;
+    auto found = declarer.aliases.find(src);
     if(found == aliases.end()) {
         return;
     }
@@ -6933,8 +6930,8 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
 }
 
 void ToCAstVisitor::VisitLambdaFunction(LambdaFunction *func) {
-    auto found = declarer->aliases.find(func);
-    if(found != declarer->aliases.end()) {
+    auto found = declarer.aliases.find(func);
+    if(found != declarer.aliases.end()) {
         if(!func->captureList.empty()) {
             write('(');
             write('&');
@@ -7184,8 +7181,8 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             visit(linked.known_type());
             return;
         case ASTNodeKind::TypealiasStmt: {
-            auto alias = declarer->aliases.find(&linked);
-            if (alias != declarer->aliases.end()) {
+            auto alias = declarer.aliases.find(&linked);
+            if (alias != declarer.aliases.end()) {
                 write(alias->second);
                 return;
             }

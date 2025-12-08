@@ -18,7 +18,7 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
             gen.error("failed to override function in impl, because function not present in an interface above", (AnnotableNode*) decl);
             return;
         }
-        if(struct_def) {
+        if(struct_def && !interface_def->is_static()) {
             const auto& use = interface_def->users[struct_def];
             auto found = use.find(overridden.second);
             if(found == use.end()) {
@@ -30,6 +30,7 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
             decl->code_gen_override(gen, func_pointer);
         } else {
             const auto func_pointer = overridden.second->llvm_func(gen);
+            gen.cleanFunctionEntryBlock(func_pointer);
             decl->set_llvm_data(gen, func_pointer);
             decl->code_gen_override(gen, func_pointer);
         }
@@ -110,7 +111,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
         for (auto& function: instantiated_functions()) {
             code_gen_function(gen, function, linked, struct_def);
         }
-        if (linked && struct_def) {
+        if (linked && !linked->is_static() && struct_def) {
             linked->llvm_global_vtable(gen, struct_def);
         }
     }

@@ -96,6 +96,22 @@ interface StaticMultiplierInterface {
     func multiply(&self) : int
 }
 
+impl StaticDividerInterface for DividableStructForStaticInterface {
+    func divide(&self) : int {
+        return a / b;
+    }
+}
+
+struct DividableStructForStaticInterface {
+    var a : int
+    var b : int
+}
+
+@static
+interface StaticDividerInterface {
+    func divide(&self) : int
+}
+
 func test_static_interfaces() {
 
     test("methods in static interfaces work", () => {
@@ -153,9 +169,14 @@ func test_static_interfaces() {
         return thing.sum_provider() == 32 + 87;
     })
 
-    test("static interface can come after implementation", () => {
+    test("static interface can come after implementation - 1", () => {
         var p = MultiplierBeforeInterface { a : 3, b : 9 }
         return p.multiply() == 27
+    })
+
+    test("static interface can come after implementation - 2", () => {
+        var p = DividableStructForStaticInterface { a : 66, b : 6 }
+        return p.divide() == 11
     })
 
 }

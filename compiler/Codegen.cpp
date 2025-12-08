@@ -332,9 +332,25 @@ llvm::ConstantInt* Codegen::implicit_cast_constant(llvm::ConstantInt* value, Bas
 
 }
 
+inline llvm::BasicBlock* createEntryBlock(Codegen& gen, llvm::Function *fn) {
+    return llvm::BasicBlock::Create(*gen.ctx, std::string_view("entry"), fn);
+}
+
+void Codegen::cleanFunctionEntryBlock(llvm::Function* func) {
+    if(!(func->size() == 1 && func->front().empty())) {
+        while(!func->empty()) {
+            auto& bb = func->back();
+            bb.dropAllReferences();
+            bb.eraseFromParent();
+        }
+        // create a new entry block
+        // ignore the return
+        createEntryBlock(*this, func);
+    }
+}
+
 void Codegen::createFunctionBlock(llvm::Function *fn) {
-    auto entry = createBB("entry", fn);
-    SetInsertPoint(entry);
+    SetInsertPoint(createEntryBlock(*this, fn));
 }
 
 llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
@@ -855,10 +871,6 @@ void Codegen::destruct(
         return;
     }
     destruct(allocaInst, builder->getInt32(array_size), elem_type, location);
-}
-
-llvm::BasicBlock *Codegen::createBB(const std::string_view &name, llvm::Function *fn) {
-    return llvm::BasicBlock::Create(*ctx, name, fn);
 }
 
 llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* value, llvm::Value* pointer) {

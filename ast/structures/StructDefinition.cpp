@@ -110,16 +110,7 @@ void StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
         overridable_info.overridden = true;
         // clean the function (any default implementation from interface may be there)
         const auto func = overridable_info.func_pointer;
-        if(!(func->size() == 1 && func->front().empty())) {
-            while(!func->empty()) {
-                auto& bb = func->back();
-                bb.dropAllReferences();
-                bb.eraseFromParent();
-            }
-            // create a new entry block
-            // ignore the return
-            llvm::BasicBlock::Create(*gen.ctx, "entry", func);
-        }
+        gen.cleanFunctionEntryBlock(func);
         function->set_llvm_data(gen, func);
         function->code_gen_override(gen, func);
     }

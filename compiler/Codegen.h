@@ -377,9 +377,9 @@ public:
     llvm::Function* declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionTypeBody* func_type, bool is_exported, SourceLocation location);
 
     /**
-     * create a function's basic block, with the given name
+     * after this call, function will contain only a single entry block with no instructions inside
      */
-    llvm::BasicBlock *createBB(const std::string_view &name, llvm::Function *fn);
+    void cleanFunctionEntryBlock(llvm::Function* func);
 
     /**
      * default initialize inherited variables of the given container

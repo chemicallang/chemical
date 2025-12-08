@@ -8,7 +8,7 @@
 | [Docs](https://chemicallang.github.io/learn-chemical)
 | [Changelog](https://github.com/chemicallang/chemical/releases)
 | [Speed](https://chemicallang.com/speed)
-| [Contributing & compiler design](https://github.com/chemicallang/chemical/blob/main/lang/docs/CONTRIBUTING.md)
+| [Contributing & compiler design](https://github.com/chemicallang/chemical/blob/main/CONTRIBUTING.md)
 
 </div>
 
@@ -149,7 +149,7 @@ Long-term, Chemical will promote memory safety while keeping the language simple
 
 ## 🤝 Contributing
 
-We welcome all contributions! See [CONTRIBUTING.md](https://github.com/chemicallang/chemical/blob/main/lang/docs/CONTRIBUTING.md) for guidelines.
+We welcome all contributions! See [CONTRIBUTING.md](https://github.com/chemicallang/chemical/blob/main/CONTRIBUTING.md) for guidelines.
 
 ---
 

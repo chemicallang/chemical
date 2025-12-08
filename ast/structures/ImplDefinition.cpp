@@ -51,6 +51,7 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
     // struct type is given, but probably primitive
     const auto struct_def = struct_type->get_direct_linked_struct();
     if(struct_def) {
+        linked->active_user = struct_def;
         for (auto& function : instantiated_functions()) {
             auto overridden = linked->get_func_with_signature(function);
             if(overridden.second == nullptr) {
@@ -72,6 +73,7 @@ void ImplDefinition::code_gen_declare(Codegen &gen) {
                 }
             }
         }
+        linked->active_user = nullptr;
     } else {
         if(linked->is_static()) {
             for (const auto function: instantiated_functions()) {

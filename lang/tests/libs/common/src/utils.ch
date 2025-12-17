@@ -32,3 +32,13 @@ public func css_equals(env : &mut TestEnv, str : &std::string, view : &std::stri
     view_equals(env, std::string_view(start, end - start), view)
 
 }
+
+public func compl_css_equals(env : &mut TestEnv, str : &std::string, view : &std::string_view) {
+
+    if(str.size() < 10) {
+        env.error("css less than expected length");
+    }
+
+    view_equals(env, str.to_view(), view)
+
+}

@@ -1395,6 +1395,24 @@ func (converter : &mut ASTConverter) make_set_css_hash_call(hash : size_t) : *mu
     return converter.make_value_call_with(value, std::string_view("set_css_hash"), converter.support.setCssHashFn)
 }
 
+func (converter : &mut ASTConverter) writeMediaRule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view) {
+    str.append_view(std::string_view("@media "))
+    str.append_view(rule.query)
+    str.append_view(std::string_view(" { ."))
+    str.append_view(className)
+    str.append_view(std::string_view(" { "))
+    
+    var size = rule.declarations.size()
+    var i : uint = 0
+    while(i < size) {
+        var decl = rule.declarations.get(i)
+        converter.convertDeclaration(decl)
+        i++;
+    }
+
+    str.append_view(std::string_view(" } }"))
+}
+
 func (converter : &mut ASTConverter) make_require_random_css_hash_call(hash : size_t) : *mut FunctionCall {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -1413,9 +1431,13 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const builder = converter.builder
     const str = &mut converter.str
     var size = om.declarations.size()
-    if(size > 0) {
+    if(size > 0 || !om.media_queries.empty()) {
         const location = intrinsics::get_raw_location();
-        if(om.has_dynamic_values()) {
+
+        if(!om.is_hashable()) {
+            
+            // not hashable, so we use random 32 bits as class name
+            // maybe it should not be called 'hash'
             const hash = generate_random_32bit();
             
             // if(page.require_random_css_hash(hash))
@@ -1436,7 +1458,10 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
             className[8] = '{'
             className[9] = '\0'
             const total = builder.allocate_view(std::string_view(&className[0], 9u));
+            const classView = std::string_view(total.data() + 1, 7u);
+
             converter.put_view_chain(total)
+            om.className = classView
             
             var i : uint = 0
             while(i < size) {
@@ -1445,11 +1470,24 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
                 i++;
             }
             
+            // Main class block end
             if(str.empty()) {
                 converter.put_char_chain('}')
             } else {
                 str.append('}')
                 converter.put_chain_in();
+            }
+
+            // Media queries
+            var media_size = om.media_queries.size()
+            var j : uint = 0
+            while(j < media_size) {
+                 var rule = om.media_queries.get(j)
+                 converter.writeMediaRule(rule, *str, classView)
+                 if(!str.empty()) {
+                    converter.put_chain_in();
+                 }
+                 j++;
             }
             
             // restore output
@@ -1483,6 +1521,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
 
                 const totalView = allocate_view_with_classname(builder, *str, hash)
                 om.className = std::string_view(totalView.data() + 1, 7u)
+                const classView = om.className
                 converter.put_append_css_value_chain(totalView)
                 
                 // restore output

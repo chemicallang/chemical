@@ -28,6 +28,8 @@ public struct CSSLexer {
      */
     var lb_count : uchar
 
+    var at_rule : bool
+
     /**
      * this is state of the lexer which provides us position of the lexer
      */
@@ -40,4 +42,5 @@ func (lexer : &mut CSSLexer) reset() {
     lexer.chemical_mode = false;
     lexer.lb_count = 0;
     lexer.where = CSSLexerWhere.Declaration
+    lexer.at_rule = false;
 }

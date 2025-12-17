@@ -161,3 +161,22 @@ public func page_orientation_property_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "page-orientation:portrait;page-orientation:landscape;");
 }
+
+@test
+public func media_queries(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color : red;
+        @media screen {
+            background-color : red;
+        }
+    }
+    var got = page.toStringCssOnly();
+    var expected = std::string();
+    var classView = std::string_view(got.data(), 8)
+    expected.append_view(classView)
+    expected.append_view("{color:red;}@media screen  { ");
+    expected.append_view(classView)
+    expected.append_view(" { background-color:red; } }");
+    compl_css_equals(env, got, expected.to_view());
+}

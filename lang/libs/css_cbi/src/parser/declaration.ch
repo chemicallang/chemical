@@ -106,13 +106,17 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
 
     const token = parser.getToken();
 
-    if(token.type == TokenType.PropertyName) {
-        parser.increment();
-    } else if(token.type == TokenType.Comment) {
-        parser.increment();
-        return cssParser.parseDeclaration(parser, builder)
-    } else {
-        return null;
+    switch(token.type) {
+        TokenType.PropertyName, TokenType.Identifier => {
+            parser.increment();
+        }
+        TokenType.Comment => {
+            parser.increment();
+            return cssParser.parseDeclaration(parser, builder);
+        }
+        default => {
+            return null;
+        }
     }
 
     const decl = builder.allocate<CSSDeclaration>();

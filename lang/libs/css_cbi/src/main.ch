@@ -131,6 +131,7 @@ public func css_initializeLexer(lexer : *mut Lexer) {
         other_mode : false,
         chemical_mode : false,
         lb_count : 0,
+        at_rule : false,
         where : CSSLexerWhere.Declaration
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)

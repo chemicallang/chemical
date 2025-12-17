@@ -121,6 +121,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '@' => {
+            css.at_rule = true;
             return Token {
                 type : TokenType.At as int,
                 value : view("@"),
@@ -337,9 +338,13 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         }
         '{' => {
             // here always lb_count > 0
-            if(css.lb_count == 1) {
-                css.other_mode = true;
-                css.chemical_mode = true;
+            if(css.at_rule) {
+                css.at_rule = false;
+            } else {
+                if(css.lb_count == 1) {
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                }
             }
             css.lb_count++;
             return Token {

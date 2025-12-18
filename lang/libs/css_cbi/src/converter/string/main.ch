@@ -1523,7 +1523,7 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
         var k : uint = 0;
         while(k < current_selectors.size()) {
             if(k > 0) sel_str.append_view(", ");
-            sel_str.append_view(current_selectors.get(k).view());
+            sel_str.append_view(current_selectors.get_ptr(k).view());
             k++;
         }
         

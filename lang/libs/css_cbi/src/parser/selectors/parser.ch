@@ -98,7 +98,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         } else if(token.type == TokenType.Id) {
              simple = builder.allocate<SimpleSelector>();
              simple.kind = SimpleSelectorKind.Id;
-             simple.value = builder.allocate_view(token.value.skip(1)); // strip # 
+             simple.value = builder.allocate_view(token.value); // strip # 
              parser.increment();
         } else if(token.type == TokenType.Identifier) {
              simple = builder.allocate<SimpleSelector>();

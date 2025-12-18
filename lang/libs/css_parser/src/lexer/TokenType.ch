@@ -75,4 +75,6 @@ public enum TokenType {
     DashSeparatedMatch,
     // ~
     GeneralSibling,
+    // &
+    Ampersand,
 }

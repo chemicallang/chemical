@@ -1427,107 +1427,301 @@ func (converter : &mut ASTConverter) make_set_random_css_hash_call(hash : size_t
     return converter.make_value_call_with(value, std::string_view("set_random_css_hash"), converter.support.setRandomCssHashFn)
 }
 
+// AST Helper: Check if selector has ampersand
+func has_ampersand_simple(s : *mut SimpleSelector) : bool {
+    return s.kind == SimpleSelectorKind.Ampersand;
+}
+func has_ampersand_compound(c : *mut CompoundSelector) : bool {
+    var i : uint = 0;
+    while(i < c.simple_selectors.size()) {
+        if(has_ampersand_simple(c.simple_selectors.get(i))) return true;
+        i++;
+    }
+    return false;
+}
+func has_ampersand_complex(c : *mut ComplexSelector) : bool {
+    if(has_ampersand_compound(c.compound)) return true;
+    if(c.next != null) return has_ampersand_complex(c.next);
+    return false;
+}
+
+// AST Serializers
+func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replacement : std::string_view) {
+    if(s.kind == SimpleSelectorKind.Ampersand) {
+        out.append_view(replacement);
+        return;
+    }
+    if(s.kind == SimpleSelectorKind.Class) out.append('.');
+    if(s.kind == SimpleSelectorKind.Id) out.append('#');
+    out.append_view(s.value);
+    // TODO: Attribute selectors
+}
+func serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
+    var i : uint = 0;
+    while(i < c.simple_selectors.size()) {
+        serialize_simple(c.simple_selectors.get(i), out, replacement);
+        i++;
+    }
+}
+func serialize_complex(c : *mut ComplexSelector, out : &mut std::string, replacement : std::string_view) {
+    serialize_compound(c.compound, out, replacement);
+    if(c.next != null) {
+        if(c.combinator == Combinator.Descendant) out.append(' ');
+        else if(c.combinator == Combinator.Child) out.append_view(" > ");
+        else if(c.combinator == Combinator.NextSibling) out.append_view(" + ");
+        else if(c.combinator == Combinator.SubsequentSibling) out.append_view(" ~ ");
+        
+        serialize_complex(c.next, out, replacement);
+    }
+}
+
+func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, parent_selectors : &mut std::vector<std::string>) {
+    const str = &mut converter.str
+    // Wait, CSSNestedRule doesn't have declarations? Yes it does.
+    // But `om` here is `CSSNestedRule`.
+    // The main loop calls with `CSSOM` (wrapped/adapted?).
+    // We need logic that works for both.
+    
+    // Resolve selectors for THIS rule against parent_selectors
+    var current_selectors = std::vector<std::string>();
+    
+    if(om.selector != null) {
+        // Nested rule
+        var i : uint = 0;
+        const size = om.selector.selectors.size();
+        while(i < size) {
+             var sel = om.selector.selectors.get(i);
+             var has_amp = has_ampersand_complex(sel);
+             
+             var p : uint = 0;
+             while(p < parent_selectors.size()) {
+                 var pdf = parent_selectors.get(p);
+                 var res = std::string();
+                 if(has_amp) {
+                     serialize_complex(sel, res, pdf.view());
+                 } else {
+                     res.append_view(pdf.view());
+                     res.append(' ');
+                     serialize_complex(sel, res, std::string_view("&")); // replacement ignored
+                 }
+                 current_selectors.push(res);
+                 p++;
+             }
+             i++;
+        }
+    } else {
+        // Root CSSOM case (passed as if it had no selector logic, just parents)
+        // Usually called with `parent_selectors` being the hash class.
+        // We just copy parent_selectors.
+        current_selectors = std::replace(parent_selectors, std::vector<std::string>());
+    }
+    
+    // 1. Output Declarations
+    if(!om.declarations.empty()) {
+        // Join selectors
+        var sel_str = std::string();
+        var k : uint = 0;
+        while(k < current_selectors.size()) {
+            if(k > 0) sel_str.append_view(", ");
+            sel_str.append_view(current_selectors.get(k).view());
+            k++;
+        }
+        
+        str.append_view(sel_str.view());
+        str.append_view(" { ");
+        var idx : uint = 0;
+        while(idx < om.declarations.size()) {
+             var decl = om.declarations.get(idx);
+             converter.convertDeclaration(decl);
+             idx++;
+        }
+        str.append('}');
+        converter.put_chain_in();
+    }
+    
+    // 2. Nested Rules
+    var n : uint = 0;
+    while(n < om.nested_rules.size()) {
+        var rule = om.nested_rules.get(n);
+        converter.generate_css_recurse(rule, current_selectors);
+        n++;
+    }
+    
+    // 3. Media Queries (CSSOM only?) 
+    // CSSNestedRule from `nested_rule.ch` doesn't store media queries?
+    // User revert removed `media_queries` from `CSSNestedRule`? Or I never added it?
+    // Current `nested_rule.ch` struct def has `selector`, `declarations`, `nested_rules`. 
+    // It does NOT have media queries.
+    // If I want nested media queries, I need to parse them.
+    // User requirements include "media.ch hack fix later".
+    // I will skip nested media queries inside nested rules for now as struct doesn't support it yet.
+    // BUT `om` passed here can be `CSSNestedRule` or `CSSOM`?
+    // I need `generate_css_recurse` to take `CSSNestedRule`.
+    // Root `CSSOM` has `nested_rules` (vector of CSSNestedRule).
+    // So distinct types.
+}
+
+func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_selector : std::string_view) {
+     var parents = std::vector<std::string>();
+
+     var root_sel_str = std::string()
+     root_sel_str.append_view(root_selector)
+     parents.push(root_sel_str);
+     
+     // Root Declarations
+     // Similar to generate_css_recurse but for CSSOM struct
+     const str = &mut converter.str
+     
+     if(om.declarations.size() > 0) {
+         str.append_view(root_selector);
+         str.append_view(" { ");
+         var i : uint = 0;
+         while(i < om.declarations.size()) {
+             converter.convertDeclaration(om.declarations.get(i));
+             i++;
+         }
+         str.append('}');
+         converter.put_chain_in();
+     }
+     
+     // Nested Rules from Root
+     var j : uint = 0;
+     while(j < om.nested_rules.size()) {
+         converter.generate_css_recurse(om.nested_rules.get(j), parents);
+         j++;
+     }
+     
+     // Media (Root only for now)
+     var m : uint = 0;
+     while(m < om.media_queries.size()) {
+            var rule = om.media_queries.get(m);
+            converter.writeMediaRule(rule, *str, root_selector);
+            if(!str.empty()) {
+                converter.put_chain_in();
+            }
+            m++;
+     }
+}
+
 func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
+
     const builder = converter.builder
     const str = &mut converter.str
     var size = om.declarations.size()
-    if(size > 0 || !om.media_queries.empty()) {
-        const location = intrinsics::get_raw_location();
+    
+    if(size == 0 && om.media_queries.empty()) {
+        // no declarations, no media queries exist
+        return;
+    }
 
-        if(!om.is_hashable()) {
-            
-            // not hashable, so we use random 32 bits as class name
-            // maybe it should not be called 'hash'
-            const hash = generate_random_32bit();
-            
-            // if(page.require_random_css_hash(hash))
-            var ifStmt = builder.make_if_stmt(converter.make_require_random_css_hash_call(hash), converter.parent, location);
-            var body = ifStmt.get_body();
-            
-            // page.set_random_css_hash(hash)
-            body.push(converter.make_set_random_css_hash_call(hash));
-            
-            // redirect output to if body
-            var oldVec = converter.vec;
-            converter.vec = body;
+    const location = intrinsics::get_raw_location();
 
-            var className : char[10] = [];
-            className[0] = '.'
-            className[1] = 'r'
-            base64_encode_32bit(hash, &mut className[2])
-            className[8] = '{'
-            className[9] = '\0'
-            const total = builder.allocate_view(std::string_view(&className[0], 9u));
-            const classView = std::string_view(total.data() + 1, 7u);
+    if(!om.is_hashable()) {
+        
+        // not hashable, so we use random 32 bits as class name
+        // maybe it should not be called 'hash'
+        const hash = generate_random_32bit();
+        
+        // if(page.require_random_css_hash(hash))
+        var ifStmt = builder.make_if_stmt(converter.make_require_random_css_hash_call(hash), converter.parent, location);
+        var body = ifStmt.get_body();
+        
+        // page.set_random_css_hash(hash)
+        body.push(converter.make_set_random_css_hash_call(hash));
+        
+        // redirect output to if body
+        var oldVec = converter.vec;
+        converter.vec = body;
 
-            converter.put_view_chain(total)
-            om.className = classView
-            
-            var i : uint = 0
-            while(i < size) {
-                var decl = om.declarations.get(i)
-                converter.convertDeclaration(decl)
-                i++;
-            }
-            
-            // Main class block end
-            if(str.empty()) {
-                converter.put_char_chain('}')
-            } else {
-                str.append('}')
+        var className : char[10] = [];
+        className[0] = '.'
+        className[1] = 'r'
+        base64_encode_32bit(hash, &mut className[2])
+        className[8] = '{'
+        className[9] = '\0'
+        const total = builder.allocate_view(std::string_view(&className[0], 9u));
+        const classView = std::string_view(total.data() + 1, 7u);
+
+        converter.put_view_chain(total)
+        om.className = classView
+        
+        var i : uint = 0
+        while(i < size) {
+            var decl = om.declarations.get(i)
+            converter.convertDeclaration(decl)
+            i++;
+        }
+        
+        // Main class block end
+        if(str.empty()) {
+            converter.put_char_chain('}')
+        } else {
+            str.append('}')
+            converter.put_chain_in();
+        }
+
+        // Media queries
+        var media_size = om.media_queries.size()
+        var j : uint = 0
+        while(j < media_size) {
+            var rule = om.media_queries.get(j)
+            converter.writeMediaRule(rule, *str, classView)
+            if(!str.empty()) {
                 converter.put_chain_in();
             }
-
-            // Media queries
-            var media_size = om.media_queries.size()
-            var j : uint = 0
-            while(j < media_size) {
-                 var rule = om.media_queries.get(j)
-                 converter.writeMediaRule(rule, *str, classView)
-                 if(!str.empty()) {
-                    converter.put_chain_in();
-                 }
-                 j++;
-            }
-            
-            // restore output
-            converter.vec = oldVec;
-            converter.vec.push(ifStmt);
-
-        } else {
-            var i : uint = 0
-            while(i < size) {
-                var decl = om.declarations.get(i)
-                converter.convertDeclaration(decl)
-                i++;
-            }
-            if(str.empty()) {
-                // empty block?
-            } else {
-                // end the string here
-                // calculate the hash before making any changes
-                const hash = fnv1a_hash_32(str.data());
-                
-                // if(page.require_css_hash(hash))
-                var ifStmt = builder.make_if_stmt(converter.make_require_css_hash_call(hash), converter.parent, location);
-                var body = ifStmt.get_body();
-                
-                // page.set_css_hash(hash)
-                body.push(converter.make_set_css_hash_call(hash));
-                
-                // redirect output to if body
-                var oldVec = converter.vec;
-                converter.vec = body;
-
-                const totalView = allocate_view_with_classname(builder, *str, hash)
-                om.className = std::string_view(totalView.data() + 1, 7u)
-                const classView = om.className
-                converter.put_append_css_value_chain(totalView)
-                
-                // restore output
-                converter.vec = oldVec;
-                converter.vec.push(ifStmt);
-            }
+            j++;
         }
+
+        // Nested Rules
+        var parents = std::vector<std::string>();
+        var root_sel = std::string();
+        root_sel.append('.');
+        root_sel.append_view(classView);
+        parents.push(root_sel);
+
+        var n_idx : uint = 0;
+        const n_size = om.nested_rules.size();
+        while(n_idx < n_size) {
+            var rule = om.nested_rules.get(n_idx);
+            converter.generate_css_recurse(rule, parents);
+            n_idx++;
+        }
+        
+        // restore output
+        converter.vec = oldVec;
+        converter.vec.push(ifStmt);
+
+    } else {
+
+        var i : uint = 0
+        while(i < size) {
+            var decl = om.declarations.get(i)
+            converter.convertDeclaration(decl)
+            i++;
+        }
+
+        // end the string here
+        // calculate the hash before making any changes
+        const hash = fnv1a_hash_32(str.data());
+        
+        // if(page.require_css_hash(hash))
+        var ifStmt = builder.make_if_stmt(converter.make_require_css_hash_call(hash), converter.parent, location);
+        var body = ifStmt.get_body();
+        
+        // page.set_css_hash(hash)
+        body.push(converter.make_set_css_hash_call(hash));
+        
+        // redirect output to if body
+        var oldVec = converter.vec;
+        converter.vec = body;
+
+        const totalView = allocate_view_with_classname(builder, *str, hash)
+        om.className = std::string_view(totalView.data() + 1, 7u)
+        const classView = om.className
+        converter.put_append_css_value_chain(totalView)
+        
+        converter.vec = oldVec;
+        converter.vec.push(ifStmt);
+
     }
 }

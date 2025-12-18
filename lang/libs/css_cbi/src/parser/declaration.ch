@@ -108,6 +108,15 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
 
     switch(token.type) {
         TokenType.PropertyName, TokenType.Identifier => {
+            // peak the next token and return early if not declaration (without incrementing)
+            // if there's no colon next to this token (it maybe a tag name)
+            // like div {} instead of color : red;
+            const nextTok = token + 1;
+            if(nextTok.type != TokenType.Colon) {
+                return null;
+            }
+            // increment both tokens
+            parser.increment();
             parser.increment();
         }
         TokenType.Comment => {
@@ -129,13 +138,6 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
             kind : CSSValueKind.Unknown,
             data : null
         }
-    }
-
-    const col = parser.getToken();
-    if(col.type == TokenType.Colon) {
-        parser.increment();
-    } else {
-        parser.error("expected colon after the css property name");
     }
 
     cssParser.parseValue(parser, builder, decl.value, token.value);

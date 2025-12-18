@@ -16,6 +16,14 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 position : position
             }
         }
+        '&' => {
+            css.where = CSSLexerWhere.Selector;
+            return Token {
+                type : TokenType.Ampersand as int,
+                value : view("&"),
+                position : position
+            }
+        }
         ':' => {
             if(css.where == CSSLexerWhere.Declaration) {
                 css.where = CSSLexerWhere.Value
@@ -340,11 +348,11 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             // here always lb_count > 0
             if(css.at_rule) {
                 css.at_rule = false;
-            } else {
-                if(css.lb_count == 1) {
-                    css.other_mode = true;
-                    css.chemical_mode = true;
-                }
+            } else if(css.where == CSSLexerWhere.Selector) {
+                css.where = CSSLexerWhere.Declaration;
+            } else if(css.lb_count == 1) {
+                css.other_mode = true;
+                css.chemical_mode = true;
             }
             css.lb_count++;
             return Token {

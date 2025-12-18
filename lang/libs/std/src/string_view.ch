@@ -51,6 +51,14 @@ public namespace std {
             return *(_data + index)
         }
 
+        func subview(&self, start : size_t, end : size_t) : std::string_view {
+            return std::string_view(_data + start, end - start)
+        }
+
+        func skip(&self, count : size_t) : std::string_view {
+            return std::string_view(_data + count, _size - count)
+        }
+
         @override
         func equals(&self, other : &std::string_view) : bool {
             const self_size = _size;

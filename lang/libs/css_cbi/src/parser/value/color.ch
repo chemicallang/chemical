@@ -566,7 +566,7 @@ func (cssParser : &mut CSSParser) parseCSSColor(parser : *mut Parser, builder : 
         TokenType.Identifier => {
             return cssParser.parseIdentifierCSSColor(parser, builder, value, token)
         }
-        TokenType.LBrace => {
+        TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }

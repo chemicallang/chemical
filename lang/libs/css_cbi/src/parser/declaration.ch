@@ -33,7 +33,7 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             parser.increment();
             return;
         }
-        TokenType.LBrace => {
+        TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return;
         }

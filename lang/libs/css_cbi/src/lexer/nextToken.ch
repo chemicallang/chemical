@@ -211,18 +211,32 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '$' => {
-            if(provider.peek() == '=') {
-                provider.readCharacter();
-                return Token {
-                    type : TokenType.EndsWith as int,
-                    value : view("$="),
-                    position : position
+            switch(provider.peek()) {
+                '{' => {
+                    provider.readCharacter();
+                    css.other_mode = true;
+                    css.chemical_mode = true;
+                    css.lb_count++;
+                    return Token {
+                        type : TokenType.DollarLBrace as int,
+                        value : view("${"),
+                        position : position
+                    }
                 }
-            }  else {
-                return Token {
-                    type : TokenType.Unexpected as int,
-                    value : view(""),
-                    position : position
+                '=' => {
+                    provider.readCharacter();
+                    return Token {
+                        type : TokenType.EndsWith as int,
+                        value : view("$="),
+                        position : position
+                    }
+                }
+                default => {
+                    return Token {
+                        type : TokenType.Unexpected as int,
+                        value : view(""),
+                        position : position
+                    }
                 }
             }
         }
@@ -350,7 +364,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                 css.at_rule = false;
             } else if(css.where == CSSLexerWhere.Selector) {
                 css.where = CSSLexerWhere.Declaration;
-            } else if(css.lb_count == 1) {
+            } else if(css.where == CSSLexerWhere.Value && css.lb_count == 1) {
                 css.other_mode = true;
                 css.chemical_mode = true;
             }

@@ -240,7 +240,7 @@ func (cssParser : &mut CSSParser) parseLength(
             alloc_value_length(parser, builder, value, token.value)
             return true;
         }
-        TokenType.LBrace => {
+        TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
@@ -273,7 +273,7 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
             alloc_value_num_length(parser, builder, value, token.value)
             return true;
         }
-        TokenType.LBrace => {
+        TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
@@ -319,7 +319,7 @@ func (cssParser : &mut CSSParser) parseNumberOrAuto(
                 return false;
             }
         }
-        TokenType.LBrace => {
+        TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }
@@ -355,7 +355,7 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
                 return false;
             }
         }
-        TokenType.LBrace => {
+        TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;
         }

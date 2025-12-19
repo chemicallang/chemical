@@ -33,6 +33,8 @@ public enum TokenType {
     Important,
     // {
     LBrace,
+    // ${
+    DollarLBrace,
     // }
     RBrace,
     // (

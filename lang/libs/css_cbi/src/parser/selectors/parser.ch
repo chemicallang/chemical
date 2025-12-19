@@ -115,6 +115,32 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
              simple.kind = SimpleSelectorKind.Universal;
              simple.value = std::string_view("*");
              parser.increment();
+        } else if(token.type == TokenType.Colon) {
+             parser.increment();
+             const next = parser.getToken();
+             if(next.type == TokenType.Colon) {
+                 // Pseudo-element (::)
+                 parser.increment();
+                 const nameToken = parser.getToken();
+                 if(nameToken.type == TokenType.Identifier) {
+                     simple = builder.allocate<SimpleSelector>();
+                     simple.kind = SimpleSelectorKind.PseudoElement;
+                     simple.value = builder.allocate_view(nameToken.value);
+                     parser.increment();
+                 } else {
+                      // Unexpected token after ::
+                      break; 
+                 }
+             } else if(next.type == TokenType.Identifier) {
+                 // Pseudo-class (:)
+                 simple = builder.allocate<SimpleSelector>();
+                 simple.kind = SimpleSelectorKind.PseudoClass;
+                 simple.value = builder.allocate_view(next.value);
+                 parser.increment();
+             } else {
+                 // Unexpected token after :
+                 break;
+             }
         } else {
              break; 
         }

@@ -1453,6 +1453,12 @@ func serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replaceme
     }
     if(s.kind == SimpleSelectorKind.Class) out.append('.');
     if(s.kind == SimpleSelectorKind.Id) out.append('#');
+    if(s.kind == SimpleSelectorKind.PseudoClass) {
+        out.append(':');
+    }
+    if(s.kind == SimpleSelectorKind.PseudoElement) {
+        out.append_view("::");
+    }
     out.append_view(s.value);
     // TODO: Attribute selectors
 }

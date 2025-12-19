@@ -3,7 +3,7 @@ func parseSimpleSelector(parser : *mut Parser, builder : *mut ASTBuilder, start 
     var s = builder.allocate<SimpleSelector>(); // Need to ensure alignment/allocation matches struct
     
     switch(start.type) {
-        TokenType.Identifier => {
+        TokenType.Identifier, TokenType.PropertyName => {
             s.kind = SimpleSelectorKind.Tag
             s.value = builder.allocate_view(start.value)
         }
@@ -100,7 +100,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
              simple.kind = SimpleSelectorKind.Id;
              simple.value = builder.allocate_view(token.value); // strip # 
              parser.increment();
-        } else if(token.type == TokenType.Identifier) {
+        } else if(token.type == TokenType.Identifier || token.type == TokenType.PropertyName) {
              simple = builder.allocate<SimpleSelector>();
              simple.kind = SimpleSelectorKind.Tag;
              simple.value = builder.allocate_view(token.value);
@@ -122,7 +122,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                  // Pseudo-element (::)
                  parser.increment();
                  const nameToken = parser.getToken();
-                 if(nameToken.type == TokenType.Identifier) {
+                 if(nameToken.type == TokenType.Identifier || nameToken.type == TokenType.PropertyName) {
                      simple = builder.allocate<SimpleSelector>();
                      simple.kind = SimpleSelectorKind.PseudoElement;
                      simple.value = builder.allocate_view(nameToken.value);
@@ -131,7 +131,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                       // Unexpected token after ::
                       break; 
                  }
-             } else if(next.type == TokenType.Identifier) {
+             } else if(next.type == TokenType.Identifier || next.type == TokenType.PropertyName) {
                  // Pseudo-class (:)
                  simple = builder.allocate<SimpleSelector>();
                  simple.kind = SimpleSelectorKind.PseudoClass;

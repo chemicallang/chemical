@@ -13,7 +13,6 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
         media_queries : std::vector<*mut CSSMediaRule>(),
         dyn_values : std::vector<*mut Value>(),
         className : std::string_view(),
-        global : GlobalBlock(),
         support : SymResSupport()
     }
     var cssParser = CSSParser();
@@ -54,6 +53,5 @@ func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM {
 
     root.dyn_values = std::replace(cssParser.dyn_values, std::vector<*mut Value>());
 
-    cssParser.parseAtRule(*root, parser, builder)
     return root;
 }

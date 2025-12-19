@@ -1,9 +1,3 @@
-struct GlobalBlock {
-
-    var rules : std::vector<CSSRuleSet>
-
-}
-
 struct CSSOM {
 
     var parent : *mut ASTNode
@@ -18,8 +12,6 @@ struct CSSOM {
     var nested_rules : std::vector<*mut CSSNestedRule>
 
     var className : std::string_view
-
-    var global : GlobalBlock
 
     var support : SymResSupport
 

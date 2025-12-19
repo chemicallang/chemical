@@ -1499,19 +1499,21 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
              var sel = om.selector.selectors.get(i);
              var has_amp = has_ampersand_complex(sel);
              
-             var p : uint = 0;
-             while(p < parent_selectors.size()) {
-                 var pdf = parent_selectors.get(p);
-                 var res = std::string();
-                 if(has_amp) {
+             if(has_amp) {
+                 // Has &: replace & with parent selector(s)
+                 var p : uint = 0;
+                 while(p < parent_selectors.size()) {
+                     var pdf = parent_selectors.get(p);
+                     var res = std::string();
                      serialize_complex(sel, res, pdf.view());
-                 } else {
-                     res.append_view(pdf.view());
-                     res.append(' ');
-                     serialize_complex(sel, res, std::string_view("&")); // replacement ignored
+                     current_selectors.push(res);
+                     p++;
                  }
+             } else {
+                 // No &: this is a global selector, use as-is
+                 var res = std::string();
+                 serialize_complex(sel, res, std::string_view("&")); // replacement ignored
                  current_selectors.push(res);
-                 p++;
              }
              i++;
         }

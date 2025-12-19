@@ -97,7 +97,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
 
         }
         '.' => {
-            if(css.where == CSSLexerWhere.GlobalBlock || css.where == CSSLexerWhere.Selector) {
+            if(css.where == CSSLexerWhere.Selector) {
                 const start = provider.current_data()
                 provider.read_css_id()
                 return Token {
@@ -154,7 +154,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '#' => {
-            if(css.where == CSSLexerWhere.GlobalBlock || css.where == CSSLexerWhere.Selector) {
+            if(css.where == CSSLexerWhere.Selector) {
                 const start = provider.current_data()
                 provider.read_css_id()
                 return Token {

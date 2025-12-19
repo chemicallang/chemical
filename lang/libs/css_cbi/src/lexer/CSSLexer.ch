@@ -1,5 +1,4 @@
 public enum CSSLexerWhere {
-    GlobalBlock,    ///< inside an `@global { … }` block
     Selector,       ///< reading selector text
     Declaration,    ///< inside `{ … }` after a selector (handling both prop‑names and values)
     Value           ///< after `:` and before `;` or `}` (just for clarity, you could even merge this back)

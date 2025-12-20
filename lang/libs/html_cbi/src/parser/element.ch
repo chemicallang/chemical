@@ -27,7 +27,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
         parser.increment();
 
-        const isSelfClosing = isTagNameSelfClosing(id.value);
+        var isSelfClosing = isTagNameSelfClosing(id.value);
 
         var element : *mut HtmlElement = builder.allocate<HtmlElement>();
         new (element) HtmlElement {
@@ -50,11 +50,10 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
 
         // optional forward slash in self closing tags <br />
-        if(isSelfClosing) {
-            const fs = parser.getToken();
-            if(fs.type == TokenType.FwdSlash) {
-                parser.increment();
-            }
+        const fs = parser.getToken();
+        if(fs.type == TokenType.FwdSlash) {
+            parser.increment();
+            isSelfClosing = true;
         }
 
         const gt = parser.getToken();

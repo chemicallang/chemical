@@ -1316,7 +1316,11 @@ func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclarati
 
     // put_char_chain(resolver, builder, vec, parent, '\"');
 
-    converter.writeValue(decl.value)
+    converter.writeValue(decl.value);
+    
+    if(decl.important) {
+        str.append_view(std::string_view(" !important"));
+    }
 
     str.append(';')
 

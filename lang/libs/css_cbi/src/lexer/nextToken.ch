@@ -138,6 +138,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
             }
         }
         '!' => {
+            provider.skip_whitespaces();
             const start = provider.current_data()
             provider.read_alpha();
             if(strncmp(start, "important", provider.current_data() - start) == 0) {

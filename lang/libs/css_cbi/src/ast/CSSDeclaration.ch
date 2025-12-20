@@ -452,7 +452,19 @@ struct CSSTextShadowValueData {
     }
 
 };
-
+ 
+struct CSSTextDecorationValueData {
+ 
+    var line : CSSValue
+ 
+    var style : CSSValue
+ 
+    var color : CSSValue
+ 
+    var thickness : CSSValue
+ 
+};
+ 
 @direct_init
 struct CSSValue {
 

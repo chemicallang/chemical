@@ -1281,6 +1281,29 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             converter.writeBackgroundValueData(*ptr, str);
         }
 
+        CSSValueKind.TextDecoration => {
+            const ptr = value.data as *mut CSSTextDecorationValueData
+            var first = true;
+            if(ptr.line.kind != CSSValueKind.Unknown) {
+                converter.writeValue(ptr.line)
+                first = false;
+            }
+            if(ptr.style.kind != CSSValueKind.Unknown) {
+                if(!first) str.append(' ')
+                converter.writeValue(ptr.style)
+                first = false;
+            }
+            if(ptr.color.kind != CSSValueKind.Unknown) {
+                if(!first) str.append(' ')
+                converter.writeValue(ptr.color)
+                first = false;
+            }
+            if(ptr.thickness.kind != CSSValueKind.Unknown) {
+                if(!first) str.append(' ')
+                converter.writeValue(ptr.thickness)
+            }
+        }
+
         CSSValueKind.ChemicalValue => {
 
             converter.put_chain_in();

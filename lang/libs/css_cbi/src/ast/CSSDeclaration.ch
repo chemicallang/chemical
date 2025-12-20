@@ -478,4 +478,6 @@ struct CSSDeclaration {
 
     var value : CSSValue
 
+    var important : bool
+
 }

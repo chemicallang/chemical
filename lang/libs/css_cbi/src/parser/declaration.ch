@@ -137,10 +137,17 @@ func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder
         value : CSSValue {
             kind : CSSValueKind.Unknown,
             data : null
-        }
+        },
+        important : false
     }
 
     cssParser.parseValue(parser, builder, decl.value, token.value);
+    
+    if(parser.increment_if(TokenType.Important as int)) {
+        decl.important = true;
+    } else {
+        decl.important = false;
+    }
 
     const sc = parser.getToken();
     if(sc.type == TokenType.Semicolon) {

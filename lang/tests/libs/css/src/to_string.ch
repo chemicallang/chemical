@@ -10,6 +10,15 @@ public func global_values_work(env : &mut TestEnv) {
 }
 
 @test
+public func important_with_css_decl_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color:red !important;
+    }
+    css_equals(env, page.toStringCssOnly(), "color:red !important;");
+}
+
+@test
 public func chemical_dynamic_values_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

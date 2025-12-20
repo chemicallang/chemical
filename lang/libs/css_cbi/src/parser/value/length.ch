@@ -250,6 +250,10 @@ func (cssParser : &mut CSSParser) parseLength(
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
                 alloc_value_length_var(parser, builder, value, colorValue)
                 return true;
+            } else if(token.value.equals("calc")) {
+                parser.increment();
+                cssParser.parseCalc(parser, builder, value);
+                return true;
             } else {
                 return false;
             }
@@ -283,6 +287,10 @@ func (cssParser : &mut CSSParser) parseNumberOrLength(
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
                 alloc_value_length_var(parser, builder, value, colorValue)
                 return true;
+            } else if(token.value.equals("calc")) {
+                parser.increment();
+                cssParser.parseCalc(parser, builder, value);
+                return true;
             } else {
                 return false;
             }
@@ -310,6 +318,10 @@ func (cssParser : &mut CSSParser) parseNumberOrAuto(
                 parser.increment()
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
                 alloc_value_length_var(parser, builder, value, colorValue)
+                return true;
+            } else if(token.value.equals("calc")) {
+                parser.increment();
+                cssParser.parseCalc(parser, builder, value);
                 return true;
             } else if(token.value.equals("auto")) {
                 parser.increment();
@@ -347,6 +359,10 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
                 const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
                 alloc_value_length_var(parser, builder, value, colorValue)
                 return true;
+            } else if(token.value.equals("calc")) {
+                parser.increment();
+                cssParser.parseCalc(parser, builder, value);
+                return true;
             } else if(token.value.equals("auto")) {
                 parser.increment();
                 alloc_value_keyword(builder, value, CSSKeywordKind.Auto, token.value);
@@ -355,6 +371,15 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
                 return false;
             }
         }
+        TokenType.LBrace, TokenType.DollarLBrace => {
+            cssParser.parseChemValueAfterLBrace(parser, builder, value)
+            return true;
+        }
+        default => {
+            return false;
+        }
+    }
+}
         TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return true;

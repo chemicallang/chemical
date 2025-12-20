@@ -1092,6 +1092,29 @@ func (converter : &mut ASTConverter) writeBackgroundValueData(ptr : &mut CSSBack
 
 }
 
+func (converter : &mut ASTConverter) writeCalcExpression(expr : &CSSCalcExpression, str : &mut std::string) {
+    switch(expr.kind) {
+        CSSCalcExpressionKind.Literal => {
+            const val = expr.data as *mut CSSValue
+            converter.writeValue(*val)
+        }
+        CSSCalcExpressionKind.Operation => {
+            const data = expr.data as *mut CSSCalcOperationData
+            converter.writeCalcExpression(data.left, str)
+            str.append(' ')
+            str.append(data.op)
+            str.append(' ')
+            converter.writeCalcExpression(data.right, str)
+        }
+        CSSCalcExpressionKind.Group => {
+            const inner = expr.data as *mut CSSCalcExpression
+            str.append('(')
+            converter.writeCalcExpression(*inner, str)
+            str.append(')')
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
     // make this a reference
@@ -1302,6 +1325,13 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
                 if(!first) str.append(' ')
                 converter.writeValue(ptr.thickness)
             }
+        }
+
+        CSSValueKind.Calc => {
+            const ptr = value.data as *mut CSSCalcValueData
+            str.append_view(std::string_view("calc("))
+            converter.writeCalcExpression(ptr.expression, str)
+            str.append(')')
         }
 
         CSSValueKind.ChemicalValue => {

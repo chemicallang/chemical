@@ -98,6 +98,15 @@ public func css_variables_work3(env : &mut TestEnv) {
 }
 
 @test
+public func calc_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        width:calc(100% - 2em);
+    }
+    css_equals(env, page.toStringCssOnly(), "width:calc(100% - 2em);");
+}
+
+@test
 public func color_property_with_hex_color_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

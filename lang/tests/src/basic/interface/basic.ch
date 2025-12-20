@@ -26,6 +26,27 @@ interface UBI_IBI_Interface {
     func multiply(&self) : int
 }
 
+func get_multiply_8334(value : dyn IndirectlyInheritedInterface9328) : int {
+    return value.multiply()
+}
+
+interface IndirectlyInheritedInterface9328 {
+    func multiply(&self) : int
+}
+
+interface DelegateInterface2342 : IndirectlyInheritedInterface9328 {
+}
+
+struct Point3828 : DelegateInterface2342 {
+    var a : int
+    var b : int
+
+    @override
+    func multiply(&self) : int {
+        return a * b;
+    }
+}
+
 func test_basic_interfaces() {
 
     test("usage can come before impl, impl can come before normal interface - 1", () => {
@@ -43,5 +64,9 @@ func test_basic_interfaces() {
         return ubi_ibi_multiply_it2(dyn<UBI_IBI_Interface>(point)) == 72
     })
 
+    test("dynamic calls on indirectly inherited interfaces works", () => {
+        var p = Point3828 { a : 10, b : 34 }
+        return get_multiply_8334(dyn<IndirectlyInheritedInterface9328>(p)) == 340
+    })
 
 }

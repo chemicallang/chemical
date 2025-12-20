@@ -19,6 +19,16 @@ public func important_with_css_decl_works(env : &mut TestEnv) {
 }
 
 @test
+public func text_decoration_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-decoration:none;
+        text-decoration:underline;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-decoration:none;text-decoration:underline;");
+}
+
+@test
 public func chemical_dynamic_values_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

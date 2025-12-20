@@ -621,12 +621,6 @@ void TopLevelLinkSignature::LinkMembersContainer(MembersContainer* container, Ac
 }
 
 void TopLevelLinkSignature::link_param(GenericTypeParameter* param) {
-//    if(param->at_least_type) {
-//        visit(param->at_least_type);
-//    }
-//    if(param->def_type) {
-//        visit(param->def_type);
-//    }
     linker.declare(param->identifier, param);
     // do not link the default or at least types
     // because they are linked before link signature

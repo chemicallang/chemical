@@ -275,7 +275,7 @@ namespace InterpretVector {
             ASTNode* parent_node
     ): StructDefinition(ZERO_LOC_ID("vector"), parent_node, ZERO_LOC, AccessSpecifier::Public),
         constructorFn(this), sizeFn(cache, this), getFn(cache, this), pushFn(cache, this), removeFn(cache, this),
-        typeParam("T", nullptr, nullptr, this, 0, ZERO_LOC),
+        typeParam("T", nullptr, this, 0, ZERO_LOC),
         selfType(this), selfReference(&selfType, ZERO_LOC)
     {
         set_compiler_decl(true);

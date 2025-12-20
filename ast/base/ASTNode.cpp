@@ -841,7 +841,15 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
         case ASTNodeKind::GenericTypeParam: {
             const auto param = as_generic_type_param_unsafe();
             const auto linked = param->active_linked();
-            return linked ? linked->child(name) : (param->at_least_type ? provide_child(resolver, param->at_least_type, name, this) : nullptr);
+            if(linked) {
+                return linked->child(name);
+            }
+            if(param->traits.empty()) return nullptr;
+            for(auto& t : param->traits) {
+                const auto c = provide_child(resolver, t, name, this);
+                if(c) return c;
+            }
+            return nullptr;
         }
         case ASTNodeKind::EnumDecl: {
             const auto decl = as_enum_decl_unsafe();

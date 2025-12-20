@@ -80,15 +80,14 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
             }
             case ASTNodeKind::NamespaceDecl:{
                 const auto ns = node->as_namespace_unsafe();
-                if(ns->specifier() == AccessSpecifier::Public) {
+                if(is_linkage_public(ns->specifier())) {
                     make_exportable(ns->nodes);
                     public_nodes.emplace_back(node);
                 }
                 break;
             }
             default: {
-                const auto is_public = node->specifier() == AccessSpecifier::Public;
-                if(is_public) {
+                if(is_linkage_public(node->specifier())) {
                     public_nodes.emplace_back(node);
                 }
                 break;

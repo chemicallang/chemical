@@ -638,7 +638,7 @@ public struct ASTBuilder {
 
     func make_function_param(&self, name : &string_view, type : *BaseType, index : uint, value : *Value, implicit : bool, decl : *FunctionType, location : ubigint) : *mut FunctionParam
 
-    func make_generic_param(&self, name : &string_view, at_least_type : *BaseType, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *mut GenericTypeParameter
+    func make_generic_param(&self, name : &string_view, def_type : *BaseType, parent_node : *ASTNode, index : uint, location : ubigint) : *mut GenericTypeParameter
 
     func make_if_stmt(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *mut IfStatement
 

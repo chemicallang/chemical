@@ -1,16 +1,16 @@
 public namespace std {
 
-public struct unordered_map_node2<Key : Hashable, Value> {
+public struct unordered_map_node<Key : Hashable | Eq, Value> {
     var key : Key;
     var value : Value;
-    var next : *mut unordered_map_node2<Key, Value>; // Pointer to next node in the chain
+    var next : *mut unordered_map_node<Key, Value>; // Pointer to next node in the chain
 };
 
 public comptime const LOAD_FACTOR_THRESHOLD2 : float = 0.75f
 
-public struct unordered_map2<Key : Hashable, Value> {
+public struct unordered_map<Key : Hashable | Eq, Value> {
 
-    var table : *mut *mut unordered_map_node2<Key, Value>; // Array of buckets (pointers to linked lists)
+    var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
     var capacity : size_t;
     var _size : size_t;
 
@@ -23,16 +23,16 @@ public struct unordered_map2<Key : Hashable, Value> {
     }
 
     func compare_now(key : &Key, key2 : &Key) : bool {
-        return compare<Key>(key, key2);
+        return key.equals(key2)
     }
 
     // Resize and rehash
     func resize(&mut self) : void {
         var newCapacity = capacity * 2;
-        var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node2<Key, Value>)) as *mut *mut unordered_map_node2<Key, Value>;
+        var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
 
         // Initialize new table to nullptr (empty buckets)
-        memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node2<Key, Value>));
+        memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>));
 
         // Rehash all elements into the new table
         for (var i = 0; i < capacity; i++) {
@@ -59,8 +59,8 @@ public struct unordered_map2<Key : Hashable, Value> {
     func make() {
         capacity = 16;
         _size = 0;
-        table = malloc(capacity * sizeof(*mut unordered_map_node2<Key, Value>)) as *mut *mut unordered_map_node2<Key, Value>;
-        memset(table, 0, capacity * sizeof(*mut unordered_map_node2<Key, Value>));
+        table = malloc(capacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        memset(table, 0, capacity * sizeof(*mut unordered_map_node<Key, Value>));
     }
 
     @delete
@@ -100,8 +100,8 @@ public struct unordered_map2<Key : Hashable, Value> {
         }
 
         // Insert the new node at the front of the chain
-        const newNode = malloc(sizeof(unordered_map_node2<Key, Value>)) as *mut unordered_map_node2<Key, Value>;
-        new (newNode) unordered_map_node2<Key, Value> {
+        const newNode = malloc(sizeof(unordered_map_node<Key, Value>)) as *mut unordered_map_node<Key, Value>;
+        new (newNode) unordered_map_node<Key, Value> {
             key : key,
             value : value,
             next : table[index]
@@ -141,7 +141,7 @@ public struct unordered_map2<Key : Hashable, Value> {
     func erase(&mut self, key : &Key) : bool {
         var index : size_t = hash_with_capacity(key);
         var currentNode = table[index];
-        var previousNode : *mut unordered_map_node2<Key, Value> = null;
+        var previousNode : *mut unordered_map_node<Key, Value> = null;
 
         while (currentNode != null) {
             if (compare_now(currentNode.key, key)) {
@@ -178,8 +178,8 @@ public struct unordered_map2<Key : Hashable, Value> {
         return _size == 0;
     }
 
-    func iterator(&self) : unordered_map_iterator2<Key, Value> {
-        var it = unordered_map_iterator2<Key, Value> {
+    func iterator(&self) : unordered_map_iterator<Key, Value> {
+        var it = unordered_map_iterator<Key, Value> {
             map : &self,
             bucket : 0,
             node : null
@@ -198,11 +198,11 @@ public struct unordered_map2<Key : Hashable, Value> {
 
 };
 
-public struct unordered_map_iterator2<Key, Value> {
+public struct unordered_map_iterator<Key, Value> {
 
-    var map : *unordered_map2<Key, Value>;
+    var map : *unordered_map<Key, Value>;
     var bucket : size_t;
-    var node : *mut unordered_map_node2<Key, Value>;
+    var node : *mut unordered_map_node<Key, Value>;
 
     func next(&mut self) {
         if (node == null) {

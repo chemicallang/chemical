@@ -1040,11 +1040,15 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         }
     } else if(linked_kind == ASTNodeKind::GenericTypeParam) {
         const auto param = linked->as_generic_type_param_unsafe();
-        if(param->at_least_type) {
-            const auto at_least_linked = param->at_least_type->get_direct_linked_node();
+        const auto tSize = param->traits.size();
+        if(tSize == 1) {
+            auto& at_least = param->traits.back();
+            const auto at_least_linked = at_least->get_direct_linked_node();
             if(at_least_linked) {
                 container = at_least_linked->as_members_container();
             }
+        } else if(tSize > 1) {
+            diagnoser.error("extension functions on generic parameters support only a single trait bound", receiver.type.encoded_location());
         }
     } else if(linked_kind == ASTNodeKind::GenericStructDecl) {
         container = linked->as_gen_struct_def_unsafe()->master_impl;

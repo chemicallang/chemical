@@ -60,7 +60,29 @@ bool LinkedType::satisfies(BaseType *other_impure) {
                     return true;
                 } else {
                     const auto container = other_linked->get_members_container();
-                    return container && container->extends_node(linked);
+                    if(container) {
+                        return container->extends_node(linked);
+                    } else {
+                        if(other_linked->kind() == ASTNodeKind::GenericTypeParam) {
+                            const auto genParam = other_linked->as_generic_type_param_unsafe();
+                            for(auto& t : genParam->traits) {
+                                const auto traitLinked = t->get_direct_linked_node();
+                                if(traitLinked) {
+                                    if (traitLinked == linked) {
+                                        return true;
+                                    }
+                                    const auto otherContainer = traitLinked->get_members_container();
+                                    if(otherContainer) {
+                                        const auto resultExtends = otherContainer->extends_node(linked);
+                                        if(resultExtends) return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        } else {
+                            return false;
+                        }
+                    }
                 }
             } else {
                 break;
@@ -98,20 +120,7 @@ bool LinkedType::satisfies(BaseType *other_impure) {
         }
         case ASTNodeKind::GenericTypeParam :{
             const auto param = linked->as_generic_type_param_unsafe();
-            if(param->at_least_type) {
-                if(other_kind == BaseTypeKind::Linked) {
-                    const auto l = other->as_linked_type_unsafe()->linked;
-                    if(l->kind() == ASTNodeKind::GenericTypeParam) {
-                        const auto o_gen = l->as_generic_type_param_unsafe();
-                        if(o_gen->at_least_type) {
-                            return param->at_least_type->satisfies(o_gen->at_least_type);
-                        } else {
-                            return false;
-                        }
-                    }
-                }
-                return param->at_least_type->satisfies(other);
-            } else {
+            if(param->traits.empty()) {
                 const auto known = param->known_type();
                 if(known) {
                     return known->satisfies(other);
@@ -119,6 +128,36 @@ bool LinkedType::satisfies(BaseType *other_impure) {
                     // it's like a c++ template generic, which can take any type
                     return true;
                 }
+            } else {
+                if(other_kind == BaseTypeKind::Linked) {
+                    const auto l = other->as_linked_type_unsafe()->linked;
+                    if(l->kind() == ASTNodeKind::GenericTypeParam) {
+                        const auto o_gen = l->as_generic_type_param_unsafe();
+                        if(o_gen == linked) {
+                            return true;
+                        }
+                        if(param->traits.size() != o_gen->traits.size()) {
+                            return false;
+                        }
+                        unsigned i = 0;
+                        const auto total = param->traits.size();
+                        while(i < total) {
+                            auto& first = param->traits[i];
+                            auto& second = o_gen->traits[i];
+                            if(!first->satisfies(second)) {
+                                return false;
+                            }
+                            i++;
+                        }
+                        return true;
+                    }
+                }
+                for(auto& t : param->traits) {
+                    if(!t->satisfies(other)) {
+                        return false;
+                    }
+                }
+                return true;
             }
         }
         default:

@@ -30,8 +30,8 @@ public:
 
     void link(std::vector<GenericTypeParameter*>& params) {
         for(const auto param : params) {
-            if(param->at_least_type) {
-                signatureLinker.visit(param->at_least_type);
+            for(auto& t : param->traits) {
+                signatureLinker.visit(t);
             }
             if(param->def_type) {
                 signatureLinker.visit(param->def_type);

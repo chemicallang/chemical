@@ -909,8 +909,8 @@ void SymResLinkBody::VisitFunctionParam(FunctionParam* node) {
 }
 
 void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
-    if(node->at_least_type) {
-        visit(node->at_least_type);
+    for(auto& t : node->traits) {
+        visit(t);
     }
     linker.declare(node->identifier, node);
     if(node->def_type) {

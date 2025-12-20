@@ -476,8 +476,8 @@ FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_v
     return new (builder->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, (ASTNode*) decl, location);
 }
 
-GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::string_view* name, BaseType* at_least_type, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
-    return new (builder->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, {at_least_type, location}, {def_type, location}, parent_node, index, location);
+GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::string_view* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
+    return new (builder->allocate<GenericTypeParameter>()) GenericTypeParameter(*name, {def_type, location}, parent_node, index, location);
 }
 
 IfStatement* ASTBuildermake_if_stmt(ASTBuilder* builder, Value* condition, ASTNode* parent_node, uint64_t location) {

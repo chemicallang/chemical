@@ -16,7 +16,7 @@ private:
 public:
 
     chem::string_view identifier;
-    TypeLoc at_least_type;
+    std::vector<TypeLoc> traits;
     TypeLoc def_type;
     // TODO use int32 here
      // <-- index of active type in usage vector
@@ -27,13 +27,12 @@ public:
      */
     constexpr GenericTypeParameter(
         chem::string_view identifier,
-        TypeLoc at_least_type,
         TypeLoc def_type,
         ASTNode* parent_node,
         unsigned param_index,
         SourceLocation location
     ) : ASTNode(ASTNodeKind::GenericTypeParam, parent_node, location), identifier(identifier),
-        at_least_type(at_least_type), def_type(def_type), param_index(param_index)
+        def_type(def_type), param_index(param_index)
     {
 
     }

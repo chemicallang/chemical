@@ -462,7 +462,7 @@ public func media_queries1(env : &mut TestEnv) {
     var expected = std::string();
     var classView = std::string_view(got.data(), 8)
     expected.append_view(classView)
-    expected.append_view("{color:red;}@media screen  { ");
+    expected.append_view("{color:red;}@media screen { ");
     expected.append_view(classView)
     expected.append_view(" { background-color:red; } }");
     compl_css_equals(env, got, expected.to_view());
@@ -486,10 +486,10 @@ public func media_queries_complex(env : &mut TestEnv) {
     expected.append_view("{");
     // Note: The parser currently adds a space after every token in the media query.
     // So "min-width: 480px" becomes "min-width : 480 px "
-    expected.append_view("}@media screen and ( min-width : 480 px )  { ");
+    expected.append_view("}@media screen and (min-width: 480px) { ");
     expected.append_view(classView)
     expected.append_view(" { color:blue; } }");
-    expected.append_view("@media only screen and ( max-width : 600 px )  { ");
+    expected.append_view("@media only screen and (max-width: 600px) { ");
     expected.append_view(classView)
     expected.append_view(" { color:green; } }");
     compl_css_equals(env, got, expected.to_view());

@@ -1397,7 +1397,10 @@ func (converter : &mut ASTConverter) make_set_css_hash_call(hash : size_t) : *mu
 
 func (converter : &mut ASTConverter) writeMediaRule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view) {
     str.append_view(std::string_view("@media "))
-    str.append_view(rule.query)
+    
+    // Serialize the media query list AST
+    converter.writeMediaQueryList(rule.queryList, str)
+    
     str.append_view(std::string_view(" { ."))
     str.append_view(className)
     str.append_view(std::string_view(" { "))

@@ -1,7 +1,7 @@
 
 struct CSSMediaRule {
 
-    var query : std::string_view
+    var queryList : *mut MediaQueryList
 
     var declarations : std::vector<*mut CSSDeclaration>
 

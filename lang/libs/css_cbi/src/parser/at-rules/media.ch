@@ -21,33 +21,12 @@ func (cssParser : &mut CSSParser) parseMediaRule(om : &mut CSSOM, parser : *mut 
         return false;
     }
 
-    var query_str = std::string();
-
-    while(true) {
-        token = parser.getToken();
-        const type = token.type;
-        
-        if(type == TokenType.LBrace) {
-            break;
-        }
-        
-        if(type == TokenType.EndOfFile) {
-            parser.error("unexpected end of file while parsing media query");
-            return false;
-        }
-        
-        query_str.append_view(token.value);
-        query_str.append(' ');
-        
-        parser.increment();
-    }
-    
-    const view = std::string_view(query_str.data(), query_str.size())
-    const allocated_query = builder.allocate_view(view);
+    // Parse the media query list using proper AST parsing
+    const queryList = cssParser.parseMediaQueryList(parser, builder)
 
     var rule = builder.allocate<CSSMediaRule>();
     new (rule) CSSMediaRule {
-        query : allocated_query,
+        queryList : queryList,
         declarations : std::vector<*mut CSSDeclaration>(),
         parent : om.parent
     }

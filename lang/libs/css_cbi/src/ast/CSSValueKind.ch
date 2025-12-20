@@ -28,6 +28,7 @@ enum CSSValueKind {
     BackgroundImage,
     MultipleBackgroundImage,
     TextDecoration,
+    Calc,
 
 
 }

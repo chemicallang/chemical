@@ -465,6 +465,27 @@ struct CSSTextDecorationValueData {
  
 };
  
+enum CSSCalcExpressionKind {
+    Literal,
+    Operation,
+    Group
+}
+ 
+struct CSSCalcExpression {
+    var kind : CSSCalcExpressionKind
+    var data : *mut void
+}
+ 
+struct CSSCalcOperationData {
+    var left : CSSCalcExpression
+    var right : CSSCalcExpression
+    var op : char
+}
+ 
+struct CSSCalcValueData {
+    var expression : CSSCalcExpression
+};
+ 
 @direct_init
 struct CSSValue {
 

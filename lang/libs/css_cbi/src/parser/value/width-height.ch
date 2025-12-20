@@ -6,6 +6,7 @@ func getWidthCSSKeywordKind(hash : size_t) : CSSKeywordKind {
         comptime_fnv1_hash("min-content") => { return CSSKeywordKind.MinContent }
         comptime_fnv1_hash("max-content") => { return CSSKeywordKind.MaxContent }
         comptime_fnv1_hash("fit-content") => { return CSSKeywordKind.FitContent }
+        comptime_fnv1_hash("calc") => { return CSSKeywordKind.Calc }
         comptime_fnv1_hash("calc-size") => { return CSSKeywordKind.CalcSize }
         comptime_fnv1_hash("width") => { return CSSKeywordKind.Width }
         comptime_fnv1_hash("height") => { return CSSKeywordKind.Height }
@@ -71,6 +72,16 @@ func (cssParser : &mut CSSParser) parseWidthOrHeightValue(
                     parser.increment()
                     const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
                     alloc_value_length_var(parser, builder, value, colorValue)
+                    return;
+                }
+                CSSKeywordKind.CalcSize => {
+                    parser.increment();
+                    cssParser.parseCalc(parser, builder, value);
+                    return;
+                }
+                CSSKeywordKind.Calc => {
+                    parser.increment();
+                    cssParser.parseCalc(parser, builder, value);
                     return;
                 }
                 CSSKeywordKind.FitContent => {

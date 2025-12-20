@@ -459,6 +459,7 @@ enum CSSKeywordKind {
     MaxContent,
     FitContent,
     CalcSize,
+    Calc,
     Width,
     Height,
     SelfBlock,

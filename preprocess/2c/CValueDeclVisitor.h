@@ -26,14 +26,6 @@ public:
 
     void VisitIfStmt(IfStatement *ifStatement);
 
-    void VisitReturnStmt(ReturnStatement *stmt);
-
-    void VisitFunctionCall(FunctionCall *call);
-
-    void VisitArrayValue(ArrayValue *arrayVal);
-
-    void VisitStructValue(StructValue *structValue);
-
     void reset() final {
         aliases.clear();
     }

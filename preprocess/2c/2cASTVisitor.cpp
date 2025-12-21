@@ -815,7 +815,7 @@ bool is_value_type_pointer_like(Value* value) {
                 if(cap->capture_by_ref) {
                     return true;
                 }
-                return cap->known_type()->isStructLikeType();
+                return false;
             }
             default:
                 return false;
@@ -2734,80 +2734,6 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     visitor.current_func_type = prev_func_type;
     visitor.destructor.destruct_jobs = std::move(previous_destruct_jobs);
     visitor.destructor.destroy_current_scope = prev_destroy_scope;
-}
-
-void CValueDeclarationVisitor::VisitReturnStmt(ReturnStatement *stmt) {
-
-//    const auto val = stmt->value;
-//    if(val) {
-//        const auto func_type = stmt->func_type;
-//        // replace value with call to implicit constructor if there is one
-//        const auto func = func_type->as_function();
-//        if (!(func && func->is_constructor_fn())) {
-//            const auto implicit = func_type->returnType->implicit_constructor_for(visitor.allocator, val);
-//            if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
-//                stmt->value = call_with_arg(implicit, val, func_type->returnType, visitor.allocator, visitor);
-//            }
-//        }
-//    }
-
-    RecursiveVisitor::VisitReturnStmt(stmt);
-
-}
-
-
-void CValueDeclarationVisitor::VisitFunctionCall(FunctionCall *call) {
-    // replace all values that call implicit constructor with actual calls
-//    const auto size = call->values.size();
-//    auto func_type = call->function_type();
-//    if(func_type) {
-//        unsigned i = 0;
-//        while (i < size) {
-//            auto& value = call->values[i];
-//            auto func_param = func_type->func_param_for_arg_at(i);
-//            // TODO the func_param is nullptr sometimes, for which the arg is given
-//            auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
-//            if (constructor) {
-//                value = call_with_arg(constructor, value, func_param->type, visitor.allocator, visitor);
-//            }
-//            i++;
-//        }
-//    }
-    RecursiveVisitor::VisitFunctionCall(call);
-}
-
-void CValueDeclarationVisitor::VisitArrayValue(ArrayValue *arrayVal) {
-
-//    // replace all values that call implicit constructors with actual calls
-//    const auto elem_type = arrayVal->element_type(visitor.allocator);
-//    const auto def = elem_type->get_direct_linked_struct();
-//    if(def) {
-//        for (auto& value : arrayVal->values) {
-//            const auto implicit = def->implicit_constructor_func(visitor.allocator, value);
-//            if (implicit) {
-//                value = call_with_arg(implicit, value, elem_type, visitor.allocator, visitor);
-//            }
-//        }
-//    }
-
-    RecursiveVisitor::VisitArrayValue(arrayVal);
-
-}
-
-void CValueDeclarationVisitor::VisitStructValue(StructValue *structValue) {
-
-//    const auto container = structValue->variables();
-//    for(auto& value : structValue->values) {
-//        auto& value_ptr = value.second.value;
-//        auto variable = container->variable_type_index(value.first);
-//        auto implicit = variable.second->implicit_constructor_for(visitor.allocator, value_ptr);
-//        if(implicit) {
-//            value_ptr = call_with_arg(implicit, value_ptr, variable.second, visitor.allocator, visitor);
-//        }
-//    }
-
-    RecursiveVisitor::VisitStructValue(structValue);
-
 }
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
@@ -6846,11 +6772,11 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
     unsigned i = 0;
     while (i < func->captureList.size()) {
         auto& cap = func->captureList[i];
-        if (cap->capture_by_ref) {
-            visitor.write('&');
-        }
         VariableIdentifier id(cap->name, cap->known_type(), cap->encoded_location());
         id.linked = cap->linked;
+        if (cap->capture_by_ref && !is_value_param_hidden_pointer(&id)) {
+            visitor.write('&');
+        }
         visitor.accept_mutating_value(id.getType(), &id, false);
         if (i != func->captureList.size() - 1) {
             visitor.write(',');

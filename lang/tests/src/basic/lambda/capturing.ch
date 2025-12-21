@@ -237,5 +237,19 @@ func test_capturing_lambda() {
         dealloc s
         return result == 66
     })
+    test("capturing struct in lambda via reference works", () => {
+        var cap = CapLambRefStruct { value : 13 }
+        var fn : std::function<() => int> = |&cap|() => {
+            return cap.double();
+        }
+        return fn() == 26
+    })
+    test("capturing struct in lambda by value works", () => {
+        var cap = CapLambRefStruct { value : 14 }
+        var fn : std::function<() => int> = |cap|() => {
+            return cap.double();
+        }
+        return fn() == 28
+    })
     test_capturing_lambda_destruction()
 }

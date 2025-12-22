@@ -112,9 +112,19 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 html.lb_count++;
             } else if(nested.type == ChemicalTokenType.RBrace) {
                 html.lb_count--;
-                if(html.lb_count == 1) {
+                if(!html.in_paren_expr && html.lb_count == html.chem_start_lb) {
                     html.other_mode = false;
                     html.chemical_mode = false;
+                }
+            } else if(nested.type == ChemicalTokenType.LParen) {
+                html.paren_count++;
+            } else if(nested.type == ChemicalTokenType.RParen) {
+                html.paren_count--;
+                if(html.in_paren_expr && html.paren_count == 0) {
+                    html.other_mode = false;
+                    html.chemical_mode = false;
+                    html.in_paren_expr = false;
+                    html.expecting_html_block = true;
                 }
             }
             return nested;
@@ -154,7 +164,12 @@ public func html_initializeLexer(lexer : *mut Lexer) {
         is_comment : false,
         other_mode : false,
         chemical_mode : false,
-        lb_count : 0
+        lb_count : 0,
+        paren_count : 0,
+        chem_start_lb : 0,
+        in_paren_expr : false,
+        expecting_html_block : false,
+        last_token_was_if : false
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

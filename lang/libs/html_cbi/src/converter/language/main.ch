@@ -349,6 +349,63 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             const chem_child = child as *mut HtmlChemValueChild
             converter.put_chemical_value_in(chem_child.value)
         }
+        HtmlChildKind.IfStatement => {
+            if(!str.empty()) {
+                converter.put_chain_in();
+            }
+            const if_stmt = child as *mut HtmlIfStatement
+            const loc = intrinsics::get_raw_location();
+            
+            var emit_if = converter.builder.make_if_stmt(if_stmt.condition, converter.parent, loc);
+            
+            // convert body
+            const old_vec = converter.vec
+            converter.vec = emit_if.get_body()
+            var i : uint = 0;
+            var s = if_stmt.body.size();
+            while(i < s) {
+                converter.convertHtmlChild(if_stmt.body.get(i))
+                i++;
+            }
+            if(!converter.str.empty()) {
+                converter.put_chain_in();
+            }
+
+            // else ifs
+            i = 0;
+            s = if_stmt.else_ifs.size();
+            while(i < s) {
+                const elseif = if_stmt.else_ifs.get(i);
+                converter.vec = emit_if.add_else_if(elseif.condition);
+                var j : uint = 0;
+                var sj = elseif.body.size();
+                while(j < sj) {
+                    converter.convertHtmlChild(elseif.body.get(j))
+                    j++;
+                }
+                if(!converter.str.empty()) {
+                    converter.put_chain_in();
+                }
+                i++;
+            }
+
+            // else body
+            if(!if_stmt.else_body.empty()) {
+                converter.vec = emit_if.add_else_body();
+                i = 0;
+                s = if_stmt.else_body.size();
+                while(i < s) {
+                    converter.convertHtmlChild(if_stmt.else_body.get(i))
+                    i++;
+                }
+                if(!converter.str.empty()) {
+                    converter.put_chain_in();
+                }
+            }
+
+            converter.vec = old_vec
+            converter.vec.push(emit_if)
+        }
     }
 }
 

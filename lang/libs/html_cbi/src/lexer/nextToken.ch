@@ -81,12 +81,13 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         '{' => {
-            // here always lb_count > 0
-            if(html.lb_count == 1) {
+            if(html.lb_count >= 1 && !html.expecting_html_block) {
                 html.other_mode = true;
                 html.chemical_mode = true;
+                html.chem_start_lb = html.lb_count;
             }
             html.lb_count++;
+            html.expecting_html_block = false;
             return Token {
                 type : TokenType.LBrace as int,
                 value : view("{"),
@@ -193,10 +194,42 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     }
                 }
             } else {
+                const start = data_ptr;
+                if(isalpha(c)) {
+                    provider.read_tag_name()
+                    const value = std::string_view(start, provider.current_data() - start)
+                    const hash = fnv1_hash_view(value);
+                    switch(hash) {
+                        comptime_fnv1_hash("if"), comptime_fnv1_hash("for") => {
+                            provider.skip_whitespaces();
+                            if(provider.peek() == '(') {
+                                html.other_mode = true;
+                                html.chemical_mode = true;
+                                html.in_paren_expr = true;
+                                html.paren_count = 0;
+                            }
+                            html.expecting_html_block = false;
+                            return Token {
+                                type : if(hash == comptime_fnv1_hash("if")) TokenType.If as int else TokenType.For as int,
+                                value : value,
+                                position : position
+                            }
+                        }
+                        comptime_fnv1_hash("else") => {
+                            html.expecting_html_block = true;
+                            return Token {
+                                type : TokenType.Else as int,
+                                value : value,
+                                position : position
+                            }
+                        }
+                    }
+                }
+                html.expecting_html_block = false;
                 provider.read_text()
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                    value : std::string_view(start, provider.current_data() - start),
                     position : position
                 }
             }

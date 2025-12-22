@@ -1266,6 +1266,30 @@ func (token : &mut Token) fnv1() : size_t {
     return fnv1_hash_view(token.value)
 }
 
+func (cssParser : &mut CSSParser) parseKeywordProperty(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue,
+    propName : &std::string_view,
+    getKind : (k : size_t) => CSSKeywordKind
+) {
+    const token = parser.getToken();
+    if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
+        cssParser.parseChemValueAfterLBrace(parser, builder, value);
+        return;
+    }
+    if(token.type != TokenType.Identifier) {
+        parser.not_id_val_err(propName);
+        return;
+    }
+    const kind = getKind(token.fnv1());
+    if(kind == CSSKeywordKind.Unknown) {
+        parser.wrong_val_kw_err(propName);
+    }
+    parser.increment();
+    alloc_value_keyword(builder, value, kind, token.value);
+}
+
 func (cssParser : &mut CSSParser) parseFontWeight(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
@@ -1315,17 +1339,7 @@ func (cssParser : &mut CSSParser) parseTextAlign(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("text-align");
-        return;
-    }
-    const kind = getTextAlignKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("text-align");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "text-align", getTextAlignKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parseDisplay(
@@ -1333,17 +1347,7 @@ func (cssParser : &mut CSSParser) parseDisplay(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("display");
-        return;
-    }
-    const kind = getDisplayKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("display");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "display", getDisplayKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parsePosition(
@@ -1351,17 +1355,7 @@ func (cssParser : &mut CSSParser) parsePosition(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("position");
-        return;
-    }
-    const kind = getPositionKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("position");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "position", getPositionKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parseOverflow(
@@ -1369,17 +1363,7 @@ func (cssParser : &mut CSSParser) parseOverflow(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("overflow");
-        return;
-    }
-    const kind = getOverflowKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("overflow");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "overflow", getOverflowKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parseFloat(
@@ -1387,17 +1371,7 @@ func (cssParser : &mut CSSParser) parseFloat(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("float");
-        return;
-    }
-    const kind = getFloatKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("float");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "float", getFloatKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parseClear(
@@ -1783,17 +1757,7 @@ func (cssParser : &mut CSSParser) parseAlignContent(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("align-content");
-        return;
-    }
-    const kind = getAlignContentKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("align-content");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "align-content", getAlignContentKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parseJustifyContent(
@@ -1801,17 +1765,7 @@ func (cssParser : &mut CSSParser) parseJustifyContent(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("justify-content");
-        return;
-    }
-    const kind = getJustifyContentKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("align-content");
-    }
-    parser.increment();
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "justify-content", getJustifyContentKeywordKind)
 }
 
 func (cssParser : &mut CSSParser) parseFlexDirection(
@@ -1819,51 +1773,23 @@ func (cssParser : &mut CSSParser) parseFlexDirection(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("flex-direction")
-        return;
-    }
-    const kind = getFlexDirectionKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("flex-direction")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "flex-direction", getFlexDirectionKeywordKind)
 }
+
 func (cssParser : &mut CSSParser) parseFlexWrap(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("flex-wrap")
-        return;
-    }
-    const kind = getFlexWrapKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("flex-wrap")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "flex-wrap", getFlexWrapKeywordKind)
 }
+
 func (cssParser : &mut CSSParser) parseAlignSelf(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    const token = parser.getToken();
-    if(token.type != TokenType.Identifier) {
-        parser.not_id_val_err("align-self")
-        return;
-    }
-    const kind = getAlignSelfKeywordKind(token.fnv1())
-    if(kind == CSSKeywordKind.Unknown) {
-        parser.wrong_val_kw_err("align-self")
-    }
-    parser.increment()
-    alloc_value_keyword(builder, value, kind, token.value)
+    cssParser.parseKeywordProperty(parser, builder, value, "align-self", getAlignSelfKeywordKind)
 }
 func (cssParser : &mut CSSParser) parseCaptionSide(
     parser : *mut Parser,

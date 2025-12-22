@@ -36,6 +36,16 @@ public struct HtmlLexer {
      */
     var lb_count : uchar
 
+    var paren_count : uchar
+
+    var in_paren_expr : bool
+
+    var last_token_was_if : bool
+
+    var chem_start_lb : uchar
+
+    var expecting_html_block : bool
+
 }
 
 func (lexer : &mut HtmlLexer) reset() {
@@ -43,4 +53,9 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.other_mode = false;
     lexer.chemical_mode = false;
     lexer.lb_count = 0;
+    lexer.paren_count = 0;
+    lexer.in_paren_expr = false;
+    lexer.last_token_was_if = false;
+    lexer.chem_start_lb = 0;
+    lexer.expecting_html_block = false;
 }

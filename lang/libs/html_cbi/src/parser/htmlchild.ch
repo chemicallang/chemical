@@ -48,6 +48,10 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         }
 
         return value_child;
+    } else if(current.type == TokenType.If) {
+
+        return parseIfStatement(parser, builder);
+
     } else if(current.type == TokenType.Text) {
 
         parser.increment();
@@ -118,4 +122,108 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         return null;
     }
 
+}
+
+func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
+    const loc = intrinsics::get_raw_location();
+    parser.increment(); // skip 'if'
+
+    var ifstmt = builder.allocate<HtmlIfStatement>();
+    new (ifstmt) HtmlIfStatement {
+        HtmlChild : HtmlChild {
+            kind : HtmlChildKind.IfStatement
+        },
+        condition : null,
+        body : std::vector<*mut HtmlChild>(),
+        else_ifs : std::vector<*mut HtmlElseIf>(),
+        else_body : std::vector<*mut HtmlChild>()
+    }
+
+    if(!parser.increment_if(ChemicalTokenType.LParen as int)) {
+        parser.error("expected '(' after 'if'");
+    }
+
+    ifstmt.condition = parser.parseExpression(builder);
+
+    if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
+        parser.error("expected ')' after if condition");
+    }
+
+    if(!parser.increment_if(TokenType.LBrace as int)) {
+        parser.error("expected '{' after if condition");
+    }
+
+    while(true) {
+        var child = parseElementChild(parser, builder);
+        if(child != null) {
+            ifstmt.body.push(child);
+        } else {
+            break;
+        }
+    }
+
+    if(!parser.increment_if(TokenType.RBrace as int)) {
+        parser.error("expected '}' after if body");
+    }
+
+    while(parser.getToken().type == TokenType.Else) {
+        parser.increment(); // skip 'else'
+        if(parser.getToken().type == TokenType.If) {
+            parser.increment(); // skip 'if'
+            var elseif = builder.allocate<HtmlElseIf>();
+            new (elseif) HtmlElseIf {
+                condition : null,
+                body : std::vector<*mut HtmlChild>()
+            }
+
+            if(!parser.increment_if(ChemicalTokenType.LParen as int)) {
+                parser.error("expected '(' after 'else if'");
+            }
+
+            elseif.condition = parser.parseExpression(builder);
+
+            if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
+                parser.error("expected ')' after else if condition");
+            }
+
+            if(!parser.increment_if(TokenType.LBrace as int)) {
+                parser.error("expected '{' after if condition");
+            }
+
+            while(true) {
+                var child = parseElementChild(parser, builder);
+                if(child != null) {
+                    elseif.body.push(child);
+                } else {
+                    break;
+                }
+            }
+
+            if(!parser.increment_if(TokenType.RBrace as int)) {
+                parser.error("expected '}' after else if body");
+            }
+
+            ifstmt.else_ifs.push(elseif);
+        } else {
+            if(!parser.increment_if(TokenType.LBrace as int)) {
+                parser.error("expected '{' after 'else'");
+            }
+
+            while(true) {
+                var child = parseElementChild(parser, builder);
+                if(child != null) {
+                    ifstmt.else_body.push(child);
+                } else {
+                    break;
+                }
+            }
+
+            if(!parser.increment_if(TokenType.RBrace as int)) {
+                parser.error("expected '}' after else body");
+            }
+            break; // else is the last block
+        }
+    }
+
+    return ifstmt;
 }

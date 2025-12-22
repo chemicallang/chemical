@@ -2,7 +2,8 @@ enum HtmlChildKind {
     Text,
     Element,
     Comment,
-    ChemicalValue
+    ChemicalValue,
+    IfStatement
 }
 
 struct HtmlChild {

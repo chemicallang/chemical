@@ -24,6 +24,42 @@ public func element_in_root_element_works(env : &mut TestEnv) {
 }
 
 @test
+public func if_works_1(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var condition = true;
+    #html {
+        if(condition) {
+            <div>
+                <div>Normal Text</div>
+            </div>
+        } else {
+            <div>
+                <div>Normal Text2</div>
+            </div>
+        }
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div><div>Normal Text</div></div>");
+}
+
+@test
+public func if_works_2(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var condition = false;
+    #html {
+        if(condition) {
+            <div>
+                <div>Normal Text</div>
+            </div>
+        } else {
+            <div>
+                <div>Normal Text2</div>
+            </div>
+        }
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div><div>Normal Text2</div></div>");
+}
+
+@test
 public func nested_element_in_root_element_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {

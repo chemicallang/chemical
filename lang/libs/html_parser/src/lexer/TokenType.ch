@@ -30,5 +30,8 @@ public enum TokenType {
     CommentStart,
     CommentText,
 
+    If,
+    Else,
+    For
 
 }

@@ -5,6 +5,29 @@ func traverse_child(child : *mut HtmlChild, data : *void, traverse : (data : *vo
     } else if(child.kind == HtmlChildKind.ChemicalValue) {
         const elem = child as *HtmlChemValueChild;
         return traverse(data, elem.value)
+    } else if(child.kind == HtmlChildKind.IfStatement) {
+        const ifstmt = child as *HtmlIfStatement;
+        if(!traverse(data, ifstmt.condition)) {
+            return false;
+        }
+        if(!traverse_children(ifstmt.body, data, traverse)) {
+            return false;
+        }
+        var i = 0u;
+        const s = ifstmt.else_ifs.size();
+        while(i < s) {
+            const elseif = ifstmt.else_ifs.get(i);
+            if(!traverse(data, elseif.condition)) {
+                return false;
+            }
+            if(!traverse_children(elseif.body, data, traverse)) {
+                return false;
+            }
+            i++;
+        }
+        if(!traverse_children(ifstmt.else_body, data, traverse)) {
+            return false;
+        }
     }
     return true;
 }

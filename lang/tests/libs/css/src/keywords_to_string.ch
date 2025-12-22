@@ -1,4 +1,50 @@
 @test
+public func random_keyword_values_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-align : center;
+        display : block;
+        position : absolute;
+        overflow : hidden;
+        float : left;
+        align-content : center;
+        justify-content : space-between;
+        flex-direction : column;
+        flex-wrap : wrap;
+        align-self : stretch;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-align:center;display:block;position:absolute;overflow:hidden;float:left;align-content:center;justify-content:space-between;flex-direction:column;flex-wrap:wrap;align-self:stretch;");
+}
+
+@test
+public func random_dynamic_keyword_values_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var dynTextAlign = "center";
+    var dynDisplay = "block";
+    var dynPosition = "absolute";
+    var dynOverflow = "hidden";
+    var dynFloat = "left";
+    var dynAlignContent = "center";
+    var dynJustifyContent = "space-between";
+    var dynFlexDirection = "column";
+    var dynFlexWrap = "wrap";
+    var dynAlignSelf = "stretch";
+    #css {
+        text-align : {dynTextAlign};
+        display : {dynDisplay};
+        position : {dynPosition};
+        overflow : {dynOverflow};
+        float : {dynFloat};
+        align-content : {dynAlignContent};
+        justify-content : {dynJustifyContent};
+        flex-direction : {dynFlexDirection};
+        flex-wrap : {dynFlexWrap};
+        align-self : {dynAlignSelf};
+    }
+    css_equals(env, page.toStringCssOnly(), "text-align:center;display:block;position:absolute;overflow:hidden;float:left;align-content:center;justify-content:space-between;flex-direction:column;flex-wrap:wrap;align-self:stretch;");
+}
+
+@test
 public func border_style_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

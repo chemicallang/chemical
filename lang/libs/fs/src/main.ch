@@ -758,7 +758,7 @@ public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 }
 
 // create_dir_all (recursive)
-func create_dir_all(path : *char) : Result<UnitTy, FsError> {
+public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
     var buf : [PATH_MAX_BUF]char;
     var r = normalize_path(path, &mut buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) {
@@ -1176,7 +1176,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     }
 }
 
-func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
+public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
     // recursive copy: create dest dir then iterate src and copy files/dirs
     var st_res = metadata(src);
     if(st_res is Result.Err) {
@@ -1823,6 +1823,14 @@ public func create_dir(path : *char) : Result<UnitTy, FsError> {
     }
 }
 
+public func mkdir(pathname : *char) : int {
+    comptime if(def.windows) {
+        return _mkdir(pathname)
+    } else {
+        return posix_mkdir(pathname, PermissionMode.S_IRWXU as uint)
+    }
+}
+
 public func remove_file(path : *char) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
         var w : [WIN_MAX_PATH]u16;
@@ -1859,7 +1867,7 @@ public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
     }
 }
 
-func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
     comptime if(def.windows) {
         var wsrc : [WIN_MAX_PATH]u16; var wdst : [WIN_MAX_PATH]u16;
         var r1 = utf8_to_utf16(src, &mut wsrc[0], WIN_MAX_PATH as size_t);

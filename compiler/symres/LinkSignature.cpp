@@ -578,6 +578,15 @@ void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* contai
     }
     for (const auto var: container->variables()) {
         visit(var);
+        // verify the type of the default value
+        const auto defValue = var->default_value();
+        if(defValue != nullptr) {
+            const auto type = var->known_type();
+            const auto imp_constructor = type->implicit_constructor_for(defValue);
+            if (imp_constructor == nullptr && !type->satisfies(defValue, false)) {
+                linker.unsatisfied_type_err(defValue, type);
+            }
+        }
     }
     for(auto& func : container->functions()) {
         visit(func);

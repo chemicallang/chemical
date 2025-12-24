@@ -45,6 +45,10 @@ struct constructable_obj_comptime {
 
 }
 
+func def_constructable_obj_size(value : constructable_obj_comptime = "abc") : ubigint {
+    return value.size;
+}
+
 struct comptime_constructor_field_container {
     var c : constructable_obj_comptime
 }
@@ -164,5 +168,11 @@ func test_constructors() {
     test("constructors can call functions that take self argument", () => {
         var x = constructor_calls_self_function(8)
         return x.a == 16 && x.b == 16
+    })
+    test("default values passed to functions can trigger implicit constructors - 1", () => {
+        return def_constructable_obj_size() == 3
+    })
+    test("default values passed to functions can trigger implicit constructors - 2", () => {
+        return def_constructable_obj_size("abcd") == 4
     })
 }

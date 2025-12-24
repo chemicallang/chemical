@@ -529,6 +529,10 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
         }
         if(param->defValue) {
             sig.visit(param->defValue);
+            const auto imp_constructor = param->type->implicit_constructor_for(param->defValue);
+            if(imp_constructor == nullptr && !param->type->satisfies(param->defValue, false)) {
+                linker.unsatisfied_type_err(param->defValue, param->type);
+            }
         }
     }
     sig.visit(node->returnType);

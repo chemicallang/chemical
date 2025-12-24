@@ -1662,7 +1662,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
             // checking arguments exist for all variant call parameters
             while (i < total_params) {
                 auto param = (variant_mem->values.begin() + i)->second;
-                if (param) {
+                if (param && param->def_value == nullptr) {
                     linker.error(call) << "variant call parameter '" << param->name << "' doesn't have a default value and no argument exists for it";
                 }
                 i++;

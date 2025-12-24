@@ -1839,6 +1839,8 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     unsigned i = 0;
     auto prev_nested = visitor.nested_value;
     visitor.nested_value = true;
+
+    const auto total_args = call->values.size();
     for(auto& value : member->values) {
         if(has_value_before) {
             visitor.write(", ");
@@ -1851,7 +1853,16 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         visitor.write('.');
         visitor.write(value.second->name);
         visitor.write(" = ");
-        accept_movable_ref_value(visitor, value.second->type, call->values[i], false);
+        if(i < total_args) {
+            accept_movable_ref_value(visitor, value.second->type, call->values[i], false);
+        } else {
+            const auto defValue = value.second->def_value;
+            if(defValue) {
+                accept_movable_ref_value(visitor, value.second->type, defValue, false);
+            } else {
+                visitor.error(call) << "no argument given for argument " << std::to_string(i) << ", no default value exists";
+            }
+        }
         i++;
     }
 

@@ -39,7 +39,7 @@ struct BucketSymbol {
     chem::string_view key = "";
     size_t hash = 0;
     ASTNode* activeNode = nullptr;
-    int index = -1;               // Index into the SymbolEntry vector (-1 if empty).
+    long index = -1;               // Index into the SymbolEntry vector (-1 if empty).
     BucketSymbol* next = nullptr; // Pointer to the next symbol in the chain.
 };
 
@@ -62,7 +62,7 @@ struct Bucket : BucketSymbol {
  */
 struct SymbolScope {
     SymResScopeKind kind;   // An integer identifier for the scope type (0 if not specified).
-    int start;  // The index in the symbols vector where this scope began.
+    unsigned long start;  // The index in the symbols vector where this scope began.
 };
 
 /**
@@ -142,8 +142,8 @@ private:
      * @param node Pointer to the associated AST node.
      * @return The index of the new entry.
      */
-    inline int put_entry(const chem::string_view& key, const size_t hash, ASTNode* const node) noexcept {
-        int newIndex = static_cast<int>(symbols.size());
+    inline long put_entry(const chem::string_view& key, const size_t hash, ASTNode* const node) noexcept {
+        auto newIndex = static_cast<long>(symbols.size());
         symbols.emplace_back(key, hash, node);
         return newIndex;
     }
@@ -158,8 +158,8 @@ private:
      * @param index Index into the symbols vector.
      * @param next Pointer to the next symbol in the shadow chain.
      */
-    inline void set_to_bucket(Bucket& bucket, const chem::string_view& key, const size_t hash,
-                              ASTNode* const node, int index, BucketSymbol* const next) noexcept {
+    static inline void set_to_bucket(Bucket& bucket, const chem::string_view& key, const size_t hash,
+                              ASTNode* const node, long index, BucketSymbol* const next) noexcept {
         bucket.key = key;
         bucket.hash = hash;
         bucket.index = index;
@@ -178,7 +178,7 @@ private:
      * @return Pointer to the new BucketSymbol.
      */
     inline BucketSymbol* allocateBucketSymbol(const chem::string_view& key, const size_t hash,
-                                              ASTNode* const node, int index, BucketSymbol* const next) noexcept {
+                                              ASTNode* const node, long index, BucketSymbol* const next) noexcept {
         return new (allocateBucketSymbol()) BucketSymbol{key, hash, node, index, next};
     }
 
@@ -190,7 +190,7 @@ private:
      * @param targetBuckets The new bucket array.
      * @param mask The new bucket mask.
      */
-    void insert_symbol(int index, const SymbolEntry &entry, std::vector<Bucket>& targetBuckets, size_t mask) {
+    void insert_symbol(long index, const SymbolEntry &entry, std::vector<Bucket>& targetBuckets, size_t mask) {
         const auto bucketIndex = entry.hash & mask;
         Bucket &bucket = targetBuckets[bucketIndex];
 
@@ -334,7 +334,7 @@ public:
     /**
      * same as declare, however this is to be used when an entry already exists
      */
-    void declare_entry(const SymbolEntry* entry, int index) {
+    void declare_entry(const SymbolEntry* entry, long index) {
         // Rehash if load factor exceeds 90% (using integer arithmetic).
         if (symbols.size() >= (buckets.size() * 9) / 10) {
             rehash();
@@ -433,6 +433,31 @@ public:
     /**
      * @brief Resolves a symbol by its key.
      *
+     * Gets the bucket associated with the symbol, which is invalidated on first
+     * modification to symbol table is made
+     *
+     * @param key The symbol key.
+     * @return Pointer to the bucket symbol,
+     */
+    const BucketSymbol* resolve_bucket(const chem::string_view& key) {
+        size_t hash = computeHash(key);
+        size_t bucketIndex = hash & bucketMask;
+        const Bucket &bucket = buckets[bucketIndex];
+        if (bucket.index != -1 && bucket.hash == hash && bucket.key == key)
+            return &bucket;
+        // Scan collision chain even if bucket index is -1.
+        BucketSymbol* sym = bucket.collision;
+        while (sym) {
+            if (sym->hash == hash && sym->key == key)
+                return sym;
+            sym = sym->next;
+        }
+        return nullptr;
+    }
+
+    /**
+     * @brief Resolves a symbol by its key.
+     *
      * Returns the active AST node pointer for the symbol that matches the given key.
      * It first checks the active bucket entry, then scans the collision chain if necessary.
      *
@@ -506,7 +531,7 @@ public:
      * Records the current number of symbols to mark the beginning of a new scope.
      */
     inline void scope_start() noexcept {
-        scopeStack.emplace_back(SymResScopeKind::Default, static_cast<int>(symbols.size()));
+        scopeStack.emplace_back(SymResScopeKind::Default, static_cast<unsigned long>(symbols.size()));
     }
 
     /**
@@ -515,15 +540,15 @@ public:
      * @param kind The kind identifier for the scope.
      */
     inline void scope_start(SymResScopeKind kind) noexcept {
-        scopeStack.emplace_back(kind, static_cast<int>(symbols.size()));
+        scopeStack.emplace_back(kind, static_cast<unsigned long>(symbols.size()));
     }
 
     /**
      * start a new scope with kind, get the scope index as well
      */
-    inline int scope_start_index(SymResScopeKind kind) noexcept {
-        int scope_index = static_cast<int>(scopeStack.size());
-        scopeStack.emplace_back(kind, static_cast<int>(symbols.size()));
+    inline unsigned long scope_start_index(SymResScopeKind kind) noexcept {
+        auto scope_index = static_cast<unsigned long>(scopeStack.size());
+        scopeStack.emplace_back(kind, static_cast<unsigned long>(symbols.size()));
         return scope_index;
     }
 
@@ -541,7 +566,7 @@ public:
      * @return nullptr if not found
      */
     [[nodiscard]]
-    const SymbolScope* get_scope_at_index(int index) const noexcept {
+    const SymbolScope* get_scope_at_index(unsigned long index) const noexcept {
         if(index >= scopeStack.size()) return nullptr;
         return &scopeStack[index];
     }
@@ -560,8 +585,15 @@ public:
      * @return A span over the SymbolEntry objects for the current scope.
      */
     inline std::span<SymbolEntry> last_scope() noexcept {
-        int start = scopeStack.back().start;
+        auto start = scopeStack.back().start;
         return { &symbols[start], symbols.size() - start };
+    }
+
+    /**
+     * get the scope stack for analyzing
+     */
+    inline const std::vector<SymbolScope>& get_scopes() const noexcept {
+        return scopeStack;
     }
 
     /**
@@ -570,9 +602,9 @@ public:
      * shadowed symbol is restored. Additionally, symbols in the collision chain
      * are removed if they were declared in the ending scope.
      */
-    void drop_symbols_from(int marker) {
+    void drop_symbols_from(unsigned long marker) {
         // Roll back each symbol declared in the current scope.
-        for (int i = static_cast<int>(symbols.size()) - 1; i >= marker; --i) {
+        for (int i = static_cast<int>(symbols.size()) - 1; i >= static_cast<int>(marker); --i) {
             const SymbolEntry& entry = symbols[i];
             const auto bucketIndex = entry.hash & bucketMask;
             Bucket &bucket = buckets[bucketIndex];
@@ -612,17 +644,12 @@ public:
         }
     }
 
-//    void scope_end_keep_entries(int scope_index) {
-//        assert(scope_index < scopeStack.size());
-//        drop_symbols_from(scopeStack[scope_index].start);
-//    }
-
     /**
      * this drops all symbol entries and scopes after this scope_index
      */
-    void drop_all_scopes_from(int scope_index) {
+    void drop_all_scopes_from(unsigned long scope_index) {
         assert(scope_index < scopeStack.size());
-        int marker = scopeStack[scope_index].start;
+        auto marker = scopeStack[scope_index].start;
         scopeStack.resize(scope_index);
         drop_symbols_from(marker);
         symbols.resize(marker);
@@ -635,7 +662,7 @@ public:
      */
     void scope_end() {
         assert(!scopeStack.empty());
-        int marker = scopeStack.back().start;
+        auto marker = scopeStack.back().start;
         scopeStack.pop_back();
         drop_symbols_from(marker);
         symbols.resize(marker);

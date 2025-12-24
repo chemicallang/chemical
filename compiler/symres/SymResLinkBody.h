@@ -20,6 +20,17 @@ public:
     SourceLocation type_location = 0;
 
     /**
+     * the start index of the current lambda scope, only set when in_lambda_scope is true
+     * this can be used to verify symbols are inside a lambda scope
+     */
+    unsigned long lambda_scope_start = 0;
+
+    /**
+     * turned on when symbol resolving a lambda body
+     */
+    bool in_lambda_scope = false;
+
+    /**
      * constructor
      */
     SymResLinkBody(SymbolResolver& linker) : linker(linker) {

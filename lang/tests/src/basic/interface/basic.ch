@@ -47,6 +47,22 @@ struct Point3828 : DelegateInterface2342 {
     }
 }
 
+func use_of_static_inter_bef_def(s : &static_interface_after_usage) : int {
+    return s.give()
+}
+
+struct impl_of_static_inter_bef_def : static_interface_after_usage {
+    @override
+    func give(&self) : int {
+        return 436;
+    }
+}
+
+@static
+interface static_interface_after_usage {
+    func give(&self) : int
+}
+
 func test_basic_interfaces() {
 
     test("usage can come before impl, impl can come before normal interface - 1", () => {
@@ -67,6 +83,16 @@ func test_basic_interfaces() {
     test("dynamic calls on indirectly inherited interfaces works", () => {
         var p = Point3828 { a : 10, b : 34 }
         return get_multiply_8334(dyn<IndirectlyInheritedInterface9328>(p)) == 340
+    })
+
+    test("use and impl of static interface before definition works", () => {
+        var i = impl_of_static_inter_bef_def {};
+        return i.give() == 436
+    })
+
+    test("use and impl of static interface before definition works", () => {
+        var i = impl_of_static_inter_bef_def {};
+        return use_of_static_inter_bef_def(i) == 436
     })
 
 }

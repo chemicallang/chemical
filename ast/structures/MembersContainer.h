@@ -4,7 +4,6 @@
 
 #include "ast/base/ASTNode.h"
 #include <optional>
-#include <map>
 #include "StructMember.h"
 #include "ast/base/AnnotableNode.h"
 #include "FunctionDeclaration.h"
@@ -168,7 +167,7 @@ public:
      * this would register the definition to all interfaces inherited
      * directly inherited or indirectly, this definition would be registered
      */
-    void register_use_to_inherited_interfaces(StructDefinition* definition);
+    void register_use_to_inherited_interfaces(ExtendableMembersContainerNode* definition);
 
     FunctionDeclaration* inherited_function(const chem::string_view& name);
 
@@ -445,7 +444,7 @@ public:
     /**
      * build llvm vtable, from inherited interfaces
      */
-    void llvm_build_inherited_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
+    void llvm_build_inherited_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
 
 #endif
 

@@ -17,6 +17,8 @@ class InterfaceDefinition;
 
 class StructDefinition;
 
+class ExtendableMembersContainerNode;
+
 /**
  * the name mangler is simply responsible for creating runtime names
  * for a function, struct or anything that has a runtime footprint
@@ -67,7 +69,7 @@ public:
     /**
      * mangle the vtable name for an interface and struct that implements the interface
      */
-    void mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, StructDefinition* def);
+    void mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, ExtendableMembersContainerNode* def);
 
     /**
      * mangle a vtable name for a impl type (primitive impl)

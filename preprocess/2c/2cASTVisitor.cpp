@@ -654,14 +654,14 @@ void allocate_struct_by_name_no_init(ToCAstVisitor& visitor, ASTNode* def, const
     visitor.write(name);
 }
 
-inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
     visitor.mangler.mangle_vtable_name(visitor.writer, interface, definition);
 }
 
 inline void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, BaseType* implType) {
     const auto value_node = implType->get_direct_linked_canonical_node();
     if(value_node) {
-        vtable_name(visitor, interface, value_node->as_struct_def_unsafe());
+        vtable_name(visitor, interface, value_node->as_extendable_member_container());
     } else {
         visitor.mangler.mangle_vtable_name(visitor.writer, interface, implType);
     }
@@ -2966,7 +2966,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     tld->visitor.write(';');
 }
 
-void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, StructDefinition* overridden = nullptr) {
+void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* overridden = nullptr) {
     if(decl->is_comptime()) {
         return;
     }
@@ -2993,7 +2993,7 @@ void declare_contained_func_non_ending(CTopLevelDeclarationVisitor* tld, Functio
 }
 
 // when a function is inside struct / interface
-void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, StructDefinition* overridden = nullptr) {
+void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* overridden = nullptr) {
     declare_contained_func_non_ending(tld, decl, overrides, overridden);
     tld->write(';');
 }
@@ -3380,7 +3380,7 @@ void v_table_func_names(ToCAstVisitor& visitor, InterfaceDefinition* interface) 
     }
 }
 
-void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
     for(auto& inh : interface->inherited) {
         const auto inherited = inh.type->get_direct_linked_interface();
         if(inherited) {
@@ -3393,7 +3393,7 @@ void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
     interface->active_user = prev_user;
 }
 
-void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
 
     visitor.new_line_and_indent();
     visitor.write("const");

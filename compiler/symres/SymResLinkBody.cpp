@@ -1110,6 +1110,7 @@ void SymResLinkBody::VisitStructDecl(StructDefinition* node) {
 
 void SymResLinkBody::VisitVariantDecl(VariantDefinition* node) {
     LinkMembersContainer(node);
+    node->register_use_to_inherited_interfaces(node);
 }
 
 void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {

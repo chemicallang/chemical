@@ -1090,6 +1090,124 @@ void visit_subscript_arr_type(ToCAstVisitor& visitor, BaseType* type) {
     }
 }
 
+void func_call_single_arg(
+        ToCAstVisitor& visitor,
+        FunctionParam* param,
+        Value* val,
+        std::string& temp_struct_name,
+        std::string& d_ref_name
+) {
+
+    bool is_destructible_ref = false;
+    const auto param_type = param->type->canonical();
+
+    // passing a function call or struct value to a reference, whereas the struct is destructible
+    if(param->type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
+        const auto container = val->getType()->get_members_container();
+        if(container && container->destructor_func() != nullptr) {
+            auto found_ref = visitor.destructible_refs.find(val);
+            if(found_ref != visitor.destructible_refs.end()) {
+                is_destructible_ref = true;
+                visitor.write("({ ");
+                visitor.write_str(found_ref->second);
+                visitor.write(" = ");
+                d_ref_name = found_ref->second;
+            }
+        }
+    }
+
+    const auto param_type_kind = param->type->kind();
+    const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
+    const auto is_capturing_function = param_type->kind() == BaseTypeKind::CapturingFunction;
+    const auto isStructLikeTypeDecl = isStructLikeTypePtr && !is_capturing_function;
+    bool is_movable_or_copyable_struct = val->requires_memcpy_ref_struct(param->type);
+    bool is_memcpy_ref_str = is_movable_or_copyable_struct && !val->is_ref_moved();
+    if(is_movable_or_copyable_struct) {
+        if (is_memcpy_ref_str) {
+            visitor.write("({ ");
+            temp_struct_name = visitor.get_local_temp_var_name();
+            visitor.visit(param->type);
+            visitor.write(' ');
+            visitor.write(temp_struct_name);
+            visitor.write(" = ");
+            if (is_value_param_pointer_like(val)) {
+                visitor.write('*');
+            }
+        } else {
+            if (is_value_param_pointer_or_ref_like_in_call(val)) {
+                visitor.write('*');
+            }
+            visitor.write("({ ");
+            set_moved_ref_drop_flag(visitor, val);
+            visitor.space();
+        }
+    }
+    const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
+    bool accept_value = true;
+    if(isStructLikeTypePtr && !is_memcpy_ref_str) {
+        visitor.write('&');
+    } else if(is_param_type_ref && !val->is_ptr_or_ref(visitor.allocator)) {
+        accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
+    }
+    auto base_type = val->getType();
+    if(isStructLikeTypeDecl || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
+        auto allocated = visitor.local_allocated.find(val);
+        if(allocated != visitor.local_allocated.end()) {
+            visitor.write(allocated->second);
+        } else if(accept_value) {
+            visitor.visit(val);
+        }
+    } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
+        visitor.write('(');
+        visit_subscript_arr_type(visitor, base_type);
+        visitor.write(")");
+        visitor.accept_mutating_value_explicit(param->type, val, false);
+    } else {
+        visitor.accept_mutating_value_explicit(param->type, val, false);
+    }
+    if(is_movable_or_copyable_struct) {
+        if(is_memcpy_ref_str) {
+            visitor.write("; &");
+            visitor.write(temp_struct_name);
+            visitor.write("; })");
+        } else {
+            visitor.write("; })");
+        }
+    }
+
+    if(is_destructible_ref) {
+        visitor.write("; ");
+        visitor.write_str(d_ref_name);
+        visitor.write("; })");
+    }
+
+}
+
+// writes code for a single function call argument and handles implicit constructor as well
+void func_call_single_arg_w_imp_cons(
+        ToCAstVisitor& visitor,
+        FunctionParam* param,
+        Value* val,
+        std::string& temp_struct_name,
+        std::string& d_ref_name
+) {
+    const auto imp_cons = param->type->implicit_constructor_for(val);
+    if(imp_cons) {
+        if(imp_cons->is_comptime()) {
+            const auto comptime_imp_call = call_with_arg(imp_cons, val, param->type, visitor.allocator, visitor);
+            const auto eval = evaluated_func_val_proper(visitor, imp_cons, comptime_imp_call);
+            // change the value to evaluated value
+            func_call_single_arg(visitor, param, eval, temp_struct_name, d_ref_name);
+            return;
+        } else {
+            call_implicit_constructor(visitor, imp_cons, val, true);
+            return;
+        }
+    } else {
+        func_call_single_arg(visitor, param, val, temp_struct_name, d_ref_name);
+    }
+}
+
 void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, bool& has_value_before, unsigned i) {
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
@@ -1106,101 +1224,8 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
 
         auto param = func_type->func_param_for_arg_at(i);
         auto val = call->values[i];
-        bool is_destructible_ref = false;
-        const auto param_type = param->type->canonical();
 
-        // passing a function call or struct value to a reference, whereas the struct is destructible
-        if(param->type->kind() == BaseTypeKind::Reference && (val->kind() == ValueKind::StructValue || val->is_chain_func_call())) {
-            const auto container = val->getType()->get_members_container();
-            if(container && container->destructor_func() != nullptr) {
-                auto found_ref = visitor.destructible_refs.find(val);
-                if(found_ref != visitor.destructible_refs.end()) {
-                    is_destructible_ref = true;
-                    visitor.write("({ ");
-                    visitor.write_str(found_ref->second);
-                    visitor.write(" = ");
-                    d_ref_name = found_ref->second;
-                }
-            }
-        }
-
-        const auto imp_cons = param->type->implicit_constructor_for(val);
-        if(imp_cons) {
-            if(imp_cons->is_comptime()) {
-                const auto comptime_imp_call = call_with_arg(imp_cons, val, param->type, visitor.allocator, visitor);
-                const auto eval = evaluated_func_val_proper(visitor, imp_cons, comptime_imp_call);
-                // change the value to evaluated value
-                val = eval;
-            } else {
-                call_implicit_constructor(visitor, imp_cons, val, true);
-                i++;
-                continue;
-            }
-        }
-        const auto param_type_kind = param->type->kind();
-        const auto isStructLikeTypePtr = param->type->kind() != BaseTypeKind::Dynamic && param->type->isStructLikeType();
-        const auto is_capturing_function = param_type->kind() == BaseTypeKind::CapturingFunction;
-        const auto isStructLikeTypeDecl = isStructLikeTypePtr && !is_capturing_function;
-        bool is_movable_or_copyable_struct = val->requires_memcpy_ref_struct(param->type);
-        bool is_memcpy_ref_str = is_movable_or_copyable_struct && !val->is_ref_moved();
-        if(is_movable_or_copyable_struct) {
-            if (is_memcpy_ref_str) {
-                visitor.write("({ ");
-                temp_struct_name = visitor.get_local_temp_var_name();
-                visitor.visit(param->type);
-                visitor.write(' ');
-                visitor.write(temp_struct_name);
-                visitor.write(" = ");
-                if (is_value_param_pointer_like(val)) {
-                    visitor.write('*');
-                }
-            } else {
-                if (is_value_param_pointer_or_ref_like_in_call(val)) {
-                    visitor.write('*');
-                }
-                visitor.write("({ ");
-                set_moved_ref_drop_flag(visitor, val);
-                visitor.space();
-            }
-        }
-        const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
-        bool accept_value = true;
-        if(isStructLikeTypePtr && !is_memcpy_ref_str) {
-            visitor.write('&');
-        } else if(is_param_type_ref && !val->is_ptr_or_ref(visitor.allocator)) {
-            accept_value = !write_value_for_ref_type(visitor, val, param->type->as_reference_type_unsafe());
-        }
-        auto base_type = val->getType();
-        if(isStructLikeTypeDecl || (is_param_type_ref && !val->is_stored_ptr_or_ref(visitor.allocator))) {
-            auto allocated = visitor.local_allocated.find(val);
-            if(allocated != visitor.local_allocated.end()) {
-                visitor.write(allocated->second);
-            } else if(accept_value) {
-                visitor.visit(val);
-            }
-        } else if(!val->reference() && base_type->pure_type(visitor.allocator)->kind() == BaseTypeKind::Array) {
-            visitor.write('(');
-            visit_subscript_arr_type(visitor, base_type);
-            visitor.write(")");
-            visitor.accept_mutating_value_explicit(param->type, val, false);
-        } else {
-            visitor.accept_mutating_value_explicit(param->type, val, false);
-        }
-        if(is_movable_or_copyable_struct) {
-            if(is_memcpy_ref_str) {
-                visitor.write("; &");
-                visitor.write(temp_struct_name);
-                visitor.write("; })");
-            } else {
-                visitor.write("; })");
-            }
-        }
-
-        if(is_destructible_ref) {
-            visitor.write("; ");
-            visitor.write_str(d_ref_name);
-            visitor.write("; })");
-        }
+        func_call_single_arg_w_imp_cons(visitor, param, val, temp_struct_name, d_ref_name);
 
         i++;
     }
@@ -1214,7 +1239,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
                 } else {
                     has_value_before = true;
                 }
-                visitor.visit(param->defValue);
+                func_call_single_arg_w_imp_cons(visitor, param, param->defValue, temp_struct_name, d_ref_name);
             } else if(!func_type->isInVarArgs(i)) {
                 visitor.error(call) << "function param '" << param->name << "' doesn't have a default value, however no argument exists for it";
             }

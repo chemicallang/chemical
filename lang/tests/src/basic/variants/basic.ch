@@ -175,6 +175,38 @@ func second_variant_result_giver() : CustomResult<ubigint_type_alias, CustomFsEr
 
 // EXISTENCE TEST END
 
+interface VariantInheritableGiverInterface {
+    func give(&self) : int
+}
+
+func <T : VariantInheritableGiverInterface> static_dispatch_variant_inherited_giver_give(value : &T) : int {
+    return value.give()
+}
+
+func dyn_variant_giver_give(v : dyn VariantInheritableGiverInterface) : int {
+    return v.give()
+}
+
+struct StructInheritedGiverImpl : VariantInheritableGiverInterface {
+    var value : int
+    @override
+    func give(&self) : int {
+        return value;
+    }
+}
+
+variant VariantInheritedGiverImpl : VariantInheritableGiverInterface {
+    None()
+    Some(value : int)
+    @override
+    func give(&self) : int {
+        switch(self) {
+            None() => { return -1; }
+            Some(value) => { return value; }
+        }
+    }
+}
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;
@@ -459,4 +491,40 @@ func test_variants() {
         return result == 262
     })
     **/
+    test("variant overriding interface method call works - 1", () => {
+        var v = VariantInheritedGiverImpl.None()
+        return v.give() == -1
+    })
+    test("variant overriding interface method call works - 2", () => {
+        var v = VariantInheritedGiverImpl.Some(93)
+        return v.give() == 93
+    })
+    test("variant overriding interface dynamic method call works - 1", () => {
+        var v = VariantInheritedGiverImpl.None()
+        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == -1
+    })
+    test("variant overriding interface dynamic method call works - 2", () => {
+        var v = VariantInheritedGiverImpl.Some(28)
+        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 28
+    })
+    test("variant overriding interface dynamic method call works - 3", () => {
+        var v = StructInheritedGiverImpl { value : 283 }
+        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 283
+    })
+    test("variant overriding interface static dispatch method call works - 1", () => {
+        var v = VariantInheritedGiverImpl.None()
+        return static_dispatch_variant_inherited_giver_give(v) == -1
+    })
+    test("variant overriding interface static dispatch method call works - 2", () => {
+        var v = VariantInheritedGiverImpl.Some(62)
+        return static_dispatch_variant_inherited_giver_give(v) == 62
+    })
+    test("variant overriding interface static dispatch method call works - 3", () => {
+        var v = StructInheritedGiverImpl { value : 32 }
+        return static_dispatch_variant_inherited_giver_give(v) == 32
+    })
+    test("variant overriding interface static dispatch method call works - 4", () => {
+        var v = StructInheritedGiverImpl { value : 96 }
+        return static_dispatch_variant_inherited_giver_give(v) == 96
+    })
 }

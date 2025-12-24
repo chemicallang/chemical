@@ -179,6 +179,8 @@ interface VariantInheritableGiverInterface {
     func give(&self) : int
 }
 
+interface VariantInheritableGiverInterfaceDelegate : VariantInheritableGiverInterface {}
+
 func <T : VariantInheritableGiverInterface> static_dispatch_variant_inherited_giver_give(value : &T) : int {
     return value.give()
 }
@@ -202,6 +204,18 @@ variant VariantInheritedGiverImpl : VariantInheritableGiverInterface {
     func give(&self) : int {
         switch(self) {
             None() => { return -1; }
+            Some(value) => { return value; }
+        }
+    }
+}
+
+variant VariantInheritedDelegateImpl : VariantInheritableGiverInterfaceDelegate {
+    None()
+    Some(value : int)
+    @override
+    func give(&self) : int {
+        switch(self) {
+            None() => { return -2; }
             Some(value) => { return value; }
         }
     }
@@ -526,5 +540,13 @@ func test_variants() {
     test("variant overriding interface static dispatch method call works - 4", () => {
         var v = StructInheritedGiverImpl { value : 96 }
         return static_dispatch_variant_inherited_giver_give(v) == 96
+    })
+    test("variant inherited delegate dynamic dispatch works - 1", () => {
+        var v = VariantInheritedDelegateImpl.None()
+        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == -2
+    })
+    test("variant inherited delegate dynamic dispatch works - 2", () => {
+        var v = VariantInheritedDelegateImpl.Some(736)
+        return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 736
     })
 }

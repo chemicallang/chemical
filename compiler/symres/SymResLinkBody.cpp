@@ -295,8 +295,38 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     }
 }
 
+unsigned long default_scope_start_index(SymbolResolver& linker) {
+    auto& scopeStack = linker.get_scopes();
+    for(const auto& scope : scopeStack) {
+        if(scope.kind == SymResScopeKind::Default) {
+            return scope.start;
+        }
+    }
+    return 0;
+}
+
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
     auto& value = identifier->value;
+    if(in_lambda_scope) {
+        auto sym = linker.find_bucket(value);
+        auto def_scope_start = default_scope_start_index(linker);
+        if(sym->index >= def_scope_start && sym->index < lambda_scope_start) {
+            // since the symbol is outside lambda scope
+            // we'll link this with unresolved declaration
+            identifier->linked = linker.get_unresolved_decl();
+            identifier->setType(identifier->linked->known_type());
+            linker.error(identifier) << "symbol '" << value << "' is outside of lambda scope";
+        } else {
+            identifier->linked = sym->activeNode;
+            identifier->setType(identifier->linked->known_type());
+            if (check_access && linker.current_func_type) {
+                // check for validity if accessible or assignable (because moved)
+                linker.current_func_type->check_id(identifier, linker);
+            }
+            identifier->process_linked(&linker, linker.current_func_type);
+            return;
+        }
+    }
     const auto linked = linker.find(value);
     if(linked) {
         identifier->linked = linked;
@@ -2673,11 +2703,26 @@ bool link_params_and_caps(LambdaFunction* fn, SymResLinkBody& visitor) {
     return result;
 }
 
+void link_lambda_body(unsigned long scope_index, LambdaFunction* fn, SymResLinkBody& visitor) {
+    auto scope = visitor.linker.get_scope_at_index(scope_index);
+    auto scope_start_index = scope->start;
+
+    auto prev_in_lamb_scope = visitor.in_lambda_scope;
+    visitor.in_lambda_scope = true;
+
+    auto prev_scope_start = visitor.lambda_scope_start;
+    visitor.lambda_scope_start = scope_start_index;
+    link_seq(visitor, fn->scope);
+
+    visitor.in_lambda_scope = prev_in_lamb_scope;
+    visitor.lambda_scope_start = prev_scope_start;
+}
+
 bool link_full(LambdaFunction* fn, SymResLinkBody& visitor) {
     auto& linker = visitor.linker;
-    linker.scope_start();
+    auto scope_index = linker.scope_start_index();
     const auto result = link_params_and_caps(fn, visitor);
-    link_seq(visitor, fn->scope);
+    link_lambda_body(scope_index, fn, visitor);
     linker.scope_end();
     return result;
 }
@@ -2789,7 +2834,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
         }
 
         // start the scope
-        linker.scope_start();
+        auto scope_index = linker.scope_start_index();
 
         // link parameter and captured variables (only the ones user gave)
         const auto result = link_params_and_caps(lambVal, *this);
@@ -2802,7 +2847,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
         link_lambda(lambVal, *linker.ast_allocator, linker, func_type);
 
         // link the body
-        link_seq(*this, lambVal->scope);
+        link_lambda_body(scope_index, lambVal, *this);
 
         // end the scope, which drops both (parameters and any symbols in lambda body)
         linker.scope_end();

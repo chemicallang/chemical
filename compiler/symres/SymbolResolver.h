@@ -282,7 +282,7 @@ public:
      * a module is just there to indicate that a module exists, it helps us delete symbols
      * only in a specific module
      */
-    inline int module_scope_start() {
+    inline unsigned long module_scope_start() {
         return table.scope_start_index(SymResScopeKind::Module);
     }
 
@@ -290,7 +290,7 @@ public:
      * a file scope begins, a file scope should not be popped, this is because
      * symbols are expected to exist in other files
      */
-    inline int file_scope_start() {
+    inline unsigned long file_scope_start() {
         return table.scope_start_index(SymResScopeKind::File);
     }
 
@@ -303,10 +303,19 @@ public:
     }
 
     /**
+     * when a scope begins, this should be called
+     * it would put a scope on current vector
+     * this method also returns an index, call it only when an index is required
+     */
+    inline unsigned long scope_start_index() {
+        return table.scope_start_index(SymResScopeKind::Default);
+    }
+
+    /**
      * get symbol scope at index
      */
     [[nodiscard]]
-    inline const SymbolScope* get_scope_at_index(int index) const noexcept {
+    inline const SymbolScope* get_scope_at_index(unsigned long index) const noexcept {
         return table.get_scope_at_index(index);
     }
 
@@ -321,14 +330,14 @@ public:
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
-    inline void file_scope_end(int scope_index) {
+    inline void file_scope_end(unsigned long scope_index) {
         table.drop_all_scopes_from(scope_index);
     }
 
     /**
      * ends the scope, keeps the symbol entries so they can imported later
      */
-    inline void module_scope_end(int scope_index) {
+    inline void module_scope_end(unsigned long scope_index) {
         table.drop_all_scopes_from(scope_index);
     }
 
@@ -345,6 +354,20 @@ public:
      */
     ASTNode* find(const chem::string_view& name) {
         return table.resolve(name);
+    }
+
+    /**
+     * get the scope stack
+     */
+    inline const std::vector<SymbolScope>& get_scopes() const noexcept {
+        return table.get_scopes();
+    }
+
+    /**
+     * find the bucket associated with the given symbol
+     */
+    inline const BucketSymbol* find_bucket(const chem::string_view& name) {
+        return table.resolve_bucket(name);
     }
 
     /**
@@ -391,7 +414,7 @@ public:
     /**
      * declares a symbol for which entry already exists
      */
-    inline void declare_entry(const SymbolEntry* entry, int index) {
+    inline void declare_entry(const SymbolEntry* entry, long index) {
         table.declare_entry(entry, index);
     }
 

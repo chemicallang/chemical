@@ -83,11 +83,20 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
     for(const auto value : container->variables()) {
         auto found = values.find(value->name);
         if(found == values.end()) {
-            auto defValue = value->default_value();
+            const auto defValue = value->default_value();
             if (defValue) {
+
                 auto variable = container->variable_type_index(value->name);
+                auto value_ptr = defValue;
+
+                auto implicit = variable.second->implicit_constructor_for(value_ptr);
+                if(implicit) {
+                    // replace values that call implicit constructors
+                    value_ptr = (Value*) call_with_arg(implicit, value_ptr, variable.second, gen.allocator, gen);
+                }
+
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-                defValue->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
+                value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
             } else if(!isUnion) {
                 const auto type = value->known_type();
                 const auto node = type->get_direct_linked_canonical_node();

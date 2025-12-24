@@ -180,7 +180,7 @@ llvm::StructType* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
     return llvm::StructType::get(*gen.ctx, struct_types);
 }
 
-void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
+void InterfaceDefinition::llvm_build_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
     auto found = users.find(for_struct);
     if(found != users.end()) {
         for(auto& func : instantiated_functions()) {
@@ -196,7 +196,7 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
     }
 }
 
-llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, llvm::StructType* vtable_type) {
+llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, llvm::StructType* vtable_type) {
     std::vector<llvm::Constant*> llvm_pointers;
     llvm_build_inherited_vtable(gen, for_struct, llvm_pointers);
     llvm_build_vtable(gen, for_struct, llvm_pointers);
@@ -215,7 +215,7 @@ static llvm::GlobalValue::LinkageTypes to_linkage(AccessSpecifier specifier) {
     }
 }
 
-llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, StructDefinition* for_struct, bool declare_only) {
+llvm::Value* InterfaceDefinition::create_global_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, bool declare_only) {
     // building vtable
     const auto constant = declare_only ? nullptr : llvm_build_vtable(gen, for_struct);
     const auto vtable_type = declare_only ? llvm_vtable_type(gen) : constant->getType();

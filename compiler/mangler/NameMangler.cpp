@@ -379,7 +379,7 @@ bool NameMangler::mangle(BufferedWriter& stream, ASTNode* node) {
     }
 }
 
-void NameMangler::mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, StructDefinition* def) {
+void NameMangler::mangle_vtable_name(BufferedWriter& stream, InterfaceDefinition* interface, ExtendableMembersContainerNode* def) {
     mangle(stream, interface);
     mangle(stream, def);
 }

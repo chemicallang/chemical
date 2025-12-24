@@ -154,7 +154,7 @@ void MembersContainer::llvm_build_inherited_vtable_type(Codegen& gen, std::vecto
     }
 }
 
-void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
+void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
     for(auto& inherits : inherited) {
         const auto linked = inherits.type->get_direct_linked_interface();
         if(linked) {
@@ -403,7 +403,7 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
 //    linker.scope_end();
 //}
 
-void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* definition) {
+void MembersContainer::register_use_to_inherited_interfaces(ExtendableMembersContainerNode* definition) {
     for(auto& inherits : inherited) {
         const auto interface = inherits.type->get_direct_linked_interface();
         if(interface) {

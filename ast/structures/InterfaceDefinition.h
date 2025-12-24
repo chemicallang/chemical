@@ -72,23 +72,23 @@ public:
      * users are registered so we can declare functions before hand
      */
 #ifdef COMPILER_BUILD
-    tsl::ordered_map<StructDefinition*, std::unordered_map<FunctionDeclaration*, OverridableFunctionInfo>> users;
+    tsl::ordered_map<ExtendableMembersContainerNode*, std::unordered_map<FunctionDeclaration*, OverridableFunctionInfo>> users;
 #else
-    tsl::ordered_map<StructDefinition*, bool> users;
+    tsl::ordered_map<ExtendableMembersContainerNode*, bool> users;
 #endif
 #ifdef COMPILER_BUILD
     /**
      * this maps structs that implement this interface with their global variable pointers
      * for the vtable generated
      */
-    std::unordered_map<StructDefinition*, llvm::Value*> vtable_pointers;
+    std::unordered_map<ExtendableMembersContainerNode*, llvm::Value*> vtable_pointers;
 #endif
 
     /**
      * the active user, can be retrieved by functions to see for which
-     * struct is code being generated for by interface
+     * struct/variant is code being generated for by interface
      */
-    StructDefinition* active_user = nullptr;
+    ExtendableMembersContainerNode* active_user = nullptr;
 
     /**
      * some data is stored in this struct to make it occupy less size
@@ -166,7 +166,7 @@ public:
      * the interfaces inherited by this interface aren't registered
      * which should be registered by calling register_use_to_inherited_interfaces
      */
-    void register_use(StructDefinition* definition) {
+    void register_use(ExtendableMembersContainerNode* definition) {
 #ifdef COMPILER_BUILD
         users[definition] = {};
 #else
@@ -238,19 +238,19 @@ public:
     /**
      * build the vtable, put the cconstant function pointers into given llvm_pointer vector
      */
-    void llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
+    void llvm_build_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
 
 protected:
 
     /**
      * a helper function to build the vtable as a constant
      */
-    llvm::Constant* llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, llvm::StructType* vtable_type);
+    llvm::Constant* llvm_build_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, llvm::StructType* vtable_type);
 
     /**
      * a helper function to build the vtable as a constant
      */
-    inline llvm::Constant* llvm_build_vtable(Codegen& gen, StructDefinition* for_struct) {
+    inline llvm::Constant* llvm_build_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct) {
         return llvm_build_vtable(gen, for_struct, llvm_vtable_type(gen));
     }
 
@@ -260,7 +260,7 @@ public:
      * the vtable will be created as a global constant for the given struct
      * if a vtable already exists for the given struct, we just return it without creating another one
      */
-    llvm::Value* create_global_vtable(Codegen& gen, StructDefinition* for_struct, bool declare_only);
+    llvm::Value* create_global_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, bool declare_only);
 
     /**
      * the vtable for primitive impl
@@ -271,7 +271,7 @@ public:
      * the vtable will be created as a global constant for the given struct
      * if a vtable already exists for the given struct, we just return it without creating another one
      */
-    llvm::Value* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
+    llvm::Value* llvm_global_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct) {
         auto found = vtable_pointers.find(for_struct);
         return found != vtable_pointers.end() ? found->second : create_global_vtable(gen, for_struct, false);
     }

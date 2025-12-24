@@ -1573,11 +1573,16 @@ void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr)
 
     } else {
 
-        if(impl_node->kind() != ASTNodeKind::StructDecl) {
-            gen.error("couldn't get implementation declaration", dyn_value);
-            return;
+        switch(impl_node->kind()) {
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::VariantDecl:
+                break;
+            default:
+                gen.error("couldn't get implementation declaration", dyn_value);
+                return;
         }
-        const auto impl_decl = impl_node->as_struct_def_unsafe();
+
+        const auto impl_decl = impl_node->as_extendable_members_container_unsafe();
 
         // get the vtable pointer
         const auto vtable_ptr = interface->llvm_global_vtable(gen, impl_decl);

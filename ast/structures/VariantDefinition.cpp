@@ -11,6 +11,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
 
@@ -108,10 +109,27 @@ llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainVa
 }
 
 void VariantDefinition::code_gen_function_declare(Codegen &gen, FunctionDeclaration* decl) {
+    if(decl->is_override()) {
+        llvm_override_declare(gen, decl);
+        return;
+    }
     decl->code_gen_declare(gen, this);
 }
 
+void llvm_override(Codegen& gen, FunctionDeclaration* function) {
+    const auto func = function->known_func(gen);
+    if(func == nullptr) {
+        gen.error("couldn't get function pointer", function);
+        return;
+    }
+    function->code_gen_override(gen, func);
+}
+
 void VariantDefinition::code_gen_function_body(Codegen &gen, FunctionDeclaration* decl) {
+    if(decl->is_override()) {
+        llvm_override(gen, decl);
+        return;
+    }
     decl->code_gen_body(gen, this);
 }
 
@@ -119,10 +137,18 @@ void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
     if(declare) {
         llvm_type(gen);
         for (auto& func: instantiated_functions()) {
+            if (func->is_override()) {
+                llvm_override_declare(gen, func);
+                continue;
+            }
             func->code_gen_declare(gen, this);
         }
     } else {
         for (auto& func: instantiated_functions()) {
+            if (func->is_override()) {
+                llvm_override(gen, func);
+                continue;
+            }
             func->code_gen_body(gen, this);
         }
     }
@@ -132,6 +158,14 @@ void VariantDefinition::code_gen(Codegen &gen, bool declare) {
     auto& has_done = declare ? has_declared : has_implemented;
     if(!has_done) {
         code_gen_once(gen, declare);
+        if (!declare) {
+            for (auto& inherits: inherited) {
+                const auto interface = inherits.type->get_direct_linked_interface();
+                if (interface && !interface->is_static()) {
+                    interface->llvm_global_vtable(gen, this);
+                }
+            }
+        }
         has_done = true;
     }
 }

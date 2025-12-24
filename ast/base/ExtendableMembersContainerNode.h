@@ -61,6 +61,11 @@ public:
         }
     }
 
+    /**
+     * override declare this function
+     */
+    void llvm_override_declare(Codegen& gen, FunctionDeclaration* function);
+
 #endif
 
 };

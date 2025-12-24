@@ -61,7 +61,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
         }
     }
 
-    var buffer : char[2048];
+    var buffer : [2048]char;
     var bytesRead : DWORD;
     while(true) {
         if (ReadFile(hPipe, &mut buffer[0], sizeof(buffer)-1, &mut bytesRead, null)) {

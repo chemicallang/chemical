@@ -198,7 +198,7 @@ func read_msg_type(msg_ptr : *mut *char) : MessageCommandType {
     if (!msg)      return MessageCommandType.None;     // guard *null
 
     const CMD_MAX = 120;
-    var command_buffer : char[CMD_MAX];
+    var command_buffer : [CMD_MAX]char;
     var out = &mut command_buffer[0];
     var written : int = 0;
 
@@ -394,7 +394,7 @@ struct TestRunnerState {
 }
 
 func append_integer(str : &mut std::string, dig : int) {
-    var buffer : char[160]
+    var buffer : [160]char
     const buffStart = &mut buffer[0]
     snprintf(buffStart, sizeof(buffer), "%d", dig)
     str.append_char_ptr(buffStart);

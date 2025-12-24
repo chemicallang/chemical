@@ -733,7 +733,7 @@ const gc_dec_bel_three = 333
 // ------------- EXISTENCE TEST BEGIN ------------
 
 public struct SOME_FILE_LIKE_STRUCT_IDK {
-    struct { var handle : void*; } win;
+    struct { var handle : *void; } win;
     var valid : bool;
 }
 

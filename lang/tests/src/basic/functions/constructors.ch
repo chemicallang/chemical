@@ -49,6 +49,17 @@ func def_constructable_obj_size(value : constructable_obj_comptime = "abc") : ub
     return value.size;
 }
 
+variant def_constructable_obj_variant {
+    None()
+    Some(value : constructable_obj_comptime = "xb")
+    func size(&self) : ubigint {
+        switch(self) {
+            None() => { return 35 }
+            Some(value) => { return value.size }
+        }
+    }
+}
+
 struct comptime_constructor_field_container {
     var c : constructable_obj_comptime
 }
@@ -174,5 +185,17 @@ func test_constructors() {
     })
     test("default values passed to functions can trigger implicit constructors - 2", () => {
         return def_constructable_obj_size("abcd") == 4
+    })
+    test("default values passed to functions can trigger implicit constructors - 1", () => {
+        var g = def_constructable_obj_variant.None()
+        return g.size() == 35
+    })
+    test("default values passed to functions can trigger implicit constructors - 2", () => {
+        var g = def_constructable_obj_variant.Some("87654")
+        return g.size() == 5
+    })
+    test("default values passed to functions can trigger implicit constructors - 3", () => {
+        var g = def_constructable_obj_variant.Some()
+        return g.size() == 2
     })
 }

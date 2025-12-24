@@ -983,8 +983,7 @@ bool link_self_type(SymbolResolver& linker, FunctionParam* param) {
 }
 
 bool FunctionParam::link_implicit_param(SymbolResolver& linker) {
-    // TODO: remove other from here
-    if(name == "self" || name == "other") { // name and other means pointers to parent node
+    if(name == "self") { // name and other means pointers to parent node
         return link_self_type(linker, this);
     } else {
         auto found = linker.find(name);

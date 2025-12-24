@@ -392,6 +392,11 @@ void ToCAstVisitor::external_implement(std::vector<ASTNode*>& nodes) {
 }
 
 // will write a scope to visitor
+inline void visit_scope_only(ToCAstVisitor& visitor, Scope& scope) {
+    visitor.visit(&scope);
+}
+
+// will write a scope to visitor
 void scope_no_parens(ToCAstVisitor& visitor, Scope& scope) {
     visitor.indentation_level+=1;
     visitor.visit(&scope);
@@ -5856,11 +5861,15 @@ void ToCAstVisitor::VisitSwitchStmt(SwitchStatement *statement) {
             write("default:");
         }
 
-        indentation_level += 1;
-        ::scope(*this, scope);
+        write('{');
+        indentation_level+=1;
+        visit_scope_only(*this, scope);
         new_line_and_indent();
         write("break;");
-        indentation_level -= 1;
+        indentation_level-=1;
+        new_line_and_indent();
+        write('}');
+
         i++;
     }
     indentation_level -= 1;

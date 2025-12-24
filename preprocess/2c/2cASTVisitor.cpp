@@ -1766,9 +1766,6 @@ void write_implicit_args(ToCAstVisitor& visitor, FunctionType* func_type, Functi
                         }
                     }
                 }
-            } else if(param->name == "other") {
-                // skipping it
-                // TODO check it
             } else {
                 auto found = visitor.implicit_args.find(param->name);
                 if(found != visitor.implicit_args.end()) {
@@ -5544,11 +5541,40 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     const auto canonical_parent = parent_type->canonical();
     const auto func_type = call->function_type();
 
-    // handling comptime functions
-    if(func_decl && func_decl->is_comptime()) {
-        const auto value = evaluated_func_val(*this, func_decl, call);
-        visit(value);
-        return;
+    if(func_decl) {
+        if(func_decl->is_comptime()) {
+            // handling comptime functions
+            const auto value = evaluated_func_val(*this, func_decl, call);
+            visit(value);
+            return;
+        } else if(func_decl->is_copy_fn()) {
+            // handling copy function specially
+            auto found = local_allocated.find(call);
+            if(found != local_allocated.end()) {
+                auto temp_name = chem::string_view(found->second);
+                // write function name
+                write("(*({ ");
+                visit(call->parent_val);
+                write("(&");
+                write(temp_name);
+                write(", ");
+#ifdef DEBUG
+                if(func_decl->params.size() != 2) {
+                    CHEM_THROW_RUNTIME("expected copy function to have two parameters");
+                }
+#endif
+                const auto till_grandpa = build_parent_chain(call->parent_val, allocator);
+                write_self_arg(*this, till_grandpa, call, func_decl->params[0]);
+                write("); &");
+                write(temp_name);
+                write("; }))");
+            } else {
+#ifdef DEBUG
+                CHEM_THROW_RUNTIME("expected an allocation of struct for copy function call");
+#endif
+            }
+            return;
+        }
     }
 
     if(canonical_parent->kind() == BaseTypeKind::CapturingFunction) {

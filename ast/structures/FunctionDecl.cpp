@@ -982,14 +982,15 @@ void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl,
     if(decl->params.size() == 2) {
         const auto param = decl->params.front();
         const auto second = decl->params[1];
-        if(
-            param->is_implicit() && param->name == "self" &&
-            second->is_implicit() && second->name == "other"
-        ) {
+        if(param->is_implicit() && param->name == "self") {
+            // automatically make second parameter implicit
+            if(!second->is_implicit()) {
+                second->set_is_implicit(true);
+            }
             return;
         }
     }
-    diagnoser.error((ASTNode*) decl) << decl->name_view() << " function must have two implicit reference parameters";
+    diagnoser.error((ASTNode*) decl) << decl->name_view() << " function must have implicit self reference parameter";
 }
 
 void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {

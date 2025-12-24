@@ -157,8 +157,6 @@ void put_implicit_params(
         if(param->is_implicit()) {
             if(param->name == "self") {
                 put_self_param(gen, call, func_type, args, self_arg_val, destructibles);
-            } else if(param->name == "other") {
-                gen.error("unknown other implicit parameter", call);
             } else {
                 auto found = gen.implicit_args.find(param->name);
                 if(found != gen.implicit_args.end()) {

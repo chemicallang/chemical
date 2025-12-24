@@ -272,7 +272,7 @@ public struct CommandLineStream : Stream {
 
     @override
     func writeI64(&self, value : i64) {
-        var buf : char[64];
+        var buf : [64]char;
         var len = self.i64_to_chars(&mut buf[0], value);
         fwrite(&buf[0], 1, len, get_stdout());
     }
@@ -298,7 +298,7 @@ public struct CommandLineStream : Stream {
 
     @override
     func writeU64(&self, value : u64) {
-        var buf : char[64];
+        var buf : [64]char;
         var len = self.u64_to_chars(&mut buf[0], value);
         fwrite(&buf[0], 1, len, get_stdout());
     }
@@ -390,7 +390,7 @@ public struct CommandLineStream : Stream {
     @override
     func writeDouble(&self, value : double) {
         // default precision 6 (matches printf default)
-        var buf : char[256];
+        var buf : [256]char;
         var len = self.double_to_chars(&mut buf[0], value, 6);
         fwrite(&buf[0], 1, len, get_stdout());
     }

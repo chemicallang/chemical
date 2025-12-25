@@ -295,22 +295,19 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     }
 }
 
-unsigned long default_scope_start_index(SymbolResolver& linker) {
-    auto& scopeStack = linker.get_scopes();
-    for(const auto& scope : scopeStack) {
-        if(scope.kind == SymResScopeKind::Default) {
-            return scope.start;
-        }
-    }
-    return 0;
-}
-
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
     auto& value = identifier->value;
     if(in_lambda_scope) {
         auto sym = linker.find_bucket(value);
-        auto def_scope_start = default_scope_start_index(linker);
-        if(sym->index >= def_scope_start && sym->index < lambda_scope_start) {
+        if(sym->activeNode == nullptr) {
+            // since we couldn't find a linked declaration, we will
+            // link this identifier with unresolved declaration
+            identifier->linked = linker.get_unresolved_decl();
+            identifier->setType(identifier->linked->known_type());
+            linker.error(identifier) << "unresolved variable identifier '" << value << "' not found";
+            return;
+        }
+        if(sym->index < lambda_scope_start && !sym->activeNode->is_top_level()) {
             // since the symbol is outside lambda scope
             // we'll link this with unresolved declaration
             identifier->linked = linker.get_unresolved_decl();

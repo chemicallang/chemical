@@ -429,6 +429,7 @@ public struct ASTBuilder {
         data_ptr : *void,
         known_type_fn : EmbeddedNodeKnownTypeFunc,
         child_res_fn : EmbeddedNodeChildResolutionFunc,
+        chemical_values : std::span<*mut Value>,
         parent_node : *ASTNode,
         location : ubigint
     ) : *mut EmbeddedNode
@@ -437,6 +438,7 @@ public struct ASTBuilder {
         name : &std::string_view,
         data_ptr : *void,
         type : *mut BaseType,
+        chemical_values : std::span<*mut Value>,
         location : ubigint
     ) : *mut EmbeddedValue
 

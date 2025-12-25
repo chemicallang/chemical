@@ -1,5 +1,5 @@
 
-func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
+func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
 
     const current = parser.getToken();
 
@@ -9,7 +9,7 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         const next = parser.getToken();
         if(next.type == TokenType.TagName) {
             parser.setToken(current);
-            return parseElement(parser, builder);
+            return htmlParser.parseElement(parser, builder);
         } else {
             parser.error("unknown symbol, expected text or element");
             return null;
@@ -34,6 +34,7 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         const expr = parser.parseExpression(builder)
         if(expr != null) {
             value_child.value = expr;
+            htmlParser.dyn_values.push(expr)
         } else {
             parser.error("expected a value for html child");
         }
@@ -50,7 +51,7 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
         return value_child;
     } else if(current.type == TokenType.If) {
 
-        return parseIfStatement(parser, builder);
+        return htmlParser.parseIfStatement(parser, builder);
 
     } else if(current.type == TokenType.Text) {
 
@@ -124,7 +125,7 @@ func parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut H
 
 }
 
-func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
+func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
     const loc = intrinsics::get_raw_location();
     parser.increment(); // skip 'if'
 
@@ -143,7 +144,13 @@ func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Ht
         parser.error("expected '(' after 'if'");
     }
 
-    ifstmt.condition = parser.parseExpression(builder);
+    const expr = parser.parseExpression(builder);
+    if(expr == null) {
+        parser.error("expected a chemical expression");
+    } else {
+        ifstmt.condition = expr;
+        htmlParser.dyn_values.push(expr)
+    }
 
     if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
         parser.error("expected ')' after if condition");
@@ -154,7 +161,7 @@ func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Ht
     }
 
     while(true) {
-        var child = parseElementChild(parser, builder);
+        var child = htmlParser.parseElementChild(parser, builder);
         if(child != null) {
             ifstmt.body.push(child);
         } else {
@@ -180,7 +187,13 @@ func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Ht
                 parser.error("expected '(' after 'else if'");
             }
 
-            elseif.condition = parser.parseExpression(builder);
+            const expr = parser.parseExpression(builder);
+            if(expr == null) {
+                parser.error("expected a chemical expression");
+            } else {
+                elseif.condition = expr;
+                htmlParser.dyn_values.push(expr)
+            }
 
             if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
                 parser.error("expected ')' after else if condition");
@@ -191,7 +204,7 @@ func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Ht
             }
 
             while(true) {
-                var child = parseElementChild(parser, builder);
+                var child = htmlParser.parseElementChild(parser, builder);
                 if(child != null) {
                     elseif.body.push(child);
                 } else {
@@ -210,7 +223,7 @@ func parseIfStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Ht
             }
 
             while(true) {
-                var child = parseElementChild(parser, builder);
+                var child = htmlParser.parseElementChild(parser, builder);
                 if(child != null) {
                     ifstmt.else_body.push(child);
                 } else {

@@ -351,29 +351,9 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
     }
 }
 
-bool sig_embedded_traverse(void* data, ASTAny* item) {
-    const auto traverser = static_cast<TopLevelLinkSignature*>(data);
-    switch(item->any_kind()) {
-        case ASTAnyKind::Node:
-            traverser->visit(((ASTNode*) item));
-            break;
-        case ASTAnyKind::Value:
-            traverser->visit(((Value*) item));
-            break;
-        case ASTAnyKind::Type:
-            traverser->VisitTypeNoNullCheck((BaseType*) item);
-            break;
-    }
-    return true;
-}
-
 void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
-    auto traverser = linker.binder.findHook(node->name, CBIFunctionType::TraversalNode);
-    if(traverser) {
-        // traverse any nested values and set their types
-        ((EmbeddedNodeTraversalFunc) traverser)(node, this, sig_embedded_traverse);
-    } else {
-        linker.error(node) << "couldn't find traversal method of embedded node with name '" << node->name << "' for signature resolution";
+    for(const auto child_val : node->chemical_values) {
+        visit(child_val);
     }
     auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResLinkSignatureNode);
     if(found) {
@@ -384,12 +364,8 @@ void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
 }
 
 void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
-    auto traverser = linker.binder.findHook(value->name, CBIFunctionType::TraversalValue);
-    if(traverser) {
-        // traverse any nested values and set their types
-        ((EmbeddedValueTraversalFunc) traverser)(value, this, sig_embedded_traverse);
-    } else {
-        linker.error(value) << "couldn't find traversal method of embedded value with name '" << value->name << "' for signature resolution";
+    for(const auto child_val : value->chemical_values) {
+        visit(child_val);
     }
     auto found = linker.binder.findHook(value->name, CBIFunctionType::SymResLinkSignatureValue);
     if(found) {

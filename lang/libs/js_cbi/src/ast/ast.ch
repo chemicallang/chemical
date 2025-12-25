@@ -35,6 +35,7 @@ public struct JsRoot {
     var statements : std::vector<*mut JsNode>
     var parent : *mut ASTNode
     var support : SymResSupport
+    var dyn_values : std::vector<*mut Value>
 }
 
 public struct JsVarDecl {

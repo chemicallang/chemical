@@ -767,15 +767,17 @@ FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allo
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator, ASTNode* returnNode) {
+FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator, ASTNode* returnNode, bool is_extern) {
     const auto loc = encoded_location();
     const auto returnType = TypeLoc(new (allocator.allocate<VoidType>()) VoidType(), loc);
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(ZERO_LOC_ID("delete"), returnType, false, this, loc);
     decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", { new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(returnNode), true), loc }, 0, nullptr, true, decl, loc));
-    decl->body.emplace(Scope{nullptr, loc});
     decl->set_is_generated_fn(true);
     decl->set_delete_fn(true);
     insert_func(decl);
+    if(is_extern == false) {
+        decl->body.emplace(Scope{nullptr, loc});
+    }
     return decl;
 }
 
@@ -801,13 +803,13 @@ FunctionDeclaration* MembersContainer::create_def_constructor_checking(ASTAlloca
     return create_def_constructor(allocator, container_name, returnNode);
 }
 
-FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode) {
+FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode, bool is_extern) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
         diagnoser.warn("default destructor is created by name 'delete', a function by name 'delete' already exists, please create a manual destructor to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
-    return create_destructor(allocator, returnNode);
+    return create_destructor(allocator, returnNode, is_extern);
 }
 
 FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode) {

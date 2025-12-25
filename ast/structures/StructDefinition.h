@@ -76,6 +76,11 @@ struct StructDeclAttributes {
      */
     bool is_no_mangle = false;
 
+    /**
+     * when user marks a struct extern, it means that this struct is defined in another module
+     */
+    bool is_extern = false;
+
 };
 
 class StructDefinition : public ExtendableMembersContainerNode {
@@ -105,7 +110,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ExtendableMembersContainerNode(identifier, ASTNodeKind::StructDecl, parent_node, location),
-        attrs(specifier, false, false, false, false, false, false, false, false, false),
+        attrs(specifier, false, false, false, false, false, false, false, false, false, false),
         linked_type(this) {
 
     }
@@ -206,13 +211,17 @@ public:
         attrs.is_no_mangle = no_mangle;
     }
 
+    inline bool is_extern() {
+        return attrs.is_extern;
+    }
+
+    inline void set_extern(bool value) {
+        attrs.is_extern = value;
+    }
+
     inline bool has_destructor() {
         return destructor_func() != nullptr;
     }
-
-//    int16_t get_generic_iteration() final {
-//        return active_iteration;
-//    }
 
     StructDefinition* shallow_copy(ASTAllocator& allocator) {
         const auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(

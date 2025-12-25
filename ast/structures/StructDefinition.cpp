@@ -240,7 +240,7 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             func->ensure_copy_fn(allocator, diagnoser, returnNode);
         }
     }
-    if(!has_def_constructor && all_members_def_constructible()) {
+    if(!has_def_constructor && !is_extern() && all_members_def_constructible()) {
         if(create_def_constructor_checking(allocator, diagnoser, name_view(), returnNode)) {
             if (!has_constructor) {
                 attrs.is_direct_init = true;
@@ -249,7 +249,7 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
     }
     if(!has_destructor && any_member_has_destructor()) {
         has_destructor = true;
-        create_def_destructor(allocator, diagnoser, returnNode);
+        create_def_destructor(allocator, diagnoser, returnNode, is_extern());
     }
     if(!has_destructor) {
         // we make the struct copyable by default, if it doesn't have any destructor

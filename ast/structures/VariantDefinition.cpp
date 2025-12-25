@@ -309,7 +309,7 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
     }
     if(!has_destructor && any_member_has_destructor()) {
         has_destructor = true;
-        create_def_destructor(allocator, diagnoser, returnNode);
+        create_def_destructor(allocator, diagnoser, returnNode, false);
     }
     if(!has_destructor) {
         attrs.is_copy = true;

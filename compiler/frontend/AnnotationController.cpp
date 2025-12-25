@@ -163,9 +163,13 @@ void annot_handler_extern(Parser* parser, ASTNode* node, std::vector<Value*>& ar
     if(!node->set_no_mangle(true)) {
         parser->error("couldn't make the node no_mangle");
     }
-    const auto func = node->as_function();
-    if(func) {
-        func->set_extern(true);
+    switch(node->kind()) {
+        case ASTNodeKind::FunctionDecl:
+            node->as_function_unsafe()->set_extern(true);
+            return;
+        case ASTNodeKind::StructDecl:
+            node->as_struct_def_unsafe()->set_extern(true);
+            return;
     }
 }
 

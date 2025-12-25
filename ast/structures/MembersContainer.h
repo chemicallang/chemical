@@ -325,7 +325,7 @@ public:
     /**
      * create a destructor function and put it into functions
      */
-    FunctionDeclaration* create_destructor(ASTAllocator& allocator, ASTNode* returnNode);
+    FunctionDeclaration* create_destructor(ASTAllocator& allocator, ASTNode* returnNode, bool is_extern);
 
     /**
      * create the copy function and put it into functions
@@ -341,7 +341,7 @@ public:
     /**
      * create default destructor, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode);
+    FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* returnNode, bool is_extern);
 
     /**
      * create default copy function, report errors in given diagnoser, this is a helper function

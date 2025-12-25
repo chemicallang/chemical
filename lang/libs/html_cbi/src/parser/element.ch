@@ -13,7 +13,7 @@ func isTagNameSelfClosing(view : &std::string_view) : bool {
     }
 }
 
-func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlElement {
+func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlElement {
 
     const lt = parser.getToken();
 
@@ -41,7 +41,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
 
         while(true) {
-            var attr = parseAttribute(parser, builder);
+            var attr = htmlParser.parseAttribute(parser, builder);
             if(attr != null) {
                 element.attributes.push(attr)
             } else {
@@ -68,7 +68,7 @@ func parseElement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlEl
         }
 
         while(true) {
-            var child = parseElementChild(parser, builder);
+            var child = htmlParser.parseElementChild(parser, builder);
             if(child != null) {
                 element.children.push(child)
             } else {

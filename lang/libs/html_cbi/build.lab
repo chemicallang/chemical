@@ -76,8 +76,6 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_def_cbi_fn(cbi, std::string_view("html_symResValue"), CBIFunctionType.SymResValue);
     ctx.index_def_cbi_fn(cbi, std::string_view("html_replacementNode"), CBIFunctionType.ReplacementNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("html_replacementValue"), CBIFunctionType.ReplacementValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_traversalNode"), CBIFunctionType.TraversalNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("html_traversalValue"), CBIFunctionType.TraversalValue);
 
     comptime if(def.lsp) {
         // this will let the lsp know that methods are present

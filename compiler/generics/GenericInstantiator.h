@@ -203,10 +203,6 @@ public:
 
     void VisitNotValue(NotValue* value);
 
-    void VisitEmbeddedNode(EmbeddedNode* node);
-
-    void VisitEmbeddedValue(EmbeddedValue* value);
-
     void activateIteration(BaseGenericDecl* gen_decl, size_t itr);
 
     void FinalizeSignature(TypealiasStatement* decl);

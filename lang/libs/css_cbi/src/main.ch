@@ -31,12 +31,6 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 }
 
 @no_mangle
-public func css_traversalNode(node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-    const root = node.getDataPtr() as *mut CSSOM;
-    traverse_cssom(root, data, traverse)
-}
-
-@no_mangle
 public func css_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
     const loc = value.getEncodedLocation();
     const root = value.getDataPtr() as *mut CSSOM;
@@ -65,18 +59,12 @@ public func css_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedVal
 }
 
 @no_mangle
-public func css_traversalValue(value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-    const root = value.getDataPtr() as *mut CSSOM;
-    traverse_cssom(root, data, traverse)
-}
-
-@no_mangle
 public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
         const type = builder.make_string_type(loc)
-        const value = builder.make_embedded_value(std::string_view("css"), root, type, loc);
+        const value = builder.make_embedded_value(std::string_view("css"), root, type, std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }
@@ -92,7 +80,7 @@ public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) 
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseCSSOM(parser, builder);
-        const node = builder.make_embedded_node(std::string_view("css"), root, node_known_type_func, node_child_res_func, root.parent, loc);
+        const node = builder.make_embedded_node(std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
         }

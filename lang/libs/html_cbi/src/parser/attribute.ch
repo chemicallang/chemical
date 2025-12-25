@@ -1,5 +1,5 @@
 
-func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
+func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlAttribute {
 
     const id = parser.getToken();
     if(id.type != TokenType.AttrName) {
@@ -42,6 +42,8 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
             var expr = parser.parseExpression(builder);
             if(expr == null) {
                 parser.error("expected a expression value after '{'");
+            } else {
+                htmlParser.dyn_values.push(expr)
             }
 
             const next = parser.getToken();
@@ -70,6 +72,7 @@ func parseAttribute(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Html
                         if(expr2 != null) {
 
                             value.values.push(expr2)
+                            htmlParser.dyn_values.push(expr2)
 
                         } else {
 

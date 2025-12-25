@@ -7,4 +7,6 @@ struct HtmlRoot {
 
     var support : SymResSupport
 
+    var dyn_values : std::vector<*mut Value>
+
 }

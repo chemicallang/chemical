@@ -26,10 +26,6 @@ enum class CBIFunctionType : int {
 
     ReplacementValue,
 
-    TraversalNode,
-
-    TraversalValue,
-
     SemanticTokensPut,
 
     FoldingRangesPut

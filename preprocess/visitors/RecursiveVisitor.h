@@ -627,4 +627,16 @@ public:
         visit_it(value->value);
     }
 
+    void VisitEmbeddedNode(EmbeddedNode* node) {
+        for(auto& child_val : node->chemical_values) {
+            visit_it(child_val);
+        }
+    }
+
+    void VisitEmbeddedValue(EmbeddedValue* value) {
+        for(auto& child_val : value->chemical_values) {
+            visit_it(child_val);
+        }
+    }
+
 };

@@ -1,3 +1,6 @@
+struct JsParser {
+    var dyn_values : *mut std::vector<*mut Value>
+}
 
 public enum JsTokenType {
     Var = 100,
@@ -55,7 +58,7 @@ public enum JsTokenType {
     TemplateLiteral,  // `string`
 }
 
-func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     var node : *mut JsNode = null;
     const token = parser.getToken();
     
@@ -67,7 +70,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
        token.type == JsTokenType.MinusMinus as int) {
         var op = builder.allocate_view(token.value);
         parser.increment();
-        var operand = parsePrimary(parser, builder);
+        var operand = jsParser.parsePrimary(parser, builder);
         var unary = builder.allocate<JsUnaryOp>()
         new (unary) JsUnaryOp {
             base : JsNode { kind : JsNodeKind.UnaryOp },
@@ -106,9 +109,9 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
             parser.increment(); // consume =>
             var body : *mut JsNode = null;
             if(parser.getToken().type == JsTokenType.LBrace as int) {
-                body = parseBlock(parser, builder);
+                body = jsParser.parseBlock(parser, builder);
             } else {
-                body = parseExpression(parser, builder);
+                body = jsParser.parseExpression(parser, builder);
             }
             var params = std::vector<std::string_view>();
             params.push(id.value);
@@ -128,7 +131,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
         var elements = std::vector<*mut JsNode>();
         if(parser.getToken().type != JsTokenType.RBracket as int) {
             while(true) {
-                var elem = parseExpression(parser, builder);
+                var elem = jsParser.parseExpression(parser, builder);
                 elements.push(elem);
                 if(parser.getToken().type == JsTokenType.Comma as int) {
                     parser.increment();
@@ -163,7 +166,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
                     parser.error("expected :");
                 }
                 
-                var val = parseExpression(parser, builder);
+                var val = jsParser.parseExpression(parser, builder);
                 props.push(JsProperty { key : key, value : val });
                 
                 if(parser.getToken().type == JsTokenType.Comma as int) {
@@ -185,6 +188,11 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
     } else if(token.type == JsTokenType.ChemicalStart as int) {
         parser.increment();
         var val = parser.parseExpression(builder);
+        if(val == null) {
+            parser.error("expected a chemical expression");
+        } else {
+            jsParser.dyn_values.push(val)
+        }
         if(!parser.increment_if(JsTokenType.RBrace as int)) {
             parser.error("expected } after chemical value");
         }
@@ -203,9 +211,9 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
                 parser.increment(); // consume =>
                 var body : *mut JsNode = null;
                 if(parser.getToken().type == JsTokenType.LBrace as int) {
-                    body = parseBlock(parser, builder);
+                    body = jsParser.parseBlock(parser, builder);
                 } else {
-                    body = parseExpression(parser, builder);
+                    body = jsParser.parseExpression(parser, builder);
                 }
                 var arrow = builder.allocate<JsArrowFunction>()
                 new (arrow) JsArrowFunction {
@@ -248,9 +256,9 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
                     }
                     var body : *mut JsNode = null;
                     if(parser.getToken().type == JsTokenType.LBrace as int) {
-                        body = parseBlock(parser, builder);
+                        body = jsParser.parseBlock(parser, builder);
                     } else {
-                        body = parseExpression(parser, builder);
+                        body = jsParser.parseExpression(parser, builder);
                     }
                     var arrow = builder.allocate<JsArrowFunction>()
                     new (arrow) JsArrowFunction {
@@ -265,9 +273,9 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
                         parser.increment(); // consume =>
                         var body : *mut JsNode = null;
                         if(parser.getToken().type == JsTokenType.LBrace as int) {
-                            body = parseBlock(parser, builder);
+                            body = jsParser.parseBlock(parser, builder);
                         } else {
-                            body = parseExpression(parser, builder);
+                            body = jsParser.parseExpression(parser, builder);
                         }
                         var params = std::vector<std::string_view>();
                         params.push(firstId);
@@ -294,14 +302,14 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
                         base : JsNode { kind : JsNodeKind.Identifier },
                         value : firstId
                     }
-                    node = parseExpressionContinuation(parser, builder, id as *mut JsNode);
+                    node = jsParser.parseExpressionContinuation(parser, builder, id as *mut JsNode);
                     if(!parser.increment_if(JsTokenType.RParen as int)) {
                         parser.error("expected )");
                     }
                 }
             } else {
                 // (expr)
-                node = parseExpression(parser, builder);
+                node = jsParser.parseExpression(parser, builder);
                 if(!parser.increment_if(JsTokenType.RParen as int)) {
                     parser.error("expected )");
                 }
@@ -343,7 +351,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
             
             if(parser.getToken().type != JsTokenType.RParen as int) {
                 while(true) {
-                    var arg = parseExpression(parser, builder);
+                    var arg = jsParser.parseExpression(parser, builder);
                     if(arg != null) {
                         call.args.push(arg);
                     }
@@ -378,7 +386,7 @@ func parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode
     return node;
 }
 
-func parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder, left : *mut JsNode) : *mut JsNode {
+func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder, left : *mut JsNode) : *mut JsNode {
     var node = left;
     while(true) {
         const token = parser.getToken();
@@ -399,7 +407,7 @@ func parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder
             var op = builder.allocate_view(token.value);
             parser.increment();
             
-            var right = parsePrimary(parser, builder);
+            var right = jsParser.parsePrimary(parser, builder);
             var binOp = builder.allocate<JsBinaryOp>()
             new (binOp) JsBinaryOp {
                 base : JsNode { kind : JsNodeKind.BinaryOp },
@@ -410,11 +418,11 @@ func parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder
             node = binOp as *mut JsNode;
         } else if(token.type == JsTokenType.Question as int) {
             parser.increment();
-            var consequent = parseExpression(parser, builder);
+            var consequent = jsParser.parseExpression(parser, builder);
             if(!parser.increment_if(JsTokenType.Colon as int)) {
                 parser.error("expected : in ternary");
             }
-            var alternate = parseExpression(parser, builder);
+            var alternate = jsParser.parseExpression(parser, builder);
             var ternary = builder.allocate<JsTernary>()
             new (ternary) JsTernary {
                 base : JsNode { kind : JsNodeKind.Ternary },
@@ -430,13 +438,13 @@ func parseExpressionContinuation(parser : *mut Parser, builder : *mut ASTBuilder
     return node;
 }
 
-func parseExpression(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
-    var left = parsePrimary(parser, builder);
+func (jsParser : &mut JsParser) parseExpression(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+    var left = jsParser.parsePrimary(parser, builder);
     if(left == null) return null;
-    return parseExpressionContinuation(parser, builder, left);
+    return jsParser.parseExpressionContinuation(parser, builder, left);
 }
 
-func parseBlock(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+func (jsParser : &mut JsParser) parseBlock(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     if(!parser.increment_if(JsTokenType.LBrace as int)) {
         parser.error("expected {");
         return null;
@@ -452,7 +460,7 @@ func parseBlock(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
         if(parser.getToken().type == JsTokenType.RBrace as int || parser.getToken().type == JsTokenType.EndOfFile as int) {
             break;
         }
-        var stmt = parseStatement(parser, builder);
+        var stmt = jsParser.parseStatement(parser, builder);
         if(stmt != null) {
             block.statements.push(stmt);
         } else {
@@ -466,7 +474,7 @@ func parseBlock(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     return block as *mut JsNode;
 }
 
-func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int) {
         var keyword = builder.allocate_view(token.value);
@@ -480,7 +488,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         parser.increment();
         
         if(parser.increment_if(JsTokenType.Equal as int)) {
-            var val = parseExpression(parser, builder);
+            var val = jsParser.parseExpression(parser, builder);
             var varDecl = builder.allocate<JsVarDecl>()
             new (varDecl) JsVarDecl {
                 base : JsNode { kind : JsNodeKind.VarDecl },
@@ -506,14 +514,14 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         if(!parser.increment_if(JsTokenType.LParen as int)) {
             parser.error("expected ( after if");
         }
-        var condition = parseExpression(parser, builder);
+        var condition = jsParser.parseExpression(parser, builder);
         if(!parser.increment_if(JsTokenType.RParen as int)) {
             parser.error("expected ) after if condition");
         }
-        var thenBlock = parseStatement(parser, builder);
+        var thenBlock = jsParser.parseStatement(parser, builder);
         var elseBlock : *mut JsNode = null;
         if(parser.increment_if(JsTokenType.Else as int)) {
-            elseBlock = parseStatement(parser, builder);
+            elseBlock = jsParser.parseStatement(parser, builder);
         }
         
         var ifStmt = builder.allocate<JsIf>()
@@ -528,7 +536,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         parser.increment();
         var val : *mut JsNode = null;
         if(parser.getToken().type != JsTokenType.SemiColon as int) {
-            val = parseExpression(parser, builder);
+            val = jsParser.parseExpression(parser, builder);
         }
         var ret = builder.allocate<JsReturn>()
         new (ret) JsReturn {
@@ -574,7 +582,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
             parser.error("expected )");
         }
         
-        var body = parseBlock(parser, builder);
+        var body = jsParser.parseBlock(parser, builder);
         
         var funcDecl = builder.allocate<JsFunctionDecl>()
         new (funcDecl) JsFunctionDecl {
@@ -595,9 +603,9 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
             if(parser.getToken().type == JsTokenType.Var as int || 
                parser.getToken().type == JsTokenType.Const as int || 
                parser.getToken().type == JsTokenType.Let as int) {
-                initNode = parseStatement(parser, builder);
+                initNode = jsParser.parseStatement(parser, builder);
             } else {
-                var expr = parseExpression(parser, builder);
+                var expr = jsParser.parseExpression(parser, builder);
                 if(expr != null) {
                     parser.increment_if(JsTokenType.SemiColon as int);
                     var stmt = builder.allocate<JsExpressionStatement>()
@@ -616,7 +624,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         
         var condition : *mut JsNode = null;
         if(parser.getToken().type != JsTokenType.SemiColon as int) {
-            condition = parseExpression(parser, builder);
+            condition = jsParser.parseExpression(parser, builder);
         }
         if(!parser.increment_if(JsTokenType.SemiColon as int)) {
             parser.error("expected ; after condition");
@@ -624,13 +632,13 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         
         var update : *mut JsNode = null;
         if(parser.getToken().type != JsTokenType.RParen as int) {
-            update = parseExpression(parser, builder);
+            update = jsParser.parseExpression(parser, builder);
         }
         if(!parser.increment_if(JsTokenType.RParen as int)) {
             parser.error("expected )");
         }
         
-        var body = parseStatement(parser, builder);
+        var body = jsParser.parseStatement(parser, builder);
         
         var forStmt = builder.allocate<JsFor>()
         new (forStmt) JsFor {
@@ -646,11 +654,11 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         if(!parser.increment_if(JsTokenType.LParen as int)) {
             parser.error("expected ( after while");
         }
-        var condition = parseExpression(parser, builder);
+        var condition = jsParser.parseExpression(parser, builder);
         if(!parser.increment_if(JsTokenType.RParen as int)) {
             parser.error("expected )");
         }
-        var body = parseStatement(parser, builder);
+        var body = jsParser.parseStatement(parser, builder);
         var whileStmt = builder.allocate<JsWhile>()
         new (whileStmt) JsWhile {
             base : JsNode { kind : JsNodeKind.While },
@@ -676,14 +684,14 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         return continueStmt as *mut JsNode;
     } else if(token.type == JsTokenType.Do as int) {
         parser.increment();
-        var body = parseStatement(parser, builder);
+        var body = jsParser.parseStatement(parser, builder);
         if(!parser.increment_if(JsTokenType.While as int)) {
             parser.error("expected while after do body");
         }
         if(!parser.increment_if(JsTokenType.LParen as int)) {
             parser.error("expected ( after while");
         }
-        var condition = parseExpression(parser, builder);
+        var condition = jsParser.parseExpression(parser, builder);
         if(!parser.increment_if(JsTokenType.RParen as int)) {
             parser.error("expected ) after condition");
         }
@@ -700,7 +708,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         if(!parser.increment_if(JsTokenType.LParen as int)) {
             parser.error("expected ( after switch");
         }
-        var discriminant = parseExpression(parser, builder);
+        var discriminant = jsParser.parseExpression(parser, builder);
         if(!parser.increment_if(JsTokenType.RParen as int)) {
             parser.error("expected ) after switch discriminant");
         }
@@ -717,7 +725,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         while(parser.getToken().type != JsTokenType.RBrace as int) {
             if(parser.getToken().type == JsTokenType.Case as int) {
                 parser.increment();
-                var test = parseExpression(parser, builder);
+                var test = jsParser.parseExpression(parser, builder);
                 if(!parser.increment_if(JsTokenType.Colon as int)) {
                     parser.error("expected : after case");
                 }
@@ -726,7 +734,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
                 while(parser.getToken().type != JsTokenType.Case as int &&
                       parser.getToken().type != JsTokenType.Default as int &&
                       parser.getToken().type != JsTokenType.RBrace as int) {
-                    var stmt = parseStatement(parser, builder);
+                    var stmt = jsParser.parseStatement(parser, builder);
                     if(stmt != null) casePtr.body.push(stmt); else break;
                 }
             } else if(parser.getToken().type == JsTokenType.Default as int) {
@@ -739,7 +747,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
                 while(parser.getToken().type != JsTokenType.Case as int &&
                       parser.getToken().type != JsTokenType.Default as int &&
                       parser.getToken().type != JsTokenType.RBrace as int) {
-                    var stmt = parseStatement(parser, builder);
+                    var stmt = jsParser.parseStatement(parser, builder);
                     if(stmt != null) casePtr.body.push(stmt); else break;
                 }
 
@@ -753,7 +761,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         return switchStmt as *mut JsNode;
     } else if(token.type == JsTokenType.Throw as int) {
         parser.increment();
-        var arg = parseExpression(parser, builder);
+        var arg = jsParser.parseExpression(parser, builder);
         parser.increment_if(JsTokenType.SemiColon as int);
         var throwStmt = builder.allocate<JsThrow>()
         new (throwStmt) JsThrow {
@@ -763,7 +771,7 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         return throwStmt as *mut JsNode;
     } else if(token.type == JsTokenType.Try as int) {
         parser.increment();
-        var tryBlock = parseBlock(parser, builder);
+        var tryBlock = jsParser.parseBlock(parser, builder);
         var catchParam = std::string_view();
         var catchBlock : *mut JsNode = null;
         var finallyBlock : *mut JsNode = null;
@@ -779,11 +787,11 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
                     parser.error("expected )");
                 }
             }
-            catchBlock = parseBlock(parser, builder);
+            catchBlock = jsParser.parseBlock(parser, builder);
         }
         
         if(parser.increment_if(JsTokenType.Finally as int)) {
-            finallyBlock = parseBlock(parser, builder);
+            finallyBlock = jsParser.parseBlock(parser, builder);
         }
         
         var tryCatch = builder.allocate<JsTryCatch>()
@@ -796,10 +804,10 @@ func parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNo
         }
         return tryCatch as *mut JsNode;
     } else if(token.type == JsTokenType.LBrace as int) {
-        return parseBlock(parser, builder);
+        return jsParser.parseBlock(parser, builder);
     } else {
         // Expression statement
-        var expr = parseExpression(parser, builder);
+        var expr = jsParser.parseExpression(parser, builder);
         if(expr != null) {
             parser.increment_if(JsTokenType.SemiColon as int);
             var stmt = builder.allocate<JsExpressionStatement>()
@@ -821,8 +829,11 @@ func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
     new (root) JsRoot {
         statements : std::vector<*mut JsNode>(),
         parent : parser.getParentNode(),
-        support : SymResSupport {}
+        support : SymResSupport {},
+        dyn_values : std::vector<*mut Value>(),
     }
+
+    var jsParser = JsParser { dyn_values : &mut root.dyn_values }
 
     while(true) {
         const token = parser.getToken();
@@ -830,7 +841,7 @@ func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
             break;
         }
         
-        var stmt = parseStatement(parser, builder);
+        var stmt = jsParser.parseStatement(parser, builder);
         if(stmt != null) {
             root.statements.push(stmt);
         } else {

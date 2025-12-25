@@ -31,11 +31,6 @@ public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view)
 }
 
 @no_mangle
-public func js_traversalNode(node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-    // TODO: traverse dynamic values (chemical values, so chemical compiler knows where they are, and replace them if they are generic)
-}
-
-@no_mangle
 public func js_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
     const loc = value.getEncodedLocation()
     const root = value.getDataPtr() as *mut JsRoot;
@@ -67,17 +62,12 @@ public func js_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValu
 }
 
 @no_mangle
-public func js_traversalValue(value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) {
-
-}
-
-@no_mangle
 public func js_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(JsTokenType.LBrace as int)) {
         var root = parseJsRoot(parser, builder);
         const type = builder.make_string_type(loc)
-        const value = builder.make_embedded_value(std::string_view("js"), root, type, loc);
+        const value = builder.make_embedded_value(std::string_view("js"), root, type, std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc);
         if(!parser.increment_if(JsTokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the js macro");
         }
@@ -93,7 +83,7 @@ public func js_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) :
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(JsTokenType.LBrace as int)) {
         var root = parseJsRoot(parser, builder);
-        const node = builder.make_embedded_node(std::string_view("js"), root, node_known_type_func, node_child_res_func, root.parent, loc);
+        const node = builder.make_embedded_node(std::string_view("js"), root, node_known_type_func, node_child_res_func, std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
         if(!parser.increment_if(JsTokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the js macro");
         }

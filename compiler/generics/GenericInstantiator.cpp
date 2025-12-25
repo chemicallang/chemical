@@ -564,24 +564,6 @@ static bool embedded_traverse(void* data, ASTAny* item) {
     }
 }
 
-void GenericInstantiator::VisitEmbeddedNode(EmbeddedNode* node) {
-    const auto traversal_fn = binder.findHook(node->name, CBIFunctionType::TraversalNode);
-    if(!traversal_fn) {
-        diagnoser.error(node) << "couldn't find traversal function of node with name '" << node->name << "' for generic instantiation";
-        return;
-    }
-    ((EmbeddedNodeTraversalFunc) traversal_fn)(node, this, embedded_traverse);
-}
-
-void GenericInstantiator::VisitEmbeddedValue(EmbeddedValue* value) {
-    const auto traversal_fn = binder.findHook(value->name, CBIFunctionType::TraversalValue);
-    if(!traversal_fn) {
-        diagnoser.error(value) << "couldn't find traversal function of value with name '" << value->name << "' for generic instantiation";
-        return;
-    }
-    ((EmbeddedValueTraversalFunc) traversal_fn)(value, this, embedded_traverse);
-}
-
 void GenericInstantiator::Clear() {
     table.clear();
 }

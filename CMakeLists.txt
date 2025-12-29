@@ -586,7 +586,7 @@ set(COMMON_SOURCES
 )
 
 # Chemical LSP Executable Target
-add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
+add_executable(ChemicalLsp core/targets/Main.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.h
         server/WorkspaceManager.cpp
         server/utils/PrintUtils.h
@@ -636,7 +636,7 @@ set(LSP_USE_SANITIZERS OFF CACHE BOOL "Turn off UBSan/ASan in lsp-framework" FOR
 add_subdirectory(lib/lsp-framework)
 
 # Add an executable target for the second executable
-add_executable(Interpreter core/main/Interpreter.cpp ${COMMON_SOURCES})
+add_executable(Interpreter core/targets/Interpreter.cpp ${COMMON_SOURCES})
 
 set(COMPILER_SOURCES
         compiler/Codegen.h
@@ -667,11 +667,11 @@ set(COMPILER_SOURCES
 
 # add Compiler executable
 if(BUILD_COMPILER)
-    add_executable(Compiler Compiler.cpp ${COMMON_SOURCES} ${COMPILER_SOURCES})
+    add_executable(Compiler core/targets/Compiler.cpp ${COMMON_SOURCES} ${COMPILER_SOURCES})
 endif()
 
 # add TCC Compiler executable
-add_executable(TCCCompiler Compiler.cpp ${COMMON_SOURCES})
+add_executable(TCCCompiler core/targets/Compiler.cpp ${COMMON_SOURCES})
 
 # Compiler uses llvm, clang, lld
 if(BUILD_COMPILER)

@@ -98,6 +98,7 @@ void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn) {
 }
 
 void take_chemical_values(std::vector<Value*>& values, ValueSpan* chemical_values) {
+    values.reserve(chemical_values->size);
     auto start = chemical_values->ptr;
     const auto end = start + chemical_values->size;
     while(start != end) {

@@ -636,7 +636,7 @@ set(LSP_USE_SANITIZERS OFF CACHE BOOL "Turn off UBSan/ASan in lsp-framework" FOR
 add_subdirectory(lib/lsp-framework)
 
 # Add an executable target for the second executable
-add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
+add_executable(Interpreter core/main/Interpreter.cpp ${COMMON_SOURCES})
 
 set(COMPILER_SOURCES
         compiler/Codegen.h

@@ -17,8 +17,6 @@ extern "C" {
 
     BaseType* ValuegetType(Value* value);
 
-    ASTNode* ValuegetLinkedNode(Value* value);
-
     uint64_t ASTNodegetEncodedLocation(ASTNode* node);
 
     int ASTNodegetKind(ASTNode* node);
@@ -27,9 +25,13 @@ extern "C" {
 
     int BaseTypegetKind(BaseType* type);
 
-    ASTNode* BaseTypegetLinkedNode(BaseType* type);
-
     int IntNTypeget_intn_type_kind(IntNType* type);
+
+    ASTNode* LinkedTypegetLinkedNode(LinkedType* type);
+
+    LinkedType* GenericTypegetLinkedType(GenericType* type);
+
+    BaseType* TypealiasStatementgetActualType(TypealiasStatement* type);
 
     std::vector<FunctionParam*>* FunctionTypeget_params(FunctionType* func_type);
 

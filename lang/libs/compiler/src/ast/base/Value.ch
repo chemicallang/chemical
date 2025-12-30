@@ -6,6 +6,4 @@ public struct Value : ASTAny {
 
     func getType(&self) : *mut BaseType
 
-    func getLinkedNode(&self) : *mut ASTNode
-
 }

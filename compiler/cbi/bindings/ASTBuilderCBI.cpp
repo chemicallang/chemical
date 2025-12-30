@@ -566,10 +566,6 @@ uint64_t ValuegetEncodedLocation(Value* value) {
     return value->encoded_location().encoded;
 }
 
-ASTNode* ValuegetLinkedNode(Value* value) {
-    return value->linked_node();
-}
-
 // ASTNode methods
 
 uint64_t ASTNodegetEncodedLocation(ASTNode* node) {
@@ -590,12 +586,20 @@ int BaseTypegetKind(BaseType* type) {
     return static_cast<int>(type->kind());
 }
 
-ASTNode* BaseTypegetLinkedNode(BaseType* type) {
-    return type->linked_node();
-}
-
 int IntNTypeget_intn_type_kind(IntNType* type) {
     return static_cast<int>(type->IntNKind());
+}
+
+ASTNode* LinkedTypegetLinkedNode(LinkedType* type) {
+    return type->linked;
+}
+
+LinkedType* GenericTypegetLinkedType(GenericType* type) {
+    return type->referenced;
+}
+
+BaseType* TypealiasStatementgetActualType(TypealiasStatement* type) {
+    return type->actual_type;
 }
 
 // Other methods

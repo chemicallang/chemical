@@ -69,6 +69,8 @@ public struct FunctionType : BaseType {
 
 public struct GenericType : BaseType {
 
+    func getLinkedType(&self) : *mut LinkedType;
+
 }
 
 public struct Int128Type : IntNType {}
@@ -77,7 +79,11 @@ public struct IntType : IntNType {}
 
 public struct CharType : IntNType {}
 
-public struct LinkedType : BaseType {}
+public struct LinkedType : BaseType {
+
+    func getLinkedNode(&self) : *mut ASTNode
+
+}
 
 public struct LinkedValueType : BaseType {}
 
@@ -261,7 +267,11 @@ public struct DestructStmt : ASTNode {}
 
 public struct ReturnStatement : ASTNode {}
 
-public struct TypealiasStatement : ASTNode {}
+public struct TypealiasStatement : ASTNode {
+
+    func getActualType(&self) : *mut BaseType
+
+}
 
 public struct UsingStmt : ASTNode {}
 

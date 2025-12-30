@@ -44,6 +44,8 @@ func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut Functi
     return call;
 }
 
+// this makes the call 'page.fn_name(value)'
+// value is the argument here
 func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -53,6 +55,20 @@ func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
     args.push(value)
+    return call;
+}
+
+// value is the self arg here
+// this makes the call 'value.fn_name(page)'
+func (converter : &mut ASTConverter) make_call_inside(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var id = builder.make_identifier(fn_name, fnPtr, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ value as *mut ChainValue, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    var args = call.get_args();
+    args.push(base)
     return call;
 }
 
@@ -188,6 +204,34 @@ func (converter : &mut ASTConverter) put_wrapped_chemical_double_value_in(value 
     converter.vec.push(chain)
 }
 
+func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *mut ASTNode, value : *mut Value) {
+    switch(node.getKind()) {
+        ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
+            var fnName = if(converter.in_head) std::string_view("writeToPageHead") else std::string_view("writeToPageBody")
+            const writeFn = node.child(fnName)
+            if(writeFn == null) {
+                converter.put_by_type(type, value)
+                return;
+            }
+            if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
+                converter.put_by_type(type, value)
+                return;
+            }
+            const fn = writeFn as *mut FunctionDeclaration;
+            const chain = converter.make_call_inside(value, fnName, writeFn);
+            converter.vec.push(chain)
+        }
+        ASTNodeKind.TypealiasStmt => {
+            const stmt = node as *mut TypealiasStatement
+            const actual_type = stmt.getActualType();
+            converter.put_by_type(actual_type, value);
+        }
+        default => {
+            converter.put_by_type(type, value);
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *mut Value) {
     switch(type.getKind()) {
         BaseTypeKind.Void => {
@@ -211,6 +255,17 @@ func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *
         }
         BaseTypeKind.Double => {
             converter.put_wrapped_chemical_double_value_in(value)
+        }
+        BaseTypeKind.Linked => {
+            const linked = type as *mut LinkedType;
+            const node = linked.getLinkedNode();
+            converter.put_by_node(type, node, value);
+        }
+        BaseTypeKind.Generic => {
+            const generic = type as *mut GenericType;
+            const linked = generic.getLinkedType();
+            const node = linked.getLinkedNode();
+            converter.put_by_node(type, node, value);
         }
         default => {
             converter.put_wrapped_chemical_value_in(value);

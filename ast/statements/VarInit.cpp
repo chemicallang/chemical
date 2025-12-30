@@ -93,6 +93,9 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if(is_comptime()) {
             return;
         }
+        if(value == nullptr) {
+            return;
+        }
         // strings are initialized
         if(value->kind() == ValueKind::String) {
             return;

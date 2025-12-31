@@ -220,6 +220,7 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     css.other_mode = true;
                     css.chemical_mode = true;
                     css.lb_count++;
+                    css.start_chemical_lb_count = css.lb_count;
                     return Token {
                         type : TokenType.DollarLBrace as int,
                         value : view("${"),
@@ -363,15 +364,16 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
         }
         '{' => {
             // here always lb_count > 0
+            css.lb_count++;
             if(css.at_rule) {
                 css.at_rule = false;
             } else if(css.where == CSSLexerWhere.Selector) {
                 css.where = CSSLexerWhere.Declaration;
-            } else if(css.where == CSSLexerWhere.Value && css.lb_count == 1) {
+            } else if(css.where == CSSLexerWhere.Value) {
                 css.other_mode = true;
                 css.chemical_mode = true;
+                css.start_chemical_lb_count = css.lb_count
             }
-            css.lb_count++;
             return Token {
                 type : TokenType.LBrace as int,
                 value : view("{"),

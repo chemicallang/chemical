@@ -43,7 +43,7 @@ void UnionDef::code_gen(Codegen &gen, bool declare) {
 }
 
 void UnionDef::code_gen_external_declare(Codegen &gen) {
-    llvm_struct_type = nullptr;
+    extendable_external_declare(gen);
 }
 
 llvm::Type *UnionDef::llvm_type(Codegen &gen) {

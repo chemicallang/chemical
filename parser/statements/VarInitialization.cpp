@@ -108,9 +108,9 @@ void Parser::parsePatternMatchExprAfterId(
 ASTNode* Parser::parseVarInitializationTokens(
         ASTAllocator& allocator,
         AccessSpecifier specifier,
+        bool topLevel,
         bool matchExpr,
         bool allowDeclarations,
-        bool requiredType,
         bool comptime
 ) {
 
@@ -174,22 +174,22 @@ ASTNode* Parser::parseVarInitializationTokens(
 
         // type
         stmt->type = parseTypeLoc(allocator);
-        if(!stmt->type && requiredType) {
-            error("expected type tokens for variable initialization");
-            return fix_stmt(stmt, typeBuilder);
-        }
 
-    } else if(requiredType) {
-        error("expected ':' for type");
-        return fix_stmt(stmt, typeBuilder);
     }
 
     // equal sign
     if (!consumeToken(TokenType::EqualSym)) {
-        if(!allowDeclarations || is_const) {
+        if(
+            // for loop sends false
+            allowDeclarations == false ||
+            // local const variable must be defined then and there
+            (topLevel == false && is_const)
+        ) {
+
             error("expected an = sign for the initialization of the variable");
             return stmt;
-        } else if(stmt->type) {
+        }
+        if(stmt->type) {
             parent_node = prev_parent_node;
             return stmt;
         } else {

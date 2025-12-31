@@ -3,6 +3,9 @@ public const SameStringContents = "This string has same contents in two modules"
 public comptime const ext_mod_string_const = "Hello World"
 public comptime const used_mod_string_const = "Hello World"
 
+// TODO: @no_mangle
+// public const exposed_constant_213 : int = 9182
+
 public func use_the_string_here() : *char {
     return used_mod_string_const
 }

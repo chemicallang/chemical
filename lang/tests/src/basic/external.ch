@@ -9,6 +9,9 @@ if(intrinsics::is_clang()) {
 
 }
 
+// TODO: @extern
+// public var exposed_constant_213 : int
+
 func test_external_functions() {
     test("external sum function is available", () => {
         return check_external_sum(80, 20) == 100;
@@ -19,4 +22,7 @@ func test_external_functions() {
             return check_external_cpp_sum(80, 20) == 103;
         })
     }
+    // TODO: test("chemical external variables / constants work with no mangle and extern", () => {
+    //     return exposed_constant_213 == 9182
+    // })
 }

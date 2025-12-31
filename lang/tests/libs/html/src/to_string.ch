@@ -24,6 +24,16 @@ public func element_in_root_element_works(env : &mut TestEnv) {
 }
 
 @test
+public func expressive_strings_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var first = "first"
+    #html {
+        <div>{`hello {first} world`}</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>hello first world</div>");
+}
+
+@test
 public func if_works_1(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = true;

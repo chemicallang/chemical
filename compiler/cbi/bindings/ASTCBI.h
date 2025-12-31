@@ -43,6 +43,8 @@ extern "C" {
 
     std::vector<Value*>* ArrayValueget_values(ArrayValue* value);
 
+    std::vector<Value*>* ExpressiveStringgetValues(ExpressiveString* value);
+
     std::vector<Value*>* FunctionCallget_args(FunctionCall* value);
 
     std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node);

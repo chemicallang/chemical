@@ -63,7 +63,7 @@ public struct FloatType : BaseType {}
 
 public struct FunctionType : BaseType {
 
-    func get_params(&self) : *VecRef<FunctionParam>;
+    func get_params(&self) : *mut VecRef<FunctionParam>;
 
 }
 
@@ -125,7 +125,7 @@ public struct VoidType : BaseType {}
 
 public struct AccessChain : Value {
 
-    func get_values(&self) : *VecRef<Value>;
+    func get_values(&self) : *mut VecRef<Value>;
 
 }
 
@@ -135,7 +135,7 @@ public struct AccessChainNode : ASTNode {}
 
 public struct FunctionCallNode : ASTNode {
 
-    func get_args(&self) : *VecRef<Value>;
+    func get_args(&self) : *mut VecRef<Value>;
 
 }
 
@@ -143,7 +143,7 @@ public struct AddrOfValue : Value {}
 
 public struct ArrayValue : Value {
 
-    func get_values(&self) : *VecRef<Value>;
+    func get_values(&self) : *mut VecRef<Value>;
 
 }
 
@@ -163,9 +163,15 @@ public struct Expression : Value {}
 
 public struct FloatValue : Value {}
 
+public struct ExpressiveString : Value {
+
+    func getValues(&self) : *mut VecRef<Value>;
+
+}
+
 public struct FunctionCall : ChainValue {
 
-    func get_args(&self) : *VecRef<Value>;
+    func get_args(&self) : *mut VecRef<Value>;
 
 }
 
@@ -187,11 +193,11 @@ public struct IsValue : Value {}
 
 public struct LambdaFunction : Value {
 
-    func get_params(&self) : *VecRef<FunctionParam>;
+    func get_params(&self) : *mut VecRef<FunctionParam>;
 
-    func get_capture_list(&self) : *VecRef<CapturedVariable>;
+    func get_capture_list(&self) : *mut VecRef<CapturedVariable>;
 
-    func get_body(&self) : *VecRef<ASTNode>;
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 
@@ -293,7 +299,7 @@ public struct LoopASTNode : ASTNode {
 
 public struct DoWhileLoop : LoopASTNode {
 
-    func get_body(&self) : *VecRef<ASTNode>;
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 
@@ -357,7 +363,7 @@ public struct InterfaceDefinition : ASTNode {
 
 public struct Namespace : ASTNode {
 
-     func get_body(&self) : *VecRef<ASTNode>;
+     func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 
@@ -381,13 +387,13 @@ public struct UnionDef : ASTNode {
 
 public struct UnsafeBlock : ASTNode {
 
-    func get_body(&self) : *VecRef<ASTNode>;
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 
 public struct WhileLoop : LoopASTNode {
 
-    func get_body(&self) : *VecRef<ASTNode>;
+    func get_body(&self) : *mut VecRef<ASTNode>;
 
 }
 

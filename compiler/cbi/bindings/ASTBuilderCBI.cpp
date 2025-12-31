@@ -11,6 +11,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/values/ExpressiveString.h"
 #include "ast/types/LinkedType.h"
 #include "ast/statements/Assignment.h"
 #include "ast/types/ArrayType.h"
@@ -623,6 +624,10 @@ std::vector<ChainValue*>* AccessChainget_values(AccessChain* chain) {
 }
 
 std::vector<Value*>* ArrayValueget_values(ArrayValue* value) {
+    return &value->values;
+}
+
+std::vector<Value*>* ExpressiveStringgetValues(ExpressiveString* value) {
     return &value->values;
 }
 

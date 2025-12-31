@@ -334,6 +334,19 @@ func getNextToken2(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
                     value : std::string_view(start, provider.current_data() - start),
                     position : position
                 }
+            } else if(provider.peek() == '*') {
+                provider.increment()
+                // skip multiline comment
+                while(true) {
+                    const ch = provider.readCharacter()
+                    if(ch == '\0') break;
+                    if(ch == '*' && provider.peek() == '/') {
+                        provider.increment()
+                        break;
+                    }
+                }
+                // return next token recursively
+                return getNextToken2(css, lexer)
             } else {
                 return Token {
                     type : TokenType.Divide as int,

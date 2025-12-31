@@ -295,6 +295,21 @@ func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *
         BaseTypeKind.Double => {
             converter.put_wrapped_chemical_double_value_in(value)
         }
+        BaseTypeKind.ExpressiveString => {
+            if(value.getKind() == ValueKind.ExpressiveString) {
+                const exprString = value as *mut ExpressiveString
+                const values = exprString.getValues()
+                const size = values.size()
+                var i = 0u;
+                while(i < size) {
+                    const ptr = values.get(i)
+                    converter.put_by_type(ptr.getType(), ptr);
+                    i++;
+                }
+            } else {
+                // TODO: error out, cannot handle comptime functions that return expressive strings yet !
+            }
+        }
         BaseTypeKind.Linked => {
             const linked = type as *mut LinkedType;
             const node = linked.getLinkedNode();

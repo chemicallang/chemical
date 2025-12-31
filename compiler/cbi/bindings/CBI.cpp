@@ -252,6 +252,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_AccessChainget_values", (void*) AccessChainget_values },
         { "compiler_AccessChainas_value", (void*) AccessChainas_value },
         { "compiler_ArrayValueget_values", (void*) ArrayValueget_values },
+        { "compiler_ExpressiveStringgetValues", (void*) ExpressiveStringgetValues },
         { "compiler_FunctionCallget_args", (void*) FunctionCallget_args },
         { "compiler_FunctionCallNodeget_args", (void*) FunctionCallNodeget_args },
         { "compiler_IndexOperatorget_idx_ptr", (void*) IndexOperatorget_idx_ptr },

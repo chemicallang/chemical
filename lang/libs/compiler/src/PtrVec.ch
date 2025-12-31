@@ -4,11 +4,11 @@ public struct PtrVec {
 
     func _get(&self, i : uint) : *void;
 
-    func _set(&self, i : uint, ptr : *void);
+    func _set(&mut self, i : uint, ptr : *void);
 
-    func _push(&self, ptr : *void);
+    func _push(&mut self, ptr : *void);
 
-    func _erase(&self, i : uint);
+    func _erase(&mut self, i : uint);
 
     func _size(&self) : size_t;
 
@@ -16,19 +16,19 @@ public struct PtrVec {
 
 public struct VecRef<T> : private PtrVec {
 
-    func get(&self, i : uint) : *T {
-        return _get(i) as *T;
+    func get(&self, i : uint) : *mut T {
+        return _get(i) as *mut T;
     }
 
-    func set(&self, i : uint, ptr : *T) {
+    func set(&mut self, i : uint, ptr : *mut T) {
         _set(i, ptr);
     }
 
-    func push(&self, ptr : *T) {
+    func push(&mut self, ptr : *mut T) {
         _push(ptr);
     }
 
-    func erase(&self, i : uint) {
+    func erase(&mut self, i : uint) {
         _erase(i);
     }
 

@@ -143,6 +143,15 @@ public func border_property_works(env : &mut TestEnv) {
 }
 
 @test
+public func outline_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        outline : 1px solid red;
+    }
+    css_equals(env, page.toStringCssOnly(), "outline:1px solid red;");
+}
+
+@test
 public func border_radius_property_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -194,6 +203,33 @@ public func background_image_works(env : &mut TestEnv) {
         background-image: url("img.png");
     }
     css_equals(env, page.toStringCssOnly(), "background-image:url(\"img.png\");");
+}
+
+@test
+public func grid_template_rows_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-template-rows : 100px auto 1fr;
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-template-rows:100px auto 1fr;");
+}
+
+@test
+public func display_inline_flex_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        display: inline-flex;
+    }
+    css_equals(env, page.toStringCssOnly(), "display:inline-flex;");
+}
+
+@test
+public func backdrop_filter_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        backdrop-filter: blur(10px);
+    }
+    css_equals(env, page.toStringCssOnly(), "backdrop-filter:blur(10px);");
 }
 
 @test

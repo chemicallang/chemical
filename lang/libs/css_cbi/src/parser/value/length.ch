@@ -67,6 +67,9 @@ func getLengthKind(view : &std::string_view) : CSSLengthKind {
         comptime_fnv1_hash("turn") => {
             return CSSLengthKind.LengthTURN
         }
+        comptime_fnv1_hash("fr") => {
+            return CSSLengthKind.LengthFR
+        }
         default => {
             return CSSLengthKind.Unknown
         }

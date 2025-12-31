@@ -142,6 +142,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("text-combine-upright"), CSSParser::parseTextCombineUpright)
     map.put(std::string_view("font-kerning"), CSSParser::parseFontKerning)
     map.put(std::string_view("outline-style"), CSSParser::parseOutlineStyle)
+    map.put(std::string_view("outline"), CSSParser::parseOutline)
     map.put(std::string_view("transform-box"), CSSParser::parseTransformBox)
     map.put(std::string_view("font-variant-caps"), CSSParser::parseFontVariantCaps)
     map.put(std::string_view("font-variant-numeric"), CSSParser::parseFontVariantNumeric)
@@ -160,6 +161,8 @@ func putAllCSSValueParsers(
     map.put(std::string_view("text-underline-position"), CSSParser::parseTextUnderlinePosition)
     map.put(std::string_view("font-optical-sizing"), CSSParser::parseFontOpticalSizing)
     map.put(std::string_view("scrollbar-gutter"), CSSParser::parseScrollbarGutter)
+    map.put(std::string_view("grid-template-rows"), CSSParser::parseGridTemplateRows)
+    map.put(std::string_view("backdrop-filter"), CSSParser::parseBackdropFilter)
 
 
 }

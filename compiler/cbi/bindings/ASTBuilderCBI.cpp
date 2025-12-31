@@ -264,8 +264,8 @@ IntNumValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t
     return new (builder->allocate<IntNumValue>()) IntNumValue(value, builder->typeBuilder.getCharType(), location);
 }
 
-DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, uint64_t location) {
-    return new (builder->allocate<DereferenceValue>()) DereferenceValue(value, location);
+DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, BaseType* type, uint64_t location) {
+    return new (builder->allocate<DereferenceValue>()) DereferenceValue(value, type, location);
 }
 
 DoubleValue* ASTBuildermake_double_value(ASTBuilder* builder, double value, uint64_t location) {
@@ -596,6 +596,10 @@ ASTNode* LinkedTypegetLinkedNode(LinkedType* type) {
 
 LinkedType* GenericTypegetLinkedType(GenericType* type) {
     return type->referenced;
+}
+
+BaseType* ReferenceTypegetChildType(ReferenceType* type) {
+    return type->type;
 }
 
 BaseType* TypealiasStatementgetActualType(TypealiasStatement* type) {

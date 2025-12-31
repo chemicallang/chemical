@@ -101,7 +101,7 @@ extern "C" {
 
     IntNumValue* ASTBuildermake_char_value(ASTBuilder* builder, char value, uint64_t location);
 
-    DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, uint64_t location);
+    DereferenceValue* ASTBuildermake_dereference_value(ASTBuilder* builder, Value* value, BaseType* type, uint64_t location);
 
     DoubleValue* ASTBuildermake_double_value(ASTBuilder* builder, double value, uint64_t location);
 

@@ -29,6 +29,7 @@ enum CSSLengthKind {
     LengthDEG,
     LengthRAD,
     LengthGRAD,
-    LengthTURN
+    LengthTURN,
+    LengthFR
 
 }

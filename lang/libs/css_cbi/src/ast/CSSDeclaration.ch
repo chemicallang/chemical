@@ -190,6 +190,16 @@ struct CSSBorderValueData {
 
 }
 
+struct CSSOutlineValueData {
+
+    var width : CSSValue
+
+    var style : CSSValue
+
+    var color : CSSValue
+
+}
+
 struct CSSBorderRadiusValueData {
 
     var first : CSSLengthValueData
@@ -449,6 +459,24 @@ struct CSSTextShadowValueData {
 
     func isEmpty(&self) : bool {
         return offsetX.isUnknown() && offsetY.isUnknown() && blurRadius.isUnknown() && color.isUnknown()
+    }
+
+};
+
+@direct_init
+struct CSSBackdropFilterValueData {
+
+    var function : CSSKeywordValueData
+
+    // for now we only support single argument functions or simplified parsing
+    // similar to transform but generic
+    var arguments : std::vector<CSSValue>
+
+    var next : *mut CSSBackdropFilterValueData
+
+    @make
+    func empty() {
+        next = null
     }
 
 };

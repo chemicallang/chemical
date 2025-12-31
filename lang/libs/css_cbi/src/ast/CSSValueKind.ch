@@ -27,7 +27,10 @@ enum CSSValueKind {
     Background,
     BackgroundImage,
     MultipleBackgroundImage,
+    BackdropFilter,
     TextDecoration,
+    Outline,
+    Grid,
     Calc,
 
 

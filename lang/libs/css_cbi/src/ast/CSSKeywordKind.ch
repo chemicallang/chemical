@@ -42,6 +42,7 @@ enum CSSKeywordKind {
     Inline,
     Block,
     InlineBlock,
+    InlineFlex,
     Flex,
     Grid,
 

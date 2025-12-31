@@ -380,6 +380,7 @@ func getDisplayKeywordKind(hash : size_t) : CSSKeywordKind {
         comptime_fnv1_hash("inline") => { return CSSKeywordKind.Inline }
         comptime_fnv1_hash("block") => { return CSSKeywordKind.Block }
         comptime_fnv1_hash("inline-block") => { return CSSKeywordKind.InlineBlock }
+        comptime_fnv1_hash("inline-flex") => { return CSSKeywordKind.InlineFlex }
         comptime_fnv1_hash("flex") => { return CSSKeywordKind.Flex }
         comptime_fnv1_hash("grid") => { return CSSKeywordKind.Grid }
         default => { return CSSKeywordKind.Unknown }

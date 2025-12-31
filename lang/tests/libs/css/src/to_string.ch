@@ -740,6 +740,26 @@ public func nested_queries_test8(env : &mut TestEnv) {
     compl_css_equals(env, got, expected.to_view());
 }
 
+@test
+public func nested_queries_test9(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var blueColor = "blue";
+    #css {
+        color : red;
+        .blue & {
+            color: {blueColor};
+        }
+    }
+    var got = page.toStringCssOnly();
+    var expected = std::string();
+    var classView = std::string_view(got.data(), 8)
+    expected.append_view(classView)
+    expected.append_view("{color:red;}.blue ");
+    expected.append_view(classView)
+    expected.append_view(" { color:blue;}");
+    compl_css_equals(env, got, expected.to_view());
+}
+
 /**
 
 @test

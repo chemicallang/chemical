@@ -32,6 +32,11 @@ public struct CSSLexer {
     /**
      * this is state of the lexer which provides us position of the lexer
      */
+    /**
+     * lb count at the start of the chemical expression
+     */
+    var start_chemical_lb_count : uchar
+
     var where : CSSLexerWhere
 
 }

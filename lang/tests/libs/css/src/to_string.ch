@@ -38,6 +38,15 @@ public func chemical_dynamic_values_work(env : &mut TestEnv) {
 }
 
 @test
+public func chemical_values_work_with_comments(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color:red; /* this color is red */
+    }
+    css_equals(env, page.toStringCssOnly(), "color:red;");
+}
+
+@test
 public func chemical_dynamic_values_work2(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = true

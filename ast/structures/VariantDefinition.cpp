@@ -198,8 +198,6 @@ bool VariantDefinition::add_child_index(Codegen& gen, std::vector<llvm::Value *>
 }
 
 void VariantDefinition::code_gen_external_declare(Codegen &gen) {
-    // clear the stored llvm types so they are generated again for this module
-    llvm_struct_type = nullptr;
     extendable_external_declare(gen);
 }
 

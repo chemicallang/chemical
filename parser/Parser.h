@@ -576,9 +576,9 @@ public:
     ASTNode* parseVarInitializationTokens(
             ASTAllocator& allocator,
             AccessSpecifier specifier,
+            bool topLevel,
             bool matchExpr,
             bool allowDeclarations,
-            bool requiredType,
             bool comptime
     );
 

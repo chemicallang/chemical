@@ -94,8 +94,6 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
 }
 
 void StructDefinition::code_gen_external_declare(Codegen &gen) {
-    // clear the stored llvm types, so they must be declared again by StructType
-    llvm_struct_type = nullptr;
     extendable_external_declare(gen);
 }
 

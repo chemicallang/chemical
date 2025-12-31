@@ -299,7 +299,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     auto& value = identifier->value;
     if(in_lambda_scope) {
         auto sym = linker.find_bucket(value);
-        if(sym->activeNode == nullptr) {
+        if(sym == nullptr || sym->activeNode == nullptr) {
             // since we couldn't find a linked declaration, we will
             // link this identifier with unresolved declaration
             identifier->linked = linker.get_unresolved_decl();

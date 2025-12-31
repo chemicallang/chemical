@@ -26,7 +26,7 @@ func (cssParser : &mut CSSParser) parseGridTemplateRows(
              var autoVal = builder.allocate<CSSKeywordValueData>()
              new (autoVal) CSSKeywordValueData {
                  kind : CSSKeywordKind.Auto,
-                 value : token.value
+                 value : builder.allocate_view(token.value)
              }
              trackValue.kind = CSSValueKind.Keyword
              trackValue.data = autoVal

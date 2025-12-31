@@ -251,6 +251,9 @@ func writeUnitOfKind(str : &mut std::string, kind : CSSLengthKind) : bool {
         CSSLengthKind.LengthTURN => {
             str.append_view(std::string_view("turn"))
         }
+        CSSLengthKind.LengthFR => {
+            str.append_view(std::string_view("fr"))
+        }
         default => {
             return false;
         }
@@ -1115,6 +1118,51 @@ func (converter : &mut ASTConverter) writeCalcExpression(expr : &CSSCalcExpressi
     }
 }
 
+func (converter : &mut ASTConverter) writeOutlineValueData(ptr : &mut CSSOutlineValueData, str : &mut std::string) {
+    const has_style = ptr.style.kind != CSSValueKind.Unknown;
+    const has_color = ptr.color.kind != CSSValueKind.Unknown;
+
+    // width
+    if(ptr.width.kind != CSSValueKind.Unknown) {
+        converter.writeValue(ptr.width)
+        if(has_style || has_color) {
+            str.append(' ')
+        }
+    }
+
+    // style
+    if(has_style) {
+        converter.writeValue(ptr.style)
+        if(has_color) {
+            str.append(' ')
+        }
+    }
+
+    // color
+    if(has_color) {
+        converter.writeValue(ptr.color)
+    }
+}
+
+func (converter : &mut ASTConverter) writeBackdropFilterValueData(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string) {
+    str.append_view(ptr.function.value)
+    if(!ptr.arguments.empty()) {
+        str.append('(')
+        var i : uint = 0
+        while(i < ptr.arguments.size()) {
+            if(i > 0) str.append(' ')
+            converter.writeValue(*ptr.arguments.get_ptr(i))
+            i++
+        }
+        str.append(')')
+    }
+
+    if(ptr.next != null) {
+        str.append(' ')
+        converter.writeBackdropFilterValueData(*ptr.next, str)
+    }
+}
+
 func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
     // make this a reference
@@ -1325,6 +1373,16 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
                 if(!first) str.append(' ')
                 converter.writeValue(ptr.thickness)
             }
+        }
+        
+        CSSValueKind.Outline => {
+             var ptr = value.data as *mut CSSOutlineValueData
+             converter.writeOutlineValueData(*ptr, str)
+        }
+
+        CSSValueKind.BackdropFilter => {
+             var ptr = value.data as *mut CSSBackdropFilterValueData
+             converter.writeBackdropFilterValueData(*ptr, str)
         }
 
         CSSValueKind.Calc => {

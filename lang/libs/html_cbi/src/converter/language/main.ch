@@ -232,6 +232,45 @@ func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *m
     }
 }
 
+func (converter : &mut ASTConverter) put_ref_node(node : *mut ASTNode, type : *mut BaseType, value : *mut Value) {
+    switch(node.getKind()) {
+        ASTNodeKind.TypealiasStmt => {
+            const stmt = node as *mut TypealiasStatement
+            const actual_type = stmt.getActualType();
+            converter.put_ref_child_type(actual_type, value);
+        }
+        ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
+            converter.put_by_node(type, node, value)
+        }
+        default => {
+            const loc = intrinsics::get_raw_location();
+            const deref = converter.builder.make_dereference_value(value, type, loc);
+            converter.put_by_type(type, deref);
+        }
+    }
+}
+
+func (converter : &mut ASTConverter) put_ref_child_type(childType : *mut BaseType, value : *mut Value) {
+    switch(childType.getKind()) {
+        BaseTypeKind.Linked => {
+            const linked = childType as *mut LinkedType;
+            const node = linked.getLinkedNode();
+            converter.put_ref_node(node, childType, value)
+        }
+        BaseTypeKind.Generic => {
+            const generic = childType as *mut GenericType;
+            const linked = generic.getLinkedType();
+            const node = linked.getLinkedNode();
+            converter.put_ref_node(node, childType, value)
+        }
+        default => {
+            const loc = intrinsics::get_raw_location();
+            const deref = converter.builder.make_dereference_value(value, childType, loc);
+            converter.put_by_type(childType, deref);
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *mut Value) {
     switch(type.getKind()) {
         BaseTypeKind.Void => {
@@ -266,6 +305,11 @@ func (converter : &mut ASTConverter) put_by_type(type : *mut BaseType, value : *
             const linked = generic.getLinkedType();
             const node = linked.getLinkedNode();
             converter.put_by_node(type, node, value);
+        }
+        BaseTypeKind.Reference => {
+            const refType = type as *mut ReferenceType
+            const childType = refType.getChildType()
+            converter.put_ref_child_type(childType, value)
         }
         default => {
             converter.put_wrapped_chemical_value_in(value);

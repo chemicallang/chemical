@@ -246,6 +246,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_IntNTypeget_intn_type_kind", (void*) IntNTypeget_intn_type_kind },
         { "compiler_LinkedTypegetLinkedNode", (void*) LinkedTypegetLinkedNode },
         { "compiler_GenericTypegetLinkedType", (void*) GenericTypegetLinkedType },
+        { "compiler_ReferenceTypegetChildType", (void*) ReferenceTypegetChildType },
         { "compiler_TypealiasStatementgetActualType", (void*) TypealiasStatementgetActualType },
         { "compiler_FunctionTypeget_params", (void*) FunctionTypeget_params },
         { "compiler_AccessChainget_values", (void*) AccessChainget_values },

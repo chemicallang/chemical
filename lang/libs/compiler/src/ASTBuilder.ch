@@ -95,7 +95,11 @@ public struct LongLongType : IntNType {}
 
 public struct PointerType : BaseType {}
 
-public struct ReferenceType : BaseType {}
+public struct ReferenceType : BaseType {
+
+    func getChildType(&self) : *mut BaseType
+
+}
 
 public struct ShortType : IntNType {}
 
@@ -552,7 +556,7 @@ public struct ASTBuilder {
 
     func make_char_value(&self, value : char, location : ubigint) : *mut CharValue
 
-    func make_dereference_value(&self, value : *Value, location : ubigint) : *mut DereferenceValue
+    func make_dereference_value(&self, value : *Value, type : *mut BaseType, location : ubigint) : *mut DereferenceValue
 
     func make_double_value(&self, value : double, location : ubigint) : *mut DoubleValue
 

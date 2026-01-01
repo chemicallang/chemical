@@ -31,6 +31,10 @@ func take_cap_func2(fun : std::function<(a : int) => int>) : int {
     return fun(8327)
 }
 
+func take_cap_func3(fun : &std::function<(a : int) => int>) : int {
+    return fun(256)
+}
+
 func <T> gen_cap_lamb() : T {
     var my_var : T = 99234
     var lamb : std::function<() => T> = |my_var|() => {
@@ -250,6 +254,12 @@ func test_capturing_lambda() {
             return cap.double();
         }
         return fn() == 28
+    })
+    test("capturing functions can be called through references", () => {
+        var called = take_cap_func3(||(a : int) => {
+            return a * 2;
+        });
+        return called == 512;
     })
     test_capturing_lambda_destruction()
 }

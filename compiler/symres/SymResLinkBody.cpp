@@ -2764,6 +2764,19 @@ bool link_lambda(
     return true;
 }
 
+FunctionType* get_func_type_from_exp_type(BaseType* type) {
+    switch(type->kind()) {
+        case BaseTypeKind::Function:
+            return (FunctionType*) type;
+        case BaseTypeKind::CapturingFunction:
+            return type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+        case BaseTypeKind::Reference:
+            return get_func_type_from_exp_type(type->as_reference_type_unsafe()->type);
+        default:
+            return nullptr;
+    }
+}
+
 void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     auto& scope = lambVal->scope;
@@ -2776,7 +2789,7 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
     linker.current_func_type = lambVal;
 
     const auto canonical_exp = expected_type ? expected_type->canonical() : nullptr;
-    auto func_type = canonical_exp ? canonical_exp->get_function_type() : nullptr;
+    auto func_type = canonical_exp ? get_func_type_from_exp_type(canonical_exp) : nullptr;
 
     if(!func_type) {
 
@@ -2829,14 +2842,20 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
     if(captureList.empty()) {
 
-        if(canonical_exp && canonical_exp->kind() == BaseTypeKind::CapturingFunction) {
-            lambVal->setIsCapturing(true);
+        if(canonical_exp) {
+            const auto capFunc = canonical_exp->get_cap_func_type();
+            if(capFunc) {
+                lambVal->setIsCapturing(true);
+            }
         }
 
     } else {
 
-        if(canonical_exp && canonical_exp->kind() != BaseTypeKind::CapturingFunction) {
-            linker.error("the lambda function type is not capturing", lambVal);
+        if(canonical_exp) {
+            const auto capFunc = canonical_exp->get_cap_func_type();
+            if(capFunc == nullptr) {
+                linker.error("the lambda function type is not capturing", lambVal);
+            }
         }
 
         if(prev_func_type) {

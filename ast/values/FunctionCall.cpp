@@ -221,7 +221,7 @@ llvm::Value* FunctionCall::arg_value(
     const auto is_direct_value = value_kind == ValueKind::StructValue || value_kind == ValueKind::ArrayValue;
 
     if(!is_direct_value &&
-            ((is_param_ref && !is_val_stored_ptr) || (
+            ((is_param_ref && !is_val_stored_ptr && value_kind != ValueKind::LambdaFunc) || (
             linked && ASTNode::isStoredStructDecl(linked->kind()) &&
             (isReferenceValue(value_kind) && pure_type->is_linked_struct())
     ))) {
@@ -633,6 +633,11 @@ llvm::Value* FunctionCall::llvm_chain_value(
     const auto func_type = func_type_from_parent_type(parent_type);
     if(parent_type->kind() == BaseTypeKind::CapturingFunction) {
         return call_capturing_lambda(gen, this, parent_type->as_capturing_func_type_unsafe(), func_type, destructibles);
+    } else if(parent_type->kind() == BaseTypeKind::Reference) {
+        const auto refType = parent_type->as_reference_type_unsafe()->type->canonical();
+        if(refType->kind() == BaseTypeKind::CapturingFunction) {
+            return call_capturing_lambda(gen, this, refType->as_capturing_func_type_unsafe(), func_type, destructibles);
+        }
     }
 
     auto decl = ASTNode::isFunctionDecl(linked_kind) ? parent_linked->as_function_unsafe() : nullptr;
@@ -913,22 +918,13 @@ FunctionType* FunctionCall::func_type_from_parent_type(BaseType* can_type) {
     if(can_type->kind() == BaseTypeKind::CapturingFunction) {
         return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
     }
+    if(can_type->kind() == BaseTypeKind::Reference) {
+        const auto refType = can_type->as_reference_type_unsafe()->type->canonical();
+        if(refType->kind() == BaseTypeKind::CapturingFunction) {
+            return refType->as_capturing_func_type_unsafe()->func_type->as_function_type();
+        }
+    }
     auto func_type = can_type->get_canonical_function_type();
-//    const auto func_decl = safe_linked_func();
-//    if(func_decl && func_decl->is_constructor_fn() && func_decl->parent()) {
-//        const auto parent = func_decl->parent();
-//        if(parent->kind() == ASTNodeKind::StructDecl) {
-//            const auto struct_def = parent->as_struct_def_unsafe();
-//            if (struct_def->generic_parent != nullptr) {
-//                func_type->returnType = { struct_def->known_type(), func_type->returnType.getLocation() };
-//            }
-//        } else if(parent->kind() == ASTNodeKind::VariantDecl) {
-//            const auto variant_def = parent->as_variant_def_unsafe();
-//            if (variant_def->generic_parent != nullptr) {
-//                func_type->returnType = {variant_def->known_type(), func_type->returnType.getLocation()};
-//            }
-//        }
-//    }
     return func_type;
 }
 
@@ -947,6 +943,12 @@ FunctionType* FunctionCall::get_function_type_during_linking() {
     const auto can_type = type->canonical();
     if(can_type->kind() == BaseTypeKind::CapturingFunction) {
         return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    if(can_type->kind() == BaseTypeKind::Reference) {
+        const auto refType = can_type->as_reference_type_unsafe()->type->canonical();
+        if(refType->kind() == BaseTypeKind::CapturingFunction) {
+            return refType->as_capturing_func_type_unsafe()->func_type->as_function_type();
+        }
     }
     if(can_type->kind() == BaseTypeKind::Linked || can_type->kind() == BaseTypeKind::Generic) {
         const auto container = can_type->get_direct_linked_canonical_node();
@@ -1313,6 +1315,12 @@ FunctionType* get_func_type(BaseType* parent_type, std::vector<Value*>& args) {
     const auto can_type = parent_type->canonical();
     if(can_type->kind() == BaseTypeKind::CapturingFunction) {
         return can_type->as_capturing_func_type_unsafe()->func_type->as_function_type();
+    }
+    if(can_type->kind() == BaseTypeKind::Reference) {
+        const auto refType = can_type->as_reference_type_unsafe()->type->canonical();
+        if(refType->kind() == BaseTypeKind::CapturingFunction) {
+            return refType->as_capturing_func_type_unsafe()->func_type->as_function_type();
+        }
     }
     if(can_type->kind() == BaseTypeKind::Linked || can_type->kind() == BaseTypeKind::Generic) {
         const auto container = can_type->get_direct_linked_canonical_node();

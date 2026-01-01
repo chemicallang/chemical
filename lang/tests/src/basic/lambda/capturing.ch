@@ -9,6 +9,13 @@ struct CapLambTestCont {
     var lamb1 : std::function<() => int>
 }
 
+struct CapLambRefTestCont {
+    var lamb1 : &std::function<() => int>
+    func call(&self) : int {
+        return lamb1()
+    }
+}
+
 variant OptCapLamb {
     Some(lamb : std::function<() => int>)
     None()
@@ -260,6 +267,10 @@ func test_capturing_lambda() {
             return a * 2;
         });
         return called == 512;
+    })
+    test("capturing lambda stored as reference inside container works", () => {
+        var c = CapLambRefTestCont { lamb1 : ||() => { return 832 } }
+        return c.call() == 832
     })
     test_capturing_lambda_destruction()
 }

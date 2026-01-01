@@ -71,6 +71,10 @@ public struct vector<T> {
         return &mut data_ptr[index];
     }
 
+    func get_ref(&self, index : size_t) : &mut T {
+        return data_ptr[index]
+    }
+
     func set(&mut self, index : size_t, value : T) {
         data_ptr[index] = value;
     }

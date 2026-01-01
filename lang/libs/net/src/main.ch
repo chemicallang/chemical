@@ -978,7 +978,7 @@ public namespace web {
             var i = (middlewares.size());
             while(i > 0u) {
                 i = i - 1u;
-                var m = *middlewares.get_ptr(i);
+                var m = middlewares.get_ref(i);
                 h = m(h);
             }
             return h;

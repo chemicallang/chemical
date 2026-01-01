@@ -107,6 +107,8 @@ Codegen::Codegen(
     builder = new llvm::IRBuilder<>(*ctx);
     // updating the builder
     llvm.updateBuilder(builder);
+    // create an interface module
+    interface_module = std::make_unique<llvm::Module>("interface.module", *ctx);
 }
 
 void Codegen::declare_nodes(std::vector<ASTNode*>& nodes) {

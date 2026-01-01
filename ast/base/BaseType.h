@@ -377,6 +377,11 @@ public:
     FunctionType* get_function_type();
 
     /**
+     * get the capturing function type, handles references to capturing function types as well
+     */
+    CapturingFunctionType* get_cap_func_type();
+
+    /**
      * this type references a struct
      */
     inline bool is_linked_struct() {

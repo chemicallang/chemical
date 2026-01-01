@@ -395,6 +395,23 @@ FunctionType* BaseType::get_function_type() {
     }
 }
 
+CapturingFunctionType* BaseType::get_cap_func_type() {
+    switch(kind()) {
+        case BaseTypeKind::CapturingFunction:
+            return as_capturing_func_type_unsafe();
+        case BaseTypeKind::Reference: {
+            const auto refType = as_reference_type_unsafe()->type->canonical();
+            if(refType->kind() == BaseTypeKind::CapturingFunction) {
+                return refType->as_capturing_func_type_unsafe();
+            } else {
+                return nullptr;
+            }
+        }
+        default:
+            return nullptr;
+    }
+}
+
 bool BaseType::requires_moving() {
     auto node = get_direct_linked_node();
     return node != nullptr && node->requires_moving(node->kind());

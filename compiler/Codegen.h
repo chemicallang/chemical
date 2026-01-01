@@ -217,6 +217,11 @@ public:
     std::unique_ptr<llvm::LLVMContext> ctx;
 
     /**
+     * keep function declarations here, so we declare them once
+     */
+    std::unique_ptr<llvm::Module> interface_module;
+
+    /**
      * module holds functions, global vars and stuff
      */
     std::unique_ptr<llvm::Module> module;

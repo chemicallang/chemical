@@ -516,9 +516,12 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
     // if overloaded operator is being called, lhs will not be un-moved
     // because all operator overloaded take self (lhs) as mut ref
     auto& func_type = *linker.current_func_type;
-    func_type.mark_un_moved_lhs_value(lhs, lhs->getType());
+
     // check if rhs was moved and mark it
     func_type.mark_moved_value(linker.allocator, value, lhs->getType(), linker, true);
+
+    // unmove the lhs
+    func_type.mark_un_moved_lhs_value(lhs, lhs->getType());
 
 }
 

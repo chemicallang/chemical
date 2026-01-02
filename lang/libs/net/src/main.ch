@@ -972,8 +972,6 @@ public namespace web {
 
         // apply middlewares to a handler and return final handler
         func apply_middlewares(&self, base: Handler) : Handler {
-            return base;
-            /** TODO:
             var h = base;
             var i = (middlewares.size());
             while(i > 0u) {
@@ -982,7 +980,6 @@ public namespace web {
                 h = m(h);
             }
             return h;
-            **/
         }
 
     }

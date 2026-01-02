@@ -204,9 +204,7 @@ llvm::Value *StructValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) 
 }
 
 llvm::Value *StructValue::llvm_ret_value(Codegen &gen, Value* returnValue) {
-    // TODO make sure this argument corresponds to the struct
-    // TODO hardcoding the struct return index
-    auto structPassed = gen.current_function->getArg(0);
+    auto structPassed = gen.current_function->getArg(gen.current_func_type->getStructReturnArgIndex());
     initialize_alloca(structPassed, gen, nullptr);
     return nullptr;
 }

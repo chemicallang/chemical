@@ -5465,7 +5465,7 @@ void writeStructReturningFunctionCall(ToCAstVisitor& visitor, FunctionCall* call
     }
 }
 
-void write_capturing_function_call(ToCAstVisitor& visitor, FunctionCall* call, CapturingFunctionType* capType) {
+void write_capturing_function_call(ToCAstVisitor& visitor, FunctionCall* call, CapturingFunctionType* capType, chem::string_view return_struct) {
 
     // it should always be a function type, checked during symbol resolution
     const auto func_type = capType->func_type->as_function_type_unsafe();
@@ -5519,9 +5519,74 @@ void write_capturing_function_call(ToCAstVisitor& visitor, FunctionCall* call, C
     visitor.write('(');
     visitor.write(temp_var);
     visitor.write(')');
+    if(!return_struct.empty()) {
+        visitor.write(", &");
+        visitor.write(return_struct);
+    }
     complete_func_call_args(visitor, call, func_type, true);
     visitor.write(')');
     visitor.write("; })");
+}
+
+void struct_returning_capture_call(ToCAstVisitor& visitor, FunctionCall* call, CapturingFunctionType* capType, ASTNode* return_linked) {
+    visitor.write("(*({ ");
+    auto found = visitor.local_allocated.find(call);
+    if(found != visitor.local_allocated.end()) {
+        auto temp_name = chem::string_view(found->second);
+        write_capturing_function_call(visitor, call, capType, temp_name);
+        visitor.write("; &");
+        visitor.write(temp_name);
+        visitor.write("; }))");
+    } else {
+        // TODO we'll remove this block, and generate an error
+        // allocation should have been done before
+        const auto temp_name_str = visitor.get_local_temp_var_name();
+        const auto temp_name = chem::string_view(temp_name_str);
+        allocate_struct_by_name_no_init(visitor, return_linked, temp_name);
+        visitor.write("; ");
+        write_capturing_function_call(visitor, call, capType, temp_name);
+        visitor.write("; &");
+        visitor.write(temp_name);
+        visitor.write("; }))");
+    }
+}
+
+void write_capturing_function_call_handle_returns(ToCAstVisitor& visitor, FunctionCall* call, CapturingFunctionType* capType) {
+    const auto func_type = capType->func_type->as_function_type_unsafe();
+    const auto returnType = func_type->returnType->pure_type(visitor.allocator);
+    const auto returnTypeKind = returnType->kind();
+    // handling functions that return dynamic objects
+    if (returnTypeKind == BaseTypeKind::Dynamic) {
+        visitor.write("(*({ __chemical_fat_pointer__ ");
+        const auto temp_name = visitor.get_local_temp_var_name();
+        visitor.write_str(temp_name);
+        visitor.write("; ");
+        write_capturing_function_call(visitor, call, capType, chem::string_view(temp_name));
+        // write function name
+        visitor.write("; &");
+        visitor.write_str(temp_name);
+        visitor.write("; }))");
+        if(!visitor.nested_value) {
+            visitor.write(';');
+        }
+        return;
+    } else if(returnTypeKind == BaseTypeKind::CapturingFunction) {
+        const auto instanceType = returnType->as_capturing_func_type_unsafe()->instance_type;
+        const auto return_linked = instanceType->get_direct_linked_canonical_node();
+        struct_returning_capture_call(visitor, call, capType, return_linked);
+        return;
+    } else {
+        // functions that return struct like (struct, variants, unions) are handled in this block of code
+        const auto return_linked = returnType->get_direct_linked_node();
+        if (return_linked) {
+            const auto returnKind = return_linked->kind();
+            if (returnKind == ASTNodeKind::StructDecl || returnKind == ASTNodeKind::VariantDecl || returnKind == ASTNodeKind::UnionDecl) {
+                struct_returning_capture_call(visitor, call, capType, return_linked);
+                return;
+            }
+        }
+    }
+    write_capturing_function_call(visitor, call, capType, "");
 }
 
 void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
@@ -5580,14 +5645,14 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     if(canonical_parent->kind() == BaseTypeKind::Reference) {
         const auto refType = canonical_parent->as_reference_type_unsafe()->type->canonical();
         if(refType->kind() == BaseTypeKind::CapturingFunction) {
-            write_capturing_function_call(*this, call, refType->as_capturing_func_type_unsafe());
+            write_capturing_function_call_handle_returns(*this, call, refType->as_capturing_func_type_unsafe());
             return;
         }
     }
 
     if(canonical_parent->kind() == BaseTypeKind::CapturingFunction) {
         const auto capType = canonical_parent->as_capturing_func_type_unsafe();
-        write_capturing_function_call(*this, call, capType);
+        write_capturing_function_call_handle_returns(*this, call, capType);
         return;
     }
 

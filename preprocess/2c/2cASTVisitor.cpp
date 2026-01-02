@@ -2730,6 +2730,7 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
     write('(');
     unsigned i = 0;
     // writing the captured struct as a parameter
+    bool has_params_before = false;
     if(lamb->isCapturing()) {
         auto self_param = lamb->get_self_param();
         if(self_param) {
@@ -2739,11 +2740,9 @@ void CValueDeclarationVisitor::VisitLambdaFunction(LambdaFunction *lamb) {
         }
         visitor.write("void*");
         visitor.write(" this");
-        if(lamb->params.size() > (self_param ? 1 : 0)) {
-            visitor.write(',');
-        }
+        has_params_before = true;
     }
-    func_type_params(visitor, lamb, i);
+    func_type_params(visitor, lamb, i, has_params_before);
     write(')');
     auto prev_destroy_scope = visitor.destructor.destroy_current_scope;
     visitor.destructor.destroy_current_scope = true;

@@ -513,14 +513,29 @@ bool FunctionTypeBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     return false;
 }
 
+bool is_func_call(Value* value) {
+    switch(value->kind()) {
+        case ValueKind::FunctionCall:
+            return true;
+        case ValueKind::AccessChain:
+            return is_func_call(value->as_access_chain_unsafe()->values.back());
+        default:
+            return false;
+    }
+}
+
 bool FunctionTypeBody::is_value_movable(Value* value_ptr, BaseType* type) {
     auto& value = *value_ptr;
-    const auto expected_type_kind = type->kind();
-    if(expected_type_kind == BaseTypeKind::Reference) {
-        return false;
+    const auto canonical = type->canonical();
+    switch(canonical->kind()) {
+        case BaseTypeKind::Reference:
+            return false;
+        case BaseTypeKind::CapturingFunction:
+            return true;
+        default:
+            break;
     }
-    auto chain = value.as_access_chain();
-    if(chain && chain->values.back()->as_func_call()) {
+    if(is_func_call(value_ptr)) {
         return false;
     }
     const auto linked_def = type->get_direct_linked_struct();
@@ -591,6 +606,8 @@ bool FunctionTypeBody::mark_moved_value(
                 return false;
             }
             break;
+        case ValueKind::FunctionCall:
+            return false;
         case ValueKind::StructValue:
             return false;
         default:

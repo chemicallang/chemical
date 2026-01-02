@@ -121,6 +121,10 @@ public:
         data.isVariadic = variadic;
     }
 
+    unsigned int getStructReturnArgIndex() {
+        return isCapturing() ? 1 : 0;
+    }
+
     /**
      * copy this function type into another
      */

@@ -1124,8 +1124,7 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
         gen.error("expected current function to have a struct return type for intrinsics::return_struct", this);
         return nullptr;
     }
-    // TODO implicitly returning struct parameter index is hardcoded
-    return gen.current_function->getArg(0);
+    return gen.current_function->getArg(gen.current_func_type->getStructReturnArgIndex());
 }
 
 void generate_in_switch(Codegen& gen, InValue* inValue, llvm::BasicBlock *trueBB, llvm::BasicBlock *falseBB) {
@@ -1602,9 +1601,7 @@ llvm::Value* DynamicValue::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* DynamicValue::llvm_ret_value(Codegen &gen, Value *returnValue) {
-    // TODO make sure this argument corresponds to the struct
-    // TODO hardcoding the struct return index
-    auto structPassed = gen.current_function->getArg(0);
+    auto structPassed = gen.current_function->getArg(gen.current_func_type->getStructReturnArgIndex());
     dyn_initialize(gen, this, structPassed);
     return nullptr;
 }
@@ -1777,8 +1774,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
         if(canonical_return_type->kind() == BaseTypeKind::Reference && value_canonical_type->kind() != BaseTypeKind::Reference) {
             return_value = value->llvm_pointer(gen);
         } else if((value->kind() != ValueKind::StructValue && value->getType()->isStructLikeType())) {
-            // TODO hardcoded the function implicit struct return argument at index 0
-            auto dest = gen.current_function->getArg(0);
+            auto dest = gen.current_function->getArg(func_type->getStructReturnArgIndex());
             auto value_ptr = value->llvm_pointer(gen);
             llvm::MaybeAlign noAlign;
             auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
@@ -1792,7 +1788,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
 
                 const auto mutated = gen.mutate_capturing_function(to_type, value);
                 if(mutated) {
-                    auto dest = gen.current_function->getArg(0);
+                    auto dest = gen.current_function->getArg(func_type->getStructReturnArgIndex());
                     llvm::MaybeAlign noAlign;
                     auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(func_type->returnType->llvm_type(gen));
                     const auto memCpyInst = gen.builder->CreateMemCpy(dest, noAlign, mutated, noAlign, alloc_size);

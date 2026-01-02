@@ -464,6 +464,7 @@ llvm::Value *call_capturing_lambda(
         FunctionCall* call,
         CapturingFunctionType* cap_type,
         FunctionType* func_type,
+        llvm::Value* returnedStruct,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     llvm::Value* grandpa = nullptr;
@@ -504,11 +505,24 @@ llvm::Value *call_capturing_lambda(
     //   however functions that don't take a self reference, should load arguments first and then the func callee
     put_self_param(gen, call, func_type, args, grandpa, destructibles);
     args.emplace_back(data_ptr_val);
+
+    // put the returned struct as the second argument
+    const auto returnsStruct = func_type->returnType->isStructLikeType();
+    if(returnsStruct) {
+        if (!returnedStruct) {
+            const auto returnedAlloca = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+            gen.di.instr(returnedAlloca, call);
+            returnedStruct = returnedAlloca;
+        }
+        args.emplace_back(returnedStruct);
+    }
+
     to_llvm_args(gen, call, func_type, call->values, args, 0, destructibles);
     auto structType = gen.fat_pointer_type();
     const auto instr = gen.builder->CreateCall(func_type->llvm_capturing_func_type(gen), fn_ptr_val, args);
     gen.di.instr(instr, call);
-    return instr;
+
+    return returnsStruct ? returnedStruct : instr;
 }
 
 bool variant_call_initialize(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member, FunctionCall* call) {
@@ -632,11 +646,11 @@ llvm::Value* FunctionCall::llvm_chain_value(
     auto parent_type = parent_val->getType()->canonical();
     const auto func_type = func_type_from_parent_type(parent_type);
     if(parent_type->kind() == BaseTypeKind::CapturingFunction) {
-        return call_capturing_lambda(gen, this, parent_type->as_capturing_func_type_unsafe(), func_type, destructibles);
+        return call_capturing_lambda(gen, this, parent_type->as_capturing_func_type_unsafe(), func_type, returnedStruct, destructibles);
     } else if(parent_type->kind() == BaseTypeKind::Reference) {
         const auto refType = parent_type->as_reference_type_unsafe()->type->canonical();
         if(refType->kind() == BaseTypeKind::CapturingFunction) {
-            return call_capturing_lambda(gen, this, refType->as_capturing_func_type_unsafe(), func_type, destructibles);
+            return call_capturing_lambda(gen, this, refType->as_capturing_func_type_unsafe(), func_type, returnedStruct, destructibles);
         }
     }
 

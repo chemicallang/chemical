@@ -272,5 +272,20 @@ func test_capturing_lambda() {
         var c = CapLambRefTestCont { lamb1 : ||() => { return 832 } }
         return c.call() == 832
     })
+    test("capturing lambdas can return structs - 1", () => {
+        var f : std::function<() => CapLambRefStruct> = () => {
+            return CapLambRefStruct { value : 992 }
+        }
+        var x = f()
+        return x.value == 992
+    })
+    test("capturing lambdas can return structs - 2", () => {
+        var f : std::function<() => CapLambRefStruct> = () => {
+            var stored = CapLambRefStruct { value : 265 }
+            return stored
+        }
+        var x = f()
+        return x.value == 265
+    })
     test_capturing_lambda_destruction()
 }

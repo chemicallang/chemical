@@ -144,16 +144,52 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         // Check for function
         if(parser.getToken().type == JsTokenType.Function as int) {
              // async function expression
-             // TODO: reuse parseFunction but set is_async=true.
-             // For now, I'll assumme I can clone logic or refactor.
-             // But simpler: just implementing here inline if convenient.
-             // Actually, parseStatement handles Function Declaration.
-             // parsePrimary handles Function Expression.
-             // I haven't seen Function Expression in parsePrimary.
-             // If parsePrimary handles Function, I should see it.
-             // Let's assume it does closer to line 200 or so? 
-             // Or maybe it doesn't support Function Expression yet?
-             // If not, I'll just handle Arrow.
+             parser.increment(); // consume function
+             
+             var name = std::string_view();
+             if(parser.getToken().type == JsTokenType.Identifier as int) {
+                 name = builder.allocate_view(parser.getToken().value);
+                 parser.increment();
+             }
+             
+             if(!parser.increment_if(JsTokenType.LParen as int)) {
+                 parser.error("expected (");
+             }
+             
+             var params = std::vector<std::string_view>();
+             if(parser.getToken().type != JsTokenType.RParen as int) {
+                 while(true) {
+                     const paramToken = parser.getToken();
+                     if(paramToken.type != JsTokenType.Identifier as int) {
+                         parser.error("expected identifier");
+                         break;
+                     }
+                     params.push(builder.allocate_view(paramToken.value));
+                     parser.increment();
+                     
+                     if(parser.getToken().type == JsTokenType.Comma as int) {
+                         parser.increment();
+                     } else {
+                         break;
+                     }
+                 }
+             }
+             
+             if(!parser.increment_if(JsTokenType.RParen as int)) {
+                 parser.error("expected )");
+             }
+             
+             var body = jsParser.parseBlock(parser, builder);
+             
+             var funcDecl = builder.allocate<JsFunctionDecl>()
+             new (funcDecl) JsFunctionDecl {
+                 base : JsNode { kind : JsNodeKind.FunctionDecl },
+                 name : name,
+                 params : params,
+                 body : body,
+                 is_async : true
+             }
+             node = funcDecl as *mut JsNode;
         }
         
         // Async Arrow: async x => ... or async (x, y) => ...

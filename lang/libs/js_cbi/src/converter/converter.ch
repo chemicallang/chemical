@@ -483,6 +483,37 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view("...")
             converter.convertJsNode(spread.argument)
         }
+        JsNodeKind.ClassDecl => {
+            var cls = node as *mut JsClassDecl
+            converter.str.append_view("class ")
+            if(!cls.name.empty()) {
+                converter.str.append_view(cls.name)
+                converter.str.append_view(" ")
+            }
+            if(!cls.superClass.empty()) {
+                converter.str.append_view("extends ")
+                converter.str.append_view(cls.superClass)
+                converter.str.append_view(" ")
+            }
+            converter.str.append_view("{")
+            var i = 0u
+            while(i < cls.methods.size()) {
+                var method = cls.methods.get_ptr(i)
+                if(method.is_static) converter.str.append_view("static ")
+                converter.str.append_view(method.name)
+                converter.str.append_view("(")
+                var j = 0u
+                while(j < method.params.size()) {
+                    if(j > 0) converter.str.append_view(", ")
+                    converter.str.append_view(method.params.get(j))
+                    j++
+                }
+                converter.str.append_view(") ")
+                converter.convertJsNode(method.body)
+                i++
+            }
+            converter.str.append_view("}")
+        }
     }
 }
 

@@ -27,7 +27,8 @@ public enum JsNodeKind {
     UnaryOp,
     ForIn,
     ForOf,
-    Spread
+    Spread,
+    ClassDecl
 }
 
 public struct JsNode {
@@ -217,4 +218,18 @@ public struct JsUnaryOp {
     var operator : std::string_view
     var operand : *mut JsNode
     var prefix : bool
+}
+
+public struct JsClassMethod {
+    var name : std::string_view
+    var params : std::vector<std::string_view>
+    var body : *mut JsNode
+    var is_static : bool
+}
+
+public struct JsClassDecl {
+    var base : JsNode
+    var name : std::string_view
+    var superClass : std::string_view // optional
+    var methods : std::vector<JsClassMethod>
 }

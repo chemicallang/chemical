@@ -384,6 +384,14 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                     return Token { type : JsTokenType.In as int, value : val, position : position }
                 } else if(val.equals(view("instanceof"))) {
                     return Token { type : JsTokenType.InstanceOf as int, value : val, position : position }
+                } else if(val.equals(view("class"))) {
+                    return Token { type : JsTokenType.Class as int, value : val, position : position }
+                } else if(val.equals(view("extends"))) {
+                    return Token { type : JsTokenType.Extends as int, value : val, position : position }
+                } else if(val.equals(view("super"))) {
+                    return Token { type : JsTokenType.Super as int, value : val, position : position }
+                } else if(val.equals(view("static"))) {
+                    return Token { type : JsTokenType.Static as int, value : val, position : position }
                 }
                 return Token { type : JsTokenType.Identifier as int, value : val, position : position }
             } else if(isdigit(c)) {

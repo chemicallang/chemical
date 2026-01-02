@@ -302,3 +302,38 @@ public func test_spread_operator(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), """var a = [1, ...b, 2];fn(...args);""");
 }
+
+@test
+public func test_await_expression(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        async function fetchData() {
+            var d = await fetch('url');
+            await d.json();
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), """async function fetchData(){var d = await fetch('url');await d.json();}""");
+}
+
+// @test
+// public func test_classes(env : &mut TestEnv) {
+//     var page = HtmlPage()
+//     #js {
+//         class Person {
+//             constructor(name) {
+//                 this.name = name;
+//             }
+//             sayHello() {
+//                 console.log("Hello " + this.name);
+//             }
+//         }
+//
+//         class Employee extends Person {
+//              constructor(name, id) {
+//                  super(name);
+//                  this.id = id;
+//              }
+//         }
+//     }
+//     string_equals(env, page.toStringJsOnly(), """ """);
+// }

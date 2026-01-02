@@ -172,11 +172,25 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         ';' => { return Token { type : JsTokenType.SemiColon as int, value : view(";"), position : position } }
         ',' => { return Token { type : JsTokenType.Comma as int, value : view(","), position : position } }
         ':' => { return Token { type : JsTokenType.Colon as int, value : view(":"), position : position } }
-        '.' => { return Token { type : JsTokenType.Dot as int, value : view("."), position : position } }
+        '.' => {
+            if(provider.peek() == '.') {
+                provider.readCharacter();
+                if(provider.peek() == '.') {
+                    provider.readCharacter();
+                    return Token { type : JsTokenType.ThreeDots as int, value : view("..."), position : position }
+                }
+                // .. is likely not valid JS, return dot and dot? 
+                // But simplified:
+            }
+            return Token { type : JsTokenType.Dot as int, value : view("."), position : position }
+        }
         '+' => {
             if(provider.peek() == '+') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.PlusPlus as int, value : view("++"), position : position }
+            } else if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.PlusEqual as int, value : view("+="), position : position }
             }
             return Token { type : JsTokenType.Plus as int, value : view("+"), position : position }
         }
@@ -184,11 +198,24 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '-') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.MinusMinus as int, value : view("--"), position : position }
+            } else if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.MinusEqual as int, value : view("-="), position : position }
             }
             return Token { type : JsTokenType.Minus as int, value : view("-"), position : position }
         }
-        '*' => { return Token { type : JsTokenType.Star as int, value : view("*"), position : position } }
+        '*' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.StarEqual as int, value : view("*="), position : position }
+            }
+            return Token { type : JsTokenType.Star as int, value : view("*"), position : position }
+        }
         '/' => {
+            if(provider.peek() == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.SlashEqual as int, value : view("/="), position : position }
+            }
             // TODO handle comments
             return Token { type : JsTokenType.Slash as int, value : view("/"), position : position }
         }
@@ -197,14 +224,14 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token { type : JsTokenType.LogicalAnd as int, value : view("&&"), position : position }
             }
-            return Token { type : JsTokenType.Identifier as int, value : view("&"), position : position }
+            return Token { type : JsTokenType.BitwiseAnd as int, value : view("&"), position : position }
         }
         '|' => {
             if(provider.peek() == '|') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.LogicalOr as int, value : view("||"), position : position }
             }
-            return Token { type : JsTokenType.Identifier as int, value : view("|"), position : position }
+            return Token { type : JsTokenType.BitwiseOr as int, value : view("|"), position : position }
         }
         '?' => {
             return Token { type : JsTokenType.Question as int, value : view("?"), position : position }
@@ -230,10 +257,32 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             }
             return Token { type : JsTokenType.Exclamation as int, value : view("!"), position : position }
         }
+        '`' => {
+             while(true) {
+                 const nc = provider.peek();
+                 if(nc == '`') {
+                     provider.readCharacter();
+                     break;
+                 }
+                 if(nc == '\0') {
+                     break; 
+                 }
+                 if(nc == '\\') {
+                     provider.readCharacter(); 
+                     provider.readCharacter(); 
+                     continue;
+                 }
+                 provider.readCharacter();
+             }
+             return Token { type : JsTokenType.String as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+        }
         '<' => {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.LessThanEqual as int, value : view("<="), position : position }
+            } else if(provider.peek() == '<') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.LeftShift as int, value : view("<<"), position : position }
             }
             return Token { type : JsTokenType.LessThan as int, value : view("<"), position : position }
         }
@@ -241,6 +290,13 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.GreaterThanEqual as int, value : view(">="), position : position }
+            } else if(provider.peek() == '>') {
+                provider.readCharacter();
+                if(provider.peek() == '>') {
+                    provider.readCharacter();
+                    return Token { type : JsTokenType.RightShiftUnsigned as int, value : view(">>>"), position : position }
+                }
+                return Token { type : JsTokenType.RightShift as int, value : view(">>"), position : position }
             }
             return Token { type : JsTokenType.GreaterThan as int, value : view(">"), position : position }
         }
@@ -300,6 +356,34 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                     return Token { type : JsTokenType.If as int, value : val, position : position }
                 } else if(val.equals(view("else"))) {
                     return Token { type : JsTokenType.Else as int, value : val, position : position }
+                } else if(val.equals(view("true"))) {
+                    return Token { type : JsTokenType.True as int, value : val, position : position }
+                } else if(val.equals(view("false"))) {
+                    return Token { type : JsTokenType.False as int, value : val, position : position }
+                } else if(val.equals(view("null"))) {
+                    return Token { type : JsTokenType.Null as int, value : val, position : position }
+                } else if(val.equals(view("undefined"))) {
+                    return Token { type : JsTokenType.Undefined as int, value : view("undefined"), position : position }
+                } else if(val.equals(view("new"))) {
+                    return Token { type : JsTokenType.New as int, value : val, position : position }
+                } else if(val.equals(view("async"))) {
+                    return Token { type : JsTokenType.Async as int, value : val, position : position }
+                } else if(val.equals(view("await"))) {
+                    return Token { type : JsTokenType.Await as int, value : val, position : position }
+                } else if(val.equals(view("this"))) {
+                    return Token { type : JsTokenType.This as int, value : val, position : position }
+                } else if(val.equals(view("of"))) {
+                    return Token { type : JsTokenType.Of as int, value : val, position : position }
+                } else if(val.equals(view("typeof"))) {
+                    return Token { type : JsTokenType.Typeof as int, value : val, position : position }
+                } else if(val.equals(view("void"))) {
+                    return Token { type : JsTokenType.Void as int, value : val, position : position }
+                } else if(val.equals(view("delete"))) {
+                    return Token { type : JsTokenType.Delete as int, value : val, position : position }
+                } else if(val.equals(view("in"))) {
+                    return Token { type : JsTokenType.In as int, value : val, position : position }
+                } else if(val.equals(view("instanceof"))) {
+                    return Token { type : JsTokenType.InstanceOf as int, value : val, position : position }
                 }
                 return Token { type : JsTokenType.Identifier as int, value : val, position : position }
             } else if(isdigit(c)) {
@@ -308,6 +392,8 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             }
             return Token { type : 0, value : view("unexpected"), position : position }
         }
+        '~' => { return Token { type : JsTokenType.BitwiseNot as int, value : view("~"), position : position } }
+        '^' => { return Token { type : JsTokenType.BitwiseXor as int, value : view("^"), position : position } }
     }
 }
 

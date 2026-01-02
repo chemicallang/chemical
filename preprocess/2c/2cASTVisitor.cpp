@@ -5135,46 +5135,6 @@ void ToCAstVisitor::VisitIncDecValue(IncDecValue *value) {
 
 }
 
-void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func_call) {
-    visitor.write('(');
-    visitor.write('(');
-    visitor.write('(');
-    func_type_with_id(visitor, type, "");
-    visitor.write(") ");
-    // TODO func_call parent value is being accepted twice - 1
-    visitor.visit(func_call->parent_val);
-    visitor.write("->first");
-    visitor.write(')');
-    visitor.write('(');
-    if(type->has_self_param()) {
-        visitor.write('&');
-        auto parent_val = get_parent_from(func_call->parent_val);
-        visitor.visit(parent_val);
-        visitor.write(", ");
-    }
-    // TODO func_call parent value is being accepted twice - 2
-    visitor.visit(func_call->parent_val);
-    visitor.write("->second");
-    func_call_args(visitor, func_call, type, true);
-    visitor.write(')');
-    visitor.write(')');
-}
-
-//void func_call(ToCAstVisitor& visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
-//    if(type->isCapturing() && current->as_func_call() == nullptr) {
-//        capture_call(visitor, type, next->as_func_call(), [&current, &visitor](){
-//            current->accept(&visitor);
-//        }, [&current, &visitor] {
-//            visitor.write("NO_SELF_REF_FOR_CAP_LAMB");
-//        });
-//        i++;
-//    } else {
-//        current->accept(&visitor);
-//        func_call(visitor, next->as_func_call(), type);
-//        i++;
-//    }
-//}
-
 // this automatically determines which parent to pass through
 void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node) {
     const auto parent = func_node->ASTNode::parent();
@@ -5628,12 +5588,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
     if(canonical_parent->kind() == BaseTypeKind::CapturingFunction) {
         const auto capType = canonical_parent->as_capturing_func_type_unsafe();
         write_capturing_function_call(*this, call, capType);
-        return;
-    }
-
-    // handling capturing lambdas
-    if(func_type->isCapturing()) {
-        capture_call(*this, func_type, call);
         return;
     }
 

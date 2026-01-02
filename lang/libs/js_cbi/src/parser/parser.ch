@@ -227,6 +227,8 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                  parser.error("async (params) => is not yet supported in this parser branch");
             }
         }
+    } else if(token.type == JsTokenType.Class as int) {
+        node = jsParser.parseClassDecl(parser, builder);
     } else if(token.type == JsTokenType.True as int || 
               token.type == JsTokenType.False as int || 
               token.type == JsTokenType.Null as int || 
@@ -816,6 +818,8 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
         }
         parser.increment_if(JsTokenType.SemiColon as int);
         return ret as *mut JsNode;
+    } else if(token.type == JsTokenType.Class as int) {
+        return jsParser.parseClassDecl(parser, builder);
     } else if(token.type == JsTokenType.Async as int) {
         parser.increment(); // consume async
         if(parser.getToken().type != JsTokenType.Function as int) {

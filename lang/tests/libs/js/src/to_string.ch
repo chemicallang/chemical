@@ -315,25 +315,25 @@ public func test_await_expression(env : &mut TestEnv) {
     string_equals(env, page.toStringJsOnly(), """async function fetchData(){var d = await fetch('url');await d.json();}""");
 }
 
-// @test
-// public func test_classes(env : &mut TestEnv) {
-//     var page = HtmlPage()
-//     #js {
-//         class Person {
-//             constructor(name) {
-//                 this.name = name;
-//             }
-//             sayHello() {
-//                 console.log("Hello " + this.name);
-//             }
-//         }
-//
-//         class Employee extends Person {
-//              constructor(name, id) {
-//                  super(name);
-//                  this.id = id;
-//              }
-//         }
-//     }
-//     string_equals(env, page.toStringJsOnly(), """ """);
-// }
+@test
+public func test_classes(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        class Person {
+            constructor(name) {
+                this.name = name;
+            }
+            sayHello() {
+                console.log("Hello " + this.name);
+            }
+        }
+
+        class Employee extends Person {
+             constructor(name, id) {
+                 super(name);
+                 this.id = id;
+             }
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), """class Person {constructor(name) {this.name = name;}sayHello() {console.log("Hello " + this.name);}}class Employee extends Person {constructor(name, id) {super(name);this.id = id;}}""");
+}

@@ -24,7 +24,10 @@ public enum JsNodeKind {
     TryCatch,
     Throw,
     Ternary,
-    UnaryOp
+    UnaryOp,
+    ForIn,
+    ForOf,
+    Spread
 }
 
 public struct JsNode {
@@ -95,6 +98,7 @@ public struct JsFunctionDecl {
     var name : std::string_view
     var params : std::vector<std::string_view>
     var body : *mut JsNode
+    var is_async : bool
 }
 
 public struct JsMemberAccess {
@@ -112,6 +116,7 @@ public struct JsArrowFunction {
     var base : JsNode
     var params : std::vector<std::string_view>
     var body : *mut JsNode
+    var is_async : bool
 }
 
 public struct JsArrayLiteral {
@@ -135,6 +140,25 @@ public struct JsFor {
     var condition : *mut JsNode
     var update : *mut JsNode
     var body : *mut JsNode
+}
+
+public struct JsForIn {
+    var base : JsNode
+    var left : *mut JsNode
+    var right : *mut JsNode
+    var body : *mut JsNode
+}
+
+public struct JsForOf {
+    var base : JsNode
+    var left : *mut JsNode
+    var right : *mut JsNode
+    var body : *mut JsNode
+}
+
+public struct JsSpread {
+    var base : JsNode
+    var argument : *mut JsNode
 }
 
 public struct JsWhile {

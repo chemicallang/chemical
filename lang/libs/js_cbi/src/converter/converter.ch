@@ -240,6 +240,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.FunctionDecl => {
             var func_decl = node as *mut JsFunctionDecl
+            if(func_decl.is_async) converter.str.append_view("async ")
             converter.str.append_view("function ")
             converter.str.append_view(func_decl.name)
             converter.str.append_view("(")
@@ -265,6 +266,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.ArrowFunction => {
             var arrow = node as *mut JsArrowFunction
+            if(arrow.is_async) converter.str.append_view("async ")
             converter.str.append_view("(")
             var i = 0u
             while(i < arrow.params.size()) {
@@ -342,6 +344,47 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             }
             converter.str.append_view(")")
             converter.convertJsNode(forStmt.body)
+        }
+        JsNodeKind.ForIn => {
+            var forIn = node as *mut JsForIn
+            converter.str.append_view("for(")
+            // Special handling for VarDecl in loop header to avoid semicolon
+            var initNode = forIn.left
+            if(initNode.kind == JsNodeKind.VarDecl) {
+                 var decl = initNode as *mut JsVarDecl
+                 converter.str.append_view(decl.keyword)
+                 converter.str.append_view(" ")
+                 converter.str.append_view(decl.name)
+            } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
+                 var stmt = initNode as *mut JsExpressionStatement
+                 converter.convertJsNode(stmt.expression)
+            } else {
+                 converter.convertJsNode(initNode)
+            }
+            converter.str.append_view(" in ")
+            converter.convertJsNode(forIn.right)
+            converter.str.append_view(")")
+            converter.convertJsNode(forIn.body)
+        }
+        JsNodeKind.ForOf => {
+            var forOf = node as *mut JsForOf
+            converter.str.append_view("for(")
+            var initNode = forOf.left
+            if(initNode.kind == JsNodeKind.VarDecl) {
+                 var decl = initNode as *mut JsVarDecl
+                 converter.str.append_view(decl.keyword)
+                 converter.str.append_view(" ")
+                 converter.str.append_view(decl.name)
+            } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
+                 var stmt = initNode as *mut JsExpressionStatement
+                 converter.convertJsNode(stmt.expression)
+            } else {
+                 converter.convertJsNode(initNode)
+            }
+            converter.str.append_view(" of ")
+            converter.convertJsNode(forOf.right)
+            converter.str.append_view(")")
+            converter.convertJsNode(forOf.body)
         }
         JsNodeKind.While => {
             var whileStmt = node as *mut JsWhile
@@ -425,11 +468,20 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var unary = node as *mut JsUnaryOp
             if(unary.prefix) {
                 converter.str.append_view(unary.operator)
+                // Check if operator needs a space (if it's a word)
+                if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
+                     converter.str.append_view(" ")
+                }
                 converter.convertJsNode(unary.operand)
             } else {
                 converter.convertJsNode(unary.operand)
                 converter.str.append_view(unary.operator)
             }
+        }
+        JsNodeKind.Spread => {
+            var spread = node as *mut JsSpread
+            converter.str.append_view("...")
+            converter.convertJsNode(spread.argument)
         }
     }
 }

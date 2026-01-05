@@ -269,20 +269,17 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, std::vector<Cha
         return nullptr;
     }
 }
-
-void Parser::parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator) {
-    if(consumeToken(TokenType::LessThanSym)) {
-        do {
-            auto type = parseTypeLoc(allocator);
-            if (type) {
-                outArgs.emplace_back(type);
-            } else {
-                break;
-            }
-        } while(consumeToken(TokenType::CommaSym));
-        if (!consumeGenericClose()) {
-            unexpected_error("expected a '>' for generic list in function call");
+void Parser::parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator) {
+    do {
+        auto type = parseTypeLoc(allocator);
+        if (type) {
+            outArgs.emplace_back(type);
+        } else {
+            break;
         }
+    } while(consumeToken(TokenType::CommaSym));
+    if (!consumeGenericClose()) {
+        unexpected_error("expected a '>' for generic list in function call");
     }
 }
 

@@ -400,9 +400,8 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Chai
             if(parseGenList && isGenericEndAhead()) {
                 // generic list detected
                 std::vector<TypeLoc> genArgs;
+                warning("use the turbofish operator for faster compilation");
                 consumeAny(); // consume the less than symbol
-                // TODO: this hint should be given to user to improve performance
-                // warning("use the turbofish operator for beginning generics");
                 parseGenericArgsListNoStart(genArgs, allocator);
                 // generic list -> struct/call
                 switch(token->type) {

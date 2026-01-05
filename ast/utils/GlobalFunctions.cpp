@@ -1677,6 +1677,11 @@ public:
                 const auto crashVal = new (allocator.allocate<BoolValue>()) BoolValue(pass_on_crash, typeBuilder.getBoolType(), call->encoded_location());
                 value->values.emplace("pass_on_crash", StructMemberInitializer{"pass_on_crash", crashVal});
 
+                // async
+                const auto testAsync = controller.is_marked(node.node, "test.async");
+                const auto asyncVal = new (allocator.allocate<BoolValue>()) BoolValue(testAsync, typeBuilder.getBoolType(), call->encoded_location());
+                value->values.emplace("is_async", StructMemberInitializer{"is_async", asyncVal});
+
                 // benchmark
                 const auto marked_bench = controller.is_marked(node.node, "test.benchmark");
                 const auto benchVal = new (allocator.allocate<BoolValue>()) BoolValue(marked_bench, typeBuilder.getBoolType(), call->encoded_location());

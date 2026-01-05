@@ -328,6 +328,7 @@ AnnotationController::AnnotationController() {
     create_marker_annotation("test.pass_on_crash");
     create_marker_annotation("test.ignore");
     create_marker_annotation("test.timeout");
+    create_marker_annotation("test.async");
     create_marker_annotation("test.retry");
     create_marker_annotation("test.benchmark");
 

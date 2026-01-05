@@ -10,6 +10,8 @@ public struct TestFunction {
     var timeout : uint
     var retry : uint
     var pass_on_crash : bool
+    // means the function will be waited for on end (before displaying results for others)
+    var is_async : bool
     var benchmark : bool
     var lineNum : uint
     var charNum : uint

@@ -44,6 +44,7 @@ const auto BitwiseXOROpCStr = "^";
 const auto LeftShiftOpCStr = "<<";
 const auto RightShiftOpCStr = ">>";
 const auto ScopeResOpCStr = "::";
+const auto TurboFishOpCStr = "::<";
 const auto EqualOpCStr = "=";
 const auto LambOpCStr = "=>";
 
@@ -829,7 +830,11 @@ Token Lexer::getNextToken() {
             }
         case ':':
             if(provider.increment(':')) {
-                return Token(TokenType::DoubleColonSym, view_str(ScopeResOpCStr), pos);
+                if(provider.increment('<')) {
+                    return Token(TokenType::TurboFishSym, view_str(TurboFishOpCStr), pos);
+                } else {
+                    return Token(TokenType::DoubleColonSym, view_str(ScopeResOpCStr), pos);
+                }
             } else {
                 return Token(TokenType::ColonSym, view_str(ColonOpCStr), pos);
             }

@@ -402,6 +402,20 @@ func append_integer(str : &mut std::string, dig : int) {
     str.append_char_ptr(buffStart);
 }
 
+func launch_test_with_retries(exe_path : *char, id : int, state : &mut TestFunctionState, tries : int) {
+    // actual launch
+    launch_test(exe_path, id, state)
+    // retry for number of times
+    if(tries > 1) {
+        tries--
+        while(tries > 1 && state.has_failed) {
+            state.logs.clear()
+            launch_test(exe_path, id, state)
+            tries--
+        }
+    }
+}
+
 type TestFunctionPtr = (env : &mut TestEnv) => void
 
 func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig) {
@@ -441,6 +455,10 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         var state = TestRunnerState()
         state.tests.reserve(tests_view.size());
 
+        // creating a thread pool for launching asynchronous tests on it
+        var pool = std.concurrent.create_pool(std.concurrent.hardware_threads());
+        var asyncJobs = std.vector::<std.concurrent.Future<int>>();
+
         var test_start = tests_view.data() as *mut TestFunction
         const test_end = test_start + tests_view.size()
 
@@ -449,20 +467,30 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
             var ind = state.tests.size()
             state.tests.push(TestFunctionState(test_start));
             const fn_state = state.tests.get_ptr(ind)
+            const test_id = test_start.id;
+            const test_retry = test_start.retry as int
 
-            launch_test(exe_path, test_start.id, *fn_state)
-
-            var tries : int = test_start.retry as int
-            if(tries > 1) {
-                tries--
-                while(tries > 1 && fn_state.has_failed) {
-                    fn_state.logs.clear()
-                    launch_test(exe_path, test_start.id, *fn_state)
-                    tries--
-                }
+            // actual launch
+            if(test_start.is_async) {
+                // launching the test on the thread pool instead
+                var job = pool.submit<int>(|exe_path, test_id, fn_state, test_retry|() => {
+                    launch_test_with_retries(exe_path, test_id, *fn_state, test_retry);
+                    return 0;
+                })
+                asyncJobs.push(job)
+            } else {
+                launch_test_with_retries(exe_path, test_id, *fn_state, test_retry);
             }
 
             test_start++;
+        }
+
+        // wait for the thread pool to finish
+        var asyncJobsStart = asyncJobs.data() as *mut std.concurrent.Future<int>
+        const asyncJobsEnd = asyncJobsStart + asyncJobs.size()
+        while(asyncJobsStart != asyncJobsEnd) {
+            const redundant = asyncJobsStart.get()
+            asyncJobsStart++;
         }
 
         // print the test results

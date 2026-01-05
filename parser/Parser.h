@@ -116,6 +116,13 @@ public:
     }
 
     /**
+     * consume a token
+     */
+    inline void consumeAny() {
+        token++;
+    }
+
+    /**
      * consume the current token if it's given type
      */
     bool consumeToken(enum TokenType type) {
@@ -468,9 +475,17 @@ public:
     ExpressiveString* parseExpressiveString(ASTAllocator& allocator);
 
     /**
+     * parses the generic argument list without the start
+     */
+    void parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator);
+
+    /**
      * parse generic argument list
      */
-    void parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator);
+    inline void parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator) {
+        consumeToken(TokenType::LessThanSym);
+        parseGenericArgsListNoStart(outArgs, allocator);
+    }
 
     /**
      * parse a function call

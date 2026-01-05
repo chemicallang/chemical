@@ -262,6 +262,18 @@ NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
     }
 }
 
+bool isKindChainValue(ValueKind kind) {
+    switch(kind) {
+        case ValueKind::AccessChain:
+        case ValueKind::Identifier:
+        case ValueKind::IndexOperator:
+        case ValueKind::FunctionCall:
+            return true;
+        default:
+            return false;
+    }
+}
+
 Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool parseLambda) {
 
     if (token->type == TokenType::LParen) {
@@ -290,6 +302,35 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
         }
     } else {
         return nullptr;
+    }
+
+    if(token->type == TokenType::TurboFishSym && isKindChainValue(first_value->kind())) {
+        consumeAny(); // consume the turbo fish
+        AccessChain* chain;
+        if(first_value->kind() == ValueKind::AccessChain) {
+            chain = first_value->as_access_chain_unsafe();
+        } else {
+            const auto new_chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(start_tok));
+            new_chain->values.emplace_back((ChainValue*) first_value);
+            chain = new_chain;
+        };
+        std::vector<TypeLoc> genArgs;
+        parseGenericArgsListNoStart(genArgs, allocator);
+        if(token->type == TokenType::LParen) {
+            auto call = parseFunctionCall(allocator, chain->values);
+            call->generic_list = std::move(genArgs);
+            chain->values.emplace_back(call);
+        } else {
+            error("expected a '(' after the generic list in function call");
+        }
+        if(consumeToken(TokenType::DotSym)) {
+            auto value = parseAccessChainRecursive(allocator, chain->values, start_pos, false);
+            if(!value || value != chain) {
+                error("expected a identifier after the dot . in the access chain");
+                return nullptr;
+            }
+        }
+        return singlify_chain(chain);
     }
 
 //    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {

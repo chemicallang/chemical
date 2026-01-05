@@ -1051,6 +1051,7 @@ void verify_has_return(SymbolResolver& linker, Scope& scope, SourceLocation loca
     const auto last = scope.nodes.back();
     switch(last->kind()) {
         case ASTNodeKind::ReturnStmt:
+        case ASTNodeKind::UnreachableStmt:
             return;
         case ASTNodeKind::IfStmt: {
             const auto stmt = last->as_if_stmt_unsafe();

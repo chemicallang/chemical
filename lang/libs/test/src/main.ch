@@ -457,7 +457,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
 
         // creating a thread pool for launching asynchronous tests on it
         var pool = std.concurrent.create_pool(std.concurrent.hardware_threads());
-        var asyncJobs = std.vector::<std.concurrent.Future<int>>();
+        var asyncJobs = std.vector<std.concurrent.Future<int>>();
 
         var test_start = tests_view.data() as *mut TestFunction
         const test_end = test_start + tests_view.size()

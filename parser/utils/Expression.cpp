@@ -304,53 +304,35 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
         return nullptr;
     }
 
-    if(token->type == TokenType::TurboFishSym && isKindChainValue(first_value->kind())) {
-        consumeAny(); // consume the turbo fish
-        AccessChain* chain;
-        if(first_value->kind() == ValueKind::AccessChain) {
-            chain = first_value->as_access_chain_unsafe();
-        } else {
-            const auto new_chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(start_tok));
-            new_chain->values.emplace_back((ChainValue*) first_value);
-            chain = new_chain;
-        };
-        std::vector<TypeLoc> genArgs;
-        parseGenericArgsListNoStart(genArgs, allocator);
-        if(token->type == TokenType::LParen) {
-            auto call = parseFunctionCall(allocator, chain->values);
-            call->generic_list = std::move(genArgs);
-            chain->values.emplace_back(call);
-        } else {
-            error("expected a '(' after the generic list in function call");
-        }
-        if(consumeToken(TokenType::DotSym)) {
-            auto value = parseAccessChainRecursive(allocator, chain->values, start_pos, false);
-            if(!value || value != chain) {
-                error("expected a identifier after the dot . in the access chain");
-                return nullptr;
-            }
-        }
-        return singlify_chain(chain);
-    }
-
-//    if (token->type == TokenType::LessThanSym && isGenericEndAhead()) {
-//        auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(start_tok));
-//        std::vector<TypeLoc> genArgs;
-//        parseGenericArgsList(genArgs, allocator);
-//        if(token->type == TokenType::LParen) {
-//            auto call = parseFunctionCall(allocator, chain->values);
-//            call->generic_list = std::move(genArgs);
-//        } else {
-//            error("expected a '(' after the generic list in function call");
-//        }
-//        if(consumeToken(TokenType::DotSym)) {
-//            auto value = parseAccessChainRecursive(allocator, chain->values, start_pos, false);
-//            if(!value || value != chain) {
-//                error("expected a identifier after the dot . in the access chain");
-//                return nullptr;
+//    if(token->type == TokenType::LessThanSym && isKindChainValue(first_value->kind())) {
+//        if(isGenericEndAhead()) {
+//            consumeAny(); // consume the turbo fish
+//            AccessChain* chain;
+//            if (first_value->kind() == ValueKind::AccessChain) {
+//                chain = first_value->as_access_chain_unsafe();
+//            } else {
+//                const auto new_chain = new(allocator.allocate<AccessChain>()) AccessChain(loc_single(start_tok));
+//                new_chain->values.emplace_back((ChainValue*) first_value);
+//                chain = new_chain;
+//            };
+//            std::vector<TypeLoc> genArgs;
+//            parseGenericArgsListNoStart(genArgs, allocator);
+//            if (token->type == TokenType::LParen) {
+//                auto call = parseFunctionCall(allocator, chain->values);
+//                call->generic_list = std::move(genArgs);
+//                chain->values.emplace_back(call);
+//            } else {
+//                error("expected a '(' after the generic list in function call");
 //            }
+//            if (consumeToken(TokenType::DotSym)) {
+//                auto value = parseAccessChainRecursive(allocator, chain->values, start_pos, false);
+//                if (!value || value != chain) {
+//                    error("expected a identifier after the dot . in the access chain");
+//                    return nullptr;
+//                }
+//            }
+//            return singlify_chain(chain);
 //        }
-//        return singlify_chain(chain);
 //    }
 
     return parseRemainingExpression(allocator, first_value, &start_tok);

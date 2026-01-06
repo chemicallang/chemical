@@ -21,7 +21,7 @@ static bool read_type_involving_token(Parser& parser) {
     }
     if(type == TokenType::Identifier || Token::isKeyword(type)) {
         parser.token++;
-        while(parser.token->type == TokenType::DoubleColonSym) {
+        while(parser.token->type == TokenType::DoubleColonSym || parser.token->type == TokenType::DotSym) {
             parser.token++;
             const auto next = parser.token->type;
             if(next == TokenType::Identifier || Token::isKeyword(next)) {

@@ -202,8 +202,6 @@ enum class TokenType {
     ColonSym,
     // ::
     DoubleColonSym,
-    // ::<
-    TurboFishSym,
     // !
     NotSym,
     // .

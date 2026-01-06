@@ -370,37 +370,10 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Chai
             // parse access chain recursive
             return parseAccessChainAfterId(allocator, values, start, false, false);
         }
-        case TokenType::TurboFishSym: {
-            consumeAny(); // consume the turbo fish
-            // generic list detected
-            std::vector<TypeLoc> genArgs;
-            parseGenericArgsListNoStart(genArgs, allocator);
-            // generic list -> struct/call
-            switch(token->type) {
-                case TokenType::LBrace:
-                    if(parseStruct) {
-                        const auto ref_type = ref_type_from(allocator, values);
-                        const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
-                        return parseStructValue(allocator, gen_type, start);
-                    } else {
-                        error("unexpected l-brace, struct value not expected");
-                    }
-                    break;
-                case TokenType::LParen: {
-                    auto call = parseFunctionCall(allocator, values);
-                    call->generic_list = std::move(genArgs);
-                    values.emplace_back(call);
-                    return parseAccessChainAfterId(allocator, values, start, false, false);
-                }
-                default:
-                    break;
-            }
-        }
         case TokenType::LessThanSym:
             if(parseGenList && isGenericEndAhead()) {
                 // generic list detected
                 std::vector<TypeLoc> genArgs;
-                warning("use the turbofish operator for faster compilation");
                 consumeAny(); // consume the less than symbol
                 parseGenericArgsListNoStart(genArgs, allocator);
                 // generic list -> struct/call

@@ -352,6 +352,11 @@ void TopLevelLinkSignature::VisitStructValue(StructValue* value) {
 }
 
 void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
+    for(const auto child_node : node->chemical_nodes) {
+        linker.scope_start();
+        visit(child_node);
+        linker.scope_end();
+    }
     for(const auto child_val : node->chemical_values) {
         visit(child_val);
     }
@@ -364,6 +369,11 @@ void TopLevelLinkSignature::VisitEmbeddedNode(EmbeddedNode* node) {
 }
 
 void TopLevelLinkSignature::VisitEmbeddedValue(EmbeddedValue* value) {
+    for(const auto child_node : value->chemical_nodes) {
+        linker.scope_start();
+        visit(child_node);
+        linker.scope_end();
+    }
     for(const auto child_val : value->chemical_values) {
         visit(child_val);
     }

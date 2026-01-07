@@ -19,15 +19,20 @@ struct ValueSpan {
     size_t size;
 };
 
+struct NodeSpan {
+    ASTNode** ptr;
+    size_t size;
+};
+
 extern "C" {
 
     void* ASTBuilderallocate_with_cleanup(ASTBuilder* builder, std::size_t obj_size, std::size_t alignment, void* cleanup_fn);
 
     void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn);
 
-    EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location);
+    EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location);
 
-    EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, ValueSpan* chemical_values, uint64_t location);
+    EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, NodeSpan* chemical_nodes, ValueSpan* chemical_values, uint64_t location);
 
     AnyType* ASTBuildermake_any_type(ASTBuilder* builder, uint64_t location);
 

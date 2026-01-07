@@ -138,15 +138,6 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
 }
 
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
-    // TODO remove this
-    while(true) {
-        const auto type = token->type;
-        if(type == TokenType::NewLine) {
-            token++;
-        } else {
-            break;
-        }
-    }
     switch(token->type) {
         case TokenType::VarKw:
         case TokenType::ConstKw:

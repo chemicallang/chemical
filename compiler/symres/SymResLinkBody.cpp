@@ -1618,6 +1618,11 @@ void SymResLinkBody::VisitPlacementNewNode(PlacementNewNode* node) {
 }
 
 void SymResLinkBody::VisitEmbeddedNode(EmbeddedNode* node) {
+    for(const auto child_node : node->chemical_nodes) {
+        linker.scope_start();
+        visit(child_node);
+        linker.scope_end();
+    }
     for(const auto child_val : node->chemical_values) {
         visit(child_val);
     }
@@ -2338,6 +2343,11 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
+    for(const auto child_node : value->chemical_nodes) {
+        linker.scope_start();
+        visit(child_node);
+        linker.scope_end();
+    }
     for(const auto child_val : value->chemical_values) {
         visit(child_val);
     }

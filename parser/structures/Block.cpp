@@ -101,6 +101,7 @@ std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator,
                 return std::nullopt;
             }
         }
+        consumeNewLines();
         auto nested_stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
         if (nested_stmt) {
             consumeNewLines();

@@ -99,6 +99,7 @@ void ASTBuilderstore_cleanup(ASTBuilder* builder, void* obj, void* cleanup_fn) {
 }
 
 void take_chemical_values(std::vector<Value*>& values, ValueSpan* chemical_values) {
+    if(chemical_values->size == 0) return;
     values.reserve(chemical_values->size);
     auto start = chemical_values->ptr;
     const auto end = start + chemical_values->size;
@@ -108,7 +109,18 @@ void take_chemical_values(std::vector<Value*>& values, ValueSpan* chemical_value
     }
 }
 
-EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location) {
+void take_chemical_nodes(std::vector<ASTNode*>& nodes, NodeSpan* chemical_nodes) {
+    if(chemical_nodes->size == 0) return;
+    nodes.reserve(chemical_nodes->size);
+    auto start = chemical_nodes->ptr;
+    const auto end = start + chemical_nodes->size;
+    while(start != end) {
+        nodes.emplace_back(*start);
+        start++;
+    }
+}
+
+EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_view* name, void* data_ptr, void* known_type_fn, void* child_res_fn, NodeSpan* chemical_nodes, ValueSpan* chemical_values, ASTNode* parent_node, uint64_t location) {
     const auto node = new (builder->allocate<EmbeddedNode>()) EmbeddedNode(
             *name,
             data_ptr,
@@ -117,17 +129,19 @@ EmbeddedNode* ASTBuildermake_embedded_node(ASTBuilder* builder, chem::string_vie
             parent_node,
             location
     );
+    take_chemical_nodes(node->chemical_nodes, chemical_nodes);
     take_chemical_values(node->chemical_values, chemical_values);
     return node;
 }
 
-EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, ValueSpan* chemical_values, uint64_t location) {
+EmbeddedValue* ASTBuildermake_embedded_value(ASTBuilder* builder, chem::string_view* name, void* data_ptr, BaseType* type, NodeSpan* chemical_nodes, ValueSpan* chemical_values, uint64_t location) {
     const auto value = new (builder->allocate<EmbeddedValue>()) EmbeddedValue(
             *name,
             data_ptr,
             type,
             location
     );
+    take_chemical_nodes(value->chemical_nodes, chemical_nodes);
     take_chemical_values(value->chemical_values, chemical_values);
     return value;
 }

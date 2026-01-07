@@ -37,6 +37,11 @@ public:
     EmbeddedNodeChildResolutionFunc* child_res_fn;
 
     /**
+     * all the chemical nodes present inside this embedded node
+     */
+    std::vector<ASTNode*> chemical_nodes;
+
+    /**
      * all the chemical values present inside this embedded node
      */
     std::vector<Value*> chemical_values;

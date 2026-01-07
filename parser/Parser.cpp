@@ -111,12 +111,10 @@ chem::string_view BasicParser::get_file_path() {
 
 void BasicParser::consumeNewLines() {
     while(true) {
-        switch(token->type) {
-            case TokenType::NewLine:
-                token++;
-                break;
-            default:
-                return;
+        if(token->type == TokenType::NewLine) {
+            token++;
+        } else {
+            return;
         }
     }
 }

@@ -19,6 +19,11 @@ public:
     void* data_ptr;
 
     /**
+     * all the chemical nodes present inside this embedded value
+     */
+    std::vector<ASTNode*> chemical_nodes;
+
+    /**
      * all the chemical values present inside this embedded value
      */
     std::vector<Value*> chemical_values;

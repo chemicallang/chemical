@@ -32,6 +32,10 @@ Value* ParserparseExpression(Parser* parser, ASTBuilder* builder, bool parseStru
     return parser->parseExpression(*builder->allocator, parseStruct, parseLambda);
 }
 
+ASTNode* ParserparseNestedLevelStatement(Parser* parser, ASTBuilder* builder) {
+    return parser->parseNestedLevelStatementTokens(*builder->allocator, false, false);
+}
+
 void Parsererror_at(Parser* parser, chem::string_view* view, Token* token) {
     parser->error(*view, token->position);
 }

@@ -105,6 +105,7 @@ const std::pair<chem::string_view, void*> ParserSymMap[] = {
         {"compiler_ParsergetParentNodePtr",    (void*) ParsergetParentNodePtr },
         {"compiler_ParsergetCurrentFilePath",    (void*) ParsergetCurrentFilePath },
         {"compiler_ParserparseExpression",    (void*) ParserparseExpression },
+        {"compiler_ParserparseNestedLevelStatement",    (void*) ParserparseNestedLevelStatement },
         {"compiler_Parsererror_at",    (void*) Parsererror_at },
 };
 

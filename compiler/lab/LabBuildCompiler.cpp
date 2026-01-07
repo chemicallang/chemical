@@ -212,10 +212,6 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
-inline void print_results(ASTFileResult& result, const std::string& abs_path, bool benchmark) {
-    ASTProcessor::print_results(result, chem::string_view(abs_path), benchmark);
-}
-
 typedef void(*ImportCycleHandler)(void* data_ptr, std::vector<unsigned int>& parents, ASTFileResult* imported_file, ASTFileResult* parent, bool direct);
 
 void check_imports_for_cycles(void* data_ptr, ASTFileResult* parent_file, std::vector<unsigned int>& parents, ImportCycleHandler handler) {
@@ -698,11 +694,6 @@ int LabBuildCompiler::process_module_tcc(
     // the module files will have imports, any file imported (from this module or external module will be included)
     const auto parse_success = processor.import_module_files_direct(pool, direct_files, mod);
 
-    // lets print diagnostics for all files in module
-    for(auto& file : direct_files) {
-        print_results(*file.result, file.abs_path, options->benchmark_files);
-    }
-
     // return failure if parse failed
     if(!parse_success) {
         if(verbose) {
@@ -850,11 +841,6 @@ int LabBuildCompiler::process_module_gen(
     // this would import these direct files (lex and parse), into the module files
     // the module files will have imports, any file imported (from this module or external module will be included)
     const auto parse_success = processor.import_module_files_direct(pool, direct_files, mod);
-
-    // lets print diagnostics for all files in module
-    for(auto& file : direct_files) {
-        print_results(*file.result, file.abs_path, options->benchmark_files);
-    }
 
     // return failure if parse failed
     if(!parse_success) {
@@ -2011,13 +1997,20 @@ int LabBuildCompiler::translate_mod_file_to_lab(
     // import the file into result (lex and parse)
     const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
 
-    // TODO check if mod file is ok and report errors appropriately
+    // print the result
+    ASTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePath, "Parser");
+
+    // check
+    if(isModFileOk) {
+        return 1;
+    }
 
     // opening the file
     std::ofstream stream;
     stream.open(outputPath.data());
     if(!stream.is_open()) {
-        // TODO report error
+        std::cerr << rang::fg::red << "error:" << rang::fg::reset << ' ' << "when opening file '" << outputPath << '\'' << std::endl;
+        return 1;
     }
 
     // actual conversion
@@ -2226,9 +2219,6 @@ TCCState* LabBuildCompiler::built_lab_file(
         lab_processor.import_file(labFileResult, buildLabMetaData.file_id, buildLabMetaData.abs_path, true);
     }
 
-    // printing results for module file parsing
-    print_results(labFileResult, path, options->benchmark_files);
-
     // probably an error during parsing
     if(!labFileResult.continue_processing) {
         if(verbose) {
@@ -2257,11 +2247,6 @@ TCCState* LabBuildCompiler::built_lab_file(
         // wait for all files to parse
         auto fut = state.all_done_promise.get_future();
         fut.wait();
-
-        // lets print diagnostics for all files in module
-        for(auto& file : direct_files_in_lab) {
-            print_results(*file.result, file.abs_path, options->benchmark_files);
-        }
 
         // return failure if parse failed
         if(!parseSuccess) {

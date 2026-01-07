@@ -58,7 +58,7 @@ void getFilesInDirectory(std::vector<std::string>& filePaths, const std::filesys
 }
 
 bool ASTProcessor::empty_diags(ASTFileResult& result) {
-    return result.lex_diagnostics.empty() && result.parse_diagnostics.empty() && !result.lex_benchmark && !result.parse_benchmark;
+    return result.lex_diagnostics.empty() && result.parse_diagnostics.empty();
 }
 
 void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark) {
@@ -66,21 +66,12 @@ void ASTProcessor::print_results(ASTFileResult& result, const chem::string_view&
         std::cout << rang::style::bold << rang::fg::magenta << "[Parsed] " << abs_path << rang::fg::reset << rang::style::reset << '\n';
         Diagnoser::print_diagnostics(result.lex_diagnostics, abs_path, "Lexer");
         Diagnoser::print_diagnostics(result.parse_diagnostics, abs_path, "Parser");
-        if (benchmark) {
-            if (result.lex_benchmark) {
-                ASTProcessor::print_benchmarks(std::cout, "Lexer", result.lex_benchmark.get());
-            }
-            if (result.parse_benchmark) {
-                ASTProcessor::print_benchmarks(std::cout, "Parser", result.parse_benchmark.get());
-            }
-        }
-        std::cout << std::flush;
-        // we clear these diagnostics after printing, so next call to print_results doesn't print them
-        result.lex_diagnostics.clear();
-        result.parse_diagnostics.clear();
-        result.lex_benchmark = nullptr;
-        result.parse_benchmark = nullptr;
     }
+    if (benchmark) {
+        ASTProcessor::print_benchmarks(std::cout, "Lexer", &result.lex_benchmark);
+        ASTProcessor::print_benchmarks(std::cout, "Parser", &result.parse_benchmark);
+    }
+    std::cout << std::flush;
 }
 
 void ASTProcessor::determine_module_files(
@@ -403,7 +394,13 @@ ASTFileResult* chem_file_concur_importer_direct(
         ASTFileMetaData& fileData,
         bool use_job_allocator
 ) {
+    // import the file
     processor->import_file(*fileData.result, fileData.file_id, fileData.abs_path, use_job_allocator);
+
+    // print the file results
+    processor->print_file_results(*fileData.result, chem::string_view(fileData.abs_path), processor->options->benchmark_files);
+
+    // return the result
     return fileData.result;
 }
 
@@ -710,6 +707,14 @@ bool ASTProcessor::import_chemical_file_recursive(
 
 }
 
+void ASTProcessor::print_file_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark) {
+    std::lock_guard print_lock(print_mutex);
+    print_results(result, abs_path, benchmark);
+    // after printing we dispose the logs
+    auto moved1 = std::move(result.lex_diagnostics);
+    auto moved2 = std::move(result.parse_diagnostics);
+}
+
 bool ASTProcessor::import_chemical_file(
         ASTFileResult& result,
         unsigned int fileId,
@@ -730,12 +735,13 @@ bool ASTProcessor::import_chemical_file(
     Lexer lexer(std::string(abs_path), *inp_source, &binder, file_allocator);
     std::vector<Token> tokens;
 
+    const auto benchmark = options->benchmark_files;
+
     // actual lexing
-    if(options->benchmark_files) {
-        result.lex_benchmark = std::make_unique<BenchmarkResults>();
-        result.lex_benchmark->benchmark_begin();
+    if(benchmark) {
+        result.lex_benchmark.benchmark_begin();
         lexer.getTokens(tokens);
-        result.lex_benchmark->benchmark_end();
+        result.lex_benchmark.benchmark_end();
     } else {
         lexer.getTokens(tokens);
     }
@@ -750,7 +756,9 @@ bool ASTProcessor::import_chemical_file(
     }
 
     // move lexer diagnostics
-    result.lex_diagnostics = std::move(lexer.diagnoser.diagnostics);
+    if(!lexer.diagnoser.diagnostics.empty()) {
+        result.lex_diagnostics = std::move(lexer.diagnoser.diagnostics);
+    }
 
     // do not continue, if error occurs during lexing
     if(lexer.diagnoser.has_errors) {
@@ -776,18 +784,20 @@ bool ASTProcessor::import_chemical_file(
     parser.parent_node = &result.unit.scope;
 
     // actual parsing
-    if(options->benchmark_files) {
-        result.parse_benchmark = std::make_unique<BenchmarkResults>();
-        result.parse_benchmark->benchmark_begin();
+    if(benchmark) {
+        result.parse_benchmark.benchmark_begin();
         parser.parse(unit.scope.body.nodes);
-        result.parse_benchmark->benchmark_end();
+        result.parse_benchmark.benchmark_end();
     } else {
         parser.parse(unit.scope.body.nodes);
     }
 
     // move parser diagnostics
-    result.parse_diagnostics = std::move(parser.diagnostics);
+    if(!parser.diagnostics.empty()) {
+        result.parse_diagnostics = std::move(parser.diagnostics);
+    }
 
+    // continue
     if(parser.has_errors) {
         result.continue_processing = false;
         return false;

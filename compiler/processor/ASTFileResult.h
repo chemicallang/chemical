@@ -50,13 +50,13 @@ struct ASTFileResult : ASTFileMetaData {
     /**
      * the benchmark results are stored here, if user opted for benchmarking
      */
-    std::unique_ptr<BenchmarkResults> lex_benchmark;
+    BenchmarkResults lex_benchmark;
 
     /**
      * the parsing benchmarks are stored here, if user opted for benchmarking
      * This will be c translation benchmarks, if it's c file
      */
-    std::unique_ptr<BenchmarkResults> parse_benchmark;
+    BenchmarkResults parse_benchmark;
 
     /**
      * constructor

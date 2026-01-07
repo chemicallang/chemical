@@ -100,6 +100,11 @@ public:
     std::mutex import_mutex;
 
     /**
+     * logs and results are printed using this mutex
+     */
+    std::mutex print_mutex;
+
+    /**
      * cache is where files parsed are stored, before parsing the
      * file we search for it in this cache
      */
@@ -171,6 +176,11 @@ public:
      * make a file input source for given path and report error into the given result
      */
     static std::optional<FileInputSource> make_file_input_source(const char* abs_path, ASTFileResult& result);
+
+    /**
+     * prints the result to console
+     */
+    virtual void print_file_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark);
 
     /**
      * this imports the given files in parallel using the given thread pool

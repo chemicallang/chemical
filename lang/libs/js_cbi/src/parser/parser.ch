@@ -86,6 +86,10 @@ public enum JsTokenType {
     Extends,
     Super,
     Static,
+    Import,
+    Export,
+    Yield,
+    Debugger
 }
 
 func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
@@ -229,6 +233,33 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         }
     } else if(token.type == JsTokenType.Class as int) {
         node = jsParser.parseClassDecl(parser, builder);
+    } else if(token.type == JsTokenType.Yield as int) {
+        parser.increment();
+        var delegate = false;
+        if(parser.getToken().type == JsTokenType.Star as int) {
+             parser.increment();
+             delegate = true;
+        }
+        
+        var arg : *mut JsNode = null;
+        // Simple check to see if we should parse an argument
+        const t = parser.getToken();
+        if(t.type != JsTokenType.SemiColon as int && 
+           t.type != JsTokenType.RBrace as int && 
+           t.type != JsTokenType.RParen as int &&
+           t.type != JsTokenType.RBracket as int &&
+           t.type != JsTokenType.Comma as int &&
+           t.type != JsTokenType.Colon as int) {
+             arg = jsParser.parseExpression(parser, builder);
+        }
+        
+        var yieldExpr = builder.allocate<JsYield>()
+        new (yieldExpr) JsYield {
+             base : JsNode { kind : JsNodeKind.Yield },
+             argument : arg,
+             delegate : delegate
+        }
+        node = yieldExpr as *mut JsNode;
     } else if(token.type == JsTokenType.True as int || 
               token.type == JsTokenType.False as int || 
               token.type == JsTokenType.Null as int || 
@@ -1196,6 +1227,18 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             finallyBlock : finallyBlock
         }
         return tryCatch as *mut JsNode;
+    } else if(token.type == JsTokenType.Import as int) {
+        return jsParser.parseImport(parser, builder);
+    } else if(token.type == JsTokenType.Export as int) {
+        return jsParser.parseExport(parser, builder);
+    } else if(token.type == JsTokenType.Debugger as int) {
+        parser.increment();
+        parser.increment_if(JsTokenType.SemiColon as int);
+        var dbg = builder.allocate<JsDebugger>()
+        new (dbg) JsDebugger {
+            base : JsNode { kind : JsNodeKind.Debugger }
+        }
+        return dbg as *mut JsNode;
     } else if(token.type == JsTokenType.LBrace as int) {
         return jsParser.parseBlock(parser, builder);
     } else {
@@ -1215,6 +1258,149 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
     parser.error("unexpected token");
     parser.increment();
     return null;
+}
+
+func (jsParser : &mut JsParser) parseImport(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+    parser.increment(); // consume import
+    
+    var specifiers = std::vector<ImportSpecifier>();
+    
+    // Check if string immediately (import "source")
+    if(parser.getToken().type == JsTokenType.String as int) {
+        var source = builder.allocate_view(parser.getToken().value);
+        parser.increment();
+        parser.increment_if(JsTokenType.SemiColon as int);
+        
+        var imp = builder.allocate<JsImport>()
+        new (imp) JsImport {
+            base : JsNode { kind : JsNodeKind.Import },
+            source : source,
+            specifiers : specifiers
+        }
+        return imp as *mut JsNode;
+    }
+    
+    // Parse specifiers
+    if(parser.getToken().type == JsTokenType.Identifier as int) {
+        // Default import
+        var local = builder.allocate_view(parser.getToken().value);
+        specifiers.push(ImportSpecifier { imported : view("default"), local : local });
+        parser.increment();
+        if(parser.getToken().type == JsTokenType.Comma as int) {
+            parser.increment();
+        }
+    }
+    
+    if(parser.getToken().type == JsTokenType.Star as int) {
+        // Namespace import: * as name
+        parser.increment(); // *
+        if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("as"))) {
+            parser.increment(); // as
+            if(parser.getToken().type == JsTokenType.Identifier as int) {
+                 var local = builder.allocate_view(parser.getToken().value);
+                 specifiers.push(ImportSpecifier { imported : view("*"), local : local });
+                 parser.increment();
+            } else {
+                 parser.error("expected identifier after as");
+            }
+        } else {
+            parser.error("expected as after *");
+        }
+    } else if(parser.getToken().type == JsTokenType.LBrace as int) {
+        parser.increment(); // {
+        while(parser.getToken().type != JsTokenType.RBrace as int) {
+            if(parser.getToken().type == JsTokenType.Identifier as int) {
+                var imported = builder.allocate_view(parser.getToken().value);
+                var local = imported;
+                parser.increment();
+                
+                if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("as"))) {
+                    parser.increment(); // as
+                    if(parser.getToken().type == JsTokenType.Identifier as int) {
+                        local = builder.allocate_view(parser.getToken().value);
+                        parser.increment();
+                    } else {
+                        parser.error("expected identifier after as");
+                    }
+                }
+                
+                specifiers.push(ImportSpecifier { imported : imported, local : local });
+                
+                if(parser.getToken().type == JsTokenType.Comma as int) {
+                    parser.increment();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        if(!parser.increment_if(JsTokenType.RBrace as int)) {
+            parser.error("expected }");
+        }
+    }
+    
+    // Expect 'from'
+    if(parser.getToken().type == JsTokenType.Identifier as int && parser.getToken().value.equals(view("from"))) {
+        parser.increment();
+    } else {
+        parser.error("expected 'from'");
+    }
+    
+    var source = std::string_view();
+    if(parser.getToken().type == JsTokenType.String as int) {
+        source = builder.allocate_view(parser.getToken().value);
+        parser.increment();
+    } else {
+        parser.error("expected string source");
+    }
+    
+    parser.increment_if(JsTokenType.SemiColon as int);
+    
+    var imp2 = builder.allocate<JsImport>()
+    new (imp2) JsImport {
+        base : JsNode { kind : JsNodeKind.Import },
+        source : source,
+        specifiers : specifiers
+    }
+    return imp2 as *mut JsNode;
+}
+
+func (jsParser : &mut JsParser) parseExport(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+    parser.increment(); // consume export
+    var is_default = false;
+    
+    if(parser.getToken().type == JsTokenType.Default as int) {
+        parser.increment();
+        is_default = true;
+    }
+    
+    var decl : *mut JsNode = null;
+    if(is_default) {
+        decl = jsParser.parseExpression(parser, builder);
+    } else {
+        if(parser.getToken().type == JsTokenType.LBrace as int) {
+             parser.error("export { ... } not yet implemented");
+             // Just consume to avoid infinite loop if user tries
+             parser.increment();
+             while(parser.getToken().type != JsTokenType.RBrace as int && parser.getToken().type != JsTokenType.EndOfFile as int) {
+                 parser.increment();
+             }
+             parser.increment_if(JsTokenType.RBrace as int);
+        } else {
+             decl = jsParser.parseStatement(parser, builder);
+        }
+    }
+    
+    parser.increment_if(JsTokenType.SemiColon as int);
+    
+    var exp = builder.allocate<JsExport>()
+    new (exp) JsExport {
+        base : JsNode { kind : JsNodeKind.Export },
+        declaration : decl,
+        is_default : is_default
+    }
+    return exp as *mut JsNode;
 }
 
 func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {

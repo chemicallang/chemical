@@ -196,7 +196,8 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                  name : name,
                  params : params,
                  body : body,
-                 is_async : true
+                 is_async : true,
+                 is_generator : false
              }
              node = funcDecl as *mut JsNode;
         } else {
@@ -902,11 +903,18 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             name : name,
             params : params,
             body : body,
-            is_async : true
+            is_async : true,
+            is_generator : false
         }
         return funcDecl as *mut JsNode;
     } else if(token.type == JsTokenType.Function as int) {
         parser.increment();
+        var is_generator = false;
+        if(parser.getToken().type == JsTokenType.Star as int) {
+             parser.increment();
+             is_generator = true;
+        }
+        
         const idToken = parser.getToken();
         var name = std::string_view();
         if(idToken.type == JsTokenType.Identifier as int) {
@@ -949,7 +957,8 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             name : name,
             params : params,
             body : body,
-            is_async : false
+            is_async : false,
+            is_generator : is_generator
         }
         return funcDecl as *mut JsNode;
     } else if(token.type == JsTokenType.For as int) {

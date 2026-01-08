@@ -241,7 +241,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.FunctionDecl => {
             var func_decl = node as *mut JsFunctionDecl
             if(func_decl.is_async) converter.str.append_view("async ")
-            converter.str.append_view("function ")
+            converter.str.append_view("function")
+            if(func_decl.is_generator) converter.str.append_view("*")
+            converter.str.append_view(" ")
             converter.str.append_view(func_decl.name)
             converter.str.append_view("(")
             var i = 0u
@@ -513,6 +515,74 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 i++
             }
             converter.str.append_view("}")
+        }
+        JsNodeKind.Debugger => {
+             converter.str.append_view("debugger;")
+        }
+        JsNodeKind.Import => {
+             var imp = node as *mut JsImport
+             converter.str.append_view("import ")
+             if(!imp.specifiers.empty()) {
+                 if(imp.specifiers.get(0).imported.equals(view("default"))) {
+                     converter.str.append_view(imp.specifiers.get(0).local)
+                     if(imp.specifiers.size() > 1) {
+                         converter.str.append_view(", {")
+                         var i = 1u
+                         var found = false
+                         while(i < imp.specifiers.size()) {
+                             if(found) converter.str.append_view(", ")
+                             var s = imp.specifiers.get_ptr(i)
+                             if(!s.imported.equals(view("*"))) {
+                                  converter.str.append_view(s.imported)
+                                  if(!s.imported.equals(s.local)) {
+                                       converter.str.append_view(" as ")
+                                       converter.str.append_view(s.local)
+                                  }
+                                  found = true
+                             }
+                             i++
+                         }
+                         converter.str.append_view("}")
+                     }
+                 } else if(imp.specifiers.get(0).imported.equals(view("*"))) {
+                     converter.str.append_view("* as ")
+                     converter.str.append_view(imp.specifiers.get(0).local)
+                 } else {
+                     converter.str.append_view("{")
+                     var i = 0u
+                     while(i < imp.specifiers.size()) {
+                         if(i > 0) converter.str.append_view(", ")
+                         var s = imp.specifiers.get_ptr(i)
+                         converter.str.append_view(s.imported)
+                         if(!s.imported.equals(s.local)) {
+                              converter.str.append_view(" as ")
+                              converter.str.append_view(s.local)
+                         }
+                         i++
+                     }
+                     converter.str.append_view("}")
+                 }
+                 converter.str.append_view(" from ")
+             }
+             converter.str.append_view(imp.source)
+             converter.str.append_view(";")
+        }
+        JsNodeKind.Export => {
+             var exp = node as *mut JsExport
+             converter.str.append_view("export ")
+             if(exp.is_default) converter.str.append_view("default ")
+             if(exp.declaration != null) {
+                 converter.convertJsNode(exp.declaration)
+             }
+        }
+        JsNodeKind.Yield => {
+             var yld = node as *mut JsYield
+             converter.str.append_view("yield")
+             if(yld.delegate) converter.str.append_view("*")
+             if(yld.argument != null) {
+                 converter.str.append_view(" ")
+                 converter.convertJsNode(yld.argument)
+             }
         }
     }
 }

@@ -337,3 +337,54 @@ public func test_classes(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), """class Person {constructor(name) {this.name = name;}sayHello() {console.log("Hello " + this.name);}}class Employee extends Person {constructor(name, id) {super(name);this.id = id;}}""");
 }
+
+@test
+public func test_import_statements(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        import x from "module";
+        import "style.css";
+        import * as utils from "utils";
+        import { foo, bar } from "libs";
+        import { foo as f } from "libs";
+    }
+    string_equals(env, page.toStringJsOnly(), """import x from "module";import "style.css";import * as utils from "utils";import { foo, bar } from "libs";import { foo as f } from "libs";""");
+}
+
+@test
+public func test_export_statements(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        export default 10;
+        // export default function() {};
+        export var x = 1;
+        export const y = 2;
+        export function z() {}
+        export class C {}
+    }
+    string_equals(env, page.toStringJsOnly(), """export default 10;export default function() {};export var x = 1;export const y = 2;export function z() {}export class C {}""");
+}
+
+@test
+public func test_yield_in_functions(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        function* gen() {
+            yield 1;
+            yield* other();
+            var x = yield 2;
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), """function* gen() { yield 1; yield* other(); var x = yield 2; }""");
+}
+
+@test
+public func test_debugger_statement(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        function gen() {
+            debugger;
+        }
+    }
+    string_equals(env, page.toStringJsOnly(), """function gen() { debugger; }""");
+}

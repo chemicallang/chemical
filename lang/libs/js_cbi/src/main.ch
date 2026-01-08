@@ -217,8 +217,37 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.SlashEqual as int, value : view("/="), position : position }
+            } else if(provider.peek() == '/') {
+                // Single line comment
+                provider.readCharacter(); // consume /
+                while(true) {
+                    const next = provider.peek();
+                    if(next == '\n' || next == '\0') {
+                        break;
+                    }
+                    provider.readCharacter();
+                }
+                // Recursively get next token after comment
+                return getNextToken(js, lexer);
+            } else if(provider.peek() == '*') {
+                // Multi line comment
+                provider.readCharacter(); // consume *
+                while(true) {
+                    const next = provider.peek();
+                    if(next == '\0') break;
+                    if(next == '*') {
+                         provider.readCharacter();
+                         if(provider.peek() == '/') {
+                             provider.readCharacter();
+                             break;
+                         }
+                         continue;
+                    }
+                    provider.readCharacter();
+                }
+                // Recursively get next token after comment
+                return getNextToken(js, lexer);
             }
-            // TODO handle comments
             return Token { type : JsTokenType.Slash as int, value : view("/"), position : position }
         }
         '&' => {

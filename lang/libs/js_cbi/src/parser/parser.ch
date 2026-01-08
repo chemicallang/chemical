@@ -908,12 +908,11 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
     } else if(token.type == JsTokenType.Function as int) {
         parser.increment();
         const idToken = parser.getToken();
-        if(idToken.type != JsTokenType.Identifier as int) {
-            parser.error("expected identifier");
-            return null;
+        var name = std::string_view();
+        if(idToken.type == JsTokenType.Identifier as int) {
+            name = builder.allocate_view(idToken.value);
+            parser.increment();
         }
-        var name = builder.allocate_view(idToken.value);
-        parser.increment();
         
         if(!parser.increment_if(JsTokenType.LParen as int)) {
             parser.error("expected (");

@@ -34,6 +34,19 @@ public func expressive_strings_work(env : &mut TestEnv) {
 }
 
 @test
+public func chemical_nodes_work(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>
+            @{for(var i = 0;i < 2; i++) {
+                #html { <span>{i}</span> }
+            }}
+        </div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div><span>0</span><span>1</span></div>");
+}
+
+@test
 public func if_works_1(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = true;

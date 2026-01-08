@@ -24,6 +24,11 @@ public enum TokenType {
 
     FwdSlash,
 
+    // @
+    At,
+    // @{
+    ChemicalNodeStart,
+
     // <!DOC
     DeclarationStart,
     // <!--
@@ -31,7 +36,6 @@ public enum TokenType {
     CommentText,
 
     If,
-    Else,
-    For
+    Else
 
 }

@@ -9,4 +9,6 @@ struct HtmlRoot {
 
     var dyn_values : std::vector<*mut Value>
 
+    var dyn_nodes : std::vector<*mut ASTNode>
+
 }

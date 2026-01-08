@@ -65,8 +65,7 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
         const type = builder.make_string_type(loc)
-        const nodes_arr : []*mut ASTNode = []
-        const value = builder.make_embedded_value(std::string_view("html"), root, type, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc);
+        const value = builder.make_embedded_value(std::string_view("html"), root, type, std::span<*mut ASTNode>(root.dyn_nodes.data(), root.dyn_nodes.size()), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }
@@ -83,7 +82,7 @@ public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder)
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);
         const nodes_arr : []*mut ASTNode = []
-        const node = builder.make_embedded_node(std::string_view("html"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
+        const node = builder.make_embedded_node(std::string_view("html"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(root.dyn_nodes.data(), root.dyn_nodes.size()), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the html macro");
         }

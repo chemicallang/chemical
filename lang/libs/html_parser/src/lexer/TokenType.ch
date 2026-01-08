@@ -24,8 +24,6 @@ public enum TokenType {
 
     FwdSlash,
 
-    // @
-    At,
     // @{
     ChemicalNodeStart,
 

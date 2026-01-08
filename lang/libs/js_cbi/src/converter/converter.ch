@@ -573,6 +573,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              if(exp.is_default) converter.str.append_view("default ")
              if(exp.declaration != null) {
                  converter.convertJsNode(exp.declaration)
+                 if(exp.is_default && 
+                    exp.declaration.kind != JsNodeKind.FunctionDecl && 
+                    exp.declaration.kind != JsNodeKind.ClassDecl) {
+                     converter.str.append_view(";")
+                 }
              }
         }
         JsNodeKind.Yield => {

@@ -456,6 +456,13 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             // we can just skip comments
             // TODO provide an option to write out comments
         }
+        HtmlChildKind.ChemicalNode => {
+            if(!str.empty()) {
+                converter.put_chain_in();
+            }
+            const chem_child = child as *mut HtmlChemNodeChild
+            converter.vec.push(chem_child.node)
+        }
         HtmlChildKind.ChemicalValue => {
             if(!str.empty()) {
                 converter.put_chain_in();

@@ -67,6 +67,26 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 }
             }
         }
+        '@' => {
+            if(provider.peek() == '{') {
+                provider.readCharacter();
+                html.other_mode = true;
+                html.chemical_mode = true;
+                html.chem_start_lb = html.lb_count;
+                html.lb_count++;
+                return Token {
+                    type : TokenType.ChemicalNodeStart as int,
+                    value : view("@{"),
+                    position : position
+                }
+            } else {
+                return Token {
+                    type : TokenType.At as int,
+                    value : view("@"),
+                    position : position
+                }
+            }
+        }
         '}' => {
             if(html.lb_count == 1) {
                 html.reset();
@@ -200,7 +220,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     const value = std::string_view(start, provider.current_data() - start)
                     const hash = fnv1_hash_view(value);
                     switch(hash) {
-                        comptime_fnv1_hash("if"), comptime_fnv1_hash("for") => {
+                        comptime_fnv1_hash("if") => {
                             provider.skip_whitespaces();
                             if(provider.peek() == '(') {
                                 html.other_mode = true;
@@ -210,7 +230,7 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             }
                             html.expecting_html_block = false;
                             return Token {
-                                type : if(hash == comptime_fnv1_hash("if")) TokenType.If as int else TokenType.For as int,
+                                type : TokenType.If as int,
                                 value : value,
                                 position : position
                             }

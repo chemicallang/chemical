@@ -19,6 +19,37 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
 
         return null;
 
+    } else if(current.type == TokenType.ChemicalNodeStart) {
+
+        parser.increment();
+
+        var value_child = builder.allocate<HtmlChemNodeChild>();
+        new (value_child) HtmlChemNodeChild {
+            HtmlChild : HtmlChild {
+                kind : HtmlChildKind.ChemicalNode
+            },
+            node : null
+        }
+
+        const expr = parser.parseNestedLevelStatement(builder)
+        if(expr != null) {
+            value_child.node = expr;
+            htmlParser.dyn_nodes.push(expr)
+        } else {
+            parser.error("expected a chemical node for html child");
+        }
+
+        const next = parser.getToken();
+        if(next.type == ChemicalTokenType.RBrace) {
+            parser.increment();
+        } else {
+            printf("boo has error %s\n", parser.getToken().value.data())
+            fflush(null)
+            parser.error("expected a rbrace after the chemical value")
+        }
+
+        return value_child;
+
     } else if(current.type == TokenType.LBrace) {
 
         parser.increment();

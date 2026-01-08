@@ -121,8 +121,8 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 
             } else {
                 return Token {
-                    type : TokenType.At as int,
-                    value : view("@"),
+                    type : TokenType.Text as int,
+                    value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                     position : position
                 }
             }

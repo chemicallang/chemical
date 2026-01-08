@@ -356,13 +356,13 @@ public func test_export_statements(env : &mut TestEnv) {
     var page = HtmlPage()
     #js {
         export default 10;
-        // export default function() {};
+        export default function() {};
         export var x = 1;
         export const y = 2;
         export function z() {}
         export class C {}
     }
-    string_equals(env, page.toStringJsOnly(), """export default 10;export default function() {};export var x = 1;export const y = 2;export function z() {}export class C {}""");
+    string_equals(env, page.toStringJsOnly(), """export default 10;export default function (){}export var x = 1;export const y = 2;export function z(){}export class C {}""");
 }
 
 @test
@@ -375,7 +375,7 @@ public func test_yield_in_functions(env : &mut TestEnv) {
             var x = yield 2;
         }
     }
-    string_equals(env, page.toStringJsOnly(), """function* gen() {yield 1; yield* other(); var x = yield 2;}""");
+    string_equals(env, page.toStringJsOnly(), """function* gen(){yield 1;yield* other();var x = yield 2;}""");
 }
 
 @test
@@ -386,5 +386,5 @@ public func test_debugger_statement(env : &mut TestEnv) {
             debugger;
         }
     }
-    string_equals(env, page.toStringJsOnly(), """function gen() {debugger;}""");
+    string_equals(env, page.toStringJsOnly(), """function gen(){debugger;}""");
 }

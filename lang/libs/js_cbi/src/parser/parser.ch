@@ -234,6 +234,59 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         }
     } else if(token.type == JsTokenType.Class as int) {
         node = jsParser.parseClassDecl(parser, builder);
+    } else if(token.type == JsTokenType.Function as int) {
+        parser.increment(); // consume function
+        var is_generator = false;
+        if(parser.getToken().type == JsTokenType.Star as int) {
+             parser.increment();
+             is_generator = true;
+        }
+        
+        var name = std::string_view();
+        if(parser.getToken().type == JsTokenType.Identifier as int) {
+             name = builder.allocate_view(parser.getToken().value);
+             parser.increment();
+        }
+        
+        if(!parser.increment_if(JsTokenType.LParen as int)) {
+             parser.error("expected (");
+        }
+        
+        var params = std::vector<std::string_view>();
+        if(parser.getToken().type != JsTokenType.RParen as int) {
+            while(true) {
+                const paramToken = parser.getToken();
+                if(paramToken.type != JsTokenType.Identifier as int) {
+                    parser.error("expected identifier");
+                    break;
+                }
+                params.push(builder.allocate_view(paramToken.value));
+                parser.increment();
+                
+                if(parser.getToken().type == JsTokenType.Comma as int) {
+                    parser.increment();
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        if(!parser.increment_if(JsTokenType.RParen as int)) {
+             parser.error("expected )");
+        }
+        
+        var body = jsParser.parseBlock(parser, builder);
+        
+        var funcDecl = builder.allocate<JsFunctionDecl>()
+        new (funcDecl) JsFunctionDecl {
+             base : JsNode { kind : JsNodeKind.FunctionDecl },
+             name : name,
+             params : params,
+             body : body,
+             is_async : false,
+             is_generator : is_generator
+        }
+        node = funcDecl as *mut JsNode;
     } else if(token.type == JsTokenType.Yield as int) {
         parser.increment();
         var delegate = false;

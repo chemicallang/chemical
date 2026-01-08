@@ -28,7 +28,11 @@ public enum JsNodeKind {
     ForIn,
     ForOf,
     Spread,
-    ClassDecl
+    ClassDecl,
+    Import,
+    Export,
+    Yield,
+    Debugger
 }
 
 public struct JsNode {
@@ -232,4 +236,39 @@ public struct JsClassDecl {
     var name : std::string_view
     var superClass : std::string_view // optional
     var methods : std::vector<JsClassMethod>
+}
+
+public struct JsImport {
+    var base : JsNode
+    var source : std::string_view
+    // Simple import for now: import { x } from "y" or import "y"
+    // For now just storing raw source string or assuming specific structure?
+    // Let's store specifiers as string for now if we don't parse them fully, 
+    // but better to parse them.
+    // Let's assume generic structure for now:
+    // import parts from "source";
+    var specifiers : std::vector<ImportSpecifier>
+}
+
+public struct ImportSpecifier {
+    var imported : std::string_view
+    var local : std::string_view
+}
+
+public struct JsExport {
+    var base : JsNode
+    // export var x = ...;
+    // export default ...;
+    var declaration : *mut JsNode
+    var is_default : bool
+}
+
+public struct JsYield {
+    var base : JsNode
+    var argument : *mut JsNode
+    var delegate : bool
+}
+
+public struct JsDebugger {
+    var base : JsNode
 }

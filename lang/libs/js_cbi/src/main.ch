@@ -320,82 +320,54 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(isalpha(c as int) || c == '_') {
                 provider.read_identifier();
                 const val = std::string_view(data_ptr, provider.current_data() - data_ptr);
-                if(val.equals(view("var"))) {
-                    return Token { type : JsTokenType.Var as int, value : val, position : position }
-                } else if(val.equals(view("const"))) {
-                    return Token { type : JsTokenType.Const as int, value : val, position : position }
-                } else if(val.equals(view("let"))) {
-                    return Token { type : JsTokenType.Let as int, value : val, position : position }
-                } else if(val.equals(view("for"))) {
-                    return Token { type : JsTokenType.For as int, value : val, position : position }
-                } else if(val.equals(view("while"))) {
-                    return Token { type : JsTokenType.While as int, value : val, position : position }
-                } else if(val.equals(view("break"))) {
-                    return Token { type : JsTokenType.Break as int, value : val, position : position }
-                } else if(val.equals(view("continue"))) {
-                    return Token { type : JsTokenType.Continue as int, value : val, position : position }
-                } else if(val.equals(view("switch"))) {
-                    return Token { type : JsTokenType.Switch as int, value : val, position : position }
-                } else if(val.equals(view("case"))) {
-                    return Token { type : JsTokenType.Case as int, value : val, position : position }
-                } else if(val.equals(view("default"))) {
-                    return Token { type : JsTokenType.Default as int, value : val, position : position }
-                } else if(val.equals(view("do"))) {
-                    return Token { type : JsTokenType.Do as int, value : val, position : position }
-                } else if(val.equals(view("try"))) {
-                    return Token { type : JsTokenType.Try as int, value : val, position : position }
-                } else if(val.equals(view("catch"))) {
-                    return Token { type : JsTokenType.Catch as int, value : val, position : position }
-                } else if(val.equals(view("finally"))) {
-                    return Token { type : JsTokenType.Finally as int, value : val, position : position }
-                } else if(val.equals(view("throw"))) {
-                    return Token { type : JsTokenType.Throw as int, value : val, position : position }
-                } else if(val.equals(view("function"))) {
-                    return Token { type : JsTokenType.Function as int, value : val, position : position }
-                } else if(val.equals(view("return"))) {
-                    return Token { type : JsTokenType.Return as int, value : val, position : position }
-                } else if(val.equals(view("if"))) {
-                    return Token { type : JsTokenType.If as int, value : val, position : position }
-                } else if(val.equals(view("else"))) {
-                    return Token { type : JsTokenType.Else as int, value : val, position : position }
-                } else if(val.equals(view("true"))) {
-                    return Token { type : JsTokenType.True as int, value : val, position : position }
-                } else if(val.equals(view("false"))) {
-                    return Token { type : JsTokenType.False as int, value : val, position : position }
-                } else if(val.equals(view("null"))) {
-                    return Token { type : JsTokenType.Null as int, value : val, position : position }
-                } else if(val.equals(view("undefined"))) {
-                    return Token { type : JsTokenType.Undefined as int, value : view("undefined"), position : position }
-                } else if(val.equals(view("new"))) {
-                    return Token { type : JsTokenType.New as int, value : val, position : position }
-                } else if(val.equals(view("async"))) {
-                    return Token { type : JsTokenType.Async as int, value : val, position : position }
-                } else if(val.equals(view("await"))) {
-                    return Token { type : JsTokenType.Await as int, value : val, position : position }
-                } else if(val.equals(view("this"))) {
-                    return Token { type : JsTokenType.This as int, value : val, position : position }
-                } else if(val.equals(view("of"))) {
-                    return Token { type : JsTokenType.Of as int, value : val, position : position }
-                } else if(val.equals(view("typeof"))) {
-                    return Token { type : JsTokenType.Typeof as int, value : val, position : position }
-                } else if(val.equals(view("void"))) {
-                    return Token { type : JsTokenType.Void as int, value : val, position : position }
-                } else if(val.equals(view("delete"))) {
-                    return Token { type : JsTokenType.Delete as int, value : val, position : position }
-                } else if(val.equals(view("in"))) {
-                    return Token { type : JsTokenType.In as int, value : val, position : position }
-                } else if(val.equals(view("instanceof"))) {
-                    return Token { type : JsTokenType.InstanceOf as int, value : val, position : position }
-                } else if(val.equals(view("class"))) {
-                    return Token { type : JsTokenType.Class as int, value : val, position : position }
-                } else if(val.equals(view("extends"))) {
-                    return Token { type : JsTokenType.Extends as int, value : val, position : position }
-                } else if(val.equals(view("super"))) {
-                    return Token { type : JsTokenType.Super as int, value : val, position : position }
-                } else if(val.equals(view("static"))) {
-                    return Token { type : JsTokenType.Static as int, value : val, position : position }
+                const hash = fnv1_hash_view(val);
+                
+                switch(hash) {
+                    comptime_fnv1_hash("var") => { return Token { type : JsTokenType.Var as int, value : val, position : position } }
+                    comptime_fnv1_hash("const") => { return Token { type : JsTokenType.Const as int, value : val, position : position } }
+                    comptime_fnv1_hash("let") => { return Token { type : JsTokenType.Let as int, value : val, position : position } }
+                    comptime_fnv1_hash("for") => { return Token { type : JsTokenType.For as int, value : val, position : position } }
+                    comptime_fnv1_hash("while") => { return Token { type : JsTokenType.While as int, value : val, position : position } }
+                    comptime_fnv1_hash("break") => { return Token { type : JsTokenType.Break as int, value : val, position : position } }
+                    comptime_fnv1_hash("continue") => { return Token { type : JsTokenType.Continue as int, value : val, position : position } }
+                    comptime_fnv1_hash("switch") => { return Token { type : JsTokenType.Switch as int, value : val, position : position } }
+                    comptime_fnv1_hash("case") => { return Token { type : JsTokenType.Case as int, value : val, position : position } }
+                    comptime_fnv1_hash("default") => { return Token { type : JsTokenType.Default as int, value : val, position : position } }
+                    comptime_fnv1_hash("do") => { return Token { type : JsTokenType.Do as int, value : val, position : position } }
+                    comptime_fnv1_hash("try") => { return Token { type : JsTokenType.Try as int, value : val, position : position } }
+                    comptime_fnv1_hash("catch") => { return Token { type : JsTokenType.Catch as int, value : val, position : position } }
+                    comptime_fnv1_hash("finally") => { return Token { type : JsTokenType.Finally as int, value : val, position : position } }
+                    comptime_fnv1_hash("throw") => { return Token { type : JsTokenType.Throw as int, value : val, position : position } }
+                    comptime_fnv1_hash("function") => { return Token { type : JsTokenType.Function as int, value : val, position : position } }
+                    comptime_fnv1_hash("return") => { return Token { type : JsTokenType.Return as int, value : val, position : position } }
+                    comptime_fnv1_hash("if") => { return Token { type : JsTokenType.If as int, value : val, position : position } }
+                    comptime_fnv1_hash("else") => { return Token { type : JsTokenType.Else as int, value : val, position : position } }
+                    comptime_fnv1_hash("true") => { return Token { type : JsTokenType.True as int, value : val, position : position } }
+                    comptime_fnv1_hash("false") => { return Token { type : JsTokenType.False as int, value : val, position : position } }
+                    comptime_fnv1_hash("null") => { return Token { type : JsTokenType.Null as int, value : val, position : position } }
+                    comptime_fnv1_hash("undefined") => { return Token { type : JsTokenType.Undefined as int, value : view("undefined"), position : position } }
+                    comptime_fnv1_hash("new") => { return Token { type : JsTokenType.New as int, value : val, position : position } }
+                    comptime_fnv1_hash("async") => { return Token { type : JsTokenType.Async as int, value : val, position : position } }
+                    comptime_fnv1_hash("await") => { return Token { type : JsTokenType.Await as int, value : val, position : position } }
+                    comptime_fnv1_hash("this") => { return Token { type : JsTokenType.This as int, value : val, position : position } }
+                    comptime_fnv1_hash("of") => { return Token { type : JsTokenType.Of as int, value : val, position : position } }
+                    comptime_fnv1_hash("typeof") => { return Token { type : JsTokenType.Typeof as int, value : val, position : position } }
+                    comptime_fnv1_hash("void") => { return Token { type : JsTokenType.Void as int, value : val, position : position } }
+                    comptime_fnv1_hash("delete") => { return Token { type : JsTokenType.Delete as int, value : val, position : position } }
+                    comptime_fnv1_hash("in") => { return Token { type : JsTokenType.In as int, value : val, position : position } }
+                    comptime_fnv1_hash("instanceof") => { return Token { type : JsTokenType.InstanceOf as int, value : val, position : position } }
+                    comptime_fnv1_hash("class") => { return Token { type : JsTokenType.Class as int, value : val, position : position } }
+                    comptime_fnv1_hash("extends") => { return Token { type : JsTokenType.Extends as int, value : val, position : position } }
+                    comptime_fnv1_hash("super") => { return Token { type : JsTokenType.Super as int, value : val, position : position } }
+                    comptime_fnv1_hash("static") => { return Token { type : JsTokenType.Static as int, value : val, position : position } }
+                    comptime_fnv1_hash("import") => { return Token { type : JsTokenType.Import as int, value : val, position : position } }
+                    comptime_fnv1_hash("export") => { return Token { type : JsTokenType.Export as int, value : val, position : position } }
+                    comptime_fnv1_hash("yield") => { return Token { type : JsTokenType.Yield as int, value : val, position : position } }
+                    comptime_fnv1_hash("debugger") => { return Token { type : JsTokenType.Debugger as int, value : val, position : position } }
+                    default => {
+                        return Token { type : JsTokenType.Identifier as int, value : val, position : position }
+                    }
                 }
-                return Token { type : JsTokenType.Identifier as int, value : val, position : position }
             } else if(isdigit(c)) {
                 provider.read_digits();
                 return Token { type : JsTokenType.Number as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }

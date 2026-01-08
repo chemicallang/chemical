@@ -79,6 +79,46 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     value : view("@{"),
                     position : position
                 }
+            } else if(!html.has_lt && isalpha(provider.peek() as int)) {
+                
+                // then we have a keyword, lets parse it
+                const start = provider.current_data(); 
+                provider.read_tag_name();
+                const value = std::string_view(start, provider.current_data() - start);
+                const hash = fnv1_hash_view(value);
+
+                switch(hash) {
+                    comptime_fnv1_hash("if") => {
+                         provider.skip_whitespaces();
+                         if(provider.peek() == '(') {
+                            html.other_mode = true;
+                            html.chemical_mode = true;
+                            html.in_paren_expr = true;
+                            html.paren_count = 0;
+                        }
+                        return Token {
+                            type : TokenType.If as int,
+                            value : value,
+                            position : position
+                        }
+                    }
+                    comptime_fnv1_hash("else") => {
+                        html.expecting_html_block = true;
+                        return Token {
+                            type : TokenType.Else as int,
+                            value : value,
+                            position : position
+                        }
+                    }
+                    default => {
+                        return Token {
+                            type : TokenType.Text as int,
+                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                            position : position
+                        }
+                    }
+                }
+
             } else {
                 return Token {
                     type : TokenType.At as int,
@@ -215,37 +255,6 @@ func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 const start = data_ptr;
-                if(isalpha(c)) {
-                    provider.read_tag_name()
-                    const value = std::string_view(start, provider.current_data() - start)
-                    const hash = fnv1_hash_view(value);
-                    switch(hash) {
-                        comptime_fnv1_hash("if") => {
-                            provider.skip_whitespaces();
-                            if(provider.peek() == '(') {
-                                html.other_mode = true;
-                                html.chemical_mode = true;
-                                html.in_paren_expr = true;
-                                html.paren_count = 0;
-                            }
-                            html.expecting_html_block = false;
-                            return Token {
-                                type : TokenType.If as int,
-                                value : value,
-                                position : position
-                            }
-                        }
-                        comptime_fnv1_hash("else") => {
-                            html.expecting_html_block = true;
-                            return Token {
-                                type : TokenType.Else as int,
-                                value : value,
-                                position : position
-                            }
-                        }
-                    }
-                }
-                html.expecting_html_block = false;
                 provider.read_text()
                 return Token {
                     type : TokenType.Text as int,

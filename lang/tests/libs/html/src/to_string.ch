@@ -51,11 +51,11 @@ public func if_works_1(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = true;
     #html {
-        if(condition) {
+        @if(condition) {
             <div>
                 <div>Normal Text</div>
             </div>
-        } else {
+        } @else {
             <div>
                 <div>Normal Text2</div>
             </div>
@@ -69,11 +69,11 @@ public func if_works_2(env : &mut TestEnv) {
     var page = HtmlPage()
     var condition = false;
     #html {
-        if(condition) {
+        @if(condition) {
             <div>
                 <div>Normal Text</div>
             </div>
-        } else {
+        } @else {
             <div>
                 <div>Normal Text2</div>
             </div>

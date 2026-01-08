@@ -348,7 +348,7 @@ public func test_import_statements(env : &mut TestEnv) {
         import { foo, bar } from "libs";
         import { foo as f } from "libs";
     }
-    string_equals(env, page.toStringJsOnly(), """import x from "module";import "style.css";import * as utils from "utils";import { foo, bar } from "libs";import { foo as f } from "libs";""");
+    string_equals(env, page.toStringJsOnly(), """import x from "module";import "style.css";import * as utils from "utils";import {foo, bar} from "libs";import {foo as f} from "libs";""");
 }
 
 @test
@@ -375,7 +375,7 @@ public func test_yield_in_functions(env : &mut TestEnv) {
             var x = yield 2;
         }
     }
-    string_equals(env, page.toStringJsOnly(), """function* gen() { yield 1; yield* other(); var x = yield 2; }""");
+    string_equals(env, page.toStringJsOnly(), """function* gen() {yield 1; yield* other(); var x = yield 2;}""");
 }
 
 @test
@@ -386,5 +386,5 @@ public func test_debugger_statement(env : &mut TestEnv) {
             debugger;
         }
     }
-    string_equals(env, page.toStringJsOnly(), """function gen() { debugger; }""");
+    string_equals(env, page.toStringJsOnly(), """function gen() {debugger;}""");
 }

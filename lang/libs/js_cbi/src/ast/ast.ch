@@ -104,6 +104,7 @@ public struct JsFunctionDecl {
     var params : std::vector<std::string_view>
     var body : *mut JsNode
     var is_async : bool
+    var is_generator : bool
 }
 
 public struct JsMemberAccess {

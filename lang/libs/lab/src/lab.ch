@@ -76,8 +76,6 @@ public enum CBIFunctionType {
     SymResValue,
     ReplacementNode,
     ReplacementValue,
-    TraversalNode,
-    TraversalValue,
     SemanticTokensPut,
     FoldingRangesPut
 }

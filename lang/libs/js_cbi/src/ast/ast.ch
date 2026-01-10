@@ -32,7 +32,14 @@ public enum JsNodeKind {
     Import,
     Export,
     Yield,
-    Debugger
+    Debugger,
+    ComponentDecl,
+    JSXElement,
+    JSXExpressionContainer,
+    JSXText,
+    JSXFragment,
+    JSXAttribute,
+    JSXSpreadAttribute
 }
 
 public struct JsNode {

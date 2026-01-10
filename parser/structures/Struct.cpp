@@ -169,7 +169,7 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpeci
         case TokenType::AliasKw:
             return (ASTNode*) parser.parseAliasStatement(allocator, specifier);
         case TokenType::HashMacro:
-            return parser.parseMacroNode(allocator, CBIFunctionType::ParseMacroMemberNode);
+            return parser.parseMacroNodeTopLevel(allocator, specifier, CBIFunctionType::ParseMacroMemberNode);
         case TokenType::IfKw:
             return (ASTNode*) parseMemberIfStatement(parser, allocator, specifier);
         case TokenType::TypeKw:

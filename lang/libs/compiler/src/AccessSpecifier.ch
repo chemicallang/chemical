@@ -1,6 +1,6 @@
 public enum AccessSpecifier {
-    Private,
-    Public,
+    Private = 0,
     Protected,
-    Internal
+    Internal,
+    Public
 }

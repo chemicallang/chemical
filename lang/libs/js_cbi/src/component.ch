@@ -16,7 +16,7 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
 }
 
 @no_mangle
-public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
     // #component Greeting(params) { body }
     // Token #component is already consumed ? No, this is called as callback for #component macro.
     // The parser is AFTER #component.

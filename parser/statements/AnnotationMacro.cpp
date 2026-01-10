@@ -78,11 +78,31 @@ Value* Parser::parseMacroValue(ASTAllocator& allocator) {
     return nullptr;
 }
 
-ASTNode* Parser::parseMacroNode(ASTAllocator& allocator, CBIFunctionType type) {
+ASTNode* Parser::parseMacroNodeTopLevel(ASTAllocator& allocator, AccessSpecifier spec, CBIFunctionType type) {
     auto& t = *token;
     if(t.type == TokenType::HashMacro) {
         const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
         auto found = binder->findHook(view, type);
+        if(found) {
+            token++;
+            ASTBuilder builder(&allocator, typeBuilder);
+            const auto parsedNode = (EmbeddedParseMacroNodeTopLevelFn (found))(this, &builder, (int) spec);
+#ifdef LSP_BUILD
+            t.linked = parsedNode;
+#endif
+            return parsedNode;
+        } else {
+            error() << "couldn't find macro parser for '" << t.value << "'";
+        }
+    }
+    return nullptr;
+}
+
+ASTNode* Parser::parseMacroNode(ASTAllocator& allocator) {
+    auto& t = *token;
+    if(t.type == TokenType::HashMacro) {
+        const auto view = chem::string_view(t.value.data() + 1, t.value.size() - 1);
+        auto found = binder->findHook(view, CBIFunctionType::ParseMacroNode);
         if(found) {
             token++;
             ASTBuilder builder(&allocator, typeBuilder);

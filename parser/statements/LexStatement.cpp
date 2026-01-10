@@ -52,6 +52,8 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
         case TokenType::VarKw:
         case TokenType::ConstKw:
             return parseVarInitializationTokens(allocator, spec, true, false, true, comptime);
+        case TokenType::HashMacro:
+            return parseMacroNodeTopLevel(allocator, spec, CBIFunctionType::ParseMacroTopLevelNode);
         case TokenType::InterfaceKw:
             return (ASTNode*) parseInterfaceStructureTokens(allocator, spec);
         case TokenType::ImplKw:
@@ -104,7 +106,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
         case TokenType::UsingKw:
             return (ASTNode*) parseUsingStatement(allocator);
         case TokenType::HashMacro:
-            return parseMacroNode(allocator, CBIFunctionType::ParseMacroTopLevelNode);
+            return parseMacroNodeTopLevel(allocator, AccessSpecifier::Internal, CBIFunctionType::ParseMacroTopLevelNode);
         case TokenType::ProvideKw:
             return (ASTNode*) parseProvideStatement(allocator);
         case TokenType::AliasKw:
@@ -157,7 +159,7 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::AliasKw:
             return (ASTNode*) parseAliasStatement(allocator, AccessSpecifier::Internal);
         case TokenType::HashMacro:
-            return parseMacroNode(allocator, CBIFunctionType::ParseMacroNode);
+            return parseMacroNode(allocator);
         case TokenType::ReturnKw:
             return (ASTNode*) parseReturnStatement(allocator);
         case TokenType::DeallocKw:

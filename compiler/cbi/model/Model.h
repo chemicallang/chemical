@@ -64,6 +64,12 @@ typedef Value*(*EmbeddedParseMacroValueFn)(Parser* parser, ASTBuilder* builder);
 typedef ASTNode*(*EmbeddedParseMacroNodeFn)(Parser* parser, ASTBuilder* builder);
 
 /**
+ * this function is called by parser on a macro as node ex: #html {}
+ * the macro is a node, so a node must be returned from this function
+ */
+typedef ASTNode*(*EmbeddedParseMacroNodeTopLevelFn)(Parser* parser, ASTBuilder* builder, int spec);
+
+/**
  * during link signature this method is called to link the signature of an embedded node
  */
 typedef void(*EmbeddedNodeSymResLinkSignature)(SymbolResolver* resolver, EmbeddedNode* node);
@@ -72,20 +78,6 @@ typedef void(*EmbeddedNodeSymResLinkSignature)(SymbolResolver* resolver, Embedde
  * during link signature this method is called to link the signature of an embedded value
  */
 typedef void(*EmbeddedValueSymResLinkSignature)(SymbolResolver* resolver, EmbeddedValue* value);
-
-/**
- * uses to traverse the embedded node in visitors, for example in symbol resolution
- * to emplace types of nested chemical values
- * in generic instantiator, to replace types that are generics in nested values
- */
-typedef void(*EmbeddedNodeTraversalFunc)(EmbeddedNode* node, void* data, bool(*traverse)(void* data, ASTAny* item));
-
-/**
- * uses to traverse the embedded node in visitors, for example in symbol resolution
- * to emplace types of nested chemical values
- * in generic instantiator, to replace types that are generics in nested values
- */
-typedef void(*EmbeddedValueTraversalFunc)(EmbeddedValue* value, void* data, bool(*traverse)(void* data, ASTAny* item));
 
 /**
  * symbol resolve function is called to provide linking with different nodes during symbol resolution

@@ -969,7 +969,12 @@ public:
     /**
      * parses a macro value node
      */
-    ASTNode* parseMacroNode(ASTAllocator& allocator, CBIFunctionType type);
+    ASTNode* parseMacroNodeTopLevel(ASTAllocator& allocator, AccessSpecifier spec, CBIFunctionType type);
+
+    /**
+     * parses a macro value node
+     */
+    ASTNode* parseMacroNode(ASTAllocator& allocator);
 
     /**
      * parses a number value

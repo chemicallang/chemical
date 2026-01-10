@@ -58,6 +58,12 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementNode"), CBIFunctionType.ReplacementNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementValue"), CBIFunctionType.ReplacementValue);
 
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_replacementNode"), CBIFunctionType.ReplacementNode);
+
     comptime if(def.lsp) {
         // this will let the lsp know that methods are present
         ctx.index_def_cbi_fn(cbi, std::string_view("js_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);

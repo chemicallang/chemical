@@ -89,7 +89,8 @@ public enum JsTokenType {
     Import,
     Export,
     Yield,
-    Debugger
+    Debugger,
+    JSXText
 }
 
 func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
@@ -436,6 +437,9 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
             value : val
         }
         node = chem as *mut JsNode;
+        node = chem as *mut JsNode;
+    } else if(token.type == JsTokenType.LessThan as int) {
+        node = jsParser.parseJSXElement(parser, builder);
     } else if(token.type == JsTokenType.LParen as int) {
         parser.increment();
         

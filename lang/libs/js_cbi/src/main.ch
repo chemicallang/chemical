@@ -138,6 +138,30 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
     const provider = &mut lexer.provider;
     const position = provider.getPosition();
     const data_ptr = provider.current_data()
+    
+    // Check if we are in JSX child mode (and not in expression)
+    // Child mode = jsx_depth > 0 && !in_jsx_tag && jsx_brace_count == 0
+    // But we need to handle transitions.
+    
+    const is_child = js.jsx_depth > 0 && js.in_jsx_tag == 0 && js.jsx_brace_count == 0;
+    
+    if(is_child) {
+        // If we are here, we check if we are at < or { or content
+        const p = provider.peek();
+        if(p != '<' && p != '{' && p != '\0') {
+             // Read text
+             const start_ptr = provider.current_data();
+             while(true) {
+                 const n = provider.peek();
+                 if(n == '<' || n == '{' || n == '\0') {
+                     break;
+                 }
+                 provider.readCharacter();
+             }
+             return Token { type : JsTokenType.JSXText as int, value : std::string_view(start_ptr, provider.current_data() - start_ptr), position : position }
+        }
+    }
+
     const c = provider.readCharacter();
     
     switch(c) {
@@ -156,6 +180,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         }
         '{' => {
             js.lb_count++;
+            if(js.jsx_depth > 0) {
+                 js.jsx_brace_count++;
+            }
             return Token { type : JsTokenType.LBrace as int, value : view("{"), position : position }
         }
         '}' => {
@@ -164,6 +191,10 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 lexer.unsetUserLexer();
             } else {
                 js.lb_count--;
+            }
+            
+            if(js.jsx_depth > 0 && js.jsx_brace_count > 0) {
+                 js.jsx_brace_count--;
             }
             return Token { type : JsTokenType.RBrace as int, value : view("}"), position : position }
         }
@@ -217,6 +248,15 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.SlashEqual as int, value : view("/="), position : position }
+            } else if(provider.peek() == '>') {
+                // /> Self-closing!
+                // If we are in_jsx_tag, and we see />, then we should decrement depth because we incremented at <.
+                if(js.in_jsx_tag == 1) {
+                    if(js.jsx_depth > 0) js.jsx_depth--;
+                    // Note: we don't change in_jsx_tag here, > will do it.
+                }
+                // Return /
+                return Token { type : JsTokenType.Slash as int, value : view("/"), position : position }
             } else if(provider.peek() == '/') {
                 // Single line comment
                 provider.readCharacter(); // consume /
@@ -315,6 +355,53 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 provider.readCharacter();
                 return Token { type : JsTokenType.LeftShift as int, value : view("<<"), position : position }
             }
+            
+            // JSX Heuristic
+            // <Identifier -> Open Tag
+            // </ -> Closing Tag
+            // <> -> Fragment Open
+            
+            const p = provider.peek();
+            
+            // We need to support reading Identifier to check, but we shouldn't consume it if it's not JSX?
+            // Lexer structure returns one token.
+            // But we need to update state.
+            
+            var is_jsx = false;
+            var is_closing = false;
+            
+            if(p == '/') {
+                // </...
+                is_jsx = true;
+                is_closing = true;
+                // We consume /? No, we return <.
+                // But we update state.
+            } else if(p == '>') {
+                // <>
+                is_jsx = true;
+            } else if(isalpha(p as int) || p == '_' || p == '$') {
+                 // <Ident -> likely JSX start?
+                 // Or x < y.
+                 // In #component macro, or inside JSX, <Ident is treated as JSX tag start.
+                 // Outside... standard JS x < y is valid.
+                 // Heuristic: If we are already in JSX (depth > 0), then <Ident is definitely nested tag.
+                 // If depth == 0, we assume it's JSX start if it looks like one?
+                 // Standard JS parser has trouble here too without context.
+                 // But for #component, we prefer JSX.
+                 is_jsx = true;
+            }
+            
+            if(is_jsx) {
+                 if(is_closing) {
+                     // </
+                     if(js.jsx_depth > 0) js.jsx_depth--;
+                 } else {
+                     // <...
+                     js.jsx_depth++;
+                 }
+                 js.in_jsx_tag = 1;
+            }
+            
             return Token { type : JsTokenType.LessThan as int, value : view("<"), position : position }
         }
         '>' => {
@@ -329,6 +416,30 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 }
                 return Token { type : JsTokenType.RightShift as int, value : view(">>"), position : position }
             }
+            
+            // If we are in_jsx_tag, this > closes the tag.
+            // Check for /> self closing.
+            // We can't easily look back.
+            // But assume parser handles flow.
+            // Lexer just needs to know we exited tag.
+            
+            if(js.in_jsx_tag == 1) {
+                js.in_jsx_tag = 0;
+                
+                // If it was self-closing (/>), depth should be decremented?
+                // We don't know here easily if we saw /.
+                // Actually, if we saw /, we decremented depth at <.
+                // Wait. </ ... >.
+                // At <, we saw /. We decremented.
+                // At >, we just exit tag. Depth is correct.
+                
+                // What about <div /> ?
+                // At <, we saw div. Incremented.
+                // At /, we saw >.
+                // We need to handle / inside tag?
+                // / is handled below.
+            }
+            
             return Token { type : JsTokenType.GreaterThan as int, value : view(">"), position : position }
         }
         '"', '\'' => {
@@ -414,7 +525,10 @@ public func js_initializeLexer(lexer : *mut Lexer) {
     const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;
     new (ptr) JsLexer {
         lb_count : 0,
-        chemical_mode : false
+        chemical_mode : false,
+        jsx_depth : 0,
+        in_jsx_tag : 0,
+        jsx_brace_count : 0
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

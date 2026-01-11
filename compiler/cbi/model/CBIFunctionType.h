@@ -14,6 +14,8 @@ enum class CBIFunctionType : int {
 
     ParseMacroMemberNode,
 
+    SymResDeclareTopLevelNode,
+
     SymResLinkSignatureNode,
 
     SymResLinkSignatureValue,

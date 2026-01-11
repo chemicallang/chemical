@@ -72,6 +72,11 @@ typedef ASTNode*(*EmbeddedParseMacroNodeTopLevelFn)(Parser* parser, ASTBuilder* 
 /**
  * during link signature this method is called to link the signature of an embedded node
  */
+typedef void(*EmbeddedNodeSymResDeclareTopLevel)(SymbolResolver* resolver, EmbeddedNode* node);
+
+/**
+ * during link signature this method is called to link the signature of an embedded node
+ */
 typedef void(*EmbeddedNodeSymResLinkSignature)(SymbolResolver* resolver, EmbeddedNode* node);
 
 /**

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cassert>
+#include <mutex>
 #include "std/chem_string_view.h"
 
 class ASTNode;
@@ -143,6 +144,12 @@ private:
     std::unordered_map<chem::string_view, CollectedAnnotation> single_marked;
 
 public:
+
+    /**
+     * this mutex is used to handle detected annotations
+     * because we parse multiple files concurrently
+     */
+    std::mutex handling_mutex;
 
     /**
      * constructor

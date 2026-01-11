@@ -11,6 +11,11 @@ public func component_symResNode(resolver : *mut SymbolResolver, node : *mut Emb
 }
 
 @no_mangle
+public func component_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+    // resolve body of the node
+}
+
+@no_mangle
 public func component_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     return null
 }

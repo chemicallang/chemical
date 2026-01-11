@@ -7,6 +7,7 @@
 #include "ast/statements/Import.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/EmbeddedNode.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
@@ -25,6 +26,8 @@
 #include "NodeSymbolDeclarer.h"
 #include "utils/PathUtils.h"
 #include "DeclareTopLevel.h"
+#include "compiler/cbi/model/CBIFunctionType.h"
+#include "compiler/cbi/model/CompilerBinder.h"
 
 struct FileNodesIterator {
     ASTNode** start;
@@ -243,4 +246,13 @@ void TopLevelDeclSymDeclare::VisitUnionDecl(UnionDef* node) {
 void TopLevelDeclSymDeclare::VisitVariantDecl(VariantDefinition* node) {
     node->take_members_from_parsed_nodes(linker);
     linker.declare_node(node->name_view(), node, node->specifier(), true);
+}
+
+void TopLevelDeclSymDeclare::VisitEmbeddedNode(EmbeddedNode* node) {
+    auto found = linker.binder.findHook(node->name, CBIFunctionType::SymResDeclareTopLevelNode);
+    if(found) {
+        ((EmbeddedNodeSymResDeclareTopLevel) found)(&linker, node);
+    } else {
+        // maybe the node doesn't want to declare a top level symbol
+    }
 }

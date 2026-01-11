@@ -58,4 +58,6 @@ public:
 
     void VisitVariantDecl(VariantDefinition* node);
 
+    void VisitEmbeddedNode(EmbeddedNode* node);
+
 };

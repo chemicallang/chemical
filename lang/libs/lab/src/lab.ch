@@ -70,6 +70,7 @@ public enum CBIFunctionType {
     ParseMacroNode,
     ParseMacroTopLevelNode,
     ParseMacroMemberNode,
+    SymResDeclareTopLevelNode,
     SymResLinkSignatureNode,
     SymResLinkSignatureValue,
     SymResNode,

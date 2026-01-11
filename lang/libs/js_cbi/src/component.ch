@@ -12,7 +12,9 @@ public func component_symResNode(resolver : *mut SymbolResolver, node : *mut Emb
 
 @no_mangle
 public func component_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    // resolve body of the node
+    const loc = intrinsics::get_raw_location();
+    const comp = node.getDataPtr() as *mut JsComponentDecl;
+    resolver.declare(comp.name, node);
 }
 
 @no_mangle
@@ -63,34 +65,28 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         parser.error("expected )");
     }
 
-    // Initialize Root first to handle dynamic values
-    var root = builder.allocate<JsRoot>()
-    new (root) JsRoot {
-         statements : std::vector<*mut JsNode>(),
-         parent : null, 
-         support : SymResSupport {}, 
-         dyn_values : std::vector<*mut Value>()
+    // Initialize Component definition first to handle dynamic values
+    var comp = builder.allocate<JsComponentDecl>()
+    new (comp) JsComponentDecl {
+        base : JsNode { kind : JsNodeKind.ComponentDecl },
+        name : name,
+        params : params,
+        body : null,
+        support : SymResSupport {}, 
+        dyn_values : std::vector<*mut Value>()
     }
 
     var jsParser = JsParser {
-        dyn_values : &mut root.dyn_values
+        dyn_values : &mut comp.dyn_values
     }
     
     if(parser.getToken().type == JsTokenType.LBrace as int) {
         var body = jsParser.parseBlock(parser, builder);
-        var comp = builder.allocate<JsComponentDecl>()
-        new (comp) JsComponentDecl {
-            base : JsNode { kind : JsNodeKind.ComponentDecl },
-            name : name,
-            params : params,
-            body : body
-        }
-        
-        root.statements.push(comp as *mut JsNode);
+        comp.body = body;
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(std::string_view("js_component"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), null, intrinsics::get_raw_location());
+        const node = builder.make_embedded_node(std::string_view("js_component"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, intrinsics::get_raw_location());
         
         return node;
     } else {

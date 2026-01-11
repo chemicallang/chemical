@@ -291,6 +291,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
 
 const std::pair<chem::string_view, void*> SymbolResolverSymMap[] = {
         {"compiler_SymbolResolverfind", (void*) SymbolResolverfind},
+        {"compiler_SymbolResolverdeclare", (void*) SymbolResolverdeclare},
 };
 
 const std::pair<chem::string_view, void*> ASTDiagnoserSymMap[] = {

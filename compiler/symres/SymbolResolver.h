@@ -407,7 +407,7 @@ public:
     void declare_overriding(const chem::string_view &name, ASTNode* node);
 
     /**
-     * declare a symbol that will disposed at the end of this module
+     * declare a symbol
      */
     void declare(const chem::string_view &name, ASTNode *node);
 
@@ -456,7 +456,7 @@ public:
     /**
      * declare a exported symbol
      */
-    void declare_exported(const chem::string_view &name, ASTNode *node) {
+    inline void declare_exported(const chem::string_view &name, ASTNode *node) {
         declare_quietly(name, node);
     }
 

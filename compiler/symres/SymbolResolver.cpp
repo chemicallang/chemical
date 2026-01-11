@@ -46,10 +46,6 @@ void SymbolResolver::dup_runtime_sym_error(const chem::string_view& name, ASTNod
 }
 
 bool SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* node) {
-    if(name == "_") {
-        // symbols with name '_' aren't declared
-        return false;
-    }
     const auto previous = table.declare_no_shadow(name, node);
     if(previous == nullptr) {
         return true;
@@ -123,10 +119,6 @@ void SymbolResolver::declare_overriding(const chem::string_view &name, ASTNode* 
         return;
     }
 #endif
-    if(name == "_") {
-        // symbols with name '_' aren't declared
-        return;
-    }
     // we'll allow it to shadow, since when the scope ends, the previous symbol will become visible
     // we have to see who's calling this method
     table.declare(name, node);

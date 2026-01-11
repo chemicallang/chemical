@@ -6,3 +6,7 @@
 ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name) {
     return resolver->find(*name);
 }
+
+void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node) {
+    resolver->declare(*name, node);
+}

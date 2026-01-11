@@ -16,4 +16,6 @@ extern "C" {
 
     ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name);
 
+    void SymbolResolverdeclare(SymbolResolver* resolver, chem::string_view* name, ASTNode* node);
+
 }

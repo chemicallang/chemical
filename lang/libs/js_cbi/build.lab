@@ -3,6 +3,7 @@ import std
 
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
+import "@html_comp/build.lab" as htmlCompMod
 import "@compiler/build.lab" as compilerMod
 
 using namespace std;
@@ -39,13 +40,19 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return null
     }
 
+    // the html component module
+    var html_comp_module = htmlCompMod.build(ctx, job)
+    if(html_comp_module == null) {
+        return null
+    }
+
     // the std module
     var compiler_module = compilerMod.build(ctx, job);
     if(compiler_module == null) {
         return null
     }
 
-    const dependencies = [ cstd_module, std_module, compiler_module ]
+    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module ]
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("js_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
     ctx.add_module(cbi, module)

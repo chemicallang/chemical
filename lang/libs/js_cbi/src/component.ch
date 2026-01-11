@@ -14,7 +14,7 @@ public func component_symResNode(resolver : *mut SymbolResolver, node : *mut Emb
 public func component_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = intrinsics::get_raw_location();
     const comp = node.getDataPtr() as *mut JsComponentDecl;
-    resolver.declare(comp.name, node);
+    resolver.declare(comp.signature.name, node);
 }
 
 @no_mangle
@@ -42,13 +42,21 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         parser.error("expected (");
     }
 
-    var params = std::vector<std::string_view>();
+    var params = std::vector<ComponentParam>();
     if(parser.getToken().type != JsTokenType.RParen as int) {
         while(true) {
             const t = parser.getToken();
             if(t.type == JsTokenType.Identifier as int) {
-                 params.push(builder.allocate_view(t.value));
+                 var paramName = builder.allocate_view(t.value);
                  parser.increment();
+                 
+                 var is_optional = false;
+                 if(parser.getToken().type == JsTokenType.Question as int) {
+                     is_optional = true;
+                     parser.increment();
+                 }
+                 
+                 params.push(ComponentParam { name : paramName, is_optional : is_optional });
             } else {
                  parser.error("expected identifier param");
                  break;
@@ -69,8 +77,10 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     var comp = builder.allocate<JsComponentDecl>()
     new (comp) JsComponentDecl {
         base : JsNode { kind : JsNodeKind.ComponentDecl },
-        name : name,
-        params : params,
+        signature : ComponentSignature {
+            name : name,
+            params : params
+        },
         body : null,
         support : SymResSupport {}, 
         dyn_values : std::vector<*mut Value>()

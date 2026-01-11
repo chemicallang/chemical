@@ -1,7 +1,6 @@
 public struct JsComponentDecl {
+    var signature : ComponentSignature
     var base : JsNode
-    var name : std::string_view
-    var params : std::vector<std::string_view>
     var body : *mut JsNode
     var support : SymResSupport
     var dyn_values : std::vector<*mut Value>

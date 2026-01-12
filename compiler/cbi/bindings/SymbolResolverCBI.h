@@ -8,11 +8,15 @@ class ASTNode;
 
 class SymbolResolver;
 
+class AnnotationController;
+
 namespace chem {
     class string_view;
 }
 
 extern "C" {
+
+    AnnotationController* SymbolResolvergetAnnotationController(SymbolResolver* resolver);
 
     ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name);
 

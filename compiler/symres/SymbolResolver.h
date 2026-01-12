@@ -23,6 +23,8 @@ class AccessChain;
 
 class FunctionDeclaration;
 
+class AnnotationController;
+
 class ImportPathHandler;
 
 class Scope;
@@ -157,6 +159,11 @@ public:
     ImportPathHandler& path_handler;
 
     /**
+     * the everything related to annotations handler
+     */
+    AnnotationController& controller;
+
+    /**
      * ast allocator is the pointer to the allocator that is used to allocate ast nodes
      * globally, because it is used to store usages of generic types, so they are never disposed
      * because usages of ast types are needed to generate implementations based on usage
@@ -248,6 +255,7 @@ public:
             CompilerBinder& binder,
             GlobalInterpretScope& global,
             ImportPathHandler& handler,
+            AnnotationController& controller,
             InstantiationsContainer& container,
             bool is64Bit,
             ASTAllocator& allocator,

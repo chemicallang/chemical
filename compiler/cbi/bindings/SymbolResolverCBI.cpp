@@ -3,6 +3,10 @@
 #include "./SymbolResolverCBI.h"
 #include "compiler/SymbolResolver.h"
 
+AnnotationController* SymbolResolvergetAnnotationController(SymbolResolver* resolver) {
+    return &resolver->controller;
+}
+
 ASTNode* SymbolResolverfind(SymbolResolver* resolver, chem::string_view* name) {
     return resolver->find(*name);
 }

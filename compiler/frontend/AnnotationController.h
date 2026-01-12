@@ -168,9 +168,17 @@ public:
      * @param is_env_testing required, during testing environment the testing collector
      * annotation is initialized with a large container so that annotations are collected quickly
      */
-    explicit AnnotationController();
+    inline explicit AnnotationController() {
+        initialize();
+        create_collector_annotation("test", 0);
+    }
 
 private:
+
+    /**
+     * this prepares annotation controller
+     */
+    void initialize();
 
     /**
      * create a collection with expected range and get an id
@@ -184,38 +192,26 @@ private:
         return index;
     }
 
-    void create_collector_annotation(const chem::string_view& name, AnnotationDefType type, unsigned int expected_usage) {
+    void create_collector_annotation(const chem::string_view& name, AnnotationDefType type, std::size_t coll_id) {
         definitions.emplace(name, AnnotationDefinition {
-            .collection_id = create_collection(expected_usage),
-            .name = name,
-            .type = type
+                .collection_id = coll_id,
+                .name = name,
+                .type = type
         });
     }
 
 public:
-
-    /**
-     * this disposes any marked + collected nodes
-     * this is done after a single executable been processed
-     * definitions of annotations remain
-     */
-    void dispose_stored_nodes() {
-        marked.clear();
-        for(auto& coll : collections) {
-            coll.nodes.clear();
-        }
-    }
 
     inline AnnotationCollection& get_collection(std::size_t collection_id) {
         return collections[collection_id];
     }
 
     inline void create_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
-        create_collector_annotation(name, AnnotationDefType::Collector, expected_usage);
+        create_collector_annotation(name, AnnotationDefType::Collector, create_collection(expected_usage));
     }
 
     inline void create_marker_and_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
-        create_collector_annotation(name, AnnotationDefType::MarkerAndCollector, expected_usage);
+        create_collector_annotation(name, AnnotationDefType::MarkerAndCollector, create_collection(expected_usage));
     }
 
     inline void create_single_marker_annotation(const chem::string_view& name, SingleMarkerMultiplePolicy policy = SingleMarkerMultiplePolicy::Override) {
@@ -285,5 +281,22 @@ public:
     // Other Helper Functions
 
     void ensure_test_resources();
+
+    /**
+     * clears the annotation controller, but re-initializes
+     */
+    void clear() {
+        definitions.clear();
+        marked.clear();
+        single_marked.clear();
+        initialize();
+        if(collections.empty()) {
+            create_collector_annotation("test", 0);
+        } else {
+            collections.front().nodes.clear();
+            collections.resize(1);
+            create_collector_annotation("test", AnnotationDefType::Collector, 0);
+        }
+    }
 
 };

@@ -272,7 +272,7 @@ void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& arg
     // TODO:
 }
 
-AnnotationController::AnnotationController() {
+void AnnotationController::initialize() {
 
     // initialize intrinsic annotations
     definitions = {
@@ -333,14 +333,10 @@ AnnotationController::AnnotationController() {
     marked.reserve(128);
     single_marked.reserve(32);
 
-    // adding testing annotations
-    create_collector_annotation("test", 0);
-
-
 }
 
 void AnnotationController::ensure_test_resources() {
-    get_collection(get_definition("test")->collection_id).nodes.reserve(512);
+    collections.front().nodes.reserve(512);
 }
 
 bool AnnotationController::mark_single(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {

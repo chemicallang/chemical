@@ -310,6 +310,21 @@ AnnotationController::AnnotationController() {
             { "static", { annot_handler_static, "static", AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
+
+            // single marker annotations
+            {"test.before_each", { .policy = SingleMarkerMultiplePolicy::Override, .name = "test.before_each", .type = AnnotationDefType::SingleMarker }},
+            {"test.after_each", { .policy = SingleMarkerMultiplePolicy::Override, .name = "test.after_each", .type = AnnotationDefType::SingleMarker }},
+
+            // marker annotations
+            { "test.id", { nullptr, "test.id", AnnotationDefType::Marker }},
+            { "test.name", { nullptr, "test.name", AnnotationDefType::Marker }},
+            { "test.group", { nullptr, "test.group", AnnotationDefType::Marker }},
+            { "test.pass_on_crash", { nullptr, "test.pass_on_crash", AnnotationDefType::Marker }},
+            { "test.ignore", { nullptr, "test.ignore", AnnotationDefType::Marker }},
+            { "test.timeout", { nullptr, "test.timeout", AnnotationDefType::Marker }},
+            { "test.async", { nullptr, "test.async", AnnotationDefType::Marker }},
+            { "test.retry", { nullptr, "test.retry", AnnotationDefType::Marker }},
+            { "test.benchmark", { nullptr, "test.benchmark", AnnotationDefType::Marker }},
     };
 
     // reserving memory for faster operations
@@ -320,17 +335,6 @@ AnnotationController::AnnotationController() {
 
     // adding testing annotations
     create_collector_annotation("test", 0);
-    create_single_marker_annotation("test.before_each");
-    create_single_marker_annotation("test.after_each");
-    create_marker_annotation("test.id");
-    create_marker_annotation("test.name");
-    create_marker_annotation("test.group");
-    create_marker_annotation("test.pass_on_crash");
-    create_marker_annotation("test.ignore");
-    create_marker_annotation("test.timeout");
-    create_marker_annotation("test.async");
-    create_marker_annotation("test.retry");
-    create_marker_annotation("test.benchmark");
 
 
 }

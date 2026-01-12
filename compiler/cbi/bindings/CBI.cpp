@@ -76,11 +76,11 @@ const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {
 };
 
 const std::pair<chem::string_view, void*> AnnotationControllerSymMap[] = {
-        { "compiler_AnnotationControllergetDefinition", (void*) AnnotationControllergetDefinition },
-        { "compiler_AnnotationControllercreateSingleMarkerAnnotation", (void*) AnnotationControllercreateSingleMarkerAnnotation },
-        { "compiler_AnnotationControllercreateMarkerAnnotation", (void*) AnnotationControllercreateMarkerAnnotation },
-        { "compiler_AnnotationControllercreateCollectorAnnotation", (void*) AnnotationControllercreateCollectorAnnotation },
-        { "compiler_AnnotationControllercreateMarkerAndCollectorAnnotation", (void*) AnnotationControllercreateMarkerAndCollectorAnnotation },
+        { "lab_AnnotationControllergetDefinition", (void*) AnnotationControllergetDefinition },
+        { "lab_AnnotationControllercreateSingleMarkerAnnotation", (void*) AnnotationControllercreateSingleMarkerAnnotation },
+        { "lab_AnnotationControllercreateMarkerAnnotation", (void*) AnnotationControllercreateMarkerAnnotation },
+        { "lab_AnnotationControllercreateCollectorAnnotation", (void*) AnnotationControllercreateCollectorAnnotation },
+        { "lab_AnnotationControllercreateMarkerAndCollectorAnnotation", (void*) AnnotationControllercreateMarkerAndCollectorAnnotation },
         { "compiler_AnnotationControllermarkSingle", (void*) AnnotationControllermarkSingle },
         { "compiler_AnnotationControllermark", (void*) AnnotationControllermark },
         { "compiler_AnnotationControllercollect", (void*) AnnotationControllercollect },

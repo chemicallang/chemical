@@ -23,6 +23,11 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     if(did_once) return user_std_module;
     did_once = true;
 
+    // creating a marker annotation named 'component'
+    const controller = ctx.getAnnotationController()
+    controller.createMarkerAnnotation(std::string_view("component"))
+
+    // js cbi
     var cbi = ctx.build_cbi(std::string_view("js"))
     const job = cbi;
 

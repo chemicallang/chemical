@@ -14,11 +14,6 @@ class BatchAllocator;
 class ASTAllocator;
 class TypeBuilder;
 
-struct ValueSpan {
-    Value** ptr;
-    size_t size;
-};
-
 struct NodeSpan {
     ASTNode** ptr;
     size_t size;

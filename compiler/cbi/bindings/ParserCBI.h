@@ -6,6 +6,8 @@ class ASTBuilder;
 
 class ASTAllocator;
 
+class AnnotationController;
+
 class Parser;
 
 class Token;
@@ -26,9 +28,7 @@ extern "C" {
 
     Token** ParsergetTokenPtr(Parser* parser);
 
-    ASTAllocator* ParsergetGlobalBuilder(Parser* parser);
-
-    ASTAllocator* ParsergetModuleBuilder(Parser* parser);
+    AnnotationController* ParsergetAnnotationController(Parser* parser);
 
     bool ParsergetIs64Bit(Parser* parser);
 

@@ -89,6 +89,8 @@ public struct PathResolutionResult {
 @compiler.interface
 public struct BuildContext {
 
+    func getAnnotationController(&self) : *mut AnnotationController
+
     func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
     func get_cached(&self, job : *LabJob, scope_name : &std::string_view, name : &std::string_view) : *mut Module

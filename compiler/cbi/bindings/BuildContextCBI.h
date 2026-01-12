@@ -28,12 +28,16 @@ struct StringViewSpan {
     size_t size;
 };
 
+class AnnotationController;
+
 extern "C" {
 
     struct PathResolutionResult {
         chem::string path;
         chem::string error;
     };
+
+    AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self);
 
     LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies);
 

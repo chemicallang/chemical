@@ -12,6 +12,7 @@
 #include "LexerCBI.h"
 #include "ParserCBI.h"
 #include "ASTDiagnoserCBI.h"
+#include "AnnotationControllerCBI.h"
 
 #ifdef LSP_BUILD
 #include "compiler/cbi/bindings/lsp/LSPHooks.h"
@@ -29,6 +30,7 @@ chem::string* init_chem_string(chem::string* str) {
 }
 
 const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
+        { "lab_BuildContextgetAnnotationController", (void*) BuildContextgetAnnotationController },
         { "lab_BuildContextnew_module", (void*) BuildContextnew_module },
         { "lab_BuildContextget_cached", (void*) BuildContextget_cached },
         { "lab_BuildContextset_cached", (void*) BuildContextset_cached },
@@ -73,6 +75,21 @@ const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {
         { "compiler_BatchAllocatorallocate_size", (void*) BatchAllocatorallocate_size },
 };
 
+const std::pair<chem::string_view, void*> AnnotationControllerSymMap[] = {
+        { "compiler_AnnotationControllergetDefinition", (void*) AnnotationControllergetDefinition },
+        { "compiler_AnnotationControllercreateSingleMarkerAnnotation", (void*) AnnotationControllercreateSingleMarkerAnnotation },
+        { "compiler_AnnotationControllercreateMarkerAnnotation", (void*) AnnotationControllercreateMarkerAnnotation },
+        { "compiler_AnnotationControllercreateCollectorAnnotation", (void*) AnnotationControllercreateCollectorAnnotation },
+        { "compiler_AnnotationControllercreateMarkerAndCollectorAnnotation", (void*) AnnotationControllercreateMarkerAndCollectorAnnotation },
+        { "compiler_AnnotationControllermarkSingle", (void*) AnnotationControllermarkSingle },
+        { "compiler_AnnotationControllermark", (void*) AnnotationControllermark },
+        { "compiler_AnnotationControllercollect", (void*) AnnotationControllercollect },
+        { "compiler_AnnotationControllermarkAndCollect", (void*) AnnotationControllermarkAndCollect },
+        { "compiler_AnnotationControllerhandleAnnotation", (void*) AnnotationControllerhandleAnnotation },
+        { "compiler_AnnotationControllerisMarked", (void*) AnnotationControllerisMarked },
+
+};
+
 const std::pair<chem::string_view, void*> SourceProviderSymMap[] = {
         { "compiler_SourceProviderincrement", (void*) SourceProviderincrement },
         { "compiler_SourceProviderreadCharacter", (void*) SourceProviderreadCharacter },
@@ -99,8 +116,7 @@ const std::pair<chem::string_view, void*> LexerSymMap[] = {
 
 const std::pair<chem::string_view, void*> ParserSymMap[] = {
         {"compiler_ParsergetTokenPtr",    (void*) ParsergetTokenPtr },
-        {"compiler_ParsergetGlobalBuilder",    (void*) ParsergetGlobalBuilder },
-        {"compiler_ParsergetModuleBuilder",    (void*) ParsergetModuleBuilder },
+        {"compiler_ParsergetAnnotationController",    (void*) ParsergetAnnotationController },
         {"compiler_ParsergetIs64Bit",    (void*) ParsergetIs64Bit },
         {"compiler_ParsergetParentNodePtr",    (void*) ParsergetParentNodePtr },
         {"compiler_ParsergetCurrentFilePath",    (void*) ParsergetCurrentFilePath },
@@ -314,6 +330,7 @@ void prepare_cbi_maps(std::unordered_map<chem::string_view, std::span<const std:
     interface_maps.reserve(9);
     interface_maps.emplace("SourceProvider", SourceProviderSymMap);
     interface_maps.emplace("BatchAllocator", BatchAllocatorSymMap);
+    interface_maps.emplace("AnnotationController", AnnotationControllerSymMap);
     interface_maps.emplace("Lexer", LexerSymMap);
     interface_maps.emplace("Parser", ParserSymMap);
     interface_maps.emplace("BuildContext", BuildContextSymMap);

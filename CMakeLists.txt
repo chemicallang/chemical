@@ -583,6 +583,8 @@ set(COMMON_SOURCES
         compiler/lab/LabJob.cpp
         compiler/lab/TargetConditionAPI.h
         preprocess/2c/CDestructionVisitor.h
+        compiler/cbi/bindings/AnnotationControllerCBI.h
+        compiler/cbi/bindings/AnnotationController.cpp
 )
 
 # Chemical LSP Executable Target

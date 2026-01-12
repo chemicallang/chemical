@@ -624,6 +624,7 @@ void WorkspaceManager::process_file(const std::string& abs_path, bool current_fi
             binder,
             comptime_scope,
             pathHandler,
+            controller,
             instContainer,
             is64Bit,
             resolver_allocator,

@@ -1368,7 +1368,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     InstantiationsContainer instContainer;
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // beginning
     ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);
@@ -2701,7 +2701,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     InstantiationsContainer instContainer;
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+    SymbolResolver lab_resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // the processor that does everything for build.lab files only
     ASTProcessor lab_processor(

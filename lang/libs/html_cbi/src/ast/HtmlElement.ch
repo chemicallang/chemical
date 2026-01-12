@@ -9,6 +9,8 @@ struct HtmlElement : HtmlChild {
 
     var children : std::vector<*mut HtmlChild>
 
+    var componentSignature : *mut ComponentSignature = null
+
     @delete
     func delete(&self) {
         // do nothing

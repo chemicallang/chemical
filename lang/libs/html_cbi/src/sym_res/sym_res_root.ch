@@ -112,6 +112,50 @@ func sym_res_root(
     support.appendHeadFloatFn = appendHeadFloatFn;
     support.appendHeadDoubleFn = appendHeadDoubleFn;
 
+    for (var i : uint = 0; i < root.components.size(); i += 1) {
+        var element = root.components.get(i);
+        
+        const compNode = resolver.find(element.name);
+        if (compNode == null) {
+            resolver.error("component not found", loc);
+            return false;
+        }
+
+        if (compNode.getKind() != ASTNodeKind.EmbeddedNode) {
+            resolver.error("symbol is not a valid component", loc);
+            return false;
+        }
+
+        const controller = resolver.getAnnotationController();
+
+        if(!controller.isMarked(compNode, "component")) {
+            resolver.error("symbol is not a component", loc);
+            return false;
+        }
+
+        var embedded = compNode as *mut EmbeddedNode;
+        var signature = embedded.getDataPtr() as *mut ComponentSignature;
+        element.componentSignature = signature;
+
+        for (var j : uint = 0; j < signature.params.size(); j += 1) {
+            const param = signature.params.get_ptr(j);
+            if (!param.is_optional) {
+                var found = false;
+                for (var k : uint = 0; k < element.attributes.size(); k += 1) {
+                    const attr = element.attributes.get(k);
+                    if (attr.name.equals(param.name)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                     resolver.error("missing required component argument", loc);
+                     return false;
+                }
+            }
+        }
+    }
+
     return true;
 
 }

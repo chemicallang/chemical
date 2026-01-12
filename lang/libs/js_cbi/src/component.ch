@@ -97,7 +97,19 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         const nodes_arr : []*mut ASTNode = []
         
         const node = builder.make_embedded_node(std::string_view("js_component"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, intrinsics::get_raw_location());
-        
+
+        const controller = parser.getAnnotationController();
+
+        const definition = controller.getDefinition("component");
+        if(definition == null) {
+            parser.error("component annotation is not defined")
+            return node
+        }
+
+        const args : []*mut Value = []
+
+        controller.mark(node, definition, std::span<*mut Value>(args));
+
         return node;
     } else {
         parser.error("expected {");

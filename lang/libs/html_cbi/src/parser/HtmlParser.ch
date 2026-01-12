@@ -4,4 +4,6 @@ struct HtmlParser {
 
     var dyn_nodes : *mut std::vector<*mut ASTNode>
 
+    var components : *mut std::vector<*mut HtmlElement>
+
 }

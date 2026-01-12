@@ -1,7 +1,7 @@
 @compiler.interface
 public struct SymbolResolver : ASTDiagnoser {
 
-    func getAnnotationController(&self);
+    func getAnnotationController(&self) : *mut AnnotationController
 
     func find(&self, view : &std::string_view) : *mut ASTNode;
 

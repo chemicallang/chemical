@@ -7,10 +7,12 @@ func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot 
         support : SymResSupport {},
         dyn_values : std::vector<*mut Value>(),
         dyn_nodes : std::vector<*mut ASTNode>(),
+        components : std::vector<*mut HtmlElement>()
     }
     var htmlParser = HtmlParser {
         dyn_values : &mut root.dyn_values,
-        dyn_nodes : &mut root.dyn_nodes
+        dyn_nodes : &mut root.dyn_nodes,
+        components : &mut root.components
     }
     while(true) {
         var child = htmlParser.parseElementChild(parser, builder);

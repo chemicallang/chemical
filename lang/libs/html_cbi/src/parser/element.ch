@@ -40,6 +40,13 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
             children : std::vector<*HtmlChild>()
         }
 
+        if (id.value.size() > 0) {
+            const first = id.value.get(0);
+            if (first >= 'A' && first <= 'Z') {
+                htmlParser.components.push(element);
+            }
+        }
+
         while(true) {
             var attr = htmlParser.parseAttribute(parser, builder);
             if(attr != null) {

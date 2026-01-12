@@ -339,22 +339,48 @@ void AnnotationController::ensure_test_resources() {
     get_collection(get_definition("test")->collection_id).nodes.reserve(512);
 }
 
-void AnnotationController::mark_single(Parser& parser, ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+bool AnnotationController::mark_single(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+    std::lock_guard lock(single_marker_mutex);
     switch(definition.policy) {
         case SingleMarkerMultiplePolicy::Override:
             mark_single_emplace(node, definition, arguments);
-            return;
+            break;
         case SingleMarkerMultiplePolicy::Ignore:
             if(!single_marked.contains(definition.name)) {
                 mark_single_emplace(node, definition, arguments);
             }
-            return;
+            break;
         case SingleMarkerMultiplePolicy::Error:
             if(single_marked.contains(definition.name)) {
-                parser.error() << "single annotation with name '" << definition.name << "' already marks an existing declaration";
+                return true;
             } else {
                 mark_single_emplace(node, definition, arguments);
             }
-            return;
+            break;
+    }
+    return false;
+}
+
+bool AnnotationController::handle_annotation(AnnotationDefinition& definition, Parser* parser, ASTNode* node, std::vector<Value*>& arguments) {
+    switch(definition.type) {
+        case AnnotationDefType::Handler:
+            definition.handler(parser, node, arguments);
+            return true;
+        case AnnotationDefType::SingleMarker:
+            if(mark_single(node, definition, arguments)) {
+                parser->error() << "single annotation with name '" << definition.name << "' already marks an existing declaration";
+            }
+            return true;
+        case AnnotationDefType::Marker:
+            mark(node, definition, arguments);
+            return true;
+        case AnnotationDefType::Collector:
+            collect(node, definition, arguments);
+            return true;
+        case AnnotationDefType::MarkerAndCollector:
+            mark_and_collect(node, definition, arguments);
+            return true;
+        default:
+            return false;
     }
 }

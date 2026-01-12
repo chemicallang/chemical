@@ -6,6 +6,7 @@ import std
 
 interface SourceProvider
 interface BatchAllocator
+interface AnnotationController
 interface Lexer
 interface Parser
 interface ASTBuilder

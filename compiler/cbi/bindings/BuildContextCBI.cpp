@@ -18,6 +18,10 @@
 int llvm_ar_main2(const std::span<chem::string>& command_args);
 #endif
 
+AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self) {
+    return &self->compiler.controller;
+}
+
 LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies) {
     return self->new_module(*scope_name, *name, dependencies->ptr, dependencies->size);
 }

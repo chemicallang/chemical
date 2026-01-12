@@ -149,7 +149,19 @@ public:
      * this mutex is used to handle detected annotations
      * because we parse multiple files concurrently
      */
-    std::mutex handling_mutex;
+    std::mutex single_marker_mutex;
+
+    /**
+     * this mutex is used to handle detected annotations
+     * because we parse multiple files concurrently
+     */
+    std::mutex marker_mutex;
+
+    /**
+     * this mutex is used to handle detected annotations
+     * because we parse multiple files concurrently
+     */
+    std::mutex collector_mutex;
 
     /**
      * constructor
@@ -225,13 +237,16 @@ public:
         single_marked.emplace(definition.name, CollectedAnnotation{node, std::move(arguments)});
     }
 
-    void mark_single(Parser& parser, ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments);
+    // returns true on error
+    bool mark_single(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments);
 
-    inline void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+    void mark(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+        std::lock_guard lock(marker_mutex);
         marked.emplace(MarkedAnnotatedNode{node, definition.name}, std::move(arguments));
     }
 
     void collect(ASTNode* node, AnnotationDefinition& definition, std::vector<Value*>& arguments) {
+        std::lock_guard lock(collector_mutex);
         auto& coll = collections[definition.collection_id];
         coll.nodes.emplace_back(node, std::move(arguments));
     }
@@ -255,27 +270,7 @@ public:
         return found == marked.end() ? nullptr : &found->second;
     }
 
-    bool handle_annotation(AnnotationDefinition& definition, Parser* parser, ASTNode* node, std::vector<Value*>& arguments) {
-        switch(definition.type) {
-            case AnnotationDefType::Handler:
-                definition.handler(parser, node, arguments);
-                return true;
-            case AnnotationDefType::SingleMarker:
-                mark_single(*parser, node, definition, arguments);
-                return true;
-            case AnnotationDefType::Marker:
-                mark(node, definition, arguments);
-                return true;
-            case AnnotationDefType::Collector:
-                collect(node, definition, arguments);
-                return true;
-            case AnnotationDefType::MarkerAndCollector:
-                mark_and_collect(node, definition, arguments);
-                return true;
-            default:
-                return false;
-        }
-    }
+    bool handle_annotation(AnnotationDefinition& definition, Parser* parser, ASTNode* node, std::vector<Value*>& arguments);
 
     AnnotationDefinition* get_definition(const chem::string_view& name) {
         auto found = definitions.find(name);

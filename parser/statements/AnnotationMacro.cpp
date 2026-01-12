@@ -53,7 +53,6 @@ bool Parser::parseAnnotation(ASTAllocator& allocator) {
 
 void Parser::annotate(ASTNode* node) {
     if(annotations.empty()) return;
-    std::lock_guard annotation_lock(controller.handling_mutex);
     for(auto& annot : annotations) {
         controller.handle_annotation(annot.definition, this, node, annot.arguments);
     }

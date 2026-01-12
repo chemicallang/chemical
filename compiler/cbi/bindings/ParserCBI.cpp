@@ -8,12 +8,8 @@ Token** ParsergetTokenPtr(Parser* parser) {
     return &parser->token;
 }
 
-ASTAllocator* ParsergetGlobalBuilder(Parser* parser) {
-    return &parser->global_allocator;
-}
-
-ASTAllocator* ParsergetModuleBuilder(Parser* parser) {
-    return &parser->mod_allocator;
+AnnotationController* ParsergetAnnotationController(Parser* parser) {
+    return &parser->controller;
 }
 
 bool ParsergetIs64Bit(Parser* parser) {

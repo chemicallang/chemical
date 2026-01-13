@@ -419,7 +419,39 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
     }
 }
 
+func (converter : &mut ASTConverter) emit_append_html_call(value : *mut Value, len : size_t) {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+    
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location)
+    var name = if (converter.in_head) std::string_view("append_head") else std::string_view("append_html")
+    var fnPtr = if (converter.in_head) support.appendHeadFn else support.appendHtmlFn
+    var id = builder.make_identifier(name, fnPtr, false, location)
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base as *mut ChainValue, id ]), location)
+    var call = builder.make_function_call_node(chain, converter.parent, location)
+    
+    var args = call.get_args()
+    args.push(value)
+    args.push(builder.make_ubigint_value(len, location))
+    
+    converter.vec.push(call as *mut ASTNode)
+}
+
+func (converter : &mut ASTConverter) emit_append_html_from_str(s : &mut std::string) {
+    if (s.empty()) return;
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const size = s.size()
+    const value = builder.make_string_value(builder.allocate_view(s.view()), location)
+    s.clear()
+    converter.emit_append_html_call(value, size)
+}
+
 func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
+    // 0. Flush any pending HTML
+    converter.put_chain_in()
+
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
     const signature = element.componentSignature
@@ -445,6 +477,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     converter.vec.push(ifStmt as *mut ASTNode)
     
     // 3. Generate page.append_html("<script>document.currentScript.replaceWith($c_Name({"))
+
     var s = &mut converter.str
     s.append_view("<script>document.currentScript.replaceWith($c_")
     s.append_view(signature.name)
@@ -464,19 +497,19 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                     s.append_view(val.text)
                 }
                 AttributeValueKind.Chemical => {
-                    if (!s.empty()) converter.put_chain_in()
+                    converter.emit_append_html_from_str(*s)
                     const val = attr.value as *mut ChemicalAttributeValue
                     converter.put_chemical_value_in(val.value)
                 }
                 AttributeValueKind.ChemicalValues => {
-                    if (!s.empty()) converter.put_chain_in()
+                    converter.emit_append_html_from_str(*s)
                     const val = attr.value as *mut ChemicalAttributeValues
-                    converter.put_char_chain('\'')
+                    converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("'")), location), 1)
                     for (var j : uint = 0; j < val.values.size(); j++) {
-                        if (j > 0) converter.put_char_chain(' ')
+                        if (j > 0) converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view(" ")), location), 1)
                         converter.put_chemical_value_in(val.values.get(j))
                     }
-                    converter.put_char_chain('\'')
+                    converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("'")), location), 1)
                 }
             }
         } else {
@@ -485,7 +518,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     }
     
     s.append_view("}))</script>")
-    if (!s.empty()) converter.put_chain_in()
+    converter.emit_append_html_from_str(*s)
 }
 
 func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {

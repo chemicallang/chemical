@@ -66,6 +66,41 @@ func fix_support_page_node(
         return false;
     }
 
+    const appendHeadJsCharFn = page.child("append_head_js_char")
+    if(appendHeadJsCharFn == null) {
+        return false;
+    }
+
+    const appendHeadJsCharPtrFn = page.child("append_head_js_char_ptr")
+    if(appendHeadJsCharPtrFn == null) {
+        return false;
+    }
+
+    const appendHeadJsFn = page.child("append_head_js");
+    if(appendHeadJsFn == null) {
+        return false;
+    }
+
+    const appendHeadJsIntFn = page.child("append_head_js_integer");
+    if(appendHeadJsIntFn == null) {
+        return false;
+    }
+
+    const appendHeadJsUIntFn = page.child("append_head_js_uinteger");
+    if(appendHeadJsUIntFn == null) {
+        return false;
+    }
+
+    const appendHeadJsFloatFn = page.child("append_head_js_float");
+    if(appendHeadJsFloatFn == null) {
+        return false;
+    }
+
+    const appendHeadJsDoubleFn = page.child("append_head_js_double");
+    if(appendHeadJsDoubleFn == null) {
+        return false;
+    }
+
     support.appendJsCharFn = appendJsCharFn
     support.appendJsCharPtrFn = appendJsCharPtrFn
     support.appendJsFn = appendJsFn
@@ -74,8 +109,15 @@ func fix_support_page_node(
     support.appendJsFloatFn = appendJsFloatFn;
     support.appendJsDoubleFn = appendJsDoubleFn;
 
-    return true
+    support.appendHeadJsFn = appendHeadJsFn
+    support.appendHeadJsCharFn = appendHeadJsCharFn
+    support.appendHeadJsCharPtrFn = appendHeadJsCharPtrFn
+    support.appendHeadJsIntFn = appendHeadJsIntFn;
+    support.appendHeadJsUIntFn = appendHeadJsUIntFn;
+    support.appendHeadJsFloatFn = appendHeadJsFloatFn;
+    support.appendHeadJsDoubleFn = appendHeadJsDoubleFn;
 
+    return true
 }
 
 @no_mangle
@@ -107,9 +149,20 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     const root = value.getDataPtr() as *mut JsComponentDecl;
     const body = root.signature.functionNode.add_body();
     
+    // override support functions with their head_js counterparts
+    // so the converter writes to pageHeadJs instead of pageJs
+    var support = root.support
+    support.appendJsFn = support.appendHeadJsFn
+    support.appendJsCharFn = support.appendHeadJsCharFn
+    support.appendJsCharPtrFn = support.appendHeadJsCharPtrFn
+    support.appendJsIntFn = support.appendHeadJsIntFn
+    support.appendJsUIntFn = support.appendHeadJsUIntFn
+    support.appendJsFloatFn = support.appendHeadJsFloatFn
+    support.appendJsDoubleFn = support.appendHeadJsDoubleFn
+
     var converter = JsConverter {
         builder : builder,
-        support : &mut root.support,
+        support : &mut support,
         vec : body,
         parent : root.signature.functionNode as *mut ASTNode,
         str : std::string(),

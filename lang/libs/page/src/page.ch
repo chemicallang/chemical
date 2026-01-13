@@ -9,6 +9,8 @@ public struct HtmlPage {
 
     var pageJs : std::string
 
+    var pageHeadJs : std::string
+
     // we track which classes are done through this unordered map
     // TODO using ubigint, instead need to use size_t
     var doneClasses : std::unordered_map<ubigint, bool>
@@ -154,14 +156,47 @@ public struct HtmlPage {
         pageJs.append_double(value, 3)
     }
 
+    func append_head_js(&mut self, value : *char, len : size_t) {
+        pageHeadJs.append_with_len(value, len);
+    }
+
+    func append_head_js_char_ptr(&mut self, value : *char) {
+        pageHeadJs.append_char_ptr(value);
+    }
+
+    func append_head_js_char(&mut self, value : char) {
+        pageHeadJs.append(value)
+    }
+
+    func append_head_js_integer(&mut self, value : bigint) {
+        pageHeadJs.append_integer(value)
+    }
+
+    func append_head_js_uinteger(&mut self, value : ubigint) {
+        pageHeadJs.append_uinteger(value)
+    }
+
+    func append_head_js_float(&mut self, value : float) {
+        pageHeadJs.append_float(value, 3)
+    }
+
+    func append_head_js_double(&mut self, value : double) {
+        pageHeadJs.append_double(value, 3)
+    }
+
     func toString(&self) : std::string {
         var str = std::string()
-        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + 80)
+        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + 100)
         str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
         str.append_string(pageHead)
         str.append_view(std::string_view("<style>"))
         str.append_string(pageCss)
         str.append_view(std::string_view("</style>"))
+        if(!pageHeadJs.empty()) {
+            str.append_view(std::string_view("<script>"))
+            str.append_string(pageHeadJs)
+            str.append_view(std::string_view("</script>"))
+        }
         str.append_view(std::string_view("</head><body>"))
         str.append_string(pageHtml)
         str.append_view(std::string_view("<script>"))

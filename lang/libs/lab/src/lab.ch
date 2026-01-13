@@ -75,6 +75,7 @@ public enum CBIFunctionType {
     SymResLinkSignatureValue,
     SymResNode,
     SymResValue,
+    ReplacementNodeDeclare,
     ReplacementNode,
     ReplacementValue,
     SemanticTokensPut,

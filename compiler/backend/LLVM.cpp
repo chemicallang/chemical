@@ -1273,9 +1273,9 @@ llvm::Type* EmbeddedNode::llvm_type(Codegen &gen) {
     return known_type()->llvm_type(gen);
 }
 
-ASTNode* get_repl(EmbeddedNode* node, Codegen& gen) {
+ASTNode* get_repl(EmbeddedNode* node, Codegen& gen, CBIFunctionType type) {
     ASTBuilder builder(&gen.allocator, gen.comptime_scope.typeBuilder);
-    const auto replacement_fn = gen.binder.findHook(node->name, CBIFunctionType::ReplacementNode);
+    const auto replacement_fn = gen.binder.findHook(node->name, type);
     if(!replacement_fn) {
         gen.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
         return nullptr;
@@ -1289,8 +1289,13 @@ ASTNode* get_repl(EmbeddedNode* node, Codegen& gen) {
     }
 }
 
+inline ASTNode* get_repl_cached(EmbeddedNode* node, Codegen& gen, CBIFunctionType type) {
+    if(node->replacement) return node->replacement;
+    return get_repl(node, gen, type);
+}
+
 llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
-    const auto repl = get_repl(this, gen);
+    const auto repl = get_repl_cached(this, gen, CBIFunctionType::ReplacementNode);
     if(repl == nullptr) {
         return NullValue::null_llvm_value(gen);
     }
@@ -1298,19 +1303,38 @@ llvm::Value* EmbeddedNode::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* EmbeddedNode::loadable_llvm_pointer(Codegen &gen, SourceLocation location) {
-    const auto repl = get_repl(this, gen);
+    const auto repl = get_repl_cached(this, gen, CBIFunctionType::ReplacementNode);
     if(repl == nullptr) {
         return NullValue::null_llvm_value(gen);
     }
     return repl->loadable_llvm_pointer(gen, location);
 }
 
-void EmbeddedNode::code_gen(Codegen &gen) {
-    const auto repl = get_repl(this, gen);
+void EmbeddedNode::code_gen_declare(Codegen &gen) {
+    const auto repl = get_repl(this, gen, CBIFunctionType::ReplacementNodeDeclare);
     if(repl == nullptr) {
         return;
     }
+    replacement = repl;
+    return repl->code_gen_declare(gen);
+}
+
+void EmbeddedNode::code_gen(Codegen &gen) {
+    const auto repl = get_repl(this, gen, CBIFunctionType::ReplacementNode);
+    if(repl == nullptr) {
+        if(replacement != nullptr) {
+            replacement->code_gen(gen);
+        }
+        return;
+    }
+    if(replacement == nullptr) {
+        replacement = repl;
+    }
     repl->code_gen(gen);
+}
+
+void EmbeddedNode::code_gen_external_declare(Codegen &gen) {
+    replacement->code_gen_external_declare(gen);
 }
 
 llvm::Type* EmbeddedValue::llvm_type(Codegen &gen) {

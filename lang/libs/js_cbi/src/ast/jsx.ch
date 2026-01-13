@@ -4,6 +4,7 @@ public struct JsComponentDecl {
     var body : *mut JsNode
     var support : SymResSupport
     var dyn_values : std::vector<*mut Value>
+    var components : std::vector<*mut JsJSXElement>
 }
 
 public struct JsJSXAttribute {
@@ -32,6 +33,7 @@ public struct JsJSXElement {
     var base : JsNode
     var opening : JsJSXOpeningElement
     var children : std::vector<*mut JsNode>
+    var componentSignature : *mut ComponentSignature = null
     var closing : JsJSXClosingElement // Optional if selfClosing? But structure usually keeps it or null. 
     // Typically we might not store closing element in the AST if it matches, but for exact reproduction or source mapping we might.
     // Let's simplify and assume consistency check is done during parsing.

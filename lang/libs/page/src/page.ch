@@ -186,12 +186,14 @@ public struct HtmlPage {
 
     func toString(&self) : std::string {
         var str = std::string()
-        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + 100)
+        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + pageJs.size() + 100)
         str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
         str.append_string(pageHead)
-        str.append_view(std::string_view("<style>"))
-        str.append_string(pageCss)
-        str.append_view(std::string_view("</style>"))
+        if(!pageCss.empty()) {
+            str.append_view(std::string_view("<style>"))
+            str.append_string(pageCss)
+            str.append_view(std::string_view("</style>"))
+        }
         if(!pageHeadJs.empty()) {
             str.append_view(std::string_view("<script>"))
             str.append_string(pageHeadJs)
@@ -199,9 +201,12 @@ public struct HtmlPage {
         }
         str.append_view(std::string_view("</head><body>"))
         str.append_string(pageHtml)
-        str.append_view(std::string_view("<script>"))
-        str.append_string(pageJs)
-        str.append_view(std::string_view("</script></body></html>"))
+        if(!pageJs.empty()) {
+            str.append_view(std::string_view("<script>"))
+            str.append_string(pageJs)
+            str.append_view(std::string_view("</script>"))
+        }
+        str.append_view(std::string_view("</body></html>"))
         return str;
     }
 

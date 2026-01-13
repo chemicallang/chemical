@@ -112,6 +112,21 @@ func sym_res_root(
     support.appendHeadFloatFn = appendHeadFloatFn;
     support.appendHeadDoubleFn = appendHeadDoubleFn;
 
+    const requireComponentFn = page.child("require_component")
+    if(requireComponentFn == null) {
+        resolver.error("'require_component' function is required on 'page' for html components to work", loc);
+        return false;
+    }
+
+    const setComponentHashFn = page.child("set_component_hash")
+    if(setComponentHashFn == null) {
+        resolver.error("'set_component_hash' function is required on 'page' for html components to work", loc);
+        return false;
+    }
+
+    support.requireComponentFn = requireComponentFn
+    support.setComponentHashFn = setComponentHashFn;
+
     for (var i : uint = 0; i < root.components.size(); i += 1) {
         var element = root.components.get(i);
         

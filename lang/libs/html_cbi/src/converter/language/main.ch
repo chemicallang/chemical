@@ -139,6 +139,43 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
     return call;
 }
 
+@extern
+public func rand() : int;
+
+func generate_random_32bit() : uint32_t {
+    return (rand() as uint32_t << 16) | rand() as uint32_t;
+}
+
+func fnv1a_hash_32(view : std::string_view) : uint32_t {
+    var hash = 2166136261u;
+    for (var i = 0u; i < view.size(); i++) {
+        hash ^= view.get(i) as uint32_t;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+func (converter : &mut ASTConverter) make_require_component_call(hash : size_t) : *mut FunctionCall {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    const support = converter.support;
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+    var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_value(chain, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
+func (converter : &mut ASTConverter) make_set_component_hash_call(hash : size_t) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    return converter.make_value_call_with(value, std::string_view("set_component_hash"), converter.support.setComponentHashFn)
+}
+
 func (converter : &mut ASTConverter) make_chain_of(str : &mut std::string) : *mut FunctionCallNode {
     const location = intrinsics::get_raw_location();
     const builder = converter.builder;
@@ -382,6 +419,75 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
     }
 }
 
+func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const signature = element.componentSignature
+    
+    // 1. Generate the hash based on component name
+    const hash = fnv1a_hash_32(signature.name)
+    
+    // 2. Generate the if(page.require_component(hash)) block
+    var requireCall = converter.make_require_component_call(hash as size_t)
+    var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
+    var body = ifStmt.get_body()
+    
+    // Inside if: page.set_component_hash(hash)
+    body.push(converter.make_set_component_hash_call(hash as size_t))
+    
+    // Inside if: ComponentFunction(page)
+    var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+    var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+    var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
+    call.get_args().push(pageId as *mut Value)
+    body.push(call as *mut ASTNode)
+    
+    converter.vec.push(ifStmt as *mut ASTNode)
+    
+    // 3. Generate page.append_html("<script>document.currentScript.replaceWith($c_Name({"))
+    var s = &mut converter.str
+    s.append_view("<script>document.currentScript.replaceWith($c_")
+    s.append_view(signature.name)
+    s.append_view("({")
+    
+    const attrs = element.attributes.size()
+    for (var i : uint = 0; i < attrs; i++) {
+        if (i > 0) s.append_view(", ")
+        const attr = element.attributes.get(i)
+        s.append_view(attr.name)
+        s.append_view(": ")
+        
+        if (attr.value != null) {
+            switch(attr.value.kind) {
+                AttributeValueKind.Text, AttributeValueKind.Number => {
+                    const val = attr.value as *mut TextAttributeValue
+                    s.append_view(val.text)
+                }
+                AttributeValueKind.Chemical => {
+                    if (!s.empty()) converter.put_chain_in()
+                    const val = attr.value as *mut ChemicalAttributeValue
+                    converter.put_chemical_value_in(val.value)
+                }
+                AttributeValueKind.ChemicalValues => {
+                    if (!s.empty()) converter.put_chain_in()
+                    const val = attr.value as *mut ChemicalAttributeValues
+                    converter.put_char_chain('\'')
+                    for (var j : uint = 0; j < val.values.size(); j++) {
+                        if (j > 0) converter.put_char_chain(' ')
+                        converter.put_chemical_value_in(val.values.get(j))
+                    }
+                    converter.put_char_chain('\'')
+                }
+            }
+        } else {
+            s.append_view("true")
+        }
+    }
+    
+    s.append_view("}))</script>")
+    if (!s.empty()) converter.put_chain_in()
+}
+
 func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
 
     var str = &mut converter.str
@@ -396,6 +502,11 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
         }
         HtmlChildKind.Element => {
             var element = child as *mut HtmlElement
+
+            if(element.componentSignature != null) {
+                converter.convertHtmlComponent(element)
+                return
+            }
             
             if(element.name.equals(std::string_view("head"))) {
                 if(!str.empty()) {

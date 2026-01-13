@@ -9,6 +9,12 @@ public func component_symResSigNode(resolver : *mut SymbolResolver, node : *mut 
 public func component_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
     const loc = node.getEncodedLocation();
     const root = node.getDataPtr() as *mut JsComponentDecl;
+
+    root.htmlPageNode = resolver.find(std::string_view("HtmlPage"));
+    if(root.htmlPageNode == null) {
+        resolver.error(std::string_view("could not find HtmlPage"), loc);
+    }
+
     sym_res_components(root.components, resolver, loc)
 }
 
@@ -21,12 +27,43 @@ public func component_symResDeclareNode(resolver : *mut SymbolResolver, node : *
 
 @no_mangle
 public func component_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
-    return null
+    const root = value.getDataPtr() as *mut JsComponentDecl;
+    const loc = value.getEncodedLocation();
+
+    // func name(page : &mut HtmlPage) : void
+    const linked = builder.make_linked_type(std::string_view("HtmlPage"), root.htmlPageNode, loc);
+    const ref = builder.make_reference_type(linked as *mut BaseType, loc);
+    const param = builder.make_function_param(std::string_view("page"), ref as *mut BaseType, 0, null, false, null, loc);
+    
+    const voidType = builder.make_void_type(loc);
+    const funcDecl = builder.make_function(root.signature.name, loc, voidType as *mut BaseType, false, true, null, loc);
+    
+    funcDecl.get_params().push(param);
+    funcDecl.add_body();
+    
+    root.functionNode = funcDecl;
+    return funcDecl as *mut ASTNode;
 }
 
 @no_mangle
 public func component_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
-    return null
+    const root = value.getDataPtr() as *mut JsComponentDecl;
+    const body = root.functionNode.add_body();
+    
+    var converter = JsConverter {
+        builder : builder,
+        support : &mut root.support,
+        vec : body,
+        parent : root.functionNode as *mut ASTNode,
+        str : std::string()
+    }
+    
+    if(root.body != null) {
+        converter.convertJsNode(root.body);
+    }
+    converter.put_chain_in();
+    
+    return root.functionNode as *mut ASTNode;
 }
 
 @no_mangle
@@ -92,6 +129,8 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         support : SymResSupport {}, 
         dyn_values : std::vector<*mut Value>(),
         components : std::vector<*mut JsJSXElement>(),
+        htmlPageNode : null,
+        functionNode : null
     }
 
     var jsParser = JsParser {

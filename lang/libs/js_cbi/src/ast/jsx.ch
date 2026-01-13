@@ -5,6 +5,8 @@ public struct JsComponentDecl {
     var support : SymResSupport
     var dyn_values : std::vector<*mut Value>
     var components : std::vector<*mut JsJSXElement>
+    var htmlPageNode : *ASTNode = null
+    var functionNode : *mut FunctionDeclaration = null
 }
 
 public struct JsJSXAttribute {

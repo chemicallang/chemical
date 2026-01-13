@@ -25,6 +25,59 @@ public func component_symResDeclareNode(resolver : *mut SymbolResolver, node : *
     resolver.declare(comp.signature.name, node);
 }
 
+func fix_support_page_node(
+    support : &mut SymResSupport,
+    page : *mut ASTNode,
+    loc : ubigint
+) : bool {
+
+    const appendJsCharFn = page.child("append_js_char")
+    if(appendJsCharFn == null) {
+        return false;
+    }
+
+    const appendJsCharPtrFn = page.child("append_js_char_ptr")
+    if(appendJsCharPtrFn == null) {
+        return false;
+    }
+
+    const appendJsFn = page.child("append_js");
+    if(appendJsFn == null) {
+        return false;
+    }
+
+    const appendJsIntFn = page.child("append_js_integer");
+    if(appendJsIntFn == null) {
+        return false;
+    }
+
+    const appendJsUIntFn = page.child("append_js_uinteger");
+    if(appendJsUIntFn == null) {
+        return false;
+    }
+
+    const appendJsFloatFn = page.child("append_js_float");
+    if(appendJsFloatFn == null) {
+        return false;
+    }
+
+    const appendJsDoubleFn = page.child("append_js_double");
+    if(appendJsDoubleFn == null) {
+        return false;
+    }
+
+    support.appendJsCharFn = appendJsCharFn
+    support.appendJsCharPtrFn = appendJsCharPtrFn
+    support.appendJsFn = appendJsFn
+    support.appendJsIntFn = appendJsIntFn;
+    support.appendJsUIntFn = appendJsUIntFn;
+    support.appendJsFloatFn = appendJsFloatFn;
+    support.appendJsDoubleFn = appendJsDoubleFn;
+
+    return true
+
+}
+
 @no_mangle
 public func component_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
@@ -40,7 +93,11 @@ public func component_replacementNodeDeclare(builder : *mut ASTBuilder, value : 
     
     funcDecl.get_params().push(param);
     funcDecl.add_body();
-    
+
+    // fixing support
+    root.support.pageNode = param as *mut ASTNode
+    fix_support_page_node(root.support, root.support.pageNode, loc)
+
     root.signature.functionNode = funcDecl;
     return funcDecl as *mut ASTNode;
 }
@@ -168,7 +225,7 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(std::string_view("js_component"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, intrinsics::get_raw_location());
+        const node = builder.make_embedded_node(std::string_view("component"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, intrinsics::get_raw_location());
 
         const controller = parser.getAnnotationController();
 

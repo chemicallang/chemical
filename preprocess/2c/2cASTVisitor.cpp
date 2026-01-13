@@ -3045,7 +3045,7 @@ void create_stub_impl_for_func(CTopLevelDeclarationVisitor* tld, FunctionDeclara
 
 ASTNode* embedded_repl(ToCAstVisitor& visitor, EmbeddedNode* node, CBIFunctionType type) {
     ASTBuilder builder(&visitor.allocator, visitor.comptime_scope.typeBuilder);
-    const auto replacement_fn = visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNode);
+    const auto replacement_fn = visitor.binder.findHook(node->name, type);
     if(!replacement_fn) {
         visitor.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
         return nullptr;

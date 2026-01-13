@@ -86,6 +86,14 @@ public struct HtmlPage {
         doneClasses.insert(hash, true)
     }
 
+    func require_component(&self, hash : size_t) : bool {
+        return !doneComponents.contains(hash)
+    }
+
+    func set_component_hash(&mut self, hash : size_t) {
+        doneComponents.insert(hash, true)
+    }
+
     func require_random_css_hash(&self, hash : size_t) : bool {
         return !doneRandomClasses.contains(hash)
     }

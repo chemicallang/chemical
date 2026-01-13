@@ -30,4 +30,8 @@ struct SymResSupport {
 
     var appendHeadDoubleFn : *mut ASTNode = null
 
+    var requireComponentFn : *mut ASTNode = null
+
+    var setComponentHashFn : *mut ASTNode = null
+
 }

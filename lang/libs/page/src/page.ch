@@ -16,6 +16,8 @@ public struct HtmlPage {
     // track random CSS classes (for dynamic values) to prevent duplicates
     var doneRandomClasses : std::unordered_map<ubigint, bool>
 
+    var doneComponents : std::unordered_map<ubigint, bool>
+
     func append_html(&mut self, value : *char, len : size_t) {
         pageHtml.append_with_len(value, len);
     }

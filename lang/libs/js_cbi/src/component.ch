@@ -41,20 +41,20 @@ public func component_replacementNodeDeclare(builder : *mut ASTBuilder, value : 
     funcDecl.get_params().push(param);
     funcDecl.add_body();
     
-    root.functionNode = funcDecl;
+    root.signature.functionNode = funcDecl;
     return funcDecl as *mut ASTNode;
 }
 
 @no_mangle
 public func component_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
-    const body = root.functionNode.add_body();
+    const body = root.signature.functionNode.add_body();
     
     var converter = JsConverter {
         builder : builder,
         support : &mut root.support,
         vec : body,
-        parent : root.functionNode as *mut ASTNode,
+        parent : root.signature.functionNode as *mut ASTNode,
         str : std::string()
     }
     
@@ -63,7 +63,7 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     }
     converter.put_chain_in();
     
-    return root.functionNode as *mut ASTNode;
+    return root.signature.functionNode as *mut ASTNode;
 }
 
 @no_mangle
@@ -123,14 +123,14 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         base : JsNode { kind : JsNodeKind.ComponentDecl },
         signature : ComponentSignature {
             name : name,
-            params : params
+            params : params,
+            functionNode : null
         },
         body : null,
         support : SymResSupport {}, 
         dyn_values : std::vector<*mut Value>(),
         components : std::vector<*mut JsJSXElement>(),
-        htmlPageNode : null,
-        functionNode : null
+        htmlPageNode : null
     }
 
     var jsParser = JsParser {

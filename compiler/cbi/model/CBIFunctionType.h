@@ -24,6 +24,8 @@ enum class CBIFunctionType : int {
 
     SymResValue,
 
+    ReplacementNodeDeclare,
+
     ReplacementNode,
 
     ReplacementValue,

@@ -68,6 +68,8 @@ public:
 
     // Visitor methods
 
+    void VisitEmbeddedNode(EmbeddedNode* node);
+
     void VisitVarInitStmt(VarInitStatement *init);
 
     void VisitIfStmt(IfStatement* node);

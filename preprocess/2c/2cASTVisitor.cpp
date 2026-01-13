@@ -3043,6 +3043,30 @@ void create_stub_impl_for_func(CTopLevelDeclarationVisitor* tld, FunctionDeclara
     tld->write("};");
 }
 
+ASTNode* embedded_repl(ToCAstVisitor& visitor, EmbeddedNode* node, CBIFunctionType type) {
+    ASTBuilder builder(&visitor.allocator, visitor.comptime_scope.typeBuilder);
+    const auto replacement_fn = visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNode);
+    if(!replacement_fn) {
+        visitor.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
+        return nullptr;
+    }
+    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, node);
+    if(repl) {
+        return repl;
+    } else {
+        visitor.error(node) << "couldn't replace embedded node with name '" << node->name << "'";
+        return nullptr;
+    }
+}
+
+void CTopLevelDeclarationVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
+    const auto repl = embedded_repl(visitor, node, CBIFunctionType::ReplacementNodeDeclare);
+    if(repl) {
+        node->replacement = repl;
+        visit(repl);
+    }
+}
+
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     const auto init_type = init->type ? init->type : init->value->getType();
@@ -6744,17 +6768,16 @@ void ToCAstVisitor::VisitExtractionValue(ExtractionValue* value) {
 }
 
 void ToCAstVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
-    ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
-    const auto replacement_fn = binder.findHook(node->name, CBIFunctionType::ReplacementNode);
-    if(!replacement_fn) {
-        error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
-        return;
-    }
-    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, node);
+    const auto repl = embedded_repl(*this, node, CBIFunctionType::ReplacementNode);
     if(repl) {
+        if(node->replacement == nullptr) {
+            node->replacement = repl;
+        }
         visit(repl);
     } else {
-        error(node) << "couldn't replace embedded node with name '" << node->name << "'";
+        if(node->replacement) {
+            visit(node->replacement);
+        }
     }
 }
 

@@ -47,6 +47,11 @@ public:
     std::vector<Value*> chemical_values;
 
     /**
+     * replacement is done once
+     */
+    ASTNode* replacement = nullptr;
+
+    /**
      * constructor
      */
     EmbeddedNode(
@@ -88,7 +93,11 @@ public:
 
     llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location);
 
+    void code_gen_declare(Codegen &gen) override;
+
     void code_gen(Codegen &gen) override;
+
+    void code_gen_external_declare(Codegen &gen) override;
 
 #endif
 

@@ -20,6 +20,11 @@ public func component_symResDeclareNode(resolver : *mut SymbolResolver, node : *
 }
 
 @no_mangle
+public func component_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+    return null
+}
+
+@no_mangle
 public func component_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     return null
 }

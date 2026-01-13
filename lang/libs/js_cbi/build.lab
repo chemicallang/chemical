@@ -75,6 +75,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResDeclareNode"), CBIFunctionType.SymResDeclareTopLevelNode);
     ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
     ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
     ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_replacementNode"), CBIFunctionType.ReplacementNode);
 
     comptime if(def.lsp) {

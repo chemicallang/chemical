@@ -164,7 +164,9 @@ public struct HtmlPage {
         str.append_view(std::string_view("</style>"))
         str.append_view(std::string_view("</head><body>"))
         str.append_string(pageHtml)
-        str.append_view(std::string_view("</body></html>"))
+        str.append_view(std::string_view("<script>"))
+        str.append_string(pageJs)
+        str.append_view(std::string_view("</script></body></html>"))
         return str;
     }
 

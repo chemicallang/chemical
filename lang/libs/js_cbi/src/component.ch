@@ -7,7 +7,9 @@ public func component_symResSigNode(resolver : *mut SymbolResolver, node : *mut 
 
 @no_mangle
 public func component_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    // resolve body of the node
+    const loc = node.getEncodedLocation();
+    const root = node.getDataPtr() as *mut JsComponentDecl;
+    sym_res_components(root.components, resolver, loc)
 }
 
 @no_mangle
@@ -83,11 +85,13 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         },
         body : null,
         support : SymResSupport {}, 
-        dyn_values : std::vector<*mut Value>()
+        dyn_values : std::vector<*mut Value>(),
+        components : std::vector<*mut JsJSXElement>(),
     }
 
     var jsParser = JsParser {
-        dyn_values : &mut comp.dyn_values
+        dyn_values : &mut comp.dyn_values,
+        components : &mut comp.components
     }
     
     if(parser.getToken().type == JsTokenType.LBrace as int) {

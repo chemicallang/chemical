@@ -296,5 +296,16 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
             tagName : tagName
         }
     }
+
+    if(tagName.kind == JsNodeKind.Identifier) {
+        var id = tagName as *mut JsIdentifier;
+        if(id.value.size() > 0) {
+             const first = id.value.get(0);
+             if(first >= 'A' && first <= 'Z') {
+                 jsParser.components.push(element);
+             }
+        }
+    }
+
     return element as *mut JsNode;
 }

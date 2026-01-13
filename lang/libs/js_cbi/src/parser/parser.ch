@@ -1,5 +1,6 @@
 struct JsParser {
     var dyn_values : *mut std::vector<*mut Value>
+    var components : *mut std::vector<*mut JsJSXElement>
 }
 
 public enum JsTokenType {
@@ -1475,9 +1476,13 @@ func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
         parent : parser.getParentNode(),
         support : SymResSupport {},
         dyn_values : std::vector<*mut Value>(),
+        components : std::vector<*mut JsJSXElement>(),
     }
 
-    var jsParser = JsParser { dyn_values : &mut root.dyn_values }
+    var jsParser = JsParser { 
+        dyn_values : &mut root.dyn_values,
+        components : &mut root.components
+    }
 
     while(true) {
         const token = parser.getToken();

@@ -170,20 +170,14 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         t_counter : 0
     }
     
-    // function $c_Greeting($c_props) {
+    // function $c_Greeting(props) {
     converter.str.append_view("function $c_")
     converter.str.append_view(root.signature.name)
-    converter.str.append_view("($c_props) {")
+    converter.str.append_view("(")
+    converter.str.append_view(root.signature.propsName)
+    converter.str.append_view(") {")
     
-    // const { name, ... } = $c_props
-    if(!root.signature.params.empty()) {
-        converter.str.append_view("const { ")
-        for(var i : uint = 0; i < root.signature.params.size(); i++) {
-            if(i > 0) converter.str.append_view(", ")
-            converter.str.append_view(root.signature.params.get(i).name)
-        }
-        converter.str.append_view(" } = $c_props;")
-    }
+    // const $c_root = document.createDocumentFragment();
     
     // const $c_root = document.createDocumentFragment();
     converter.str.append_view("const $c_root = document.createDocumentFragment();")
@@ -220,29 +214,37 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         parser.error("expected (");
     }
 
+    var propsName = std::string_view();
+    if(parser.getToken().type == JsTokenType.Identifier as int) {
+        propsName = builder.allocate_view(parser.getToken().value);
+        parser.increment();
+    } else {
+        parser.error("expected identifier for props");
+    }
+
     var params = std::vector<ComponentParam>();
-    if(parser.getToken().type != JsTokenType.RParen as int) {
+    if(parser.increment_if(JsTokenType.Colon as int)) {        
         while(true) {
             const t = parser.getToken();
             if(t.type == JsTokenType.Identifier as int) {
-                 var paramName = builder.allocate_view(t.value);
-                 parser.increment();
-                 
-                 var is_optional = false;
-                 if(parser.getToken().type == JsTokenType.Question as int) {
-                     is_optional = true;
-                     parser.increment();
-                 }
-                 
-                 params.push(ComponentParam { name : paramName, is_optional : is_optional });
+                    var paramName = builder.allocate_view(t.value);
+                    parser.increment();
+                    
+                    var is_optional = false;
+                    if(parser.getToken().type == JsTokenType.Question as int) {
+                        is_optional = true;
+                        parser.increment();
+                    }
+                    
+                    params.push(ComponentParam { name : paramName, is_optional : is_optional });
             } else {
-                 parser.error("expected identifier param");
-                 break;
+                    parser.error("expected identifier param");
+                    break;
             }
             if(parser.getToken().type == JsTokenType.Comma as int) {
-                 parser.increment();
+                    parser.increment();
             } else {
-                 break;
+                    break;
             }
         }
     }
@@ -257,6 +259,7 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         base : JsNode { kind : JsNodeKind.ComponentDecl },
         signature : ComponentSignature {
             name : name,
+            propsName : propsName,
             params : params,
             functionNode : null
         },

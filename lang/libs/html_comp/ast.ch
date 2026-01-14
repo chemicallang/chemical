@@ -5,6 +5,7 @@ public struct ComponentParam {
 
 public struct ComponentSignature {
     var name : std::string_view
+    var propsName : std::string_view
     var params : std::vector<ComponentParam>
     var functionNode : *mut FunctionDeclaration = null
 }

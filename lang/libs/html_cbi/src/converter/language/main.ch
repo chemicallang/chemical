@@ -457,7 +457,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     const signature = element.componentSignature
     
     // 1. Generate the hash based on component name
-    const hash = fnv1a_hash_32(signature.name)
+    const hash = signature.functionNode.getEncodedLocation()
     
     // 2. Generate the if(page.require_component(hash)) block
     var requireCall = converter.make_require_component_call(hash as size_t)

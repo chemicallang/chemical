@@ -116,6 +116,7 @@ const std::pair<chem::string_view, void*> LexerSymMap[] = {
 
 const std::pair<chem::string_view, void*> ParserSymMap[] = {
         {"compiler_ParsergetTokenPtr",    (void*) ParsergetTokenPtr },
+        {"compiler_ParsergetEncodedLocation",    (void*) ParsergetEncodedLocation },
         {"compiler_ParsergetAnnotationController",    (void*) ParsergetAnnotationController },
         {"compiler_ParsergetIs64Bit",    (void*) ParsergetIs64Bit },
         {"compiler_ParsergetParentNodePtr",    (void*) ParsergetParentNodePtr },

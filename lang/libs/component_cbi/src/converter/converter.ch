@@ -670,29 +670,6 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
     const isComponent = element.componentSignature != null || (tagName.size() > 0 && isupper(tagName.get(0) as int))
     
     if(isComponent) {
-        if(element.componentSignature != null) {
-            converter.put_chain_in()
-            const builder = converter.builder
-            const location = intrinsics::get_raw_location()
-            const signature = element.componentSignature
-            
-            const hash = fnv1a_hash_32(signature.name)
-            
-            var requireCall = converter.make_require_component_call(hash as size_t)
-            var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
-            var body = ifStmt.get_body()
-            
-            body.push(converter.make_set_component_hash_call(hash as size_t))
-            
-            var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
-            var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-            var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
-            call.get_args().push(pageId as *mut Value)
-            body.push(call as *mut ASTNode)
-            
-            converter.vec.push(ifStmt as *mut ASTNode)
-        }
-
         converter.str.append_view("const ")
         converter.str.append_view(t.to_view())
         converter.str.append_view(" = $c_")

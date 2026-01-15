@@ -133,6 +133,54 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         t_counter : 0
     }
     
+    // Inject dependencies
+    const location = intrinsics::get_raw_location()
+    
+    // Using a simple map or vector to deduplicate would be nice, but we can't allocate easily for that?
+    // We can use nested loops since N is small.
+    // Or just iterate and check if we already emitted?
+    // We need to store emitted hashes.
+    
+    var emitted = std::vector<size_t>();
+    
+    for(var i : uint = 0; i < root.components.size(); i++) {
+        const element = root.components.get(i);
+        // Only if it is a component
+        if(element.componentSignature != null) {
+            const signature = element.componentSignature;
+            const hash = signature.functionNode.getEncodedLocation() as size_t;
+            
+            var already_emitted = false;
+            for(var j : uint = 0; j < emitted.size(); j++) {
+                if(emitted.get(j) == hash) {
+                    already_emitted = true;
+                    break;
+                }
+            }
+            
+            if(!already_emitted) {
+                emitted.push(hash);
+                
+                // Emit require block
+                converter.put_chain_in()
+                
+                var requireCall = converter.make_require_component_call(hash)
+                var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
+                var body = ifStmt.get_body()
+                
+                body.push(converter.make_set_component_hash_call(hash))
+                
+                var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+                var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+                var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
+                call.get_args().push(pageId as *mut Value)
+                body.push(call as *mut ASTNode)
+                
+                converter.vec.push(ifStmt as *mut ASTNode)
+            }
+        }
+    }
+    
     // function $c_Greeting(props) {
     converter.str.append_view("function $c_")
     converter.str.append_view(root.signature.name)
@@ -170,6 +218,8 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     // #component Greeting(params) { body }
     // Token #component is already consumed ? No, this is called as callback for #component macro.
     // The parser is AFTER #component.
+    
+    const location = parser.getEncodedLocation(parser.getToken());
     
     // Parse Identifier
     var name = std::string_view();
@@ -252,7 +302,7 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
         
         const nodes_arr : []*mut ASTNode = []
         
-        const node = builder.make_embedded_node(std::string_view("component"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, intrinsics::get_raw_location());
+        const node = builder.make_embedded_node(std::string_view("component"), comp, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(comp.dyn_values.data(), comp.dyn_values.size()), null, location);
 
         const controller = parser.getAnnotationController();
 

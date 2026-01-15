@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "cstdint"
+
 class ASTBuilder;
 
 class ASTAllocator;
@@ -27,6 +29,8 @@ namespace chem {
 extern "C" {
 
     Token** ParsergetTokenPtr(Parser* parser);
+
+    uint64_t ParsergetEncodedLocation(Parser* parser, Token* token);
 
     AnnotationController* ParsergetAnnotationController(Parser* parser);
 

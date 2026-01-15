@@ -770,12 +770,3 @@ func (converter : &mut JsConverter) convertJSXFragment(fragment : *mut JsJSXFrag
     converter.jsx_parent = old_parent
     converter.put_chain_in()
 }
-
-func (converter : &mut JsConverter) convertJsRoot(root : *mut JsRoot) {
-    var i = 0u
-    while(i < root.statements.size()) {
-        converter.convertJsNode(root.statements.get(i))
-        i++
-    }
-    converter.put_chain_in()
-}

@@ -1468,34 +1468,3 @@ func (jsParser : &mut JsParser) parseExport(parser : *mut Parser, builder : *mut
     }
     return exp as *mut JsNode;
 }
-
-func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
-    var root = builder.allocate<JsRoot>()
-    new (root) JsRoot {
-        statements : std::vector<*mut JsNode>(),
-        parent : parser.getParentNode(),
-        support : SymResSupport {},
-        dyn_values : std::vector<*mut Value>(),
-        components : std::vector<*mut JsJSXElement>(),
-    }
-
-    var jsParser = JsParser { 
-        dyn_values : &mut root.dyn_values,
-        components : &mut root.components
-    }
-
-    while(true) {
-        const token = parser.getToken();
-        if(token.type == JsTokenType.RBrace as int || token.type == JsTokenType.EndOfFile as int) {
-            break;
-        }
-        
-        var stmt = jsParser.parseStatement(parser, builder);
-        if(stmt != null) {
-            root.statements.push(stmt);
-        } else {
-            break;
-        }
-    }
-    return root;
-}

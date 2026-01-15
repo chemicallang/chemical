@@ -8,6 +8,10 @@ Token** ParsergetTokenPtr(Parser* parser) {
     return &parser->token;
 }
 
+uint64_t ParsergetEncodedLocation(Parser* parser, Token* token) {
+    return parser->loc_single(token);
+}
+
 AnnotationController* ParsergetAnnotationController(Parser* parser) {
     return &parser->controller;
 }

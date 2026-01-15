@@ -4,6 +4,8 @@ public struct Parser {
 
     func getTokenPtr(&self) : *mut *mut Token
 
+    func getEncodedLocation(&self, token : *Token) : ubigint
+
     func getAnnotationController(&self) : *mut AnnotationController
 
     func getIs64Bit(&self) : bool

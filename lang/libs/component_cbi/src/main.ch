@@ -1,101 +1,3 @@
-@no_mangle
-public func js_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
-    const loc = node.getEncodedLocation();
-    const root = node.getDataPtr() as *mut JsRoot;
-    sym_res_root(root, resolver, loc)
-}
-
-@no_mangle
-public func js_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
-    const loc = intrinsics::get_raw_location();
-    const root = value.getDataPtr() as *mut JsRoot;
-    var scope = builder.make_scope(root.parent, loc);
-    var scope_nodes = scope.getNodes();
-    var converter = JsConverter {
-        builder : builder,
-        support : &mut root.support,
-        vec : scope_nodes,
-        parent : root.parent,
-        str : std::string()
-    }
-    converter.convertJsRoot(root);
-    return scope;
-}
-
-public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
-    return null;
-}
-
-public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
-    return null;
-}
-
-@no_mangle
-public func js_symResValue(resolver : *mut SymbolResolver, value : *EmbeddedValue) : bool {
-    const loc = value.getEncodedLocation()
-    const root = value.getDataPtr() as *mut JsRoot;
-    sym_res_root(root, resolver, loc)
-    return true;
-}
-
-@no_mangle
-public func js_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValue) : *Value {
-    const loc = intrinsics::get_raw_location();
-    const root = value.getDataPtr() as *mut JsRoot;
-    var block_val = builder.make_block_value(root.parent, loc)
-    var scope_nodes = block_val.get_body()
-    
-    var converter = JsConverter {
-        builder : builder,
-        support : &mut root.support,
-        vec : scope_nodes,
-        parent : root.parent,
-        str : std::string()
-    }
-    
-    converter.convertJsRoot(root);
-    
-    const view = builder.allocate_view(converter.str.to_view())
-    const strValue = builder.make_string_value(view, loc)
-    block_val.setCalculatedValue(strValue)
-    return block_val;
-}
-
-@no_mangle
-public func js_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    const loc = intrinsics::get_raw_location();
-    if(parser.increment_if(JsTokenType.LBrace as int)) {
-        var root = parseJsRoot(parser, builder);
-        const type = builder.make_string_type(loc)
-        const nodes_arr : []*mut ASTNode = []
-        const value = builder.make_embedded_value(std::string_view("js"), root, type, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), loc);
-        if(!parser.increment_if(JsTokenType.RBrace as int)) {
-            parser.error("expected a rbrace for ending the js macro");
-        }
-        return value;
-    } else {
-        parser.error("expected a lbrace");
-    }
-    return null;
-}
-
-@no_mangle
-public func js_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
-    const loc = intrinsics::get_raw_location();
-    if(parser.increment_if(JsTokenType.LBrace as int)) {
-        var root = parseJsRoot(parser, builder);
-        const nodes_arr : []*mut ASTNode = []
-        const node = builder.make_embedded_node(std::string_view("js"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
-        if(!parser.increment_if(JsTokenType.RBrace as int)) {
-            parser.error("expected a rbrace for ending the js macro");
-        }
-        return node;
-    } else {
-        parser.error("expected a lbrace");
-        return null;
-    }
-}
-
 public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
     
     if(js.chemical_mode) {
@@ -138,6 +40,29 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
     const provider = &mut lexer.provider;
     const position = provider.getPosition();
     const data_ptr = provider.current_data()
+    
+    // Check if we are in JSX child mode (and not in expression)
+    // Child mode = jsx_depth > 0 && !in_jsx_tag && jsx_brace_count == 0
+    // But we need to handle transitions.
+    
+    const is_child = js.jsx_depth > 0 && js.in_jsx_tag == 0 && js.jsx_brace_count == 0;
+    
+    if(is_child) {
+        // If we are here, we check if we are at < or { or content
+        const p = provider.peek();
+        if(p != '<' && p != '{' && p != '\0') {
+             // Read text
+             const start_ptr = provider.current_data();
+             while(true) {
+                 const n = provider.peek();
+                 if(n == '<' || n == '{' || n == '\0') {
+                     break;
+                 }
+                 provider.readCharacter();
+             }
+             return Token { type : JsTokenType.JSXText as int, value : std::string_view(start_ptr, provider.current_data() - start_ptr), position : position }
+        }
+    }
 
     const c = provider.readCharacter();
     
@@ -157,6 +82,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         }
         '{' => {
             js.lb_count++;
+            if(js.jsx_depth > 0) {
+                 js.jsx_brace_count++;
+            }
             return Token { type : JsTokenType.LBrace as int, value : view("{"), position : position }
         }
         '}' => {
@@ -167,6 +95,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 js.lb_count--;
             }
             
+            if(js.jsx_depth > 0 && js.jsx_brace_count > 0) {
+                 js.jsx_brace_count--;
+            }
             return Token { type : JsTokenType.RBrace as int, value : view("}"), position : position }
         }
         '(' => { return Token { type : JsTokenType.LParen as int, value : view("("), position : position } }
@@ -219,6 +150,15 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.SlashEqual as int, value : view("/="), position : position }
+            } else if(provider.peek() == '>') {
+                // /> Self-closing!
+                // If we are in_jsx_tag, and we see />, then we should decrement depth because we incremented at <.
+                if(js.in_jsx_tag == 1) {
+                    if(js.jsx_depth > 0) js.jsx_depth--;
+                    // Note: we don't change in_jsx_tag here, > will do it.
+                }
+                // Return /
+                return Token { type : JsTokenType.Slash as int, value : view("/"), position : position }
             } else if(provider.peek() == '/') {
                 // Single line comment
                 provider.readCharacter(); // consume /
@@ -318,6 +258,52 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                 return Token { type : JsTokenType.LeftShift as int, value : view("<<"), position : position }
             }
             
+            // JSX Heuristic
+            // <Identifier -> Open Tag
+            // </ -> Closing Tag
+            // <> -> Fragment Open
+            
+            const p = provider.peek();
+            
+            // We need to support reading Identifier to check, but we shouldn't consume it if it's not JSX?
+            // Lexer structure returns one token.
+            // But we need to update state.
+            
+            var is_jsx = false;
+            var is_closing = false;
+            
+            if(p == '/') {
+                // </...
+                is_jsx = true;
+                is_closing = true;
+                // We consume /? No, we return <.
+                // But we update state.
+            } else if(p == '>') {
+                // <>
+                is_jsx = true;
+            } else if(isalpha(p as int) || p == '_' || p == '$') {
+                 // <Ident -> likely JSX start?
+                 // Or x < y.
+                 // In #component macro, or inside JSX, <Ident is treated as JSX tag start.
+                 // Outside... standard JS x < y is valid.
+                 // Heuristic: If we are already in JSX (depth > 0), then <Ident is definitely nested tag.
+                 // If depth == 0, we assume it's JSX start if it looks like one?
+                 // Standard JS parser has trouble here too without context.
+                 // But for #component, we prefer JSX.
+                 is_jsx = true;
+            }
+            
+            if(is_jsx) {
+                 if(is_closing) {
+                     // </
+                     if(js.jsx_depth > 0) js.jsx_depth--;
+                 } else {
+                     // <...
+                     js.jsx_depth++;
+                 }
+                 js.in_jsx_tag = 1;
+            }
+            
             return Token { type : JsTokenType.LessThan as int, value : view("<"), position : position }
         }
         '>' => {
@@ -331,6 +317,29 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
                     return Token { type : JsTokenType.RightShiftUnsigned as int, value : view(">>>"), position : position }
                 }
                 return Token { type : JsTokenType.RightShift as int, value : view(">>"), position : position }
+            }
+            
+            // If we are in_jsx_tag, this > closes the tag.
+            // Check for /> self closing.
+            // We can't easily look back.
+            // But assume parser handles flow.
+            // Lexer just needs to know we exited tag.
+            
+            if(js.in_jsx_tag == 1) {
+                js.in_jsx_tag = 0;
+                
+                // If it was self-closing (/>), depth should be decremented?
+                // We don't know here easily if we saw /.
+                // Actually, if we saw /, we decremented depth at <.
+                // Wait. </ ... >.
+                // At <, we saw /. We decremented.
+                // At >, we just exit tag. Depth is correct.
+                
+                // What about <div /> ?
+                // At <, we saw div. Incremented.
+                // At /, we saw >.
+                // We need to handle / inside tag?
+                // / is handled below.
             }
             
             return Token { type : JsTokenType.GreaterThan as int, value : view(">"), position : position }
@@ -410,15 +419,4 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
         '~' => { return Token { type : JsTokenType.BitwiseNot as int, value : view("~"), position : position } }
         '^' => { return Token { type : JsTokenType.BitwiseXor as int, value : view("^"), position : position } }
     }
-}
-
-@no_mangle
-public func js_initializeLexer(lexer : *mut Lexer) {
-    const file_allocator = lexer.getFileAllocator();
-    const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;
-    new (ptr) JsLexer {
-        lb_count : 0,
-        chemical_mode : false
-    }
-    lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

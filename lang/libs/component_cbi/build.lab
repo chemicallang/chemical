@@ -3,6 +3,7 @@ import std
 
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
+import "@html_comp/build.lab" as htmlCompMod
 import "@compiler/build.lab" as compilerMod
 
 using namespace std;
@@ -27,7 +28,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     controller.createMarkerAnnotation(std::string_view("component"))
 
     // js cbi
-    var cbi = ctx.build_cbi(std::string_view("js"))
+    var cbi = ctx.build_cbi(std::string_view("component"))
     const job = cbi;
 
     // makes sure this job is done before the user_job
@@ -44,30 +45,30 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return null
     }
 
+    // the html component module
+    var html_comp_module = htmlCompMod.build(ctx, job)
+    if(html_comp_module == null) {
+        return null
+    }
+
     // the std module
     var compiler_module = compilerMod.build(ctx, job);
     if(compiler_module == null) {
         return null
     }
 
-    const dependencies = [ cstd_module, std_module, compiler_module ]
+    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module ]
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("js_cbi"), lab::rel_path_to("src").to_view(), dependencies);
 
     ctx.add_module(cbi, module)
 
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_initializeLexer"), CBIFunctionType.InitializeLexer);
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_parseMacroValue"), CBIFunctionType.ParseMacroValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_parseMacroNode"), CBIFunctionType.ParseMacroNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_symResNode"), CBIFunctionType.SymResNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_symResValue"), CBIFunctionType.SymResValue);
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementNode"), CBIFunctionType.ReplacementNode);
-    ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementValue"), CBIFunctionType.ReplacementValue);
-
-    comptime if(def.lsp) {
-        // this will let the lsp know that methods are present
-        ctx.index_def_cbi_fn(cbi, std::string_view("js_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
-        ctx.index_def_cbi_fn(cbi, std::string_view("js_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
-    }
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResDeclareNode"), CBIFunctionType.SymResDeclareTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
+    ctx.index_cbi_fn(cbi, std::string_view("component"), std::string_view("component_replacementNode"), CBIFunctionType.ReplacementNode);
 
     return user_std_module;
 

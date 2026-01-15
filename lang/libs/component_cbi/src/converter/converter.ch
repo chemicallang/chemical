@@ -17,14 +17,51 @@ func (converter : &mut JsConverter) next_t() : std::string {
     return res
 }
 
+@extern
+public func rand() : int;
+
+func generate_random_32bit() : uint32_t {
+    return (rand() as uint32_t << 16) | rand() as uint32_t;
+}
+
+func fnv1a_hash_32(view : std::string_view) : uint32_t {
+    var hash = 2166136261u;
+    for (var i = 0u; i < view.size(); i++) {
+        hash ^= view.get(i) as uint32_t;
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+func (converter : &mut JsConverter) make_require_component_call(hash : size_t) : *mut FunctionCall {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    const support = converter.support;
+    var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
+    var id = builder.make_identifier(std::string_view("require_component"), support.requireComponentFn, false, location);
+    const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
+    var call = builder.make_function_call_value(chain, location)
+    var args = call.get_args();
+    args.push(value)
+    return call;
+}
+
+func (converter : &mut JsConverter) make_set_component_hash_call(hash : size_t) : *mut FunctionCallNode {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location();
+    var value = builder.make_ubigint_value(hash, location)
+    return converter.make_value_call_with(value, std::string_view("set_component_hash"), converter.support.setComponentHashFn)
+}
+
 
 func (converter : &mut JsConverter) make_char_chain(value : char) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
     
-    var name = std::string_view("append_js_char")
-    var fnPtr = converter.support.appendJsCharFn
+    var name = std::string_view("append_head_js_char")
+    var fnPtr = converter.support.appendHeadJsCharFn
 
     var id = builder.make_identifier(name, fnPtr, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
@@ -48,36 +85,36 @@ func (converter : &mut JsConverter) make_value_call_with(value : *mut Value, fn_
 }
 
 func (converter : &mut JsConverter) make_char_ptr_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_char_ptr"), converter.support.appendJsCharPtrFn)
+    return converter.make_value_call_with(value, std::string_view("append_head_js_char_ptr"), converter.support.appendHeadJsCharPtrFn)
 }
 
 func (converter : &mut JsConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_char"), converter.support.appendJsCharFn)
+    return converter.make_value_call_with(value, std::string_view("append_head_js_char"), converter.support.appendHeadJsCharFn)
 }
 
 func (converter : &mut JsConverter) make_integer_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_integer"), converter.support.appendJsIntFn)
+    return converter.make_value_call_with(value, std::string_view("append_head_js_integer"), converter.support.appendHeadJsIntFn)
 }
 
 func (converter : &mut JsConverter) make_uinteger_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_uinteger"), converter.support.appendJsUIntFn)
+    return converter.make_value_call_with(value, std::string_view("append_head_js_uinteger"), converter.support.appendHeadJsUIntFn)
 }
 
 func (converter : &mut JsConverter) make_float_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_float"), converter.support.appendJsFloatFn)
+    return converter.make_value_call_with(value, std::string_view("append_head_js_float"), converter.support.appendHeadJsFloatFn)
 }
 
 func (converter : &mut JsConverter) make_double_value_call(value : *mut Value) : *mut FunctionCallNode {
-    return converter.make_value_call_with(value, std::string_view("append_js_double"), converter.support.appendJsDoubleFn)
+    return converter.make_value_call_with(value, std::string_view("append_head_js_double"), converter.support.appendHeadJsDoubleFn)
 }
 
 func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : size_t) : *mut FunctionCallNode {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    var name = std::string_view("append_js")
+    var name = std::string_view("append_head_js")
     
-    var id = builder.make_identifier(name, converter.support.appendJsFn, false, location);
+    var id = builder.make_identifier(name, converter.support.appendHeadJsFn, false, location);
     const chain = builder.make_access_chain(std::span<*mut ChainValue>([ base, id ]), location)
     var call = builder.make_function_call_node(chain, converter.parent, location)
     var args = call.get_args();
@@ -633,6 +670,29 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
     const isComponent = element.componentSignature != null || (tagName.size() > 0 && isupper(tagName.get(0) as int))
     
     if(isComponent) {
+        if(element.componentSignature != null) {
+            converter.put_chain_in()
+            const builder = converter.builder
+            const location = intrinsics::get_raw_location()
+            const signature = element.componentSignature
+            
+            const hash = fnv1a_hash_32(signature.name)
+            
+            var requireCall = converter.make_require_component_call(hash as size_t)
+            var ifStmt = builder.make_if_stmt(requireCall as *mut Value, converter.parent, location)
+            var body = ifStmt.get_body()
+            
+            body.push(converter.make_set_component_hash_call(hash as size_t))
+            
+            var base = builder.make_identifier(signature.name, signature.functionNode as *mut ASTNode, false, location)
+            var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+            var call = builder.make_function_call_node(base as *mut ChainValue, converter.parent, location)
+            call.get_args().push(pageId as *mut Value)
+            body.push(call as *mut ASTNode)
+            
+            converter.vec.push(ifStmt as *mut ASTNode)
+        }
+
         converter.str.append_view("const ")
         converter.str.append_view(t.to_view())
         converter.str.append_view(" = $c_")

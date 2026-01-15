@@ -46,14 +46,6 @@ public struct JsNode {
     var kind : JsNodeKind
 }
 
-public struct JsRoot {
-    var statements : std::vector<*mut JsNode>
-    var components : std::vector<*mut JsJSXElement>
-    var parent : *mut ASTNode
-    var support : SymResSupport
-    var dyn_values : std::vector<*mut Value>
-}
-
 public struct JsVarDecl {
     var base : JsNode
     var name : std::string_view

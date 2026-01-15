@@ -194,6 +194,14 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
     return root.signature.functionNode as *mut ASTNode;
 }
 
+public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+    return null;
+}
+
+public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+    return null;
+}
+
 @no_mangle
 public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
     // #component Greeting(params) { body }
@@ -304,5 +312,14 @@ public func component_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
 
 @no_mangle
 public func component_initializeLexer(lexer : *mut Lexer) {
-    js_initializeLexer(lexer);
+    const file_allocator = lexer.getFileAllocator();
+    const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;
+    new (ptr) JsLexer {
+        lb_count : 0,
+        chemical_mode : false,
+        jsx_depth : 0,
+        in_jsx_tag : 0,
+        jsx_brace_count : 0
+    }
+    lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

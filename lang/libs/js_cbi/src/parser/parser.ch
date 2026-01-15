@@ -1,6 +1,5 @@
 struct JsParser {
     var dyn_values : *mut std::vector<*mut Value>
-    var components : *mut std::vector<*mut JsJSXElement>
 }
 
 public enum JsTokenType {
@@ -439,8 +438,6 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
         }
         node = chem as *mut JsNode;
         node = chem as *mut JsNode;
-    } else if(token.type == JsTokenType.LessThan as int) {
-        node = jsParser.parseJSXElement(parser, builder);
     } else if(token.type == JsTokenType.LParen as int) {
         parser.increment();
         
@@ -1475,13 +1472,11 @@ func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
         statements : std::vector<*mut JsNode>(),
         parent : parser.getParentNode(),
         support : SymResSupport {},
-        dyn_values : std::vector<*mut Value>(),
-        components : std::vector<*mut JsJSXElement>(),
+        dyn_values : std::vector<*mut Value>()
     }
 
     var jsParser = JsParser { 
-        dyn_values : &mut root.dyn_values,
-        components : &mut root.components
+        dyn_values : &mut root.dyn_values
     }
 
     while(true) {

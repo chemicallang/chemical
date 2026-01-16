@@ -175,7 +175,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
     // Assumes < is already consumed or handled (for recursive calls inside fragment loop, check logic).
     
     var tagName : *mut JsNode = null;
-    // Parse tag name (Identifier or MemberExpression)
+    // Parse tag name (Identifier, MemberExpression, or ExpressionContainer)
     if(parser.getToken().type == JsTokenType.Identifier as int) {
          var id = builder.allocate<JsIdentifier>()
          new (id) JsIdentifier {
@@ -201,6 +201,18 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
                   parser.error("expected identifier");
               }
          }
+    } else if(parser.getToken().type == JsTokenType.LBrace as int) {
+         parser.increment(); // {
+         var expr = jsParser.parseExpression(parser, builder);
+         if(!parser.increment_if(JsTokenType.RBrace as int)) {
+             parser.error("expected }");
+         }
+         var container = builder.allocate<JsJSXExpressionContainer>()
+         new (container) JsJSXExpressionContainer {
+             base : JsNode { kind : JsNodeKind.JSXExpressionContainer },
+             expression : expr
+         }
+         tagName = container as *mut JsNode;
     } else {
         parser.error("expected tag name");
         return null; // or empty node
@@ -227,6 +239,7 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
     }
     
     if(!parser.increment_if(JsTokenType.GreaterThan as int)) {
+        printf("%d got token type\n", parser.getToken().type)
         parser.error("expected >");
     }
     
@@ -274,11 +287,8 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
                      children.push(elem);
                  }
             } else {
-                if(t.type == JsTokenType.EndOfFile as int) {
-                     parser.error("unexpected eof in jsx element");
-                     break;
-                 }
-                 parser.increment();
+                parser.error("unexpected token in children of jsx");
+                break
             }
         }
     }

@@ -4,13 +4,14 @@ struct JsParser {
 }
 
 public enum JsTokenType {
+    EndOfFile,
     Var = 100,
+    JSXText,
     Identifier,
     Equal,
     Number,
     LBrace,
     RBrace,
-    EndOfFile,
     ChemicalStart, // ${
     LParen,
     RParen,
@@ -90,8 +91,7 @@ public enum JsTokenType {
     Import,
     Export,
     Yield,
-    Debugger,
-    JSXText
+    Debugger
 }
 
 func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {

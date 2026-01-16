@@ -641,17 +641,23 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
     if(!converter.str.empty()) converter.put_chain_in()
     
     const tagNameNode = element.opening.tagName as *mut JsNode
+    var isComponent = false
     var tagName = std::string_view()
+
     if(tagNameNode.kind == JsNodeKind.Identifier) {
         const jsId = tagNameNode as *mut JsIdentifier
         tagName = jsId.value
+        if(element.componentSignature != null || (tagName.size() > 0 && isupper(tagName.get(0) as int))) {
+            isComponent = true
+        }
+    } else if(tagNameNode.kind == JsNodeKind.JSXExpressionContainer) {
+        // <{Expression}> -> Expression({})
+        isComponent = true
     } else {
-        // TODO: MemberExpression tags
         return
     }
 
     const t = converter.next_t()
-    const isComponent = element.componentSignature != null || (tagName.size() > 0 && isupper(tagName.get(0) as int))
     
     if(isComponent) {
         // Generate children first to ensure statements are outside the object literal
@@ -713,8 +719,16 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
 
         converter.str.append_view("const ")
         converter.str.append_view(t.to_view())
-        converter.str.append_view(" = $c_")
-        converter.str.append_view(tagName)
+        converter.str.append_view(" = ")
+        
+        if(tagNameNode.kind == JsNodeKind.Identifier) {
+            converter.str.append_view("$c_")
+            converter.str.append_view(tagName)
+        } else if(tagNameNode.kind == JsNodeKind.JSXExpressionContainer) {
+             var exprCont = tagNameNode as *mut JsJSXExpressionContainer
+             converter.convertJsNode(exprCont.expression)
+        }
+        
         converter.str.append_view("({")
         
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {

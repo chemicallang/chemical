@@ -40,10 +40,12 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
             children : std::vector<*HtmlChild>()
         }
 
+        var isComponent = false;
         if (id.value.size() > 0) {
             const first = id.value.get(0);
             if (first >= 'A' && first <= 'Z') {
                 htmlParser.components.push(element);
+                isComponent = true;
             }
         }
 
@@ -77,6 +79,9 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
         while(true) {
             var child = htmlParser.parseElementChild(parser, builder);
             if(child != null) {
+                if(isComponent) {
+                    parser.error("Passing children to components in #html blocks is not supported.");
+                }
                 element.children.push(child)
             } else {
                 break;

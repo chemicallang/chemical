@@ -660,44 +660,98 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
     const t = converter.next_t()
     
     if(isComponent) {
-        // Generate children first to ensure statements are outside the object literal
+        // Generate children first
         var children_var_name = std::string("null")
         var has_children = element.children.size() > 0
 
         if(has_children) {
-            // We need to flush any pending string content so that children statements are standalone
             if(!converter.str.empty()) converter.put_chain_in()
 
             if(element.children.size() == 1) {
                 // Optimize for single child
                 const child = element.children.get(0)
-                const old_parent = converter.jsx_parent
-                converter.jsx_parent = std::string_view() // Empty view
                 
                 if(child.kind == JsNodeKind.JSXText) {
                     var text = child as *mut JsJSXText
                     if(!text.value.empty()) {
-                         const t = converter.next_t()
+                         const child_fn = converter.next_t()
                          converter.str.append_view("const ")
-                         converter.str.append_view(t.to_view())
-                         converter.str.append_view(" = document.createTextNode(`")
+                         converter.str.append_view(child_fn.to_view())
+                         converter.str.append_view(" = (props) => { return document.createTextNode(`")
                          converter.str.append_view(text.value)
-                         converter.str.append_view("`);")
-                         children_var_name = t
+                         converter.str.append_view("`); };")
+                         children_var_name = child_fn
                     } else {
                          children_var_name = std::string("null")
                     }
+                } else if(child.kind == JsNodeKind.JSXExpressionContainer) {
+                     // Expression: const t = expr; children: typeof t === 'function' ? t : (props) => t
+                     const child_expr = converter.next_t()
+                     converter.str.append_view("const ")
+                     converter.str.append_view(child_expr.to_view())
+                     converter.str.append_view(" = ")
+                     
+                     var exprCont = child as *mut JsJSXExpressionContainer
+                     // Temporarily clear jsx_parent so it doesn't try to append
+                     const old_parent = converter.jsx_parent
+                     converter.jsx_parent = std::string_view()
+                     converter.convertJsNode(exprCont.expression) // This puts expression code
+                     converter.jsx_parent = old_parent
+                     
+                     converter.str.append_view(";")
+                     
+                     // Create wrapper string
+                     // We can't easily allocate a new variable for the wrapper here without complex string ops if we want inline, 
+                     // but we can just use the expression in the prop value assignment?
+                     // Wait, we need `children_var_name` to be the FINAL value passed.
+                     
+                     // Let's create the final variable
+                     const final_var = converter.next_t()
+                     converter.str.append_view("const ")
+                     converter.str.append_view(final_var.to_view())
+                     converter.str.append_view(" = (typeof ")
+                     converter.str.append_view(child_expr.to_view())
+                     converter.str.append_view(" === 'function') ? ")
+                     converter.str.append_view(child_expr.to_view())
+                     converter.str.append_view(" : (props) => ")
+                     converter.str.append_view(child_expr.to_view())
+                     converter.str.append_view(";")
+                     
+                     children_var_name = final_var
+                     
                 } else {
+                     // Element/Fragment: Wrap in (props) => { ... return t; }
+                     const child_fn = converter.next_t()
+                     converter.str.append_view("const ")
+                     converter.str.append_view(child_fn.to_view())
+                     converter.str.append_view(" = (props) => { ")
+                     
+                     // We need to capture the variable name of the child
+                     // We can peek t_counter?
+                     // convertJsNode will generate `const t = ...`
+                     // We need to know `t`.
+                     
+                     const old_parent = converter.jsx_parent
+                     converter.jsx_parent = std::string_view() // Detached
+                     
                      converter.convertJsNode(child)
-                     children_var_name.clear()
-                     children_var_name.append_view("$c_t")
-                     children_var_name.append_integer(converter.t_counter as bigint)
+                     
+                     converter.jsx_parent = old_parent
+                     
+                     converter.str.append_view("return $c_t")
+                     converter.str.append_integer(converter.t_counter as bigint)
+                     converter.str.append_view("; };")
+                     
+                     children_var_name = child_fn
                 }
                 
-                converter.jsx_parent = old_parent // restore
-                
             } else {
-                // Multiple children -> DocumentFragment
+                // Multiple children -> Function returning DocumentFragment
+                const child_fn = converter.next_t()
+                converter.str.append_view("const ")
+                converter.str.append_view(child_fn.to_view())
+                converter.str.append_view(" = (props) => { ")
+                
                 const t_frag = converter.next_t()
                 converter.str.append_view("const ")
                 converter.str.append_view(t_frag.to_view())
@@ -711,10 +765,14 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
                 }
                 
                 converter.jsx_parent = old_parent
-                children_var_name = t_frag
+                
+                converter.str.append_view("return ")
+                converter.str.append_view(t_frag.to_view())
+                converter.str.append_view("; };")
+                
+                children_var_name = child_fn
             }
             
-            // Flush the children generation statements
             converter.put_chain_in()
         }
 
@@ -757,6 +815,14 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
         }
         
         converter.str.append_view("});")
+        
+        if(!converter.jsx_parent.empty()) {
+            converter.str.append_view(converter.jsx_parent)
+            converter.str.append_view(".appendChild(")
+            converter.str.append_view(t.to_view())
+            converter.str.append_view(");")
+        }
+
     } else {
         converter.str.append_view("const ")
         converter.str.append_view(t.to_view())
@@ -779,30 +845,30 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
                     if(jsNode.kind == JsNodeKind.Literal) {
                         converter.convertJsNode(attr.value)
                     } else {
-                        // It's a JSXExpressionContainer or something else, it will output its own JS
                         converter.convertJsNode(attr.value)
                     }
                 }
                 converter.str.append_view(");")
             }
         }
-    }
+        
+        if(!converter.jsx_parent.empty()) {
+            converter.str.append_view(converter.jsx_parent)
+            converter.str.append_view(".appendChild(")
+            converter.str.append_view(t.to_view())
+            converter.str.append_view(");")
+        }
 
-    if(!converter.jsx_parent.empty()) {
-        converter.str.append_view(converter.jsx_parent)
-        converter.str.append_view(".appendChild(")
-        converter.str.append_view(t.to_view())
-        converter.str.append_view(");")
-    }
-
-    const old_parent = converter.jsx_parent
-    converter.jsx_parent = converter.builder.allocate_view(t.to_view())
-    
-    for(var i : uint = 0; i < element.children.size(); i++) {
-        converter.convertJsNode(element.children.get(i))
+        const old_parent = converter.jsx_parent
+        converter.jsx_parent = converter.builder.allocate_view(t.to_view())
+        
+        for(var i : uint = 0; i < element.children.size(); i++) {
+            converter.convertJsNode(element.children.get(i))
+        }
+        
+        converter.jsx_parent = old_parent
     }
     
-    converter.jsx_parent = old_parent
     converter.put_chain_in()
 }
 

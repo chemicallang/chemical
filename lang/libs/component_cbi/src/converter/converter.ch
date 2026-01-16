@@ -17,22 +17,6 @@ func (converter : &mut JsConverter) next_t() : std::string {
     return res
 }
 
-@extern
-public func rand() : int;
-
-func generate_random_32bit() : uint32_t {
-    return (rand() as uint32_t << 16) | rand() as uint32_t;
-}
-
-func fnv1a_hash_32(view : std::string_view) : uint32_t {
-    var hash = 2166136261u;
-    for (var i = 0u; i < view.size(); i++) {
-        hash ^= view.get(i) as uint32_t;
-        hash *= 16777619u;
-    }
-    return hash;
-}
-
 func (converter : &mut JsConverter) make_require_component_call(hash : size_t) : *mut FunctionCall {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();

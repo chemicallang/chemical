@@ -332,7 +332,8 @@ public func component_initializeLexer(lexer : *mut Lexer) {
         chemical_mode : false,
         jsx_depth : 0,
         in_jsx_tag : 0,
-        jsx_brace_count : 0
+        jsx_brace_count : 0,
+        tag_mode_stack : 0
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
 }

@@ -4,6 +4,7 @@ public struct JsLexer {
     var jsx_depth : int
     var in_jsx_tag : int // 0: false, 1: true
     var jsx_brace_count : int
+    var tag_mode_stack : ubigint
 }
 
 func (lexer : &mut JsLexer) reset() {

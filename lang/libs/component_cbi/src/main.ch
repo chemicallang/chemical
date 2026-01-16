@@ -84,6 +84,11 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             js.lb_count++;
             if(js.jsx_depth > 0) {
                  js.jsx_brace_count++;
+                 // Push: shift up and store current LSB
+                 // We limit to 64 levels which is plenty.
+                 js.tag_mode_stack = (js.tag_mode_stack << 1) | (js.in_jsx_tag as ubigint);
+                 // Inside expression, we are NOT in a tag (unless nested < starts one)
+                 js.in_jsx_tag = 0;
             }
             return Token { type : JsTokenType.LBrace as int, value : view("{"), position : position }
         }
@@ -97,6 +102,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             
             if(js.jsx_depth > 0 && js.jsx_brace_count > 0) {
                  js.jsx_brace_count--;
+                 // Pop: extract LSB and shift down
+                 js.in_jsx_tag = (js.tag_mode_stack & 1) as int;
+                 js.tag_mode_stack = js.tag_mode_stack >> 1;
             }
             return Token { type : JsTokenType.RBrace as int, value : view("}"), position : position }
         }

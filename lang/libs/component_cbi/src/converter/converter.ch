@@ -654,6 +654,63 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
     const isComponent = element.componentSignature != null || (tagName.size() > 0 && isupper(tagName.get(0) as int))
     
     if(isComponent) {
+        // Generate children first to ensure statements are outside the object literal
+        var children_var_name = std::string("null")
+        var has_children = element.children.size() > 0
+
+        if(has_children) {
+            // We need to flush any pending string content so that children statements are standalone
+            if(!converter.str.empty()) converter.put_chain_in()
+
+            if(element.children.size() == 1) {
+                // Optimize for single child
+                const child = element.children.get(0)
+                const old_parent = converter.jsx_parent
+                converter.jsx_parent = std::string_view() // Empty view
+                
+                if(child.kind == JsNodeKind.JSXText) {
+                    var text = child as *mut JsJSXText
+                    if(!text.value.empty()) {
+                         const t = converter.next_t()
+                         converter.str.append_view("const ")
+                         converter.str.append_view(t.to_view())
+                         converter.str.append_view(" = document.createTextNode(`")
+                         converter.str.append_view(text.value)
+                         converter.str.append_view("`);")
+                         children_var_name = t
+                    } else {
+                         children_var_name = std::string("null")
+                    }
+                } else {
+                     converter.convertJsNode(child)
+                     children_var_name.append_view("$c_t")
+                     children_var_name.append_integer(converter.t_counter as bigint)
+                }
+                
+                converter.jsx_parent = old_parent // restore
+                
+            } else {
+                // Multiple children -> DocumentFragment
+                const t_frag = converter.next_t()
+                converter.str.append_view("const ")
+                converter.str.append_view(t_frag.to_view())
+                converter.str.append_view(" = document.createDocumentFragment();")
+                
+                const old_parent = converter.jsx_parent
+                converter.jsx_parent = converter.builder.allocate_view(t_frag.to_view())
+                
+                for(var j : uint = 0; j < element.children.size(); j++) {
+                    converter.convertJsNode(element.children.get(j))
+                }
+                
+                converter.jsx_parent = old_parent
+                children_var_name = t_frag
+            }
+            
+            // Flush the children generation statements
+            converter.put_chain_in()
+        }
+
         converter.str.append_view("const ")
         converter.str.append_view(t.to_view())
         converter.str.append_view(" = $c_")
@@ -676,62 +733,12 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
             }
         }
 
-        if(element.children.size() > 0) {
+        if(has_children) {
             if(!element.opening.attributes.empty()) {
                 converter.str.append_view(", ")
             }
-            converter.put_chain_in()
-
-            var children_var = std::string()
-            if(element.children.size() == 1) {
-                // Optimize for single child
-                const child = element.children.get(0)
-                const old_parent = converter.jsx_parent
-                converter.jsx_parent = std::string_view() // Empty view
-                
-                if(child.kind == JsNodeKind.JSXText) {
-                    var text = child as *mut JsJSXText
-                    if(!text.value.empty()) {
-                         const t = converter.next_t()
-                         converter.str.append_view("const ")
-                         converter.str.append_view(t.to_view())
-                         converter.str.append_view(" = document.createTextNode(`")
-                         converter.str.append_view(text.value)
-                         converter.str.append_view("`);")
-                         children_var = t
-                    } else {
-                         children_var = std::string("null")
-                    }
-                } else {
-                     converter.convertJsNode(child)
-                     children_var.append_view("$c_t")
-                     children_var.append_integer(converter.t_counter as bigint)
-                }
-                
-                converter.jsx_parent = old_parent // restore
-                
-                converter.str.append_view("\"children\": ")
-                converter.str.append_view(children_var.to_view())
-                
-            } else {
-                // Multiple children -> DocumentFragment
-                const t_frag = converter.next_t()
-                converter.str.append_view("const ")
-                converter.str.append_view(t_frag.to_view())
-                converter.str.append_view(" = document.createDocumentFragment();")
-                
-                const old_parent = converter.jsx_parent
-                converter.jsx_parent = converter.builder.allocate_view(t_frag.to_view())
-                
-                for(var j : uint = 0; j < element.children.size(); j++) {
-                    converter.convertJsNode(element.children.get(j))
-                }
-                
-                converter.jsx_parent = old_parent
-                
-                converter.str.append_view("\"children\": ")
-                converter.str.append_view(t_frag.to_view())
-            }
+            converter.str.append_view("\"children\": ")
+            converter.str.append_view(children_var_name.to_view())
         }
         
         converter.str.append_view("});")

@@ -281,7 +281,7 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             } else if(p == '>') {
                 // <>
                 is_jsx = true;
-            } else if(isalpha(p as int) || p == '_' || p == '$') {
+            } else if(isalpha(p as int) || p == '_' || p == '$' || p == '{') {
                  // <Ident -> likely JSX start?
                  // Or x < y.
                  // In #component macro, or inside JSX, <Ident is treated as JSX tag start.

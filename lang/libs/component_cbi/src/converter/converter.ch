@@ -675,6 +675,65 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
                 }
             }
         }
+
+        if(element.children.size() > 0) {
+            if(!element.opening.attributes.empty()) {
+                converter.str.append_view(", ")
+            }
+            converter.put_chain_in()
+
+            var children_var = std::string()
+            if(element.children.size() == 1) {
+                // Optimize for single child
+                const child = element.children.get(0)
+                const old_parent = converter.jsx_parent
+                converter.jsx_parent = std::string_view() // Empty view
+                
+                if(child.kind == JsNodeKind.JSXText) {
+                    var text = child as *mut JsJSXText
+                    if(!text.value.empty()) {
+                         const t = converter.next_t()
+                         converter.str.append_view("const ")
+                         converter.str.append_view(t.to_view())
+                         converter.str.append_view(" = document.createTextNode(`")
+                         converter.str.append_view(text.value)
+                         converter.str.append_view("`);")
+                         children_var = t
+                    } else {
+                         children_var = std::string("null")
+                    }
+                } else {
+                     converter.convertJsNode(child)
+                     children_var.append_view("$c_t")
+                     children_var.append_integer(converter.t_counter as bigint)
+                }
+                
+                converter.jsx_parent = old_parent // restore
+                
+                converter.str.append_view("\"children\": ")
+                converter.str.append_view(children_var.to_view())
+                
+            } else {
+                // Multiple children -> DocumentFragment
+                const t_frag = converter.next_t()
+                converter.str.append_view("const ")
+                converter.str.append_view(t_frag.to_view())
+                converter.str.append_view(" = document.createDocumentFragment();")
+                
+                const old_parent = converter.jsx_parent
+                converter.jsx_parent = converter.builder.allocate_view(t_frag.to_view())
+                
+                for(var j : uint = 0; j < element.children.size(); j++) {
+                    converter.convertJsNode(element.children.get(j))
+                }
+                
+                converter.jsx_parent = old_parent
+                
+                converter.str.append_view("\"children\": ")
+                converter.str.append_view(t_frag.to_view())
+            }
+        }
+        
         converter.str.append_view("});")
     } else {
         converter.str.append_view("const ")
@@ -754,14 +813,19 @@ func (converter : &mut JsConverter) convertJSXExpressionContainer(expr : *mut Js
     converter.str.append_view("if(")
     converter.str.append_view(t.to_view())
     converter.str.append_view(" instanceof Node) { ")
-    converter.str.append_view(converter.jsx_parent)
-    converter.str.append_view(".appendChild(")
-    converter.str.append_view(t.to_view())
-    converter.str.append_view("); } else { ")
-    converter.str.append_view(converter.jsx_parent)
-    converter.str.append_view(".appendChild(document.createTextNode(")
-    converter.str.append_view(t.to_view())
-    converter.str.append_view(")); }")
+    
+    if(!converter.jsx_parent.empty()) {
+        converter.str.append_view(converter.jsx_parent)
+        converter.str.append_view(".appendChild(")
+        converter.str.append_view(t.to_view())
+        converter.str.append_view("); } else { ")
+        converter.str.append_view(converter.jsx_parent)
+        converter.str.append_view(".appendChild(document.createTextNode(")
+        converter.str.append_view(t.to_view())
+        converter.str.append_view(")); }")
+    } else {
+        converter.str.append_view("; } else { ; }")
+    }
     
     converter.put_chain_in()
 }

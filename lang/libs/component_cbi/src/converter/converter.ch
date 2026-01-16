@@ -689,6 +689,7 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
                     }
                 } else {
                      converter.convertJsNode(child)
+                     children_var_name.clear()
                      children_var_name.append_view("$c_t")
                      children_var_name.append_integer(converter.t_counter as bigint)
                 }

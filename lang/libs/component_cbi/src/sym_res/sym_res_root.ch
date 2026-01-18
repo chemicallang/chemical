@@ -21,7 +21,7 @@ func sym_res_components(
         }
 
         if (compNode.getKind() != ASTNodeKind.EmbeddedNode) {
-            resolver.error("symbol is not a valid component", loc);
+            resolver.error("symbol is not a valid component node", loc);
             return false;
         }
 

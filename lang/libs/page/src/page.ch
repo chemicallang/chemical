@@ -319,4 +319,8 @@ public struct HtmlPage {
 
     }
 
+    func defaultPreactSetup(&mut self) {
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>Object.assign(window, preactHooks);</script>"""))
+    }
+
 }

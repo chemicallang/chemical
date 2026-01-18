@@ -105,7 +105,7 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     args.push(value)
     
     // len arg
-    const len_val = builder.make_ubigint_value(len, location);
+    const len_val = builder.make_ubigint_value(len as ubigint, location);
     args.push(len_val)
     
     return call;
@@ -289,9 +289,9 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.JSXText => {
              var text = node as *mut JsJSXText
-             converter.str.append_view("\"");
+             converter.str.append_view("` "); // Use backticks to support multi-line strings
              converter.str.append_view(text.value);
-             converter.str.append_view("\"");
+             converter.str.append_view(" `");
         }
         default => {
         }

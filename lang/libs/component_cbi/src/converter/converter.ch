@@ -875,6 +875,10 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             converter.str.append_view(attr.name)
             converter.str.append_view("\": ")
             converter.convertAttributeValue(attr)
+        } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+            const spread = attrNode as *mut JsJSXSpreadAttribute
+            converter.str.append_view("...")
+            converter.convertJsNode(spread.argument)
         }
     }
 

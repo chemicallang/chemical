@@ -184,7 +184,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view(".");
             converter.str.append_view(mem.property);
         }
-        JsNodeKind.ArrayLiteral => {
+        JsNodeKind.IndexAccess => {
+            var idx = node as *mut JsIndexAccess
+            converter.convertJsNode(idx.object);
+            converter.str.append_view("[");
+            converter.convertJsNode(idx.index);
+            converter.str.append_view("]");
+        }
+        JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
             var arr = node as *mut JsArrayLiteral
             converter.str.append_view("[");
             for(var i : uint = 0; i < arr.elements.size(); i++) {
@@ -234,7 +241,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              var decl = node as *mut JsVarDecl
              converter.str.append_view(decl.keyword);
              converter.str.append_view(" ");
-             converter.str.append_view(decl.name);
+             if(decl.pattern != null) {
+                 converter.convertJsNode(decl.pattern);
+             } else {
+                 converter.str.append_view(decl.name);
+             }
              if(decl.value != null) {
                  converter.str.append_view(" = ");
                  converter.convertJsNode(decl.value);

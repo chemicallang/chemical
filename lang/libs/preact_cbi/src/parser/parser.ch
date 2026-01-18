@@ -614,6 +614,19 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                 parser.error("expected )");
             }
             node = call as *mut JsNode;
+        } else if(t.type == JsTokenType.LBracket as int) {
+            parser.increment(); // consume [
+            var indexExpr = jsParser.parseExpression(parser, builder);
+            if(!parser.increment_if(JsTokenType.RBracket as int)) {
+                parser.error("expected ] after index");
+            }
+            var indexAcc = builder.allocate<JsIndexAccess>()
+            new (indexAcc) JsIndexAccess {
+                base : JsNode { kind : JsNodeKind.IndexAccess },
+                object : node,
+                index : indexExpr
+            }
+            node = indexAcc as *mut JsNode;
         } else if(t.type == JsTokenType.PlusPlus as int || t.type == JsTokenType.MinusMinus as int) {
             var op = builder.allocate_view(t.value);
             parser.increment();
@@ -842,18 +855,66 @@ func (jsParser : &mut JsParser) parseBlock(parser : *mut Parser, builder : *mut 
     return block as *mut JsNode;
 }
 
+func (jsParser : &mut JsParser) parseArrayDestructuring(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+    parser.increment(); // consume [
+    var elements = std::vector<*mut JsNode>();
+    while(parser.getToken().type != JsTokenType.RBracket as int) {
+        if(parser.getToken().type == JsTokenType.Comma as int) {
+             elements.push(null);
+             parser.increment();
+             continue;
+        }
+        const t = parser.getToken();
+        if(t.type == JsTokenType.Identifier as int) {
+             var id = builder.allocate<JsIdentifier>()
+             new (id) JsIdentifier {
+                 base : JsNode { kind : JsNodeKind.Identifier },
+                 value : builder.allocate_view(t.value)
+             }
+             elements.push(id as *mut JsNode);
+             parser.increment();
+        } else if(t.type == JsTokenType.LBracket as int) {
+             elements.push(jsParser.parseArrayDestructuring(parser, builder));
+        } else {
+             parser.error("expected identifier or [ in destructuring");
+             break;
+        }
+        
+        if(parser.getToken().type == JsTokenType.Comma as int) {
+            parser.increment();
+        } else {
+            break;
+        }
+    }
+    if(!parser.increment_if(JsTokenType.RBracket as int)) {
+        parser.error("expected ]");
+    }
+    var dest = builder.allocate<JsArrayLiteral>() // Using ArrayLiteral for pattern storage
+    new (dest) JsArrayLiteral {
+        base : JsNode { kind : JsNodeKind.ArrayDestructuring },
+        elements : elements
+    }
+    return dest as *mut JsNode;
+}
+
 func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int) {
         var keyword = builder.allocate_view(token.value);
         parser.increment();
-        const idToken = parser.getToken();
-        if(idToken.type != JsTokenType.Identifier as int) {
-            parser.error("expected identifier");
+        
+        var name = std::string_view();
+        var pattern : *mut JsNode = null;
+        
+        if(parser.getToken().type == JsTokenType.LBracket as int) {
+            pattern = jsParser.parseArrayDestructuring(parser, builder);
+        } else if(parser.getToken().type == JsTokenType.Identifier as int) {
+            name = builder.allocate_view(parser.getToken().value);
+            parser.increment();
+        } else {
+            parser.error("expected identifier or [");
             return null;
         }
-        var name = builder.allocate_view(idToken.value);
-        parser.increment();
         
         if(parser.increment_if(JsTokenType.Equal as int)) {
             var val = jsParser.parseExpression(parser, builder);
@@ -861,6 +922,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             new (varDecl) JsVarDecl {
                 base : JsNode { kind : JsNodeKind.VarDecl },
                 name : name,
+                pattern : pattern,
                 value : val,
                 keyword : keyword
             }
@@ -871,6 +933,7 @@ func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *
             new (varDecl) JsVarDecl {
                 base : JsNode { kind : JsNodeKind.VarDecl },
                 name : name,
+                pattern : pattern,
                 value : null,
                 keyword : keyword
             }

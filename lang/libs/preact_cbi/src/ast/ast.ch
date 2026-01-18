@@ -39,7 +39,9 @@ public enum JsNodeKind {
     JSXText,
     JSXFragment,
     JSXAttribute,
-    JSXSpreadAttribute
+    JSXSpreadAttribute,
+    IndexAccess,
+    ArrayDestructuring
 }
 
 public struct JsNode {
@@ -48,7 +50,8 @@ public struct JsNode {
 
 public struct JsVarDecl {
     var base : JsNode
-    var name : std::string_view
+    var name : std::string_view // Simple name
+    var pattern : *mut JsNode    // Destructuring pattern (ArrayDestructuring)
     var value : *mut JsNode
     var keyword : std::string_view
 }
@@ -111,6 +114,12 @@ public struct JsMemberAccess {
     var base : JsNode
     var object : *mut JsNode
     var property : std::string_view
+}
+
+public struct JsIndexAccess {
+    var base : JsNode
+    var object : *mut JsNode
+    var index : *mut JsNode
 }
 
 public struct JsExpressionStatement {

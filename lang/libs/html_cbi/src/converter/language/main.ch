@@ -478,7 +478,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     
     // 3. Generate script block
     var s = &mut converter.str
-    s.append_view("<script>")
+    s.append_view("<script>{")
     
     if(signature.mountStrategy == MountStrategy.Preact) {
         // Preact Mount Strategy
@@ -540,7 +540,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         s.append_view("}))")
     }
 
-    s.append_view("</script>")
+    s.append_view("}</script>")
     converter.emit_append_html_from_str(*s)
 }
 

@@ -115,7 +115,6 @@ func (converter : &mut JsConverter) put_chain_in() {
     if(converter.str.empty()) return;
     
     const location = intrinsics::get_raw_location();
-    // Allocate the string in the builder's pool to avoid dangling pointers afterconverter.str is cleared/destroyed
     const str_view = converter.builder.allocate_view(converter.str.to_view());
     const val = converter.builder.make_string_value(str_view, location);
     const call = converter.make_value_call(val, converter.str.size());

@@ -214,6 +214,10 @@ public struct HtmlPage {
         return pageHead.copy();
     }
 
+    func toStringHeadJsOnly(&self) : std::string {
+        return pageHeadJs.copy();
+    }
+
     func toStringHtmlOnly(&self) : std::string {
         var str = std::string()
         str.reserve(pageHtml.size())

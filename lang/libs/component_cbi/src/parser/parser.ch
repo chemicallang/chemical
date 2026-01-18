@@ -223,7 +223,8 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                          base : JsNode { kind : JsNodeKind.ArrowFunction },
                          params : params,
                          body : body,
-                         is_async : true
+                         is_async : true,
+                         contains_jsx : checkHasJSX(body)
                      }
                      node = arrow as *mut JsNode;
                  } else {
@@ -415,7 +416,8 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                 base : JsNode { kind : JsNodeKind.ArrowFunction },
                 params : params,
                 body : body,
-                is_async : false
+                is_async : false,
+                contains_jsx : checkHasJSX(body)
             }
             node = arrow as *mut JsNode;
         } else {
@@ -460,6 +462,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                     params : std::vector<std::string_view>(),
                     body : body,
                     is_async : false,
+                    contains_jsx : checkHasJSX(body)
                 }
                 node = arrow as *mut JsNode;
             } else {
@@ -506,6 +509,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                         params : params,
                         body : body,
                         is_async : false,
+                        contains_jsx : checkHasJSX(body)
                     }
                     node = arrow as *mut JsNode;
                 } else if(parser.getToken().type == JsTokenType.RParen as int) {
@@ -526,6 +530,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                             params : params,
                             body : body,
                             is_async : false,
+                            contains_jsx : checkHasJSX(body)
                         }
                         node = arrow as *mut JsNode;
                     } else {

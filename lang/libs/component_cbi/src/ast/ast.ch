@@ -123,6 +123,7 @@ public struct JsArrowFunction {
     var params : std::vector<std::string_view>
     var body : *mut JsNode
     var is_async : bool
+    var contains_jsx : bool
 }
 
 public struct JsArrayLiteral {

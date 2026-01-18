@@ -3,9 +3,15 @@ public struct ComponentParam {
     var is_optional : bool
 }
 
+public enum MountStrategy {
+    Default,
+    Preact
+}
+
 public struct ComponentSignature {
     var name : std::string_view
     var propsName : std::string_view
     var params : std::vector<ComponentParam>
     var functionNode : *mut FunctionDeclaration = null
+    var mountStrategy : MountStrategy = MountStrategy.Default
 }

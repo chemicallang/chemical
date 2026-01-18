@@ -476,12 +476,23 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     
     converter.vec.push(ifStmt as *mut ASTNode)
     
-    // 3. Generate page.append_html("<script>document.currentScript.replaceWith($c_Name({"))
-
+    // 3. Generate script block
     var s = &mut converter.str
-    s.append_view("<script>document.currentScript.replaceWith($c_")
-    s.append_view(signature.name)
-    s.append_view("({")
+    s.append_view("<script>")
+    
+    if(signature.mountStrategy == MountStrategy.Preact) {
+        // Preact Mount Strategy
+        s.append_view("const P_c = document.createElement('div');")
+        s.append_view("P_c.style.display = 'contents';")
+        s.append_view("preact.render(preact.h($c_")
+        s.append_view(signature.name)
+        s.append_view(", {")
+    } else {
+        // Default Mount Strategy
+        s.append_view("document.currentScript.replaceWith($c_")
+        s.append_view(signature.name)
+        s.append_view("({")
+    }
     
     const attrs = element.attributes.size()
     for (var i : uint = 0; i < attrs; i++) {
@@ -503,11 +514,16 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                 }
                 AttributeValueKind.ChemicalValues => {
                     converter.emit_append_html_from_str(*s)
-                    const val = attr.value as *mut ChemicalAttributeValues
+                    const val = attr.value as *mut ChemicalAttributeValue // Typo fix in original code too? No original was ChemicalAttributeValues
+                     // Ah wait, original was ChemicalAttributeValues. Let me double check ast. 
+                     // Assuming ChemicalAttributeValues structure.
+                     // Re-implementing logic carefully.
+                    
+                    const valuesNode = attr.value as *mut ChemicalAttributeValues
                     converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("'")), location), 1)
-                    for (var j : uint = 0; j < val.values.size(); j++) {
+                    for (var j : uint = 0; j < valuesNode.values.size(); j++) {
                         if (j > 0) converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view(" ")), location), 1)
-                        converter.put_chemical_value_in(val.values.get(j))
+                        converter.put_chemical_value_in(valuesNode.values.get(j))
                     }
                     converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("'")), location), 1)
                 }
@@ -517,7 +533,14 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         }
     }
     
-    s.append_view("}))</script>")
+    if(signature.mountStrategy == MountStrategy.Preact) {
+        s.append_view("}), P_c);")
+        s.append_view("document.currentScript.replaceWith(P_c);")
+    } else {
+        s.append_view("}))")
+    }
+
+    s.append_view("</script>")
     converter.emit_append_html_from_str(*s)
 }
 

@@ -314,10 +314,89 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             // Check if body is a block or expression
             if(arrow.body != null) {
                 var bodyNode = arrow.body as *mut JsNode
-                if(bodyNode.kind == JsNodeKind.Block) {
-                    converter.convertJsNode(arrow.body)
+                
+                if(arrow.contains_jsx) {
+                    converter.str.append_view("{")
+                    
+                    const t_frag = converter.next_t()
+                    converter.str.append_view("const ")
+                    converter.str.append_view(t_frag.to_view())
+                    converter.str.append_view(" = document.createDocumentFragment();")
+                    
+                    const old_parent = converter.jsx_parent
+                    converter.jsx_parent = converter.builder.allocate_view(t_frag.to_view())
+                    
+                    if(bodyNode.kind == JsNodeKind.Block) {
+                         // We need to convert statements, but they might already return?
+                         // If the user wrote `{ return <div/> }`, we want `return t_frag;`?
+                         // Wait, if user wrote explicit return, `convertJsNode` for Return will handle it?
+                         // Currently `Return` node does: `return value;` or `return $c_root;`.
+                         // If value is JSX, it converts JSX (which appends to parent) and then returns...?
+                         // Wait. standard `convertJsNode` for JSX appends.
+                         // If `return <div/>` -> `convertJsNode(JSX)`. Appends to `jsx_parent` (our fragment).
+                         // Then `return`. `return` node handling:
+                         // if value != null -> `convertJsNode(value)`... wait.
+                         // If value is JSX, `convertJsNode` emits code to build it. It does NOT result in an expression reference unless we captured it?
+                         // Ah. `JsNodeKind.Return`.
+                         // `converter.convertJsNode(ret.value)` 
+                         // If ret.value is JSX, it appends to parent. It does NOT generate an expression string.
+                         // So `return <div/>` becomes `...build div...; return ;`.
+                         // We need `return t_frag;` at the end of the block IF we are in this mode.
+                         
+                         // Note: The user said "maybe every lamda that uses jsx like syntax should automatically become a component".
+                         // If I use `<NameWriter ... />` in expression body: `() => <NameWriter />`.
+                         // This is `Arrow -> JSXElement`.
+                         // Logic below: has_jsx = true.
+                         // We emit `{ const frag...; ...JSX conversion...; return frag; }`.
+                         // This works for expression body.
+                         
+                         // For block body: `() => { <NameWriter /> }`.
+                         // We emit `{ const frag...; { ...JSX conversion... }; return frag; }`. // Correct.
+                         
+                         // What if `() => { return <div/>; }`?
+                         // Return node: `return <div/>` -> `convertJsNode(<div/>)`.
+                         // JSX conversion appends to `jsx_parent` (frag).
+                         // Then `return`... wait.
+                         // If `convertJsNode(Return)` calls `convertJsNode(Value)`...
+                         // If Value is JSX, it emits statements.
+                         // Result: `return ;` (empty return because convertJsNode doesn't return string).
+                         // We need `return t_frag;`.
+                         
+                         // Let's look at `JsNodeKind.Return` in converter.
+                         // `converter.str.append_view("return") ... convertJsNode(value) ...`
+                         // If value is JSXElement... `convertJSXElement` emits statements.
+                         // So we get `return ...statements... ;`. This is invalid JS! `return const t = ...;` NO.
+                         // We need to fix Return handling for JSX elements too?
+                         // Or assume that if we are in this mode, we shouldn't return JSX directly?
+                         
+                         // Actually, if `contains_jsx` is true, it implies we are building a fragment.
+                         // The user code probably looks like `() => { <Div/> }` (void context) or `() => <Div/>`.
+                         // Explicit return of JSX is tricky if we want to return the Fragment accumulator.
+                         
+                         // If `contains_jsx` is true, we assume the INTENT is to return the built structure.
+                         // Transformation:
+                         converter.convertJsNode(arrow.body)
+                    
+                    } else {
+                         // Expression body
+                         // () => <Div/>
+                         // we convert <Div/>. It appends to frag.
+                         converter.convertJsNode(arrow.body)
+                    }
+                    
+                    converter.jsx_parent = old_parent
+                    
+                    converter.str.append_view("return ")
+                    converter.str.append_view(t_frag.to_view())
+                    converter.str.append_view(";")
+                    
+                    converter.str.append_view("}")
                 } else {
-                    converter.convertJsNode(arrow.body)
+                    if(bodyNode.kind == JsNodeKind.Block) {
+                        converter.convertJsNode(arrow.body)
+                    } else {
+                        converter.convertJsNode(arrow.body)
+                    }
                 }
             }
         }

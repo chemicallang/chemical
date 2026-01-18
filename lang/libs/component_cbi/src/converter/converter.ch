@@ -199,7 +199,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view(varDecl.keyword)
                 converter.str.append_view(" ")
             }
-            converter.str.append_view(varDecl.name)
+            if(varDecl.pattern != null) {
+                converter.convertJsNode(varDecl.pattern)
+            } else {
+                converter.str.append_view(varDecl.name)
+            }
             if(varDecl.value != null) {
                 converter.str.append_view(" = ")
                 converter.convertJsNode(varDecl.value)
@@ -406,9 +410,33 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             var i = 0u
             while(i < arr.elements.size()) {
                 if(i > 0) converter.str.append_view(", ")
-                converter.convertJsNode(arr.elements.get(i))
+                var elem = arr.elements.get(i)
+                if(elem != null) {
+                    converter.convertJsNode(elem)
+                }
                 i++
             }
+            converter.str.append_view("]")
+        }
+        JsNodeKind.ArrayDestructuring => {
+            var arr = node as *mut JsArrayLiteral
+            converter.str.append_view("[")
+            var i = 0u
+            while(i < arr.elements.size()) {
+                if(i > 0) converter.str.append_view(", ")
+                var elem = arr.elements.get(i)
+                if(elem != null) {
+                    converter.convertJsNode(elem)
+                }
+                i++
+            }
+            converter.str.append_view("]")
+        }
+        JsNodeKind.IndexAccess => {
+            var access = node as *mut JsIndexAccess
+            converter.convertJsNode(access.object)
+            converter.str.append_view("[")
+            converter.convertJsNode(access.index)
             converter.str.append_view("]")
         }
         JsNodeKind.ObjectLiteral => {
@@ -436,7 +464,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     var decl = forStmt.init as *mut JsVarDecl
                     converter.str.append_view(decl.keyword)
                     converter.str.append_view(" ")
-                    converter.str.append_view(decl.name)
+                    if(decl.pattern != null) {
+                        converter.convertJsNode(decl.pattern)
+                    } else {
+                        converter.str.append_view(decl.name)
+                    }
                     if(decl.value != null) {
                         converter.str.append_view(" = ")
                         converter.convertJsNode(decl.value)
@@ -468,7 +500,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  var decl = initNode as *mut JsVarDecl
                  converter.str.append_view(decl.keyword)
                  converter.str.append_view(" ")
-                 converter.str.append_view(decl.name)
+                 if(decl.pattern != null) {
+                     converter.convertJsNode(decl.pattern)
+                 } else {
+                     converter.str.append_view(decl.name)
+                 }
             } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                  var stmt = initNode as *mut JsExpressionStatement
                  converter.convertJsNode(stmt.expression)
@@ -488,7 +524,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  var decl = initNode as *mut JsVarDecl
                  converter.str.append_view(decl.keyword)
                  converter.str.append_view(" ")
-                 converter.str.append_view(decl.name)
+                 if(decl.pattern != null) {
+                     converter.convertJsNode(decl.pattern)
+                 } else {
+                     converter.str.append_view(decl.name)
+                 }
             } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                  var stmt = initNode as *mut JsExpressionStatement
                  converter.convertJsNode(stmt.expression)

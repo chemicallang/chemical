@@ -981,11 +981,7 @@ func (converter : &mut JsConverter) convertJSXText(text : *mut JsJSXText) {
 func (converter : &mut JsConverter) convertJSXExpressionContainer(expr : *mut JsJSXExpressionContainer) {
     if(!converter.str.empty()) converter.put_chain_in()
     
-    // We need to append the result to parent
-    // document.createTextNode or directly if it returns a node?
-    // React behavior: if it's a string/number -> text node, if it's a DOM element -> append directly.
-    // For now assume it might be a string or Node.
-    
+    // Always treat as text node as per user request.
     const t = converter.next_t()
     converter.str.append_view("const ")
     converter.str.append_view(t.to_view())
@@ -993,21 +989,11 @@ func (converter : &mut JsConverter) convertJSXExpressionContainer(expr : *mut Js
     converter.convertJsNode(expr.expression)
     converter.str.append_view(";")
     
-    converter.str.append_view("if(")
-    converter.str.append_view(t.to_view())
-    converter.str.append_view(" instanceof Node) { ")
-    
     if(!converter.jsx_parent.empty()) {
-        converter.str.append_view(converter.jsx_parent)
-        converter.str.append_view(".appendChild(")
-        converter.str.append_view(t.to_view())
-        converter.str.append_view("); } else { ")
         converter.str.append_view(converter.jsx_parent)
         converter.str.append_view(".appendChild(document.createTextNode(")
         converter.str.append_view(t.to_view())
-        converter.str.append_view(")); }")
-    } else {
-        converter.str.append_view("; } else { ; }")
+        converter.str.append_view("));")
     }
     
     converter.put_chain_in()

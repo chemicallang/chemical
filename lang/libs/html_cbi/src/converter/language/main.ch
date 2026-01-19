@@ -478,13 +478,12 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     
     // 3. Generate script block
     var s = &mut converter.str
-    s.append_view("<script>{")
+    s.append_view("<script>")
     
     if(signature.mountStrategy == MountStrategy.Preact) {
         // Preact Mount Strategy
-        s.append_view("const P_c = document.createElement('div');")
-        s.append_view("P_c.style.display = 'contents';")
-        s.append_view("preact.render(preact.h($c_")
+        s.append_view("{const P_c = document.createDocumentFragment();")
+        s.append_view("render(h($c_")
         s.append_view(signature.name)
         s.append_view(", {")
     } else {
@@ -535,12 +534,12 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     
     if(signature.mountStrategy == MountStrategy.Preact) {
         s.append_view("}), P_c);")
-        s.append_view("document.currentScript.replaceWith(P_c);")
+        s.append_view("document.currentScript.replaceWith(P_c);}")
     } else {
         s.append_view("}))")
     }
 
-    s.append_view("}</script>")
+    s.append_view("</script>")
     converter.emit_append_html_from_str(*s)
 }
 

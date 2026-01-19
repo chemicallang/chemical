@@ -97,12 +97,6 @@ private:
     SymbolTable table;
 
     /**
-     * runtime symbols that are checked for conflicts with other nodes
-     * across modules, only at top level nodes
-     */
-    std::unordered_map<std::string, ASTNode*> runtime_symbols;
-
-    /**
      * declares a node with string : name
      * DO NOT USE THIS FUNCTION TO DECLARE SYMBOLS
      */
@@ -467,11 +461,6 @@ public:
     inline void declare_exported(const chem::string_view &name, ASTNode *node) {
         declare_quietly(name, node);
     }
-
-    /**
-     * declare a runtime symbol
-     */
-    void declare_runtime(const chem::string_view& name, ASTNode* node);
 
     /**
      * helper method that should be used to declare functions that takes into account

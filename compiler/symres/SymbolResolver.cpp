@@ -58,16 +58,6 @@ bool SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* nod
     }
 }
 
-void SymbolResolver::declare_runtime(const chem::string_view& name, ASTNode* node) {
-    auto str = name.str();
-    auto found = runtime_symbols.find(str);
-    if(found == runtime_symbols.end()) {
-        runtime_symbols[str] = node;
-    } else {
-        dup_runtime_sym_error(name, found->second, node);
-    };
-}
-
 bool params_satisfy(FunctionType* type, std::vector<FunctionParam*>& param_types, bool check_self) {
     if(type->params.size() != param_types.size()) return false;
     unsigned i = check_self ? 0 : (type->has_self_param() ? 1 : 0);

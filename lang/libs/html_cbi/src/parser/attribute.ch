@@ -11,7 +11,8 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
     var attr = builder.allocate<HtmlAttribute>();
     new (attr) HtmlAttribute {
         name : builder.allocate_view(id.value),
-        value : null
+        value : null,
+        loc : parser.getEncodedLocation(id)
     }
 
     const equal = parser.getToken();

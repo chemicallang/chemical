@@ -1,7 +1,6 @@
 func sym_res_components(
     components : &mut std::vector<*mut JsJSXElement>,
-    resolver : *mut SymbolResolver,
-    loc : ubigint
+    resolver : *mut SymbolResolver
 ) : bool {
     for (var i : uint = 0; i < components.size(); i += 1) {
         var element = components.get(i);
@@ -16,19 +15,19 @@ func sym_res_components(
 
         const compNode = resolver.find(name);
         if (compNode == null) {
-            resolver.error("component not found", loc);
+            resolver.error("component not found", element.loc);
             return false;
         }
 
         if (compNode.getKind() != ASTNodeKind.EmbeddedNode) {
-            resolver.error("symbol is not a valid component node", loc);
+            resolver.error("symbol is not a valid component node", element.loc);
             return false;
         }
 
         const controller = resolver.getAnnotationController();
 
         if(!controller.isMarked(compNode, "component")) {
-            resolver.error("symbol is not a component", loc);
+            resolver.error("symbol is not a component", element.loc);
             return false;
         }
 
@@ -62,7 +61,7 @@ func sym_res_components(
                     }
                 }
                 if (!found) {
-                     resolver.error("missing required component argument", loc);
+                     resolver.error("missing required component argument", element.loc);
                      return false;
                 }
             }

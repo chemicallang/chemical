@@ -132,19 +132,19 @@ func sym_res_root(
         
         const compNode = resolver.find(element.name);
         if (compNode == null) {
-            resolver.error("component not found", loc);
+            resolver.error("component not found", element.loc);
             return false;
         }
 
         if (compNode.getKind() != ASTNodeKind.EmbeddedNode) {
-            resolver.error("symbol is not a valid component", loc);
+            resolver.error("symbol is not a valid component", element.loc);
             return false;
         }
 
         const controller = resolver.getAnnotationController();
 
         if(!controller.isMarked(compNode, "component")) {
-            resolver.error("symbol is not a component", loc);
+            resolver.error("symbol is not a component", element.loc);
             return false;
         }
 
@@ -164,7 +164,7 @@ func sym_res_root(
                     }
                 }
                 if (!found) {
-                     resolver.error("missing required component argument", loc);
+                     resolver.error("missing required component argument", element.loc);
                      return false;
                 }
             }

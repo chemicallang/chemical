@@ -29,8 +29,10 @@ func (jsParser : &mut JsParser) parseJSXAttribute(parser : *mut Parser, builder 
     }
 
     var name = std::string_view();
-    if(parser.getToken().type == JsTokenType.Identifier as int) {
-         name = builder.allocate_view(parser.getToken().value);
+    const idToken = parser.getToken();
+    const attrLoc : ubigint = parser.getEncodedLocation(idToken);
+    if(idToken.type == JsTokenType.Identifier as int) {
+         name = builder.allocate_view(idToken.value);
          parser.increment();
          // Handle namespaced attributes ns:attr ?
          if(parser.getToken().type == JsTokenType.Colon as int) {
@@ -89,7 +91,8 @@ func (jsParser : &mut JsParser) parseJSXAttribute(parser : *mut Parser, builder 
     new (attr) JsJSXAttribute {
         base : JsNode { kind : JsNodeKind.JSXAttribute },
         name : name,
-        value : value
+        value : value,
+        loc : attrLoc
     }
     return attr as *mut JsNode;
 }
@@ -174,13 +177,15 @@ func (jsParser : &mut JsParser) parseJSXElement(parser : *mut Parser, builder : 
 func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     // Assumes < is already consumed or handled (for recursive calls inside fragment loop, check logic).
     
+    var idToken = parser.getToken();
+    var elementLoc : ubigint = parser.getEncodedLocation(idToken);
     var tagName : *mut JsNode = null;
     // Parse tag name (Identifier, MemberExpression, or ExpressionContainer)
-    if(parser.getToken().type == JsTokenType.Identifier as int) {
+    if(idToken.type == JsTokenType.Identifier as int) {
          var id = builder.allocate<JsIdentifier>()
          new (id) JsIdentifier {
              base : JsNode { kind : JsNodeKind.Identifier },
-             value : builder.allocate_view(parser.getToken().value)
+             value : builder.allocate_view(idToken.value)
          }
          tagName = id as *mut JsNode;
          parser.increment();
@@ -304,7 +309,8 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
         children : children,
         closing : JsJSXClosingElement {
             tagName : tagName
-        }
+        },
+        loc : elementLoc
     }
 
     if(tagName.kind == JsNodeKind.Identifier) {

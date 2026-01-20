@@ -388,3 +388,21 @@ public func test_debugger_statement(env : &mut TestEnv) {
     }
     string_equals(env, page.toStringJsOnly(), """function gen(){debugger;}""");
 }
+
+@test
+public func test_index_access(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var something = state[0]
+    }
+    string_equals(env, page.toStringJsOnly(), """var something = state[0];""");
+}
+
+@test
+public func test_destructuring_in_js_cbi(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var [first, second] = state[0]
+    }
+    string_equals(env, page.toStringJsOnly(), """var [first, second] = state[0];""");
+}

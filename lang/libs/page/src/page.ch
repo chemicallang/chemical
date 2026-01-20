@@ -254,39 +254,56 @@ public struct HtmlPage {
         appendFavicon(std::string_view("image/png"), path)
     }
 
-    func htmlToString(&self, linkedStylesheet : &std::string_view) : std::string {
+    func appendViewportMeta(&self) {
+        pageHead.append_view("""<meta name="viewport" content="width=device-width, initial-scale=1.0">""")
+    }
+
+    func appendCharsetUTF8Meta(&self) {
+        pageHead.append_view("""<meta charset="utf-8">""")
+    }
+
+    func defaultPrepare(&self) {
+        appendCharsetUTF8Meta();
+        appendViewportMeta();
+    }
+
+    func defaultPreactSetup(&mut self) {
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>Object.assign(window, preact);Object.assign(window, preactHooks);</script>"""))
+    }
+
+    // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist
+    func htmlPageToString(&self, name : &std::string_view) : std::string {
         var str = std::string()
-        str.reserve(pageHead.size() + pageHtml.size() + 80)
+        str.reserve(pageHead.size() + pageHtml.size() + 128)
         str.append_view(std::string_view("<!DOCTYPE html><html><head>"))
         str.append_string(pageHead)
-        if(!linkedStylesheet.empty()) {
+        if(!pageCss.empty()) {
             str.append_view(std::string_view("<link rel=\"stylesheet\" href=\""));
-            str.append_view(linkedStylesheet);
-            str.append_view(std::string_view("\">"));
+            str.append_view(name)
+            str.append_view(std::string_view(".css\">"));
+        }
+        if(!pageHeadJs.empty()) {
+            str.append_view(std::string_view("<script src=\""));
+            str.append_view(name)
+            str.append_view(std::string_view("_head.js\"></script>"));
         }
         str.append_view(std::string_view("</head><body>"))
         str.append_string(pageHtml)
+        if(!pageJs.empty()) {
+            str.append_view(std::string_view("<script src=\""));
+            str.append_view(name)
+            str.append_view(std::string_view(".js\"></script>"));
+        }
         str.append_view(std::string_view("</body></html>"))
         return str;
     }
 
     func writeToFile(&self, path : &std::string_view) {
-        // TODO use stream
         var completePage = toString();
         fs::write_to_file(path.data(), completePage.data())
     }
 
-    func writeHtmlToFile(&self, path : &std::string_view, linkedStylesheet : &std::string_view) {
-        // TODO use stream
-        var htmlPage = htmlToString(linkedStylesheet)
-        fs::write_to_file(path.data(), htmlPage.data())
-    }
-
-    func writeCssToFile(&self, path : &std::string_view) {
-        // TODO use stream
-        fs::write_to_file(path.data(), pageCss.data())
-    }
-
+    // given name -> {name}.css, {name}_head.js, {name}.js assets maybe generated
     func writeToDirectory(&self, path : &std::string_view, name : &std::string_view) {
 
         // TODO only if not exists
@@ -298,29 +315,37 @@ public struct HtmlPage {
         htmlFile.append_view(name);
         htmlFile.append_char_ptr(".html")
 
-        const cssFileName = std::string()
-        if(!pageCss.empty()) {
-            cssFileName.append_view(name)
-            cssFileName.append_char_ptr(".css");
-        }
-
         // writing only html to route
-        writeHtmlToFile(std::string_view(htmlFile.data(), htmlFile.size()), std::string_view(cssFileName.data(), cssFileName.size()))
+        var htmlPage = htmlPageToString(name)
+        fs::write_to_file(htmlFile.data(), htmlPage.data())
 
-        if(pageCss.empty()) {
-            return;
+        // {name}.css
+        if(!pageCss.empty()) {
+            const cssFile = std::string(path.data(), path.size())
+            cssFile.append('/');
+            cssFile.append_view(name)
+            cssFile.append_view(".css")
+            fs::write_to_file(cssFile.data(), pageCss.data())
         }
 
-        const cssFile = std::string(path.data(), path.size())
-        cssFile.append('/');
-        cssFile.append_string(cssFileName)
+        // {name}_head.js
+        if(!pageHeadJs.empty()) {
+            const jsHeadFile = std::string(path.data(), path.size())
+            jsHeadFile.append('/');
+            jsHeadFile.append_view(name)
+            jsHeadFile.append_view("_head.js")
+            fs::write_to_file(jsHeadFile.data(), pageHeadJs.data())
+        }
 
-        writeCssToFile(std::string_view(cssFile.data(), cssFile.size()))
+        // {name}.js
+        if(!pageJs.empty()) {
+            const jsFile = std::string(path.data(), path.size())
+            jsFile.append('/');
+            jsFile.append_view(name)
+            jsFile.append_view(".css")
+            fs::write_to_file(jsFile.data(), pageJs.data())
+        }
 
-    }
-
-    func defaultPreactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>Object.assign(window, preact);Object.assign(window, preactHooks);</script>"""))
     }
 
 }

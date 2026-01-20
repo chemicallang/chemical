@@ -15,7 +15,7 @@ public func preact_symResNode(resolver : *mut SymbolResolver, node : *mut Embedd
         resolver.error(std::string_view("could not find HtmlPage"), loc);
     }
 
-    sym_res_components(root.components, resolver, loc)
+    sym_res_components(root.components, resolver)
 }
 
 @no_mangle

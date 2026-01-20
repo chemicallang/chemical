@@ -37,4 +37,6 @@ struct HtmlAttribute {
     // when null, it means a boolean attribute
     var value : *AttributeValue
 
+    var loc : ubigint
+
 }

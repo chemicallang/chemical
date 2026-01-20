@@ -13,6 +13,7 @@ public struct JsJSXAttribute {
     var name : std::string_view // string if hyphenated? or identifier? 
     // Usually name can be Namespaced (ns:attr) or simple. For now treat as string_view.
     var value : *mut JsNode // Literal (String) or JSXExpressionContainer or null (bool true)
+    var loc : ubigint
 }
 
 public struct JsJSXSpreadAttribute {
@@ -39,6 +40,7 @@ public struct JsJSXElement {
     // Typically we might not store closing element in the AST if it matches, but for exact reproduction or source mapping we might.
     // Let's simplify and assume consistency check is done during parsing.
     // But wait, the `closing` struct above is useful for parsing return.
+    var loc : ubigint
 }
 
 public struct JsJSXFragment {

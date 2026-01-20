@@ -11,6 +11,8 @@ struct HtmlElement : HtmlChild {
 
     var componentSignature : *mut ComponentSignature = null
 
+    var loc : ubigint
+
     @delete
     func delete(&self) {
         // do nothing

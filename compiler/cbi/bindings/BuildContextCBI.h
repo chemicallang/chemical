@@ -65,10 +65,6 @@ extern "C" {
 
     bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module, chem::string_view* interface);
 
-    void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path);
-
-    void BuildContextresolve_native_lib_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* scope_name, chem::string_view* mod_name);
-
     void BuildContextinclude_header(LabBuildContext* self, LabModule* module, chem::string_view* header);
 
     LabJob* BuildContexttranslate_to_chemical(LabBuildContext* self, LabModule* module, chem::string_view* output_path);
@@ -91,11 +87,11 @@ extern "C" {
 
     bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_view* alias, chem::string_view* path);
 
-    void BuildContextbuild_path(chem::string* str, LabBuildContext* self);
+    void BuildContextbuild_path(chem::string_view* str, LabBuildContext* self);
 
     bool BuildContexthas_arg(LabBuildContext* self, chem::string_view* name);
 
-    void BuildContextget_arg(chem::string* str, LabBuildContext* self, chem::string_view* name);
+    void BuildContextget_arg(chem::string_view* str, LabBuildContext* self, chem::string_view* name);
 
     void BuildContextremove_arg(LabBuildContext* self, chem::string_view* name);
 

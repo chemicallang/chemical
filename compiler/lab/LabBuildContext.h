@@ -380,7 +380,7 @@ public:
     /**
      * consume this build argument
      */
-    void get_arg(chem::string& str, const std::string& name);
+    chem::string_view get_arg(const std::string& name);
 
     /**
      * remove this build argument

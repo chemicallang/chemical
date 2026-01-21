@@ -84,27 +84,27 @@ bool BuildContextadd_compiler_interface(LabBuildContext* self, LabModule* module
     }
 }
 
-void BuildContextresolve_import_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* base_path, chem::string_view* path) {
-    init_chem_string(&result->error);
-    init_chem_string(&result->path);
+// TODO: strings are required to be returned, cbi not supporting
+void BuildContextresolve_import_path(LabBuildContext* self, chem::string_view* base_path, chem::string_view* path) {
+    PathResolutionResult result{ chem::string(), chem::string() };
     auto repResult = self->handler.resolve_import_path(base_path->view(), path->view());
     if(!repResult.error.empty()) {
-        result->error.append(repResult.error);
+        result.error.append(repResult.error);
     }
     if(!repResult.replaced.empty()) {
-        result->path.append(repResult.replaced);
+        result.path.append(repResult.replaced);
     }
 }
 
-void BuildContextresolve_native_lib_path(PathResolutionResult* result, LabBuildContext* self, chem::string_view* scope_name, chem::string_view* mod_name) {
-    init_chem_string(&result->error);
-    init_chem_string(&result->path);
+// TODO: strings are required to be returned, cbi not supporting
+void BuildContextresolve_native_lib_path(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* mod_name) {
+    PathResolutionResult result{ chem::string(), chem::string() };
     auto repResult = self->handler.resolve_lib_dir_path(*scope_name, *mod_name);
     if(!repResult.error.empty()) {
-        result->error.append(repResult.error);
+        result.error.append(repResult.error);
     }
     if(!repResult.replaced.empty()) {
-        result->path.append(repResult.replaced);
+        result.path.append(repResult.replaced);
     }
 }
 
@@ -160,16 +160,17 @@ bool BuildContextdeclare_alias(LabBuildContext* self, LabJob* job, chem::string_
     return self->declare_user_alias(job, alias->str(), path->str());
 }
 
-void BuildContextbuild_path(chem::string* str, LabBuildContext* self) {
-    init_chem_string(str)->append(self->compiler.options->build_dir);
+void BuildContextbuild_path(chem::string_view* view, LabBuildContext* self) {
+    auto& str = self->compiler.options->build_dir;
+    new (view) chem::string_view(str.data(), str.size());
 }
 
 bool BuildContexthas_arg(LabBuildContext* self, chem::string_view* name) {
     return self->has_arg(name->str());
 }
 
-void BuildContextget_arg(chem::string* str, LabBuildContext* self, chem::string_view* name) {
-    return self->get_arg(*init_chem_string(str), name->str());
+void BuildContextget_arg(chem::string_view* str, LabBuildContext* self, chem::string_view* name) {
+    *str = self->get_arg(name->str());
 }
 
 void BuildContextremove_arg(LabBuildContext* self, chem::string_view* name) {

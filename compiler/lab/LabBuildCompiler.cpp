@@ -58,10 +58,6 @@
 
 #endif
 
-#ifdef DEBUG
-#define DEBUG_FUTURES true
-#endif
-
 std::ostream& operator<<(std::ostream& os, const LabModule& mod) {
     if(mod.scope_name.empty()) {
         os << mod.name;
@@ -636,7 +632,7 @@ int LabBuildCompiler::process_module_tcc_bm(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string& mod_timestamp_file
+        const std::string_view& build_dir
 ) {
 
     const auto bm_mod = options->benchmark_modules;
@@ -649,7 +645,7 @@ int LabBuildCompiler::process_module_tcc_bm(
     }
 
     // the actual translation happens here
-    const auto result = process_module_tcc(mod, processor, c_visitor, mod_timestamp_file);
+    const auto result = process_module_tcc(mod, processor, c_visitor, build_dir);
     if(result != 0) {
         return result;
     }
@@ -669,7 +665,7 @@ int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string& mod_timestamp_file
+        const std::string_view& build_dir
 ) {
 
     // variables
@@ -724,7 +720,7 @@ int LabBuildCompiler::process_module_tcc(
         }
 
         // append the partial c output to buffered writer
-        auto partial_c_out = resolve_sibling(mod_timestamp_file, "partial.2c.c");
+        auto partial_c_out = get_partial_c_path(build_dir, mod);
         if(fs::exists(partial_c_out)) {
             c_visitor.writer.append_file(partial_c_out.c_str());
         } else {
@@ -767,10 +763,10 @@ int LabBuildCompiler::process_module_tcc(
     if(caching) {
         // saving all the c this module wrote in a partial file (for caching)
         auto view = std::string_view(start, c_visitor.writer.current_pos_data() - start);
-        auto partial_c_out = resolve_sibling(mod_timestamp_file, "partial.2c.c");
+        auto partial_c_out = get_partial_c_path(build_dir, mod);
         writeToFile(partial_c_out, view);
         // save a mod timestamp
-        save_mod_timestamp(direct_files, mod_timestamp_file);
+        save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, true));
     }
 
     if(verbose) {
@@ -794,7 +790,7 @@ int LabBuildCompiler::process_module_gen_bm(
         ASTProcessor& processor,
         Codegen& gen,
         CTranslator& cTranslator,
-        const std::string& mod_timestamp_file
+        const std::string_view& build_dir
 ) {
 
     const auto bm_mod = options->benchmark_modules;
@@ -807,7 +803,7 @@ int LabBuildCompiler::process_module_gen_bm(
     }
 
     // the actual translation happens here
-    const auto result = process_module_gen(mod, processor, gen, cTranslator, mod_timestamp_file);
+    const auto result = process_module_gen(mod, processor, gen, cTranslator, build_dir);
     if(result != 0) {
         return result;
     }
@@ -828,7 +824,7 @@ int LabBuildCompiler::process_module_gen(
         ASTProcessor& processor,
         Codegen& gen,
         CTranslator& cTranslator,
-        const std::string& mod_timestamp_file
+        const std::string_view& build_dir
 ) {
 
     // variables
@@ -1009,7 +1005,7 @@ int LabBuildCompiler::process_module_gen(
     const bool save_result = gen.save_with_options(&emitter_options);
     if(save_result) {
         if(caching && !gen_path.empty()) {
-            save_mod_timestamp(direct_files, mod_timestamp_file);
+            save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, false));
         }
     } else {
         std::cerr << "[lab] failed to emit file '" << gen_path << '\'' << std::endl;
@@ -1349,40 +1345,15 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     const auto get_job_type = job->type;
     const auto job_type = exe->type;
 
-    const auto caching = options->is_caching_enabled;
+    const auto is_job_cbi = get_job_type == LabJobType::CBI;
+    // job caching means relink all if all objects are present
+    const auto job_caching = is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled;
     const auto verbose = options->verbose;
     const auto bm_mod = options->benchmark_modules;
 
     begin_job_print(job);
 
     create_job_build_dir(this, job);
-
-    if(verbose) {
-        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
-    }
-
-    // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
-
-    // we hold the instantiated types inside this container
-    InstantiationsContainer instContainer;
-
-    // a new symbol resolver for every executable
-    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
-
-    // beginning
-    ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);
-    ToCBackendContext c_context(&c_visitor);
-    global.backend_context = (BackendContext*) &c_context;
-
-    // the processor we use
-    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
-
-    // import executable path aliases
-    processor.path_handler.path_aliases = std::move(exe->path_aliases);
-
-    // create or rebind the global container (comptime functions like intrinsics namespace)
-    create_or_rebind_container(this, global, resolver, job->target_data);
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -1410,7 +1381,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     for (const auto mod: dependencies) {
 
         // determining module's direct files
-        processor.determine_module_files(mod);
+        ASTProcessor::determine_module_files(path_handler, loc_man, mod);
 
         // we must recalculate whether module's files have changed
         mod->has_changed = std::nullopt;
@@ -1421,22 +1392,22 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // if caching is enabled, we check if none of the files have changed
-    if(caching && do_compile) {
+    if(job_caching && do_compile) {
 
         // if not a single module has changed, we consider it true
         bool has_any_changed = false;
 
         // check the job object path exists (since we are caching)
         if (!fs::exists(job_obj_path)) {
-            has_any_changed = true;
-        }
 
-        // checking which modules have changed
-        for (const auto mod: exe->dependencies) {
-            auto has_changed = has_module_changed(this, mod, build_dir, true);
-            if (has_changed) {
-                has_any_changed = true;
+            // checking which modules have changed
+            for (const auto mod: exe->dependencies) {
+                auto has_changed = has_module_changed(this, mod, build_dir, true);
+                if (has_changed) {
+                    has_any_changed = true;
+                }
             }
+
         }
 
         if (!has_any_changed) {
@@ -1471,12 +1442,40 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                 }
             }
 
-            job->path_aliases = std::move(processor.path_handler.path_aliases);
+            // cached job
             return 0;
 
         }
 
     }
+
+    if(verbose) {
+        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
+    }
+
+    // job caching avoided
+    // an interpretation scope for interpreting compile time function calls
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
+
+    // we hold the instantiated types inside this container
+    InstantiationsContainer instContainer;
+
+    // a new symbol resolver for every executable
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    // beginning
+    ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, options->debug_info, options->minify_c);
+    ToCBackendContext c_context(&c_visitor);
+    global.backend_context = (BackendContext*) &c_context;
+
+    // the processor we use
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, *job_allocator, *mod_allocator, *file_allocator);
+
+    // import executable path aliases
+    processor.path_handler.path_aliases = std::move(exe->path_aliases);
+
+    // create or rebind the global container (comptime functions like intrinsics namespace)
+    create_or_rebind_container(this, global, resolver, job->target_data);
 
     // begin translation
     c_visitor.prepare_translate();
@@ -1488,15 +1487,12 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             std::cout << "[lab] " << "processing module " << *mod << std::endl;
         }
 
-        // creating the module directory and getting the timestamp file path
-        const auto mod_timestamp_file = get_mod_timestamp_path(build_dir, mod, use_tcc(job));
-
         if(do_compile) {
             switch (mod->type) {
                 case LabModuleType::CPPFile:
                 case LabModuleType::CFile: {
                     if(!mod->has_changed.has_value() || mod->has_changed.value()) {
-                        const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
+                        const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(build_dir, mod, true));
                         if (c_res == 0) {
                             job->objects.emplace_back(mod->object_path.copy());
                             continue;
@@ -1527,7 +1523,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // the actual translation happens here
-        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mod_timestamp_file);
+        const auto result = process_module_tcc_bm(mod, processor, c_visitor, build_dir);
         if(result != 0) {
             return result;
         }
@@ -1596,45 +1592,14 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     const auto job_type = job->type;
 
-    const auto caching = options->is_caching_enabled;
+    const auto is_job_cbi = job_type == LabJobType::CBI;
+    // job caching means relink all if all objects are present
+    const auto job_caching = is_job_cbi ? (options->force_recompile_plugins == false) : options->is_caching_enabled;
     const auto verbose = options->verbose;
 
     begin_job_print(job);
 
     create_job_build_dir(this, job);
-
-    if(verbose) {
-        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
-    }
-
-    // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
-
-    // generic instantiations types are stored here
-    InstantiationsContainer instContainer;
-
-    // a new symbol resolver for every executable
-    SymbolResolver resolver(binder, global, path_handler, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
-
-    auto& job_alloc = *job_allocator;
-    // a single c translator across this entire job
-    CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
-    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
-    CodegenOptions code_gen_options;
-    if(cmd) {
-        code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
-        code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
-        code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
-    }
-    Codegen gen(code_gen_options, binder, global, mangler, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
-    LLVMBackendContext g_context(&gen);
-    // set the context so compile time calls are sent to it
-    global.backend_context = (BackendContext*) &g_context;
-
-    // import executable path aliases
-    processor.path_handler.path_aliases = std::move(job->path_aliases);
-
-    create_or_rebind_container(this, global, resolver, job->target_data);
 
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
@@ -1656,7 +1621,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     for(const auto mod : dependencies) {
 
         // determining module's direct files
-        processor.determine_module_files(mod);
+        ASTProcessor::determine_module_files(path_handler, loc_man, mod);
 
         // we must recalculate which files have changed
         mod->has_changed = std::nullopt;
@@ -1666,30 +1631,65 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     }
 
-    // if not a single module has changed, we consider it true
-    bool has_any_changed = false;
+    if(job_caching) {
 
-    for(const auto mod : job->dependencies) {
-        const auto changed = has_module_changed(this, mod, build_dir, false);
-        if(changed) {
-            has_any_changed = true;
-        }
-    }
+        // if not a single module has changed, we consider it true
+        bool has_any_changed = false;
 
-    if(!has_any_changed) {
-
-        // NOTE: there exists not a single module that has changed
-        // which means we can safely link the previous object files again
-        // we need to return early so modules won't be parsed at all
-
-        for(const auto mod : dependencies) {
-            job->objects.emplace_back(mod->object_path.to_chem_view());
+        for(const auto mod : job->dependencies) {
+            const auto changed = has_module_changed(this, mod, build_dir, false);
+            if(changed) {
+                has_any_changed = true;
+            }
         }
 
-        job->path_aliases = std::move(processor.path_handler.path_aliases);
-        return 0;
+        if(!has_any_changed) {
+
+            // NOTE: there exists not a single module that has changed
+            // which means we can safely link the previous object files again
+            // we need to return early so modules won't be parsed at all
+
+            for (const auto mod: dependencies) {
+                job->objects.emplace_back(mod->object_path.to_chem_view());
+            }
+
+            return 0;
+        }
 
     }
+
+    if(verbose) {
+        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
+    }
+
+    // an interpretation scope for interpreting compile time function calls
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man);
+
+    // generic instantiations types are stored here
+    InstantiationsContainer instContainer;
+
+    // a new symbol resolver for every executable
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
+
+    auto& job_alloc = *job_allocator;
+    // a single c translator across this entire job
+    CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, job_alloc, *mod_allocator, *file_allocator);
+    CodegenOptions code_gen_options;
+    if(cmd) {
+        code_gen_options.fno_unwind_tables = cmd->has_value("", "fno-unwind-tables");
+        code_gen_options.fno_asynchronous_unwind_tables = cmd->has_value("", "fno-asynchronous-unwind-tables");
+        code_gen_options.no_pie = cmd->has_value("no-pie", "no-pie");
+    }
+    Codegen gen(code_gen_options, binder, global, mangler, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
+    LLVMBackendContext g_context(&gen);
+    // set the context so compile time calls are sent to it
+    global.backend_context = (BackendContext*) &g_context;
+
+    // import executable path aliases
+    processor.path_handler.path_aliases = std::move(job->path_aliases);
+
+    create_or_rebind_container(this, global, resolver, job->target_data);
 
     // before compilation of the module, we prepare the target machine
     const auto machine = gen.setup_for_target(gen.target_triple, is_debug(options->outMode));
@@ -1705,15 +1705,12 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             std::cout << "[lab] " << "processing module '" << mod->name << '\'' << std::endl;
         }
 
-        // get the timestamp file path
-        const auto mod_timestamp_file = get_mod_timestamp_path(job->build_dir.to_std_string(), mod, use_tcc(job));
-
         // handle c and cpp file modules
         switch (mod->type) {
             case LabModuleType::CFile:
             case LabModuleType::CPPFile: {
                 if(!mod->has_changed.has_value() || mod->has_changed.value()) {
-                    const auto c_res = compile_c_or_cpp_module(this, mod, mod_timestamp_file);
+                    const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(build_dir, mod, false));
                     if(c_res == 0) {
                         if(is_use_obj_format) {
                             job->objects.emplace_back(mod->object_path.copy());
@@ -1742,7 +1739,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             mod->bitcode_path.clear();
         }
 
-        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, mod_timestamp_file);
+        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, build_dir);
         if(result != 0) {
             return result;
         }
@@ -2444,11 +2441,8 @@ TCCState* LabBuildCompiler::built_lab_file(
             std::cout << "[lab] " << "processing dependency module '" << mod->format() << '\'' << std::endl;
         }
 
-        // the timestamp file is what determines whether the module needs to be rebuilt again
-        const auto timestamp_path = get_mod_timestamp_path(lab_mods_dir, mod, true);
-
         // compile the module
-        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, timestamp_path);
+        const auto module_result = process_module_tcc_bm(mod, processor, c_visitor, lab_mods_dir);
         if(module_result != 0) {
             return nullptr;
         }

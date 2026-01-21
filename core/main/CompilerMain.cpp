@@ -494,6 +494,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("resources", "res", CmdOptionType::SingleValue),
             CmdOption("ignore-extension", CmdOptionType::NoValue),
             CmdOption("no-cache", CmdOptionType::NoValue),
+            CmdOption("frecompile-plugins", CmdOptionType::NoValue),
             CmdOption("out-ll", CmdOptionType::SingleValue),
             CmdOption("out-bc", CmdOptionType::SingleValue),
             CmdOption("out-obj", CmdOptionType::SingleValue),
@@ -623,10 +624,12 @@ int compiler_main(int argc, char *argv[]) {
         if(options.has_value("no-cache")) {
             opts->is_caching_enabled = false;
         }
+        if(options.has_value("frecompile-plugins")) {
+            opts->force_recompile_plugins = false;
+        }
         if(options.has_value("debug-ir")) {
             opts->debug_ir = true;
         }
-//        opts->isCBIEnabled = !options.option("no-cbi").has_value();
         if(options.has_value("lto")) {
             opts->def_lto_on = true;
         }

@@ -32,6 +32,11 @@ public:
     bool is_caching_enabled = true;
 
     /**
+     * force recompilation of plugins
+     */
+    bool force_recompile_plugins = false;
+
+    /**
      * will force use object file format
      * // TODO make this by default false, once our bitcode generation is valid
      * // Currently set to true, so object files are emitted

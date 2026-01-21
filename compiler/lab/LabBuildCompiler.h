@@ -176,7 +176,7 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string& mod_timestamp_file
+        const std::string_view& build_dir
     );
 
     /**
@@ -186,7 +186,7 @@ public:
         LabModule* mod,
         ASTProcessor& processor,
         ToCAstVisitor& c_visitor,
-        const std::string& mod_timestamp_file
+        const std::string_view& build_dir
     );
 
 #ifdef COMPILER_BUILD
@@ -199,7 +199,7 @@ public:
             ASTProcessor& processor,
             Codegen& gen,
             CTranslator& cTranslator,
-            const std::string& mod_timestamp_file
+            const std::string_view& build_dir
     );
 
     /**
@@ -210,7 +210,7 @@ public:
             ASTProcessor& processor,
             Codegen& gen,
             CTranslator& cTranslator,
-            const std::string& mod_timestamp_file
+            const std::string_view& build_dir
     );
 
 #endif

@@ -18,17 +18,6 @@
 #include "compiler/cbi/bindings/lsp/LSPHooks.h"
 #endif
 
-dispose_string::~dispose_string(){
-    ptr->~string();
-}
-
-chem::string* init_chem_string(chem::string* str) {
-    str->storage.constant.data = "";
-    str->storage.constant.length = 0;
-    str->state = '0';
-    return str;
-}
-
 const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextgetAnnotationController", (void*) BuildContextgetAnnotationController },
         { "lab_BuildContextnew_module", (void*) BuildContextnew_module },
@@ -44,8 +33,6 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextput_job_before", (void*) BuildContextput_job_before },
         { "lab_BuildContextlink_system_lib", (void*) BuildContextlink_system_lib },
         { "lab_BuildContextadd_compiler_interface", (void*) BuildContextadd_compiler_interface },
-        { "lab_BuildContextresolve_import_path", (void*) BuildContextresolve_import_path },
-        { "lab_BuildContextresolve_native_lib_path", (void*) BuildContextresolve_native_lib_path },
         { "lab_BuildContextinclude_header", (void*) BuildContextinclude_header },
         { "lab_BuildContexttranslate_to_chemical", (void*) BuildContexttranslate_to_chemical },
         { "lab_BuildContexttranslate_to_c", (void*) BuildContexttranslate_to_c },

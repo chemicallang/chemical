@@ -331,10 +331,12 @@ bool LabBuildContext::has_arg(const std::string& name) {
     return build_args.find(name) != build_args.end();
 }
 
-void LabBuildContext::get_arg(chem::string& str, const std::string& name) {
+chem::string_view LabBuildContext::get_arg(const std::string& name) {
     auto found = build_args.find(name);
     if(found != build_args.end()) {
-        str.append(found->second.data(), found->second.size());
+        return chem::string_view(found->second);
+    } else {
+        return "";
     }
 }
 

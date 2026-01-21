@@ -129,14 +129,7 @@ public struct BuildContext {
     // returns true if it succeeds
     func add_compiler_interface(&self, module : *mut Module, interface : &std::string_view) : bool
 
-    // resolve the path for a native library given the scope name and mod name
-    func resolve_native_lib_path(&self, scope_name : &std::string_view, mod_name : &std::string_view) : PathResolutionResult
-
     func resolve_condition(&self, job : *LabJob, condition : &std::string_view) : bool
-
-    // resolves a path, this allows to get exact path to the library or file
-    // you can resolve for example where the std library is using base_path empty and path "@std/"
-    func resolve_import_path(&self, base_path : &std::string_view, path : &std::string_view) : PathResolutionResult
 
     // allows to include c header in the module
     func include_header(&self, module : *mut Module, header : &std::string_view);
@@ -177,14 +170,14 @@ public struct BuildContext {
     func declare_alias (&self, job : *LabJob, alias : &std::string_view, path : &std::string_view) : bool;
 
     // get build
-    func build_path (&self) : std::string;
+    func build_path (&self) : std::string_view;
 
     // check if argument given to chemical compiler
     // you can give argument using -arg-myarg, pass myarg to this function to check
     func has_arg (&self, name : &std::string_view) : bool
 
     // get the argument given to chemical compiler
-    func get_arg (&self, name : &std::string_view) : std::string
+    func get_arg (&self, name : &std::string_view) : std::string_view
 
     // remove the argument given to chemical compiler
     func remove_arg (&self, name : &std::string_view) : void
@@ -281,10 +274,10 @@ public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : 
 // -----------------------------------------------------
 
 public func (ctx : &BuildContext) build_job_dir_path(job_name : &std::string_view) : std::string {
-    const new_path = ctx.build_path();
+    const new_path = std::string(ctx.build_path());
     new_path.append('/');
-    new_path.append_with_len(job_name.data(), job_name.size());
-    new_path.append_char_ptr(".dir");
+    new_path.append_view(job_name);
+    new_path.append_view(".dir");
     new_path.append('/')
     return new_path;
 }
@@ -296,12 +289,12 @@ public func (ctx : &BuildContext) job_dir_path(job : *mut LabJob) : std::string 
 public func (ctx : &BuildContext) build_mod_file_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view, file : &std::string_view) : std::string {
     var str = ctx.build_job_dir_path(job_name)
     if(!mod_scope.empty()) {
-        str.append_with_len(mod_scope.data(), mod_scope.size())
+        str.append_view(mod_scope)
         str.append('.');
     }
-    str.append_with_len(mod_name.data(), mod_name.size());
+    str.append_view(mod_name);
     str.append('/');
-    str.append_with_len(file.data(), file.size())
+    str.append_view(file)
     return str;
 }
 

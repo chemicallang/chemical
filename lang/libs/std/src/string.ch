@@ -65,6 +65,14 @@ public struct string : Hashable, Eq {
         ensure_mut(size())
     }
 
+    @constructor
+    func view_make(value : &std::string_view) {
+        storage.constant.data = value.data();
+        storage.constant.length = value.size();
+        state = '0'
+        ensure_mut(value.size())
+    }
+
     // the ensure parameter is added just to differentiate signature from constructor above it
     // this allows to keep literal strings as constants
     @constructor

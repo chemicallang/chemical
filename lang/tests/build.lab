@@ -17,9 +17,9 @@ import "./libs/component/build.lab" as componentTestMod
 import "./libs/runner/build.lab" as testLibsRunner
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
-    const new_path = ctx.build_path();
+    const new_path = std::string(ctx.build_path());
     new_path.append('/')
-    new_path.append_with_len(path.data(), path.size());
+    new_path.append_view(path);
     return new_path;
 }
 
@@ -198,7 +198,7 @@ func build(ctx : *mut AppBuildContext) {
     printf("Compiler Version = %s\n", compiler_version);
     const str_arg = std::string_view("hello");
     if(ctx.has_arg(str_arg)) {
-        const said = ctx.get_arg(str_arg);
+        const said = std::string(ctx.get_arg(str_arg));
         printf("WOW : Hello World I guess, you said %s \n", said.data());
     }
     const minimal_arg = std::string_view("minimal");

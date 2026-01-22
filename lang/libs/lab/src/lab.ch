@@ -82,11 +82,6 @@ public enum CBIFunctionType {
     FoldingRangesPut
 }
 
-public struct PathResolutionResult {
-    var path : std::string
-    var error : std::string
-}
-
 @compiler.interface
 public struct BuildContext {
 

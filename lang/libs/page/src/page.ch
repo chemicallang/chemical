@@ -268,7 +268,7 @@ public struct HtmlPage {
     }
 
     func defaultPreactSetup(&mut self) {
-        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>Object.assign(window, preact);Object.assign(window, preactHooks);</script>"""))
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/preact/dist/preact.min.js"></script><script src="https://unpkg.com/preact/hooks/dist/hooks.umd.js"></script><script>window.$_p = preact;window.$_ph = preactHooks; window.$_pm = (e,c) => {const P = document.createDocumentFragment(); $_p.render($_p.h(c, {}), P); e.replaceWith(P); }</script>"""))
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist

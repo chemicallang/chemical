@@ -412,6 +412,8 @@ set(COMMON_SOURCES
         compiler/cbi/bindings/ASTBuilderCBI.h
         compiler/cbi/bindings/ASTBuilderCBI.cpp
         compiler/cbi/bindings/ASTCBI.h
+        compiler/cbi/bindings/LabCBIAddons.h
+        compiler/cbi/bindings/LabCBIAddons.cpp
         ast/statements/ProvideStmt.h
         ast/statements/ProvideStmt.cpp
         ast/types/Float128Type.h

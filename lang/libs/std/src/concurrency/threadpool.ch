@@ -188,7 +188,7 @@ public namespace std {
             var workers:std.vector<usize>;
             var run:bool
 
-            public func <T> submit(&self, f:std.function<() => T>):Future<T>{
+            public func <T> submit(&mut self, f:std.function<() => T>):Future<T>{
                 var prom=malloc(sizeof(Promise<T>)) as *mut Promise<T>;
                 new(prom)Promise<T>();
                 m.lock();
@@ -212,7 +212,7 @@ public namespace std {
                 return Future<T>(prom)
             }
 
-            public func submit_void(&self, f:std.function<() => void>){
+            public func submit_void(&mut self, f:std.function<() => void>){
                 m.lock();
                 q.push_back(Task{ f:f });
                 cv.notify_one();

@@ -236,13 +236,13 @@ public struct HtmlPage {
         return pageJs.copy()
     }
 
-    func appendTitle(&self, view : &std::string_view) {
+    func appendTitle(&mut self, view : &std::string_view) {
         pageHead.append_view("<title>")
         pageHead.append_view(view)
         pageHead.append_view("</title>")
     }
 
-    func appendFavicon(&self, type : &std::string_view, path : &std::string_view) {
+    func appendFavicon(&mut self, type : &std::string_view, path : &std::string_view) {
         pageHead.append_view("<link rel=\"icon\" type=\"")
         pageHead.append_view(type)
         pageHead.append_view("\" href=\"")
@@ -250,19 +250,19 @@ public struct HtmlPage {
         pageHead.append_view("\">")
     }
 
-    func appendPngFavicon(&self, path : &std::string_view) {
+    func appendPngFavicon(&mut self, path : &std::string_view) {
         appendFavicon(std::string_view("image/png"), path)
     }
 
-    func appendViewportMeta(&self) {
+    func appendViewportMeta(&mut self) {
         pageHead.append_view("""<meta name="viewport" content="width=device-width, initial-scale=1.0">""")
     }
 
-    func appendCharsetUTF8Meta(&self) {
+    func appendCharsetUTF8Meta(&mut self) {
         pageHead.append_view("""<meta charset="utf-8">""")
     }
 
-    func defaultPrepare(&self) {
+    func defaultPrepare(&mut self) {
         appendCharsetUTF8Meta();
         appendViewportMeta();
     }

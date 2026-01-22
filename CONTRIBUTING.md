@@ -1,155 +1,172 @@
 ## Project Structure
 
-Here's a rough overview of the structure of the project
+Here's a detailed overview of the Chemical codebase. The project is written in **C++ 20**.
+
+### Entrypoint
+- [CompilerMain.cpp](core/main/CompilerMain.cpp): The main entry point for the compiler executable. It parses command-line arguments and uses the `LabBuildCompiler` API.
+
+### Build System (Lab)
+
+Everything related to compilation and running of `chemical.mod` and `build.lab` is located in the [compiler/lab](compiler/lab) directory.
+
+#### How it works:
+1.  **Entrypoint**: [CompilerMain.cpp](core/main/CompilerMain.cpp) invokes the [LabBuildCompiler](compiler/lab/LabBuildCompiler.cpp).
+2.  **In-Memory Translation**: If a project uses `chemical.mod`, the [ModToLabConverter](compiler/lab/mod_conv/ModToLabConverter.cpp) translates it into a `build.lab` file in memory.
+3.  **Lab Program**: A `build.lab` file is a Chemical program. All necessary `build.lab` files are combined into a single C program, compiled by **TinyCC** (in memory), and executed.
+4.  **Job Orchestration**: This "Lab program" interacts with the compiler via the `BuildContext` interface. It emits `LabJob` objects (e.g., `Executable`, `Library`, `CBI`).
+5.  **Job Execution**: The compiler then executes these jobs one by one.
+6.  **Job Reordering**: Plugins can dynamically reorder these jobs using `ctx.put_job_before`. This is critical for CBI plugins, as they must be executed and booked into the compiler *before* the module that depends on them is parsed.
+
+#### Key Files:
+- [LabBuildCompiler.cpp](compiler/lab/LabBuildCompiler.cpp): The heart of the build system.
+- [ModToLabConverter.cpp](compiler/lab/mod_conv/ModToLabConverter.cpp): Logic for `chemical.mod` -> `build.lab`.
+- [LabJob.h](compiler/lab/LabJob.h): Defines the various job types.
+
+### AST (Abstract Syntax Tree)
+The [ast](ast) directory contains the models for the syntax tree.
+- [ast/base](ast/base): Contains base classes.
+  - [ASTNode.h](ast/base/ASTNode.h): The base class for all nodes (e.g., `WhileLoop`, `VarInit`).
+  - [Value.h](ast/base/Value.h): Represents all values (referenced, primitive, arrays, structs, etc.).
+  - [BaseType.h](ast/base/BaseType.h): Represents all type classes (e.g., `Int`, `ReferencedType`).
+- [ast/statements](ast/statements) & [ast/structures](ast/structures): Hold various statement and declaration nodes.
+
+### Memory Management (Allocators)
+Chemical uses a high-performance **arena-based allocation** strategy to minimize overhead and simplify memory management.
+
+- [BatchAllocator](ast/base/BatchAllocator.h): The base class for allocating memory in large batches (arenas). Instead of individual `new`/`delete` calls, memory is requested in chunks.
+- [ASTAllocator](ast/base/ASTAllocator.h): Inherits from `BatchAllocator` and adds support for **automatic destruction**. It stores a list of pointers and cleanup functions that are executed when the allocator is cleared.
+- **Lifetimes**:
+    - `file_allocator`: Lives for the duration of a single file's processing.
+    - `mod_allocator`: Lives for the duration of a module's compilation.
+    - `job_allocator`: Lives for the duration of a `LabJob`.
+- **Strategy**: When a phase (like parsing a module) is complete, the entire allocator is cleared (`clear()`), effectively "sweeping" all allocated nodes and values in one go.
+
+### Type System
+The type system is managed by the `TypeBuilder`, which acts as a factory and memoizer for all `BaseType` objects.
+
+- [TypeBuilder.h](ast/base/TypeBuilder.h): Caches common types (e.g., `i32`, `bool`, `void`) and provides methods to build complex types like pointers and arrays.
+- **Chemical Types**: `I8`, `I16`, `I32`, `I64`, `Int128`, and their unsigned counterparts.
+- **C-Compatible Types**: `Char`, `Short`, `Int`, `Long`, `LongLong` etc., used mainly during interop.
+- **Unresolved Types**: During the initial parsing phase, types are often linked to an `UnresolvedDecl` until the Symbol Resolver can fix them.
+
+### Lexer & Parser
+- [stream](stream): Defines methods for reading from source files, used by the Lexer.
+- [lexer](lexer): Contains the lexer implementation.
+  - [Lexer.h](lexer/Lexer.h) / [Lexer.cpp](lexer/Lexer.cpp): The core lexing logic.
+- [parser](parser): Contains the recursive descent parser.
+  - [Parser.h](parser/Parser.h) / [Parser.cpp](parser/Parser.cpp): Core parser functions.
+  - The implementation is divided into subdirectories:
+    - [parser/statements](parser/statements): Parsing logic for statements. **Note:** Some files here are named with a `Lex` prefix (e.g., `LexStatement.cpp`, `LexType.cpp`) due to historical reasons from an earlier CST implementation.
+    - [parser/structures](parser/structures): Parsing logic for top-level structures like functions, structs, and interfaces.
+    - [parser/values](parser/values): Parsing logic for specific value types like lambdas and struct literals.
+    - [parser/utils](parser/utils): Contains general parsing utilities. **Note:** `Expression.cpp` and `LexValue.cpp` (another "Lex" prefix) handle the core expression and value parsing.
+
+### Diagnostics and Locations
+Error reporting and source location tracking are handled by a dedicated diagnostic subsystem.
+
+- [LocationManager](core/source/LocationManager.h): The authority on all source locations. It maintains a mapping of file paths and handles the encoding/decoding of `SourceLocation`.
+- [SourceLocation.h](core/source/SourceLocation.h): A `uint64_t` that uniquely identifies a position in the source code. It can represent locations in physical files, macro expansions, or virtual buffers.
+- [Diagnoser](core/diag/Diagnoser.h): A class used to emit errors and warnings. It uses the `LocationManager` to translate `SourceLocation` into human-readable file:line:column strings.
+- [Diagnostic.h](core/diag/Diagnostic.h): Represents a single error or warning event, including its severity, message, and location.
+
+
+### Compiler Binding Interface (CBI)
+CBI (**Compiler Binding Interface**) is a powerful extensibility system that allows developers to write compiler plugins in **C**. These plugins are compiled on-the-fly using **TinyCC** and hooked into the compiler.
+
+#### Interfacing with the Compiler:
+When a `build.lab` requests a `BuildContext`, it triggers the compiler to provide various C-compatible interfaces. This is handled by [CompilerBinder::import_compiler_interface](compiler/cbi/model/CompilerBinder.h), which populates the TCC state with function pointers from the compiler's own source code.
+
+These mappings are defined in [CBI.cpp](compiler/cbi/bindings/CBI.cpp) using `interface_maps` (see `prepare_cbi_maps`). Available interfaces include:
+- `Parser`, `Lexer`, `SourceProvider`
+- `ASTBuilder`, `SymbolResolver`, `ASTDiagnoser`
+- `BuildContext`, `BatchAllocator`
+
+#### Plugin Lifecycle:
+1.  **CBI Job**: A plugin creates a `LabJobCBI`.
+2.  **Compilation**: The plugin's C code is compiled by TinyCC and relocated in memory.
+3.  **Indexing**: Functions within the plugin (like macro parsers) are indexed into the `CompilerBinder` via `registerHook`.
+4.  **Persistent State**: Unlike normal scripts, a CBI plugin's TCC state is kept in memory (stored in `CBIData`) as long as the compiler session is active, allowing its hooks to be called whenever needed.
+
+- [compiler/cbi](compiler/cbi): The core CBI implementation.
+- **Macros**: CBI is primarily used to implement `#macro` functionality. When the parser encounters a `#macro`, it looks for a registered hook in the `CompilerBinder` to handle lexing, parsing, or symbol resolution for that macro.
+- **Examples**: You can find several CBI-based libraries in [lang/libs](lang/libs), such as `html_cbi`, `css_cbi`, `js_cbi`, `react_cbi`, `solid_cbi`, and `preact_cbi`.
+
+
+### Annotation Handling
+The [AnnotationController](compiler/frontend/AnnotationController.h) manages how annotations (e.g., `@if`, `@test`) are handled. The parser calls this controller when it encounters an annotation.
+
+### Symbol Resolver (Semantic Analysis)
+The symbol resolver (semantic analyzer) is responsible for resolving identifiers, types, and performing initial type checks. It runs in several passes:
+1. [DeclareTopLevel.cpp](compiler/symres/DeclareTopLevel.cpp): Declares top-level symbols (functions, structs, etc.).
+2. [LinkSignature.cpp](compiler/symres/LinkSignature.cpp): Resolves symbols in signatures and figures out variable types.
+3. [SymResLinkBody.cpp](compiler/symres/SymResLinkBody.cpp): Resolves symbols within function bodies recursively.
+4. [SymbolResolver.cpp](compiler/symres/SymbolResolver.cpp): Wires the entire resolution process.
+
+### Generic Instantiation (Monomorphization)
+Located in [compiler/generics](compiler/generics), this system handles the instantiation of generic types and functions.
+
+### Comptime and Interpretation
+Chemical supports compile-time execution of code via the `@comptime` keyword and intrinsic functions.
+
+- [GlobalInterpretScope](compiler/lab/LabBuildContext.h): Manages the state for compile-time evaluation. It holds the backend context and oversees the mapping of intrinsic functions.
+- [Interpreter](compiler/Interpreter/Core.cpp): An experimental tree-walking interpreter used to evaluate Chemical expressions and statements at compile-time.
+- **Intrinsics**: The `compiler` namespace in Chemical provides intrinsics (defined in [GlobalFunctions.cpp](ast/utils/GlobalFunctions.cpp)) that allow user code to interact with the compiler (e.g., printing messages, checking target info).
+- **Backend Context**: During comptime, a `BackendContext` (either LLVM or C) is often attached to the interpretation scope to allow the code to "emit" instructions or gather metadata about the ongoing compilation.
+
+### Backends
+- **C Translation**: [preprocess/2c/2cASTVisitor.h](preprocess/2c/2cASTVisitor.h) provides a visitor that translates Chemical AST to C code.
+
+### Name Mangling
+To avoid naming collisions in the generated C or LLVM code, Chemical uses a robust mangling system in [NameMangler.cpp](compiler/mangler/NameMangler.cpp).
+
+- **Module Prefixing**: Symbols are prefixed with their scope and module name (e.g., `scope_module_symbol`).
+- **Generic Instantiation**: 
+    - Structs: `Symbol__cgs__N` (where N is the instantiation index).
+    - Functions: `Symbol__cfg__N`.
+- **Multi-functions**: Overloaded functions use `__cmf__N` suffixes.
+- **Interop**: Symbols marked with `no_mangle` (via annotations like `@no_mangle` or inside `extern` blocks) retain their original names for C compatibility.
+
+### LLVM Backend & Codegen
+The LLVM backend is the primary target for Chemical.
+
+- [Codegen.h](compiler/Codegen.h): The central coordinator for LLVM code generation.
+- **Type Mapping**: Most Chemical types map directly to LLVM types (e.g., `IntNType` to `getIntNTy`, `PointerType` to `getPtrTy`).
+- **Operator Overloading**: Chemical implements operator overloading by attempting to resolve specific method names before emitting a primitive instruction. For example:
+    - `a + b` -> looks for `add(a, b)`
+    - `a[i]` -> looks for `index(a, i)`
+    - `!a` -> looks for `not(a)`
+- **VTables**: Interface calls are handled via virtual tables, whose names are also mangled (e.g., `Interface_Struct_vtable`).
+
+### LSP (Language Server Protocol)
+The [server](server) directory contains the LSP implementation that provides IDE features like completion, goto definition, and semantic highlighting.
+- [WorkspaceManager.h](server/WorkspaceManager.h): Manages the IDE session and orchestrates various analyzers.
+- [Analyzers](server/analyzers/): Specific classes for features like `CompletionItemAnalyzer`, `SemanticTokensAnalyzer`, etc.
 
 ### Tests
+Tests are located in [lang/tests](lang/tests). After making changes, verify that the tests still pass.
 
-These tests are written in `chemical`, We aren't testing C++ at the moment, we have a testing framework for
-our language, however most of the tests compile & run inside a single executable (one fails others)
-That's because these tests were written before the testing framework.
-
-Here's all the [tests](lang/tests)
-
-After performing a change in the compiler implementation, one must verify tests are succeeding, for which
-there are commands (if you are using CLion or Jetbrains stuff, run configurations would be available)
-
-Otherwise, you can just run by providing `chemical compiler` path to the `build.lab` file
-
-LLVM based compiler:
-
-```
+**LLVM based compiler:**
+```bash
 chemical "lang/tests/build.lab" -arg-minimal -v -vl -bm -bm-modules --debug-ir --mode debug_complete --assertions --no-cache
 ```
 
-TinyCC based compiler:
-
-```
+**TinyCC based compiler:**
+```bash
 chemical "lang/tests/build.lab" -arg-minimal -bm -bm-modules -v --mode debug --no-cache
 ```
+*Note: Use `chemical.exe` on Windows.*
 
-use `chemical.exe` instead of just `chemical` on windows
+### Contributing to Macros
 
-### Entrypoint
-- The function that runs when the compiler executable is invoked is located in [CompilerMain.cpp](core/main/CompilerMain.cpp)
-- Other than parsing the command line arguments, it just uses LabBuildCompiler API to execute user jobs
+Macros are a great way to extend Chemical. To contribute a new macro or improve an existing one:
 
-### Lab (build system)
-Everything related to compilation and running of `chemical.mod` and `build.lab` is present in [lab](compiler/lab) directory
+1.  **Identify the Area**: Determine if your macro needs custom lexing, parsing, or symbol resolution.
+2.  **Look at Examples**: The best way to learn is by looking at existing CBI libraries in [lang/libs](lang/libs).
+    - `js_cbi`: Demonstrates complex parsing of JavaScript within Chemical.
+    - `html_cbi`: Shows how to integrate HTML templates.
+3.  **Implement the Hook**: Write your hook in C (utilizing the provided compiler interfaces) and register it using the appropriate `CBIFunctionType`.
+4.  **Testing**:
+    - Macro-specific tests are located in [lang/tests/libs](lang/tests/libs).
+    - Add a new test case in the relevant subdirectory (e.g., `lang/tests/libs/js` for JS macro tests).
+    - Run the tests using the commands provided in the [Tests](#tests) section.
 
-### AST Classes
-
-- [ast](ast) (folder contains models for the syntax tree)
-  - [ast/base](ast/base) is the folder containing base classes
-  - [ASTNode](ast/base/ASTNode.h) class that is inherited by all the nodes (`WhileLoop`, `VarInit`, `ReturnStatement`)
-  - [Value](ast/base/Value.h) class that represents all the values (referenced, primitive & others like Array and Struct)
-  - [BaseType](ast/base/BaseType.h) class that represents all the type classes in the project like `Int` and `ReferencedType`
-  - [This directory](ast/statements) Holds some of the statements
-  - [This directory](ast/structures) Holds most of the declarations
-
-
-### Lexer & Parser
-- [stream](stream) A single class defines the methods that are used to read from a `std::ifstream`, It's used by the `lexer` to read source code.
-  - The lexer always takes a `InputSource`, which is like a string_view (a data pointer and length)
-- [lexer](lexer) The directory contains the lexer implementation
-  -  [Lexer.h](lexer/Lexer.h) to get an idea of the API
-  -  [Lexer.cpp](lexer/Lexer.cpp) for the implementation
-- [parser](parser) The directory contains the parser implementation
-  - [Parser.h](parser/Parser.h) to get an idea of the API
-  - [Parser.cpp](parser/Parser.cpp) basic functions are implemented in this
-  - Parser implementation is divided in different files, files are also wrongly named Lex
-  - Early version used to convert to a CST, which has been removed now, that's why.
-
-### Annotation Handling
-
-Parser asks the annotation controller to handle an annotation
-
-- [AnnotationController.h](compiler/frontend/AnnotationController.h)
-- [AnnotationController.cpp](compiler/frontend/AnnotationController.cpp)
-
-### Symbol Resolver (semantic analysis)
-
-Symbol Resolver can be called semantic analyser, we try to understand the user's code
-
-- Symbol resolver has four jobs
-  - Resolves symbols (referenced identifiers or referenced types)
-  - Figure out type of everything
-    - everything in chemical that is a [Value](ast/base/Value.h) has a type pointer
-    - [VariableIdentifier](ast/values/VariableIdentifier.h) inherits from [Value](ast/base/Value.h)
-    - we figure out type of each identifier, then set this type pointer
-  - minimal verification is done at this step, still type verification runs after symbol resolution
-  - use the GenericInstantiator API to instantiate generic implementations
-
-- Symbol Resolver is present in [this directory](compiler/symres)
-- [DeclareTopLevel.cpp](compiler/symres/DeclareTopLevel.cpp)
-  - first to run
-  - declares the symbols (of functions, structs or variants...)
-  - does not recursive (no nesting), only the top level nodes
-- [LinkSignature.cpp](compiler/symres/LinkSignature.cpp)
-  - second to run
-  - resolves symbols in signatures (of functions, structs or variants...)
-  - figures out type for each variable identifier
-  - recursive but doesn't visit bodies of functions
-- [SymResLinkBody.cpp](compiler/symres/SymResLinkBody.cpp)
-  - third to run
-  - resolves symbols in bodies of the functions
-  - figures out type for each variable identifier
-  - recursive, visits everything (even in bodies of functions)
-- [SymbolResolver.cpp](compiler/symres/SymbolResolver.cpp)
-  - here's the wiring for everything related to symbol resolution
-
-### Generic Instantiation (Monomorphization)
-
-Everything related to generic mono morphization is present inside [generics](compiler/generics) directory
-
-### Type Verification
-Currently, Most type verification is performed during symbol resolution, however will soon separate it
-Everything related to type verification is present in this [directory](compiler/typeverify)
-
-### Interpretation
-
-chemical needs to interpret chemical code because at compile time user invokes functions
-
-interpretation and comptime functions are experimental feature, but present in this [directory](compiler/Interpreter)
-
-### Global Functions
-
-chemical contains intrinsic global functions that allow you to interact with the compiler at comptime
-the definitions for these functions is present in [GlobalFunctions.cpp](ast/utils/GlobalFunctions.cpp)
-
-### Compile using LLVM
-- [compiler](compiler/backend/LLVM.cpp)
-- [class Codegen](compiler/Codegen.h)
-- I organized llvm stuff into multiple files, however I'm changing that it'll take time.
-
-
-### Translation To C
-- [preprocess](preprocess)
-  - This needs to be shifted to compiler directory
-  - [2cASTVisitor](preprocess/2c/2cASTVisitor.h) The class that converts Chemical `AST` to `C`
-
-### Translating from C
-
-we use Clang to parse the C, therefore this is only available in LLVM based compiler.
-
-- [CTranslator.cpp](compiler/ctranslator/CTranslator.cpp) that initializes the CTranslator
-- [CLANG.cpp](compiler/backend/CLANG.cpp) is the file that includes some translation code
-
-### chemical.mod to build.lab translation
-- [ModToLabConverter.h](compiler/lab/mod_conv/ModToLabConverter.h)
-- [ModToLabConverter.cpp](compiler/lab/mod_conv/ModToLabConverter.cpp)
-
-### Name Mangling
-- [NameMangler.h](compiler/mangler/NameMangler.h)
-- [NameMangler.cpp](compiler/mangler/NameMangler.cpp)
-
-### LSP
-- The entry point of the LSP server is [Main.cpp](/Main.cpp) file available at the root of the project
-- [server](server) This contains code related to `LSP` server which provides `IDEs` semantic tokens / completion items and stuff.
-  - [WorkspaceManager](server/WorkspaceManager.h) The overseer of the IDE session in LSP, when you open IDE and edit files, this file tracks changes and launches operations and manages everything.
-  - The following analyzers are used by LSP
-    - [CompletionItemAnalyzer](server/analyzers/CompletionItemAnalyzer.h) The class that provides completion items to `IDEs` when you press `ctrl + space`
-    - [FoldingRangeAnalyzer](server/analyzers/FoldingRangeAnalyzer.h) The class that provides folding ranges to `IDEs`
-    - [DocumentSymbolsAnalyzer](server/analyzers/DocumentSymbolsAnalyzer.h) The class that provides symbols to `IDEs` (viewed inside outline panel in vscode, bottom left)
-    - [GotoDefAnalyzer](server/analyzers/GotoDefAnalyzer.h) The class provides goto definition support to `IDEs` for symbols.
-    - [HoverAnalyzer](server/analyzers/HoverAnalyzer.h) when you hover over a symbol in `IDE`, This class provides information about popup to show.
-    - [SemanticTokensAnalyzer](server/analyzers/SemanticTokensAnalyzer.h) The class that provides syntax highlighting to `IDEs`.

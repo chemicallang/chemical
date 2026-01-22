@@ -26,13 +26,13 @@ Chemical integrates **TinyCC (libtcc)** for rapid JIT execution and build-time t
 
 #### Caching & Incremental Builds
 Chemical implements a simple but effective timestamp-based caching system in [Timestamp.cpp](compiler/lab/timestamp/Timestamp.cpp).
-- **Mechanism**: For each module, the compiler saves the modified time and file size of all source files into a binary `.timestamp` file.
+- **Mechanism**: For each module, the compiler saves the modified time and file size of all source files into a binary `timestamp.dat` file.
 - **Validation**: On the next run, `compare_mod_timestamp` checks current file stats against the saved data. If any file has changed, the module is re-compiled.
 
 #### Target Data & Conditional Compilation
 Target-specific information is managed via `TargetData` and exposed to the build system.
 - [TargetData.h](compiler/lab/TargetData.h): A bitmask-like struct containing flags for OS (windows, linux, macos), architecture (x86_64, aarch64), and compiler (tcc, clang).
-- **Conditional Source**: In `chemical.mod`, you can use `@if` blocks like `source "win" if windows && !tcc`. These are evaluated by [TargetConditionAPI.h](compiler/lab/TargetConditionAPI.h) using the current `TargetData`.
+- **Conditional Source**: In `chemical.mod`, you can use `@if` blocks like `source "win" if windows`. These are evaluated by [TargetConditionAPI.h](compiler/lab/TargetConditionAPI.h) using the current `TargetData`.
 
 #### Key Files:
 - [LabBuildCompiler.cpp](compiler/lab/LabBuildCompiler.cpp): The heart of the build system.
@@ -47,7 +47,7 @@ The [ast](ast) directory contains the models for the syntax tree.
   - [Value.h](ast/base/Value.h): Represents all values (referenced, primitive, arrays, structs, etc.).
   - [BaseType.h](ast/base/BaseType.h): Represents all type classes (e.g., `Int`, `ReferencedType`).
 - [ast/statements](ast/statements) & [ast/structures](ast/structures): Hold various statement and declaration nodes.
-- **AccessChain**: [AccessChain.h](ast/values/AccessChain.h) is a critical node representing hierarchical lookups (e.g., `x.y.z`, `a[i].b()`). It manages a vector of `ChainValue` objects and handles GetElementPtr (GEP) logic for structures and arrays. Currently, it supports identifiers, function calls, and index operations, with plans to expand into more complex value types.
+- **AccessChain**: [AccessChain.h](ast/values/AccessChain.h) is a critical node representing hierarchical lookups (e.g., `x.y.z`, `a[i].b()`). It manages a vector of `Value` objects and handles GetElementPtr (GEP) logic for structures and arrays. Currently, it supports identifiers, function calls, and index operations, with plans to expand into more complex value types.
 
 ### Memory Management (Allocators)
 Chemical uses a high-performance **arena-based allocation** strategy to minimize overhead and simplify memory management.
@@ -139,9 +139,8 @@ Chemical supports compile-time execution of code via the `@comptime` keyword and
 #### Global Intrinsics & Comptime API
 Intrinsics allow Chemical code to interact with the compiler's internal state during interpretation.
 - [GlobalFunctions.cpp](ast/utils/GlobalFunctions.cpp): Defines the `intrinsics` namespace available in Chemical.
-- **Important Functions**:
+- **Some Functions**:
     - `intrinsics::print`: Console logging from the compiler.
-    - `intrinsics::target_info`: Accesses the `TargetData` struct (initialized via `prepare_target_data`) to check bitness, OS, and endianness.
     - `intrinsics::wrap`/`unwrap`: Transitions between normal values and comptime-only values.
     - `intrinsics::get_raw_location`: Direct access to the `SourceLocation` of a node.
 - **Backend Context**: During comptime, a `BackendContext` (either LLVM or C) is often attached to the interpretation scope to allow the code to "emit" instructions or gather metadata about the ongoing compilation.

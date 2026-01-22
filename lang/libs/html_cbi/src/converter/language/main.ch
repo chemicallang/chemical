@@ -490,6 +490,11 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         s.append_view("$_rm(document.currentScript, ")
         s.append_view(signature.name)
         s.append_view(", {")
+    } else if(signature.mountStrategy == MountStrategy.Solid) {
+        // Solid Mount Strategy
+        s.append_view("$_sm(document.currentScript, ")
+        s.append_view(signature.name)
+        s.append_view(", {")
     } else {
         // Default Mount Strategy
         s.append_view("$_dm(document.currentScript, ")

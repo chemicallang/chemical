@@ -47,7 +47,7 @@ The type system is managed by the `TypeBuilder`, which acts as a factory and mem
 - [TypeBuilder.h](ast/base/TypeBuilder.h): Caches common types (e.g., `i32`, `bool`, `void`) and provides methods to build complex types like pointers and arrays.
 - **Chemical Types**: `I8`, `I16`, `I32`, `I64`, `Int128`, and their unsigned counterparts.
 - **C-Compatible Types**: `Char`, `Short`, `Int`, `Long`, `LongLong` etc., used mainly during interop.
-- **Unresolved Types**: During the initial parsing phase, types are often linked to an `UnresolvedDecl` until the Symbol Resolver can fix them.
+- **Unresolved Types**: During the initial parsing phase, types are often linked to an `UnresolvedDecl` when they aren't found.
 
 ### Lexer & Parser
 - [stream](stream): Defines methods for reading from source files, used by the Lexer.

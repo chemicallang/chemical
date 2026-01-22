@@ -1270,38 +1270,14 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
         visitor.write("->");
         return;
     }
-//    if(is_value_param_pointer_like(current)) {
-//        visitor.write("->");
-//        return;
-//    }
-//    if(linked && linked->as_base_func_param()){
-//        const auto node = linked->as_base_func_param()->type->get_direct_linked_node();
-//        if(node && (node->as_struct_def() || node->as_variant_def())) {
-//            visitor.write("->");
-//            return;
-//        }
-//    }
     auto type = current->getType();
     const auto pure_type = type->pure_type(visitor.allocator);
     const auto pure_type_kind = pure_type->kind();
-    if(pure_type_kind == BaseTypeKind::Reference) {
-        const auto linked_kind = linked->kind();
-        if(ASTNode::isBaseDefMember(linked_kind) || linked_kind == ASTNodeKind::VariantCaseVariable) {
-            // but stored references become pointers
-            visitor.write("->");
-            return;
-        }
-        visitor.write('.');
-        return;
-    } else if(pure_type_kind == BaseTypeKind::Pointer) {
+    if(pure_type_kind == BaseTypeKind::Pointer || pure_type_kind == BaseTypeKind::Reference) {
         visitor.write("->");
         return;
     }
-//    if (current->value_type() == ValueType::Pointer) {
-//        visitor.write("->");
-//    } else {
-        visitor.write('.');
-//    }
+    visitor.write('.');
 }
 
 //void write_self_arg(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {

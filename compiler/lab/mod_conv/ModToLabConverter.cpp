@@ -39,7 +39,7 @@ void writeIfConditional(ModFileIfBase* if_base, std::ostream& output) {
         if(if_id->is_negative) {
             output << '!';
         }
-        output << "__chx_job.target.";
+        output << "__chx_job.getTarget().";
         output << if_id->value;
     } else {
         const auto if_expr = (ModFileIfExpr*) if_base;

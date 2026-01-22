@@ -6,19 +6,23 @@ public enum ModuleType {
     Directory
 }
 
-@no_init
+@compiler.interface
 public struct Module {
-    var type : ModuleType
-    var scope_name : std::string
-    var name : std::string
-    // the bitcode file path for this module
-    var bitcode_path : std::string;
-    // the object file path for this module
-    var object_path : std::string;
-    // if not empty, module's llvm ir is written to at this path
-    var llvm_ir_path : std::string;
-    // if not empty, module's assembly is written to at this path
-    var asm_path : std::string;
+    func getType(&self) : ModuleType
+    func getScopeName(&self) : std::string_view
+    func getName(&self) : std::string_view
+
+    func getBitcodePath(&self) : std::string_view
+    func setBitcodePath(&self, path : &std::string_view)
+
+    func getObjectPath(&self) : std::string_view
+    func setObjectPath(&self, path : &std::string_view)
+
+    func getLlvmIrPath(&self) : std::string_view
+    func setLlvmIrPath(&self, path : &std::string_view)
+
+    func getAsmPath(&self) : std::string_view
+    func setAsmPath(&self, path : &std::string_view)
 }
 
 public enum LabJobType {
@@ -47,16 +51,16 @@ public enum OutputMode  : int {
     ReleaseSafe
 }
 
-@no_init
+@compiler.interface
 public struct LabJob {
-    var type : LabJobType
-    var name : std::string
-    var abs_path : std::string
-    var build_dir : std::string
-    var status : LabJobStatus
-    var target_triple : std::string
-    var mode : OutputMode
-    var target : TargetData
+    func getType(&self) : LabJobType
+    func getName(&self) : std::string_view
+    func getAbsPath(&self) : std::string_view
+    func getBuildDir(&self) : std::string_view
+    func getStatus(&self) : LabJobStatus
+    func getTargetTriple(&self) : std::string_view
+    func getMode(&self) : OutputMode
+    func getTarget(&self) : &TargetData
 }
 
 @no_init
@@ -261,7 +265,7 @@ public func (ctx : &BuildContext) include_headers(module : *mut Module, headers 
 }
 
 public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : &std::string_view, type : CBIFunctionType) {
-    ctx.index_cbi_fn(job, job.name.to_view(), name, type)
+    ctx.index_cbi_fn(job, job.getName(), name, type)
 }
 
 // -----------------------------------------------------
@@ -278,7 +282,7 @@ public func (ctx : &BuildContext) build_job_dir_path(job_name : &std::string_vie
 }
 
 public func (ctx : &BuildContext) job_dir_path(job : *mut LabJob) : std::string {
-    return ctx.build_job_dir_path(job.name.to_view())
+    return ctx.build_job_dir_path(job.getName())
 }
 
 public func (ctx : &BuildContext) build_mod_file_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view, file : &std::string_view) : std::string {
@@ -306,15 +310,15 @@ public func (ctx : &BuildContext) build_bitcode_path(job_name : &std::string_vie
 }
 
 public func (ctx : &BuildContext) llvm_ir_path(job : *mut LabJob, mod : *mut Module) : std::string {
-    return ctx.build_llvm_ir_path(job.name.to_view(), mod.scope_name.to_view(), mod.name.to_view())
+    return ctx.build_llvm_ir_path(job.getName(), mod.getScopeName(), mod.getName())
 }
 
 public func (ctx : &BuildContext) asm_path(job : *mut LabJob, mod : *mut Module) : std::string {
-    return ctx.build_asm_path(job.name.to_view(), mod.scope_name.to_view(), mod.name.to_view())
+    return ctx.build_asm_path(job.getName(), mod.getScopeName(), mod.getName())
 }
 
 public func (ctx : &BuildContext) bitcode_path(job : *mut LabJob, mod : *mut Module) : std::string {
-    return ctx.build_bitcode_path(job.name.to_view(), mod.scope_name.to_view(), mod.name.to_view())
+    return ctx.build_bitcode_path(job.getName(), mod.getScopeName(), mod.getName())
 }
 
 public namespace lab {

@@ -3,6 +3,7 @@
 #include "CBI.h"
 #include "SourceProviderCBI.h"
 #include "BuildContextCBI.h"
+#include "LabCBIAddons.h"
 #include "BatchAllocatorCBI.h"
 #include "PtrVecCBI.h"
 #include "std/chem_string.h"
@@ -55,7 +56,30 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextinvoke_dlltool", (void*) BuildContextinvoke_dlltool },
         { "lab_BuildContextinvoke_ranlib", (void*) BuildContextinvoke_ranlib },
         { "lab_BuildContextinvoke_lib", (void*) BuildContextinvoke_lib },
-        { "lab_BuildContextinvoke_ar", (void*) BuildContextinvoke_ar }
+        { "lab_BuildContextinvoke_ar", (void*) BuildContextinvoke_ar },
+
+        // Module functions
+        { "lab_ModulegetType", (void*) ModulegetType },
+        { "lab_ModulegetScopeName", (void*) ModulegetScopeName },
+        { "lab_ModulegetName", (void*) ModulegetName },
+        { "lab_ModulegetBitcodePath", (void*) ModulegetBitcodePath },
+        { "lab_ModulesetBitcodePath", (void*) ModulesetBitcodePath },
+        { "lab_ModulegetObjectPath", (void*) ModulegetObjectPath },
+        { "lab_ModulesetObjectPath", (void*) ModulesetObjectPath },
+        { "lab_ModulegetLlvmIrPath", (void*) ModulegetLlvmIrPath },
+        { "lab_ModulesetLlvmIrPath", (void*) ModulesetLlvmIrPath },
+        { "lab_ModulegetAsmPath", (void*) ModulegetAsmPath },
+        { "lab_ModulesetAsmPath", (void*) ModulesetAsmPath },
+
+        // LabJob functions
+        { "lab_LabJobgetType", (void*) LabJobgetType },
+        { "lab_LabJobgetName", (void*) LabJobgetName },
+        { "lab_LabJobgetAbsPath", (void*) LabJobgetAbsPath },
+        { "lab_LabJobgetBuildDir", (void*) LabJobgetBuildDir },
+        { "lab_LabJobgetStatus", (void*) LabJobgetStatus },
+        { "lab_LabJobgetTargetTriple", (void*) LabJobgetTargetTriple },
+        { "lab_LabJobgetMode", (void*) LabJobgetMode },
+        { "lab_LabJobgetTarget", (void*) LabJobgetTarget }
 };
 
 const std::pair<chem::string_view, void*> BatchAllocatorSymMap[] = {

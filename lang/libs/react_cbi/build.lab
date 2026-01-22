@@ -1,0 +1,75 @@
+import lab
+import std
+
+import "@cstd/build.lab" as cstdMod
+import "@std/build.lab" as stdMod
+import "@html_comp/build.lab" as htmlCompMod
+import "@compiler/build.lab" as compilerMod
+
+using namespace std;
+
+var did_once = false;
+
+public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+
+    const already_std = ctx.get_cached(user_job, "", "std");
+
+    // the std module
+    var user_std_module = if(already_std != null) already_std else stdMod.build(ctx, user_job);
+    if(user_std_module == null) {
+        return null
+    }
+
+    if(did_once) return user_std_module;
+    did_once = true;
+
+    // creating a marker annotation named 'component'
+    const controller = ctx.getAnnotationController()
+    controller.createMarkerAnnotation(std::string_view("component"))
+
+    // js cbi
+    var cbi = ctx.build_cbi(std::string_view("react"))
+    const job = cbi;
+
+    // makes sure this job is done before the user_job
+    ctx.put_job_before(job, user_job)
+
+    var std_module = stdMod.build(ctx, job);
+    if(std_module == null) {
+        return null
+    }
+
+    // the cstd module
+    var cstd_module = cstdMod.build(ctx, job);
+    if(cstd_module == null) {
+        return null
+    }
+
+    // the html component module
+    var html_comp_module = htmlCompMod.build(ctx, job)
+    if(html_comp_module == null) {
+        return null
+    }
+
+    // the std module
+    var compiler_module = compilerMod.build(ctx, job);
+    if(compiler_module == null) {
+        return null
+    }
+
+    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module ]
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("react_cbi"), lab::rel_path_to("src").to_view(), dependencies);
+
+    ctx.add_module(cbi, module)
+
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_symResDeclareNode"), CBIFunctionType.SymResDeclareTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
+    ctx.index_cbi_fn(cbi, std::string_view("react"), std::string_view("react_replacementNode"), CBIFunctionType.ReplacementNode);
+
+    return user_std_module;
+
+}

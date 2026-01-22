@@ -263,7 +263,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view(" ")
                 converter.convertJsNode(ret.value)
             } else if(!converter.jsx_parent.empty()) {
-                converter.str.append_view(" $c_root")
+                converter.str.append_view(" _root")
             }
             converter.str.append_view(";")
         }
@@ -897,7 +897,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     converter.str.append_view(" = ")
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
-        converter.str.append_view("$c_")
         converter.str.append_view(tagName)
     } else if(tagNameNode.kind == JsNodeKind.JSXExpressionContainer) {
             var exprCont = tagNameNode as *mut JsJSXExpressionContainer

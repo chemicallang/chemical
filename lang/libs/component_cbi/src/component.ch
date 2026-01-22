@@ -129,7 +129,7 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         vec : body,
         parent : root.signature.functionNode as *mut ASTNode,
         str : std::string(),
-        jsx_parent : view("$c_root"),
+        jsx_parent : view("_root"),
         t_counter : 0
     }
     
@@ -181,24 +181,24 @@ public func component_replacementNode(builder : *mut ASTBuilder, value : *mut Em
         }
     }
     
-    // function $c_Greeting(props) {
-    converter.str.append_view("function $c_")
+    // function Greeting(props) {
+    converter.str.append_view("function ")
     converter.str.append_view(root.signature.name)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)
     converter.str.append_view(") {")
     
-    // const $c_root = document.createDocumentFragment();
+    // const _root = document.createDocumentFragment();
     
-    // const $c_root = document.createDocumentFragment();
-    converter.str.append_view("const $c_root = document.createDocumentFragment();")
+    // const _root = document.createDocumentFragment();
+    converter.str.append_view("const _root = document.createDocumentFragment();")
     
     if(root.body != null) {
         converter.convertJsNode(root.body);
     }
     
-    // return $c_root
-    converter.str.append_view("return $c_root; }")
+    // return _root
+    converter.str.append_view("return _root; }")
     
     converter.put_chain_in();
     

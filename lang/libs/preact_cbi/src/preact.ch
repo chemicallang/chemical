@@ -174,7 +174,7 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
     // Convert to Preact VNode returning function
     // function Component(props) { return h(...) }
     
-    converter.str.append_view("function $c_")
+    converter.str.append_view("function ")
     converter.str.append_view(root.signature.name)
     converter.str.append_view("(")
     converter.str.append_view(root.signature.propsName)
@@ -215,7 +215,7 @@ public func preact_replacementNode(builder : *mut ASTBuilder, value : *mut Embed
         converter.str = std::string() // reset from above append_view attempt which was wrong
         converter.put_chain_in() // clear buffer if any
         
-        converter.str.append_view("function $c_")
+        converter.str.append_view("function ")
         converter.str.append_view(root.signature.name)
         converter.str.append_view("(")
         converter.str.append_view(root.signature.propsName)

@@ -338,7 +338,6 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     converter.str.append_view("$_p.h(");
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
-        converter.str.append_view("$c_");
         converter.str.append_view(tagName);
     } else {
         converter.convertJsNode(tagNameNode);

@@ -137,6 +137,42 @@ The LLVM backend is the primary target for Chemical.
     - `!a` -> looks for `not(a)`
 - **VTables**: Interface calls are handled via virtual tables, whose names are also mangled (e.g., `Interface_Struct_vtable`).
 
+### Module Resolution & Aliases
+The build system uses a flexible path resolution strategy managed by the [LabBuildContext](compiler/lab/LabBuildContext.cpp).
+
+- **Path Aliases**: You can define aliases (e.g., `@std`, `@lab`) that map to specific directories. These are resolved recursively during job initialization.
+- **Module Storage**: All loaded [LabModule](compiler/lab/LabModule.h) objects are stored in a central registry, ensuring they are only parsed and compiled once.
+- **Dependency Tracking**: The `LabBuildContext` tracks directed acyclic graphs (DAGs) of module dependencies to determine compilation order.
+
+### Lambdas and Closures (Fat Pointers)
+Chemical uses **Fat Pointers** as a general mechanism for abstraction (interface calls via `dyn` and capturing lambdas). 
+
+In [LambdaFunction.cpp](ast/values/LambdaFunction.cpp) and [LLVM.cpp](compiler/backend/LLVM.cpp):
+1.  **Non-Capturing Lambdas**: Compiled as standard C-style function pointers.
+2.  **Capturing Lambdas & Dynamic Types (`dyn`)**: Compiled as a struct containing two pointers:
+    - `ptr1`: The function pointer (for lambdas) or vtable pointer (for `dyn`).
+    - `ptr2`: A pointer to the captured data struct or the concrete object instance.
+- **Capture Strategy**: Variables can be captured by **value** or **reference**.
+- **Lifecycle**: If any captured variable has a destructor, the compiler automatically generates a `lambda_cap_destr` function to clean up the capture struct when the lambda goes out of scope.
+
+### C Backend Internals
+The C backend ([ToCAstVisitor.h](preprocess/2c/2cASTVisitor.h)) uses a multi-pass visitor architecture for robust transpilation:
+
+- **CValueDeclarationVisitor**: Scans function bodies to "lift" nested lambdas and static values to the top-level file scope.
+- **CBeforeStmtVisitor**: Handles preparations needed *before* a statement is emitted, such as allocating temporary variables for complex expressions.
+- **CDestructionVisitor**: Emits calls to destructors for local variables and temporary objects at the end of their respective scopes.
+- **Struct Optimization**: Like the LLVM backend, large structs are passed as pointers to optimize performance and memory usage.
+
+### Type Verification Pass
+While the Symbol Resolver handles initial type checking, a second **Type Verification** pass ([TypeVerify.cpp](compiler/typeverify/TypeVerify.cpp)) runs later to perform validation
+
+### Standard Library & Lab
+Core language features and build utilities are implemented as Chemical modules in [lang/libs](lang/libs):
+
+- **std**: The standard library (I/O, collections, strings).
+- **lab**: Build system utilities and the `BuildContext` interface.
+- **cstd**: C-compatible standard library abstractions for interop.
+
 ### LSP (Language Server Protocol)
 The [server](server) directory contains the LSP implementation that provides IDE features like completion, goto definition, and semantic highlighting.
 - [WorkspaceManager.h](server/WorkspaceManager.h): Manages the IDE session and orchestrates various analyzers.

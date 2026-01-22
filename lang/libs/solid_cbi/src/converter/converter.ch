@@ -313,8 +313,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.JSXExpressionContainer => {
              var container = node as *mut JsJSXExpressionContainer
              // In Solid HyperScript, reactive expressions should be wrapped in functions.
-             // We'll wrap all expressions in getters for simplicity/safety in this CBI.
-             converter.str.append_view("() => ");
+             // We'll wrap all expressions in getters for simplicity/safety in this CBI,
+             // UNLESS they are already functions (ArrowFunction).
+             if(container.expression.kind != JsNodeKind.ArrowFunction && container.expression.kind != JsNodeKind.FunctionDecl) {
+                 converter.str.append_view("() => ");
+             }
              converter.convertJsNode(container.expression);
         }
         JsNodeKind.JSXText => {
@@ -331,11 +334,16 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
 func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttribute, isComponent : bool) {
     if(attr.value != null) {
          if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
-             // For components, Solid's createComponent/h might handle reactivity differently,
-             // but for native elements, getters are definitely needed for reactivity.
-             // However, the README says reactive expressions must be manually wrapped.
-             // We already wrap JSXExpressionContainer in convertJsNode above.
-             // Wait, if I wrap it there, calling convertJsNode(attr.value) will already include "() => ".
+             var container = attr.value as *mut JsJSXExpressionContainer
+             // Check if it's an event handler (starts with 'on')
+             var isEventHandler = attr.name.size() > 2 && attr.name.get(0) == 'o' && attr.name.get(1) == 'n' && attr.name.get(2) >= 'A' && attr.name.get(2) <= 'Z';
+             
+             if(isEventHandler) {
+                 // For event handlers, we don't want the getter wrap from convertJsNode.
+                 // So we convert the inner expression directly.
+                 converter.convertJsNode(container.expression);
+                 return;
+             }
          }
          converter.convertJsNode(attr.value);
     } else {

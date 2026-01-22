@@ -5,7 +5,8 @@ public struct ComponentParam {
 
 public enum MountStrategy {
     Default,
-    Preact
+    Preact,
+    React
 }
 
 public struct ComponentSignature {

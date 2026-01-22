@@ -279,6 +279,40 @@ public struct HtmlPage {
         pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script><script>window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }</script>"""))
     }
 
+    func defaultSolidSetup(&mut self) {
+        pageHead.append_view(std::string_view("""<script type="module">
+            import * as solid from 'https://esm.sh/solid-js@1.9.10';
+            import * as web from 'https://esm.sh/solid-js@1.9.10/web'; 
+            import h from 'https://esm.sh/solid-js@1.9.10/h';
+            window.$_s = solid;
+            window.$_sw = web;
+            window.$_sh = h;
+            if(window.$_sc) window.$_sc();
+        </script> 
+        <script>
+            let $_sr_queue = [];
+            function $_sr(e, comp, props) {
+                const mount = document.createElement('div');
+                e.replaceWith(mount);
+                $_sw.render(() => comp(props || {}), mount);
+            }
+            window.$_sc = () => {
+                for(var i = 0; i < $_sr_queue.length; i++) {
+                    const q = $_sr_queue[i];
+                    $_sr(q[0], q[1], q[2])
+                }
+                $_sr_queue = [];
+            }
+            window.$_sm = (e, comp, props) => {
+                if(window.$_sw) {
+                    $_sr(e, comp, props)
+                } else {
+                    $_sr_queue.push([e, comp, props])
+                }
+            };
+        </script>"""))
+    }
+
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist
     func htmlPageToString(&self, name : &std::string_view) : std::string {
         var str = std::string()

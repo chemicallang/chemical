@@ -169,6 +169,24 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.FunctionCall => {
             var call = node as *mut JsFunctionCall
+            if(call.callee.kind == JsNodeKind.Identifier) {
+                var id = call.callee as *mut JsIdentifier
+                var name = id.value
+                switch(fnv1_hash_view(name)) {
+                    comptime_fnv1_hash("useState"), 
+                    comptime_fnv1_hash("useEffect"), 
+                    comptime_fnv1_hash("useMemo"), 
+                    comptime_fnv1_hash("useCallback"), 
+                    comptime_fnv1_hash("useRef"), 
+                    comptime_fnv1_hash("useContext"), 
+                    comptime_fnv1_hash("useReducer"), 
+                    comptime_fnv1_hash("useLayoutEffect"), 
+                    comptime_fnv1_hash("useErrorBoundary") => {
+                         converter.str.append_view("$_ph.")
+                    }
+                    default => {}
+                }
+            }
             converter.convertJsNode(call.callee);
             converter.str.append_view("(");
             for(var i : uint = 0; i < call.args.size(); i++) {
@@ -317,7 +335,7 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 }
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
-    converter.str.append_view("h(");
+    converter.str.append_view("$_p.h(");
     
     if(tagNameNode.kind == JsNodeKind.Identifier) {
         converter.str.append_view("$c_");
@@ -357,7 +375,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
 }
 
 func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSXElement, tagName : std::string_view) {
-    converter.str.append_view("h(\"");
+    converter.str.append_view("$_p.h(\"");
     converter.str.append_view(tagName);
     converter.str.append_view("\", {");
     
@@ -412,7 +430,7 @@ func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElemen
 }
 
 func (converter : &mut JsConverter) convertJSXFragment(fragment : *mut JsJSXFragment) {
-    converter.str.append_view("h(Fragment, null");
+    converter.str.append_view("$_p.h($_p.Fragment, null");
     
     for(var i : uint = 0; i < fragment.children.size(); i++) {
          converter.str.append_view(", ");

@@ -483,7 +483,7 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     if(signature.mountStrategy == MountStrategy.Preact) {
         // Preact Mount Strategy
         s.append_view("{const P_c = document.createDocumentFragment();")
-        s.append_view("render(h($c_")
+        s.append_view("$_p.render($_p.h($c_")
         s.append_view(signature.name)
         s.append_view(", {")
     } else {

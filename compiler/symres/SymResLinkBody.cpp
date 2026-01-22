@@ -2132,6 +2132,56 @@ void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& 
 
 }
 
+bool check_chain_mutability(SymbolResolver& resolver, const std::vector<ChainValue*>& values, int end_index) {
+    for (int i = end_index; i >= 0; --i) {
+        auto val = values[i];
+
+        BaseType* type = val->getType();
+        if (type && type->kind() == BaseTypeKind::Reference) {
+            // It's a reference, so it dictates mutability of the chain up to this point
+            return type->as_reference_type_unsafe()->is_mutable;
+        }
+
+        if (type && type->kind() == BaseTypeKind::Pointer) {
+            return true;
+        }
+
+        // It is a value (struct, field, etc.)
+        if (!val->check_is_mutable(false)) {
+            return false;
+        }
+
+        // If this is the root of the chain (and not a reference/pointer),
+        // effectively meaning we are accessing a member of 'self' explicitly or implicitly
+        // or a local variable.
+        // check_is_mutable handles local variables (if 'let' vs 'var').
+        // But for StructMember, check_is_mutable just sees the member definition.
+        // We need to check if we are accessing a member of 'self', and if 'self' is mutable.
+        if (i == 0) {
+            const auto linked = val->linked_node();
+            if (linked && linked->kind() == ASTNodeKind::StructMember) {
+                // Must be implicit self access
+                const auto curr_func_type = resolver.current_func_type;
+                if (curr_func_type) {
+                    const auto func_decl = curr_func_type->as_function();
+                    if (func_decl && !func_decl->is_constructor_fn()) {
+                        const auto self_param = func_decl->get_self_param();
+                        // If self is present and NOT mutable, then implicit member access is immutable
+                        if (self_param && !is_mutable_ref_type(self_param->type)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Even if this value is mutable (e.g. a field that is not const),
+        // its mutability depends on its parent (container).
+        // So we continue to the next iteration (parent).
+    }
+    return true; // Reached root and it passed requirements (or was handled).
+}
+
 // can call a normal function
 // can call a generic function (after instantiation, we can determine the type)
 // can call a stored function pointer
@@ -2188,9 +2238,55 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
         if(self_param) {
             const auto grandpa = get_parent_from(parent_val);
             if(grandpa) {
-                if(self_param->type->is_mutable()) {
-                    const auto first_value = get_first_chain_value(parent_val);
-                    if(first_value && !first_value->check_is_mutable(false)) {
+                if(!self_param->type->is_mutable()) {
+                    // if self param is immutable, we don't need to check anything
+                } else {
+                    bool is_mutable = true;
+                    if(parent_val->kind() == ValueKind::AccessChain) {
+                        auto chain = parent_val->as_access_chain_unsafe();
+                        if(chain->values.size() >= 2) {
+                            if(!check_chain_mutability(resolver, chain->values, (int)chain->values.size() - 2)) {
+                                is_mutable = false;
+                            }
+                        } else {
+                            // Should not happen if grandpa exists (implies at least 2 elements: obj.func)
+                        }
+                    } else {
+                        const auto first_value = get_first_chain_value(parent_val);
+                        // Here we should also use check_chain_mutability if possible, but get_first_chain_value returns one node.
+                        // However, parent_val here IS get_grandpa_from(parent_val) effectively?
+                        // Actually, if parent_val is NOT AccessChain, it must be Identifier (p).
+                        // p is linked to member.
+                        // We check if p is mutable (var p). It is.
+                        // But we also need to check if SELF is mutable.
+                        // Wait, if parent_val is Identifier p. It is linked to StructMember.
+                        // check_is_mutable on StructMember 'p' returns true.
+                        // So checking first_value->check_is_mutable is insufficient for implicit self.
+                        // We must mimic check_chain_mutability logic here for single value.
+
+                        if(first_value) {
+                             if (!first_value->check_is_mutable(false)) {
+                                 is_mutable = false;
+                             } else {
+                                const auto linked = first_value->linked_node();
+                                if (linked && linked->kind() == ASTNodeKind::StructMember) {
+                                     // Implicit self check
+                                    const auto curr_func_type = resolver.current_func_type;
+                                    if (curr_func_type) {
+                                        const auto func_decl = curr_func_type->as_function();
+                                        if (func_decl && !func_decl->is_constructor_fn()) {
+                                            const auto sp = func_decl->get_self_param();
+                                            if (sp && !is_mutable_ref_type(sp->type)) {
+                                                is_mutable = false;
+                                            }
+                                        }
+                                    }
+                                }
+                             }
+                        }
+                    }
+
+                    if(!is_mutable) {
                         resolver.error("call requires a mutable implicit self argument, however current self argument is not mutable", call);
                     }
                 }

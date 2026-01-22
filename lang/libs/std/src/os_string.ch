@@ -61,14 +61,14 @@ struct OsString {
     }
 
     // --- modify ---
-    func clear(&self) { data_.clear(); }
+    func clear(&mut self) { data_.clear(); }
 
-    func reserve(&self, n : size_t) { data_.reserve(n); }
+    func reserve(&mut self, n : size_t) { data_.reserve(n); }
 
     // TODO: support shrink_to_fit
     // func shrink_to_fit(&self) { data_.shrink_to_fit(); }
 
-    func append_utf8(&self, data : *char, len : size_t) {
+    func append_utf8(&mut self, data : *char, len : size_t) {
         comptime if(def.windows) {
             data_.append_utf8_view(data, len)
         } else {
@@ -77,22 +77,22 @@ struct OsString {
     }
 
     // Append a UTF-8 string
-    func append_utf8_str(&self, utf8 : &std::string) {
+    func append_utf8_str(&mut self, utf8 : &std::string) {
         append_utf8(utf8.data(), utf8.size())
     }
 
-    func append_utf8_view(&self, utf8 : &std::string_view) {
+    func append_utf8_view(&mut self, utf8 : &std::string_view) {
         append_utf8(utf8.data(), utf8.size())
     }
 
     // Append native data directly
-    func append_native(&self, native : &native_string_t) {
+    func append_native(&mut self, native : &native_string_t) {
         data_.append_with_len(native.data(), native.size())
     }
 
     // Swap
     // TODO: support swap
-    // func swap(&self, other : &OsString) { data_.swap(other.data_); }
+    // func swap(&mut self, other : &OsString) { data_.swap(other.data_); }
 
     // Convert to UTF-8. On POSIX this returns the raw bytes, on Windows it converts.
     func to_utf8(&self) : std::string {

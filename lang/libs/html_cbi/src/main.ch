@@ -60,7 +60,6 @@ public func html_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedVa
 
 @no_mangle
 public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
-    // TODO parser api should allow constructing location from a token
     const loc = intrinsics::get_raw_location();
     if(parser.increment_if(TokenType.LBrace as int)) {
         var root = parseHtmlRoot(parser, builder);

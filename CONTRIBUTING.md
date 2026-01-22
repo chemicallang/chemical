@@ -17,10 +17,28 @@ Everything related to compilation and running of `chemical.mod` and `build.lab` 
 5.  **Job Execution**: The compiler then executes these jobs one by one.
 6.  **Job Reordering**: Plugins can dynamically reorder these jobs using `ctx.put_job_before`. This is critical for CBI plugins, as they must be executed and booked into the compiler *before* the module that depends on them is parsed.
 
+#### LibTCC Integration
+Chemical integrates **TinyCC (libtcc)** for rapid JIT execution and build-time tasks.
+- [LibTcc.cpp](integration/libtcc/LibTcc.cpp): Handles the creation and management of `TCCState`.
+- **Mode Switching**: The compiler switches TCC between `TCC_OUTPUT_MEMORY` (for JIT/CBI) and `TCC_OUTPUT_EXE/OBJ/DLL` based on the target.
+- **Error Handling**: Custom error printers (`handle_tcc_error`) and backtrace handlers capture runtime crashes in JIT mode.
+- **Resource Bundling**: TCC's include and library paths are resolved relative to the compiler executable to ensure a portable build environment.
+
+#### Caching & Incremental Builds
+Chemical implements a simple but effective timestamp-based caching system in [Timestamp.cpp](compiler/lab/timestamp/Timestamp.cpp).
+- **Mechanism**: For each module, the compiler saves the modified time and file size of all source files into a binary `.timestamp` file.
+- **Validation**: On the next run, `compare_mod_timestamp` checks current file stats against the saved data. If any file has changed, the module is re-compiled.
+
+#### Target Data & Conditional Compilation
+Target-specific information is managed via `TargetData` and exposed to the build system.
+- [TargetData.h](compiler/lab/TargetData.h): A bitmask-like struct containing flags for OS (windows, linux, macos), architecture (x86_64, aarch64), and compiler (tcc, clang).
+- **Conditional Source**: In `chemical.mod`, you can use `@if` blocks like `source "win" if windows && !tcc`. These are evaluated by [TargetConditionAPI.h](compiler/lab/TargetConditionAPI.h) using the current `TargetData`.
+
 #### Key Files:
 - [LabBuildCompiler.cpp](compiler/lab/LabBuildCompiler.cpp): The heart of the build system.
 - [ModToLabConverter.cpp](compiler/lab/mod_conv/ModToLabConverter.cpp): Logic for `chemical.mod` -> `build.lab`.
 - [LabJob.h](compiler/lab/LabJob.h): Defines the various job types.
+- [Timestamp.cpp](compiler/lab/timestamp/Timestamp.cpp): Caching logic.
 
 ### AST (Abstract Syntax Tree)
 The [ast](ast) directory contains the models for the syntax tree.
@@ -29,6 +47,7 @@ The [ast](ast) directory contains the models for the syntax tree.
   - [Value.h](ast/base/Value.h): Represents all values (referenced, primitive, arrays, structs, etc.).
   - [BaseType.h](ast/base/BaseType.h): Represents all type classes (e.g., `Int`, `ReferencedType`).
 - [ast/statements](ast/statements) & [ast/structures](ast/structures): Hold various statement and declaration nodes.
+- **AccessChain**: [AccessChain.h](ast/values/AccessChain.h) is a critical node representing hierarchical lookups (e.g., `x.y.z`, `a[i].b()`). It manages a vector of `ChainValue` objects and handles GetElementPtr (GEP) logic for structures and arrays. Currently, it supports identifiers, function calls, and index operations, with plans to expand into more complex value types.
 
 ### Memory Management (Allocators)
 Chemical uses a high-performance **arena-based allocation** strategy to minimize overhead and simplify memory management.
@@ -89,7 +108,13 @@ These mappings are defined in [CBI.cpp](compiler/cbi/bindings/CBI.cpp) using `in
 
 - [compiler/cbi](compiler/cbi): The core CBI implementation.
 - **Macros**: CBI is primarily used to implement `#macro` functionality. When the parser encounters a `#macro`, it looks for a registered hook in the `CompilerBinder` to handle lexing, parsing, or symbol resolution for that macro.
-- **Examples**: You can find several CBI-based libraries in [lang/libs](lang/libs), such as `html_cbi`, `css_cbi`, `js_cbi`, `react_cbi`, `solid_cbi`, and `preact_cbi`.
+- **Examples**: You can find several CBI-based libraries in [lang/libs](lang/libs), such as `js_cbi`, `html_cbi`, `css_cbi`, `react_cbi`, `solid_cbi`, and `preact_cbi`.
+
+#### Embedded Nodes & AST Injection
+Plugins often need to inject custom logic into the Chemical pipeline. This is achieved via **Embedded Nodes**.
+- [EmbeddedNode.h](ast/statements/EmbeddedNode.h): A special AST node that holds a `data_ptr` to plugin-specific data.
+- **Resolution Hooks**: Plugins provide `known_type_fn` and `child_res_fn` to explain how the compiler should handle the custom node during semantic analysis.
+- **AST Generation**: `EmbeddedNode` is typically replaced by standard Chemical AST nodes (stored in the `replacement` field) during the plugin pass, allowing plugins to generate backend-agnostic code.
 
 
 ### Annotation Handling
@@ -110,7 +135,15 @@ Chemical supports compile-time execution of code via the `@comptime` keyword and
 
 - [GlobalInterpretScope](compiler/lab/LabBuildContext.h): Manages the state for compile-time evaluation. It holds the backend context and oversees the mapping of intrinsic functions.
 - [Interpreter](compiler/Interpreter/Core.cpp): An experimental tree-walking interpreter used to evaluate Chemical expressions and statements at compile-time.
-- **Intrinsics**: The `compiler` namespace in Chemical provides intrinsics (defined in [GlobalFunctions.cpp](ast/utils/GlobalFunctions.cpp)) that allow user code to interact with the compiler (e.g., printing messages, checking target info).
+
+#### Global Intrinsics & Comptime API
+Intrinsics allow Chemical code to interact with the compiler's internal state during interpretation.
+- [GlobalFunctions.cpp](ast/utils/GlobalFunctions.cpp): Defines the `intrinsics` namespace available in Chemical.
+- **Important Functions**:
+    - `intrinsics::print`: Console logging from the compiler.
+    - `intrinsics::target_info`: Accesses the `TargetData` struct (initialized via `prepare_target_data`) to check bitness, OS, and endianness.
+    - `intrinsics::wrap`/`unwrap`: Transitions between normal values and comptime-only values.
+    - `intrinsics::get_raw_location`: Direct access to the `SourceLocation` of a node.
 - **Backend Context**: During comptime, a `BackendContext` (either LLVM or C) is often attached to the interpretation scope to allow the code to "emit" instructions or gather metadata about the ongoing compilation.
 
 ### Backends
@@ -172,6 +205,19 @@ Core language features and build utilities are implemented as Chemical modules i
 - **std**: The standard library (I/O, collections, strings).
 - **lab**: Build system utilities and the `BuildContext` interface.
 - **cstd**: C-compatible standard library abstractions for interop.
+
+### Project Utilities & Libraries
+Chemical uses several specialized libraries and custom types to maintain performance and portability.
+
+- **Strings**: Chemical uses custom string types defined in [chem_string.h](std/chem_string.h) and [chem_string_view.h](std/chem_string_view.h) instead of `std::string`. These implement **Small String Optimization (SSO)** and custom move semantics tailored for compiler performance.
+- **Console Output**: The [rang](https://github.com/agauniyal/rang) library is used across the codebase for cross-platform colored terminal output.
+- **Concurrency**: The [ctpl](https://github.com/vit-vit/CTPL) library provides the thread pool implementation (used in `ASTProcessor.cpp`) for parallel compilation of modules.
+
+### Debug Information
+LLVM-target builds include DWARF debug information generated by a specialized builder.
+- [DebugInfoBuilder.cpp](compiler/backend/DebugInfoBuilder.cpp): Maps Chemical source locations to LLVM metadata.
+- **Type Mapping**: Translates Chemical types (IntN, Structs) into `DIType` objects.
+- **Lexical Scopes**: Manages a stack of `DIScope` objects to correctly represent functions and nested blocks in debuggers like GDB or LLDB.
 
 ### LSP (Language Server Protocol)
 The [server](server) directory contains the LSP implementation that provides IDE features like completion, goto definition, and semantic highlighting.

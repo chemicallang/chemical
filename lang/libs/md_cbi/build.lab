@@ -1,0 +1,61 @@
+import lab
+import std
+
+import "@cstd/build.lab" as cstdMod
+import "@std/build.lab" as stdMod
+import "@compiler/build.lab" as compilerMod
+
+using namespace std;
+
+var did_once = false;
+
+public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
+
+    const already_std = ctx.get_cached(user_job, "", "std");
+
+    // the std module
+    var user_std_module = if(already_std != null) already_std else stdMod.build(ctx, user_job);
+    if(user_std_module == null) {
+        return null
+    }
+
+    if(did_once) return user_std_module;
+    did_once = true;
+
+    // md cbi
+    var cbi = ctx.build_cbi(std::string_view("md"))
+    const job = cbi;
+
+    // makes sure this job is done before the user_job
+    ctx.put_job_before(job, user_job)
+
+    var std_module = stdMod.build(ctx, job);
+    if(std_module == null) {
+        return null
+    }
+
+    // the cstd module
+    var cstd_module = cstdMod.build(ctx, job);
+    if(cstd_module == null) {
+        return null
+    }
+
+    // the compiler module
+    var compiler_module = compilerMod.build(ctx, job);
+    if(compiler_module == null) {
+        return null
+    }
+
+    const dependencies = [ cstd_module, std_module, compiler_module ]
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("md_cbi"), lab::rel_path_to("src").to_view(), dependencies);
+
+    ctx.add_module(cbi, module)
+
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_symResValue"), CBIFunctionType.SymResValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementValue"), CBIFunctionType.ReplacementValue);
+
+    return user_std_module;
+
+}

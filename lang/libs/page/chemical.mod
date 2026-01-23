@@ -1,4 +1,4 @@
-module html
+module page
 
 source "src"
 

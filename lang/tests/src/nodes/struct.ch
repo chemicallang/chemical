@@ -314,6 +314,14 @@ struct DefaultConstructedPointContainer {
 }
 
 
+struct contained_def_initialized_7326 {
+    var c : int = 877
+}
+
+struct container_def_init_82773 {
+    var c : contained_def_initialized_7326
+}
+
 func test_structs() {
     test_no_type_structs();
     test_structs_aliases();
@@ -509,6 +517,11 @@ func test_structs() {
         var c = DefaultConstructedPointContainer { x : 921, y : 2347 }
         return c.x == 921 && c.y == 2347 && c.p.a == 73 && c.p.b == 953
     })
+    test("translation for automatic initialization of contained struct works", () => {
+        var c = container_def_init_82773 {}
+        return c.c.c == 877
+    })
+
 }
 
 type PairAlias = Pair

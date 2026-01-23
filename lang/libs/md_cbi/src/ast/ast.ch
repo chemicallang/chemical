@@ -20,6 +20,14 @@ public enum MdTokenType {
     ChemicalStart,  // ${
     Tilde,          // ~
     Colon,          // :
+    EndMd,          // #endmd
+    FencedCodeStart,// ``` or ```lang
+    FencedCodeEnd,  // ```
+    CodeContent,    // raw code inside fenced block
+    Number,         // for ordered lists like 1. 2. etc
+    Dot,            // .
+    Equal,          // =
+    Caret,          // ^
 }
 
 public enum MdNodeKind {
@@ -41,7 +49,8 @@ public enum MdNodeKind {
     Table,
     TableRow,
     TableCell,
-    Strikethrough
+    Strikethrough,
+    AutoLink
 }
 
 public struct MdNode {
@@ -95,13 +104,20 @@ public struct MdStrikethrough {
 public struct MdLink {
     var base : MdNode
     var url : std::string_view
+    var title : std::string_view
     var children : std::vector<*mut MdNode>
+}
+
+public struct MdAutoLink {
+    var base : MdNode
+    var url : std::string_view
 }
 
 public struct MdImage {
     var base : MdNode
     var url : std::string_view
     var alt : std::string_view
+    var title : std::string_view
 }
 
 public struct MdInlineCode {
@@ -127,6 +143,7 @@ public struct MdHorizontalRule {
 public struct MdList {
     var base : MdNode
     var ordered : bool
+    var start : int
     var children : std::vector<*mut MdNode>
 }
 
@@ -135,8 +152,16 @@ public struct MdListItem {
     var children : std::vector<*mut MdNode>
 }
 
+public enum MdTableAlign {
+    Left,
+    Center,
+    Right,
+    None
+}
+
 public struct MdTable {
     var base : MdNode
+    var alignments : std::vector<MdTableAlign>
     var children : std::vector<*mut MdNode>
 }
 

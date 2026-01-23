@@ -1,5 +1,5 @@
 public func sym_res_root(root : *mut MdRoot, resolver : *mut SymbolResolver, loc : ubigint) {
-    const pageNode = resolver.find(std::string_view("HtmlPage"))
+    const pageNode = resolver.find(std::string_view("page"))
     if(pageNode == null) {
         // Not erroring out here because it might be used as a simple string macro?
         // But if it's meant to write html, we probably need it.

@@ -279,7 +279,7 @@ public struct HtmlPage {
         pageHead.append_view(std::string_view("""<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script><script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script><script>window.$_r = React; window.$_rd = ReactDOM; window.$_rm = (e, c, p) => { const P = document.createElement("div"); e.replaceWith(P); $_rd.createRoot(P).render($_r.createElement(c, p || {})); }</script>"""))
     }
 
-    func defaultSolidSetup(&mut self) {
+    func asynchronousSolidSetup(&mut self) {
         pageHead.append_view(std::string_view("""<script type="module">
             import * as solid from 'https://esm.sh/solid-js@1.9.10';
             import * as web from 'https://esm.sh/solid-js@1.9.10/web'; 
@@ -311,6 +311,10 @@ public struct HtmlPage {
                 }
             };
         </script>"""))
+    }
+
+    func defaultSolidSetup(&mut self) {
+        pageHead.append_view(std::string_view("""<script src="https://unpkg.com/solid-umd@1.9.10/dist/solid.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-web.min.js"></script><script src="https://unpkg.com/solid-umd@1.9.10/dist/solid-h.min.js"></script><script>window.$_s = Solid; window.$_sw = SolidWeb; window.$_sh = SolidH.default || SolidH; window.$_sm = (e, comp, props) => { const mount = document.createElement('div'); e.replaceWith(mount); $_sw.render(() => comp(props || {}), mount); };</script>"""))
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets are assumed to exist

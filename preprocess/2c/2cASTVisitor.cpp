@@ -6222,7 +6222,8 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                         write('.');
                         write(var->name);
                         write(" = ");
-                        default_initialize_struct_non_inh(*this, child_def, has_value_before, val->encoded_location());
+                        bool child_has_value_before = false;
+                        default_initialize_struct_non_inh(*this, child_def, child_has_value_before, val->encoded_location());
                     } else {
                         error(val->encoded_location()) << "no default value present for '" << var->name << "' in struct value";
                     }

@@ -77,11 +77,35 @@ func (converter : &mut MdConverter) put_wrapped_chemical_value_in(value : *mut V
     }
 }
 
+func (converter : &mut MdConverter) escapeHtml(text : std::string_view) {
+    var i = 0u;
+    while(i < text.size()) {
+        const c = text.data()[i];
+        switch(c) {
+            '<' => { converter.str.append_view("&lt;"); }
+            '>' => { converter.str.append_view("&gt;"); }
+            '&' => { converter.str.append_view("&amp;"); }
+            '"' => { converter.str.append_view("&quot;"); }
+            default => { converter.str.append(c); }
+        }
+        i++;
+    }
+}
+
 func (converter : &mut MdConverter) convertChildren(children : &std::vector<*mut MdNode>) {
     var i = 0u;
     while(i < children.size()) {
         converter.convertMdNode(children.get(i));
         i++;
+    }
+}
+
+func (converter : &mut MdConverter) getAlignStyle(align : MdTableAlign) : std::string_view {
+    switch(align) {
+        MdTableAlign.Left => { return std::string_view(" style=\"text-align:left\""); }
+        MdTableAlign.Center => { return std::string_view(" style=\"text-align:center\""); }
+        MdTableAlign.Right => { return std::string_view(" style=\"text-align:right\""); }
+        default => { return std::string_view(""); }
     }
 }
 
@@ -98,9 +122,7 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.str.append_view(" class=\"md-hg md-h");
             converter.str.append_integer(header.level as bigint);
             converter.str.append_view("\">");
-            
             converter.convertChildren(header.children);
-            
             converter.str.append_view("</h");
             converter.str.append_integer(header.level as bigint);
             converter.str.append_view(">\n");
@@ -133,8 +155,22 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             var link = node as *mut MdLink;
             converter.str.append_view("<a class=\"md-link\" href=\"");
             converter.str.append_view(link.url);
-            converter.str.append_view("\">");
+            converter.str.append_view("\"");
+            if(link.title.size() > 0) {
+                converter.str.append_view(" title=\"");
+                converter.str.append_view(link.title);
+                converter.str.append_view("\"");
+            }
+            converter.str.append_view(">");
             converter.convertChildren(link.children);
+            converter.str.append_view("</a>");
+        }
+        MdNodeKind.AutoLink => {
+            var autolink = node as *mut MdAutoLink;
+            converter.str.append_view("<a class=\"md-link md-autolink\" href=\"");
+            converter.str.append_view(autolink.url);
+            converter.str.append_view("\">");
+            converter.str.append_view(autolink.url);
             converter.str.append_view("</a>");
         }
         MdNodeKind.Image => {
@@ -143,12 +179,18 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.str.append_view(img.url);
             converter.str.append_view("\" alt=\"");
             converter.str.append_view(img.alt);
-            converter.str.append_view("\"/>");
+            converter.str.append_view("\"");
+            if(img.title.size() > 0) {
+                converter.str.append_view(" title=\"");
+                converter.str.append_view(img.title);
+                converter.str.append_view("\"");
+            }
+            converter.str.append_view("/>");
         }
         MdNodeKind.InlineCode => {
             var code = node as *mut MdInlineCode;
             converter.str.append_view("<code class=\"md-code\">");
-            converter.str.append_view(code.value);
+            converter.escapeHtml(code.value);
             converter.str.append_view("</code>");
         }
         MdNodeKind.CodeBlock => {
@@ -159,7 +201,7 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
                 converter.str.append_view(cb.language);
             }
             converter.str.append_view("\">");
-            converter.str.append_view(cb.code);
+            converter.escapeHtml(cb.code);
             converter.str.append_view("</code></pre>\n");
         }
         MdNodeKind.Blockquote => {
@@ -174,7 +216,13 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
         MdNodeKind.List => {
             var list = node as *mut MdList;
             if(list.ordered) {
-                converter.str.append_view("<ol class=\"md-ol\">");
+                converter.str.append_view("<ol class=\"md-ol\"");
+                if(list.start != 1) {
+                    converter.str.append_view(" start=\"");
+                    converter.str.append_integer(list.start as bigint);
+                    converter.str.append_view("\"");
+                }
+                converter.str.append_view(">");
             } else {
                 converter.str.append_view("<ul class=\"md-ul\">");
             }
@@ -189,25 +237,65 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             var item = node as *mut MdListItem;
             converter.str.append_view("<li class=\"md-li\">");
             converter.convertChildren(item.children);
-            converter.str.append_view("</li>");
+            converter.str.append_view("</li>\n");
         }
         MdNodeKind.Table => {
             var table = node as *mut MdTable;
-            converter.str.append_view("<table class=\"md-table\">");
-            converter.convertChildren(table.children);
-            converter.str.append_view("</table>\n");
+            converter.str.append_view("<table class=\"md-table\">\n");
+            
+            var row_idx = 0u;
+            while(row_idx < table.children.size()) {
+                const row_node = table.children.get(row_idx);
+                const row = row_node as *mut MdTableRow;
+                
+                if(row.is_header) {
+                    converter.str.append_view("<thead class=\"md-thead\">\n");
+                    converter.str.append_view("<tr class=\"md-tr\">");
+                    
+                    var col_idx = 0u;
+                    while(col_idx < row.children.size()) {
+                        const cell = row.children.get(col_idx) as *mut MdTableCell;
+                        converter.str.append_view("<th class=\"md-th\"");
+                        if(col_idx < table.alignments.size()) {
+                            converter.str.append_view(converter.getAlignStyle(table.alignments.get(col_idx)));
+                        }
+                        converter.str.append_view(">");
+                        converter.convertChildren(cell.children);
+                        converter.str.append_view("</th>");
+                        col_idx++;
+                    }
+                    
+                    converter.str.append_view("</tr>\n");
+                    converter.str.append_view("</thead>\n<tbody class=\"md-tbody\">\n");
+                } else {
+                    converter.str.append_view("<tr class=\"md-tr\">");
+                    
+                    var col_idx = 0u;
+                    while(col_idx < row.children.size()) {
+                        const cell = row.children.get(col_idx) as *mut MdTableCell;
+                        converter.str.append_view("<td class=\"md-td\"");
+                        if(col_idx < table.alignments.size()) {
+                            converter.str.append_view(converter.getAlignStyle(table.alignments.get(col_idx)));
+                        }
+                        converter.str.append_view(">");
+                        converter.convertChildren(cell.children);
+                        converter.str.append_view("</td>");
+                        col_idx++;
+                    }
+                    
+                    converter.str.append_view("</tr>\n");
+                }
+                
+                row_idx++;
+            }
+            
+            converter.str.append_view("</tbody>\n</table>\n");
         }
         MdNodeKind.TableRow => {
-            var row = node as *mut MdTableRow;
-            converter.str.append_view("<tr class=\"md-tr\">");
-            converter.convertChildren(row.children);
-            converter.str.append_view("</tr>");
+            // Handled in Table conversion
         }
         MdNodeKind.TableCell => {
-            var cell = node as *mut MdTableCell;
-            converter.str.append_view("<td class=\"md-td\">");
-            converter.convertChildren(cell.children);
-            converter.str.append_view("</td>");
+            // Handled in Table conversion
         }
         MdNodeKind.Text => {
             var text = node as *mut MdText;

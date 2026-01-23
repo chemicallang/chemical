@@ -4,7 +4,7 @@
 #include "UnionDef.h"
 #include "FunctionDeclaration.h"
 #include "ast/types/LinkedType.h"
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 
 #ifdef COMPILER_BUILD
 
@@ -69,7 +69,7 @@ llvm::Type *UnionDef::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type* llvm_union_chain_type(VariablesContainer* container, Codegen& gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type* llvm_union_chain_type(VariablesContainer* container, Codegen& gen, std::vector<Value*> &values, unsigned int index) {
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();
         if(linked) {
@@ -84,7 +84,7 @@ llvm::Type* llvm_union_chain_type(VariablesContainer* container, Codegen& gen, s
     return nullptr;
 }
 
-llvm::Type *UnionDef::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *UnionDef::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     const auto type = llvm_union_chain_type(this, gen, values, index);
     if(type) return type;
     return llvm_type(gen);
@@ -100,7 +100,7 @@ llvm::Type *UnnamedUnion::llvm_type(Codegen &gen) {
     return llvm::StructType::get(*gen.ctx, members);
 }
 
-llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *UnnamedUnion::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     const auto type = llvm_union_chain_type(this, gen, values, index);
     if(type) return type;
     return llvm_type(gen);

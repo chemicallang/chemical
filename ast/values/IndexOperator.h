@@ -8,21 +8,21 @@
 
 #include <memory>
 #include <utility>
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 
-class IndexOperator : public ChainValue {
+class IndexOperator : public Value {
 public:
 
-    ChainValue* parent_val;
+    Value* parent_val;
     Value* idx;
 
     /**
      * constructor
      */
     constexpr IndexOperator(
-            ChainValue* parent,
+            Value* parent,
             SourceLocation location
-    ) : ChainValue(ValueKind::IndexOperator, location), parent_val(parent) {
+    ) : Value(ValueKind::IndexOperator, location), parent_val(parent) {
 
     }
 
@@ -30,10 +30,10 @@ public:
      * constructor
      */
     constexpr IndexOperator(
-            ChainValue* parent,
+            Value* parent,
             BaseType* type,
             SourceLocation location
-    ) : ChainValue(ValueKind::IndexOperator, type, location), parent_val(parent) {
+    ) : Value(ValueKind::IndexOperator, type, location), parent_val(parent) {
 
     }
 
@@ -48,7 +48,7 @@ public:
     Value *find_in(InterpretScope &scope, Value *parent) final;
 
     IndexOperator* copy(ASTAllocator& allocator) final {
-        auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((ChainValue*) parent_val->copy(allocator), getType(), encoded_location());
+        auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((Value*) parent_val->copy(allocator), getType(), encoded_location());
         op->idx = idx->copy(allocator);
         return op;
     }
@@ -71,7 +71,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) final;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) final;
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 

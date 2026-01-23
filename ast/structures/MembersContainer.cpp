@@ -96,7 +96,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     return vec;
 }
 
-std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<ChainValue*>& chain, unsigned index) {
+std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<Value*>& chain, unsigned index) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables().size() + inherited.size());
     for(const auto &inherits : inherited) {

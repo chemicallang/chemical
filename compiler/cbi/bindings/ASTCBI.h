@@ -39,7 +39,7 @@ extern "C" {
 
     Value* AccessChainas_value(AccessChain* chain);
 
-    std::vector<ChainValue*>* AccessChainget_values(AccessChain* chain);
+    std::vector<Value*>* AccessChainget_values(AccessChain* chain);
 
     std::vector<Value*>* ArrayValueget_values(ArrayValue* value);
 

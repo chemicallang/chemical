@@ -8,7 +8,7 @@
 
 #include <vector>
 #include <memory>
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 #include "ast/base/TypeLoc.h"
 #include "ast/base/ASTNode.h"
 
@@ -16,10 +16,10 @@ class ASTDiagnoser;
 
 class GenericInstantiatorAPI;
 
-class FunctionCall : public ChainValue {
+class FunctionCall : public Value {
 public:
 
-    ChainValue* parent_val;
+    Value* parent_val;
     std::vector<TypeLoc> generic_list;
     std::vector<Value*> values;
 
@@ -27,9 +27,9 @@ public:
      * constructor
      */
     constexpr FunctionCall(
-            ChainValue* parent,
+            Value* parent,
             SourceLocation location
-    ) : ChainValue(ValueKind::FunctionCall, location), parent_val(parent) {
+    ) : Value(ValueKind::FunctionCall, location), parent_val(parent) {
 
     }
 
@@ -37,10 +37,10 @@ public:
      * constructor
      */
     constexpr FunctionCall(
-            ChainValue* parent,
+            Value* parent,
             BaseType* type,
             SourceLocation location
-    ) : ChainValue(ValueKind::FunctionCall, type, location), parent_val(parent) {
+    ) : Value(ValueKind::FunctionCall, type, location), parent_val(parent) {
 
     }
 
@@ -126,7 +126,7 @@ public:
 
     llvm::Type *llvm_chain_type(
             Codegen &gen,
-            std::vector<ChainValue*> &values,
+            std::vector<Value*> &values,
             unsigned int index
     ) final;
 
@@ -207,7 +207,7 @@ public:
 
     llvm::AllocaInst *access_chain_allocate(
             Codegen &gen,
-            std::vector<ChainValue*> &values,
+            std::vector<Value*> &values,
             unsigned int until,
             BaseType* expected_type
     ) final;

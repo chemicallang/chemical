@@ -484,7 +484,7 @@ Value* evaluated_comptime(Value* value, InterpretScope& scope) {
                 }
             } else {
                 const auto copied = call->copy(scope.allocator);
-                copied->parent_val = (ChainValue*) evaluated_comptime(call->parent_val, scope);
+                copied->parent_val = (Value*) evaluated_comptime(call->parent_val, scope);
                 auto i = 0;
                 const auto args_size = copied->values.size();
                 while(i < args_size) {
@@ -2271,7 +2271,7 @@ public:
         const auto write_call = new (allocator.allocate<FunctionCall>()) FunctionCall(chain, typeBuilder.getVoidType(), loc);
         write_call->values.emplace_back(selfId);
         // TODO: unsafe cast to chain value
-        chain->values.emplace_back((ChainValue*) argument);
+        chain->values.emplace_back((Value*) argument);
         const auto childId = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(
                 function_name, child_type, loc
         );

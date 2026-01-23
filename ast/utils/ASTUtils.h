@@ -4,24 +4,24 @@
 
 #include <vector>
 #include <memory>
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 #include "ast/base/TypeLoc.h"
 
-bool has_function_call_before(ChainValue* value);
+bool has_function_call_before(Value* value);
 
-VariableIdentifier* get_first_chain_id(ChainValue* value);
+VariableIdentifier* get_first_chain_id(Value* value);
 
-inline VariableIdentifier* get_first_chain_value(ChainValue* value) {
+inline VariableIdentifier* get_first_chain_value(Value* value) {
     return get_first_chain_id(value);
 }
 
-ChainValue* get_parent_from(ChainValue* value);
+Value* get_parent_from(Value* value);
 
-ChainValue* get_grandpa_from(ChainValue* value);
+Value* get_grandpa_from(Value* value);
 
-ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& allocator);
+Value* build_parent_chain(std::vector<Value*>& values, ASTAllocator& allocator);
 
-ChainValue* build_parent_chain(ChainValue* value, ASTAllocator& allocator);
+Value* build_parent_chain(Value* value, ASTAllocator& allocator);
 
 void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
 

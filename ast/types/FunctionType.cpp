@@ -395,13 +395,13 @@ AccessChain* FunctionTypeBody::find_moved_access_chain(VariableIdentifier* id) {
     return nullptr;
 }
 
-ChainValue* FunctionTypeBody::find_moved_chain_value(VariableIdentifier* id) {
+Value* FunctionTypeBody::find_moved_chain_value(VariableIdentifier* id) {
     auto found = find_moved_id(id);
     if(found) return found;
     return find_smallest_moved_access_chain(id);
 }
 
-ChainValue* FunctionTypeBody::find_moved_chain_value(AccessChain* chain_ptr) {
+Value* FunctionTypeBody::find_moved_chain_value(AccessChain* chain_ptr) {
     auto& chain = *chain_ptr;
     auto& first_value = *chain.values[0];
     const auto first_id = first_value.as_identifier();
@@ -431,7 +431,7 @@ void FunctionTypeBody::mark_moved_no_check(VariableIdentifier* id) {
 }
 
 bool FunctionTypeBody::check_chain(AccessChain* chain, bool assigning, ASTDiagnoser& diagnoser) {
-    ChainValue* moved;
+    Value* moved;
     if(assigning) {
         moved = find_partially_matching_moved_chain(*chain, false, false);
     } else {

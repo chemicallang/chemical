@@ -177,7 +177,7 @@ llvm::Type *PointerType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type *PointerType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *PointerType::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     if(index == values.size() - 1) {
         return gen.builder->getPtrTy();
     } else {
@@ -189,7 +189,7 @@ llvm::Type *ReferenceType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type *ReferenceType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *ReferenceType::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     if(index == values.size() - 1) {
         return gen.builder->getPtrTy();
     } else {
@@ -205,7 +205,7 @@ llvm::Type *LinkedType::llvm_param_type(Codegen &gen) {
     return linked->llvm_param_type(gen);
 }
 
-llvm::Type *LinkedType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *LinkedType::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return linked->llvm_chain_type(gen, values, index);
 }
 
@@ -233,7 +233,7 @@ llvm::Type *StructType::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return llvm::StructType::get(*gen.ctx, elements_type(gen, values, index));
 }
 
@@ -247,7 +247,7 @@ llvm::Type *UnionType::llvm_type(Codegen &gen) {
     return llvm::StructType::get(*gen.ctx, members);
 }
 
-llvm::Type *UnionType::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *UnionType::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();
         if(linked) {
@@ -587,7 +587,7 @@ llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
 
-llvm::Type *VariableIdentifier::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) {
+llvm::Type *VariableIdentifier::llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) {
     return linked->llvm_chain_type(gen, chain, index);
 }
 

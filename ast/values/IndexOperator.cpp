@@ -56,7 +56,7 @@ llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
     return getType()->llvm_type(gen);
 }
 
-llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) {
+llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) {
     return getType()->llvm_chain_type(gen, chain, index);
 }
 

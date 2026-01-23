@@ -15,7 +15,7 @@
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
-bool has_function_call_before(ChainValue* value) {
+bool has_function_call_before(Value* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
             return false;
@@ -35,7 +35,7 @@ bool has_function_call_before(ChainValue* value) {
     }
 }
 
-VariableIdentifier* get_first_chain_id(ChainValue* value) {
+VariableIdentifier* get_first_chain_id(Value* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
             return value->as_identifier_unsafe();
@@ -52,7 +52,7 @@ VariableIdentifier* get_first_chain_id(ChainValue* value) {
     }
 }
 
-ChainValue* get_parent_from(ChainValue* value) {
+Value* get_parent_from(Value* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
             return nullptr;
@@ -73,7 +73,7 @@ ChainValue* get_parent_from(ChainValue* value) {
     }
 }
 
-ChainValue* get_grandpa_from(ChainValue* value) {
+Value* get_grandpa_from(Value* value) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
             return nullptr;
@@ -94,7 +94,7 @@ ChainValue* get_grandpa_from(ChainValue* value) {
     }
 }
 
-ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& allocator) {
+Value* build_parent_chain(std::vector<Value*>& values, ASTAllocator& allocator) {
     if(values.size() > 1) {
         if(values.size() == 2) {
             return values.front();
@@ -114,7 +114,7 @@ ChainValue* build_parent_chain(std::vector<ChainValue*>& values, ASTAllocator& a
     }
 }
 
-ChainValue* build_parent_chain(ChainValue* value, ASTAllocator& allocator) {
+Value* build_parent_chain(Value* value, ASTAllocator& allocator) {
     switch(value->val_kind()) {
         case ValueKind::Identifier:
             return nullptr;

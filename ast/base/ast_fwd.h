@@ -100,8 +100,6 @@ class CapturedVariable;
 
 class LoopASTNode;
 
-class ChainValue;
-
 class IntNType;
 
 class BaseDefMember;

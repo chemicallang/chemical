@@ -7,7 +7,7 @@
 #pragma once
 
 #include <utility>
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 #include "ast/statements/VarInit.h"
 
 #ifdef COMPILER_BUILD
@@ -19,7 +19,7 @@
 /**
  * @brief Class representing a VariableIdentifier.
  */
-class VariableIdentifier : public ChainValue {
+class VariableIdentifier : public Value {
 public:
 
     /**
@@ -37,7 +37,7 @@ public:
         chem::string_view value,
         SourceLocation location,
         bool is_ns = false
-    ) : ChainValue(ValueKind::Identifier, location), value(value), is_ns(is_ns) {
+    ) : Value(ValueKind::Identifier, location), value(value), is_ns(is_ns) {
 
     }
 
@@ -49,7 +49,7 @@ public:
             BaseType* type,
             SourceLocation location,
             bool is_ns = false
-    ) : ChainValue(ValueKind::Identifier, type, location), value(value), is_ns(is_ns) {
+    ) : Value(ValueKind::Identifier, type, location), value(value), is_ns(is_ns) {
 
     }
 
@@ -84,7 +84,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &chain, unsigned int index) final;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) final;
 
     llvm::Value *llvm_pointer(Codegen &gen) final;
 

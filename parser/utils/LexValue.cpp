@@ -324,7 +324,7 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
     }
 
     // allocated on stack, no allocation until push
-    std::vector<ChainValue*> values;
+    std::vector<Value*> values;
 
     switch(parser.token->type) {
 

@@ -180,7 +180,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
     Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(identifier));
-    chain->values.emplace_back((ChainValue*) first_value);
+    chain->values.emplace_back((Value*) first_value);
     const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
     const auto value = structValue ? structValue : singlify_chain(chain);
     const auto finalValue = parseAfterValue(allocator, value, identifier);
@@ -262,18 +262,6 @@ NegativeValue* Parser::parseNegativeValue(ASTAllocator& allocator) {
     }
 }
 
-bool isKindChainValue(ValueKind kind) {
-    switch(kind) {
-        case ValueKind::AccessChain:
-        case ValueKind::Identifier:
-        case ValueKind::IndexOperator:
-        case ValueKind::FunctionCall:
-            return true;
-        default:
-            return false;
-    }
-}
-
 Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool parseLambda) {
 
     if (token->type == TokenType::LParen) {
@@ -312,7 +300,7 @@ Value* Parser::parseExpression(ASTAllocator& allocator, bool parseStruct, bool p
 //                chain = first_value->as_access_chain_unsafe();
 //            } else {
 //                const auto new_chain = new(allocator.allocate<AccessChain>()) AccessChain(loc_single(start_tok));
-//                new_chain->values.emplace_back((ChainValue*) first_value);
+//                new_chain->values.emplace_back((Value*) first_value);
 //                chain = new_chain;
 //            };
 //            std::vector<TypeLoc> genArgs;

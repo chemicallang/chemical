@@ -792,7 +792,7 @@ ASTNode* provide_child(ChildResolver* resolver, BaseType* type, const chem::stri
     }
 }
 
-ASTNode* provide_child(ChildResolver* resolver, ChainValue* parent, const chem::string_view& name, ASTNode* type_parent) {
+ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent) {
     switch(parent->kind()) {
         case ValueKind::Identifier:
             return parent->as_identifier_unsafe()->linked->child(resolver, name);

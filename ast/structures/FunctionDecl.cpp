@@ -46,7 +46,7 @@ llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Type *FunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *FunctionParam::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 

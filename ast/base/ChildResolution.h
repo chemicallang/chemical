@@ -5,7 +5,6 @@
 #include "std/chem_string_view.h"
 
 class ASTNode;
-class ChainValue;
 class ChildResolver;
 
-ASTNode* provide_child(ChildResolver* resolver, ChainValue* parent, const chem::string_view& name, ASTNode* type_parent);
+ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::string_view& name, ASTNode* type_parent);

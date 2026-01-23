@@ -72,7 +72,7 @@ bool isPrimitiveImplType(BaseType* type) {
     }
 }
 
-llvm::Value* getSelfArgFromGrandpa(Codegen& gen, FunctionParam* self_param, ChainValue* grandpa, SourceLocation location) {
+llvm::Value* getSelfArgFromGrandpa(Codegen& gen, FunctionParam* self_param, Value* grandpa, SourceLocation location) {
     // special check (impl *int, impl &int, impl int) where function takes a &self (double pointers must still)
     if(self_param->type->is_reference()) {
         const auto parent = self_param->parent();
@@ -354,7 +354,7 @@ llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     }
 }
 
-llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return getType()->llvm_chain_type(gen, values, index);
 }
 
@@ -860,7 +860,7 @@ bool FunctionCall::add_child_index(Codegen& gen, std::vector<llvm::Value *>& ind
     return linked_node->add_child_index(gen, indexes, name);
 }
 
-llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<ChainValue*> &chain_values, unsigned int until, BaseType* expected_type) {
+llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<Value*> &chain_values, unsigned int until, BaseType* expected_type) {
     const auto linked = parent_val->linked_node();
     if(linked && linked->kind() == ASTNodeKind::VariantMember) {
         const auto variant_mem = linked->as_variant_member_unsafe();
@@ -881,7 +881,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         Value::destruct(gen, destructibles);
         return alloc;
     } else {
-        return ChainValue::access_chain_allocate(gen, chain_values, until, expected_type);
+        return Value::access_chain_allocate(gen, chain_values, until, expected_type);
     }
 }
 
@@ -1185,7 +1185,7 @@ void FunctionCall::link_constructor(ASTAllocator& allocator, GenericInstantiator
     }
 }
 
-inline VariableIdentifier* get_parent_id(ChainValue* value) {
+inline VariableIdentifier* get_parent_id(Value* value) {
     return value->get_last_id();
 }
 
@@ -1311,7 +1311,7 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
 }
 
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {
-    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((ChainValue*) parent_val->copy(allocator), getType(), encoded_location());
+    auto call = new (allocator.allocate<FunctionCall>()) FunctionCall((Value*) parent_val->copy(allocator), getType(), encoded_location());
     for(const auto value : values) {
         call->values.emplace_back(value->copy(allocator));
     }

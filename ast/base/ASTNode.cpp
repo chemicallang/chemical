@@ -798,11 +798,8 @@ ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::strin
             return parent->as_identifier_unsafe()->linked->child(resolver, name);
         case ValueKind::AccessChain:
             return provide_child(resolver, parent->as_access_chain_unsafe()->values.back(), name, type_parent);
-        case ValueKind::FunctionCall:
-        case ValueKind::IndexOperator:
-            return provide_child(resolver, parent->getType(), name, type_parent);
         default:
-            return nullptr;
+            return provide_child(resolver, parent->getType(), name, type_parent);
     }
 }
 

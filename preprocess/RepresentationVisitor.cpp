@@ -672,9 +672,13 @@ void RepresentationVisitor::VisitCastedValue(CastedValue *casted) {
     write(')');
 }
 
-void RepresentationVisitor::VisitAddrOfValue(AddrOfValue *casted) {
-    write('&');
-    visit(casted->value);
+void RepresentationVisitor::VisitAddrOfValue(AddrOfValue *value) {
+    if(value->is_mutable) {
+        write("&mut ");
+    } else {
+        write('&');
+    }
+    visit(value->value);
 }
 
 void RepresentationVisitor::VisitDereferenceValue(DereferenceValue *casted) {

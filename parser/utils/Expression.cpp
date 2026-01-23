@@ -15,6 +15,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
 #include "utils/ValueAndOperatorStack.h"
+#include "ast/values/IndexOperator.h"
 
 void shunting_yard_on_operator(ValueAndOperatorStack& stack, ValueAndOperatorStack& final, Operation o1) {
     auto o1_precedence = to_precedence(o1);
@@ -195,6 +196,70 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
 
 }
 
+static Value* parseAccessChainAfterValue(Parser* parser, ASTAllocator& allocator, Value* head) {
+
+    std::vector<Value*> values;
+    values.push_back(head);
+
+    while (true) {
+        auto type = parser->token->type;
+        if (type == TokenType::DotSym) {
+            parser->token++;
+            auto id = parser->consumeIdentifierOrKeyword();
+            if (!id) {
+                parser->error("expected identifier after '.'");
+                break;
+            }
+            auto var_id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(parser->allocate_view(allocator, id->value), parser->loc_single(id));
+            values.push_back(var_id);
+        } else if (type == TokenType::LBracket) {
+            const auto location = parser->loc_single(parser->token);
+            Value* parent = (values.size() == 1) ? values.back() : new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), location);
+            values.clear();
+            auto indexOp = new (allocator.allocate<IndexOperator>()) IndexOperator(parent, location);
+            parser->token++;
+            auto expr = parser->parseExpression(allocator);
+            if (!expr) {
+                parser->error("expected an expression in indexing operators for access chain");
+                break;
+            }
+            indexOp->idx = expr;
+            if (!parser->consumeToken(TokenType::RBracket)) {
+                parser->error("expected a closing bracket ] in access chain");
+                break;
+            }
+            values.push_back(indexOp);
+        } else if (type == TokenType::LParen) {
+            const auto location = parser->loc_single(parser->token);
+            Value* parent = (values.size() == 1) ? values.back() : new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), location);
+            values.clear();
+            auto call = new (allocator.allocate<FunctionCall>()) FunctionCall(parent, location);
+            parser->token++;
+            if (parser->token->type != TokenType::RParen) {
+                do {
+                    parser->consumeNewLines();
+                    auto expr = parser->parseExpressionOrArrayOrStruct(allocator);
+                    if (expr) {
+                        call->values.emplace_back(expr);
+                    } else {
+                        break;
+                    }
+                } while (parser->consumeToken(TokenType::CommaSym));
+            }
+            parser->consumeNewLines();
+            if (!parser->consumeToken(TokenType::RParen)) {
+                parser->unexpected_error("expected a ')' for a function call, after starting '('");
+            }
+            values.push_back(call);
+        } else {
+            break;
+        }
+    }
+
+    if (values.size() == 1) return values.back();
+    return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), head->encoded_location());
+}
+
 Value* Parser::parseParenExpression(ASTAllocator& allocator) {
     auto& tok = *token;
 
@@ -211,6 +276,10 @@ Value* Parser::parseParenExpression(ASTAllocator& allocator) {
         if (!consumeToken(TokenType::RParen)) {
             error("missing ')' in the expression");
             return nullptr;
+        }
+
+        if (token->type == TokenType::DotSym) {
+            expression = parseAccessChainAfterValue(this, allocator, expression);
         }
 
         return parseAfterValue(allocator, expression, &tok);

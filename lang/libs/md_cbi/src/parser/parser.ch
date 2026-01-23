@@ -26,6 +26,7 @@ func isUnderscoreToken(t : int) : bool { return t == MdTokenType.Underscore as i
 func isBacktickToken(t : int) : bool { return t == MdTokenType.Backtick as int; }
 func isEndOfFileToken(t : int) : bool { return t == MdTokenType.EndOfFile as int; }
 func isTextToken(t : int) : bool { return t == MdTokenType.Text as int; }
+func isColonToken(t : int) : bool { return t == MdTokenType.Colon as int; }
 func isPipeToken(t : int) : bool { return t == MdTokenType.Pipe as int; }
 func isNumberToken(t : int) : bool { return t == MdTokenType.Number as int; }
 func isDotToken(t : int) : bool { return t == MdTokenType.Dot as int; }
@@ -112,12 +113,25 @@ func (md : &mut MdParser) parseBlockNode(parser : *mut Parser) : *mut MdNode {
     }
     
     // Unordered list: - + *
-    if(isDashToken(t) || isPlusToken(t)) {
-        return md.parseList(parser, false, 1);
+
+    if(isDashToken(t) || isPlusToken(t) || isStarToken(t)) {
+        // If it's *, verify it's not an HR
+        var is_hr = false;
+        if(isStarToken(t) || isDashToken(t)) {
+             if(md.isHorizontalRule(parser)) {
+                 is_hr = true;
+             }
+        }
+        
+        if(is_hr) {
+            return md.parseHorizontalRule(parser);
+        } else {
+             return md.parseList(parser, false, 1);
+        }
     }
     
-    // Check for horizontal rule: --- *** ___
-    if(isStarToken(t) || isUnderscoreToken(t)) {
+    // Check for horizontal rule: ___ (Underscore)
+    if(isUnderscoreToken(t)) {
         if(md.isHorizontalRule(parser)) {
             return md.parseHorizontalRule(parser);
         }
@@ -185,14 +199,7 @@ func (md : &mut MdParser) parseHeader(parser : *mut Parser) : *mut MdNode {
         parser.increment();
     }
     if(level > 6) level = 6;
-    
-    // Skip space after hashes
-    if(isTextToken(parser.getToken().type)) {
-        const txt = parser.getToken().value;
-        if(txt.size() > 0 && txt.data()[0] == ' ') {
-            // Skip leading space
-        }
-    }
+
     var builder = md.builder;
     var header = builder.allocate<MdHeader>()
     new (header) MdHeader {
@@ -204,6 +211,29 @@ func (md : &mut MdParser) parseHeader(parser : *mut Parser) : *mut MdNode {
     while(!isLineEnd(parser.getToken().type)) {
         var node = md.parseInlineNode(parser);
         if(node != null) header.children.push(node);
+    }
+
+    // Skip space after hashes
+    // Skip leading spaces in the first text token if present
+    if(header.children.size() > 0) {
+        var first = header.children.get(0);
+        if(first.kind == MdNodeKind.Text) {
+            var txtNode = first as *mut MdText;
+            if(txtNode.value.size() > 0 && txtNode.value.data()[0] == ' ') {
+                // Determine how many spaces
+                var spaces = 0u;
+                while(spaces < txtNode.value.size() && txtNode.value.data()[spaces] == ' ') {
+                    spaces++;
+                }
+                if(spaces < txtNode.value.size()) {
+                    // Update view to skip spaces
+                     txtNode.value = std::string_view(txtNode.value.data() + spaces, txtNode.value.size() - spaces);
+                } else {
+                    // All spaces, better to just remove this node? For now just empty it
+                    txtNode.value = std::string_view("");
+                }
+            }
+        }
     }
     
     if(isNewlineToken(parser.getToken().type)) {
@@ -246,30 +276,50 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
     while(isGreaterThanToken(parser.getToken().type)) {
         depth++;
         parser.increment();
-        // Skip space after >
+        // Skip space after matching >
         if(isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
-            // Will handle in inline
+             const txt = parser.getToken().value;
+             // Only consume if it's a single space, or effectively if we want to skip 1 char?
+             // Simple approach: if it starts with space, consume one space logic is implied by loop
+             // But tokens are chunks.
+             // If token is just " ", consume it.
+             if(txt.size() == 1) {
+                 parser.increment();
+             }
         }
     }
-
+    
     var builder = md.builder;
-    var bq = builder.allocate<MdBlockquote>()
-    new (bq) MdBlockquote {
+    var root_bq = builder.allocate<MdBlockquote>();
+    new (root_bq) MdBlockquote {
         base : MdNode { kind : MdNodeKind.Blockquote },
         children : std::vector<*mut MdNode>()
+    }
+    
+    var current_container = root_bq;
+    var d = 1;
+    while(d < depth) {
+         var nested = builder.allocate<MdBlockquote>();
+         new (nested) MdBlockquote {
+             base : MdNode { kind : MdNodeKind.Blockquote },
+             children : std::vector<*mut MdNode>()
+         }
+         current_container.children.push(nested as *mut MdNode);
+         current_container = nested;
+         d++;
     }
     
     // Parse content until newline
     while(!isLineEnd(parser.getToken().type)) {
         var node = md.parseInlineNode(parser);
-        if(node != null) bq.children.push(node);
+        if(node != null) current_container.children.push(node);
     }
     
     if(isNewlineToken(parser.getToken().type)) {
         parser.increment();
     }
     
-    return bq as *mut MdNode;
+    return root_bq as *mut MdNode;
 }
 
 func (md : &mut MdParser) parseList(parser : *mut Parser, ordered : bool, start : int) : *mut MdNode {
@@ -330,7 +380,7 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
             i++;
         }
     }
-
+    
     var builder = md.builder;
     var list = builder.allocate<MdList>()
     new (list) MdList {
@@ -341,10 +391,14 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
     }
     
     while(isNumberToken(parser.getToken().type)) {
-        parser.increment(); // consume number
-        if(isDotToken(parser.getToken().type)) {
-            parser.increment(); // consume .
+        // Check sequences: Number -> Dot -> Space
+        const next = peek_token(parser);
+        if(!isDotToken(next.type)) {
+            break;
         }
+        
+        parser.increment(); // consume number
+        parser.increment(); // consume .
         
         // Skip space
         if(isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
@@ -368,14 +422,18 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
             parser.increment();
         }
         
-        // Skip whitespace
-        if(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
+        // Skip whitespace lines
+        while(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
             parser.increment();
+        }
+        if(isNewlineToken(parser.getToken().type)) {
+             parser.increment();
         }
     }
     
     return list as *mut MdNode;
 }
+
 
 func (md : &mut MdParser) parseTable(parser : *mut Parser) : *mut MdNode {
     var builder = md.builder;
@@ -439,6 +497,10 @@ func (md : &mut MdParser) parseTableRow(parser : *mut Parser, is_header : bool) 
         
         if(isPipeToken(parser.getToken().type)) {
             parser.increment();
+            // Check if next is newline - if so we are done with row, don't create empty cell
+            if(isLineEnd(parser.getToken().type)) {
+                break;
+            }
         }
     }
     
@@ -688,6 +750,32 @@ func (md : &mut MdParser) parseStrikethrough(parser : *mut Parser) : *mut MdNode
     return strike as *mut MdNode;
 }
 
+func (md : &mut MdParser) parseUrl(parser : *mut Parser) : std::string_view {
+    var url_res = std::string();
+    var builder = md.builder;
+    
+    while(true) {
+        const t = parser.getToken().type;
+        if(isTextToken(t) || isColonToken(t) || isDotToken(t) || isDashToken(t) || isPlusToken(t) || isUnderscoreToken(t) || isNumberToken(t) || isHashToken(t) || isPipeToken(t)) {
+             url_res.append_view(parser.getToken().value);
+             parser.increment();
+             continue;
+        }
+        
+        if(t == MdTokenType.RParen as int || t == MdTokenType.RBracket as int || isLineEnd(t) || (isTextToken(t) && parser.getToken().value.data()[0] == ' ')) {
+            break;
+        }
+        
+        if(isEndMdToken(t) || t == MdTokenType.RBrace as int) break;
+        
+        // Default consume
+         url_res.append_view(parser.getToken().value);
+         parser.increment();
+    }
+    
+    return builder.allocate_view(url_res.to_view());
+}
+
 func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
     parser.increment(); // consume [
     var text_children = std::vector<*mut MdNode>();
@@ -705,20 +793,23 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
         if(parser.getToken().type == MdTokenType.LParen as int) {
             parser.increment();
             
-            var url = std::string_view("");
+            var url = md.parseUrl(parser);
             var title = std::string_view("");
-            
-            if(isTextToken(parser.getToken().type)) {
-                url = builder.allocate_view(parser.getToken().value);
-                parser.increment();
-            }
             
             // Check for title
             if(isTextToken(parser.getToken().type)) {
                 const txt = parser.getToken().value;
-                if(txt.size() > 0 && txt.data()[0] == '"') {
-                    title = builder.allocate_view(txt);
-                    parser.increment();
+                 // Loop to skip spaces
+                if(txt.size() > 0 && txt.data()[0] == ' ') {
+                     parser.increment();
+                     // Now expect title
+                     if(isTextToken(parser.getToken().type)) {
+                         const ttxt = parser.getToken().value;
+                         if(ttxt.size() > 0 && ttxt.data()[0] == '"') {
+                             title = builder.allocate_view(ttxt);
+                             parser.increment();
+                         }
+                     }
                 }
             }
             
@@ -735,7 +826,7 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
             }
         }
     }
-
+    
     var text = builder.allocate<MdText>()
     new (text) MdText {
         base : MdNode { kind : MdNodeKind.Text },
@@ -758,19 +849,20 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
         
         if(parser.increment_if(MdTokenType.RBracket as int)) {
             if(parser.increment_if(MdTokenType.LParen as int)) {
-                var url = std::string_view("");
+                var url = md.parseUrl(parser);
                 var title = std::string_view("");
                 
-                if(isTextToken(parser.getToken().type)) {
-                    url = builder.allocate_view(parser.getToken().value);
-                    parser.increment();
-                }
-                
-                if(isTextToken(parser.getToken().type)) {
+                 if(isTextToken(parser.getToken().type)) {
                     const txt = parser.getToken().value;
-                    if(txt.size() > 0 && txt.data()[0] == '"') {
-                        title = builder.allocate_view(txt);
-                        parser.increment();
+                     if(txt.size() > 0 && txt.data()[0] == ' ') {
+                         parser.increment();
+                         if(isTextToken(parser.getToken().type)) {
+                             const ttxt = parser.getToken().value;
+                             if(ttxt.size() > 0 && ttxt.data()[0] == '"') {
+                                 title = builder.allocate_view(ttxt);
+                                 parser.increment();
+                             }
+                         }
                     }
                 }
                 

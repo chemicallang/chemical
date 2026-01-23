@@ -226,7 +226,7 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
                     }
                     // Read language identifier
                     const lang_start = provider.current_data();
-                    while(provider.peek() != '\n' && provider.peek() != '\0' && provider.peek() != ' ') {
+                    while(provider.peek() != '\n' && provider.peek() != '\r' && provider.peek() != '\0' && provider.peek() != ' ') {
                         provider.readCharacter();
                     }
                     const lang = std::string_view(lang_start, provider.current_data() - lang_start);

@@ -12,6 +12,25 @@ public func md_initializeLexer(lexer : *mut Lexer) {
 @no_mangle
 public func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
     const loc = intrinsics::get_raw_location();
+    // Skip whitespace before {
+    while(parser.getToken().type == MdTokenType.Text as int) {
+        const txt = parser.getToken().value;
+        var all_ws = true;
+        var i = 0u;
+        while(i < txt.size()) {
+            const c = txt.data()[i];
+            if(c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+                all_ws = false;
+                break;
+            }
+            i++;
+        }
+        if(all_ws) {
+            parser.increment();
+        } else {
+            break;
+        }
+    }
     if(parser.increment_if(MdTokenType.LBrace as int)) {
         var root = parseMdRoot(parser, builder);
         const type = builder.make_string_type(loc)
@@ -56,6 +75,74 @@ public func md_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValu
     const strValue = builder.make_string_value(view, loc)
     block_val.setCalculatedValue(strValue)
     return block_val;
+}
+
+public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+    return null;
+}
+
+public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+    return null;
+}
+
+@no_mangle
+public func md_symResNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+    const loc = node.getEncodedLocation();
+    const root = node.getDataPtr() as *mut MdRoot;
+    sym_res_root(root, resolver, loc)
+}
+
+@no_mangle
+public func md_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+    const loc = intrinsics::get_raw_location();
+    const root = value.getDataPtr() as *mut MdRoot;
+    var scope = builder.make_scope(root.parent, loc);
+    var scope_nodes = scope.getNodes();
+    var converter = MdConverter {
+        builder : builder,
+        support : &mut root.support,
+        vec : scope_nodes,
+        parent : root.parent,
+        str : std::string()
+    }
+    converter.convertMdRoot(root);
+    return scope;
+}
+
+@no_mangle
+public func md_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+    const loc = intrinsics::get_raw_location();
+    // Skip whitespace before {
+    while(parser.getToken().type == MdTokenType.Text as int) {
+        const txt = parser.getToken().value;
+        var all_ws = true;
+        var i = 0u;
+        while(i < txt.size()) {
+            const c = txt.data()[i];
+            if(c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+                all_ws = false;
+                break;
+            }
+            i++;
+        }
+        if(all_ws) {
+            parser.increment();
+        } else {
+            break;
+        }
+    }
+    if(parser.increment_if(MdTokenType.LBrace as int)) {
+        var root = parseMdRoot(parser, builder);
+        const nodes_arr : []*mut ASTNode = []
+        const node = builder.make_embedded_node(std::string_view("md"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
+        if(!parser.increment_if(MdTokenType.RBrace as int)) {
+            parser.error("expected a rbrace for ending the md macro");
+        }
+        return node;
+    } else {
+        parser.error("expected a lbrace");
+        return null;
+    }
 }
 
 public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {

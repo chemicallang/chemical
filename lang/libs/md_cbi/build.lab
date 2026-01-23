@@ -53,7 +53,10 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
 
     ctx.index_def_cbi_fn(cbi, std::string_view("md_initializeLexer"), CBIFunctionType.InitializeLexer);
     ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroValue"), CBIFunctionType.ParseMacroValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_symResNode"), CBIFunctionType.SymResNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("md_symResValue"), CBIFunctionType.SymResValue);
+    ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementNode"), CBIFunctionType.ReplacementNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("md_replacementValue"), CBIFunctionType.ReplacementValue);
 
     return user_std_module;

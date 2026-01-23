@@ -1,106 +1,3 @@
-public enum MdTokenType {
-    Text = 100,
-    Hash,           // #
-    Star,           // *
-    Underscore,     // _
-    LBracket,       // [
-    RBracket,       // ]
-    LParen,         // (
-    RParen,         // )
-    LBrace,         // {
-    RBrace,         // }
-    Exclamation,    // !
-    Backtick,       // `
-    GreaterThan,    // >
-    Dash,           // -
-    Plus,           // +
-    Pipe,           // |
-    Newline,        // \n
-    EndOfFile,
-    ChemicalStart,  // ${
-}
-
-public enum MdNodeKind {
-    Root,
-    Header,
-    Paragraph,
-    List,
-    ListItem,
-    Text,
-    Interpolation,
-    Bold,
-    Italic,
-    Link,
-    Image,
-    CodeBlock,
-    InlineCode,
-    Blockquote,
-    Hr,
-    Table,
-    TableRow,
-    TableCell
-}
-
-public struct MdNode {
-    var kind : MdNodeKind
-}
-
-public struct MdRoot {
-    var base : MdNode
-    var parent : *mut ASTNode
-    var children : std::vector<*mut MdNode>
-    var dyn_values : std::vector<*mut Value>
-    var support : SymResSupport
-}
-
-public struct MdText {
-    var base : MdNode
-    var value : std::string_view
-}
-
-public struct MdHeader {
-    var base : MdNode
-    var level : int
-    var children : std::vector<*mut MdNode>
-}
-
-public struct MdParagraph {
-    var base : MdNode
-    var children : std::vector<*mut MdNode>
-}
-
-public struct MdInterpolation {
-    var base : MdNode
-    var value : *mut Value
-}
-
-public struct MdBold {
-    var base : MdNode
-    var children : std::vector<*mut MdNode>
-}
-
-public struct MdItalic {
-    var base : MdNode
-    var children : std::vector<*mut MdNode>
-}
-
-public struct MdLink {
-    var base : MdNode
-    var url : std::string_view
-    var children : std::vector<*mut MdNode>
-}
-
-public struct MdImage {
-    var base : MdNode
-    var url : std::string_view
-    var alt : std::string_view
-}
-
-public struct MdInlineCode {
-    var base : MdNode
-    var value : std::string_view
-}
-
 public struct MdParser {
     var dyn_values : *mut std::vector<*mut Value>
 }
@@ -149,6 +46,15 @@ func (md : &mut MdParser) parseHeader(parser : *mut Parser, builder : *mut ASTBu
     while(parser.getToken().type == MdTokenType.Hash as int) {
         level++;
         parser.increment();
+    }
+    
+    // Skip space after hashes (e.g., "# Header")
+    if(parser.getToken().type == MdTokenType.Text as int) {
+        const txt = parser.getToken().value;
+        if(txt.size() > 0 && txt.data()[0] == ' ') {
+            // We have leading space, trim it from the text
+            // But actually we emit Text tokens separately. Let's handle in inline.
+        }
     }
     
     var header = builder.allocate<MdHeader>()
@@ -263,16 +169,33 @@ func (md : &mut MdParser) parseInlineNode(parser : *mut Parser, builder : *mut A
                     base : MdNode { kind : MdNodeKind.Bold },
                     children : std::vector<*mut MdNode>()
                 }
-                const t1 = parser.getToken()
-                while(!(t1.type == MdTokenType.Star as int &&t1.type == MdTokenType.Star as int) &&
-                      t1.type != MdTokenType.Newline as int &&
-                      t1.type != MdTokenType.RBrace as int &&
-                      t1.type != MdTokenType.EndOfFile as int) {
+                // Parse until we hit closing **
+                while(true) {
+                    const t = parser.getToken();
+                    if(t.type == MdTokenType.EndOfFile as int || 
+                       t.type == MdTokenType.RBrace as int ||
+                       t.type == MdTokenType.Newline as int) {
+                        break;
+                    }
+                    // Check for closing **
+                    if(t.type == MdTokenType.Star as int) {
+                        parser.increment();
+                        if(parser.getToken().type == MdTokenType.Star as int) {
+                            parser.increment();
+                            break; // Found closing **
+                        }
+                        // Single star inside bold, treat as text
+                        var starText = builder.allocate<MdText>()
+                        new (starText) MdText {
+                            base : MdNode { kind : MdNodeKind.Text },
+                            value : std::string_view("*")
+                        }
+                        bold.children.push(starText as *mut MdNode);
+                        continue;
+                    }
                     var child = md.parseInlineNode(parser, builder);
                     if(child != null) bold.children.push(child);
                 }
-                if(parser.getToken().type == MdTokenType.Star as int) parser.increment();
-                if(parser.getToken().type == MdTokenType.Star as int) parser.increment();
                 return bold as *mut MdNode;
             }
             return null;
@@ -314,8 +237,8 @@ func (md : &mut MdParser) parseInlineNode(parser : *mut Parser, builder : *mut A
         }
         MdTokenType.Exclamation as int => {
             // ![alt](url)
+            parser.increment(); // consume !
             if(parser.getToken().type == MdTokenType.LBracket as int) {
-                parser.increment(); // consume !
                 parser.increment(); // consume [
                 var alt = std::string_view("");
                 if(parser.getToken().type == MdTokenType.Text as int) {
@@ -354,7 +277,6 @@ func (md : &mut MdParser) parseInlineNode(parser : *mut Parser, builder : *mut A
                 base : MdNode { kind : MdNodeKind.Text },
                 value : std::string_view("!")
             }
-            parser.increment();
             return text as *mut MdNode;
         }
         MdTokenType.Backtick as int => {

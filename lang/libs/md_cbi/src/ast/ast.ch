@@ -18,6 +18,8 @@ public enum MdTokenType {
     Pipe,           // |
     Newline,        // \n
     ChemicalStart,  // ${
+    Tilde,          // ~
+    Colon,          // :
 }
 
 public enum MdNodeKind {
@@ -38,7 +40,8 @@ public enum MdNodeKind {
     Hr,
     Table,
     TableRow,
-    TableCell
+    TableCell,
+    Strikethrough
 }
 
 public struct MdNode {
@@ -84,6 +87,11 @@ public struct MdItalic {
     var children : std::vector<*mut MdNode>
 }
 
+public struct MdStrikethrough {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
 public struct MdLink {
     var base : MdNode
     var url : std::string_view
@@ -99,4 +107,46 @@ public struct MdImage {
 public struct MdInlineCode {
     var base : MdNode
     var value : std::string_view
+}
+
+public struct MdCodeBlock {
+    var base : MdNode
+    var language : std::string_view
+    var code : std::string_view
+}
+
+public struct MdBlockquote {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdHorizontalRule {
+    var base : MdNode
+}
+
+public struct MdList {
+    var base : MdNode
+    var ordered : bool
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdListItem {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdTable {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdTableRow {
+    var base : MdNode
+    var is_header : bool
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdTableCell {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
 }

@@ -205,13 +205,16 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
         '-' => { return Token { type : MdTokenType.Dash as int, value : std::string_view("-"), position : position } }
         '+' => { return Token { type : MdTokenType.Plus as int, value : std::string_view("+"), position : position } }
         '|' => { return Token { type : MdTokenType.Pipe as int, value : std::string_view("|"), position : position } }
+        '~' => { return Token { type : MdTokenType.Tilde as int, value : std::string_view("~"), position : position } }
+        ':' => { return Token { type : MdTokenType.Colon as int, value : std::string_view(":"), position : position } }
         '\n' => { return Token { type : MdTokenType.Newline as int, value : std::string_view("\n"), position : position } }
         default => {
             while(true) {
                 const next = provider.peek();
                 if(next == '\0' || next == '#' || next == '*' || next == '_' || next == '[' || next == ']' || 
                    next == '(' || next == ')' || next == '!' || next == '`' || next == '>' || next == '-' || 
-                   next == '+' || next == '|' || next == '\n' || next == '{' || next == '}' || next == '$') {
+                   next == '+' || next == '|' || next == '\n' || next == '{' || next == '}' || next == '$' ||
+                   next == '~' || next == ':') {
                     break;
                 }
                 provider.readCharacter();

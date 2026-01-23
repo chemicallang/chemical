@@ -54,6 +54,13 @@ bool is_escaped_self(char self) {
     }
 }
 
+static inline int hex_digit_to_int(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
 bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchString<128>& str) {
 
     // load the current character
@@ -79,10 +86,13 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchStr
         if(nextNextPtr == end) return false;
 
         const auto nextNext = *nextNextPtr;
-        if(next == '1' && nextNext == 'b') {
-            // set current ptr next to \x1b| <-- here (at pipe)
+        const int h1 = hex_digit_to_int(next);
+        const int h2 = hex_digit_to_int(nextNext);
+
+        if(h1 != -1 && h2 != -1) {
+            // set current ptr next to \xNN|
             *currentPtrPtr = nextNextPtr + 1;
-            str.append_char('\x1b');
+            str.append_char((char)((h1 << 4) | h2));
             return true;
         } else {
             str.append_char(current);
@@ -105,11 +115,11 @@ chem::string_view escaped_view(ASTAllocator& allocator, BasicParser& parser, con
         if(current == '\\') {
             currentPtr++;
             if(currentPtr == end) {
-                parser.error("couldn't escape the character");
+                parser.error("no character after backslash for escape sequence");
                 break;
             } else {
                 if (!read_escapable_char(&currentPtr, end, str)) {
-                    parser.error("couldn't escape the character");
+                    parser.error("invalid escape sequence");
                 }
             }
         } else {

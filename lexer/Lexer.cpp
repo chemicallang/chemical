@@ -520,6 +520,20 @@ const char* read_multi_line_string(SourceProvider& provider) {
 // true -> ending quote found
 // false -> string expression found
 // nullopt -> both weren't found, error out
+static inline void consume_hex_digits(SourceProvider& provider) {
+    auto p = provider.peek();
+    if ((p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F')) {
+        provider.increment();
+        p = provider.peek();
+        if ((p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F')) {
+            provider.increment();
+        }
+    }
+}
+
+// true -> ending quote found
+// false -> string expression found
+// nullopt -> both weren't found, error out
 std::optional<bool> read_quoted_string2(SourceProvider& provider) {
     while(true) {
         switch(provider.peek()) {
@@ -527,7 +541,7 @@ std::optional<bool> read_quoted_string2(SourceProvider& provider) {
                 provider.increment();
                 switch(provider.readCharacter()) {
                     case 'x':
-                        provider.increment('1') && provider.increment('b');
+                        consume_hex_digits(provider);
                     default:
                         break;
                 }
@@ -576,7 +590,7 @@ bool read_quoted_string(SourceProvider& provider) {
         switch(provider.readCharacter()) {
             case '\\':
                 if(provider.readCharacter() == 'x') {
-                    if(provider.increment('1')) provider.increment('b');
+                    consume_hex_digits(provider);
                 }
                 break;
             case '"':
@@ -596,7 +610,7 @@ bool read_char_in_quotes(SourceProvider& provider) {
         case '\\':
             switch(provider.readCharacter()) {
                 case 'x':
-                    provider.increment('1') && provider.increment('b');
+                    consume_hex_digits(provider);
                 default:
                     break;
             }

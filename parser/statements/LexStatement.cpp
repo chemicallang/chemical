@@ -252,7 +252,7 @@ UsingStmt* Parser::parseUsingStatement(ASTAllocator& allocator) {
         do {
             auto id = parseVariableIdentifier(allocator);
             if(id) {
-                chain->values.emplace_back((ChainValue*) id);
+                chain->values.emplace_back((Value*) id);
             } else {
                 error("expected a identifier in using statement");
                 return stmt;

@@ -148,7 +148,7 @@ llvm::Value* BaseDefMember::llvm_load(Codegen& gen, SourceLocation location) {
     return Value::load_value(gen, known_type(), llvm_type(gen), pointer, location);
 }
 
-llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 
@@ -204,7 +204,7 @@ llvm::Type *StructDefinition::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return with_elements_type(gen, elements_type(gen, values, index), true);
 }
 
@@ -212,7 +212,7 @@ llvm::Type* UnnamedStruct::llvm_type(Codegen &gen) {
     return llvm::StructType::get(*gen.ctx, elements_type(gen));
 }
 
-llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     return llvm::StructType::get(*gen.ctx, elements_type(gen, values, index));
 }
 

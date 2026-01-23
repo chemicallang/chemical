@@ -1239,7 +1239,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
     func_call_args(visitor, call, func_type, has_value_before, 0);
 }
 
-// void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned end, unsigned size);
+// void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned end, unsigned size);
 
 void func_container_name(ToCAstVisitor& visitor, FunctionDeclaration* func_node);
 
@@ -1280,7 +1280,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
     visitor.write('.');
 }
 
-//void write_self_arg(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
+//void write_self_arg(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
 //    auto grandpa = values[grandpa_index];
 //    if(!grandpa->is_pointer() && !force_no_pointer) {
 //        visitor.write('&');
@@ -1288,7 +1288,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //    access_chain(visitor, values, grandpa_index + 1, grandpa_index + 1);
 //}
 
-//bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<ChainValue*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
+//bool write_self_arg_bool(ToCAstVisitor& visitor, FunctionType* func_type, std::vector<Value*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
 //    if(func_type->has_self_param()) {
 //        write_self_arg(visitor, values, grandpa_index, call, force_no_pointer);
 //        return true;
@@ -1313,7 +1313,7 @@ bool primitive_non_ptr_like(BaseType* type) {
 }
 
 // this checks the parameter type
-void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* call, FunctionParam* param) {
+void write_self_arg(ToCAstVisitor& visitor, Value* grandpa, FunctionCall* call, FunctionParam* param) {
     if(primitive_non_ptr_like(param->type)) {
         visitor.visit(grandpa);
         return;
@@ -1339,7 +1339,7 @@ void write_self_arg(ToCAstVisitor& visitor, ChainValue* grandpa, FunctionCall* c
     visitor.visit(grandpa);
 }
 
-bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_type, ChainValue* grandpa, FunctionCall* call) {
+bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_type, Value* grandpa, FunctionCall* call) {
     if(func_type->has_self_param()) {
         visitor.visit(grandpa);
         return true;
@@ -5197,7 +5197,7 @@ void write_path_to_member(ToCAstVisitor& visitor, ExtendableMembersContainerNode
     }
 }
 
-void accept_opt_nestable(ToCAstVisitor& visitor, ChainValue* value, bool is_nested) {
+void accept_opt_nestable(ToCAstVisitor& visitor, Value* value, bool is_nested) {
     if(is_nested) {
         const auto prev_nested = visitor.nested_value;
         visitor.nested_value = true;
@@ -5208,7 +5208,7 @@ void accept_opt_nestable(ToCAstVisitor& visitor, ChainValue* value, bool is_nest
     }
 }
 
-void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue* value, ChainValue* next) {
+void chain_value_accept(ToCAstVisitor& visitor, Value* previous, Value* value, Value* next) {
 //    const auto linked = value->linked_node();
     const auto value_kind = value->val_kind();
     if (value_kind == ValueKind::Identifier) {
@@ -5269,12 +5269,12 @@ void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
     }
 }
 
-void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned start, const unsigned end);
+void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const unsigned start, const unsigned end);
 
 // this function is called, with start index to the chain value which is definitely a function call
 // we check if it's a function call to a struct which has a destructor
 // if it does have a destructor, we store the accessed value and destruct the struct afterwards
-bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int start, unsigned int end) {
+bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned int start, unsigned int end) {
     // a function is called on an object that's returned from a function (the object is destructible)
     // for example give_destructible().call_on_it()
     // we find this by checking if last value is a function decl
@@ -5338,7 +5338,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Ch
     return false;
 }
 
-void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned start, const unsigned end) {
+void chain_after_func(ToCAstVisitor& visitor, std::vector<Value*>& values, const unsigned start, const unsigned end) {
     const auto total_size = values.size();
     unsigned index = start;
     while(index < end) {
@@ -5354,7 +5354,7 @@ void chain_after_func(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, 
 }
 
 // the end index is exclusive
-void call_any_function_above(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const int start, int end) {
+void call_any_function_above(ToCAstVisitor& visitor, std::vector<Value*>& values, const int start, int end) {
     end--;
     while(end >= start) {
         const auto value = values[end];
@@ -5367,7 +5367,7 @@ void call_any_function_above(ToCAstVisitor& visitor, std::vector<ChainValue*>& v
     }
 }
 
-void access_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, const unsigned start, const unsigned end) {
+void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const unsigned start, const unsigned end) {
     if(end == start) {
         return;
     } else if(end - start == 1) {

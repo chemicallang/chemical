@@ -1296,9 +1296,6 @@ public:
     inline void visit(Value* value) {
         VisitValueNoNullCheck(value);
     }
-    inline void visit(ChainValue* value) {
-        VisitValueNoNullCheck(value);
-    }
     inline void visit(BaseType* type) {
         VisitTypeNoNullCheck(type);
     }

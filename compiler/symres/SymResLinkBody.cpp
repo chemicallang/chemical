@@ -235,7 +235,7 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
     }
 }
 
-bool find_link_in_parent(VariableIdentifier* id, ChainValue* parent, SymbolResolver& resolver) {
+bool find_link_in_parent(VariableIdentifier* id, Value* parent, SymbolResolver& resolver) {
     auto& value = id->value;
     const auto child = provide_child(&resolver.child_resolver, parent, value, nullptr);
     if(child) {
@@ -1516,7 +1516,7 @@ void SymResLinkBody::VisitInitBlock(InitBlock* node) {
 //            continue;
 //        } else if(linked_kind == ASTNodeKind::FunctionDecl) {
 //            // linking the last function call, since function call is valid
-//            // call_ptr being sent as Value*&, if replaced other than ChainValue, it maybe invalid inside access chain
+//            // call_ptr being sent as Value*&, if replaced other than Value, it maybe invalid inside access chain
 //            if(!call_ptr->link(linker, (Value*&) call_ptr, nullptr)) {
 //                continue;
 //            }
@@ -1799,7 +1799,7 @@ bool link_call_gen_args(SymResLinkBody& visitor, FunctionCall* call) {
     return true;
 }
 
-void update_parent_val_linked(ChainValue* value, ASTNode* node, BaseType* type) {
+void update_parent_val_linked(Value* value, ASTNode* node, BaseType* type) {
     switch(value->kind()) {
         case ValueKind::Identifier:
             value->as_identifier_unsafe()->linked = node;
@@ -2132,7 +2132,7 @@ void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& 
 
 }
 
-bool check_chain_mutability(SymbolResolver& resolver, const std::vector<ChainValue*>& values, int end_index) {
+bool check_chain_mutability(SymbolResolver& resolver, const std::vector<Value*>& values, int end_index) {
     for (int i = end_index; i >= 0; --i) {
         auto val = values[i];
 

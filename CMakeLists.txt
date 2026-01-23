@@ -341,7 +341,6 @@ set(COMMON_SOURCES
         ast/types/LiteralType.h
         ast/types/Types.cpp
         ast/types/ArrayType.cpp
-        ast/base/ChainValue.h
         ast/base/ASTAny.h
         ast/base/ASTAny.cpp
         ast/base/ChainPart.h

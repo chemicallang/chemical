@@ -72,7 +72,7 @@ bool AccessChain::compile_time_computable() {
 AccessChain *AccessChain::copy(ASTAllocator& allocator) {
     auto chain = new (allocator.allocate<AccessChain>()) AccessChain(getType(), encoded_location());
     for(auto& value : values) {
-        chain->values.emplace_back((ChainValue*) value->copy(allocator));
+        chain->values.emplace_back((Value*) value->copy(allocator));
     }
     chain->set_is_moved(is_moved());
     return chain;
@@ -123,16 +123,16 @@ Value *AccessChain::pointer(InterpretScope &scope) {
     }
 }
 
-void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, std::vector<ChainValue*>& source, unsigned from) {
+void copy_from(ASTAllocator& allocator, std::vector<Value*>& destination, std::vector<Value*>& source, unsigned from) {
     const auto size = source.size();
     while(from < size) {
         const auto value = source[from];
-        destination.emplace_back((ChainValue*) value->copy(allocator));
+        destination.emplace_back((Value*) value->copy(allocator));
         from++;
     }
 }
 
-Value* evaluate_it(ChainValue* value, InterpretScope& scope, Value* evaluated) {
+Value* evaluate_it(Value* value, InterpretScope& scope, Value* evaluated) {
     const auto kind = value->val_kind();
     if(kind == ValueKind::Identifier) {
         const auto id = value->as_identifier_unsafe();
@@ -144,7 +144,7 @@ Value* evaluate_it(ChainValue* value, InterpretScope& scope, Value* evaluated) {
 
 // evaluate the chain partially if you have evaluated the chain till given index i
 // or receive a copy of the chain with values that could be evaluated
-Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Value* evaluated, unsigned i) {
+Value* evaluate_from(std::vector<Value*>& values, InterpretScope& scope, Value* evaluated, unsigned i) {
     while(i < values.size()) {
         const auto next = evaluate_it(values[i], scope, evaluated);
         // suppose we can't evaluate next value, in chain a.b.c we could evaluate a
@@ -153,7 +153,7 @@ Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Va
         if(next == nullptr && evaluated && evaluated->as_chain_value()) {
 
             const auto duplicate = new (scope.allocate<AccessChain>()) AccessChain(evaluated->encoded_location());
-            duplicate->values.emplace_back((ChainValue*) evaluated);
+            duplicate->values.emplace_back((Value*) evaluated);
             copy_from(scope.allocator, duplicate->values, values, i);
             duplicate->relink_parent();
             duplicate->setType(duplicate->values.back()->getType());

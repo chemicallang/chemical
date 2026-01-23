@@ -168,6 +168,21 @@ public:
     bool isValueRValue(ASTAllocator& allocator);
 
     /**
+     * will check contents, are they of the same kind
+     * this method means are both chain values functionally equal
+     * they don't mean to check if they have same names, but if both were exchanged
+     * they won't have an effect on code generation
+     */
+    bool is_equal(Value* other, ValueKind this_kind, ValueKind other_kind);
+
+    /**
+     * a helper function
+     */
+    bool is_equal(Value* other) {
+        return is_equal(other, val_kind(), other->val_kind());
+    }
+
+    /**
      * it must return the node that will be used to find the next node in the access chain
      * this node is extracted from the node that was linked to in link method
      * @return return node that signifies the fragment in the access chain
@@ -510,6 +525,117 @@ public:
      */
     virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name);
 
+    /**
+     * gives a llvm::Value* which is a pointer that you can easily do CreateLoad on
+     */
+    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
+
+    /**
+     * called by access chain on the last ref value in the chain
+     * by default it allocates chain->llvm_type and stores chain->llvm_value in it
+     */
+    virtual llvm::AllocaInst* access_chain_allocate(
+            Codegen& gen,
+            std::vector<Value*>& values,
+            unsigned int until,
+            BaseType* expected_type
+    );
+
+    /**
+     * so the parent pointer is returned, along with it's index
+     * this is called by other access chain methods, to get the parent and then
+     * load the child, this offers advantage like having access to parent value
+     * like x.y.z <-- you get access to 'y' and then you load 'z' using GEP
+     * now suppose functions that demand parent value, x.y.z() here z is a lambda
+     * stored inside y, where y is supposed to be passed to lambda z (implicit self)
+     * Please note that until index is the final value, not the parent index that you
+     * want to retrieve
+     */
+    static std::pair<unsigned int, llvm::Value*> access_chain_parent_pointer(
+            Codegen &gen,
+            std::vector<Value*>& values,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            unsigned int until,
+            std::vector<llvm::Value*>& idxList
+    );
+
+    /**
+     * when a identifier is last in the access chain, for example x.y.z here z is the last identifier
+     * this function will be called on it, the values given are the values of access chain
+     * by default this just calls default_chain_pointer
+     * @param values part of access chain, identifier / function call / index operator
+     * @param until the values are considered up until this (exclusive)
+     *
+     * @param destructibles values allocated inside access chain, for example when x.y().z where y returns a struct which has z as a member
+     * y call means -> allocate a struct, and pass pointer to y, after accessing and loading z, destruct struct created by y
+     * to destruct the struct, destructibles vector is used to keep track of values inside this chain that must be destructed after loading
+     * since this just returns a pointer to it, and doesn't load the value, the value must be preserved till loaded and not destructed.
+     * after pointer received by this function call has been loaded, destructibles vector should be destructed in reverse order
+     *
+     */
+    llvm::Value* access_chain_pointer(
+            Codegen &gen,
+            std::vector<Value*>& values,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            unsigned int until
+    );
+
+    /**
+     * the pointer you can load
+     */
+    llvm::Value* loadable_access_chain_pointer(
+            Codegen &gen,
+            std::vector<Value*>& values,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            unsigned int until,
+            SourceLocation location
+    );
+
+    /**
+     * called by access chain on the last ref value in the chain
+     * by default it just creates a load instruction on the access_chain_pointer by retrieving it from below
+     *
+     * this takes a vector destructibles which allows you to append objects to the destructibles, that will be destructed
+     */
+    llvm::Value* access_chain_value(
+            Codegen &gen,
+            std::vector<Value*>& values,
+            unsigned int until,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            BaseType* expected_type
+    );
+
+    /**
+     * called by access chain on the last ref value in the chain
+     * by default it just creates a load instruction on the access_chain_pointer by retrieving it from below
+     *
+     * this takes a vector destructibles which allows you to append objects to the destructibles, that will be destructed
+     */
+    virtual void access_chain_assign_value(
+            Codegen &gen,
+            AccessChain* chain,
+            unsigned int until,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            llvm::Value* lhsPtr,
+            Value* lhs,
+            BaseType* expected_type
+    );
+
+    /**
+     * helper function to call the actual access_chain_value
+     */
+    llvm::Value* access_chain_value(
+            Codegen &gen,
+            std::vector<Value*>& values,
+            unsigned int until,
+            BaseType* expected_type
+    ) {
+        std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+        auto value = access_chain_value(gen, values, until, destructibles, expected_type);
+        destruct(gen, destructibles);
+        return value;
+    }
+
 #endif
 
     /**
@@ -766,8 +892,8 @@ public:
         return isAccessChain(val_kind()) ? ((AccessChain*) this) : nullptr;
     }
 
-    inline ChainValue* as_chain_value() {
-        return isChainValue(val_kind()) ? ((ChainValue*) this) : nullptr;
+    inline Value* as_chain_value() {
+        return isChainValue(val_kind()) ? ((Value*) this) : nullptr;
     }
 
     inline IsValue* as_is_value() {

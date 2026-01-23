@@ -4,7 +4,7 @@
 #include "VariantMember.h"
 #include "ast/types/LinkedType.h"
 #include "compiler/mangler/NameMangler.h"
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
@@ -96,7 +96,7 @@ llvm::Type* VariantDefinition::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
+llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
     auto member = variables()[index];
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();

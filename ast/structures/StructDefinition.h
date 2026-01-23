@@ -273,7 +273,7 @@ public:
 
     llvm::Type *llvm_param_type(Codegen &gen) final;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
 
     /**
      * will try to override the given function if there's an interface and it exists

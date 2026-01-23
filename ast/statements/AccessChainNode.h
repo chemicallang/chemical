@@ -24,7 +24,7 @@ public:
         );
         node->chain.setType(chain.getType());
         for(const auto value : chain.values) {
-            node->chain.values.emplace_back((ChainValue*) value->copy(allocator));
+            node->chain.values.emplace_back((Value*) value->copy(allocator));
         }
         return node;
     }

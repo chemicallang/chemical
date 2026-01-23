@@ -42,7 +42,7 @@ Value* Parser::parseAccessChainOrKwValue(ASTAllocator& allocator, bool parseStru
     }
 }
 
-void Parser::parseAccessChain(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
+void Parser::parseAccessChain(ASTAllocator& allocator, std::vector<Value*>& values) {
 
     auto id = consumeIdentifierOrKeyword();
     if(id == nullptr) {
@@ -224,7 +224,7 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
     }
 }
 
-Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct) {
+Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, std::vector<Value*>& values, Position& start, bool parseStruct) {
     auto id = parseVariableIdentifier(allocator);
     if(id) {
         values.emplace_back(id);
@@ -234,7 +234,7 @@ Value* Parser::parseAccessChainRecursive(ASTAllocator& allocator, std::vector<Ch
     return parseAccessChainAfterId(allocator, values, start, parseStruct);
 }
 
-ChainValue* take_parent(ASTAllocator& allocator, std::vector<ChainValue*>& values, SourceLocation location) {
+Value* take_parent(ASTAllocator& allocator, std::vector<Value*>& values, SourceLocation location) {
     if(values.size() == 1) {
         const auto parent_val = values.back();
         values.pop_back();
@@ -244,7 +244,7 @@ ChainValue* take_parent(ASTAllocator& allocator, std::vector<ChainValue*>& value
     }
 }
 
-FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
+FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, std::vector<Value*>& values) {
     auto& lParenTok = *token;
     if(lParenTok.type == TokenType::LParen) {
         const auto location = loc_single(lParenTok);
@@ -283,7 +283,7 @@ void Parser::parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAlloc
     }
 }
 
-LinkedType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values) {
+LinkedType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<Value*>& values) {
     if(values.size() == 1 && values.back()->kind() == ValueKind::Identifier) {
         auto val = values.back()->as_identifier_unsafe();
         return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(allocate_view(allocator, val->value));
@@ -294,7 +294,7 @@ LinkedType* Parser::ref_type_from(ASTAllocator& allocator, std::vector<ChainValu
     }
 }
 
-Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct, bool parseGenList) {
+Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Value*>& values, Position& start, bool parseStruct, bool parseGenList) {
 
     // consume access chain values
     while(true) {

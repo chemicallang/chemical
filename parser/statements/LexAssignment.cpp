@@ -109,7 +109,7 @@ std::optional<Operation> Parser::parseAssignmentOperator() {
     }
 }
 
-inline Value* from_values(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values) {
+inline Value* from_values(ASTAllocator& allocator, std::vector<Value*>& chain_values) {
     if(chain_values.size() == 1) {
         const auto b = chain_values.back();
         chain_values.pop_back();
@@ -135,7 +135,7 @@ ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {
     }
 
     // allocated on stack, no allocation until push
-    std::vector<ChainValue*> chain_values;
+    std::vector<Value*> chain_values;
 
     // parse
     auto lhsNonAccessChain = parseLhsValue(allocator);

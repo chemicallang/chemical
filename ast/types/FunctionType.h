@@ -443,12 +443,12 @@ public:
      * in the case of access chain, the first element is expected to be an identifier, that is linked
      * with same node as the given identifier
      */
-    ChainValue* find_moved_chain_value(VariableIdentifier* id);
+    Value* find_moved_chain_value(VariableIdentifier* id);
 
     /**
      * the ultimate function that should be used to check for moved chain values
      */
-    ChainValue* find_moved_chain_value(AccessChain* chain_ptr);
+    Value* find_moved_chain_value(AccessChain* chain_ptr);
 
     /**
      * marks given chain moved without checking

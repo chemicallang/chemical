@@ -1,6 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
-#include "ChainValue.h"
+#include "Value.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/values/StructValue.h"
 #include "ast/statements/Assignment.h"
@@ -47,7 +47,7 @@
 #include "compiler/llvmimpl.h"
 #include "ast/structures/StructMember.h"
 
-llvm::Value* ChainValue::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
+llvm::Value* Value::loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
     switch(kind()) {
         case ValueKind::Identifier:
             return as_identifier_unsafe()->linked->loadable_llvm_pointer(gen, location);
@@ -82,7 +82,7 @@ llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifi
     return alloc;
 }
 
-llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<ChainValue*>& values, unsigned int until, BaseType* expected_type) {
+llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, std::vector<Value*>& values, unsigned int until, BaseType* expected_type) {
     const auto val = values[until];
     const auto dynObj = (llvm::AllocaInst*) gen.allocate_dyn_obj_based_on_type(expected_type, encoded_location());
     if(dynObj) {
@@ -204,7 +204,7 @@ llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type
     return loadInstr;
 }
 
-llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<ChainValue*>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
+llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<Value*>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     if(until == 0) {
         return values[0]->llvm_value(gen, expected_type);
     };
@@ -235,7 +235,7 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<ChainValue
  * the largest member type, so this method checks if the chain contains a union or unnamed union, and
  * one of largest member is not being accessed in the union, then we call llvm_chain_type
  */
-bool should_use_chain_type(ASTAllocator& allocator, std::vector<ChainValue*>& values, unsigned index) {
+bool should_use_chain_type(ASTAllocator& allocator, std::vector<Value*>& values, unsigned index) {
     unsigned i = index;
     // why -1, last not checked, because last maybe a union but there's no member access into it
     const auto total = values.size() - 1;
@@ -269,7 +269,7 @@ bool should_use_chain_type(ASTAllocator& allocator, std::vector<ChainValue*>& va
 }
 
 // this method could be put into access chain's llvm_type, when the need arises
-llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<ChainValue*>& values, unsigned index) {
+llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<Value*>& values, unsigned index) {
     if(should_use_chain_type(gen.allocator, values, index)) {
         return type->llvm_chain_type(gen, values, index);
     } else {
@@ -277,7 +277,7 @@ llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<Cha
     };
 }
 
-llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
+llvm::Value* create_gep(Codegen &gen, std::vector<Value*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
     const auto parent = values[index];
     const auto linked = parent->linked_node();
     auto type = parent->getType()->canonical();
@@ -295,9 +295,9 @@ llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned
     return gen.builder->CreateGEP(parent->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
 }
 
-std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
+std::pair<unsigned int, llvm::Value*> Value::access_chain_parent_pointer(
         Codegen &gen,
-        std::vector<ChainValue*>& values,
+        std::vector<Value*>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         unsigned int until,
         std::vector<llvm::Value*>& idxList
@@ -367,9 +367,9 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
 
 }
 
-llvm::Value* ChainValue::access_chain_pointer(
+llvm::Value* Value::access_chain_pointer(
         Codegen &gen,
-        std::vector<ChainValue*>& values,
+        std::vector<Value*>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         unsigned int until
 ) {
@@ -396,9 +396,9 @@ llvm::Value* ChainValue::access_chain_pointer(
     return create_gep(gen, values, parent_pointer.first, parent_pointer.second, idxList);
 }
 
-llvm::Value* ChainValue::loadable_access_chain_pointer(
+llvm::Value* Value::loadable_access_chain_pointer(
         Codegen &gen,
-        std::vector<ChainValue*>& values,
+        std::vector<Value*>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         unsigned int until,
         SourceLocation location
@@ -419,7 +419,7 @@ llvm::Value* ChainValue::loadable_access_chain_pointer(
                     case ValueKind::Identifier:
                     case ValueKind::IndexOperator:
                     case ValueKind::FunctionCall:
-                        return ((ChainValue*) ret_value)->loadable_llvm_pointer(gen, location);
+                        return ret_value->loadable_llvm_pointer(gen, location);
                     default:
                         return ret_value->llvm_pointer(gen);
                 }
@@ -491,7 +491,7 @@ void Value::llvm_assign_value(Codegen& gen, llvm::Value* lhsPtr, Value* lhs) {
     gen.assign_store(lhs, lhsPtr, this, rhsValue, encoded_location());
 }
 
-void ChainValue::access_chain_assign_value(
+void Value::access_chain_assign_value(
     Codegen& gen,
     AccessChain* chain,
     unsigned int until,
@@ -1046,7 +1046,7 @@ bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) 
     return false;
 }
 
-bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kind) {
+bool Value::is_equal(Value* other, ValueKind kind, ValueKind other_kind) {
     if(kind == other_kind) {
         switch(kind) {
             case ValueKind::AccessChain: {

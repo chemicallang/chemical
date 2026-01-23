@@ -8,7 +8,7 @@
 
 #include <memory>
 #include "ast/base/ASTNode.h"
-#include "ast/base/ChainValue.h"
+#include "ast/base/Value.h"
 #include <unordered_map>
 
 struct AccessChainAttributes {
@@ -23,10 +23,10 @@ struct AccessChainAttributes {
  * x.y.z() where z is a function call, z function is assumed to be present in y and y in z
  * z.y.z[0] similarly z is an index operator here
  */
-class AccessChain : public ChainValue {
+class AccessChain : public Value {
 public:
 
-    std::vector<ChainValue*> values;
+    std::vector<Value*> values;
     AccessChainAttributes attrs;
 
     /**
@@ -34,7 +34,7 @@ public:
      */
     constexpr AccessChain(
         SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, location), attrs(false) {
+    ) : Value(ValueKind::AccessChain, location), attrs(false) {
 
     }
 
@@ -44,7 +44,7 @@ public:
     constexpr AccessChain(
             BaseType* chain_type,
             SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, chain_type, location), attrs(false) {
+    ) : Value(ValueKind::AccessChain, chain_type, location), attrs(false) {
 
     }
 
@@ -52,9 +52,9 @@ public:
      * constructor
      */
     constexpr AccessChain(
-        std::vector<ChainValue*> values,
+        std::vector<Value*> values,
         SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, location), values(std::move(values)), attrs(false) {
+    ) : Value(ValueKind::AccessChain, location), values(std::move(values)), attrs(false) {
 
     }
 
@@ -62,10 +62,10 @@ public:
      * constructor
      */
     constexpr AccessChain(
-            std::vector<ChainValue*> values,
+            std::vector<Value*> values,
             BaseType* chain_type,
             SourceLocation location
-    ) : ChainValue(ValueKind::AccessChain, chain_type, location), values(std::move(values)), attrs(false) {
+    ) : Value(ValueKind::AccessChain, chain_type, location), values(std::move(values)), attrs(false) {
 
     }
 
@@ -147,15 +147,15 @@ public:
 
 };
 
-void copy_from(ASTAllocator& allocator, std::vector<ChainValue*>& destination, std::vector<ChainValue*>& source, unsigned from);
+void copy_from(ASTAllocator& allocator, std::vector<Value*>& destination, std::vector<Value*>& source, unsigned from);
 
-Value* evaluate_from(std::vector<ChainValue*>& values, InterpretScope& scope, Value* evaluated, unsigned i);
+Value* evaluate_from(std::vector<Value*>& values, InterpretScope& scope, Value* evaluated, unsigned i);
 
 #ifdef COMPILER_BUILD
 
 /**
  * this creates a GEP (get element ptr instruction), for chain values, the pointer is the parent value
  */
-llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList);
+llvm::Value* create_gep(Codegen &gen, std::vector<Value*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList);
 
 #endif

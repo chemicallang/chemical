@@ -490,7 +490,7 @@ public:
     /**
      * parse a function call
      */
-    FunctionCall* parseFunctionCall(ASTAllocator& allocator, std::vector<ChainValue*>& values);
+    FunctionCall* parseFunctionCall(ASTAllocator& allocator, std::vector<Value*>& values);
 
     /**
      * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)
@@ -505,7 +505,7 @@ public:
         return s.has_value() ? s.value() : def;
     }
 
-    LinkedType* ref_type_from(ASTAllocator& allocator, std::vector<ChainValue*>& values);
+    LinkedType* ref_type_from(ASTAllocator& allocator, std::vector<Value*>& values);
 
     /**
      * if chain contains a single value, take that.
@@ -521,7 +521,7 @@ public:
      */
     Value* parseAccessChainAfterId(
             ASTAllocator& allocator,
-            std::vector<ChainValue*>& values,
+            std::vector<Value*>& values,
             Position& start,
             bool parseStruct = false,
             bool parseGenList = true
@@ -532,12 +532,12 @@ public:
      * this method is called by lexAccessChain to not compound access chains nested in it
      * @param assChain is the access chain in an assignment
      */
-    Value* parseAccessChainRecursive(ASTAllocator& allocator, std::vector<ChainValue*>& values, Position& start, bool parseStruct = false);
+    Value* parseAccessChainRecursive(ASTAllocator& allocator, std::vector<Value*>& values, Position& start, bool parseStruct = false);
 
     /**
      * parses access chain node
      */
-    void parseAccessChain(ASTAllocator& allocator, std::vector<ChainValue*>& values);
+    void parseAccessChain(ASTAllocator& allocator, std::vector<Value*>& values);
 
     /**
      * parse access chain

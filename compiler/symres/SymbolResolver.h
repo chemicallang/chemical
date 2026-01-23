@@ -31,8 +31,6 @@ class Scope;
 
 class GlobalInterpretScope;
 
-class ChainValue;
-
 class VariableIdentifier;
 
 class CompilerBinder;

@@ -63,9 +63,6 @@ public:
         expected_type = exp_type;
         VisitValueNoNullCheck(value);
     }
-    inline void visit(ChainValue* value) {
-        VisitValueNoNullCheck(value);
-    }
     inline void visit(BaseType*& type_ref) {
         VisitTypeNoNullCheck(type_ref);
     }

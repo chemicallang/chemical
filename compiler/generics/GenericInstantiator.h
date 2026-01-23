@@ -111,9 +111,6 @@ public:
     inline void visit(Value* value) {
         VisitValueNoNullCheck(value);
     }
-    inline void visit(ChainValue* value) {
-        VisitValueNoNullCheck(value);
-    }
     inline void visit(BaseType*& type_ref) {
         type_location = 0;
         GenericInstantiator::make_gen_type_concrete(type_ref);

@@ -70,7 +70,7 @@ public:
         return active_type->llvm_type(gen);
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) final {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final {
         return active_type->llvm_chain_type(gen, values, index);
     }
 

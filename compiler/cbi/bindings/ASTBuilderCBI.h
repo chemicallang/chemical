@@ -83,9 +83,9 @@ extern "C" {
 
     VoidType* ASTBuildermake_void_type(ASTBuilder* builder, uint64_t location);
 
-    AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, chem::span<ChainValue*>* values, uint64_t location);
+    AccessChain* ASTBuildermake_access_chain(ASTBuilder* builder, chem::span<Value*>* values, uint64_t location);
 
-    ASTNode* ASTBuildermake_access_chain_node(ASTBuilder* builder, chem::span<ChainValue*>* values, ASTNode* parent_node, uint64_t location);
+    ASTNode* ASTBuildermake_access_chain_node(ASTBuilder* builder, chem::span<Value*>* values, ASTNode* parent_node, uint64_t location);
 
     ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value, ASTNode* parent_node);
 
@@ -109,11 +109,11 @@ extern "C" {
 
     FloatValue* ASTBuildermake_float_value(ASTBuilder* builder, float value, uint64_t location);
 
-    FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location);
+    FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, Value* parent_val, uint64_t location);
 
-    AccessChainNode* ASTBuildermake_function_call_node(ASTBuilder* builder, ChainValue* parent_val, ASTNode* parent_node, uint64_t location);
+    AccessChainNode* ASTBuildermake_function_call_node(ASTBuilder* builder, Value* parent_val, ASTNode* parent_node, uint64_t location);
 
-    IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, ChainValue* parent_val, uint64_t location);
+    IndexOperator* ASTBuildermake_index_op_value(ASTBuilder* builder, Value* parent_val, uint64_t location);
 
     IntNumValue* ASTBuildermake_int128_value(ASTBuilder* builder, uint64_t mag, bool is_neg, uint64_t location);
 

@@ -47,6 +47,58 @@ func isLineEnd(t : int) : bool {
     return isNewlineToken(t) || isBlockEnd(t);
 }
 
+func isListStart(parser : *mut Parser) : bool {
+    const t = parser.getToken().type;
+    if(isDashToken(t) || isPlusToken(t) || isStarToken(t)) {
+        const next = peek_token(parser);
+        return isTextToken(next.type) && next.value.size() > 0 && next.value.data()[0] == ' ';
+    }
+    return false;
+}
+
+func isOrderedListStart(parser : *mut Parser) : bool {
+    const t = parser.getToken().type;
+    if(isNumberToken(t)) {
+        const next = peek_token(parser);
+        if(isDotToken(next.type)) {
+             const next_next = peek_token_at(parser, 2);
+             return isTextToken(next_next.type) && next_next.value.size() > 0 && next_next.value.data()[0] == ' ';
+        }
+    }
+    return false;
+}
+
+func isBlockStart(parser : *mut Parser) : bool {
+    const t = parser.getToken().type;
+    if(isHashToken(t) || isFencedCodeStartToken(t) || isGreaterThanToken(t) || isPipeToken(t) || isUnderscoreToken(t)) {
+        return true;
+    }
+    if(isListStart(parser)) return true;
+    if(isOrderedListStart(parser)) return true;
+    
+    // Check for HR: *** or ---
+    if(isStarToken(t) || isDashToken(t)) {
+        // Check for 3+
+        var count = 0;
+        var i = 0;
+        while(true) {
+            const tok = peek_token_at(parser, i);
+            if(tok.type == t) {
+                count++;
+                i++;
+            } else if(isTextToken(tok.type) && isWhitespaceOnlyText(tok.value)) {
+                i++;
+            } else if(isNewlineToken(tok.type) || isBlockEnd(tok.type)) {
+                break;
+            } else {
+                return false; 
+            }
+        }
+        return count >= 3;
+    }
+    return false;
+}
+
 func isWhitespaceOnlyText(txt : std::string_view) : bool {
     var i = 0u;
     while(i < txt.size()) {
@@ -115,18 +167,14 @@ func (md : &mut MdParser) parseBlockNode(parser : *mut Parser) : *mut MdNode {
     // Unordered list: - + *
 
     if(isDashToken(t) || isPlusToken(t) || isStarToken(t)) {
-        // If it's *, verify it's not an HR
-        var is_hr = false;
-        if(isStarToken(t) || isDashToken(t)) {
-             if(md.isHorizontalRule(parser)) {
-                 is_hr = true;
-             }
+        if(isListStart(parser)) {
+             return md.parseList(parser, false, 1);
         }
         
-        if(is_hr) {
-            return md.parseHorizontalRule(parser);
-        } else {
-             return md.parseList(parser, false, 1);
+        if(isStarToken(t) || isDashToken(t)) {
+             if(md.isHorizontalRule(parser)) {
+                 return md.parseHorizontalRule(parser);
+             }
         }
     }
     
@@ -138,11 +186,8 @@ func (md : &mut MdParser) parseBlockNode(parser : *mut Parser) : *mut MdNode {
     }
     
     // Ordered list: 1. 2. etc
-    if(isNumberToken(t)) {
-        const next_tok = peek_token(parser).type;
-        if(isDotToken(next_tok)) {
-            return md.parseOrderedList(parser);
-        }
+    if(isOrderedListStart(parser)) {
+        return md.parseOrderedList(parser);
     }
     
     // Table: |
@@ -576,9 +621,7 @@ func (md : &mut MdParser) parseParagraph(parser : *mut Parser) : *mut MdNode {
         if(isNewlineToken(parser.getToken().type)) {
             parser.increment();
             // Check for double newline or block element
-            if(isNewlineToken(parser.getToken().type) || isHashToken(parser.getToken().type) || 
-               isGreaterThanToken(parser.getToken().type) || isPipeToken(parser.getToken().type) ||
-               isFencedCodeStartToken(parser.getToken().type)) {
+            if(isNewlineToken(parser.getToken().type) || isBlockStart(parser)) {
                 break;
             }
             // Single newline - add space
@@ -805,8 +848,15 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
                      // Now expect title
                      if(isTextToken(parser.getToken().type)) {
                          const ttxt = parser.getToken().value;
-                         if(ttxt.size() > 0 && ttxt.data()[0] == '"') {
-                             title = builder.allocate_view(ttxt);
+                         if(ttxt.size() >= 2 && ttxt.data()[0] == '"') {
+                             // Strip quotes if they exist at both ends check
+                             // Lexer probably includes them? Yes usually text token. 
+                             // But wait, if text token is "Title", it has quotes.
+                             if(ttxt.data()[ttxt.size()-1] == '"') {
+                                 title = builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
+                             } else {
+                                 title = builder.allocate_view(ttxt);
+                             }
                              parser.increment();
                          }
                      }
@@ -858,8 +908,12 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
                          parser.increment();
                          if(isTextToken(parser.getToken().type)) {
                              const ttxt = parser.getToken().value;
-                             if(ttxt.size() > 0 && ttxt.data()[0] == '"') {
-                                 title = builder.allocate_view(ttxt);
+                             if(ttxt.size() >= 2 && ttxt.data()[0] == '"') {
+                                 if(ttxt.data()[ttxt.size()-1] == '"') {
+                                     title = builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
+                                 } else {
+                                     title = builder.allocate_view(ttxt);
+                                 }
                                  parser.increment();
                              }
                          }

@@ -69,8 +69,7 @@ void NameMangler::mangle_no_parent(BufferedWriter& stream, ASTNode* node) {
             stream << decl->name_view();
             if (decl->multi_func_index() != 0) {
                 stream << "__cmf_";
-                // TODO remove this to_string wrap
-                stream << std::to_string(decl->multi_func_index());
+                stream << decl->multi_func_index();
             }
             if (decl->generic_instantiation != -1) {
                 stream << "__cfg_";

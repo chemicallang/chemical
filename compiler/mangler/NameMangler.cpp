@@ -357,13 +357,15 @@ void NameMangler::mangle_func_parent(BufferedWriter& stream, FunctionDeclaration
 
 void NameMangler::mangle(BufferedWriter& stream, FunctionDeclaration* decl) {
     if(!decl->is_no_mangle()) {
-        mangle_func_parent(stream, decl);
         if(decl->isExtensionFn()) {
             const auto declParent = decl->params[0]->type->linked_node();
             if(declParent) {
                 mangle_func_parent(stream, decl, declParent);
+                mangle_no_parent(stream, decl);
+                return;
             }
         }
+        mangle_func_parent(stream, decl);
     }
     mangle_no_parent(stream, decl);
 }

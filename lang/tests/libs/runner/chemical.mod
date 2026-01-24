@@ -11,3 +11,4 @@ import test
 import std
 import "../html"
 import "../css"
+import "../js"

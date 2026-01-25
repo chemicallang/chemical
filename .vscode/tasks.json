@@ -16,7 +16,7 @@
             "label": "Build Compiler",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--target", "Compiler", "--parallel", "6"],
+            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "Compiler", "--parallel", "6"],
             "problemMatcher": ["$gcc"],
             "group": {
                 "kind": "build",
@@ -27,7 +27,7 @@
             "label": "Build TCCCompiler",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--target", "TCCCompiler", "--parallel", "6"],
+            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "TCCCompiler", "--parallel", "6"],
             "problemMatcher": ["$gcc"],
             "group": {
                 "kind": "build",
@@ -38,7 +38,7 @@
             "label": "Build Interpreter",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--target", "Interpreter", "--parallel", "6"],
+            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "Interpreter", "--parallel", "6"],
             "problemMatcher": ["$gcc"],
             "group": {
                 "kind": "build",
@@ -49,22 +49,11 @@
             "label": "Build ChemicalLsp",
             "type": "shell",
             "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--target", "ChemicalLsp", "--parallel", "6"],
+            "args": ["--build", "out/build/x64-debug", "--config", "Debug", "--target", "ChemicalLsp", "--parallel", "6"],
             "problemMatcher": ["$gcc"],
             "group": {
                 "kind": "build",
                 "isDefault": false
-            }
-        },
-        {
-            "label": "Build All",
-            "type": "shell",
-            "command": "cmake",
-            "args": ["--build", "out/build/x64-debug", "--parallel", "6"],
-            "problemMatcher": ["$gcc"],
-            "group": {
-                "kind": "build",
-                "isDefault": true
             }
         }
     ]

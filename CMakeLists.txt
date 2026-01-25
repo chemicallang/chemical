@@ -40,6 +40,7 @@ option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets 
 # Debug builds error messages that are more helpful
 # set(CMAKE_BUILD_TYPE "Debug")
 if (CMAKE_BUILD_TYPE MATCHES Debug)
+    message(STATUS "Debug build enabled, Chemical will use project dir '${CMAKE_SOURCE_DIR}' for libraries inside 'lang/libs'")
     add_definitions(-DDEBUG)
     add_compile_definitions(PROJECT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     # Treat missing return as an error

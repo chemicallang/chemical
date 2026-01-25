@@ -25,10 +25,6 @@
             "name": "x64-debug",
             "displayName": "x64 Debug",
             "inherits": "windows-base",
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }
@@ -45,10 +41,6 @@
             "name": "x86-debug",
             "displayName": "x86 Debug",
             "inherits": "windows-base",
-            "architecture": {
-                "value": "x86",
-                "strategy": "external"
-            },
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
             }

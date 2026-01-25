@@ -31,8 +31,8 @@ AtReplaceResult lib_path_resolver(
         // debug executable launched in a folder that contains libs/std
         libPath = libsStd;
     } else {
-        // debug executable launched in a sub folder of this project
-        libPath = resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path);
+        // debug executable launched with working dir = project source dir
+        libPath = resolve_rel_child_path_str(PROJECT_SOURCE_DIR, "lang/" + lib_path);
     }
 #else
     libPath = resolve_rel_parent_path_str(handler.exe_path, lib_path);
@@ -56,8 +56,8 @@ AtReplaceResult lib_path_resolver(
         // debug executable launched in a folder that contains libs/std
         return AtReplaceResult { std::move(libsStd), "" };
     } else {
-        // debug executable launched in a sub folder of this project
-        return AtReplaceResult { resolve_sibling(resolve_parent_path(handler.exe_path), "lang/" + lib_path), "" };
+        // debug executable launched with working dir = project source dir
+        return AtReplaceResult { resolve_rel_child_path_str(PROJECT_SOURCE_DIR, "lang/" + lib_path), "" };
     }
 #else
     auto libPath = resolve_rel_parent_path_str(handler.exe_path, lib_path);

@@ -587,6 +587,12 @@ int compiler_main(int argc, char *argv[]) {
         return 1;
     }
 
+#ifdef DEBUG
+    if(verbose) {
+        std::cout << "source_dir: " << PROJECT_SOURCE_DIR << std::endl;
+    }
+#endif
+
     bool jit = options.has_value("jit", "jit");
     auto& output = options.option_new("output", "o");
     auto& res = options.option_new("resources", "res");

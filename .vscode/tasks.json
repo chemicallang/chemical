@@ -1,0 +1,76 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Configure CMake",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--preset", "x64-debug"],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "Build Compiler",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "out/build/x64-debug", "--target", "Compiler", "--parallel", "6"],
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "dependsOn": ["Configure CMake"]
+        },
+        {
+            "label": "Build TCCCompiler",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "out/build/x64-debug", "--target", "TCCCompiler", "--parallel", "6"],
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "dependsOn": ["Configure CMake"]
+        },
+        {
+            "label": "Build Interpreter",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "out/build/x64-debug", "--target", "Interpreter", "--parallel", "6"],
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "dependsOn": ["Configure CMake"]
+        },
+        {
+            "label": "Build ChemicalLsp",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "out/build/x64-debug", "--target", "ChemicalLsp", "--parallel", "6"],
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "dependsOn": ["Configure CMake"]
+        },
+        {
+            "label": "Build All",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", "out/build/x64-debug", "--parallel", "6"],
+            "problemMatcher": ["$gcc"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": ["Configure CMake"]
+        }
+    ]
+}

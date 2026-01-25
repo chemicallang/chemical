@@ -3,9 +3,9 @@
     "configurations": [
         {
             "name": "Compile Tests",
-            "type": "cppvsdbg",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/out/build/x64-debug/Compiler.exe",
+            "program": "${workspaceFolder}/out/build/x64-debug/Debug/Compiler.exe",
             "args": [
                 "lang/tests/build.lab",
                 "-arg-minimal",
@@ -26,40 +26,10 @@
             "preLaunchTask": "Build Compiler"
         },
         {
-            "name": "Compile Sample",
-            "type": "cppvsdbg",
+            "name": "Compiler Tests TCC",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/out/build/x64-debug/Compiler.exe",
-            "args": [
-                "lang/sample/compiler.ch",
-                "-o",
-                "lang/sample/compiled/compiled.exe"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "console": "externalTerminal",
-            "preLaunchTask": "Build Compiler"
-        },
-        {
-            "name": "Interpreter",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/out/build/x64-debug/Interpreter.exe",
-            "args": [
-                "lang/sample/hello-world.ch"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "console": "externalTerminal",
-            "preLaunchTask": "Build Interpreter"
-        },
-        {
-            "name": "TCC Compiler Tests",
-            "type": "cppvsdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/out/build/x64-debug/TCCCompiler.exe",
+            "program": "${workspaceFolder}/out/build/x64-debug/Debug/TCCCompiler.exe",
             "args": [
                 "lang/tests/build.lab",
                 "-arg-minimal",
@@ -73,9 +43,23 @@
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [
+                {
+                    "name": "PWD",
+                    "value": "${workspaceFolder}"
+                }
+            ],
             "console": "externalTerminal",
-            "preLaunchTask": "Build TCCCompiler"
+            "preLaunchTask": "Build TCCCompiler",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\ProgramData\\mingw64\\mingw64\\bin\\gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
         }
     ]
 }

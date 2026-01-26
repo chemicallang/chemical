@@ -153,6 +153,8 @@ public struct string : Hashable, Eq {
         return self_size == l && strncmp(data(), d, self_size) == 0;
     }
 
+    // TODO: separate implementation
+    // because we want equals to take views only
     @override
     func equals(&self, other : &string) : bool {
         return equals_with_len(other.data(), other.size());

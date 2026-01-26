@@ -2,7 +2,30 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Compile Tests",
+            "name": "Run Tests Fast",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/out/build/x64-debug/Debug/Compiler.exe",
+            "args": [
+                "lang/tests/build.lab",
+                "-arg-minimal",
+                "-v",
+                "-vl",
+                "-bm",
+                "-bm-modules",
+                "--debug-ir",
+                "--mode",
+                "debug_complete",
+                "--assertions",
+                "--no-cache"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "externalTerminal"
+        },
+        {
+            "name": "Run Tests",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/out/build/x64-debug/Debug/Compiler.exe",
@@ -26,7 +49,42 @@
             "preLaunchTask": "Build Compiler"
         },
         {
-            "name": "Compiler Tests TCC",
+            "name": "Run Tests TCC FAST",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/out/build/x64-debug/Debug/TCCCompiler.exe",
+            "args": [
+                "lang/tests/build.lab",
+                "-arg-minimal",
+                "-v",
+                "-vl",
+                "-bm",
+                "--mode",
+                "debug_complete",
+                "--assertions",
+                "--no-cache"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "PWD",
+                    "value": "${workspaceFolder}"
+                }
+            ],
+            "console": "externalTerminal",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\ProgramData\\mingw64\\mingw64\\bin\\gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Run Tests TCC",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/out/build/x64-debug/Debug/TCCCompiler.exe",
@@ -60,6 +118,66 @@
                     "ignoreFailures": true
                 }
             ]
-        }
+        },
+        {
+            "name": "Run Temp TCC",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/out/build/x64-debug/Debug/TCCCompiler.exe",
+            "args": [
+                "lang/compiled/temp.ch",
+                "-o",
+                "lang/compiled/temp.exe",
+                "-v",
+                "-bm",
+                "--mode",
+                "debug_quick",
+                "--assertions",
+                "--no-cache",
+                "--build-dir",
+                "lang/compiled"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "PWD",
+                    "value": "${workspaceFolder}"
+                }
+            ],
+            "console": "externalTerminal",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:\\ProgramData\\mingw64\\mingw64\\bin\\gdb.exe",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Run Temp",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/out/build/x64-debug/Debug/Compiler.exe",
+            "args": [
+                "lang/compiled/temp.ch",
+                "-o",
+                "lang/compiled/temp.exe",
+                "-v",
+                "-bm",
+                "--mode",
+                "debug_quick",
+                "--assertions",
+                "--no-cache",
+                "--build-dir",
+                "lang/compiled"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal"
+        },
     ]
 }

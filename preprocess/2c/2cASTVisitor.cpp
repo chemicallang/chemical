@@ -1333,7 +1333,7 @@ void write_self_arg(ToCAstVisitor& visitor, Value* grandpa, FunctionCall* call, 
             }
         }
     }
-    if(!grandpa->is_pointer() && !is_value_type_pointer_like(grandpa)) {
+    if(!grandpa->is_pointer_or_ref() && !is_value_type_pointer_like(grandpa)) {
         visitor.write('&');
     }
     visitor.visit(grandpa);
@@ -6246,7 +6246,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     indentation_level -= 1;
     nested_value = prev;
     new_line_and_indent();
-    write(" }");
+    write('}');
 }
 
 //void deref_id(ToCAstVisitor& visitor, VariableIdentifier* identifier) {

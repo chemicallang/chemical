@@ -322,7 +322,34 @@ struct container_def_init_82773 {
     var c : contained_def_initialized_7326
 }
 
+struct builder_pattern {
+    var i : int
+    func inc(&mut self) : &mut builder_pattern {
+        i++;
+        return self;
+    }
+    func dec(&mut self) : *mut builder_pattern {
+        i--;
+        return &mut self;
+    }
+}
+
 func test_structs() {
+    test("builder pattern works - 1", () => {
+        var b = builder_pattern { i : 13 }
+        b.inc().dec().inc()
+        return b.i == 14
+    })
+    test("builder pattern works - 2", () => {
+        var b = builder_pattern { i : 13 }
+        b.inc().inc().dec().dec()
+        return b.i == 13
+    })
+    test("builder pattern works - 3", () => {
+        var b = builder_pattern { i : 13 }
+        b.dec().inc().dec()
+        return b.i == 12
+    })
     test_no_type_structs();
     test_structs_aliases();
     test("default values work, when returning from function", () => {

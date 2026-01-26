@@ -1834,9 +1834,6 @@ void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, Funct
     const auto eval_struct_val = eval->as_struct_value();
     if(eval_struct_val) {
         allocate_struct_by_name(visitor, eval_struct_val->linked_extendable(), identifier);
-        // TODO remove this statement once green (identifier is known)
-        // UNLESS comptime can't resolve identifier without it
-        visitor.local_allocated[eval] = identifier.str();
     }
     process_init_value(eval, identifier);
 }

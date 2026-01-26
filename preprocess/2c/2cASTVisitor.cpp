@@ -1822,11 +1822,10 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
     }
 
     visitor.indentation_level -= 1;
+    visitor.nested_value = prev_nested;
 
     visitor.new_line_and_indent();
-
-    visitor.nested_value = prev_nested;
-    visitor.write(" }");
+    visitor.write('}');
 
 }
 

@@ -127,7 +127,7 @@
             "args": [
                 "lang/compiled/temp.ch",
                 "-o",
-                "lang/compiled/temp.exe",
+                "lang/compiled/temp.c",
                 "-v",
                 "-bm",
                 "--mode",

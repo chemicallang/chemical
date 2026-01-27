@@ -9,21 +9,13 @@ public struct UnitTy {}
 // TODO: top level struct values in constants not yet supported
 // public comptime const Unit = UnitTy {}
 
-// TODO: not yet supported to be inside namespace fs
-public comptime const PATH_MAX_BUF = 4096;     // max path buffer for POSIX-style
-public comptime const WIN_MAX_PATH = 32768;    // wide path limit for Windows (extended)
-public comptime const SMALL_STACK_BUF = 4096;  // general-purpose stack buffer
-public comptime const COPY_CHUNK = 64 * 1024;  // 64 KB copy chunk
-
 public namespace fs {
 
-// ----------------------
-// Configuration constants
-// ----------------------
 public comptime const PATH_MAX_BUF = 4096;
 public comptime const WIN_MAX_PATH = 32768;
 public comptime const COPY_CHUNK = 64 * 1024; // 64 KiB
 public comptime const DIR_ENT_NAME_MAX = 256;
 public comptime const TEMP_NAME_MAX = 64;
+public comptime const SMALL_STACK_BUF = 4096;  // general-purpose stack buffer
 
 } // end namespace fs

@@ -1712,7 +1712,7 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
 }
 
 
-func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
     var opts : OpenOptions; opts.read = true; opts.write = false; opts.create = false; opts.truncate = false; opts.append = false;
     var fo = file_open(path, opts);
     if(fo is Result.Err) {

@@ -25,6 +25,80 @@ import module_name  // Import other modules
 
 **Important**: No import statements are required at the top of `.ch` files. Any `.ch` file can access anything in the current module and from any modules imported in `chemical.mod`. Import statements are only valid in `build.lab` or `chemical.mod` files.
 
+### Namespaces
+
+Chemical supports C++-style namespaces for organizing types and functions and for avoiding name collisions.
+
+#### Declaring a namespace
+```chemical
+namespace cool {
+    struct Pair2 {
+        var a : int
+        var b : int
+    }
+
+    func pair2_sum(p : *Pair2) : int {
+        return p.a + p.b;
+    }
+}
+```
+
+#### Qualified access with `::`
+Use `namespace_name::identifier` to refer to types/functions inside a namespace from outside that namespace.
+
+```chemical
+var p : cool::Pair2
+var x = cool::pair2_sum(&p)
+```
+
+#### Extending (re-opening) a namespace
+The same namespace can appear multiple times in the same file; later blocks extend the namespace and can use earlier declarations.
+
+```chemical
+namespace cool {
+    func pair2_mul(p : *Pair2) : int {
+        return p.a * p.b;
+    }
+}
+```
+
+#### Unqualified use from inside the same namespace
+Within a `namespace X { ... }` block, names inside `X` can be referenced without `X::`.
+
+```chemical
+namespace cool {
+    func pair2_sum_call(p : *Pair2) : int {
+        return pair2_sum(p);
+    }
+}
+```
+
+#### `using` declarations
+
+Bring a single symbol into the current scope:
+```chemical
+using closed_bro::bring_me_in;
+
+func demo() : int {
+    return bring_me_in();
+}
+```
+
+Bring all symbols from a namespace into the current scope:
+```chemical
+using namespace all_closed;
+
+func demo2() : int {
+    return check_im_closed();
+}
+```
+
+#### Practical guidance (especially for codegen and edits)
+- **Prefer qualification**: Use `X::name` in generated code when possible; it reduces ambiguity and avoids name collisions.
+- **Use `using` sparingly**: `using namespace X;` is convenient, but it can hide where a symbol comes from and can create conflicts if multiple namespaces define the same identifier.
+- **Be consistent when editing**: A typo in the namespace name (e.g. `cool` vs `coool`) silently creates a different namespace and breaks lookups.
+- **Type aliases in namespaces**: Type aliases can live in a namespace and are referenced with `::` the same way as types.
+
 ```chemical
 // Mutable variables
 var name : type = value

@@ -243,24 +243,8 @@ public type WIN32_FIND_DATAW = _WIN32_FIND_DATAW
 public type PWIN32_FIND_DATAW = *mut _WIN32_FIND_DATAW
 public type LPWIN32_FIND_DATAW = *mut _WIN32_FIND_DATAW
 
-@dllimport
-@stdcall
-@extern
-public func FindFirstFileW(
-     lpFileName : LPCWSTR,
-     lpFindFileData : LPWIN32_FIND_DATAW
-) : HANDLE
-
 comptime const LOCKFILE_FAIL_IMMEDIATELY =  0x00000001
 comptime const LOCKFILE_EXCLUSIVE_LOCK =     0x00000002
-
-@stdcall
-@dllimport
-@extern
-public func FindNextFileW(
-    hFindFile : HANDLE,
-    lpFindFileData : LPWIN32_FIND_DATAW
-) : BOOL
 
 @stdcall
 @dllimport
@@ -339,5 +323,34 @@ comptime const FILE_FLAG_SESSION_AWARE =         0x00800000
 comptime const FILE_FLAG_OPEN_REPARSE_POINT =    0x00200000
 comptime const FILE_FLAG_OPEN_NO_RECALL =        0x00100000
 comptime const FILE_FLAG_FIRST_PIPE_INSTANCE =   0x00080000
+
+
+public struct FILETIME {
+    var dwLowDateTime: DWORD;
+    var dwHighDateTime: DWORD;
+}
+
+public struct WIN32_FIND_DATAW {
+    var dwFileAttributes: DWORD;
+    var ftCreationTime: FILETIME;
+    var ftLastAccessTime: FILETIME;
+    var ftLastWriteTime: FILETIME;
+    var nFileSizeHigh: DWORD;
+    var nFileSizeLow: DWORD;
+    var dwReserved0: DWORD;
+    var dwReserved1: DWORD;
+    var cFileName: [WIN_MAX_PATH]u16;
+    var cAlternateFileName: [14]u16;
+}
+
+@extern @dllimport @stdcall public func FindFirstFileW(pattern : LPCWSTR, out : *mut WIN32_FIND_DATAW) : HANDLE;
+@extern @dllimport @stdcall public func FindNextFileW(h : HANDLE, out : *mut WIN32_FIND_DATAW) : BOOL;
+@extern @dllimport @stdcall public func FindClose(h : HANDLE) : BOOL;
+@extern @dllimport @stdcall public func DeleteFileW(path : LPCWSTR) : BOOL;
+@extern @dllimport @stdcall public func RemoveDirectoryW(path : LPCWSTR) : BOOL;
+
+const INVALID_HANDLE_VALUE : HANDLE = -1 as HANDLE;
+const CP_UTF8 = 65001u32;
+
 
 }

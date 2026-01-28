@@ -61,7 +61,8 @@ public enum MdNodeKind {
     DefinitionTerm,
     DefinitionData,
     Abbreviation,
-    CustomContainer
+    CustomContainer,
+    TaskCheckbox
 }
 
 public struct MdNode {
@@ -167,6 +168,11 @@ public struct MdList {
 public struct MdListItem {
     var base : MdNode
     var children : std::vector<*mut MdNode>
+}
+
+public struct MdTaskCheckbox {
+    var base : MdNode
+    var checked : bool
 }
 
 public enum MdTableAlign {

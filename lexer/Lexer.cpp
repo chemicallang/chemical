@@ -522,24 +522,6 @@ const char* read_multi_line_string(SourceProvider& provider) {
                 }
                 break;
             }
-            case '\\':
-                if (provider.increment('x')) {
-                    consume_hex_digits(provider);
-                } else if (provider.increment('u')) {
-                    if (provider.increment('{')) {
-                        while (!provider.eof() && provider.peek() != '}') {
-                            provider.increment();
-                        }
-                        provider.increment('}');
-                    } else {
-                        for (int i = 0; i < 4 && !provider.eof(); i++) {
-                            provider.increment();
-                        }
-                    }
-                } else {
-                    provider.readCharacter();
-                }
-                break;
             case '\0':
                 // no need to report an error if '\0', since next time unexpected token will be given
                 return provider.current_data();

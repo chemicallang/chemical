@@ -9,6 +9,67 @@ struct JsConverter {
     var t_counter : int = 0
 }
 
+func (converter : &mut JsConverter) append_hex(val : uint) {
+    const hex = "0123456789ABCDEF"
+    if (val == 0) {
+        converter.str.append('0');
+        return;
+    }
+    var buf : [16]char;
+    var bi = 0;
+    while(val > 0) {
+        buf[bi++] = hex[val & 0xF]
+        val >>= 4;
+    }
+    while(bi > 0) {
+        converter.str.append(buf[--bi])
+    }
+}
+
+func (converter : &mut JsConverter) escapeJs(text : std::string_view) {
+    var i = 0u;
+    var str = &mut converter.str
+    while(i < text.size()) {
+        const c1 = (text.data()[i] as uint) & 0xFF;
+        if (c1 < 0x80) {
+            str.append(c1 as char);
+            i++;
+        } else if ((c1 & 0xE0) == 0xC0) {
+            if (i + 1 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const codepoint = ((c1 & (0x1F as uint)) << 6u) | (c2 & (0x3F as uint));
+                str.append_view("\\u{");
+                converter.append_hex(codepoint);
+                str.append('}');
+                i += 2;
+            } else { i++; }
+        } else if ((c1 & 0xF0) == 0xE0) {
+            if (i + 2 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const codepoint = ((c1 & (0x0F as uint)) << 12u) | ((c2 & (0x3F as uint)) << 6u) | (c3 & (0x3F as uint));
+                str.append_view("\\u{");
+                converter.append_hex(codepoint);
+                str.append('}');
+                i += 3;
+            } else { i++; }
+        } else if ((c1 & 0xF8) == 0xF0) {
+            if (i + 3 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const c4 = (text.data()[i+3] as uint) & 0xFF;
+                const codepoint = ((c1 & (0x07 as uint)) << 18u) | ((c2 & (0x3F as uint)) << 12u) | ((c3 & (0x3F as uint)) << 6u) | (c4 & (0x3F as uint));
+                str.append_view("\\u{");
+                converter.append_hex(codepoint);
+                str.append('}');
+                i += 4;
+            } else { i++; }
+        } else {
+            i++;
+        }
+    }
+}
+
 func (converter : &mut JsConverter) next_t() : std::string {
     converter.t_counter++
     var res = std::string()
@@ -191,7 +252,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         }
         JsNodeKind.Literal => {
             var literal = node as *mut JsLiteral
-            converter.str.append_view(literal.value)
+            const val = literal.value
+            if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
+                converter.str.append(val.get(0));
+                converter.escapeJs(std::string_view(val.data() + 1, val.size() - 2));
+                converter.str.append(val.get(0));
+            } else {
+                converter.str.append_view(val)
+            }
         }
         JsNodeKind.Identifier => {
             var id = node as *mut JsIdentifier

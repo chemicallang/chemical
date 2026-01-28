@@ -37,6 +37,17 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
             return;
         }
+        TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue => {
+            parser.increment();
+            const val = std::string_view(token.value.data() + 1, token.value.size() - 2);
+            var str_data = builder.allocate<CSSStringValueData>();
+            new (str_data) CSSStringValueData {
+                value : builder.allocate_view(val)
+            }
+            value.kind = CSSValueKind.String;
+            value.data = str_data;
+            return;
+        }
         default => {
             parser.error("unknown value token with data");
         }
@@ -100,6 +111,14 @@ func (cssParser : &mut CSSParser) parseValue(
 
     }
 
+}
+
+func (cssParser : &mut CSSParser) parseContent(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    cssParser.parseRandomValue(parser, builder, value);
 }
 
 func (cssParser : &mut CSSParser) parseDeclaration(parser : *mut Parser, builder : *mut ASTBuilder) : *mut CSSDeclaration {

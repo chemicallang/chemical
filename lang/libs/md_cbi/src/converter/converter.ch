@@ -80,15 +80,50 @@ func (converter : &mut MdConverter) put_wrapped_chemical_value_in(value : *mut V
 func (converter : &mut MdConverter) escapeHtml(text : std::string_view) {
     var i = 0u;
     while(i < text.size()) {
-        const c = text.data()[i];
-        switch(c) {
-            '<' => { converter.str.append_view("&lt;"); }
-            '>' => { converter.str.append_view("&gt;"); }
-            '&' => { converter.str.append_view("&amp;"); }
-            '"' => { converter.str.append_view("&quot;"); }
-            default => { converter.str.append(c); }
+        const c1 = (text.data()[i] as uint) & 0xFF;
+        if (c1 < 0x80) {
+            const c = c1 as char;
+            switch(c) {
+                '<' => { converter.str.append_view("&lt;"); }
+                '>' => { converter.str.append_view("&gt;"); }
+                '&' => { converter.str.append_view("&amp;"); }
+                '"' => { converter.str.append_view("&quot;"); }
+                default => { converter.str.append(c); }
+            }
+            i++;
+        } else if ((c1 & 0xE0) == 0xC0) {
+            if (i + 1 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x1F) << 6) | (c2 & 0x3F);
+                converter.str.append_view("&#");
+                converter.str.append_integer(codepoint as bigint);
+                converter.str.append(';');
+                i += 2;
+            } else { i++; }
+        } else if ((c1 & 0xF0) == 0xE0) {
+            if (i + 2 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                converter.str.append_view("&#");
+                converter.str.append_integer(codepoint as bigint);
+                converter.str.append(';');
+                i += 3;
+            } else { i++; }
+        } else if ((c1 & 0xF8) == 0xF0) {
+            if (i + 3 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const c4 = (text.data()[i+3] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x07) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                converter.str.append_view("&#");
+                converter.str.append_integer(codepoint as bigint);
+                converter.str.append(';');
+                i += 4;
+            } else { i++; }
+        } else {
+            i++;
         }
-        i++;
     }
 }
 
@@ -158,7 +193,7 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.str.append_view("\"");
             if(link.title.size() > 0) {
                 converter.str.append_view(" title=\"");
-                converter.str.append_view(link.title);
+                converter.escapeHtml(link.title);
                 converter.str.append_view("\"");
             }
             converter.str.append_view(">");
@@ -178,11 +213,11 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.str.append_view("<img class=\"md-img\" src=\"");
             converter.str.append_view(img.url);
             converter.str.append_view("\" alt=\"");
-            converter.str.append_view(img.alt);
+            converter.escapeHtml(img.alt);
             converter.str.append_view("\"");
             if(img.title.size() > 0) {
                 converter.str.append_view(" title=\"");
-                converter.str.append_view(img.title);
+                converter.escapeHtml(img.title);
                 converter.str.append_view("\"");
             }
             converter.str.append_view("/>");
@@ -299,7 +334,7 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
         }
         MdNodeKind.Text => {
             var text = node as *mut MdText;
-            converter.str.append_view(text.value);
+            converter.escapeHtml(text.value);
         }
         MdNodeKind.Interpolation => {
             var interp = node as *mut MdInterpolation;
@@ -337,7 +372,7 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.str.append_view("\"><a href=\"#fn:");
             converter.str.append_view(fn.id);
             converter.str.append_view("\">");
-            converter.str.append_view(fn.id);
+            converter.escapeHtml(fn.id);
             converter.str.append_view("</a></sup>");
         }
         MdNodeKind.FootnoteDef => {
@@ -371,9 +406,9 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
         MdNodeKind.Abbreviation => {
             var abb = node as *mut MdAbbreviation;
             converter.str.append_view("<abbr title=\"");
-            converter.str.append_view(abb.title);
+            converter.escapeHtml(abb.title);
             converter.str.append_view("\">");
-            converter.str.append_view(abb.id);
+            converter.escapeHtml(abb.id);
             converter.str.append_view("</abbr>");
         }
         MdNodeKind.CustomContainer => {

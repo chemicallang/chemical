@@ -1540,27 +1540,44 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
 
 func (md : &mut MdParser) parseInlineCode(parser : *mut Parser) : *mut MdNode {
     var builder = md.builder;
-    parser.increment(); // consume `
-    
-    var value = std::string_view("");
-    if(isTextToken(parser.getToken().type)) {
-        value = md.builder.allocate_view(parser.getToken().value);
+    const delim = parser.getToken().value;
+    const delim_size = delim.size();
+    parser.increment(); // consume opening backtick(s)
+
+    var content = std::string();
+
+    while(!isLineEnd(parser.getToken().type)) {
+        const t = parser.getToken();
+        if(t.type == MdTokenType.Backtick as int && t.value.size() == delim_size) {
+            // Verify delimiter matches exactly (same number of backticks)
+            var match = true;
+            var i = 0u;
+            while(i < delim_size) {
+                if(t.value.data()[i] != delim.data()[i]) { match = false; break; }
+                i++;
+            }
+            if(match) {
+                parser.increment(); // consume closing delimiter
+                const value = md.builder.allocate_view(content.to_view());
+                var code = builder.allocate<MdInlineCode>();
+                new (code) MdInlineCode {
+                    base : MdNode { kind : MdNodeKind.InlineCode },
+                    value : value
+                }
+                return code as *mut MdNode;
+            }
+        }
+
+        // Accumulate token value verbatim
+        content.append_view(t.value);
         parser.increment();
     }
-    
-    if(parser.increment_if(MdTokenType.Backtick as int)) {
-        var code = builder.allocate<MdInlineCode>()
-        new (code) MdInlineCode {
-            base : MdNode { kind : MdNodeKind.InlineCode },
-            value : value
-        }
-        return code as *mut MdNode;
-    }
-    
-    var text = builder.allocate<MdText>()
+
+    // No closing delimiter found: treat the opening delimiter as literal text
+    var text = builder.allocate<MdText>();
     new (text) MdText {
         base : MdNode { kind : MdNodeKind.Text },
-        value : std::string_view("`")
+        value : delim
     }
     return text as *mut MdNode;
 }

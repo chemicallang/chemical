@@ -419,6 +419,14 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.convertChildren(cc.children);
             converter.str.append_view("</div>\n");
         }
+        MdNodeKind.TaskCheckbox => {
+            var cb = node as *mut MdTaskCheckbox;
+            converter.str.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled");
+            if(cb.checked) {
+                converter.str.append_view(" checked");
+            }
+            converter.str.append_view("/>");
+        }
     }
 }
 

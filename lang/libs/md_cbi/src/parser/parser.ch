@@ -198,6 +198,50 @@ func isWhitespaceOnlyText(txt : std::string_view) : bool {
     return true;
 }
 
+func consumeSingleLeadingSpace(parser : *mut Parser) {
+    if(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value) && parser.getToken().value.size() > 0) {
+        // In practice the lexer usually tokenizes the single space after list marker as its own token.
+        // We only consume whitespace-only text tokens here.
+        parser.increment();
+    }
+}
+
+func (md : &mut MdParser) tryParseTaskCheckbox(parser : *mut Parser) : *mut MdNode {
+    // GitHub-style task list marker: [ ] or [x] immediately after the list marker and a space.
+    // Expected token sequence at start of a list item:
+    //   Text(" ")?  LBracket  Text("x"|"X"|" ")  RBracket  Text(" ")? 
+    // The second space is optional in CommonMark, but is typical; we accept whitespace-only text.
+    consumeSingleLeadingSpace(parser);
+
+    if(!isLBracketToken(parser.getToken().type)) return null;
+
+    const mid = peek_token(parser);
+    const endb = peek_token_at(parser, 2);
+    if(!isTextToken(mid.type) || mid.value.size() == 0) return null;
+    if(!isRBracketToken(endb.type)) return null;
+
+    // Only accept a single-character marker in the middle.
+    if(mid.value.size() != 1) return null;
+    const c = mid.value.data()[0];
+    if(c != 'x' && c != 'X' && c != ' ') return null;
+
+    // Consume [ <c> ]
+    parser.increment(); // [
+    parser.increment(); // mid text
+    parser.increment(); // ]
+
+    // Optional whitespace after closing bracket
+    consumeSingleLeadingSpace(parser);
+
+    var builder = md.builder;
+    var cb = builder.allocate<MdTaskCheckbox>();
+    new (cb) MdTaskCheckbox {
+        base : MdNode { kind : MdNodeKind.TaskCheckbox },
+        checked : (c == 'x' || c == 'X')
+    };
+    return cb as *mut MdNode;
+}
+
 public func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut MdRoot {
     var root = builder.allocate<MdRoot>()
     new (root) MdRoot {
@@ -305,7 +349,17 @@ func (md : &mut MdParser) parseBlockNode(parser : *mut Parser) : *mut MdNode {
     // Abbreviation: *[id]:
     if(isStarToken(t)) {
         if(isLBracketToken(peek_token(parser).type)) {
-            return md.parseAbbreviation(parser);
+             var i = 2;
+            while(true) {
+                const tok = peek_token_at(parser, i);
+                if(isRBracketToken(tok.type)) {
+                    const next2 = peek_token_at(parser, i + 1);
+                    if(isColonToken(next2.type)) return md.parseAbbreviation(parser);
+                    break;
+                }
+                if(isLineEnd(tok.type)) break;
+                i++;
+            }
         }
     }
     
@@ -515,6 +569,12 @@ func (md : &mut MdParser) parseList(parser : *mut Parser, ordered : bool, start 
             children : std::vector<*mut MdNode>()
         }
         
+        // Task list checkbox support: - [ ] / - [x]
+        var cb = md.tryParseTaskCheckbox(parser);
+        if(cb != null) {
+            item.children.push(cb);
+        }
+        
         while(!isLineEnd(parser.getToken().type)) {
             var node = md.parseInlineNode(parser);
             if(node != null) item.children.push(node);
@@ -530,6 +590,16 @@ func (md : &mut MdParser) parseList(parser : *mut Parser, ordered : bool, start 
             if(isTextToken(t.type)) {
                 const val = t.value;
                 if(val.size() >= 2 && val.data()[0] == ' ' && val.data()[1] == ' ') {
+                    if(isWhitespaceOnlyText(val)) {
+                        parser.increment();
+                        skipWhitespace(parser);
+                        if(isBlockStart(parser)) {
+                            var sub_block = md.parseBlockNode(parser);
+                            if(sub_block != null) item.children.push(sub_block);
+                            continue;
+                        }
+                        continue;
+                    }
                     // Reset if it's just whitespace line? No, skipWhitespace handles that later.
                     // If it's indented, it could be a sub-block
                     if(isListStart(parser) || isOrderedListStart(parser) || isBlockStart(parser)) {
@@ -580,31 +650,32 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
         children : std::vector<*mut MdNode>()
     }
     
-    while(isNumberToken(parser.getToken().type)) {
-        // Check sequences: Number -> Dot -> Space
-        const next = peek_token(parser);
-        if(!isDotToken(next.type)) {
-            break;
-        }
-        
-        parser.increment(); // consume number
-        parser.increment(); // consume .
-        
-        // Skip space
-        if(isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
-            // Will handle in inline
-        }
-        
-        var item = builder.allocate<MdListItem>()
-        new (item) MdListItem {
-            base : MdNode { kind : MdNodeKind.ListItem },
-            children : std::vector<*mut MdNode>()
-        }
-        
-        while(!isLineEnd(parser.getToken().type)) {
-            var node = md.parseInlineNode(parser);
-            if(node != null) item.children.push(node);
-        }
+     while(isNumberToken(parser.getToken().type)) {
+         // Check sequences: Number -> Dot -> Space
+         const next = peek_token(parser);
+         if(!isDotToken(next.type)) {
+             break;
+         }
+         
+         parser.increment(); // consume number
+         parser.increment(); // consume .
+         
+         var item = builder.allocate<MdListItem>()
+         new (item) MdListItem {
+             base : MdNode { kind : MdNodeKind.ListItem },
+             children : std::vector<*mut MdNode>()
+         }
+
+         // Task list checkbox support: 1. [ ] / 1. [x]
+         var cb = md.tryParseTaskCheckbox(parser);
+         if(cb != null) {
+             item.children.push(cb);
+         }
+         
+         while(!isLineEnd(parser.getToken().type)) {
+             var node = md.parseInlineNode(parser);
+             if(node != null) item.children.push(node);
+         }
         
         if(isNewlineToken(parser.getToken().type)) {
             parser.increment();
@@ -616,6 +687,16 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
             if(isTextToken(t.type)) {
                 const val = t.value;
                 if(val.size() >= 2 && val.data()[0] == ' ' && val.data()[1] == ' ') {
+                    if(isWhitespaceOnlyText(val)) {
+                        parser.increment();
+                        skipWhitespace(parser);
+                        if(isBlockStart(parser)) {
+                            var sub_block = md.parseBlockNode(parser);
+                            if(sub_block != null) item.children.push(sub_block);
+                            continue;
+                        }
+                        continue;
+                    }
                     if(isListStart(parser) || isOrderedListStart(parser) || isBlockStart(parser)) {
                          var sub_block = md.parseBlockNode(parser);
                          if(sub_block != null) item.children.push(sub_block);

@@ -41,7 +41,11 @@ struct CSSLengthValueData {
     func make() {
         kind = CSSLengthKind.Unknown
     }
+}
 
+@direct_init
+struct CSSStringValueData {
+    var value : std::string_view
 }
 
 struct SingleLengthFuncCall {

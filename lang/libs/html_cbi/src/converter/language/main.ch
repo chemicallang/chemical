@@ -146,6 +146,58 @@ func generate_random_32bit() : uint32_t {
     return (rand() as uint32_t << 16) | rand() as uint32_t;
 }
 
+func (converter : &mut ASTConverter) escapeHtml(text : std::string_view) {
+    var i = 0u;
+    var str = &mut converter.str
+    while(i < text.size()) {
+        const c1 = (text.data()[i] as uint) & 0xFF;
+        if (c1 < 0x80) {
+            const c = c1 as char;
+            switch(c) {
+                '&' => str.append_view("&amp;")
+                '<' => str.append_view("&lt;")
+                '>' => str.append_view("&gt;")
+                '"' => str.append_view("&quot;")
+                '\'' => str.append_view("&#39;")
+                default => str.append(c)
+            }
+            i++;
+        } else if ((c1 & 0xE0) == 0xC0) {
+            if (i + 1 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x1F) << 6) | (c2 & 0x3F);
+                str.append_view("&#");
+                str.append_uinteger(codepoint as ubigint);
+                str.append(';');
+                i += 2;
+            } else { i++; }
+        } else if ((c1 & 0xF0) == 0xE0) {
+            if (i + 2 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                str.append_view("&#");
+                str.append_uinteger(codepoint as ubigint);
+                str.append(';');
+                i += 3;
+            } else { i++; }
+        } else if ((c1 & 0xF8) == 0xF0) {
+            if (i + 3 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & 0xFF;
+                const c3 = (text.data()[i+2] as uint) & 0xFF;
+                const c4 = (text.data()[i+3] as uint) & 0xFF;
+                const codepoint = ((c1 & 0x07) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                str.append_view("&#");
+                str.append_uinteger(codepoint as ubigint);
+                str.append(';');
+                i += 4;
+            } else { i++; }
+        } else {
+            i++;
+        }
+    }
+}
+
 func fnv1a_hash_32(view : std::string_view) : uint32_t {
     var hash = 2166136261u;
     for (var i = 0u; i < view.size(); i++) {
@@ -386,7 +438,9 @@ func (converter : &mut ASTConverter) convertHtmlAttribute(attr : *mut HtmlAttrib
         switch(attr.value.kind) {
             AttributeValueKind.Text, AttributeValueKind.Number => {
                 const value = attr.value as *mut TextAttributeValue
-                str.append_view(value.text)
+                str.append('\"')
+                converter.escapeHtml(std::string_view(value.text.data() + 1, value.text.size() - 2))
+                str.append('\"')
             }
             AttributeValueKind.Chemical => {
                 str.append('"');
@@ -552,7 +606,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
     switch(child.kind) {
         HtmlChildKind.Text => {
             var text = child as *mut HtmlText
-            str.append_view(text.value);
+            converter.escapeHtml(text.value);
         }
         HtmlChildKind.Element => {
             var element = child as *mut HtmlElement

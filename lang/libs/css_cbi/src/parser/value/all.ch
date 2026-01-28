@@ -32,6 +32,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("font-size"), CSSParser::parseFontSize)
     map.put(std::string_view("text-align"), CSSParser::parseTextAlign)
     map.put(std::string_view("display"), CSSParser::parseDisplay)
+    map.put(std::string_view("content"), CSSParser::parseContent)
     map.put(std::string_view("box-shadow"), CSSParser::parseBoxShadow)
     map.put(std::string_view("text-shadow"), CSSParser::parseTextShadow)
     map.put(std::string_view("transition"), CSSParser::parseTransition)

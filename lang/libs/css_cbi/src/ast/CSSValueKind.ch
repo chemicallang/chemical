@@ -32,6 +32,7 @@ enum CSSValueKind {
     Outline,
     Grid,
     Calc,
+    String,
 
 
 }

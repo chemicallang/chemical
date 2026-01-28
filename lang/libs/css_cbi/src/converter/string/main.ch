@@ -1163,6 +1163,72 @@ func (converter : &mut ASTConverter) writeBackdropFilterValueData(ptr : &mut CSS
     }
 }
 
+func (converter : &mut ASTConverter) append_hex(val : uint) {
+    var str = converter.str_ref()
+    const hex = "0123456789ABCDEF"
+    if (val == 0) {
+        str.append('0');
+        return;
+    }
+    var buf : [16]char;
+    var bi = 0;
+    while(val > 0) {
+        buf[bi++] = hex[val & 0xF]
+        val >>= 4;
+    }
+    while(bi > 0) {
+        str.append(buf[--bi])
+    }
+}
+
+func (converter : &mut ASTConverter) writeCssString(text : std::string_view) {
+    var i = 0u;
+    var str = converter.str_ref()
+    while(i < text.size()) {
+        const c1 = (text.data()[i] as uint) & 0xFF;
+        if (c1 < 0x80) {
+            const c = c1 as char;
+            if (c == '\'' || c == '\\') {
+                str.append('\\');
+            }
+            str.append(c);
+            i++;
+        } else if ((c1 & 0xE0) == 0xC0) {
+            if (i + 1 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
+                const codepoint = ((c1 & (0x1F as uint)) << 6u) | (c2 & (0x3F as uint));
+                str.append('\\');
+                converter.append_hex(codepoint);
+                str.append(' ');
+                i += 2;
+            } else { i++; }
+        } else if ((c1 & 0xF0) == 0xE0) {
+            if (i + 2 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
+                const c3 = (text.data()[i+2] as uint) & (0xFF as uint);
+                const codepoint = ((c1 & (0x0F as uint)) << 12u) | ((c2 & (0x3F as uint)) << 6u) | (c3 & (0x3F as uint));
+                str.append('\\');
+                converter.append_hex(codepoint);
+                str.append(' ');
+                i += 3;
+            } else { i++; }
+        } else if ((c1 & 0xF8) == 0xF0) {
+            if (i + 3 < text.size()) {
+                const c2 = (text.data()[i+1] as uint) & (0xFF as uint);
+                const c3 = (text.data()[i+2] as uint) & (0xFF as uint);
+                const c4 = (text.data()[i+3] as uint) & (0xFF as uint);
+                const codepoint = ((c1 & (0x07 as uint)) << 18u) | ((c2 & (0x3F as uint)) << 12u) | ((c3 & (0x3F as uint)) << 6u) | (c4 & (0x3F as uint));
+                str.append('\\');
+                converter.append_hex(codepoint);
+                str.append(' ');
+                i += 4;
+            } else { i++; }
+        } else {
+            i++;
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
 
     // make this a reference
@@ -1398,6 +1464,13 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             const ptr = value.data as *mut Value
             converter.put_by_type(ptr.getType(), ptr)
 
+        }
+
+        CSSValueKind.String => {
+            const ptr = value.data as *mut CSSStringValueData
+            str.append('\'')
+            converter.writeCssString(ptr.value)
+            str.append('\'')
         }
 
         CSSValueKind.Unknown => {

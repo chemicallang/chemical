@@ -61,6 +61,24 @@ static inline int hex_digit_to_int(char c) {
     return -1;
 }
 
+static inline void append_utf8(BufferedWriter& str, uint32_t cp) {
+    if (cp < 0x80) {
+        str.append_char(static_cast<char>(cp));
+    } else if (cp < 0x800) {
+        str.append_char(static_cast<char>(0xC0 | (cp >> 6)));
+        str.append_char(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else if (cp < 0x10000) {
+        str.append_char(static_cast<char>(0xE0 | (cp >> 12)));
+        str.append_char(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        str.append_char(static_cast<char>(0x80 | (cp & 0x3F)));
+    } else {
+        str.append_char(static_cast<char>(0xF0 | (cp >> 18)));
+        str.append_char(static_cast<char>(0x80 | ((cp >> 12) & 0x3F)));
+        str.append_char(static_cast<char>(0x80 | ((cp >> 6) & 0x3F)));
+        str.append_char(static_cast<char>(0x80 | (cp & 0x3F)));
+    }
+}
+
 bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchString<128>& str) {
 
     // load the current character
@@ -70,12 +88,7 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchStr
     // set next to current character
     *currentPtrPtr = currentPtr + 1;
 
-    if(current != 'x') {
-        const auto next = escaped_char(current);
-        str.append_char(next);
-        return next != current || is_escaped_self(next);
-    } else {
-
+    if(current == 'x') {
         // load next
         auto nextPtr = currentPtr + 1;
         if(nextPtr == end) return false;
@@ -98,6 +111,41 @@ bool read_escapable_char(const char** currentPtrPtr, const char* end, ScratchStr
             str.append_char(current);
             return false;
         }
+    } else if (current == 'u') {
+        auto nextPtr = currentPtr + 1;
+        if (nextPtr == end) return false;
+        if (*nextPtr == '{') {
+            nextPtr++;
+            uint32_t codepoint = 0;
+            bool found = false;
+            while (nextPtr != end && *nextPtr != '}') {
+                int h = hex_digit_to_int(*nextPtr);
+                if (h == -1) break;
+                codepoint = (codepoint << 4) | h;
+                nextPtr++;
+                found = true;
+            }
+            if (!found || nextPtr == end || *nextPtr != '}') return false;
+            append_utf8(str, codepoint);
+            *currentPtrPtr = nextPtr + 1;
+            return true;
+        } else {
+            uint32_t codepoint = 0;
+            for (int i = 0; i < 4; i++) {
+                if (nextPtr == end) return false;
+                int h = hex_digit_to_int(*nextPtr);
+                if (h == -1) return false;
+                codepoint = (codepoint << 4) | h;
+                nextPtr++;
+            }
+            append_utf8(str, codepoint);
+            *currentPtrPtr = nextPtr;
+            return true;
+        }
+    } else {
+        const auto next = escaped_char(current);
+        str.append_char(next);
+        return next != current || is_escaped_self(next);
     }
 }
 
@@ -153,7 +201,7 @@ void parseStringExpr(Parser& parser, ASTAllocator& allocator, ExpressiveString* 
                 // skipping the first r-brace
                 chem::string_view view(t.value.data() + 1, t.value.size() - 1);
                 str->values.emplace_back(
-                        new(allocator.allocate<StringValue>()) StringValue(parser.allocate_view(allocator, view), parser.typeBuilder.getStringType(), parser.loc_single(t))
+                        new(allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, parser, view), parser.typeBuilder.getStringType(), parser.loc_single(t))
                 );
             }
         } else {
@@ -168,7 +216,7 @@ ExpressiveString* Parser::parseExpressiveString(ASTAllocator& allocator) {
     auto& f = *parser.token;
     if(f.type == TokenType::BacktickString) {
         parser.token++;
-        auto allocated = parser.allocate_view(allocator, f.value);
+        auto allocated = escaped_view(allocator, parser, f.value);
         auto& next = *parser.token;
         const auto str = new (allocator.allocate<ExpressiveString>()) ExpressiveString(parser.typeBuilder.getExprStrType(), parser.loc_single(f));
         str->values.emplace_back(
@@ -192,16 +240,36 @@ Value* Parser::parseCharValue(ASTAllocator& allocator) {
         token++;
         // the value will contain single quotes around it
         auto escaped = escaped_view(allocator, *this, t.value);
-        switch(escaped.size()) {
-            case 0:
-                return new (allocator.allocate<IntNumValue>()) IntNumValue('\0', typeBuilder.getCharType(), loc_single(t));
-            case 1:
-                break;
-            default:
-                error("couldn't handle escape sequence in character value");
-                break;
+        if (escaped.empty()) {
+             return new (allocator.allocate<IntNumValue>()) IntNumValue('\0', typeBuilder.getCharType(), loc_single(t));
         }
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(*escaped.data(), typeBuilder.getCharType(), loc_single(t));
+        
+        // decode first codepoint from escaped
+        const unsigned char* p = reinterpret_cast<const unsigned char*>(escaped.data());
+        uint32_t cp = 0;
+        size_t len = 0;
+        if (p[0] < 0x80) {
+            cp = p[0];
+            len = 1;
+        } else if ((p[0] & 0xE0) == 0xC0 && escaped.size() >= 2) {
+            cp = ((p[0] & 0x1F) << 6) | (p[1] & 0x3F);
+            len = 2;
+        } else if ((p[0] & 0xF0) == 0xE0 && escaped.size() >= 3) {
+            cp = ((p[0] & 0x0F) << 12) | ((p[1] & 0x3F) << 6) | (p[2] & 0x3F);
+            len = 3;
+        } else if ((p[0] & 0xF8) == 0xF0 && escaped.size() >= 4) {
+            cp = ((p[0] & 0x07) << 18) | ((p[1] & 0x3F) << 12) | ((p[2] & 0x3F) << 6) | (p[3] & 0x3F);
+            len = 4;
+        } else {
+            cp = p[0];
+            len = 1;
+        }
+
+        if (len != escaped.size()) {
+            error("multi-character char literal is not allowed (unless it's a single UTF-8 codepoint)");
+        }
+        
+        return new (allocator.allocate<IntNumValue>()) IntNumValue(cp, typeBuilder.getCharType(), loc_single(t));
     } else {
         return nullptr;
     }
@@ -233,7 +301,7 @@ StringValue* Parser::parseStringValue(ASTAllocator& allocator) {
         }
         case TokenType::MultilineString:
             token++;
-            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
+            return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), typeBuilder.getStringType(), loc_single(t));
         default:
             return nullptr;
     }

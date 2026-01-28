@@ -1199,8 +1199,8 @@ func (converter : &mut ASTConverter) writeCssString(text : std::string_view) {
                 const codepoint = ((c1 & (0x1F as uint)) << 6u) | (c2 & (0x3F as uint));
                 str.append('\\');
                 converter.append_hex(codepoint);
-                str.append(' ');
                 i += 2;
+                if(i < text.size()) str.append(' ');
             } else { i++; }
         } else if ((c1 & 0xF0) == 0xE0) {
             if (i + 2 < text.size()) {
@@ -1209,8 +1209,8 @@ func (converter : &mut ASTConverter) writeCssString(text : std::string_view) {
                 const codepoint = ((c1 & (0x0F as uint)) << 12u) | ((c2 & (0x3F as uint)) << 6u) | (c3 & (0x3F as uint));
                 str.append('\\');
                 converter.append_hex(codepoint);
-                str.append(' ');
                 i += 3;
+                if(i < text.size()) str.append(' ');
             } else { i++; }
         } else if ((c1 & 0xF8) == 0xF0) {
             if (i + 3 < text.size()) {
@@ -1220,8 +1220,8 @@ func (converter : &mut ASTConverter) writeCssString(text : std::string_view) {
                 const codepoint = ((c1 & (0x07 as uint)) << 18u) | ((c2 & (0x3F as uint)) << 12u) | ((c3 & (0x3F as uint)) << 6u) | (c4 & (0x3F as uint));
                 str.append('\\');
                 converter.append_hex(codepoint);
-                str.append(' ');
                 i += 4;
+                if(i < text.size()) str.append(' ');
             } else { i++; }
         } else {
             i++;

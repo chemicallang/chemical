@@ -489,6 +489,20 @@ const char* read_multi_line_comment_text(SourceProvider& provider) {
     }
 }
 
+// true -> ending quote found
+// false -> string expression found
+// nullopt -> both weren't found, error out
+static inline void consume_hex_digits(SourceProvider& provider) {
+    auto p = provider.peek();
+    if ((p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F')) {
+        provider.increment();
+        p = provider.peek();
+        if ((p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F')) {
+            provider.increment();
+        }
+    }
+}
+
 const char* read_multi_line_string(SourceProvider& provider) {
     while(true) {
         switch(provider.readCharacter()) {
@@ -508,25 +522,29 @@ const char* read_multi_line_string(SourceProvider& provider) {
                 }
                 break;
             }
+            case '\\':
+                if (provider.increment('x')) {
+                    consume_hex_digits(provider);
+                } else if (provider.increment('u')) {
+                    if (provider.increment('{')) {
+                        while (!provider.eof() && provider.peek() != '}') {
+                            provider.increment();
+                        }
+                        provider.increment('}');
+                    } else {
+                        for (int i = 0; i < 4 && !provider.eof(); i++) {
+                            provider.increment();
+                        }
+                    }
+                } else {
+                    provider.readCharacter();
+                }
+                break;
             case '\0':
                 // no need to report an error if '\0', since next time unexpected token will be given
                 return provider.current_data();
             default:
                 break;
-        }
-    }
-}
-
-// true -> ending quote found
-// false -> string expression found
-// nullopt -> both weren't found, error out
-static inline void consume_hex_digits(SourceProvider& provider) {
-    auto p = provider.peek();
-    if ((p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F')) {
-        provider.increment();
-        p = provider.peek();
-        if ((p >= '0' && p <= '9') || (p >= 'a' && p <= 'f') || (p >= 'A' && p <= 'F')) {
-            provider.increment();
         }
     }
 }
@@ -542,6 +560,19 @@ std::optional<bool> read_quoted_string2(SourceProvider& provider) {
                 switch(provider.readCharacter()) {
                     case 'x':
                         consume_hex_digits(provider);
+                        break;
+                    case 'u':
+                        if (provider.increment('{')) {
+                            while (!provider.eof() && provider.peek() != '}') {
+                                provider.increment();
+                            }
+                            provider.increment('}');
+                        } else {
+                            for (int i = 0; i < 4 && !provider.eof(); i++) {
+                                provider.increment();
+                            }
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -572,6 +603,28 @@ std::optional<bool> read_backtick_string(SourceProvider& provider) {
             case '`':
                 provider.increment();
                 return true;
+            case '\\':
+                provider.increment();
+                switch(provider.readCharacter()) {
+                    case 'x':
+                        consume_hex_digits(provider);
+                        break;
+                    case 'u':
+                        if (provider.increment('{')) {
+                            while (!provider.eof() && provider.peek() != '}') {
+                                provider.increment();
+                            }
+                            provider.increment('}');
+                        } else {
+                            for (int i = 0; i < 4 && !provider.eof(); i++) {
+                                provider.increment();
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                continue;
             case '{':
                 // does not consume the '{'
                 return false;
@@ -588,11 +641,24 @@ std::optional<bool> read_backtick_string(SourceProvider& provider) {
 bool read_quoted_string(SourceProvider& provider) {
     while(true) {
         switch(provider.readCharacter()) {
-            case '\\':
-                if(provider.readCharacter() == 'x') {
+            case '\\': {
+                auto c = provider.readCharacter();
+                if (c == 'x') {
                     consume_hex_digits(provider);
+                } else if (c == 'u') {
+                    if (provider.increment('{')) {
+                        while (!provider.eof() && provider.peek() != '}') {
+                            provider.increment();
+                        }
+                        provider.increment('}');
+                    } else {
+                        for (int i = 0; i < 4 && !provider.eof(); i++) {
+                            provider.increment();
+                        }
+                    }
                 }
                 break;
+            }
             case '"':
                 return true;
             case '\n':
@@ -606,19 +672,44 @@ bool read_quoted_string(SourceProvider& provider) {
 }
 
 bool read_char_in_quotes(SourceProvider& provider) {
-    switch(provider.readCharacter()) {
-        case '\\':
-            switch(provider.readCharacter()) {
-                case 'x':
-                    consume_hex_digits(provider);
-                default:
-                    break;
-            }
-            return true;
-        case '\'':
-            return false;
-        default:
-            return true;
+    std::size_t len;
+    auto cp = provider.utf8_decode_peek(len);
+    if (cp == 0) return false;
+    
+    if (cp == '\\') {
+        provider.incrementCodepoint(cp, len); // consume \
+        cp = provider.utf8_decode_peek(len);
+        if (cp == 0) return false;
+        
+        switch (cp) {
+            case 'x':
+                provider.incrementCodepoint(cp, len);
+                consume_hex_digits(provider);
+                break;
+            case 'u':
+                provider.incrementCodepoint(cp, len);
+                if (provider.peek() == '{') {
+                    provider.increment();
+                    while (!provider.eof() && provider.peek() != '}') {
+                        provider.increment();
+                    }
+                    if (provider.peek() == '}') provider.increment();
+                } else {
+                    for (int i = 0; i < 4 && !provider.eof(); i++) {
+                        provider.increment();
+                    }
+                }
+                break;
+            default:
+                provider.incrementCodepoint(cp, len);
+                break;
+        }
+        return true;
+    } else if (cp == '\'') {
+        return false;
+    } else {
+        provider.incrementCodepoint(cp, len);
+        return true;
     }
 }
 

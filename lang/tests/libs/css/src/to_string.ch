@@ -10,6 +10,13 @@ public func global_values_work(env : &mut TestEnv) {
 }
 
 @test
+public func content_property_and_emoji(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {content:"✨";}
+    css_equals(env, page.toStringCssOnly(), "content:'\\2728';");
+}
+
+@test
 public func important_with_css_decl_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

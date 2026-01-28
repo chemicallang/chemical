@@ -50,7 +50,18 @@ public enum MdNodeKind {
     TableRow,
     TableCell,
     Strikethrough,
-    AutoLink
+    AutoLink,
+    Superscript,
+    Subscript,
+    Insert,
+    Mark,
+    Footnote,
+    FootnoteDef,
+    DefinitionList,
+    DefinitionTerm,
+    DefinitionData,
+    Abbreviation,
+    CustomContainer
 }
 
 public struct MdNode {
@@ -173,5 +184,63 @@ public struct MdTableRow {
 
 public struct MdTableCell {
     var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdSuperscript {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdSubscript {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdInsert {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdMark {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdFootnote {
+    var base : MdNode
+    var id : std::string_view
+}
+
+public struct MdFootnoteDef {
+    var base : MdNode
+    var id : std::string_view
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdDefinitionList {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdDefinitionTerm {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdDefinitionData {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdAbbreviation {
+    var base : MdNode
+    var id : std::string_view
+    var title : std::string_view
+}
+
+public struct MdCustomContainer {
+    var base : MdNode
+    var type : std::string_view
     var children : std::vector<*mut MdNode>
 }

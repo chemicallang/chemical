@@ -306,6 +306,84 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
             converter.put_chain_in();
             converter.put_wrapped_chemical_value_in(interp.value);
         }
+        MdNodeKind.Superscript => {
+            var sup = node as *mut MdSuperscript;
+            converter.str.append_view("<sup class=\"md-sup\">");
+            converter.convertChildren(sup.children);
+            converter.str.append_view("</sup>");
+        }
+        MdNodeKind.Subscript => {
+            var sub = node as *mut MdSubscript;
+            converter.str.append_view("<sub class=\"md-sub\">");
+            converter.convertChildren(sub.children);
+            converter.str.append_view("</sub>");
+        }
+        MdNodeKind.Insert => {
+            var ins = node as *mut MdInsert;
+            converter.str.append_view("<ins class=\"md-ins\">");
+            converter.convertChildren(ins.children);
+            converter.str.append_view("</ins>");
+        }
+        MdNodeKind.Mark => {
+            var mark = node as *mut MdMark;
+            converter.str.append_view("<mark class=\"md-mark\">");
+            converter.convertChildren(mark.children);
+            converter.str.append_view("</mark>");
+        }
+        MdNodeKind.Footnote => {
+            var fn = node as *mut MdFootnote;
+            converter.str.append_view("<sup class=\"md-footnote-ref\" id=\"fnref:");
+            converter.str.append_view(fn.id);
+            converter.str.append_view("\"><a href=\"#fn:");
+            converter.str.append_view(fn.id);
+            converter.str.append_view("\">");
+            converter.str.append_view(fn.id);
+            converter.str.append_view("</a></sup>");
+        }
+        MdNodeKind.FootnoteDef => {
+            var fd = node as *mut MdFootnoteDef;
+            converter.str.append_view("<div class=\"md-footnote-def\" id=\"fn:");
+            converter.str.append_view(fd.id);
+            converter.str.append_view("\"><span class=\"md-footnote-id\">");
+            converter.str.append_view(fd.id);
+            converter.str.append_view(": </span>");
+            converter.convertChildren(fd.children);
+            converter.str.append_view("</div>\n");
+        }
+        MdNodeKind.DefinitionList => {
+            var dl = node as *mut MdDefinitionList;
+            converter.str.append_view("<dl class=\"md-dl\">\n");
+            converter.convertChildren(dl.children);
+            converter.str.append_view("</dl>\n");
+        }
+        MdNodeKind.DefinitionTerm => {
+            var dt = node as *mut MdDefinitionTerm;
+            converter.str.append_view("<dt class=\"md-dt\">");
+            converter.convertChildren(dt.children);
+            converter.str.append_view("</dt>\n");
+        }
+        MdNodeKind.DefinitionData => {
+            var dd = node as *mut MdDefinitionData;
+            converter.str.append_view("<dd class=\"md-dd\">");
+            converter.convertChildren(dd.children);
+            converter.str.append_view("</dd>\n");
+        }
+        MdNodeKind.Abbreviation => {
+            var abb = node as *mut MdAbbreviation;
+            converter.str.append_view("<abbr title=\"");
+            converter.str.append_view(abb.title);
+            converter.str.append_view("\">");
+            converter.str.append_view(abb.id);
+            converter.str.append_view("</abbr>");
+        }
+        MdNodeKind.CustomContainer => {
+            var cc = node as *mut MdCustomContainer;
+            converter.str.append_view("<div class=\"md-container md-");
+            converter.str.append_view(cc.type);
+            converter.str.append_view("\">\n");
+            converter.convertChildren(cc.children);
+            converter.str.append_view("</div>\n");
+        }
     }
 }
 

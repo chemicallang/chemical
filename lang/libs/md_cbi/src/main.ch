@@ -224,6 +224,10 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
                         provider.readCharacter();
                         count++;
                     }
+                    // Skip spaces before language
+                    while(provider.peek() == ' ' || provider.peek() == '\t') {
+                        provider.readCharacter();
+                    }
                     // Read language identifier
                     const lang_start = provider.current_data();
                     while(provider.peek() != '\n' && provider.peek() != '\r' && provider.peek() != '\0' && provider.peek() != ' ') {

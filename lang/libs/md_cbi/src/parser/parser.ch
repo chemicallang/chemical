@@ -1,6 +1,7 @@
 public struct MdParser {
     var dyn_values : *mut std::vector<*mut Value>
     var builder : *mut ASTBuilder
+    var root : *mut MdRoot
 }
 
 // Helper to peek at next token without consuming
@@ -146,7 +147,43 @@ func isBlockStart(parser : *mut Parser) : bool {
         }
         return count >= 3;
     }
+    
+    // Check for Reference Definition: [id]:
+    if(isLBracketToken(t)) {
+        var i = 1;
+        while(true) {
+            const tok = peek_token_at(parser, i);
+            if(isRBracketToken(tok.type)) {
+                const next2 = peek_token_at(parser, i + 1);
+                if(isColonToken(next2.type)) return true;
+                break;
+            }
+            if(isLineEnd(tok.type)) break;
+            i++;
+        }
+    }
+    
     return false;
+}
+
+func trim_view(view : std::string_view) : std::string_view {
+    var start = 0u;
+    while(start < view.size() && (view.data()[start] == ' ' || view.data()[start] == '\t' || view.data()[start] == '\n' || view.data()[start] == '\r')) {
+        start++;
+    }
+    if(start == view.size()) return std::string_view("");
+    var end = view.size() - 1;
+    while(end >= start && (view.data()[end] == ' ' || view.data()[end] == '\t' || view.data()[end] == '\n' || view.data()[end] == '\r')) {
+        if(end == 0) break;
+        end--;
+    }
+    return std::string_view(view.data() + start, end - start + 1);
+}
+
+func skipWhitespace(parser : *mut Parser) {
+    while(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
+        parser.increment();
+    }
 }
 
 func isWhitespaceOnlyText(txt : std::string_view) : bool {
@@ -171,7 +208,7 @@ public func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut 
         support : SymResSupport {}
     }
     
-    var mdParser = MdParser { dyn_values : &mut root.dyn_values, builder : builder }
+    var mdParser = MdParser { dyn_values : &mut root.dyn_values, builder : builder, root : root }
     
     while(!isBlockEnd(parser.getToken().type)) {
         var node = mdParser.parseBlockNode(parser);
@@ -245,10 +282,23 @@ func (md : &mut MdParser) parseBlockNode(parser : *mut Parser) : *mut MdNode {
         return md.parseTable(parser);
     }
     
-    // Footnote Definition: [^id]:
+    // Footnote Definition or Reference Definition
     if(isLBracketToken(t)) {
         if(isCaretToken(peek_token(parser).type)) {
             return md.parseFootnoteDef(parser);
+        }
+        // Check if it's a reference definition [id]:
+        var i = 1;
+        while(true) {
+            const tok = peek_token_at(parser, i);
+            if(isRBracketToken(tok.type)) {
+                if(isColonToken(peek_token_at(parser, i + 1).type)) {
+                    return md.parseReferenceDefinition(parser);
+                }
+                break;
+            }
+            if(isLineEnd(tok.type)) break;
+            i++;
         }
     }
     
@@ -470,16 +520,38 @@ func (md : &mut MdParser) parseList(parser : *mut Parser, ordered : bool, start 
             if(node != null) item.children.push(node);
         }
         
-        list.children.push(item as *mut MdNode);
-        
         if(isNewlineToken(parser.getToken().type)) {
             parser.increment();
         }
         
-        // Skip whitespace
-        if(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
-            parser.increment();
+        // Support nested blocks (indented)
+        while(true) {
+            const t = parser.getToken();
+            if(isTextToken(t.type)) {
+                const val = t.value;
+                if(val.size() >= 2 && val.data()[0] == ' ' && val.data()[1] == ' ') {
+                    // Reset if it's just whitespace line? No, skipWhitespace handles that later.
+                    // If it's indented, it could be a sub-block
+                    if(isListStart(parser) || isOrderedListStart(parser) || isBlockStart(parser)) {
+                         var sub_block = md.parseBlockNode(parser);
+                         if(sub_block != null) item.children.push(sub_block);
+                         continue;
+                    }
+                    // It's more inline text for the current item
+                    while(!isLineEnd(parser.getToken().type)) {
+                        var node = md.parseInlineNode(parser);
+                        if(node != null) item.children.push(node);
+                    }
+                    if(isNewlineToken(parser.getToken().type)) parser.increment();
+                    continue;
+                }
+            }
+            break;
         }
+        
+        list.children.push(item as *mut MdNode);
+        
+        skipWhitespace(parser);
     }
     
     return list as *mut MdNode;
@@ -534,11 +606,33 @@ func (md : &mut MdParser) parseOrderedList(parser : *mut Parser) : *mut MdNode {
             if(node != null) item.children.push(node);
         }
         
-        list.children.push(item as *mut MdNode);
-        
         if(isNewlineToken(parser.getToken().type)) {
             parser.increment();
         }
+        
+        // Support nested blocks (indented)
+        while(true) {
+            const t = parser.getToken();
+            if(isTextToken(t.type)) {
+                const val = t.value;
+                if(val.size() >= 2 && val.data()[0] == ' ' && val.data()[1] == ' ') {
+                    if(isListStart(parser) || isOrderedListStart(parser) || isBlockStart(parser)) {
+                         var sub_block = md.parseBlockNode(parser);
+                         if(sub_block != null) item.children.push(sub_block);
+                         continue;
+                    }
+                    while(!isLineEnd(parser.getToken().type)) {
+                        var node = md.parseInlineNode(parser);
+                        if(node != null) item.children.push(node);
+                    }
+                    if(isNewlineToken(parser.getToken().type)) parser.increment();
+                    continue;
+                }
+            }
+            break;
+        }
+        
+        list.children.push(item as *mut MdNode);
         
         // Skip whitespace lines
         while(isTextToken(parser.getToken().type) && isWhitespaceOnlyText(parser.getToken().value)) {
@@ -616,6 +710,7 @@ func (md : &mut MdParser) parseTableRow(parser : *mut Parser, is_header : bool) 
         if(isPipeToken(parser.getToken().type)) {
             parser.increment();
             // Check if next is newline - if so we are done with row, don't create empty cell
+            skipWhitespace(parser);
             if(isLineEnd(parser.getToken().type)) {
                 break;
             }
@@ -1085,31 +1180,55 @@ func (md : &mut MdParser) parseDefinitionList(parser : *mut Parser) : *mut MdNod
         children : std::vector<*mut MdNode>()
     }
     
-    // Current token is : (start of definition data)
-    while(!isBlockEnd(parser.getToken().type)) {
+    // Try to capture preceding paragraph as term
+    if(md.root.children.size() > 0) {
+        var last = md.root.children.get(md.root.children.size() - 1);
+        if(last.kind == MdNodeKind.Paragraph) {
+            var para = last as *mut MdParagraph;
+            var term = builder.allocate<MdDefinitionTerm>()
+            new (term) MdDefinitionTerm {
+                base : MdNode { kind : MdNodeKind.DefinitionTerm },
+                children : std::replace(para.children, std::vector<*mut MdNode>())
+            }
+            dl.children.push(term as *mut MdNode);
+            md.root.children.remove_last();
+        }
+    }
+    
+    while(isColonToken(parser.getToken().type) || (isTextToken(parser.getToken().type) && !isBlockStart(parser))) {
         if(isColonToken(parser.getToken().type)) {
             parser.increment(); // :
-            // Skip space
-            if(isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
-                // Actually need to handle the space specifically if it's part of the text token
-                // For now just assume it's there
+            skipWhitespace(parser);
+            
+            var data = builder.allocate<MdDefinitionData>()
+            new (data) MdDefinitionData {
+                base : MdNode { kind : MdNodeKind.DefinitionData },
+                children : std::vector<*mut MdNode>()
             }
             
-            var dd = builder.allocate<MdDefinitionData>()
-            new (dd) MdDefinitionData {
-                base : MdNode { kind : MdNodeKind.DefinitionData },
+            while(!isLineEnd(parser.getToken().type)) {
+                var node = md.parseInlineNode(parser);
+                if(node != null) data.children.push(node);
+            }
+            dl.children.push(data as *mut MdNode);
+            if(isNewlineToken(parser.getToken().type)) parser.increment();
+        } else {
+            // It's a term
+            var term = builder.allocate<MdDefinitionTerm>()
+            new (term) MdDefinitionTerm {
+                base : MdNode { kind : MdNodeKind.DefinitionTerm },
                 children : std::vector<*mut MdNode>()
             }
             while(!isLineEnd(parser.getToken().type)) {
                 var node = md.parseInlineNode(parser);
-                if(node != null) dd.children.push(node);
+                if(node != null) term.children.push(node);
             }
-            dl.children.push(dd as *mut MdNode);
+            dl.children.push(term as *mut MdNode);
             if(isNewlineToken(parser.getToken().type)) parser.increment();
-        } else {
-             // If not : maybe another term or break
-             break;
         }
+        
+        skipWhitespace(parser);
+        if(isBlockEnd(parser.getToken().type)) break;
     }
     
     return dl as *mut MdNode;
@@ -1196,6 +1315,53 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
                 }
                 return link as *mut MdNode;
             }
+        } else if(parser.getToken().type == MdTokenType.LBracket as int) {
+            // Reference link [text][id]
+            parser.increment();
+            var ref_id = std::string();
+            while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
+                ref_id.append_view(parser.getToken().value);
+                parser.increment();
+            }
+            if(isRBracketToken(parser.getToken().type)) parser.increment();
+            
+            var ref : MdReference = MdReference { url : std::string_view(""), title : std::string_view("") };
+            if (md.root.reference_defs.find(std::string(ref_id.to_view()), ref)) {
+                var link = builder.allocate<MdLink>()
+                new (link) MdLink {
+                    base : MdNode { kind : MdNodeKind.Link },
+                    url : ref.url,
+                    title : ref.title,
+                    children : text_children
+                }
+                return link as *mut MdNode;
+            }
+        } else {
+            // Shortcut reference link [id]
+            var ref_id = std::string();
+            // Try to reconstruct ID from text_children
+            var i = 0u;
+            while(i < text_children.size()) {
+                if(text_children.get(i).kind == MdNodeKind.Text) {
+                    const mdT = text_children.get(i) as *mut MdText
+                    ref_id.append_view(mdT.value);
+                }
+                i++;
+            }
+            
+            var ref : MdReference = MdReference { url : std::string_view(""), title : std::string_view("") };
+            if (md.root.reference_defs.find(std::string(ref_id.to_view()), ref)) {
+                var link = builder.allocate<MdLink>()
+                new (link) MdLink {
+                    base : MdNode { kind : MdNodeKind.Link },
+                    url : ref.url,
+                    title : ref.title,
+                    children : text_children
+                }
+                return link as *mut MdNode;
+            }
+            
+            // Not found, just return text children in [ ] (already handled by default)
         }
     }
     
@@ -1252,6 +1418,26 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
                     }
                     return img as *mut MdNode;
                 }
+            } else if(parser.increment_if(MdTokenType.LBracket as int)) {
+                 // Reference image ![alt][id]
+                var ref_id = std::string();
+                while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
+                    ref_id.append_view(parser.getToken().value);
+                    parser.increment();
+                }
+                if(isRBracketToken(parser.getToken().type)) parser.increment();
+                
+                var ref : MdReference = MdReference { url : std::string_view(""), title : std::string_view("") };
+                if (md.root.reference_defs.find(std::string(ref_id.to_view()), ref)) {
+                    var img = builder.allocate<MdImage>()
+                    new (img) MdImage {
+                        base : MdNode { kind : MdNodeKind.Image },
+                        url : ref.url,
+                        alt : alt,
+                        title : ref.title
+                    }
+                    return img as *mut MdNode;
+                }
             }
         }
         
@@ -1296,4 +1482,35 @@ func (md : &mut MdParser) parseInlineCode(parser : *mut Parser) : *mut MdNode {
         value : std::string_view("`")
     }
     return text as *mut MdNode;
+}
+
+func (md : &mut MdParser) parseReferenceDefinition(parser : *mut Parser) : *mut MdNode {
+    parser.increment(); // [
+    var id = std::string();
+    while(!isRBracketToken(parser.getToken().type) && !isLineEnd(parser.getToken().type)) {
+        id.append_view(parser.getToken().value);
+        parser.increment();
+    }
+    if(isRBracketToken(parser.getToken().type)) parser.increment();
+    if(isColonToken(parser.getToken().type)) parser.increment();
+    
+    skipWhitespace(parser);
+    
+    var url = md.parseUrl(parser);
+    var title = std::string_view("");
+    
+    // Potential title
+    skipWhitespace(parser);
+    if(isTextToken(parser.getToken().type)) {
+        const ttxt = parser.getToken().value;
+        if(ttxt.size() >= 2 && ttxt.data()[0] == '"' && ttxt.data()[ttxt.size()-1] == '"') {
+            title = md.builder.allocate_view(std::string_view(ttxt.data() + 1, ttxt.size() - 2));
+            parser.increment();
+        }
+    }
+    
+    md.root.reference_defs.insert(std::string(id.to_view()), MdReference { url : url, title : title });
+    
+    if(isNewlineToken(parser.getToken().type)) parser.increment();
+    return null; 
 }

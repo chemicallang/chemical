@@ -1137,7 +1137,7 @@ func (md : &mut MdParser) parseCustomContainer(parser : *mut Parser) : *mut MdNo
     // Read type
     var type_view = std::string_view();
     if(isTextToken(parser.getToken().type)) {
-        type_view = parser.getToken().value;
+        type_view = trim_view(parser.getToken().value);
         parser.increment();
     }
     

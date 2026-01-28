@@ -68,12 +68,18 @@ public struct MdNode {
     var kind : MdNodeKind
 }
 
+public struct MdReference {
+    var url : std::string_view
+    var title : std::string_view
+}
+
 public struct MdRoot {
     var base : MdNode
     var parent : *mut ASTNode
     var children : std::vector<*mut MdNode>
     var dyn_values : std::vector<*mut Value>
     var support : SymResSupport
+    var reference_defs : std::unordered_map<std::string, MdReference>
 }
 
 public struct MdText {

@@ -301,7 +301,7 @@ StringValue* Parser::parseStringValue(ASTAllocator& allocator) {
         }
         case TokenType::MultilineString:
             token++;
-            return new (allocator.allocate<StringValue>()) StringValue(escaped_view(allocator, *this, t.value), typeBuilder.getStringType(), loc_single(t));
+            return new (allocator.allocate<StringValue>()) StringValue(allocate_view(allocator, t.value), typeBuilder.getStringType(), loc_single(t));
         default:
             return nullptr;
     }

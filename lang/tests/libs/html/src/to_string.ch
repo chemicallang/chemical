@@ -7,6 +7,13 @@ public func text_in_root_element_works(env : &mut TestEnv) {
 }
 
 @test
+public func emoji_processing_in_html(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {✨}
+    string_equals(env, page.toStringHtmlOnly(), "&#10024;");
+}
+
+@test
 public func multiple_elements_in_root_work(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {

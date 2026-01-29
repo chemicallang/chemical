@@ -1,6 +1,6 @@
 
 @compiler.interface
-public struct BatchAllocator {
+public interface BatchAllocator {
 
     /**
      * allocate a pointer with given object size, you must destruct the allocated pointer

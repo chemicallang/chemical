@@ -7,7 +7,7 @@ public enum ModuleType {
 }
 
 @compiler.interface
-public struct Module {
+public interface Module {
     func getType(&self) : ModuleType
     func getScopeName(&self) : std::string_view
     func getName(&self) : std::string_view
@@ -52,7 +52,7 @@ public enum OutputMode  : int {
 }
 
 @compiler.interface
-public struct LabJob {
+public interface LabJob {
     func getType(&self) : LabJobType
     func getName(&self) : std::string_view
     func getAbsPath(&self) : std::string_view
@@ -87,7 +87,7 @@ public enum CBIFunctionType {
 }
 
 @compiler.interface
-public struct BuildContext {
+public interface BuildContext {
 
     func getAnnotationController(&self) : *mut AnnotationController
 
@@ -203,7 +203,7 @@ public struct BuildContext {
 }
 
 @compiler.interface
-public struct AppBuildContext : BuildContext {
+public interface AppBuildContext : BuildContext {
 
     // launch an executable at the path
     func launch_executable (&self, path : &std::string_view, same_window : bool) : int;

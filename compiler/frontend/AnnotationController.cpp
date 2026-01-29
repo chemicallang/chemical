@@ -69,6 +69,10 @@ void annot_handler_compiler_interface(Parser* parser, ASTNode* node, std::vector
     // we used to make these structs no_mangle by default
     // but now we don't, because now we put module name prefix
     // in the symbols we provide to the module using cbi
+    if(node->kind() == ASTNodeKind::InterfaceDecl) {
+        node->as_interface_def_unsafe()->set_extern(true);
+        node->as_interface_def_unsafe()->set_is_static(true);
+    }
 }
 
 void annot_handler_no_mangle(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
@@ -169,6 +173,11 @@ void annot_handler_extern(Parser* parser, ASTNode* node, std::vector<Value*>& ar
             return;
         case ASTNodeKind::StructDecl:
             node->as_struct_def_unsafe()->set_extern(true);
+            return;
+        case ASTNodeKind::InterfaceDecl:
+            node->as_interface_def_unsafe()->set_extern(true);
+            return;
+        default:
             return;
     }
 }

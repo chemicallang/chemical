@@ -42,6 +42,11 @@ struct InterfaceDefinitionAttrs {
      */
     bool is_no_mangle = false;
 
+    /**
+     * make the interface extern, meaning implementation comes from outside
+     */
+    bool is_extern = false;
+
 };
 
 static_assert(sizeof(InterfaceDefinitionAttrs) <= 8);
@@ -150,6 +155,14 @@ public:
 
     inline void set_no_mangle(bool no_mangle) {
         attrs.is_no_mangle = no_mangle;
+    }
+
+    inline bool is_extern() {
+        return attrs.is_extern;
+    }
+
+    inline void set_extern(bool value) {
+        attrs.is_extern = value;
     }
 
     InterfaceDefinition* shallow_copy(ASTAllocator& allocator) {

@@ -1,7 +1,7 @@
 public struct AnnotationDefinition {}
 
 @compiler.interface
-public struct AnnotationController {
+public interface AnnotationController {
 
     func getDefinition(&self, name : &std::string_view) : *mut AnnotationDefinition;
 

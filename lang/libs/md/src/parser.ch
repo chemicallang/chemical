@@ -111,14 +111,51 @@ func is_custom_container(p : &mut TokenParser) : bool {
     return false;
 }
 
-func is_table_row(p : &mut TokenParser) : bool {
-    // Simple check: contains at least one pipe
-    var i = 0u;
-    while(!is_line_end(p.peek_ahead(i).type)) {
-        if(p.peek_ahead(i).type == MdTokenType.Pipe as int) return true;
-        i++;
+func is_definition_list(p : &mut TokenParser) : bool {
+    // Check for pattern: Term\n: Definition
+    if(is_text(p.get().type) && p.get().value.size() > 0) {
+        // Look ahead for newline followed by colon
+        var i = 1u;
+        while(!is_line_end(p.peek_ahead(i).type) && i < 20) {
+            if(is_nl(p.peek_ahead(i).type)) {
+                // Check if next non-newline starts with colon
+                var j = i + 1u;
+                while(is_nl(p.peek_ahead(j).type)) { j++ };
+                if(p.peek_ahead(j).type == MdTokenType.Colon as int) {
+                    return true;
+                }
+                break;
+            }
+            i++;
+        }
     }
     return false;
+}
+
+func is_table_row(p : &mut TokenParser) : bool {
+    // Very strict check: must start with pipe or have pipe separating content
+    var i = 0u;
+    var pipe_count = 0;
+    var content_count = 0;
+    
+    // Check if it starts with pipe (common table format)
+    if(p.get().type == MdTokenType.Pipe as int) {
+        return true;
+    }
+    
+    // Otherwise look for pipe-separated content
+    while(!is_line_end(p.peek_ahead(i).type) && i < 50) {
+        const t = p.peek_ahead(i).type;
+        if(t == MdTokenType.Pipe as int) {
+            pipe_count++;
+        } else if(t == MdTokenType.Text as int && p.peek_ahead(i).value.size() > 0) {
+            content_count++;
+        }
+        i++;
+    }
+    
+    // Need at least 2 pipes to separate columns and some content
+    return pipe_count >= 2 && content_count >= 2;
 }
 
 struct MdParser {
@@ -443,7 +480,7 @@ struct MdParser {
                 }
             }
             
-            // Parse content as paragraph
+            // Parse content using inline parsing
             if(!is_line_end(p.get().type)) {
                 var para = self.arena.allocate<MdParagraph>();
                 new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
@@ -504,6 +541,71 @@ struct MdParser {
         }
         
         return container as *mut MdNode;
+    }
+
+    func parse_definition_list(&mut self, p : &mut TokenParser) : *mut MdNode {
+        var dl = self.arena.allocate<MdDefinitionList>();
+        new (dl) MdDefinitionList { base : MdNode { kind : MdNodeKind.DefinitionList }, children : std::vector<*mut MdNode>() };
+        
+        while(true) {
+            if(is_end(p.get().type)) break;
+            
+            // Parse term
+            if(is_text(p.get().type) && p.get().value.size() > 0) {
+                var dt = self.arena.allocate<MdDefinitionTerm>();
+                new (dt) MdDefinitionTerm { base : MdNode { kind : MdNodeKind.DefinitionTerm }, children : std::vector<*mut MdNode>() };
+                
+                // Parse term content
+                while(!is_line_end(p.get().type)) {
+                    const t = p.get();
+                    if(is_text(t.type)) {
+                        dt.children.push(self.make_text(t.value));
+                        p.bump();
+                    } else {
+                        p.bump();
+                    }
+                }
+                
+                dl.children.push(dt as *mut MdNode);
+                
+                // Skip newlines
+                while(is_nl(p.get().type)) { p.bump() };
+                
+                // Parse definition (starts with :)
+                if(p.get().type == MdTokenType.Colon as int) {
+                    p.bump(); // consume :
+                    
+                    var dd = self.arena.allocate<MdDefinitionData>();
+                    new (dd) MdDefinitionData { base : MdNode { kind : MdNodeKind.DefinitionData }, children : std::vector<*mut MdNode>() };
+                    
+                    // Skip leading spaces
+                    if(is_text(p.get().type) && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
+                        p.bump();
+                    }
+                    
+                    // Parse definition content
+                    while(!is_line_end(p.get().type)) {
+                        const t = p.get();
+                        if(is_text(t.type)) {
+                            dd.children.push(self.make_text(t.value));
+                            p.bump();
+                        } else {
+                            p.bump();
+                        }
+                    }
+                    
+                    dl.children.push(dd as *mut MdNode);
+                }
+            }
+            
+            // Skip newlines between entries
+            while(is_nl(p.get().type)) { p.bump() };
+            
+            // Check if next looks like another definition
+            if(!is_definition_list(p)) break;
+        }
+        
+        return dl as *mut MdNode;
     }
 
     func parse_horizontal_rule(&mut self, p : &mut TokenParser) : *mut MdNode {
@@ -593,17 +695,9 @@ struct MdParser {
                 p.bump();
             }
             
-            // Parse item content (could be nested)
+            // Parse item content (could be nested) - use inline parsing
             while(!is_line_end(p.get().type)) {
-                const t = p.get();
-                if(is_text(t.type)) {
-                    item.children.push(self.make_text(t.value));
-                    p.bump();
-                } else {
-                    // For now, treat other tokens as text
-                    item.children.push(self.make_text(t.value));
-                    p.bump();
-                }
+                self.parse_inline_text_until_line_end(p, item.children);
             }
             
             if(is_nl(p.get().type)) p.bump();
@@ -667,8 +761,10 @@ struct MdParser {
         if(is_hr(p)) return self.parse_horizontal_rule(p);
         if(is_blockquote(p)) return self.parse_blockquote(p);
         if(is_custom_container(p)) return self.parse_custom_container(p);
+        if(is_definition_list(p)) return self.parse_definition_list(p);
         if(is_list_start(p)) return self.parse_list(p, false);
         if(is_ordered_list_start(p)) return self.parse_list(p, true);
+        // Only check for table if it actually looks like a table
         if(is_table_row(p)) return self.parse_table(p);
         return self.parse_paragraph(p);
     }

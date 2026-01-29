@@ -109,24 +109,33 @@ struct HtmlRenderer {
                 var table = node as *mut MdTable;
                 if(table != null) {
                     self.out.append_view("<table class=\"md-table\">\n");
-                    self.render_children(table.children);
+                    var i = 0u;
+                    while(i < table.children.size()) {
+                        var child = table.children.get(i);
+                        if(child.kind == MdNodeKind.TableRow) {
+                            var row = child as *mut MdTableRow;
+                            if(row.is_header) {
+                                self.out.append_view("<thead class=\"md-thead\"><tr class=\"md-tr\">\n");
+                            } else if(i == 1) {
+                                self.out.append_view("<tbody class=\"md-tbody\"><tr class=\"md-tr\">\n");
+                            } else {
+                                self.out.append_view("<tr class=\"md-tr\">\n");
+                            }
+                            self.render_children(row.children);
+                            if(row.is_header) {
+                                self.out.append_view("</tr></thead>\n");
+                            } else if(i == 1) {
+                                self.out.append_view("</tr>\n");
+                            } else {
+                                self.out.append_view("</tr>\n");
+                            }
+                        }
+                        i++;
+                    }
+                    if(table.children.size() > 1) {
+                        self.out.append_view("</tbody>\n");
+                    }
                     self.out.append_view("</table>\n");
-                }
-            }
-            MdNodeKind.TableRow => {
-                var row = node as *mut MdTableRow;
-                if(row != null) {
-                    if(row.is_header) {
-                        self.out.append_view("<thead class=\"md-thead\"><tr class=\"md-tr\">\n");
-                    } else {
-                        self.out.append_view("<tr class=\"md-tr\">\n");
-                    }
-                    self.render_children(row.children);
-                    if(row.is_header) {
-                        self.out.append_view("</tr></thead>\n");
-                    } else {
-                        self.out.append_view("</tr>\n");
-                    }
                 }
             }
             MdNodeKind.TableCell => {
@@ -232,6 +241,16 @@ struct HtmlRenderer {
                     self.out.append_view("</blockquote>\n");
                 }
             }
+            MdNodeKind.TaskCheckbox => {
+                var checkbox = node as *mut MdTaskCheckbox;
+                if(checkbox != null) {
+                    if(checkbox.checked) {
+                        self.out.append_view("<input type=\"checkbox\" class=\"md-task-checkbox\" checked disabled> ");
+                    } else {
+                        self.out.append_view("<input type=\"checkbox\" class=\"md-task-checkbox\" disabled> ");
+                    }
+                }
+            }
             MdNodeKind.CustomContainer => {
                 var container = node as *mut MdCustomContainer;
                 if(container != null) {
@@ -242,20 +261,10 @@ struct HtmlRenderer {
                     self.out.append_view("</div>\n");
                 }
             }
-            MdNodeKind.TaskCheckbox => {
-                var checkbox = node as *mut MdTaskCheckbox;
-                if(checkbox != null) {
-                    self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled");
-                    if(checkbox.checked) {
-                        self.out.append_view(" checked");
-                    }
-                    self.out.append_view("/>");
-                }
-            }
             MdNodeKind.DefinitionList => {
                 var dl = node as *mut MdDefinitionList;
                 if(dl != null) {
-                    self.out.append_view("<dl class=\"md-dl\">\n");
+                    self.out.append_view("<dl class=\"md-dl\">");
                     self.render_children(dl.children);
                     self.out.append_view("</dl>\n");
                 }

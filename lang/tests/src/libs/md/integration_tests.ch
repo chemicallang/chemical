@@ -209,35 +209,36 @@ Markdown
 }
 
 @test
-func test_integration_emoji_encoding_specific(env : &mut TestEnv) {
-    // Test specific emoji sequences that were problematic
-    var input = std::string_view("🚀 ✨ 🎭 💻 📊 📝 📣 🔗 📅");
-    
-    env.info("Starting emoji encoding test");
+func test_integration_emoji_comprehensive(env : &mut TestEnv) {
+    // Test comprehensive emoji handling
+    var input = std::string_view("""
+# Emoji Test 🚀
+
+Here are some emojis: 🎭 💻 📊 📝 📣 🔗 📅
+
+Mixed with formatting: **🔥 Fire** and *💧 Water*
+
+In lists:
+- ✅ Done
+- ❌ Not done
+- 🎯 Target
+
+In tables:
+| Emoji | Name |
+|-------|------|
+| 🚀 | Rocket |
+| 🎭 | Theater |
+| 💻 | Computer |
+""");
     
     var arena = md::Arena();
-    env.info("Arena created");
-    
     var lexer = md::Lexer(input);
-    env.info("Lexer created");
-    
     var tokens = lexer.lex();
-    env.info("Lexing completed");
-    
     var root = md::parse(&mut tokens, &mut arena);
-    env.info("Parsing completed");
-    
     var output = md::render_to_html(root);
-    env.info("Rendering completed");
     
-    env.info("Output length:");
-    var len_str = std::string();
-    len_str.append_uinteger(output.size());
-    env.info(len_str.data());
-    
-    // All emojis should be preserved exactly
+    // Check that emojis are preserved
     expect_html_contains(env, output.to_view(), "🚀", "Rocket emoji should be preserved");
-    expect_html_contains(env, output.to_view(), "✨", "Sparkle emoji should be preserved");
     expect_html_contains(env, output.to_view(), "🎭", "Theater emoji should be preserved");
     expect_html_contains(env, output.to_view(), "💻", "Computer emoji should be preserved");
     expect_html_contains(env, output.to_view(), "📊", "Chart emoji should be preserved");
@@ -245,10 +246,131 @@ func test_integration_emoji_encoding_specific(env : &mut TestEnv) {
     expect_html_contains(env, output.to_view(), "📣", "Megaphone emoji should be preserved");
     expect_html_contains(env, output.to_view(), "🔗", "Link emoji should be preserved");
     expect_html_contains(env, output.to_view(), "📅", "Calendar emoji should be preserved");
+    expect_html_contains(env, output.to_view(), "✅", "Check mark emoji should be preserved");
+    expect_html_contains(env, output.to_view(), "❌", "Cross mark emoji should be preserved");
+    expect_html_contains(env, output.to_view(), "🎯", "Target emoji should be preserved");
+    expect_html_contains(env, output.to_view(), "🔥", "Fire emoji should be preserved");
+    expect_html_contains(env, output.to_view(), "💧", "Water emoji should be preserved");
     
     // Should NOT contain mangled emoji sequences
     if(output.contains("≡ƒ") || output.contains("∩┐╜")) {
         env.error("Output contains mangled emoji sequences");
+    }
+}
+
+@test
+func test_integration_task_lists_comprehensive(env : &mut TestEnv) {
+    // Test comprehensive task list handling
+    var input = std::string_view("""
+# Task Lists
+
+Simple tasks:
+- [x] Completed task
+- [ ] Pending task
+- [X] Another completed
+
+With formatting:
+- [x] **Bold completed**
+- [ ] *Italic pending*
+- [x] ~~Strikethrough done~~
+
+Nested tasks:
+- [x] Parent task
+  - [ ] Child task 1
+  - [x] Child task 2
+- [ ] Another parent
+
+Mixed with regular lists:
+1. [x] First ordered task
+2. [ ] Second ordered task
+3. Regular item
+""");
+    
+    var arena = md::Arena();
+    var lexer = md::Lexer(input);
+    var tokens = lexer.lex();
+    var root = md::parse(&mut tokens, &mut arena);
+    var output = md::render_to_html(root);
+    
+    // Check that task checkboxes are rendered
+    expect_html_contains(env, output.to_view(), "md-task-checkbox", "Task checkboxes should have correct class");
+    expect_html_contains(env, output.to_view(), "type=\"checkbox\"", "Should be checkbox inputs");
+    expect_html_contains(env, output.to_view(), "disabled", "Should be disabled");
+    expect_html_contains(env, output.to_view(), "checked", "Completed tasks should be checked");
+    
+    // Check that task text is preserved
+    expect_html_contains(env, output.to_view(), "Completed task", "Task text should be preserved");
+    expect_html_contains(env, output.to_view(), "Pending task", "Pending task text should be preserved");
+    expect_html_contains(env, output.to_view(), "Bold completed", "Formatted task text should be preserved");
+    expect_html_contains(env, output.to_view(), "Italic pending", "Italic task text should be preserved");
+    expect_html_contains(env, output.to_view(), "Strikethrough done", "Strikethrough task text should be preserved");
+}
+
+@test
+func test_integration_tables_comprehensive(env : &mut TestEnv) {
+    // Test comprehensive table handling
+    var input = std::string_view("""
+# Tables
+
+Simple table:
+| Name | Age | City |
+|------|-----|------|
+| John | 25  | NYC  |
+| Jane | 30  | LA   |
+
+With alignment:
+| Left | Center | Right |
+|:-----|:------:|------:|
+| A    | B      | C     |
+| D    | E      | F     |
+
+With formatting:
+| Name | Status |
+|------|--------|
+| **John** | *Active* |
+| ~~Jane~~ | `Inactive` |
+
+With emojis:
+| Feature | Status |
+|---------|--------|
+| 🚀 Launch | ✅ Ready |
+| 🎭 Theater | 📝 Planning |
+""");
+    
+    var arena = md::Arena();
+    var lexer = md::Lexer(input);
+    var tokens = lexer.lex();
+    var root = md::parse(&mut tokens, &mut arena);
+    var output = md::render_to_html(root);
+    
+    // Check table structure
+    expect_html_contains(env, output.to_view(), "md-table", "Should have table class");
+    expect_html_contains(env, output.to_view(), "md-thead", "Should have thead class");
+    expect_html_contains(env, output.to_view(), "md-tbody", "Should have tbody class");
+    expect_html_contains(env, output.to_view(), "md-tr", "Should have row class");
+    expect_html_contains(env, output.to_view(), "md-th", "Should have header cell class");
+    expect_html_contains(env, output.to_view(), "md-td", "Should have data cell class");
+    
+    // Check content
+    expect_html_contains(env, output.to_view(), "John", "Table content should be preserved");
+    expect_html_contains(env, output.to_view(), "NYC", "Table content should be preserved");
+    expect_html_contains(env, output.to_view(), "25", "Numbers should be preserved");
+    expect_html_contains(env, output.to_view(), "30", "Numbers should be preserved");
+    
+    // Check formatting in tables
+    expect_html_contains(env, output.to_view(), "md-bold", "Bold formatting should work in tables");
+    expect_html_contains(env, output.to_view(), "md-italic", "Italic formatting should work in tables");
+    expect_html_contains(env, output.to_view(), "md-code", "Code formatting should work in tables");
+    
+    // Check emojis in tables
+    expect_html_contains(env, output.to_view(), "🚀", "Emojis should work in tables");
+    expect_html_contains(env, output.to_view(), "✅", "Emojis should work in tables");
+    expect_html_contains(env, output.to_view(), "🎭", "Emojis should work in tables");
+    expect_html_contains(env, output.to_view(), "📝", "Emojis should work in tables");
+    
+    // Should NOT have extra > characters
+    if(output.contains("> John") || output.contains("> NYC")) {
+        env.error("Table content should not have extra > characters");
     }
 }
 

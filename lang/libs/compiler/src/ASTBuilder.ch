@@ -417,21 +417,9 @@ public struct EmbeddedNode : ASTNode {
 
 public struct VariantMemberParam : ASTNode {}
 
-public type EmbeddedNodeSymbolResolveFunc = (resolver : *mut SymbolResolver, value : *mut EmbeddedNode) => bool;
-
-public type EmbeddedNodeReplacementFunc = (builder : *ASTBuilder, value : *mut EmbeddedNode) => *ASTNode
-
 public type EmbeddedNodeKnownTypeFunc = (value : *EmbeddedNode) => *BaseType
 
 public type EmbeddedNodeChildResolutionFunc = (value : *EmbeddedNode, name : &std::string_view) => *ASTNode
-
-public type EmbeddedNodeTraversalFunc = (node : *EmbeddedNode, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) => void
-
-public type EmbeddedValueSymbolResolveFunc = (resolver : *SymbolResolver, value : *EmbeddedValue) => bool
-
-public type EmbeddedValueReplacementFunc = (builder : *ASTBuilder, value : *EmbeddedValue) => *Value
-
-public type EmbeddedValueTraversalFunc = (value : *EmbeddedValue, data : *void, traverse : (data : *void, item : *mut ASTAny) => bool) => void
 
 @compiler.interface
 public struct ASTBuilder {

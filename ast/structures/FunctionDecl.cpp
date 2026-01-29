@@ -1158,7 +1158,10 @@ Value *FunctionDeclaration::call(
         }
         i++;
     }
-
+    if(!body.has_value()) {
+        call_scope->error("cannot call a function with no body at comptime", debug_value);
+        return nullptr;
+    }
     fn_scope->interpret(&body.value());
     return interpretReturn;
 }

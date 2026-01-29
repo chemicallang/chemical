@@ -1,6 +1,3 @@
-
-using namespace std;
-
 comptime const BufferCapacity = 1024
 
 /**

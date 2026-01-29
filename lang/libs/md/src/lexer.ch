@@ -87,6 +87,8 @@ public struct Lexer {
             '>' => { return MdToken { type : MdTokenType.GreaterThan as int, value : std::string_view(">"), position : start_pos } }
             '-' => { return MdToken { type : MdTokenType.Dash as int, value : std::string_view("-"), position : start_pos } }
             '+' => { return MdToken { type : MdTokenType.Plus as int, value : std::string_view("+"), position : start_pos } }
+            '{' => { return MdToken { type : MdTokenType.LBrace as int, value : std::string_view("{"), position : start_pos } }
+            '}' => { return MdToken { type : MdTokenType.RBrace as int, value : std::string_view("}"), position : start_pos } }
             '|' => { return MdToken { type : MdTokenType.Pipe as int, value : std::string_view("|"), position : start_pos } }
             '~' => { return MdToken { type : MdTokenType.Tilde as int, value : std::string_view("~"), position : start_pos } }
             ':' => { return MdToken { type : MdTokenType.Colon as int, value : std::string_view(":"), position : start_pos } }
@@ -123,7 +125,7 @@ public struct Lexer {
                 self.read_while((cc : char) => {
                     return !(cc == '\0' || cc == '\n' || cc == '#' || cc == '*' || cc == '_' || cc == '[' || cc == ']' ||
                              cc == '(' || cc == ')' || cc == '!' || cc == '`' || cc == '>' || cc == '-' || cc == '+' ||
-                             cc == '|' || cc == '~' || cc == ':' || cc == '=' || cc == '^' || cc == '.' ||
+                             cc == '|' || cc == '~' || cc == ':' || cc == '=' || cc == '^' || cc == '.' || cc == '{' || cc == '}' ||
                              (cc >= '0' && cc <= '9'))
                 })
                 const end_ptr = self.ptr

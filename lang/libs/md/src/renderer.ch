@@ -16,6 +16,11 @@ struct HtmlRenderer {
                 // Pass through UTF-8 bytes unchanged
                 self.out.append(c);
                 i++;
+                // Continue passing through remaining UTF-8 bytes
+                while(i < sz && (data[i] as uint >= 0x80 && data[i] as uint < 0xC0)) {
+                    self.out.append(data[i]);
+                    i++;
+                }
             } else if(c == '<') {
                 self.out.append_view("&lt;");
                 i++;
@@ -56,7 +61,7 @@ struct HtmlRenderer {
                 self.out.append_integer(h.level as bigint);
                 self.out.append_view(" class=\"md-hg md-h");
                 self.out.append_integer(h.level as bigint);
-                self.out.append_view("\"> ");
+                self.out.append_view("\">");
                 self.render_children(h.children);
                 self.out.append_view("</h");
                 self.out.append_integer(h.level as bigint);
@@ -305,9 +310,9 @@ struct HtmlRenderer {
                 var checkbox = node as *mut MdTaskCheckbox;
                 if(checkbox != null) {
                     if(checkbox.checked) {
-                        self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled checked/> ");
+                        self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled checked/>");
                     } else {
-                        self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled/> ");
+                        self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled/>");
                     }
                 }
             }
@@ -372,11 +377,17 @@ struct HtmlRenderer {
             MdNodeKind.Abbreviation => {
                 var abbr = node as *mut MdAbbreviation;
                 if(abbr != null) {
-                    self.out.append_view("<abbr title=\" ");
-                    self.escape(abbr.title);
-                    self.out.append_view("\">");
-                    self.escape(abbr.id);
-                    self.out.append_view("</abbr>");
+                    if(abbr.title.size() > 0) {
+                        // This is an abbreviation definition
+                        self.out.append_view("<abbr title=\" ");
+                        self.escape(abbr.title);
+                        self.out.append_view("\">");
+                        self.escape(abbr.id);
+                        self.out.append_view("</abbr>");
+                    } else {
+                        // This is an abbreviation reference - just render as text for now
+                        self.escape(abbr.id);
+                    }
                 }
             }
             default => {

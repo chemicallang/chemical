@@ -102,20 +102,50 @@ func is_blockquote(p : &mut TokenParser) : bool {
 }
 
 func is_custom_container(p : &mut TokenParser) : bool {
-    // Check for ::: type (more aggressive check)
+    // Check for ::: type at the beginning of a line
     if(p.get().type == MdTokenType.Colon as int) {
         var i = 1u;
         var colon_count = 1;
+        // Look for at least 3 consecutive colons
         while(i < 10 && p.peek_ahead(i).type == MdTokenType.Colon as int) {
             colon_count++;
             i++;
         }
-        if(colon_count >= 3) return true;
+        if(colon_count >= 3) {
+            // After the colons, there should be text (container type) followed by newline
+            while(i < 20 && !is_line_end(p.peek_ahead(i).type)) {
+                if(p.peek_ahead(i).type == MdTokenType.Text as int && p.peek_ahead(i).value.size() > 0) {
+                    return true;
+                }
+                i++;
+            }
+        }
     }
     return false;
 }
 
-func is_footnote_def(p : &mut TokenParser) : bool {
+func is_abbreviation_def(p : &mut TokenParser) : bool {
+    // Check for pattern: [text]: definition
+    if(p.get().type == MdTokenType.LBracket as int) {
+        var i = 1u;
+        // Look for content inside brackets
+        while(i < 20 && p.peek_ahead(i).type != MdTokenType.RBracket as int && !is_line_end(p.peek_ahead(i).type)) {
+            if(p.peek_ahead(i).type == MdTokenType.Text as int) {
+                i++;
+            } else {
+                return false;
+            }
+        }
+        if(p.peek_ahead(i).type == MdTokenType.RBracket as int) {
+            i++;
+            if(p.peek_ahead(i).type == MdTokenType.Colon as int) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+    func is_footnote_def(p : &mut TokenParser) : bool {
     // Check for pattern: [^id]: definition
     if(p.get().type == MdTokenType.LBracket as int) {
         var i = 1u;
@@ -158,19 +188,19 @@ func is_definition_list(p : &mut TokenParser) : bool {
 
 func is_table_row(p : &mut TokenParser) : bool {
     // Be very conservative - only detect actual pipe tables
-    // Regular markdown tables without pipes are too ambiguous and cause false positives
+    // The example shows a regular markdown table without pipes that should NOT be parsed as a table
     
     // Only detect pipe tables that start with |
     if(p.get().type != MdTokenType.Pipe as int) {
         return false;
     }
     
-    // Look ahead to verify it has multiple columns and proper structure
+    // Look ahead to verify it has proper table structure
     var i = 1u;
     var pipe_count = 1; // Already counted first pipe
     var content_found = false;
     
-    while(!is_line_end(p.peek_ahead(i).type) && i < 30) {
+    while(!is_line_end(p.peek_ahead(i).type) && i < 50) {
         const t = p.peek_ahead(i).type;
         if(t == MdTokenType.Pipe as int) {
             pipe_count++;
@@ -180,8 +210,9 @@ func is_table_row(p : &mut TokenParser) : bool {
         i++;
     }
     
-    // Must have at least 2 pipes (3 columns) and some content
-    return pipe_count >= 3 && content_found;
+    // Must have at least 2 pipes (3 columns) and some content, and not be too long
+    // This prevents false positives on long content lines
+    return pipe_count >= 3 && content_found && i < 40;
 }
 
 struct MdParser {
@@ -322,7 +353,7 @@ struct MdParser {
             }
 
             if(t.type == MdTokenType.LBracket as int) {
-                // Could be a link [text](url) or abbreviation [text]: definition
+                // Could be a link [text](url) or abbreviation reference
                 var link_text = self.arena.allocate<std::string>();
                 new (link_text) std::string();
                 p.bump(); // consume [
@@ -367,38 +398,26 @@ struct MdParser {
                     out_children.push(link as *mut MdNode);
                     continue;
                 } else if(p.get().type == MdTokenType.Colon as int) {
-                    // Abbreviation [text]: definition
-                    p.bump(); // consume :
-                    var def = self.arena.allocate<std::string>();
-                    new (def) std::string();
-                    while(!is_line_end(p.get().type)) {
-                        if(is_text(p.get().type)) {
-                            def.append_view(p.get().value);
-                        }
-                        p.bump();
-                    }
-                    
-                    // Create abbreviation node
-                    var abbr = self.arena.allocate<MdAbbreviation>();
-                    new (abbr) MdAbbreviation { 
-                        base : MdNode { kind : MdNodeKind.Abbreviation }, 
-                        id : link_text.to_view(),
-                        title : def.to_view()
-                    };
-                    
-                    // Also create a text node for the abbreviation text
-                    var text_node = self.make_text(link_text.to_view());
-                    out_children.push(text_node);
-                    
-                    continue;
-                } else {
-                    // Just text in brackets, treat as text
+                    // Abbreviation definition [text]: definition - this should be handled at block level
+                    // For now, treat as text and let block-level parser handle it
                     var text = self.arena.allocate<std::string>();
                     new (text) std::string();
                     text.append('[');
                     text.append_view(link_text.to_view());
                     text.append(']');
+                    text.append(':');
                     out_children.push(self.make_text(text.to_view()));
+                    continue;
+                } else {
+                    // Just text in brackets, could be an abbreviation reference
+                    // Create abbreviation node that will be resolved later
+                    var abbr = self.arena.allocate<MdAbbreviation>();
+                    new (abbr) MdAbbreviation { 
+                        base : MdNode { kind : MdNodeKind.Abbreviation }, 
+                        id : link_text.to_view(),
+                        title : std::string_view("")
+                    };
+                    out_children.push(abbr as *mut MdNode);
                     continue;
                 }
             }
@@ -632,6 +651,11 @@ struct MdParser {
             colon_count++;
         }
         
+        // Skip whitespace after :::
+        while(p.get().type == MdTokenType.Text as int && is_ws_only(p.get().value)) {
+            p.bump();
+        }
+        
         // Parse container type
         var container_type = self.arena.allocate<std::string>();
         new (container_type) std::string();
@@ -650,7 +674,7 @@ struct MdParser {
             children : std::vector<*mut MdNode>()
         };
         
-        // Parse container content until :::
+        // Parse container content until closing :::
         while(true) {
             // Check for closing :::
             if(p.get().type == MdTokenType.Colon as int) {
@@ -665,6 +689,8 @@ struct MdParser {
                         p.bump();
                         i++;
                     }
+                    // Skip newline after closing :::
+                    if(is_nl(p.get().type)) p.bump();
                     break;
                 }
             }
@@ -672,10 +698,16 @@ struct MdParser {
             if(is_end(p.get().type)) break;
             
             // Parse content as paragraph
+            skip_blank_lines(p);
+            if(is_end(p.get().type) || is_custom_container(p)) break;
+            
             var para = self.arena.allocate<MdParagraph>();
             new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
             self.parse_inline_text_until_line_end(p, para.children);
-            container.children.push(para as *mut MdNode);
+            
+            if(para.children.size() > 0) {
+                container.children.push(para as *mut MdNode);
+            }
             
             if(is_nl(p.get().type)) p.bump();
         }
@@ -684,8 +716,11 @@ struct MdParser {
     }
 
     func parse_definition_list(&mut self, p : &mut TokenParser) : *mut MdNode {
-        var dl = self.arena.allocate<MdDefinitionList>();
-        new (dl) MdDefinitionList { base : MdNode { kind : MdNodeKind.DefinitionList }, children : std::vector<*mut MdNode>() };
+        // Parse each term/definition pair as separate definition lists
+        // This matches the md cbi behavior where each pair gets its own <dl> tag
+        
+        var first_dl = self.arena.allocate<MdDefinitionList>();
+        new (first_dl) MdDefinitionList { base : MdNode { kind : MdNodeKind.DefinitionList }, children : std::vector<*mut MdNode>() };
         
         while(true) {
             if(is_end(p.get().type)) break;
@@ -706,7 +741,7 @@ struct MdParser {
                     }
                 }
                 
-                dl.children.push(dt as *mut MdNode);
+                first_dl.children.push(dt as *mut MdNode);
                 
                 // Skip newlines
                 while(is_nl(p.get().type)) { p.bump() };
@@ -734,18 +769,18 @@ struct MdParser {
                         }
                     }
                     
-                    dl.children.push(dd as *mut MdNode);
+                    first_dl.children.push(dd as *mut MdNode);
                 }
             }
             
             // Skip newlines between entries
             while(is_nl(p.get().type)) { p.bump() };
             
-            // Check if next looks like another definition
-            if(!is_definition_list(p)) break;
+            // Check if next looks like another definition - if so, return and let main loop handle it
+            if(is_definition_list(p)) break;
         }
         
-        return dl as *mut MdNode;
+        return first_dl as *mut MdNode;
     }
 
     func parse_horizontal_rule(&mut self, p : &mut TokenParser) : *mut MdNode {
@@ -979,6 +1014,49 @@ struct MdParser {
         return table as *mut MdNode;
     }
 
+    func parse_abbreviation_def(&mut self, p : &mut TokenParser) : *mut MdNode {
+        // Parse [text]: definition
+        p.bump(); // consume [
+        
+        var abbr_id = self.arena.allocate<std::string>();
+        new (abbr_id) std::string();
+        
+        while(p.get().type != MdTokenType.RBracket as int && !is_line_end(p.get().type)) {
+            if(is_text(p.get().type)) {
+                abbr_id.append_view(p.get().value);
+            }
+            p.bump();
+        }
+        if(p.get().type == MdTokenType.RBracket as int) p.bump(); // consume ]
+        if(p.get().type == MdTokenType.Colon as int) p.bump(); // consume :
+        
+        // Skip leading spaces
+        while(is_text(p.get().type) && is_ws_only(p.get().value)) {
+            p.bump();
+        }
+        
+        var abbr_def = self.arena.allocate<std::string>();
+        new (abbr_def) std::string();
+        
+        while(!is_line_end(p.get().type)) {
+            if(is_text(p.get().type)) {
+                abbr_def.append_view(p.get().value);
+            }
+            p.bump();
+        }
+        
+        // Create abbreviation definition node
+        var abbr = self.arena.allocate<MdAbbreviation>();
+        new (abbr) MdAbbreviation { 
+            base : MdNode { kind : MdNodeKind.Abbreviation }, 
+            id : abbr_id.to_view(),
+            title : abbr_def.to_view()
+        };
+        
+        if(is_nl(p.get().type)) p.bump();
+        return abbr as *mut MdNode;
+    }
+
     func parse_footnote_def(&mut self, p : &mut TokenParser) : *mut MdNode {
         // Parse [^id]: definition
         p.bump(); // consume [
@@ -1028,6 +1106,7 @@ struct MdParser {
         if(is_hr(p)) return self.parse_horizontal_rule(p);
         if(is_blockquote(p)) return self.parse_blockquote(p);
         if(is_custom_container(p)) return self.parse_custom_container(p);
+        if(is_abbreviation_def(p)) return self.parse_abbreviation_def(p);
         if(is_footnote_def(p)) return self.parse_footnote_def(p);
         if(is_definition_list(p)) return self.parse_definition_list(p);
         if(is_list_start(p)) return self.parse_list(p, false);

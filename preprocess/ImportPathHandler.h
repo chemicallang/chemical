@@ -40,13 +40,6 @@ public:
     std::string exe_path;
 
     /**
-     * this is set by the processor, when resolving paths
-     * for a single module, it points to empty string when
-     * the module is not a directory module
-     */
-    std::string_view module_src_dir_path;
-
-    /**
      * these are the resolved places where system headers paths exist
      * when its empty, its loaded directly by invoking clang (from self)
      * then once we found them we cache them here, for faster invocation next time

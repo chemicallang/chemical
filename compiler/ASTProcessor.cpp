@@ -84,7 +84,6 @@ void ASTProcessor::determine_module_files(
         // it seems the files have already been determined
         return;
     }
-    path_handler.module_src_dir_path = "";
     switch(module->type) {
         case LabModuleType::Files: {
             for (auto& str: module->paths) {
@@ -104,10 +103,6 @@ void ASTProcessor::determine_module_files(
         case LabModuleType::CPPFile:
             return;
         case LabModuleType::Directory:
-            if(module->paths.size() == 1) {
-                // TODO: this should be removed !
-                path_handler.module_src_dir_path = module->paths[0].to_view();
-            }
             for(auto& dir_path : module->paths) {
                 auto dir_path_p = (std::filesystem::path) dir_path.to_view();
                 if (!std::filesystem::exists(dir_path_p)) {
@@ -144,12 +139,6 @@ bool ASTProcessor::import_module_files_direct(
         std::vector<ASTFileMetaData>& files,
         LabModule* module
 ) {
-    // TODO: module's src dir path should not be visible to path handler
-    if(module->type == LabModuleType::Directory && module->paths.size() == 1) {
-        path_handler.module_src_dir_path = module->paths[0].to_view();
-    } else {
-        path_handler.module_src_dir_path = "";
-    }
     return import_chemical_files_direct(pool, files);
 }
 

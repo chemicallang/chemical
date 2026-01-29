@@ -1,5 +1,5 @@
 @compiler.interface
-public struct SymbolResolver : ASTDiagnoser {
+public interface SymbolResolver : ASTDiagnoser {
 
     func getAnnotationController(&self) : *mut AnnotationController
 

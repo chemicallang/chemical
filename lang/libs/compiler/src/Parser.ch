@@ -1,6 +1,6 @@
 
 @compiler.interface
-public struct Parser {
+public interface Parser {
 
     func getTokenPtr(&self) : *mut *mut Token
 

@@ -1,6 +1,6 @@
 
 @compiler.interface
-public struct PtrVec {
+public interface PtrVec {
 
     func _get(&self, i : uint) : *void;
 

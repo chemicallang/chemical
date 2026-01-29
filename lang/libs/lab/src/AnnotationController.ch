@@ -1,5 +1,5 @@
 @compiler.interface
-public struct AnnotationController {
+public interface AnnotationController {
 
     func createSingleMarkerAnnotation(&self, name : &std::string_view, policy : int)
 

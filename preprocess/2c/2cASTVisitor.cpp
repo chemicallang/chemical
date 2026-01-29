@@ -3475,7 +3475,9 @@ void CTopLevelDeclarationVisitor::declare_interface(InterfaceDefinition* def, bo
             for (auto& func: def->instantiated_functions()) {
                 declare_contained_func(this, func, false);
             }
-            visitor.store_static_interface_for_stub_impl(def);
+            if(!def->is_extern()) {
+                visitor.store_static_interface_for_stub_impl(def);
+            }
         } else {
             for (auto& func: def->instantiated_functions()) {
                 if(!func->has_self_param()) {

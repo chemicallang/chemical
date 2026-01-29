@@ -13,30 +13,21 @@ struct HtmlRenderer {
             const c = data[i];
             // Handle UTF-8 multi-byte sequences properly
             if(c as uint >= 0x80) {
-                // Pass through UTF-8 bytes unchanged
-                self.out.append(c);
-                i++;
-                // Continue passing through remaining UTF-8 bytes
-                while(i < sz && (data[i] as uint >= 0x80 && data[i] as uint < 0xC0)) {
-                    self.out.append(data[i]);
-                    i++;
+                // UTF-8 lead byte, determine sequence length
+                var seq_len = 0u;
+                const c_val = c as uint;
+                if((c_val & 0xE0) == 0xC0) seq_len = 2;      // 2-byte sequence
+                else if((c_val & 0xF0) == 0xE0) seq_len = 3; // 3-byte sequence  
+                else if((c_val & 0xF8) == 0xF0) seq_len = 4; // 4-byte sequence
+                else seq_len = 1; // Invalid UTF-8, treat as single byte
+                
+                // Copy the entire UTF-8 sequence
+                var j = 0u;
+                while(j < seq_len && i + j < sz) {
+                    self.out.append(data[i + j]);
+                    j++;
                 }
-                // Also handle UTF-8 continuation bytes properly
-                while(i < sz && (data[i] as uint >= 0xC0)) {
-                    self.out.append(data[i]);
-                    i++;
-                    var continuation_bytes = 0u;
-                    if(((data[i-1] as uint) & 0xE0) == 0xC0) continuation_bytes = 1;
-                    else if(((data[i-1] as uint) & 0xF0) == 0xE0) continuation_bytes = 2;
-                    else if(((data[i-1] as uint) & 0xF8) == 0xF0) continuation_bytes = 3;
-                    
-                    var j = 0u;
-                    while(j < continuation_bytes && i < sz && (data[i] as uint >= 0x80 && data[i] as uint < 0xC0)) {
-                        self.out.append(data[i]);
-                        i++;
-                        j++;
-                    }
-                }
+                i += seq_len;
             } else if(c == '<') {
                 self.out.append_view("&lt;");
                 i++;

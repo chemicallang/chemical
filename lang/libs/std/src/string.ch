@@ -573,6 +573,14 @@ public struct string : Hashable, Eq {
         }
     }
 
+    func find(&self, needle : &std::string_view) : size_t {
+        return internal_view_find(std::string_view(data(), size()), needle);
+    }
+
+    func contains(&self, needle : &std::string_view) : bool {
+        return find(needle) != NPOS
+    }
+
     func capacity(&mut self) : size_t {
         switch(state) {
             '0' => {

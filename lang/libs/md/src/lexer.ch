@@ -9,13 +9,24 @@ public struct Lexer {
     var in_fenced_code : bool
     var fence_count : int
 
-    func init(&mut self, text : std::string_view) {
-        self.text = text
-        self.ptr = text.data()
-        self.end = text.data() + text.size() as isize
-        self.pos = 0
-        self.in_fenced_code = false
-        self.fence_count = 0
+    @make
+    func make() {
+        text = std::string_view("");
+        ptr = "";
+        end = ptr + 1;
+        pos = 0;
+        in_fenced_code = false
+        fence_count = 0
+    }
+
+    @make
+    func make2(text_view : std::string_view) {
+        text = text_view
+        ptr = text.data()
+        end = text.data() + text.size() as isize
+        pos = 0
+        in_fenced_code = false
+        fence_count = 0
     }
 
     func peek(&self) : char {
@@ -133,17 +144,22 @@ public struct Lexer {
             }
         }
     }
+
+    public func lex(&mut self) : std::vector<MdToken> {
+        var out = std::vector<MdToken>()
+        while(true) {
+            const t = next_token()
+            out.push(t)
+            if(t.type == MdTokenType.EndOfFile as int) break
+        }
+        return out
+    }
+
 }
 
 public func lex(text : std::string_view) : std::vector<MdToken> {
-    var lx : Lexer; lx.init(text)
-    var out = std::vector<MdToken>()
-    while(true) {
-        const t = lx.next_token()
-        out.push(t)
-        if(t.type == MdTokenType.EndOfFile as int) break
-    }
-    return out
+    var lx = Lexer(text)
+    return lx.lex();
 }
 
 }

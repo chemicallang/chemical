@@ -59,6 +59,14 @@ public namespace std {
             return std::string_view(_data + count, _size - count)
         }
 
+        func find(&self, needle : &std::string_view) : size_t {
+            return internal_view_find(self, needle);
+        }
+
+        func contains(&self, needle : &std::string_view) : bool {
+            return find(needle) != NPOS
+        }
+
         @override
         func equals(&self, other : &std::string_view) : bool {
             const self_size = _size;

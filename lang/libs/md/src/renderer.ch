@@ -10,20 +10,26 @@ struct HtmlRenderer {
         const sz = text.size()
         var i = 0u;
         while(i < sz) {
-            const c1 = (data[i] as uint) & 0xFF;
-            if(c1 < 0x80) {
-                const c = c1 as char;
-                switch(c) {
-                    '<' => { self.out.append_view("&lt;"); }
-                    '>' => { self.out.append_view("&gt;"); }
-                    '&' => { self.out.append_view("&amp;"); }
-                    '"' => { self.out.append_view("&quot;"); }
-                    default => { self.out.append(c); }
-                }
+            const c = data[i];
+            // Handle UTF-8 multi-byte sequences properly
+            if(c as uint >= 0x80) {
+                // Pass through UTF-8 bytes unchanged
+                self.out.append(c);
+                i++;
+            } else if(c == '<') {
+                self.out.append_view("&lt;");
+                i++;
+            } else if(c == '>') {
+                self.out.append_view("&gt;");
+                i++;
+            } else if(c == '&') {
+                self.out.append_view("&amp;");
+                i++;
+            } else if(c == '"') {
+                self.out.append_view("&quot;");
                 i++;
             } else {
-                // For now: pass through UTF-8 bytes unchanged (common-case).
-                self.out.append(data[i] as char);
+                self.out.append(c);
                 i++;
             }
         }
@@ -109,32 +115,86 @@ struct HtmlRenderer {
                 var table = node as *mut MdTable;
                 if(table != null) {
                     self.out.append_view("<table class=\"md-table\">\n");
+                    
                     var i = 0u;
+                    var has_tbody = false;
+                    
                     while(i < table.children.size()) {
                         var child = table.children.get(i);
                         if(child.kind == MdNodeKind.TableRow) {
                             var row = child as *mut MdTableRow;
+                            
                             if(row.is_header) {
                                 self.out.append_view("<thead class=\"md-thead\"><tr class=\"md-tr\">\n");
-                            } else if(i == 1) {
-                                self.out.append_view("<tbody class=\"md-tbody\"><tr class=\"md-tr\">\n");
-                            } else {
-                                self.out.append_view("<tr class=\"md-tr\">\n");
-                            }
-                            self.render_children(row.children);
-                            if(row.is_header) {
+                                var j = 0u;
+                                while(j < row.children.size()) {
+                                    var cell_child = row.children.get(j);
+                                    if(cell_child.kind == MdNodeKind.TableCell) {
+                                        var cell = cell_child as *mut MdTableCell;
+                                        self.out.append_view("<th class=\"md-th\">");
+                                        
+                                        // Add alignment style if available
+                                        if(j < table.alignments.size()) {
+                                            const align = table.alignments.get(j);
+                                            if(align == MdTableAlign.Left) {
+                                                self.out.append_view(" style=\"text-align:left\"");
+                                            } else if(align == MdTableAlign.Center) {
+                                                self.out.append_view(" style=\"text-align:center\"");
+                                            } else if(align == MdTableAlign.Right) {
+                                                self.out.append_view(" style=\"text-align:right\"");
+                                            }
+                                        }
+                                        
+                                        self.out.append_view(">");
+                                        self.render_children(cell.children);
+                                        self.out.append_view("</th>\n");
+                                    }
+                                    j++;
+                                }
                                 self.out.append_view("</tr></thead>\n");
-                            } else if(i == 1) {
-                                self.out.append_view("</tr>\n");
                             } else {
+                                if(!has_tbody) {
+                                    self.out.append_view("<tbody class=\"md-tbody\"><tr class=\"md-tr\">\n");
+                                    has_tbody = true;
+                                } else {
+                                    self.out.append_view("<tr class=\"md-tr\">\n");
+                                }
+                                
+                                var j = 0u;
+                                while(j < row.children.size()) {
+                                    var cell_child = row.children.get(j);
+                                    if(cell_child.kind == MdNodeKind.TableCell) {
+                                        var cell = cell_child as *mut MdTableCell;
+                                        self.out.append_view("<td class=\"md-td\">");
+                                        
+                                        // Add alignment style if available
+                                        if(j < table.alignments.size()) {
+                                            const align = table.alignments.get(j);
+                                            if(align == MdTableAlign.Left) {
+                                                self.out.append_view(" style=\"text-align:left\"");
+                                            } else if(align == MdTableAlign.Center) {
+                                                self.out.append_view(" style=\"text-align:center\"");
+                                            } else if(align == MdTableAlign.Right) {
+                                                self.out.append_view(" style=\"text-align:right\"");
+                                            }
+                                        }
+                                        
+                                        self.out.append_view(">");
+                                        self.render_children(cell.children);
+                                        self.out.append_view("</td>\n");
+                                    }
+                                    j++;
+                                }
                                 self.out.append_view("</tr>\n");
                             }
                         }
                         i++;
                     }
-                    if(table.children.size() > 1) {
+                    
+                    if(has_tbody) {
                         self.out.append_view("</tbody>\n");
                     }
+                    
                     self.out.append_view("</table>\n");
                 }
             }
@@ -245,16 +305,16 @@ struct HtmlRenderer {
                 var checkbox = node as *mut MdTaskCheckbox;
                 if(checkbox != null) {
                     if(checkbox.checked) {
-                        self.out.append_view("<input type=\"checkbox\" class=\"md-task-checkbox\" checked disabled> ");
+                        self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled checked/> ");
                     } else {
-                        self.out.append_view("<input type=\"checkbox\" class=\"md-task-checkbox\" disabled> ");
+                        self.out.append_view("<input class=\"md-task-checkbox\" type=\"checkbox\" disabled/> ");
                     }
                 }
             }
             MdNodeKind.CustomContainer => {
                 var container = node as *mut MdCustomContainer;
                 if(container != null) {
-                    self.out.append_view("<div class=\"md-callout md-callout-");
+                    self.out.append_view("<div class=\"md-container md-");
                     self.out.append_view(container.type);
                     self.out.append_view("\">");
                     self.render_children(container.children);
@@ -283,6 +343,40 @@ struct HtmlRenderer {
                     self.out.append_view("<dd class=\"md-dd\">");
                     self.render_children(dd.children);
                     self.out.append_view("</dd>\n");
+                }
+            }
+            MdNodeKind.Footnote => {
+                var footnote = node as *mut MdFootnote;
+                if(footnote != null) {
+                    self.out.append_view("<sup class=\"md-footnote-ref\" id=\"fnref:");
+                    self.escape(footnote.id);
+                    self.out.append_view("\"><a href=\"#fn:");
+                    self.escape(footnote.id);
+                    self.out.append_view("\">");
+                    self.escape(footnote.id);
+                    self.out.append_view("</a></sup>");
+                }
+            }
+            MdNodeKind.FootnoteDef => {
+                var footnote_def = node as *mut MdFootnoteDef;
+                if(footnote_def != null) {
+                    self.out.append_view("<div class=\"md-footnote-def\" id=\"fn:");
+                    self.escape(footnote_def.id);
+                    self.out.append_view("\"><span class=\"md-footnote-id\">");
+                    self.escape(footnote_def.id);
+                    self.out.append_view(": </span>");
+                    self.render_children(footnote_def.children);
+                    self.out.append_view("</div>\n");
+                }
+            }
+            MdNodeKind.Abbreviation => {
+                var abbr = node as *mut MdAbbreviation;
+                if(abbr != null) {
+                    self.out.append_view("<abbr title=\" ");
+                    self.escape(abbr.title);
+                    self.out.append_view("\">");
+                    self.escape(abbr.id);
+                    self.out.append_view("</abbr>");
                 }
             }
             default => {

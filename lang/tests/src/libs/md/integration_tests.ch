@@ -107,11 +107,27 @@ Markdown
 
 [^1]: This is a footnote demonstrating the `md_cbi` extension support.""");
     
+    env.info("Starting integration test with original problem markdown");
+    
     var arena = md::Arena();
+    env.info("Arena created");
+    
     var lexer = md::Lexer(input);
+    env.info("Lexer created");
+    
     var tokens = lexer.lex();
+    env.info("Lexing completed");
+    
     var root = md::parse(&mut tokens, &mut arena);
+    env.info("Parsing completed");
+    
     var output = md::render_to_html(root);
+    env.info("Rendering completed");
+    
+    env.info("Output length:");
+    var len_str = std::string();
+    len_str.append_uinteger(output.size());
+    env.info(len_str.data());
     
     // Test key elements that were problematic in the original issue
     
@@ -196,11 +212,28 @@ Markdown
 func test_integration_emoji_encoding_specific(env : &mut TestEnv) {
     // Test specific emoji sequences that were problematic
     var input = std::string_view("🚀 ✨ 🎭 💻 📊 📝 📣 🔗 📅");
+    
+    env.info("Starting emoji encoding test");
+    
     var arena = md::Arena();
+    env.info("Arena created");
+    
     var lexer = md::Lexer(input);
+    env.info("Lexer created");
+    
     var tokens = lexer.lex();
+    env.info("Lexing completed");
+    
     var root = md::parse(&mut tokens, &mut arena);
+    env.info("Parsing completed");
+    
     var output = md::render_to_html(root);
+    env.info("Rendering completed");
+    
+    env.info("Output length:");
+    var len_str = std::string();
+    len_str.append_uinteger(output.size());
+    env.info(len_str.data());
     
     // All emojis should be preserved exactly
     expect_html_contains(env, output.to_view(), "🚀", "Rocket emoji should be preserved");

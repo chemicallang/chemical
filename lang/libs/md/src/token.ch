@@ -20,7 +20,6 @@ public enum MdTokenType {
     Tilde,
     Colon,
     Number,
-    Dot,
     Equal,
     Caret,
     FencedCodeStart,

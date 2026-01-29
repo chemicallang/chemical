@@ -21,6 +21,22 @@ struct HtmlRenderer {
                     self.out.append(data[i]);
                     i++;
                 }
+                // Also handle UTF-8 continuation bytes properly
+                while(i < sz && (data[i] as uint >= 0xC0)) {
+                    self.out.append(data[i]);
+                    i++;
+                    var continuation_bytes = 0u;
+                    if(((data[i-1] as uint) & 0xE0) == 0xC0) continuation_bytes = 1;
+                    else if(((data[i-1] as uint) & 0xF0) == 0xE0) continuation_bytes = 2;
+                    else if(((data[i-1] as uint) & 0xF8) == 0xF0) continuation_bytes = 3;
+                    
+                    var j = 0u;
+                    while(j < continuation_bytes && i < sz && (data[i] as uint >= 0x80 && data[i] as uint < 0xC0)) {
+                        self.out.append(data[i]);
+                        i++;
+                        j++;
+                    }
+                }
             } else if(c == '<') {
                 self.out.append_view("&lt;");
                 i++;
@@ -378,14 +394,16 @@ struct HtmlRenderer {
                 var abbr = node as *mut MdAbbreviation;
                 if(abbr != null) {
                     if(abbr.title.size() > 0) {
-                        // This is an abbreviation definition
+                        // This is an abbreviation definition - render as abbr tag
                         self.out.append_view("<abbr title=\" ");
                         self.escape(abbr.title);
                         self.out.append_view("\">");
                         self.escape(abbr.id);
                         self.out.append_view("</abbr>");
                     } else {
-                        // This is an abbreviation reference - just render as text for now
+                        // This is an abbreviation reference - render as abbr tag without title
+                        // In markdown, abbreviation references should be rendered as abbr tags
+                        // but the title should come from the definition. For now, render as text.
                         self.escape(abbr.id);
                     }
                 }

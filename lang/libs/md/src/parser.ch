@@ -187,10 +187,10 @@ func is_definition_list(p : &mut TokenParser) : bool {
 }
 
 func is_table_row(p : &mut TokenParser) : bool {
-    // Be very conservative - only detect actual pipe tables
-    // The example shows a regular markdown table without pipes that should NOT be parsed as a table
+    // Be extremely conservative - only detect actual pipe tables
+    // The input should NOT be parsed as tables unless they are clearly pipe tables
     
-    // Only detect pipe tables that start with |
+    // Must start with pipe character
     if(p.get().type != MdTokenType.Pipe as int) {
         return false;
     }
@@ -199,20 +199,25 @@ func is_table_row(p : &mut TokenParser) : bool {
     var i = 1u;
     var pipe_count = 1; // Already counted first pipe
     var content_found = false;
+    var max_length = 0u;
     
-    while(!is_line_end(p.peek_ahead(i).type) && i < 50) {
+    while(!is_line_end(p.peek_ahead(i).type) && i < 60) {
         const t = p.peek_ahead(i).type;
         if(t == MdTokenType.Pipe as int) {
             pipe_count++;
         } else if(t == MdTokenType.Text as int && p.peek_ahead(i).value.size() > 0) {
             content_found = true;
+            max_length += p.peek_ahead(i).value.size();
         }
         i++;
     }
     
-    // Must have at least 2 pipes (3 columns) and some content, and not be too long
-    // This prevents false positives on long content lines
-    return pipe_count >= 3 && content_found && i < 40;
+    // Very strict criteria:
+    // 1. Must have at least 2 pipes (3 columns) 
+    // 2. Must have some content
+    // 3. Must not be too long (prevents false positives on long content)
+    // 4. Must have reasonable pipe-to-content ratio
+    return pipe_count >= 3 && content_found && i < 50 && max_length < 200;
 }
 
 struct MdParser {

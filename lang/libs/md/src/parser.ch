@@ -115,6 +115,26 @@ func is_custom_container(p : &mut TokenParser) : bool {
     return false;
 }
 
+func is_footnote_def(p : &mut TokenParser) : bool {
+    // Check for pattern: [^id]: definition
+    if(p.get().type == MdTokenType.LBracket as int) {
+        var i = 1u;
+        if(p.peek_ahead(i).type == MdTokenType.Caret as int) {
+            i++;
+            if(p.peek_ahead(i).type == MdTokenType.Text as int) {
+                i++;
+                if(p.peek_ahead(i).type == MdTokenType.RBracket as int) {
+                    i++;
+                    if(p.peek_ahead(i).type == MdTokenType.Colon as int) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
 func is_definition_list(p : &mut TokenParser) : bool {
     // Check for pattern: Term\n: Definition
     if(is_text(p.get().type) && p.get().value.size() > 0) {
@@ -137,12 +157,15 @@ func is_definition_list(p : &mut TokenParser) : bool {
 }
 
 func is_table_row(p : &mut TokenParser) : bool {
-    // Only detect actual pipe tables that start with |
+    // Be very conservative - only detect actual pipe tables
+    // Regular markdown tables without pipes are too ambiguous and cause false positives
+    
+    // Only detect pipe tables that start with |
     if(p.get().type != MdTokenType.Pipe as int) {
         return false;
     }
     
-    // Look ahead to verify it has multiple columns
+    // Look ahead to verify it has multiple columns and proper structure
     var i = 1u;
     var pipe_count = 1; // Already counted first pipe
     var content_found = false;
@@ -245,13 +268,38 @@ struct MdParser {
             }
 
             if(t.type == MdTokenType.Caret as int) {
-                // Superscript (^)
+                // Superscript (^) or footnote reference [^1]
                 p.bump();
-                var sup = self.arena.allocate<MdSuperscript>();
-                new (sup) MdSuperscript { base : MdNode { kind : MdNodeKind.Superscript }, children : std::vector<*mut MdNode>() };
-                self.parse_inline_until_end_marker(p, MdTokenType.Caret as int, 1, sup.children);
-                out_children.push(sup as *mut MdNode);
-                continue;
+                if(p.get().type == MdTokenType.LBracket as int) {
+                    // Footnote reference [^1]
+                    p.bump(); // consume [
+                    
+                    var footnote_id = self.arena.allocate<std::string>();
+                    new (footnote_id) std::string();
+                    
+                    while(p.get().type != MdTokenType.RBracket as int && !is_line_end(p.get().type)) {
+                        if(is_text(p.get().type)) {
+                            footnote_id.append_view(p.get().value);
+                        }
+                        p.bump();
+                    }
+                    if(p.get().type == MdTokenType.RBracket as int) p.bump(); // consume ]
+                    
+                    var footnote = self.arena.allocate<MdFootnote>();
+                    new (footnote) MdFootnote { 
+                        base : MdNode { kind : MdNodeKind.Footnote }, 
+                        id : footnote_id.to_view()
+                    };
+                    out_children.push(footnote as *mut MdNode);
+                    continue;
+                } else {
+                    // Regular superscript
+                    var sup = self.arena.allocate<MdSuperscript>();
+                    new (sup) MdSuperscript { base : MdNode { kind : MdNodeKind.Superscript }, children : std::vector<*mut MdNode>() };
+                    self.parse_inline_until_end_marker(p, MdTokenType.Caret as int, 1, sup.children);
+                    out_children.push(sup as *mut MdNode);
+                    continue;
+                }
             }
 
             if(t.type == MdTokenType.Backtick as int) {
@@ -274,7 +322,7 @@ struct MdParser {
             }
 
             if(t.type == MdTokenType.LBracket as int) {
-                // Could be a link [text](url) or abbreviation
+                // Could be a link [text](url) or abbreviation [text]: definition
                 var link_text = self.arena.allocate<std::string>();
                 new (link_text) std::string();
                 p.bump(); // consume [
@@ -329,7 +377,28 @@ struct MdParser {
                         }
                         p.bump();
                     }
-                    // Skip abbreviation for now
+                    
+                    // Create abbreviation node
+                    var abbr = self.arena.allocate<MdAbbreviation>();
+                    new (abbr) MdAbbreviation { 
+                        base : MdNode { kind : MdNodeKind.Abbreviation }, 
+                        id : link_text.to_view(),
+                        title : def.to_view()
+                    };
+                    
+                    // Also create a text node for the abbreviation text
+                    var text_node = self.make_text(link_text.to_view());
+                    out_children.push(text_node);
+                    
+                    continue;
+                } else {
+                    // Just text in brackets, treat as text
+                    var text = self.arena.allocate<std::string>();
+                    new (text) std::string();
+                    text.append('[');
+                    text.append_view(link_text.to_view());
+                    text.append(']');
+                    out_children.push(self.make_text(text.to_view()));
                     continue;
                 }
             }
@@ -790,8 +859,22 @@ struct MdParser {
                     }
                 }
                 
+                // Check for nested lists
+                if(is_list_start(p) || is_ordered_list_start(p)) {
+                    var nested_list = self.parse_list(p, is_ordered_list_start(p));
+                    item.children.push(nested_list);
+                    break;
+                }
+                
                 // Parse inline content
-                self.parse_inline_text_until_line_end(p, item.children);
+                var para = self.arena.allocate<MdParagraph>();
+                new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
+                self.parse_inline_text_until_line_end(p, para.children);
+                
+                if(para.children.size() > 0) {
+                    item.children.push(para as *mut MdNode);
+                }
+                break;
             }
             
             if(is_nl(p.get().type)) p.bump();
@@ -806,6 +889,7 @@ struct MdParser {
         new (table) MdTable { base : MdNode { kind : MdNodeKind.Table }, alignments : std::vector<MdTableAlign>(), children : std::vector<*mut MdNode>() };
         
         var is_header = true;
+        
         while(!is_line_end(p.get().type)) {
             var row = self.arena.allocate<MdTableRow>();
             new (row) MdTableRow { base : MdNode { kind : MdNodeKind.TableRow }, is_header : is_header, children : std::vector<*mut MdNode>() };
@@ -837,15 +921,104 @@ struct MdParser {
             
             if(is_nl(p.get().type)) p.bump();
             
-            // Skip separator line (---|---|---)
-            if(is_header && p.get().type == MdTokenType.Dash as int) {
+            // Handle separator line and alignment parsing
+            if(is_header) {
+                if(p.get().type == MdTokenType.Dash as int) {
+                    // Parse alignment row
+                    var alignments = std::vector<MdTableAlign>();
+                    var parsing_alignment = true;
+                    
+                    while(parsing_alignment && !is_line_end(p.get().type)) {
+                        var align = MdTableAlign.None;
+                        
+                        if(p.get().type == MdTokenType.Colon as int) {
+                            p.bump();
+                            align = MdTableAlign.Left;
+                            
+                            // Parse dashes
+                            while(p.get().type == MdTokenType.Dash as int) { p.bump(); }
+                            
+                            if(p.get().type == MdTokenType.Colon as int) {
+                                p.bump();
+                                align = MdTableAlign.Center;
+                            }
+                        } else if(p.get().type == MdTokenType.Dash as int) {
+                            // Parse dashes
+                            while(p.get().type == MdTokenType.Dash as int) { p.bump(); }
+                            
+                            if(p.get().type == MdTokenType.Colon as int) {
+                                p.bump();
+                                align = MdTableAlign.Right;
+                            }
+                        }
+                        
+                        alignments.push(align);
+                        
+                        // Skip separator
+                        while(!is_line_end(p.get().type) && 
+                              !(p.get().type == MdTokenType.Colon as int || p.get().type == MdTokenType.Dash as int)) {
+                            p.bump();
+                        }
+                        
+                        if(is_line_end(p.get().type)) {
+                            parsing_alignment = false;
+                        }
+                    }
+                    
+                    table.alignments = alignments;
+                }
+                
+                // Skip the separator line completely
                 while(!is_line_end(p.get().type)) { p.bump(); }
                 if(is_nl(p.get().type)) p.bump();
+                
                 is_header = false;
             }
         }
         
         return table as *mut MdNode;
+    }
+
+    func parse_footnote_def(&mut self, p : &mut TokenParser) : *mut MdNode {
+        // Parse [^id]: definition
+        p.bump(); // consume [
+        p.bump(); // consume ^
+        
+        var footnote_id = self.arena.allocate<std::string>();
+        new (footnote_id) std::string();
+        
+        while(p.get().type != MdTokenType.RBracket as int && !is_line_end(p.get().type)) {
+            if(is_text(p.get().type)) {
+                footnote_id.append_view(p.get().value);
+            }
+            p.bump();
+        }
+        if(p.get().type == MdTokenType.RBracket as int) p.bump(); // consume ]
+        if(p.get().type == MdTokenType.Colon as int) p.bump(); // consume :
+        
+        // Skip leading spaces
+        while(is_text(p.get().type) && is_ws_only(p.get().value)) {
+            p.bump();
+        }
+        
+        var footnote_def = self.arena.allocate<MdFootnoteDef>();
+        new (footnote_def) MdFootnoteDef { 
+            base : MdNode { kind : MdNodeKind.FootnoteDef }, 
+            id : footnote_id.to_view(),
+            children : std::vector<*mut MdNode>()
+        };
+        
+        // Parse definition content as paragraph
+        var para = self.arena.allocate<MdParagraph>();
+        new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
+        self.parse_inline_text_until_line_end(p, para.children);
+        
+        if(para.children.size() > 0) {
+            footnote_def.children.push(para as *mut MdNode);
+        }
+        
+        if(is_nl(p.get().type)) p.bump();
+        return footnote_def as *mut MdNode;
     }
 
     func parse_block(&mut self, p : &mut TokenParser) : *mut MdNode {
@@ -855,10 +1028,11 @@ struct MdParser {
         if(is_hr(p)) return self.parse_horizontal_rule(p);
         if(is_blockquote(p)) return self.parse_blockquote(p);
         if(is_custom_container(p)) return self.parse_custom_container(p);
+        if(is_footnote_def(p)) return self.parse_footnote_def(p);
         if(is_definition_list(p)) return self.parse_definition_list(p);
         if(is_list_start(p)) return self.parse_list(p, false);
         if(is_ordered_list_start(p)) return self.parse_list(p, true);
-        // Only check for table if it actually looks like a table
+        // Check table last - it's the most specific and can cause false positives
         if(is_table_row(p)) return self.parse_table(p);
         return self.parse_paragraph(p);
     }

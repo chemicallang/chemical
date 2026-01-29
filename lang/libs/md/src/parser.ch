@@ -102,11 +102,15 @@ func is_blockquote(p : &mut TokenParser) : bool {
 }
 
 func is_custom_container(p : &mut TokenParser) : bool {
-    // Check for ::: type
-    if(p.get().type == MdTokenType.Colon as int && 
-       p.peek().type == MdTokenType.Colon as int && 
-       p.peek_ahead(2).type == MdTokenType.Colon as int) {
-        return true;
+    // Check for ::: type (more aggressive check)
+    if(p.get().type == MdTokenType.Colon as int) {
+        var i = 1u;
+        var colon_count = 1;
+        while(i < 10 && p.peek_ahead(i).type == MdTokenType.Colon as int) {
+            colon_count++;
+            i++;
+        }
+        if(colon_count >= 3) return true;
     }
     return false;
 }
@@ -404,13 +408,7 @@ struct MdParser {
             }
             
             // Parse inline content recursively
-            if(is_text(t.type)) {
-                out_children.push(self.make_text(t.value));
-                p.bump();
-            } else {
-                // Handle nested inline formatting
-                self.parse_inline_text_until_line_end(p, out_children);
-            }
+            self.parse_inline_text_until_line_end(p, out_children);
         }
     }
 
@@ -420,14 +418,26 @@ struct MdParser {
         while(p.get().type == MdTokenType.Hash as int) { level += 1; p.bump(); }
         if(level <= 0) level = 1;
 
-        // optional leading space
-        if(is_text(p.get().type) && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
+        // Skip any whitespace after #
+        while(p.get().type == MdTokenType.Text as int && is_ws_only(p.get().value)) {
             p.bump();
         }
 
         var h = self.arena.allocate<MdHeader>();
         new (h) MdHeader { base : MdNode { kind : MdNodeKind.Header }, level : level, children : std::vector<*mut MdNode>() };
-        self.parse_inline_text_until_line_end(p, h.children);
+        
+        // Parse header text until newline
+        while(!is_line_end(p.get().type)) {
+            const t = p.get();
+            if(is_text(t.type)) {
+                h.children.push(self.make_text(t.value));
+                p.bump();
+            } else {
+                // Try inline parsing for other tokens
+                self.parse_inline_text_until_line_end(p, h.children);
+            }
+        }
+        
         if(is_nl(p.get().type)) p.bump();
         return h as *mut MdNode;
     }
@@ -482,6 +492,9 @@ struct MdParser {
             
             // Parse content using inline parsing
             if(!is_line_end(p.get().type)) {
+                // Add the > character as text for proper rendering
+                bq.children.push(self.make_text(std::string_view("> ", 2)));
+                
                 var para = self.arena.allocate<MdParagraph>();
                 new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
                 self.parse_inline_text_until_line_end(p, para.children);
@@ -498,8 +511,12 @@ struct MdParser {
     }
 
     func parse_custom_container(&mut self, p : &mut TokenParser) : *mut MdNode {
-        // Consume ::: 
-        p.bump(); p.bump(); p.bump();
+        // Consume ::: (count them)
+        var colon_count = 0;
+        while(p.get().type == MdTokenType.Colon as int && colon_count < 10) {
+            p.bump();
+            colon_count++;
+        }
         
         // Parse container type
         var container_type = self.arena.allocate<std::string>();
@@ -522,11 +539,20 @@ struct MdParser {
         // Parse container content until :::
         while(true) {
             // Check for closing :::
-            if(p.get().type == MdTokenType.Colon as int && 
-               p.peek().type == MdTokenType.Colon as int && 
-               p.peek_ahead(2).type == MdTokenType.Colon as int) {
-                p.bump(); p.bump(); p.bump();
-                break;
+            if(p.get().type == MdTokenType.Colon as int) {
+                var closing_colons = 0u;
+                while(p.peek_ahead(closing_colons).type == MdTokenType.Colon as int && closing_colons < 10) {
+                    closing_colons++;
+                }
+                if(closing_colons >= 3) {
+                    // Consume the closing colons
+                    var i = 0u;
+                    while(i < closing_colons) {
+                        p.bump();
+                        i++;
+                    }
+                    break;
+                }
             }
             
             if(is_end(p.get().type)) break;
@@ -697,6 +723,28 @@ struct MdParser {
             
             // Parse item content (could be nested) - use inline parsing
             while(!is_line_end(p.get().type)) {
+                // Check for task checkbox at start of content
+                if(p.get().type == MdTokenType.LBracket as int) {
+                    const next = p.peek();
+                    if(next.type == MdTokenType.Text as int && next.value.size() == 1 && 
+                       (next.value.data()[0] == 'x' || next.value.data()[0] == ' ')) {
+                        const is_checked = next.value.data()[0] == 'x';
+                        p.bump(); // consume [
+                        p.bump(); // consume x or space
+                        if(p.get().type == MdTokenType.RBracket as int) p.bump(); // consume ]
+                        
+                        var checkbox = self.arena.allocate<MdTaskCheckbox>();
+                        new (checkbox) MdTaskCheckbox { base : MdNode { kind : MdNodeKind.TaskCheckbox }, checked : is_checked };
+                        item.children.push(checkbox as *mut MdNode);
+                        
+                        // Skip space after checkbox
+                        if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
+                            p.bump();
+                        }
+                        continue;
+                    }
+                }
+                
                 self.parse_inline_text_until_line_end(p, item.children);
             }
             

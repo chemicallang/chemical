@@ -48,7 +48,9 @@ struct HtmlRenderer {
                 var h = node as *mut MdHeader;
                 self.out.append_view("<h");
                 self.out.append_integer(h.level as bigint);
-                self.out.append_view("> ");
+                self.out.append_view(" class=\"md-hg md-h");
+                self.out.append_integer(h.level as bigint);
+                self.out.append_view("\"> ");
                 self.render_children(h.children);
                 self.out.append_view("</h");
                 self.out.append_integer(h.level as bigint);
@@ -56,7 +58,7 @@ struct HtmlRenderer {
             }
             MdNodeKind.Paragraph => {
                 var p = node as *mut MdParagraph;
-                self.out.append_view("<p>");
+                self.out.append_view("<p class=\"md-p\">");
                 self.render_children(p.children);
                 self.out.append_view("</p>\n");
             }
@@ -69,13 +71,12 @@ struct HtmlRenderer {
             MdNodeKind.CodeBlock => {
                 var cb = node as *mut MdCodeBlock;
                 if(cb != null) {
-                    self.out.append_view("<pre><code");
+                    self.out.append_view("<pre class=\"md-pre\"><code class=\"md-code-block");
                     if(cb.language.size() > 0) {
-                        self.out.append_view(" class=\"language-");
+                        self.out.append_view(" language-");
                         self.out.append_view(cb.language);
-                        self.out.append_view("\"");
                     }
-                    self.out.append_view(">");
+                    self.out.append_view("\">");
                     self.escape(cb.code);
                     self.out.append_view("</code></pre>\n");
                 }
@@ -84,9 +85,9 @@ struct HtmlRenderer {
                 var list = node as *mut MdList;
                 if(list != null) {
                     if(list.ordered) {
-                        self.out.append_view("<ol>\n");
+                        self.out.append_view("<ol class=\"md-ol\">\n");
                     } else {
-                        self.out.append_view("<ul>\n");
+                        self.out.append_view("<ul class=\"md-ul\">\n");
                     }
                     self.render_children(list.children);
                     if(list.ordered) {
@@ -99,7 +100,7 @@ struct HtmlRenderer {
             MdNodeKind.ListItem => {
                 var item = node as *mut MdListItem;
                 if(item != null) {
-                    self.out.append_view("<li>");
+                    self.out.append_view("<li class=\"md-li\">");
                     self.render_children(item.children);
                     self.out.append_view("</li>\n");
                 }
@@ -107,7 +108,7 @@ struct HtmlRenderer {
             MdNodeKind.Table => {
                 var table = node as *mut MdTable;
                 if(table != null) {
-                    self.out.append_view("<table>\n");
+                    self.out.append_view("<table class=\"md-table\">\n");
                     self.render_children(table.children);
                     self.out.append_view("</table>\n");
                 }
@@ -116,9 +117,9 @@ struct HtmlRenderer {
                 var row = node as *mut MdTableRow;
                 if(row != null) {
                     if(row.is_header) {
-                        self.out.append_view("<thead><tr>\n");
+                        self.out.append_view("<thead class=\"md-thead\"><tr class=\"md-tr\">\n");
                     } else {
-                        self.out.append_view("<tr>\n");
+                        self.out.append_view("<tr class=\"md-tr\">\n");
                     }
                     self.render_children(row.children);
                     if(row.is_header) {
@@ -131,18 +132,18 @@ struct HtmlRenderer {
             MdNodeKind.TableCell => {
                 var cell = node as *mut MdTableCell;
                 if(cell != null) {
-                    self.out.append_view("<td>");
+                    self.out.append_view("<td class=\"md-td\">");
                     self.render_children(cell.children);
                     self.out.append_view("</td>");
                 }
             }
             MdNodeKind.Hr => {
-                self.out.append_view("<hr/>\n");
+                self.out.append_view("<hr class=\"md-hr\"/>\n");
             }
             MdNodeKind.Bold => {
                 var bold = node as *mut MdBold;
                 if(bold != null) {
-                    self.out.append_view("<strong>");
+                    self.out.append_view("<strong class=\"md-bold\">");
                     self.render_children(bold.children);
                     self.out.append_view("</strong>");
                 }
@@ -150,7 +151,7 @@ struct HtmlRenderer {
             MdNodeKind.Italic => {
                 var italic = node as *mut MdItalic;
                 if(italic != null) {
-                    self.out.append_view("<em>");
+                    self.out.append_view("<em class=\"md-italic\">");
                     self.render_children(italic.children);
                     self.out.append_view("</em>");
                 }
@@ -158,7 +159,7 @@ struct HtmlRenderer {
             MdNodeKind.Link => {
                 var link = node as *mut MdLink;
                 if(link != null) {
-                    self.out.append_view("<a href=\"");
+                    self.out.append_view("<a class=\"md-link\" href=\"");
                     self.escape(link.url);
                     self.out.append_view("\">");
                     self.render_children(link.children);
@@ -168,7 +169,7 @@ struct HtmlRenderer {
             MdNodeKind.Image => {
                 var img = node as *mut MdImage;
                 if(img != null) {
-                    self.out.append_view("<img src=\"");
+                    self.out.append_view("<img class=\"md-img\" src=\"");
                     self.escape(img.url);
                     self.out.append_view("\" alt=\"");
                     self.escape(img.alt);
@@ -178,7 +179,7 @@ struct HtmlRenderer {
             MdNodeKind.InlineCode => {
                 var code = node as *mut MdInlineCode;
                 if(code != null) {
-                    self.out.append_view("<code>");
+                    self.out.append_view("<code class=\"md-code\">");
                     self.escape(code.value);
                     self.out.append_view("</code>");
                 }
@@ -186,7 +187,7 @@ struct HtmlRenderer {
             MdNodeKind.Strikethrough => {
                 var del = node as *mut MdStrikethrough;
                 if(del != null) {
-                    self.out.append_view("<del>");
+                    self.out.append_view("<del class=\"md-del\">");
                     self.render_children(del.children);
                     self.out.append_view("</del>");
                 }
@@ -194,7 +195,7 @@ struct HtmlRenderer {
             MdNodeKind.Mark => {
                 var mark = node as *mut MdMark;
                 if(mark != null) {
-                    self.out.append_view("<mark>");
+                    self.out.append_view("<mark class=\"md-mark\">");
                     self.render_children(mark.children);
                     self.out.append_view("</mark>");
                 }
@@ -202,7 +203,7 @@ struct HtmlRenderer {
             MdNodeKind.Insert => {
                 var ins = node as *mut MdInsert;
                 if(ins != null) {
-                    self.out.append_view("<ins>");
+                    self.out.append_view("<ins class=\"md-ins\">");
                     self.render_children(ins.children);
                     self.out.append_view("</ins>");
                 }
@@ -210,7 +211,7 @@ struct HtmlRenderer {
             MdNodeKind.Superscript => {
                 var sup = node as *mut MdSuperscript;
                 if(sup != null) {
-                    self.out.append_view("<sup>");
+                    self.out.append_view("<sup class=\"md-sup\">");
                     self.render_children(sup.children);
                     self.out.append_view("</sup>");
                 }
@@ -218,7 +219,7 @@ struct HtmlRenderer {
             MdNodeKind.Subscript => {
                 var sub = node as *mut MdSubscript;
                 if(sub != null) {
-                    self.out.append_view("<sub>");
+                    self.out.append_view("<sub class=\"md-sub\">");
                     self.render_children(sub.children);
                     self.out.append_view("</sub>");
                 }
@@ -226,7 +227,7 @@ struct HtmlRenderer {
             MdNodeKind.Blockquote => {
                 var bq = node as *mut MdBlockquote;
                 if(bq != null) {
-                    self.out.append_view("<blockquote>");
+                    self.out.append_view("<blockquote class=\"md-blockquote\">");
                     self.render_children(bq.children);
                     self.out.append_view("</blockquote>\n");
                 }

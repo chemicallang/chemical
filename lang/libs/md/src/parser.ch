@@ -137,9 +137,28 @@ func is_definition_list(p : &mut TokenParser) : bool {
 }
 
 func is_table_row(p : &mut TokenParser) : bool {
-    // Completely disable table detection for now
-    // Only enable for actual pipe tables with very specific structure
-    return false;
+    // Only detect actual pipe tables that start with |
+    if(p.get().type != MdTokenType.Pipe as int) {
+        return false;
+    }
+    
+    // Look ahead to verify it has multiple columns
+    var i = 1u;
+    var pipe_count = 1; // Already counted first pipe
+    var content_found = false;
+    
+    while(!is_line_end(p.peek_ahead(i).type) && i < 30) {
+        const t = p.peek_ahead(i).type;
+        if(t == MdTokenType.Pipe as int) {
+            pipe_count++;
+        } else if(t == MdTokenType.Text as int && p.peek_ahead(i).value.size() > 0) {
+            content_found = true;
+        }
+        i++;
+    }
+    
+    // Must have at least 2 pipes (3 columns) and some content
+    return pipe_count >= 3 && content_found;
 }
 
 struct MdParser {
@@ -461,17 +480,8 @@ struct MdParser {
         var h = self.arena.allocate<MdHeader>();
         new (h) MdHeader { base : MdNode { kind : MdNodeKind.Header }, level : level, children : std::vector<*mut MdNode>() };
         
-        // Parse header text as simple text until newline
-        while(!is_line_end(p.get().type)) {
-            const t = p.get();
-            if(is_text(t.type)) {
-                h.children.push(self.make_text(t.value));
-                p.bump();
-            } else {
-                // Skip non-text tokens
-                p.bump();
-            }
-        }
+        // Parse header text with inline formatting
+        self.parse_inline_text_until_line_end(p, h.children);
         
         if(is_nl(p.get().type)) p.bump();
         return h as *mut MdNode;
@@ -508,17 +518,8 @@ struct MdParser {
         var para = self.arena.allocate<MdParagraph>();
         new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
         
-        // Parse as simple text until newline
-        while(!is_line_end(p.get().type)) {
-            const t = p.get();
-            if(is_text(t.type)) {
-                para.children.push(self.make_text(t.value));
-                p.bump();
-            } else {
-                // Skip non-text tokens
-                p.bump();
-            }
-        }
+        // Parse with inline formatting
+        self.parse_inline_text_until_line_end(p, para.children);
         
         if(is_nl(p.get().type)) p.bump();
         return para as *mut MdNode;
@@ -537,22 +538,11 @@ struct MdParser {
                 }
             }
             
-            // Parse content as simple text
+            // Parse content with inline formatting
             if(!is_line_end(p.get().type)) {
                 var para = self.arena.allocate<MdParagraph>();
                 new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
-                
-                while(!is_line_end(p.get().type)) {
-                    const t = p.get();
-                    if(is_text(t.type)) {
-                        para.children.push(self.make_text(t.value));
-                        p.bump();
-                    } else {
-                        // Skip non-text tokens
-                        p.bump();
-                    }
-                }
-                
+                self.parse_inline_text_until_line_end(p, para.children);
                 bq.children.push(para as *mut MdNode);
             }
             
@@ -776,16 +766,32 @@ struct MdParser {
                 p.bump();
             }
             
-            // Parse item content as simple text
+            // Parse item content with inline formatting and task checkboxes
             while(!is_line_end(p.get().type)) {
-                const t = p.get();
-                if(is_text(t.type)) {
-                    item.children.push(self.make_text(t.value));
-                    p.bump();
-                } else {
-                    // Skip non-text tokens
-                    p.bump();
+                // Check for task checkbox at start of content
+                if(p.get().type == MdTokenType.LBracket as int) {
+                    const next = p.peek();
+                    if(next.type == MdTokenType.Text as int && next.value.size() == 1 && 
+                       (next.value.data()[0] == 'x' || next.value.data()[0] == ' ')) {
+                        const is_checked = next.value.data()[0] == 'x';
+                        p.bump(); // consume [
+                        p.bump(); // consume x or space
+                        if(p.get().type == MdTokenType.RBracket as int) p.bump(); // consume ]
+                        
+                        var checkbox = self.arena.allocate<MdTaskCheckbox>();
+                        new (checkbox) MdTaskCheckbox { base : MdNode { kind : MdNodeKind.TaskCheckbox }, checked : is_checked };
+                        item.children.push(checkbox as *mut MdNode);
+                        
+                        // Skip space after checkbox
+                        if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
+                            p.bump();
+                        }
+                        continue;
+                    }
                 }
+                
+                // Parse inline content
+                self.parse_inline_text_until_line_end(p, item.children);
             }
             
             if(is_nl(p.get().type)) p.bump();

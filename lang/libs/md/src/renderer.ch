@@ -254,7 +254,7 @@ struct HtmlRenderer {
             MdNodeKind.CustomContainer => {
                 var container = node as *mut MdCustomContainer;
                 if(container != null) {
-                    self.out.append_view("<div class=\"md-container md-");
+                    self.out.append_view("<div class=\"md-callout md-callout-");
                     self.out.append_view(container.type);
                     self.out.append_view("\">");
                     self.render_children(container.children);

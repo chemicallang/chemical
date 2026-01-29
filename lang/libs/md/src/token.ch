@@ -26,6 +26,8 @@ public enum MdTokenType {
     FencedCodeStart,
     FencedCodeEnd,
     CodeContent,
+    LBrace,
+    RBrace,
 }
 
 public struct MdToken {

@@ -581,6 +581,52 @@ public struct string : Hashable, Eq {
         return find(needle) != NPOS
     }
 
+    func erase(&mut self, start : size_t, len : size_t) {
+        const sz = size();
+
+        // nothing to erase
+        if(start >= sz || len == 0) {
+            return;
+        }
+
+        // clamp length
+        var erase_len = len;
+        if(start + erase_len > sz) {
+            erase_len = sz - start;
+        }
+
+        const tail_start = start + erase_len;
+        const tail_len = sz - tail_start;
+
+        // ensure mutability if needed
+        // (constant → sso/heap, sso may stay sso)
+        ensure_mut(sz + 1);
+
+        if(state == '1') {
+            // SSO
+            if(tail_len > 0) {
+                memmove(
+                    &mut storage.sso.buffer[start],
+                    &storage.sso.buffer[tail_start],
+                    tail_len
+                );
+            }
+            storage.sso.length = (sz - erase_len) as uchar;
+            storage.sso.buffer[storage.sso.length] = '\0';
+        } else {
+            // heap
+            if(tail_len > 0) {
+                memmove(
+                    &mut storage.heap.data[start],
+                    &storage.heap.data[tail_start],
+                    tail_len
+                );
+            }
+            storage.heap.length = sz - erase_len;
+            storage.heap.data[storage.heap.length] = '\0';
+        }
+    }
+
     func capacity(&mut self) : size_t {
         switch(state) {
             '0' => {

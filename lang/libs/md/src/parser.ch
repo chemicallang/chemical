@@ -72,9 +72,12 @@ func is_ordered_list_start(p : &mut TokenParser) : bool {
     const t = p.get().type;
     if(t == MdTokenType.Number as int) {
         const next = p.peek();
-        if(next.type == MdTokenType.Dot as int) {
+        // Look for a dot in the text content of the next token
+        if(is_text(next.type) && next.value.size() > 0 && next.value.data()[0] == '.') {
+            // Check if there's content after the dot (could be space or text)
             const next_next = p.peek_ahead(2);
-            return next_next.type == MdTokenType.Text as int && next_next.value.size() > 0 && next_next.value.data()[0] == ' ';
+            return is_end(next_next.type) || is_nl(next_next.type) || 
+                   (is_text(next_next.type) && next_next.value.size() > 0);
         }
     }
     return false;
@@ -186,9 +189,26 @@ func is_definition_list(p : &mut TokenParser) : bool {
 }
 
 func is_table_row(p : &mut TokenParser) : bool {
-    // DISABLED: Table parsing is too aggressive and parsing non-table content
-    // This needs a complete rewrite to properly detect table boundaries
-    return false;
+    // Check if current line looks like a table row
+    // Must start with pipe and have at least one more pipe
+    
+    var i = 0u;
+    var pipe_count = 0;
+    var found_content = false;
+    
+    // Look ahead up to 50 tokens to avoid infinite loops
+    while(i < 50 && !is_line_end(p.peek_ahead(i).type)) {
+        const token = p.peek_ahead(i);
+        if(token.type == MdTokenType.Pipe as int) {
+            pipe_count++;
+        } else if(token.type == MdTokenType.Text as int && token.value.size() > 0) {
+            found_content = true;
+        }
+        i++;
+    }
+    
+    // Must have at least 2 pipes and some content
+    return pipe_count >= 2 && found_content;
 }
 
 struct MdParser {
@@ -471,12 +491,16 @@ struct MdParser {
                 }
             }
             
-            // Parse content as text only - no nested inline parsing
+            // Parse content - handle all token types
             if(is_text(t.type)) {
                 out_children.push(self.make_text(t.value));
                 p.bump();
+            } else if(t.type == MdTokenType.Number as int) {
+                // Convert number to text for subscript/superscript content
+                out_children.push(self.make_text(t.value));
+                p.bump();
             } else {
-                // Skip non-text tokens
+                // Skip other non-text tokens that shouldn't be in subscript/superscript
                 p.bump();
             }
         }
@@ -544,6 +568,20 @@ struct MdParser {
         var h = self.arena.allocate<MdHeader>();
         new (h) MdHeader { base : MdNode { kind : MdNodeKind.Header }, level : level, children : std::vector<*mut MdNode>() };
         
+        // Handle case where first text token has leading space
+        if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
+            // Create a modified text token without the leading space
+            var text_val = p.get().value;
+            if(text_val.size() > 1) {
+                // Token has content after the space
+                var trimmed = std::string_view(text_val.data() + 1, text_val.size() - 1);
+                var text_node = self.arena.allocate<MdText>();
+                new (text_node) MdText { base : MdNode { kind : MdNodeKind.Text }, value : trimmed };
+                h.children.push(text_node as *mut MdNode);
+            }
+            p.bump();
+        }
+        
         // Parse header text with inline formatting
         self.parse_inline_text_until_line_end(p, h.children);
         
@@ -598,7 +636,29 @@ struct MdParser {
                 p.bump(); // consume >
                 // Skip optional space after >
                 if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
-                    p.bump();
+                    // Handle case where text token is just a space
+                    if(p.get().value.size() == 1) {
+                        p.bump(); // consume the space token
+                    } else {
+                        // Text token has content after space, need to handle it
+                        var text_val = p.get().value;
+                        var trimmed = std::string_view(text_val.data() + 1, text_val.size() - 1);
+                        var text_node = self.arena.allocate<MdText>();
+                        new (text_node) MdText { base : MdNode { kind : MdNodeKind.Text }, value : trimmed };
+                        
+                        // Create a paragraph for this text
+                        var para = self.arena.allocate<MdParagraph>();
+                        new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
+                        para.children.push(text_node as *mut MdNode);
+                        
+                        // Continue parsing this paragraph
+                        self.parse_inline_text_until_line_end(p, para.children);
+                        bq.children.push(para as *mut MdNode);
+                        
+                        if(is_nl(p.get().type)) p.bump();
+                        if(p.get().type != MdTokenType.GreaterThan as int) break;
+                        continue;
+                    }
                 }
             }
             
@@ -647,6 +707,14 @@ struct MdParser {
             p.bump();
         }
         if(is_nl(p.get().type)) p.bump();
+        
+        // Trim leading and trailing whitespace
+        while(container_type.size() > 0 && container_type.data()[0] == ' ') {
+            container_type.erase(0, 1);
+        }
+        while(container_type.size() > 0 && container_type.data()[container_type.size() - 1] == ' ') {
+            container_type.erase(container_type.size() - 1, 1);
+        }
         
         var container = self.arena.allocate<MdCustomContainer>();
         new (container) MdCustomContainer { 
@@ -793,14 +861,55 @@ struct MdParser {
             // Consume list marker
             if(ordered) {
                 p.bump(); // number
-                p.bump(); // dot
+                // Consume the dot (which is now part of a text token)
+                if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == '.') {
+                    if(p.get().value.size() == 1) {
+                        // Token is just a dot, consume it
+                        p.bump();
+                    } else {
+                        // Token has content after dot, need to handle it
+                        var text_val = p.get().value;
+                        var trimmed = std::string_view(text_val.data() + 1, text_val.size() - 1);
+                        if(trimmed.size() > 0 && trimmed.data()[0] == ' ') {
+                            // Remove leading space after dot
+                            if(trimmed.size() == 1) {
+                                // Just a space, consume it
+                                p.bump();
+                            } else {
+                                // Has content after space
+                                var content = std::string_view(trimmed.data() + 1, trimmed.size() - 1);
+                                var text_node = self.arena.allocate<MdText>();
+                                new (text_node) MdText { base : MdNode { kind : MdNodeKind.Text }, value : content };
+                                item.children.push(text_node as *mut MdNode);
+                                p.bump();
+                            }
+                        } else {
+                            // No space after dot, use the trimmed content directly
+                            var text_node = self.arena.allocate<MdText>();
+                            new (text_node) MdText { base : MdNode { kind : MdNodeKind.Text }, value : trimmed };
+                            item.children.push(text_node as *mut MdNode);
+                            p.bump();
+                        }
+                    }
+                }
             } else {
                 p.bump(); // -, +, or *
             }
             
             // Skip leading space
             if(is_text(p.get().type) && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
-                p.bump();
+                if(p.get().value.size() == 1) {
+                    // Token is just a space, consume it
+                    p.bump();
+                } else {
+                    // Token has content after space, need to handle it
+                    var text_val = p.get().value;
+                    var trimmed = std::string_view(text_val.data() + 1, text_val.size() - 1);
+                    var text_node = self.arena.allocate<MdText>();
+                    new (text_node) MdText { base : MdNode { kind : MdNodeKind.Text }, value : trimmed };
+                    item.children.push(text_node as *mut MdNode);
+                    p.bump();
+                }
             }
             
             // Parse item content with inline formatting and task checkboxes

@@ -105,7 +105,6 @@ public struct Lexer {
             ':' => { return MdToken { type : MdTokenType.Colon as int, value : std::string_view(":"), position : start_pos } }
             '=' => { return MdToken { type : MdTokenType.Equal as int, value : std::string_view("="), position : start_pos } }
             '^' => { return MdToken { type : MdTokenType.Caret as int, value : std::string_view("^"), position : start_pos } }
-            '.' => { return MdToken { type : MdTokenType.Dot as int, value : std::string_view("."), position : start_pos } }
             '`' => {
                 if(self.peek() == '`') {
                     var _ = self.read();
@@ -136,7 +135,7 @@ public struct Lexer {
                 self.read_while((cc : char) => {
                     return !(cc == '\0' || cc == '\n' || cc == '#' || cc == '*' || cc == '_' || cc == '[' || cc == ']' ||
                              cc == '(' || cc == ')' || cc == '!' || cc == '`' || cc == '>' || cc == '-' || cc == '+' ||
-                             cc == '|' || cc == '~' || cc == ':' || cc == '=' || cc == '^' || cc == '.' || cc == '{' || cc == '}' ||
+                             cc == '|' || cc == '~' || cc == ':' || cc == '=' || cc == '^' || cc == '{' || cc == '}' ||
                              (cc >= '0' && cc <= '9'))
                 })
                 const end_ptr = self.ptr

@@ -1,4 +1,3 @@
-using namespace std;
 
 public struct LexerState {
 

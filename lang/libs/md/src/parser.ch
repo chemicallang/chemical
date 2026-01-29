@@ -102,32 +102,21 @@ func is_blockquote(p : &mut TokenParser) : bool {
 }
 
 func is_custom_container(p : &mut TokenParser) : bool {
-    // Check for ::: type at the beginning of a line (allowing leading whitespace)
-    // First, skip any leading whitespace
+    // Check for ::: at the beginning of a line (with optional whitespace)
     var i = 0u;
-    while(i < 10 && p.peek_ahead(i).type == MdTokenType.Text as int && is_ws_only(p.peek_ahead(i).value)) {
+    
+    // Skip leading whitespace
+    while(i < 5 && p.peek_ahead(i).type == MdTokenType.Text as int && is_ws_only(p.peek_ahead(i).value)) {
         i++;
     }
     
-    // Check for ::: after whitespace
-    if(p.peek_ahead(i).type == MdTokenType.Colon as int) {
-        var colon_count = 0;
-        var j = i;
-        // Look for at least 3 consecutive colons
-        while(j < i + 10 && p.peek_ahead(j).type == MdTokenType.Colon as int) {
-            colon_count++;
-            j++;
-        }
-        if(colon_count >= 3) {
-            // After the colons, there should be text (container type) followed by newline
-            while(j < i + 20 && !is_line_end(p.peek_ahead(j).type)) {
-                if(p.peek_ahead(j).type == MdTokenType.Text as int && p.peek_ahead(j).value.size() > 0) {
-                    return true;
-                }
-                j++;
-            }
-        }
+    // Look for exactly 3 consecutive colons
+    if(p.peek_ahead(i).type == MdTokenType.Colon as int &&
+       p.peek_ahead(i + 1u).type == MdTokenType.Colon as int &&
+       p.peek_ahead(i + 2u).type == MdTokenType.Colon as int) {
+        return true;
     }
+    
     return false;
 }
 
@@ -197,8 +186,8 @@ func is_definition_list(p : &mut TokenParser) : bool {
 }
 
 func is_table_row(p : &mut TokenParser) : bool {
-    // DISABLED: Table detection is causing too many false positives
-    // The markdown content should not be parsed as tables
+    // DISABLED: Table parsing is too aggressive and parsing non-table content
+    // This needs a complete rewrite to properly detect table boundaries
     return false;
 }
 
@@ -785,54 +774,6 @@ struct MdParser {
         return hr as *mut MdNode;
     }
 
-    func parse_table(&mut self, p : &mut TokenParser) : *mut MdNode {
-        var table = self.arena.allocate<MdTable>();
-        new (table) MdTable { base : MdNode { kind : MdNodeKind.Table }, alignments : std::vector<MdTableAlign>(), children : std::vector<*mut MdNode>() };
-        
-        var row_index = 0;
-        while(!is_line_end(p.get().type)) {
-            var row = self.arena.allocate<MdTableRow>();
-            new (row) MdTableRow { base : MdNode { kind : MdNodeKind.TableRow }, is_header : (row_index == 0), children : std::vector<*mut MdNode>() };
-            
-            // Skip leading pipe if present
-            if(p.get().type == MdTokenType.Pipe as int) p.bump();
-            
-            while(!is_line_end(p.get().type) && p.get().type != MdTokenType.Pipe as int) {
-                var cell = self.arena.allocate<MdTableCell>();
-                new (cell) MdTableCell { base : MdNode { kind : MdNodeKind.TableCell }, children : std::vector<*mut MdNode>() };
-                
-                // Parse cell content
-                while(!is_line_end(p.get().type) && p.get().type != MdTokenType.Pipe as int) {
-                    const t = p.get();
-                    if(is_text(t.type)) {
-                        cell.children.push(self.make_text(t.value));
-                        p.bump();
-                    } else {
-                        p.bump(); // skip non-text tokens for now
-                    }
-                }
-                
-                row.children.push(cell as *mut MdNode);
-                
-                if(p.get().type == MdTokenType.Pipe as int) p.bump();
-            }
-            
-            table.children.push(row as *mut MdNode);
-            
-            if(is_nl(p.get().type)) p.bump();
-            
-            // Skip separator line (---|---|---) after first row
-            if(row_index == 0 && p.get().type == MdTokenType.Dash as int) {
-                while(!is_line_end(p.get().type)) { p.bump(); }
-                if(is_nl(p.get().type)) p.bump();
-            }
-            
-            row_index++;
-        }
-        
-        return table as *mut MdNode;
-    }
-
     func parse_list(&mut self, p : &mut TokenParser, ordered : bool) : *mut MdNode {
         var list = self.arena.allocate<MdList>();
         new (list) MdList { base : MdNode { kind : MdNodeKind.List }, ordered : ordered, start : 1, children : std::vector<*mut MdNode>() };
@@ -1087,11 +1028,12 @@ struct MdParser {
 
     func parse_block(&mut self, p : &mut TokenParser) : *mut MdNode {
         const t = p.get();
+        // Check custom containers first - they're very specific
+        if(is_custom_container(p)) return self.parse_custom_container(p);
         if(t.type == MdTokenType.Hash as int) return self.parse_header(p);
         if(t.type == MdTokenType.FencedCodeStart as int) return self.parse_fenced_code_block(p);
         if(is_hr(p)) return self.parse_horizontal_rule(p);
         if(is_blockquote(p)) return self.parse_blockquote(p);
-        if(is_custom_container(p)) return self.parse_custom_container(p);
         if(is_abbreviation_def(p)) return self.parse_abbreviation_def(p);
         if(is_footnote_def(p)) return self.parse_footnote_def(p);
         if(is_definition_list(p)) return self.parse_definition_list(p);

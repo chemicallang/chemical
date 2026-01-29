@@ -11,23 +11,16 @@ struct HtmlRenderer {
         var i = 0u;
         while(i < sz) {
             const c = data[i];
-            // Handle UTF-8 multi-byte sequences properly
+            // Handle UTF-8 multi-byte sequences - pass through unchanged
             if(c as uint >= 0x80) {
-                // UTF-8 lead byte, determine sequence length
-                var seq_len = 0u;
-                const c_val = c as uint;
-                if((c_val & 0xE0) == 0xC0) seq_len = 2;      // 2-byte sequence
-                else if((c_val & 0xF0) == 0xE0) seq_len = 3; // 3-byte sequence  
-                else if((c_val & 0xF8) == 0xF0) seq_len = 4; // 4-byte sequence
-                else seq_len = 1; // Invalid UTF-8, treat as single byte
-                
-                // Copy the entire UTF-8 sequence
-                var j = 0u;
-                while(j < seq_len && i + j < sz) {
-                    self.out.append(data[i + j]);
-                    j++;
+                // This is the start of a UTF-8 sequence, pass through all bytes
+                self.out.append(c);
+                i++;
+                // Pass through continuation bytes
+                while(i < sz && (data[i] as uint >= 0x80 && data[i] as uint < 0xC0)) {
+                    self.out.append(data[i]);
+                    i++;
                 }
-                i += seq_len;
             } else if(c == '<') {
                 self.out.append_view("&lt;");
                 i++;

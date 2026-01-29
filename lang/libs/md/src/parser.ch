@@ -102,22 +102,29 @@ func is_blockquote(p : &mut TokenParser) : bool {
 }
 
 func is_custom_container(p : &mut TokenParser) : bool {
-    // Check for ::: type at the beginning of a line
-    if(p.get().type == MdTokenType.Colon as int) {
-        var i = 1u;
-        var colon_count = 1;
+    // Check for ::: type at the beginning of a line (allowing leading whitespace)
+    // First, skip any leading whitespace
+    var i = 0u;
+    while(i < 10 && p.peek_ahead(i).type == MdTokenType.Text as int && is_ws_only(p.peek_ahead(i).value)) {
+        i++;
+    }
+    
+    // Check for ::: after whitespace
+    if(p.peek_ahead(i).type == MdTokenType.Colon as int) {
+        var colon_count = 0;
+        var j = i;
         // Look for at least 3 consecutive colons
-        while(i < 10 && p.peek_ahead(i).type == MdTokenType.Colon as int) {
+        while(j < i + 10 && p.peek_ahead(j).type == MdTokenType.Colon as int) {
             colon_count++;
-            i++;
+            j++;
         }
         if(colon_count >= 3) {
             // After the colons, there should be text (container type) followed by newline
-            while(i < 20 && !is_line_end(p.peek_ahead(i).type)) {
-                if(p.peek_ahead(i).type == MdTokenType.Text as int && p.peek_ahead(i).value.size() > 0) {
+            while(j < i + 20 && !is_line_end(p.peek_ahead(j).type)) {
+                if(p.peek_ahead(j).type == MdTokenType.Text as int && p.peek_ahead(j).value.size() > 0) {
                     return true;
                 }
-                i++;
+                j++;
             }
         }
     }
@@ -167,14 +174,17 @@ func is_abbreviation_def(p : &mut TokenParser) : bool {
 
 func is_definition_list(p : &mut TokenParser) : bool {
     // Check for pattern: Term\n: Definition
+    // Be more aggressive - check if we have text followed by newline then colon
     if(is_text(p.get().type) && p.get().value.size() > 0) {
-        // Look ahead for newline followed by colon
+        // Look ahead for newline followed by colon (allowing whitespace)
         var i = 1u;
         while(!is_line_end(p.peek_ahead(i).type) && i < 20) {
             if(is_nl(p.peek_ahead(i).type)) {
-                // Check if next non-newline starts with colon
+                // Check if next non-newline, non-whitespace starts with colon
                 var j = i + 1u;
                 while(is_nl(p.peek_ahead(j).type)) { j++ };
+                // Skip whitespace
+                while(j < i + 10 && p.peek_ahead(j).type == MdTokenType.Text as int && is_ws_only(p.peek_ahead(j).value)) { j++ };
                 if(p.peek_ahead(j).type == MdTokenType.Colon as int) {
                     return true;
                 }
@@ -187,37 +197,9 @@ func is_definition_list(p : &mut TokenParser) : bool {
 }
 
 func is_table_row(p : &mut TokenParser) : bool {
-    // Be extremely conservative - only detect actual pipe tables
-    // The input should NOT be parsed as tables unless they are clearly pipe tables
-    
-    // Must start with pipe character
-    if(p.get().type != MdTokenType.Pipe as int) {
-        return false;
-    }
-    
-    // Look ahead to verify it has proper table structure
-    var i = 1u;
-    var pipe_count = 1; // Already counted first pipe
-    var content_found = false;
-    var max_length = 0u;
-    
-    while(!is_line_end(p.peek_ahead(i).type) && i < 60) {
-        const t = p.peek_ahead(i).type;
-        if(t == MdTokenType.Pipe as int) {
-            pipe_count++;
-        } else if(t == MdTokenType.Text as int && p.peek_ahead(i).value.size() > 0) {
-            content_found = true;
-            max_length += p.peek_ahead(i).value.size();
-        }
-        i++;
-    }
-    
-    // Very strict criteria:
-    // 1. Must have at least 2 pipes (3 columns) 
-    // 2. Must have some content
-    // 3. Must not be too long (prevents false positives on long content)
-    // 4. Must have reasonable pipe-to-content ratio
-    return pipe_count >= 3 && content_found && i < 50 && max_length < 200;
+    // DISABLED: Table detection is causing too many false positives
+    // The markdown content should not be parsed as tables
+    return false;
 }
 
 struct MdParser {
@@ -649,6 +631,11 @@ struct MdParser {
     }
 
     func parse_custom_container(&mut self, p : &mut TokenParser) : *mut MdNode {
+        // Skip leading whitespace before :::
+        while(p.get().type == MdTokenType.Text as int && is_ws_only(p.get().value)) {
+            p.bump();
+        }
+        
         // Consume ::: (count them)
         var colon_count = 0;
         while(p.get().type == MdTokenType.Colon as int && colon_count < 10) {
@@ -895,7 +882,7 @@ struct MdParser {
                         if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
                             p.bump();
                         }
-                        continue;
+                        // Don't continue - fall through to parse the text content
                     }
                 }
                 
@@ -906,14 +893,8 @@ struct MdParser {
                     break;
                 }
                 
-                // Parse inline content
-                var para = self.arena.allocate<MdParagraph>();
-                new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
-                self.parse_inline_text_until_line_end(p, para.children);
-                
-                if(para.children.size() > 0) {
-                    item.children.push(para as *mut MdNode);
-                }
+                // Parse inline content directly into list item (no paragraph wrapper)
+                self.parse_inline_text_until_line_end(p, item.children);
                 break;
             }
             

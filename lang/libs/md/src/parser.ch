@@ -342,6 +342,11 @@ struct MdParser {
                 }
                 if(p.get().type == MdTokenType.Backtick as int) p.bump(); // closing backtick
                 
+                // Trim trailing spaces
+                while(code.size() > 0 && code.data()[code.size() - 1] == ' ') {
+                    code.erase(code.size() - 1, 1);
+                }
+                
                 var code_node = self.arena.allocate<MdInlineCode>();
                 new (code_node) MdInlineCode { base : MdNode { kind : MdNodeKind.InlineCode }, value : code.to_view() };
                 out_children.push(code_node as *mut MdNode);
@@ -491,6 +496,28 @@ struct MdParser {
                 }
             }
             
+            // Allow nested inline formatting
+            if(t.type == MdTokenType.Star as int || t.type == MdTokenType.Underscore as int) {
+                // Could be bold or italic
+                const next = p.peek();
+                if(next.type == t.type) {
+                    // Bold (** or __)
+                    p.bump(); p.bump(); // consume both
+                    var bold = self.arena.allocate<MdBold>();
+                    new (bold) MdBold { base : MdNode { kind : MdNodeKind.Bold }, children : std::vector<*mut MdNode>() };
+                    self.parse_inline_until_end_marker(p, t.type, 2, bold.children);
+                    out_children.push(bold as *mut MdNode);
+                } else {
+                    // Italic (* or _)
+                    p.bump();
+                    var italic = self.arena.allocate<MdItalic>();
+                    new (italic) MdItalic { base : MdNode { kind : MdNodeKind.Italic }, children : std::vector<*mut MdNode>() };
+                    self.parse_inline_until_end_marker(p, t.type, 1, italic.children);
+                    out_children.push(italic as *mut MdNode);
+                }
+                continue;
+            }
+            
             // Parse content - handle all token types
             if(is_text(t.type)) {
                 out_children.push(self.make_text(t.value));
@@ -632,6 +659,7 @@ struct MdParser {
         new (bq) MdBlockquote { base : MdNode { kind : MdNodeKind.Blockquote }, children : std::vector<*mut MdNode>() };
         
         while(true) {
+            var content_parsed = false;
             if(p.get().type == MdTokenType.GreaterThan as int) {
                 p.bump(); // consume >
                 // Skip optional space after >
@@ -654,6 +682,7 @@ struct MdParser {
                         // Continue parsing this paragraph
                         self.parse_inline_text_until_line_end(p, para.children);
                         bq.children.push(para as *mut MdNode);
+                        content_parsed = true;
                         
                         if(is_nl(p.get().type)) p.bump();
                         if(p.get().type != MdTokenType.GreaterThan as int) break;
@@ -662,8 +691,8 @@ struct MdParser {
                 }
             }
             
-            // Parse content with inline formatting
-            if(!is_line_end(p.get().type)) {
+            // Parse content with inline formatting (only if not already parsed)
+            if(!content_parsed && !is_line_end(p.get().type)) {
                 var para = self.arena.allocate<MdParagraph>();
                 new (para) MdParagraph { base : MdNode { kind : MdNodeKind.Paragraph }, children : std::vector<*mut MdNode>() };
                 self.parse_inline_text_until_line_end(p, para.children);
@@ -932,7 +961,7 @@ struct MdParser {
                         if(p.get().type == MdTokenType.Text as int && p.get().value.size() > 0 && p.get().value.data()[0] == ' ') {
                             p.bump();
                         }
-                        // Don't continue - fall through to parse the text content
+                        continue; // Continue to parse the text content
                     }
                 }
                 
@@ -978,8 +1007,11 @@ struct MdParser {
                     if(is_text(t.type)) {
                         cell.children.push(self.make_text(t.value));
                         p.bump();
+                    } else if(t.type == MdTokenType.GreaterThan as int) {
+                        // Skip > tokens that shouldn't be in table content
+                        p.bump();
                     } else {
-                        p.bump(); // skip non-text tokens for now
+                        p.bump(); // skip other non-text tokens for now
                     }
                 }
                 

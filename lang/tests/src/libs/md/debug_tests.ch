@@ -28,6 +28,11 @@ func debug_simple_table(env : &mut TestEnv) {
         msg.append_uinteger(i);
         msg.append_view(": type=");
         msg.append_integer(token.type);
+        if(token.value.size() > 0) {
+            msg.append_view(" value='");
+            msg.append_view(token.value);
+            msg.append_view("'");
+        }
         env.info(msg.data());
         i++;
     }

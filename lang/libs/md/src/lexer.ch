@@ -65,28 +65,44 @@ struct Lexer {
 
         // Fenced Code Block content handling
         if(in_fenced_code) {
-             // Check for closing fence at start of line
-             // But wait, the previous lexer logic checked only if we are at start of line?
-            // The original md_cbi lexer seems to handle this statefully.
-            
-            // Check if we are at a position that looks like a closing fence
-            // Note: Simplification - we assume we are at start of line or check effectively
-            // The logic in md_cbi:
-            // if(md.in_fenced_code) { ... }
+             // Check for closing fence allowing up to 3 spaces indentation
+            var saved_pos = pos;
+            var spaces = 0;
+            // Check for indented fence (CommonMark allows up to 3 spaces)
+            while(spaces < 3 && pos < text.size() && text.data()[pos] == ' ') {
+                pos++;
+                spaces++;
+            }
             
             var backtick_count = countBackticks() as size_t;
             if(backtick_count >= fence_count) {
-                // Consume backticks
-                const start = pos;
-                pos += backtick_count;
-                in_fenced_code = false;
-                fence_count = 0;
-                // Skip rest of line (language or attributes usually ignored after closing fence)
-                consume_until_newline();
-                consume_newline();
-
-                return Token { type : MdTokenType.FencedCodeEnd, value : std::string_view("```") }
+                 // Verify that the rest of the line is empty or just whitespace
+                 var p_check = pos + backtick_count;
+                 var valid_end = true;
+                 while(p_check < text.size()) {
+                     const c = text.data()[p_check];
+                     if(c == '\n' || c == '\0' || c == '\r') break;
+                     if(c != ' ' && c != '\t') {
+                         valid_end = false;
+                         break;
+                     }
+                     p_check++;
+                 }
+                 
+                 if(valid_end) {
+                     // Found valid closing fence
+                     pos += backtick_count;
+                     in_fenced_code = false;
+                     fence_count = 0;
+                     consume_until_newline();
+                     consume_newline();
+     
+                     return Token { type : MdTokenType.FencedCodeEnd, value : std::string_view("```") }
+                 }
             }
+            
+            // Not a closing fence: Restore pos to include spaces in content
+            pos = saved_pos;
 
             // Read code content line
             const line = consume_until_newline();

@@ -119,6 +119,10 @@ public struct vector<T> {
         data_size = last;
     }
 
+    func pop_back(&mut self) {
+        remove_last()
+    }
+
     func take_last(&mut self) : T {
         const last = data_size - 1
         data_size = last;

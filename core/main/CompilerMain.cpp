@@ -857,23 +857,6 @@ int compiler_main(int argc, char *argv[]) {
         }
     }
 
-    std::vector<std::unique_ptr<LabModule>> dependencies;
-    for(auto& arg : args) {
-        if(arg.ends_with(".c")) {
-            auto dep = new LabModule(LabModuleType::CFile, chem::string(""), chem::string(""));
-            dependencies.emplace_back(dep);
-            dep->paths.emplace_back(std::string(arg));
-            module.add_dependency(dep);
-        } else if(arg.ends_with(".o")) {
-            auto dep = new LabModule(LabModuleType::ObjFile, chem::string(""), chem::string(""));
-            dependencies.emplace_back(dep);
-            dep->paths.emplace_back(std::string(arg));
-            module.add_dependency(dep);
-        } else {
-            module.paths.emplace_back(std::string(arg));
-        }
-    }
-
     const auto defJobType = jit ? LabJobType::JITExecutable : LabJobType::Executable;
     auto job_type_opt = options.option_new("job-type", "jt");
     LabJob job(getJobTypeFromOpt(job_type_opt, defJobType), chem::string("a"));
@@ -882,6 +865,32 @@ int compiler_main(int argc, char *argv[]) {
         // TODO: update the target data according to target triple
         job.target_triple.append(target);
     }
+
+    std::vector<std::unique_ptr<LabModule>> dependencies;
+    unsigned i = 0;
+    for(auto& arg : args) {
+        if(arg.ends_with(".c")) {
+            auto index = std::to_string(i);
+            auto dep = new LabModule(LabModuleType::CFile, chem::string(""), chem::string(""));
+            dependencies.emplace_back(dep);
+            dep->paths.emplace_back(arg);
+            job.dependencies.emplace_back(dep);
+        } else if(arg.ends_with(".o")) {
+            auto index = std::to_string(i);
+            auto dep = new LabModule(LabModuleType::ObjFile, chem::string(""), chem::string(""));
+            dependencies.emplace_back(dep);
+            dep->paths.emplace_back(arg);
+            job.dependencies.emplace_back(dep);
+        } else {
+            module.paths.emplace_back(std::string(arg));
+        }
+        i++;
+    }
+    // add the module if paths is not empty
+    if(!module.paths.empty()) {
+        job.dependencies.emplace_back(&module);
+    }
+
     set_options_for_main_job(options, job, module, dependencies);
     auto link_libs = options.data.find("library")->second.get_multi_opt_values();
     for(auto& lib : link_libs) {
@@ -910,7 +919,6 @@ int compiler_main(int argc, char *argv[]) {
             job.type = LabJobType::ToChemicalTranslation;
         }
     }
-    job.dependencies.emplace_back(&module);
     if(output.has_value()) {
         job.abs_path.append(std::string(output.value()));
     }

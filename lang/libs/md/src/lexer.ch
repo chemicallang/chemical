@@ -1,202 +1,209 @@
 public namespace md {
 
-public struct Lexer {
-    var text : std::string_view
-    var ptr : *char
-    var end : *char
-    var pos : size_t
+public struct Token {
+    var type : MdTokenType
+    var value : std::string_view
+    // Simple position tracking if needed, or just offset?
+    // conversion currently doesn't seem to use position much for error reporting (since we are lenient).
+    // We can keep it simple.
+}
 
+struct Lexer {
+    var text : std::string_view
+    var pos : size_t
     var in_fenced_code : bool
+    var fence_char : char
     var fence_count : int
 
-    @make
-    func make() {
-        text = std::string_view("");
-        ptr = "";
-        end = ptr + 1;
-        pos = 0;
-        in_fenced_code = false
-        fence_count = 0
+    func peek(&mut self) : char {
+        if(pos >= text.size()) return '\0';
+        return text.data()[pos];
     }
 
-    @make
-    func make2(text_view : std::string_view) {
-        text = text_view
-        ptr = text.data()
-        end = text.data() + text.size() as isize
-        pos = 0
-        in_fenced_code = false
-        fence_count = 0
+    func peek_at(&mut self, offset : size_t) : char {
+        if(pos + offset >= text.size()) return '\0';
+        return text.data()[pos + offset];
     }
 
-    func peek(&self) : char {
-        if(self.ptr >= self.end) return '\0'
-        return *self.ptr
-    }
-
-    func read(&mut self) : char {
-        if(self.ptr >= self.end) return '\0'
-        const c = *self.ptr
-        self.ptr = self.ptr + 1
-        self.pos += 1
-        return c
-    }
-
-    func count_backticks(&self) : int {
-        var c = 0;
-        var p = self.ptr;
-        while(p < self.end && *p == '`') {
-            c += 1;
-            p = p + 1;
-        }
+    func advance(&mut self) : char {
+        if(pos >= text.size()) return '\0';
+        const c = text.data()[pos];
+        pos++;
         return c;
     }
 
-    func read_while(&mut self, pred : (c : char) => bool) {
-        while(true) {
-            const c = self.peek()
-            if(c == '\0') break
-            if(!pred(c)) break
-            var _ = self.read()
+    func countBackticks(&mut self) : int {
+        var count = 0;
+        var p = pos;
+        while(p < text.size() && text.data()[p] == '`') {
+            count++;
+            p++;
+        }
+        return count;
+    }
+
+    func consume_until_newline(&mut self) : std::string_view {
+        const start = pos;
+        while(pos < text.size()) {
+            const c = text.data()[pos];
+            if(c == '\n' || c == '\0') break;
+            pos++;
+        }
+        return std::string_view(text.data() + start, pos - start);
+    }
+    
+    func consume_newline(&mut self) {
+         if(pos < text.size() && text.data()[pos] == '\n') {
+            pos++;
         }
     }
 
-    public func next_token(&mut self) : MdToken {
-        const start_pos = self.pos
-        const start_ptr = self.ptr
-
-        if(self.in_fenced_code) {
-            const bt = self.count_backticks()
-            if(bt >= self.fence_count) {
-                var i = 0;
-                while(i < bt) { var _ = self.read(); i += 1; }
-                self.in_fenced_code = false
-                self.fence_count = 0
-                if(self.peek() == '\r') { var _ = self.read() }
-                if(self.peek() == '\n') { var _ = self.read() }
-                return MdToken { type : MdTokenType.FencedCodeEnd as int, value : std::string_view("```"), position : start_pos }
-            }
-
-            // Consume until newline or end of file
-            while(self.ptr < self.end) {
-                const c = *self.ptr
-                if(c == '\0' || c == '\n') break;
-                // UTF-8 bytes are consumed here
-                self.ptr = self.ptr + 1
-                self.pos += 1
-            }
-            
-            const end_ptr = self.ptr
-            if(self.peek() == '\n') { var _ = self.read() }
-            return MdToken { type : MdTokenType.CodeContent as int, value : std::string_view(start_ptr, end_ptr - start_ptr), position : start_pos }
+    func next_token(&mut self) : Token {
+        if(pos >= text.size()) {
+            return Token { type : MdTokenType.EndOfFile, value : std::string_view("") }
         }
 
-        const c = self.read()
-        
-        // Handle potentially multi-byte UTF-8 or just high-bit ASCII extension
-        if(c as uint >= 0x80) {
-            // It is non-ASCII, treat as text immediately and consume sequence
-            // Fallthrough to text loop below
-        } else {
-             // It is ASCII
-             switch(c) {
-                '\0' => { return MdToken { type : MdTokenType.EndOfFile as int, value : std::string_view(""), position : start_pos } }
-                '\n' => { return MdToken { type : MdTokenType.Newline as int, value : std::string_view("\n"), position : start_pos } }
-                '#' => { return MdToken { type : MdTokenType.Hash as int, value : std::string_view("#"), position : start_pos } }
-                '*' => { return MdToken { type : MdTokenType.Star as int, value : std::string_view("*"), position : start_pos } }
-                '_' => { return MdToken { type : MdTokenType.Underscore as int, value : std::string_view("_"), position : start_pos } }
-                '[' => { return MdToken { type : MdTokenType.LBracket as int, value : std::string_view("["), position : start_pos } }
-                ']' => { return MdToken { type : MdTokenType.RBracket as int, value : std::string_view("]"), position : start_pos } }
-                '(' => { return MdToken { type : MdTokenType.LParen as int, value : std::string_view("("), position : start_pos } }
-                ')' => { return MdToken { type : MdTokenType.RParen as int, value : std::string_view(")"), position : start_pos } }
-                '!' => { return MdToken { type : MdTokenType.Exclamation as int, value : std::string_view("!"), position : start_pos } }
-                '>' => { return MdToken { type : MdTokenType.GreaterThan as int, value : std::string_view(">"), position : start_pos } }
-                '-' => { return MdToken { type : MdTokenType.Dash as int, value : std::string_view("-"), position : start_pos } }
-                '+' => { return MdToken { type : MdTokenType.Plus as int, value : std::string_view("+"), position : start_pos } }
-                '{' => { return MdToken { type : MdTokenType.LBrace as int, value : std::string_view("{"), position : start_pos } }
-                '}' => { return MdToken { type : MdTokenType.RBrace as int, value : std::string_view("}"), position : start_pos } }
-                '|' => { return MdToken { type : MdTokenType.Pipe as int, value : std::string_view("|"), position : start_pos } }
-                '~' => { return MdToken { type : MdTokenType.Tilde as int, value : std::string_view("~"), position : start_pos } }
-                ':' => { return MdToken { type : MdTokenType.Colon as int, value : std::string_view(":"), position : start_pos } }
-                '=' => { return MdToken { type : MdTokenType.Equal as int, value : std::string_view("="), position : start_pos } }
-                '^' => { return MdToken { type : MdTokenType.Caret as int, value : std::string_view("^"), position : start_pos } }
-                '`' => {
-                    if(self.peek() == '`') {
-                        var _ = self.read();
-                        if(self.peek() == '`') {
-                            var _ = self.read();
-                            var count = 3;
-                            while(self.peek() == '`') { var _ = self.read(); count += 1; }
-                            while(self.peek() == ' ' || self.peek() == '\t') { var _ = self.read(); }
-                            const lang_start = self.ptr
-                            while(true) {
-                                const cc = self.peek()
-                                if(cc == '\n' || cc == '\r' || cc == '\0' || cc == ' ') break
-                                var _ = self.read()
-                            }
-                            const lang_end = self.ptr
-                            while(true) {
-                                const cc = self.peek()
-                                if(cc == '\n' || cc == '\0') break
-                                var _ = self.read()
-                            }
-                            if(self.peek() == '\n') { var _ = self.read(); }
-                            self.in_fenced_code = true
-                            self.fence_count = count
-                            return MdToken { type : MdTokenType.FencedCodeStart as int, value : std::string_view(lang_start, lang_end - lang_start), position : start_pos }
+        // Fenced Code Block content handling
+        if(in_fenced_code) {
+             // Check for closing fence at start of line
+             // But wait, the previous lexer logic checked only if we are at start of line?
+            // The original md_cbi lexer seems to handle this statefully.
+            
+            // Check if we are at a position that looks like a closing fence
+            // Note: Simplification - we assume we are at start of line or check effectively
+            // The logic in md_cbi:
+            // if(md.in_fenced_code) { ... }
+            
+            var backtick_count = countBackticks() as size_t;
+            if(backtick_count >= fence_count) {
+                // Consume backticks
+                const start = pos;
+                pos += backtick_count;
+                in_fenced_code = false;
+                fence_count = 0;
+                // Skip rest of line (language or attributes usually ignored after closing fence)
+                consume_until_newline();
+                consume_newline();
+
+                return Token { type : MdTokenType.FencedCodeEnd, value : std::string_view("```") }
+            }
+
+            // Read code content line
+            const line = consume_until_newline();
+            consume_newline();
+            
+            return Token { type : MdTokenType.CodeContent, value : line }
+        }
+
+        const start = pos;
+        const c = advance();
+
+        switch(c) {
+            '\0' => { return Token { type : MdTokenType.EndOfFile, value : std::string_view("") } }
+            '#' => { return Token { type : MdTokenType.Hash, value : std::string_view("#") } }
+            // '$' case removed (no chemical interpolation)
+            '`' => {
+                if(peek() == '`') {
+                    advance(); // 2nd `
+                    if(peek() == '`') {
+                        advance(); // 3rd `
+                        // Fenced Code Start
+                        var count = 3;
+                        while(peek() == '`') {
+                            advance();
+                            count++;
                         }
-                        return MdToken { type : MdTokenType.Backtick as int, value : std::string_view("``"), position : start_pos }
+                        
+                        // Skip spaces
+                        while(peek() == ' ' || peek() == '\t') {
+                            advance();
+                        }
+                        
+                        // Read language
+                        const lang_start = pos;
+                        while(peek() != '\n' && peek() != '\r' && peek() != '\0' && peek() != ' ') {
+                            advance();
+                        }
+                        const lang = std::string_view(text.data() + lang_start, pos - lang_start);
+                        
+                        // Skip rest of line
+                        consume_until_newline();
+                        consume_newline();
+                        
+                        in_fenced_code = true;
+                        fence_char = '`';
+                        fence_count = count;
+                        
+                        return Token { type : MdTokenType.FencedCodeStart, value : lang }
                     }
-                    return MdToken { type : MdTokenType.Backtick as int, value : std::string_view("`"), position : start_pos }
+                    return Token { type : MdTokenType.Backtick, value : std::string_view("``") }
                 }
-                '0','1','2','3','4','5','6','7','8','9' => {
-                    while(true) {
-                        const cc = self.peek()
-                        if(cc < '0' || cc > '9') break
-                        var _ = self.read()
-                    }
-                    const end_ptr = self.ptr
-                    return MdToken { type : MdTokenType.Number as int, value : std::string_view(start_ptr, end_ptr - start_ptr), position : start_pos }
-                }
-             }
-        }
-        
-        // Text loop
-        while(true) {
-            const cc = self.peek()
-            
-            // Break on ASCII delimiters strings
-            if(cc as uint < 0x80) {
-                if(cc == '\0' || cc == '\n' || cc == '#' || cc == '*' || cc == '_' || cc == '[' || cc == ']' ||
-                   cc == '(' || cc == ')' || cc == '!' || cc == '`' || cc == '>' || cc == '-' || cc == '+' ||
-                   cc == '|' || cc == '~' || cc == ':' || cc == '=' || cc == '^' || cc == '{' || cc == '}' ||
-                   (cc >= '0' && cc <= '9')) {
-                    break
-                }
+                return Token { type : MdTokenType.Backtick, value : std::string_view("`") }
             }
-            // If >= 0x80 (UTF-8), consume as part of text
-            
-            var _ = self.read()
+            '{' => { return Token { type : MdTokenType.LBrace, value : std::string_view("{") } }
+            '}' => { return Token { type : MdTokenType.RBrace, value : std::string_view("}") } }
+            '*' => { return Token { type : MdTokenType.Star, value : std::string_view("*") } }
+            '_' => { return Token { type : MdTokenType.Underscore, value : std::string_view("_") } }
+            '[' => { return Token { type : MdTokenType.LBracket, value : std::string_view("[") } }
+            ']' => { return Token { type : MdTokenType.RBracket, value : std::string_view("]") } }
+            '(' => { return Token { type : MdTokenType.LParen, value : std::string_view("(") } }
+            ')' => { return Token { type : MdTokenType.RParen, value : std::string_view(")") } }
+            '!' => { return Token { type : MdTokenType.Exclamation, value : std::string_view("!") } }
+            '>' => { return Token { type : MdTokenType.GreaterThan, value : std::string_view(">") } }
+            '-' => { return Token { type : MdTokenType.Dash, value : std::string_view("-") } }
+            '+' => { return Token { type : MdTokenType.Plus, value : std::string_view("+") } }
+            '|' => { return Token { type : MdTokenType.Pipe, value : std::string_view("|") } }
+            '~' => { return Token { type : MdTokenType.Tilde, value : std::string_view("~") } }
+            ':' => { return Token { type : MdTokenType.Colon, value : std::string_view(":") } }
+            '=' => { return Token { type : MdTokenType.Equal, value : std::string_view("=") } }
+            '^' => { return Token { type : MdTokenType.Caret, value : std::string_view("^") } }
+            '.' => { return Token { type : MdTokenType.Dot, value : std::string_view(".") } }
+            '\n' => { return Token { type : MdTokenType.Newline, value : std::string_view("\n") } }
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' => {
+                while(peek() >= '0' && peek() <= '9') {
+                    advance();
+                }
+                return Token { type : MdTokenType.Number, value : std::string_view(text.data() + start, pos - start) }
+            }
+            default => {
+                // Read text until a special char
+                while(true) {
+                    const next = peek();
+                    if(next == '\0' || next == '#' || next == '*' || next == '_' || next == '[' || next == ']' || 
+                       next == '(' || next == ')' || next == '!' || next == '`' || next == '>' || next == '-' || 
+                       next == '+' || next == '|' || next == '\n' || next == '{' || next == '}' || 
+                       next == '~' || next == ':' || next == '=' || next == '^' || next == '.' ||
+                       (next >= '0' && next <= '9')) {
+                        break;
+                    }
+                    advance();
+                }
+                return Token { type : MdTokenType.Text, value : std::string_view(text.data() + start, pos - start) }
+            }
         }
-        const end_ptr = self.ptr
-        return MdToken { type : MdTokenType.Text as int, value : std::string_view(start_ptr, end_ptr - start_ptr), position : start_pos }
     }
+}
 
-    public func lex(&mut self) : std::vector<MdToken> {
-        var out = std::vector<MdToken>()
-        while(true) {
-            const t = next_token()
-            out.push(t)
-            if(t.type == MdTokenType.EndOfFile as int) break
+public func lex(text : std::string_view) : std::vector<Token> {
+    var lexer = Lexer { 
+        text : text, 
+        pos : 0, 
+        in_fenced_code : false, 
+        fence_char : '\0', 
+        fence_count : 0 
+    }
+    
+    var tokens = std::vector<Token>();
+    // Pre-reserve?
+    
+    while(true) {
+        var tok = lexer.next_token();
+        tokens.push_back(tok);
+        if(tok.type == MdTokenType.EndOfFile) {
+            break;
         }
-        return out
     }
-
+    return tokens;
 }
 
-public func lex(text : std::string_view) : std::vector<MdToken> {
-    var lx = Lexer(text)
-    return lx.lex();
-}
-
-}
+} // namespace md

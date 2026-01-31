@@ -3,7 +3,7 @@ public namespace docgen {
 // Helper for recursive mkdir
 func mkdir_p(path : std::string_view) {
     if(path.size() == 0) return;
-    
+
     var temp = std::string();
     var i = 0u;
     while(i < path.size()) {
@@ -23,8 +23,32 @@ func mkdir_p(path : std::string_view) {
 
 public func build_docs(root_path : *char, output_path : *char) : int {
     var root = std::string(root_path);
-    var summary_path = root.copy();
-    summary_path.append_view("/SUMMARY.md");
+    var summary_path = std::string();
+
+    var root_view = root.to_view();
+    if(root_view.ends_with("SUMMARY.md")) {
+        summary_path = root.copy();
+        // Strip SUMMARY.md from root
+        // Find last separator
+        var len = root.size();
+        var i = len - 1;
+        while(i > 0) {
+            const c = root.data()[i];
+            if(c == '/' || c == '\\') {
+                 // Found separator
+                 root = std::string(std::string_view(root.data(), i));
+                 break;
+            }
+            i--;
+        }
+        if(i == 0) {
+             // Just "SUMMARY.md"?
+             root = std::string(".");
+        }
+    } else {
+        summary_path = root.copy();
+        summary_path.append_view("/SUMMARY.md");
+    }
     
     // Parse Summary
     var summary = parse_summary(summary_path.to_view());

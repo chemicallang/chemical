@@ -20,6 +20,8 @@ public func get_default_css() : std::string_view {
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --radius: 8px;
     --transition: 0.2s ease;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
 }
 
 [data-theme="light"] {
@@ -79,10 +81,37 @@ public func get_default_css() : std::string_view {
     --code-bg: #1a1333;
 }
 
+[data-theme="vercel"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #fafafa;
+    --bg-tertiary: #eaeaea;
+    --text-primary: #000000;
+    --text-secondary: #666666;
+    --text-muted: #888888;
+    --accent: #000000;
+    --accent-hover: #333333;
+    --accent-glow: rgba(0, 0, 0, 0.05);
+    --border: #eaeaea;
+    --code-bg: #f5f5f5;
+    --shadow: 0 5px 10px rgba(0, 0, 0, 0.12);
+    --radius: 6px;
+    --font-sans: 'Geist', 'Inter', sans-serif;
+}
+
+[data-theme="vercel"] .sidebar {
+    background: transparent;
+    border-right: none;
+}
+
+[data-theme="vercel"] .header {
+    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid var(--border);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.7;
@@ -170,6 +199,52 @@ body {
     font-family: monospace;
 }
 
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+    z-index: 1001;
+}
+
+.search-results.open { display: block; }
+
+.search-result-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+}
+
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover { background: var(--bg-tertiary); }
+
+.search-result-title {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.search-result-preview {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 /* Theme Controls */
 .header-controls {
     display: flex;
@@ -190,25 +265,6 @@ body {
 }
 
 .theme-select:hover { border-color: var(--accent); }
-
-.theme-toggle {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.theme-toggle:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-}
 
 /* Layout */
 .app-layout {
@@ -407,19 +463,9 @@ body {
 """);
 }
 
-public func get_default_js() : std::string_view {
+public func get_theme_init_js() : std::string_view {
     return std::string_view("""
-document.addEventListener('DOMContentLoaded', () => {
-    // Theme management
-    const themes = ['default', 'light', 'forest', 'sunset', 'purple'];
-    const themeNames = {
-        'default': 'Ocean Dark',
-        'light': 'Light',
-        'forest': 'Forest',
-        'sunset': 'Sunset',
-        'purple': 'Purple Haze'
-    };
-    
+(function() {
     function setTheme(theme) {
         if (theme === 'default') {
             document.documentElement.removeAttribute('data-theme');
@@ -427,7 +473,37 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.setAttribute('data-theme', theme);
         }
         localStorage.setItem('theme', theme);
+        
+        // Update select if it exists (later)
+        const select = document.getElementById('theme-select');
+        if (select) select.value = theme;
     }
+    window.setTheme = setTheme;
+    
+    // Immediate load
+    const saved = localStorage.getItem('theme');
+    if (saved) {
+        setTheme(saved);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        setTheme('light');
+    }
+})();
+""");
+}
+
+public func get_default_js() : std::string_view {
+    return std::string_view("""
+document.addEventListener('DOMContentLoaded', () => {
+    // Theme management
+    const themes = ['default', 'light', 'forest', 'sunset', 'purple', 'vercel'];
+    const themeNames = {
+        'default': 'Ocean Dark',
+        'light': 'Light',
+        'forest': 'Forest',
+        'sunset': 'Sunset',
+        'purple': 'Purple Haze',
+        'vercel': 'Vercel'
+    };
     
     // Create theme select
     const themeSelect = document.getElementById('theme-select');
@@ -439,22 +515,60 @@ document.addEventListener('DOMContentLoaded', () => {
             themeSelect.appendChild(opt);
         });
         
-        themeSelect.addEventListener('change', (e) => setTheme(e.target.value));
+        const saved = localStorage.getItem('theme') || 'default';
+        themeSelect.value = saved;
+        
+        themeSelect.addEventListener('change', (e) => window.setTheme(e.target.value));
     }
     
-    // Load saved theme
-    const saved = localStorage.getItem('theme');
-    if (saved) {
-        setTheme(saved);
-        if (themeSelect) themeSelect.value = saved;
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        setTheme('light');
-        if (themeSelect) themeSelect.value = 'light';
-    }
-    
-    // Search focus with Ctrl+K
+    // Search Logic
     const searchInput = document.getElementById('search-input');
-    if (searchInput) {
+    const searchContainer = document.querySelector('.search-container');
+    
+    if (searchInput && window.searchIndex) {
+        // Create results container
+        const resultsBox = document.createElement('div');
+        resultsBox.className = 'search-results';
+        searchContainer.appendChild(resultsBox);
+        
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            if (query.length < 2) {
+                resultsBox.classList.remove('open');
+                return;
+            }
+            
+            const results = window.searchIndex.filter(item => {
+                return item.title.toLowerCase().includes(query) || 
+                       item.content.toLowerCase().includes(query);
+            }).slice(0, 5);
+            
+            if (results.length > 0) {
+                resultsBox.innerHTML = '';
+                results.forEach(res => {
+                    const a = document.createElement('a');
+                    a.href = res.link;
+                    a.className = 'search-result-item';
+                    a.innerHTML = `
+                         <div class="search-result-title">${res.title}</div>
+                         <div class="search-result-preview">${res.snippet}</div>
+                    `;
+                    resultsBox.appendChild(a);
+                });
+                resultsBox.classList.add('open');
+            } else {
+                resultsBox.classList.remove('open');
+            }
+        });
+        
+        // Close on click outside
+        document.addEventListener('click', (e) => {
+            if (!searchContainer.contains(e.target)) {
+                resultsBox.classList.remove('open');
+            }
+        });
+        
+        // Shortcuts
         document.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
@@ -462,11 +576,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (e.key === 'Escape') {
                 searchInput.blur();
+                resultsBox.classList.remove('open');
             }
         });
     }
     
-    // Mobile sidebar toggle
+    // Mobile sidebar
     const menuBtn = document.getElementById('menu-toggle');
     const sidebar = document.querySelector('.sidebar');
     if (menuBtn && sidebar) {

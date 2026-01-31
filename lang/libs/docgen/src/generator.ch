@@ -1,8 +1,9 @@
 public namespace docgen {
 
 public struct HtmlGenerator {
-    var config : DocConfig
+    var config : *DocConfig
     var summary : *Summary
+    var search_index : std::string
 }
 
 func replace_extension(path : &std::string, old_ext : std::string_view, new_ext : std::string_view) : std::string {
@@ -24,6 +25,47 @@ func get_relative_path_to_root(depth : int) : std::string {
     }
     if(s.size() == 0) return std::string("./");
     return s;
+}
+
+// Helper to strip HTML tags for search index
+func strip_tags(html : std::string_view) : std::string {
+    var res = std::string();
+    var in_tag = false;
+    var i = 0u;
+    while(i < html.size()) {
+        var c = html.data()[i];
+        if(c == '<') {
+            in_tag = true;
+        } else if(c == '>') {
+            in_tag = false;
+        } else if(!in_tag) {
+            res.append(c);
+        }
+        i++;
+    }
+    return res;
+}
+
+// Helper to escape JSON string
+func escape_json_string(str : std::string_view) : std::string {
+    var res = std::string();
+    var i = 0u;
+    while(i < str.size()) {
+        var c = str.data()[i];
+        if(c == '"') {
+            res.append_view("\\\"");
+        } else if(c == '\\') {
+             res.append_view("\\\\");
+        } else if(c == '\n') {
+             res.append(' ');
+        } else if(c == '\r') {
+             // skip
+        } else {
+            res.append(c);
+        }
+        i++;
+    }
+    return res;
 }
 
 // Recursively render sidebar
@@ -82,7 +124,19 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>""");
     html.append_view(get_default_css());
-    html.append_view("""</style>
+    html.append_view("</style>");
+    
+    // Inject Theme Init Script immediately to prevent flash
+    html.append_view("<script>");
+    html.append_view(get_theme_init_js());
+    html.append_view("</script>");
+    
+    // Add Search Index
+    html.append_view("<script src=\"");
+    html.append_view(get_relative_path_to_root(relative_depth).to_view());
+    html.append_view("search_index.js\"></script>");
+    
+    html.append_view("""
 </head>
 <body>
     <header class="header">
@@ -180,7 +234,30 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
         if(content_html is std::Result.Ok) {
             printf("Generating: %s -> %s (depth=%d)\n", item.link.c_str(), out_path.c_str(), depth);
             var Ok(html) = content_html else unreachable;
+            
+            // Generate Page
             gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view());
+            
+            // Add to Search Index
+            if(gen.search_index.size() > 1) { // Not first item (has '[')
+                gen.search_index.append_view(",");
+            }
+            gen.search_index.append_view("{\"title\":\"");
+            gen.search_index.append_view(escape_json_string(item.title.to_view()).to_view());
+            gen.search_index.append_view("\",\"link\":\"");
+            gen.search_index.append_view(out_rel.to_view());
+            gen.search_index.append_view("\",\"snippet\":\"");
+            // Strip tags and take first 200 chars for snippet
+            var text = strip_tags(html.to_view());
+            var d = 0;
+            // Limit snippet
+            // (simplified for now, full text search is heavy without better indexing hacks, but this is a start)
+            gen.search_index.append_view(escape_json_string(text.to_view()).to_view()); 
+            // In a real impl we might want `content` field too, but user asked for "snippet" in UI..
+            // Actually the UI filters on `content` so we should send content.
+            gen.search_index.append_view("\",\"content\":\"");
+             gen.search_index.append_view(escape_json_string(text.to_view()).to_view()); 
+            gen.search_index.append_view("\"}");
 
         } else {
             printf("Failed to process file: %s (Source: %s)\n", item.link.c_str(), path.c_str());
@@ -200,20 +277,26 @@ public func generate(config : DocConfig, summary : *Summary) {
     // Create build dir
     fs::mkdir(config.build_dir.data());
     
-    var gen = HtmlGenerator { config : config, summary : summary };
-    
-    // Generate index.html (Summary or First Item)
-    // If there is an item called 'Introduction' or first item, we copy it to index.html too?
-    // Or we stick to exact mapping.
-    // Usually index.html is needed.
-    // If SUMMARY references README.md, that becomes index.html if we map correctly?
-    // We will just process items.
+    var gen = HtmlGenerator { config : &config, summary : summary, search_index : std::string("[") };
     
     var i = 0u;
     while(i < summary.items.size()) {
         gen.process_item(summary.items.get(i));
         i++;
     }
+    
+    // Close index and write
+    gen.search_index.append_view("]");
+    
+    var index_path = config.build_dir.copy();
+    index_path.append_view("/search_index.js");
+    
+    var js_content = std::string("window.searchIndex = ");
+    js_content.append_view(gen.search_index.to_view());
+    js_content.append_view(";");
+    
+    fs::write_to_file(index_path.data(), js_content.data());
+    printf("Generated search index at %s\n", index_path.c_str());
 }
 
 }

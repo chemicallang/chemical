@@ -1480,6 +1480,9 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // begin translation
     c_visitor.prepare_translate();
 
+    // if user only asked us to compile c files, we must not link the chemical object file
+    auto did_compile_chemical = false;
+
     // compile dependencies modules for this executable
     for(auto mod : dependencies) {
 
@@ -1528,10 +1531,14 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
             return result;
         }
 
+        if(!did_compile_chemical) {
+            did_compile_chemical = true;
+        }
+
     }
 
     // add the job obj path to linkables
-    if(do_compile) {
+    if(did_compile_chemical) {
         job->objects.emplace_back(job_obj_path);
     }
 

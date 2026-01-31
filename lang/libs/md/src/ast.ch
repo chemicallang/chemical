@@ -1,5 +1,37 @@
 public namespace md {
 
+public enum MdTokenType {
+    EndOfFile,
+    Text = 100,
+    Hash,           // #
+    Star,           // *
+    Underscore,     // _
+    LBracket,       // [
+    RBracket,       // ]
+    LParen,         // (
+    RParen,         // )
+    LBrace,         // {
+    RBrace,         // }
+    Exclamation,    // !
+    Backtick,       // `
+    GreaterThan,    // >
+    Dash,           // -
+    Plus,           // +
+    Pipe,           // |
+    Newline,        // \n
+    ChemicalStart,  // ${ (Optional/Legacy but kept for lexer parity)
+    Tilde,          // ~
+    Colon,          // :
+    EndMd,          // #endmd
+    FencedCodeStart,// ``` or ```lang
+    FencedCodeEnd,  // ```
+    CodeContent,    // raw code inside fenced block
+    Number,         // for ordered lists like 1. 2. etc
+    Dot,            // .
+    Equal,          // =
+    Caret,          // ^
+}
+
 public enum MdNodeKind {
     Root,
     Header,
@@ -7,6 +39,7 @@ public enum MdNodeKind {
     List,
     ListItem,
     Text,
+    Interpolation,
     Bold,
     Italic,
     Link,
@@ -38,9 +71,19 @@ public struct MdNode {
     var kind : MdNodeKind
 }
 
+public struct MdReference {
+    var url : std::string_view
+    var title : std::string_view
+}
+
 public struct MdRoot {
     var base : MdNode
+    // Removed parent *ASTNode and support SymResSupport as they are compiler-specific
+    // Children managed by Arena (pointers)
     var children : std::vector<*mut MdNode>
+    // Removed dyn_values
+    // reference_defs might still be useful for link resolution
+    var reference_defs : std::unordered_map<std::string, MdReference>
 }
 
 public struct MdText {
@@ -59,9 +102,11 @@ public struct MdParagraph {
     var children : std::vector<*mut MdNode>
 }
 
-public struct MdStrikethrough {
+public struct MdInterpolation {
     var base : MdNode
-    var children : std::vector<*mut MdNode>
+    // Removed *mut Value, kept blank or string representation if needed?
+    // Since we don't evaluate, maybe we just store the raw text representation
+    var text : std::string_view
 }
 
 public struct MdBold {
@@ -70,6 +115,11 @@ public struct MdBold {
 }
 
 public struct MdItalic {
+    var base : MdNode
+    var children : std::vector<*mut MdNode>
+}
+
+public struct MdStrikethrough {
     var base : MdNode
     var children : std::vector<*mut MdNode>
 }
@@ -212,4 +262,4 @@ public struct MdCustomContainer {
     var children : std::vector<*mut MdNode>
 }
 
-}
+} // namespace md

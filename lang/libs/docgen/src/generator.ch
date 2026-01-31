@@ -139,12 +139,12 @@ func (gen : &mut HtmlGenerator) process_item(item : *mut SummaryItem) {
         var content_html = md::file_to_html(path.data());
 
         if(content_html is std::Result.Ok) {
-            printf("Generating: %s -> %s\n", item.link.data(), out_path.data());
+            printf("Generating: %s -> %s\n", item.link.c_str(), out_path.c_str());
             var Ok(html) = content_html else unreachable;
             gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view());
 
         } else {
-            printf("Failed to process file: %s (Source: %s)\n", item.link.data(), path.data());
+            printf("Failed to process file: %s (Source: %s)\n", item.link.c_str(), path.c_str());
         }
 
     }

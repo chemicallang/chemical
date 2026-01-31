@@ -20,20 +20,19 @@ public struct Summary {
 //     - [Link](url)
 
 func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut SummaryItem {
-    // Expect first child to be Paragraph? Or directly content?
-    // MdListItem children are block nodes. Usually a Paragraph.
-    
     var title = std::string();
     var link = std::string();
     var children = std::vector<*mut SummaryItem>();
     
+    printf("  ListItem has %d children\n", item.children.size());
+    
     if(item.children.size() > 0) {
-        // Iterate children
         var i = 0u;
         while(i < item.children.size()) {
             var child = item.children.get(i);
+            printf("    Child %d: kind=%d\n", i, child.kind);
+            
             if(child.kind == md::MdNodeKind.Paragraph) {
-                // Extract link/title from paragraph
                 var p = child as *mut md::MdParagraph;
                 var j = 0u;
                 while(j < p.children.size()) {
@@ -41,7 +40,6 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                     if(node.kind == md::MdNodeKind.Link) {
                         var l = node as *mut md::MdLink;
                         link = std::string(l.url);
-                        // Extract text from children
                         var k = 0u;
                         while(k < l.children.size()) {
                             var lc = l.children.get(k);
@@ -58,6 +56,7 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
             } else if(child.kind == md::MdNodeKind.Link) {
                  var l = child as *mut md::MdLink;
                  link = std::string(l.url);
+                 printf("    Found Link! URL='%s'\n", l.url.data());
                  var k = 0u;
                  while(k < l.children.size()) {
                     var lc = l.children.get(k);
@@ -67,10 +66,11 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                     k++;
                  }
             } else if(child.kind == md::MdNodeKind.Text) {
+                 printf("    Found Text: '%s'\n", (child as *mut md::MdText).value.data());
                  title.append_view((child as *mut md::MdText).value);
             } else if(child.kind == md::MdNodeKind.List) {
-                // Nested list
                 var l = child as *mut md::MdList;
+                printf("    Found nested List with %d items\n", l.children.size());
                 var j = 0u;
                 while(j < l.children.size()) {
                     var subitem = parse_list_item(l.children.get(j) as *mut md::MdListItem, arena);
@@ -82,11 +82,9 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
         }
     }
     
-    // Allocate SummaryItem (not using arena for these, using heap/vector ownership for simplicity in docgen)
-    // Or we should manage memory? Vector of pointers.
-    // We will use new/malloc or just return struct? Struct pointers in vector.
-    
     if(title.size() == 0 && children.size() == 0) return null;
+    
+    printf("  => Created SummaryItem: title='%s' link='%s' children=%d\n", title.c_str(), link.c_str(), children.size());
     
     var summary_item = new SummaryItem {
         title : title,

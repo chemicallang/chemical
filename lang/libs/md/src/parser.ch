@@ -524,12 +524,44 @@ func (md : &mut MdParser) parseList(ordered : bool, start : int) : *mut MdNode {
         children : std::vector<*mut MdNode>()
     }
     
-    while(isDashToken(get_token(md).type as int) || isPlusToken(get_token(md).type as int) || isStarToken(get_token(md).type as int)) {
-        increment(md);
+    // Track the indentation level of this list's items
+    var list_indent = -1;  // Will be set on first item
+    
+    while(true) {
+        // Skip newlines
+        while(isNewlineToken(get_token(md).type as int)) { increment(md) };
+        
+        // Measure indentation (whitespace before list marker)
+        var current_indent = 0;
+        while(isTextToken(get_token(md).type as int) && isWhitespaceOnlyText(get_token(md).value)) {
+            current_indent = current_indent + get_token(md).value.size() as int;
+            increment(md);
+        }
+        
+        // Check for list marker
+        if(!(isDashToken(get_token(md).type as int) || isPlusToken(get_token(md).type as int) || isStarToken(get_token(md).type as int))) {
+            break;
+        }
+        
+        // Set the expected indent on first item
+        if(list_indent < 0) {
+            list_indent = current_indent;
+        }
+        
+        // If indentation doesn't match, we're done with this list
+        // Items with less indentation belong to parent list
+        // Items with more indentation would have been handled as nested
+        if(current_indent != list_indent) {
+            // Push back the tokens we consumed (can't easily do this)
+            // Instead, just break - let caller handle it
+            break;
+        }
+    
+        increment(md);  // consume list marker
         
         // Skip leading space of item
         if(isTextToken(get_token(md).type as int) && get_token(md).value.size() > 0 && get_token(md).value.data()[0] == ' ') {
-            // Handled in inline/checkbox
+            // Will be handled in inline parsing
         }
         
         var item = arena.allocate<MdListItem>();
@@ -538,43 +570,36 @@ func (md : &mut MdParser) parseList(ordered : bool, start : int) : *mut MdNode {
         var cb = md.tryParseTaskCheckbox();
         if(cb != null) item.children.push_back(cb);
         
+        // Parse inline content of this item
         while(!isLineEnd(get_token(md).type as int)) {
             var node = md.parseInlineNode();
             if(node != null) item.children.push_back(node);
         }
         if(isNewlineToken(get_token(md).type as int)) increment(md);
         
-        // Nested blocks
-        while(true) {
-            const val = get_token(md).value;
-            if(isTextToken(get_token(md).type as int) && val.size() >= 2 && val.data()[0] == ' ' && val.data()[1] == ' ') {
-                if(isWhitespaceOnlyText(val)) {
-                    increment(md);
-                    skipWhitespace(md);
-                    if(isBlockStart(md)) {
-                         var sub = md.parseBlockNode();
-                         if(sub != null) item.children.push_back(sub);
-                         continue;
-                    }
-                    continue;
-                }
-                if(isListStart(md) || isOrderedListStart(md) || isBlockStart(md)) {
-                    var sub = md.parseBlockNode();
-                    if(sub != null) item.children.push_back(sub);
-                    continue;
-                }
-                while(!isLineEnd(get_token(md).type as int)) {
-                    var node = md.parseInlineNode();
-                    if(node != null) item.children.push_back(node);
-                }
-                if(isNewlineToken(get_token(md).type as int)) increment(md);
-                continue;
-            }
-            break;
+        // Check for nested list (deeper indentation)
+        // Peek at next line's indentation
+        var peek_indent = 0;
+        var saved_pos = md.pos;
+        while(isNewlineToken(get_token(md).type as int)) { increment(md) };
+        while(isTextToken(get_token(md).type as int) && isWhitespaceOnlyText(get_token(md).value)) {
+            peek_indent = peek_indent + get_token(md).value.size() as int;
+            increment(md);
+        }
+        
+        // If next line is a list item with MORE indentation, it's a nested list
+        if(peek_indent > list_indent && (isDashToken(get_token(md).type as int) || isPlusToken(get_token(md).type as int) || isStarToken(get_token(md).type as int))) {
+            // Restore position to let nested parseList measure its own indentation
+            md.pos = saved_pos;
+            // Now parse nested list - it will handle its own newline/whitespace skipping
+            var nested = md.parseList(false, 1);
+            if(nested != null) item.children.push_back(nested);
+        } else {
+            // Restore position for next iteration
+            md.pos = saved_pos;
         }
         
         list.children.push_back(item as *mut MdNode);
-        skipWhitespace(md);
     }
     return list as *mut MdNode;
 }
@@ -600,7 +625,10 @@ func (md : &mut MdParser) parseOrderedList() : *mut MdNode {
         children : std::vector<*mut MdNode>()
     }
     
-    while(isNumberToken(get_token(md).type as int)) {
+    while(true) {
+        while(isNewlineToken(get_token(md).type as int)) { increment(md) };
+        
+        if(!(isNumberToken(get_token(md).type as int))) break;
         const next = peek_token(md);
         if(!isDotToken(next.type as int)) break;
         

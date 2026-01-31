@@ -113,25 +113,6 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     fs::write_to_file(output_path.data(), html.data());
 }
 
-// func mkdir_p(path : std::string_view) {
-//     if(path.size() == 0) return;
-//
-//     var temp = std::string();
-//     var i = 0u;
-//     while(i < path.size()) {
-//         const c = path.data()[i];
-//         if(c == '/' || c == '\\') {
-//             if(temp.size() > 0) {
-//                 fs::mkdir(temp.data());
-//             }
-//         }
-//         temp.append(c);
-//         i++;
-//     }
-//     if(temp.size() > 0) {
-//         fs::mkdir(temp.data());
-//     }
-// }
 
 func (gen : &mut HtmlGenerator) process_item(item : *mut SummaryItem) {
     if(item.link.size() > 0) {
@@ -158,12 +139,12 @@ func (gen : &mut HtmlGenerator) process_item(item : *mut SummaryItem) {
         var content_html = md::file_to_html(path.data());
 
         if(content_html is std::Result.Ok) {
-
+            printf("Generating: %s -> %s\n", item.link.data(), out_path.data());
             var Ok(html) = content_html else unreachable;
             gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view());
 
         } else {
-            // TODO: handle failure
+            printf("Failed to process file: %s (Source: %s)\n", item.link.data(), path.data());
         }
 
     }

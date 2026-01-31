@@ -150,25 +150,52 @@ public func getNextToken(md : &mut MdLexer, lexer : &mut Lexer) : Token {
 
     // Inside fenced code block - read until closing fence
     if(md.in_fenced_code) {
-        // Check for closing fence at start of line
-        var backtick_count = countBackticks(provider);
+        // Check for closing fence allowing up to 3 spaces indentation
+        const ptr = provider.current_data();
+        const end = provider.data_end;
+        var offset = 0;
+        var spaces = 0;
+        
+        while(spaces < 3 && ptr + offset < end && *(ptr + offset) == ' ') {
+            offset++;
+            spaces++;
+        }
+        
+        var backtick_count = 0;
+        while(ptr + offset + backtick_count < end && *(ptr + offset + backtick_count) == '`') {
+            backtick_count++;
+        }
+
         if(backtick_count >= md.fence_count) {
-            // Consume the backticks
-            var i = 0;
-            while(i < backtick_count) {
-                provider.readCharacter();
-                i++;
+            // Check if rest of line is valid (empty or whitespace)
+            var p_end = offset + backtick_count;
+            var valid = true;
+            while(ptr + p_end < end) {
+                const c = *(ptr + p_end);
+                if(c == '\n' || c == '\0' || c == '\r') break;
+                if(c != ' ' && c != '\t') { valid = false; break; }
+                p_end++;
             }
-            md.in_fenced_code = false;
-            md.fence_count = 0;
-            // Skip rest of line
-            while(provider.peek() != '\n' && provider.peek() != '\0') {
-                provider.readCharacter();
+            
+            if(valid) {
+                // Consume spaces + backticks
+                var k = 0;
+                while(k < offset + backtick_count) {
+                     provider.readCharacter();
+                     k++;
+                }
+
+                md.in_fenced_code = false;
+                md.fence_count = 0;
+                // Skip rest of line
+                while(provider.peek() != '\n' && provider.peek() != '\0') {
+                    provider.readCharacter();
+                }
+                if(provider.peek() == '\n') {
+                    provider.readCharacter();
+                }
+                return Token { type : MdTokenType.FencedCodeEnd as int, value : std::string_view("```"), position : position }
             }
-            if(provider.peek() == '\n') {
-                provider.readCharacter();
-            }
-            return Token { type : MdTokenType.FencedCodeEnd as int, value : std::string_view("```"), position : position }
         }
         
         // Read until end of line or closing fence

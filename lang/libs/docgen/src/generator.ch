@@ -131,6 +131,11 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     html.append_view(get_theme_init_js());
     html.append_view("</script>");
     
+    // Set root path for search
+    html.append_view("<script>window.rootPath = \"");
+    html.append_view(get_relative_path_to_root(relative_depth).to_view());
+    html.append_view("\";</script>");
+    
     // Add Search Index
     html.append_view("<script src=\"");
     html.append_view(get_relative_path_to_root(relative_depth).to_view());

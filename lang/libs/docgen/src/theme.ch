@@ -22,6 +22,8 @@ public func get_default_css() : std::string_view {
     --transition: 0.2s ease;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    --header-height: 64px;
+    --sidebar-width: 280px;
 }
 
 [data-theme="light"] {
@@ -81,6 +83,7 @@ public func get_default_css() : std::string_view {
     --code-bg: #1a1333;
 }
 
+/* Vercel Theme Overrides */
 [data-theme="vercel"] {
     --bg-primary: #ffffff;
     --bg-secondary: #fafafa;
@@ -95,17 +98,63 @@ public func get_default_css() : std::string_view {
     --code-bg: #f5f5f5;
     --shadow: 0 5px 10px rgba(0, 0, 0, 0.12);
     --radius: 6px;
-    --font-sans: 'Geist', 'Inter', sans-serif;
+    --header-height: 60px;
 }
 
 [data-theme="vercel"] .sidebar {
     background: transparent;
     border-right: none;
+    padding-right: 20px;
 }
 
 [data-theme="vercel"] .header {
     background: rgba(255, 255, 255, 0.8);
     border-bottom: 1px solid var(--border);
+    backdrop-filter: saturate(180%) blur(5px);
+}
+
+[data-theme="vercel"] .sidebar-item > a.active {
+    background: transparent;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+[data-theme="vercel"] .sidebar-item > a:hover {
+    background: transparent;
+    color: var(--text-primary);
+}
+
+/* Shadcn Theme Overrides */
+[data-theme="shadcn"] {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f4f4f5;
+    --bg-tertiary: #e4e4e7;
+    --text-primary: #09090b;
+    --text-secondary: #71717a;
+    --text-muted: #a1a1aa;
+    --accent: #18181b;
+    --accent-hover: #27272a;
+    --accent-glow: rgba(0, 0, 0, 0.1);
+    --border: #e4e4e7;
+    --code-bg: #f4f4f5;
+    --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --radius: 0.5rem;
+    --font-sans: 'Inter', sans-serif;
+    --header-height: 56px;
+}
+
+[data-theme="shadcn"] .sidebar-item > a {
+    font-weight: 500;
+    padding: 6px 12px;
+}
+
+[data-theme="shadcn"] .sidebar {
+    border-right: 1px solid var(--border);
+}
+
+[data-theme="shadcn"] .button, [data-theme="shadcn"] .search-input {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -124,7 +173,7 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    height: 64px;
+    height: var(--header-height);
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -269,18 +318,18 @@ body {
 /* Layout */
 .app-layout {
     display: flex;
-    margin-top: 64px;
-    min-height: calc(100vh - 64px);
+    margin-top: var(--header-height);
+    min-height: calc(100vh - var(--header-height));
 }
 
 /* Sidebar */
 .sidebar {
-    width: 280px;
+    width: var(--sidebar-width);
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
     padding: 24px 0;
     position: fixed;
-    top: 64px;
+    top: var(--header-height);
     left: 0;
     bottom: 0;
     overflow-y: auto;
@@ -344,7 +393,7 @@ body {
 /* Content */
 .content {
     flex: 1;
-    margin-left: 280px;
+    margin-left: var(--sidebar-width);
     padding: 48px 64px;
     max-width: 900px;
 }
@@ -495,14 +544,15 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['default', 'light', 'forest', 'sunset', 'purple', 'vercel'];
+    const themes = ['default', 'light', 'forest', 'sunset', 'purple', 'vercel', 'shadcn'];
     const themeNames = {
         'default': 'Ocean Dark',
         'light': 'Light',
         'forest': 'Forest',
         'sunset': 'Sunset',
         'purple': 'Purple Haze',
-        'vercel': 'Vercel'
+        'vercel': 'Vercel',
+        'shadcn': 'Shadcn'
     };
     
     // Create theme select
@@ -547,7 +597,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsBox.innerHTML = '';
                 results.forEach(res => {
                     const a = document.createElement('a');
-                    a.href = res.link;
+                    // FIX: Use window.rootPath to resolve full relative path
+                    const root = window.rootPath || './';
+                    a.href = root + res.link;
+                    
                     a.className = 'search-result-item';
                     a.innerHTML = `
                          <div class="search-result-title">${res.title}</div>

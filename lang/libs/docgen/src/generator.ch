@@ -31,20 +31,11 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
     var html = std::string("<li class=\"sidebar-item\">");
     
     if(item.link.size() > 0) {
-        // Fix link extension .md -> .html
-        var link = replace_extension(item.link, ".md", ".html");
+        // Fix link extension .md -> .html (use copy to preserve original)
+        var link_copy = item.link.copy();
+        var link = replace_extension(link_copy, ".md", ".html");
         html.append_view("<a href=\"");
-        // Need to handle relative paths properly!
-        // For now assuming summary links are valid relative to root
-        // If current page is nested, we need to adjust
-        // Simplify: Generate absolute-like relative paths? No.
-        // We will just put the link as is if it starts with http, otherwise we rely on correct relative structure.
-        // But if I am in a subdir, I need to go up?
-        // Wait, sidebar is static for all pages usually, or adapted?
-        // Ideally adapted. 
-        // Let's assume we pass a root_prefix to sidebar generator.
-        
-        // Actually simplest is to compute depth of current page and prefix all root-relative links.
+        // Prefix with relative path to root based on current page depth
         html.append_view(get_relative_path_to_root(depth).to_view());
         html.append_view(link.to_view());
         
@@ -98,7 +89,9 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         <a href=""");
     html.append('"');
     html.append_view(get_relative_path_to_root(relative_depth).to_view());
-    html.append_view("""introduction.html" class="header-brand">
+    html.append_view("introduction.html");
+    html.append('"');
+    html.append_view(""" class="header-brand">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                 <path d="M2 17l10 5 10-5"/>
@@ -119,12 +112,6 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         </div>
         <div class="header-controls">
             <select id="theme-select" class="theme-select"></select>
-            <button id="dark-toggle" class="theme-toggle" title="Toggle dark mode">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="5"/>
-                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                </svg>
-            </button>
         </div>
     </header>
     
@@ -169,19 +156,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
     printf("Processing@%p: '%s' link='%s' (link.size=%d) children=%d\n", item, item.title.c_str(), item.link.c_str(), item.link.size(), item.children.size());
     
     if(item.link.size() > 0) {
-        // Read MD file
-        // Link is relative to root (where SUMMARY.md is)
-        var path = gen.config.root_path.copy();
-        path.append('/');
-        path.append_view(item.link.to_view());
-        
-        // Compute output path
-        var out_path = gen.config.build_dir.copy();
-        out_path.append('/');
-        var out_rel = replace_extension(std::replace(item.link, std::string()), ".md", ".html");
-        out_path.append_view(out_rel.to_view());
-        
-        // Depth for relative links calculation
+        // Depth for relative links calculation - MUST do before replace_extension which may consume the link
         var depth = 0;
         var i = 0u;
         while(i < item.link.size()) {
@@ -189,10 +164,21 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
             i++;
         }
         
+        // Read MD file - Link is relative to root (where SUMMARY.md is)
+        var path = gen.config.root_path.copy();
+        path.append('/');
+        path.append_view(item.link.to_view());
+        
+        // Compute output path - use copy to avoid moving the original link
+        var out_path = gen.config.build_dir.copy();
+        out_path.append('/');
+        var out_rel = replace_extension(item.link, ".md", ".html");
+        out_path.append_view(out_rel.to_view());
+        
         var content_html = md::file_to_html(path.data());
 
         if(content_html is std::Result.Ok) {
-            printf("Generating: %s -> %s\n", item.link.c_str(), out_path.c_str());
+            printf("Generating: %s -> %s (depth=%d)\n", item.link.c_str(), out_path.c_str(), depth);
             var Ok(html) = content_html else unreachable;
             gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view());
 

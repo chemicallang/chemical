@@ -429,15 +429,6 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('theme', theme);
     }
     
-    function toggleDarkMode() {
-        const current = document.documentElement.getAttribute('data-theme');
-        if (current === 'light') {
-            setTheme('default');
-        } else {
-            setTheme('light');
-        }
-    }
-    
     // Create theme select
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) {
@@ -449,12 +440,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         themeSelect.addEventListener('change', (e) => setTheme(e.target.value));
-    }
-    
-    // Dark mode toggle
-    const darkToggle = document.getElementById('dark-toggle');
-    if (darkToggle) {
-        darkToggle.addEventListener('click', toggleDarkMode);
     }
     
     // Load saved theme

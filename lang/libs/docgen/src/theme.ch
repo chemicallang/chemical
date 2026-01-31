@@ -2,34 +2,34 @@ public namespace docgen {
 
 public func get_default_css() : std::string_view {
     return std::string_view(""":root {
-    /* Default: Ocean Dark Theme */
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
-    --text-primary: #f1f5f9;
+    /* Default: Midnight Theme (Cyberpunk/Dev) */
+    --bg-primary: #030712;
+    --bg-secondary: #0f172a;
+    --bg-tertiary: #1e293b;
+    --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     --accent: #38bdf8;
     --accent-hover: #0ea5e9;
-    --accent-glow: rgba(56, 189, 248, 0.15);
-    --border: #334155;
-    --code-bg: #1e293b;
+    --accent-glow: rgba(56, 189, 248, 0.1);
+    --border: #1e293b;
+    --code-bg: #0b1221;
     --success: #22c55e;
     --warning: #f59e0b;
     --error: #ef4444;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    --radius: 8px;
-    --transition: 0.2s ease;
+    --radius: 6px;
+    --transition: 0.15s ease;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     --header-height: 64px;
     --sidebar-width: 280px;
     --content-max-width: 900px;
     
-    /* New Visual Variability Params */
-    --bg-gradient: none; /* Allows rich gradients */
-    --glass-blur: 0px;   /* For glassmorphism */
-    --header-bg: var(--bg-secondary); /* Separated for transparency */
+    /* Visual Params */
+    --bg-gradient: linear-gradient(to bottom, #0f172a, #030712);
+    --glass-blur: 0px;
+    --header-bg: rgba(15, 23, 42, 0.8);
     --card-border: 1px solid var(--border);
 }
 
@@ -46,6 +46,11 @@ public func get_default_css() : std::string_view {
     --border: #e2e8f0;
     --code-bg: #f1f5f9;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    
+    /* Reset Visual Params */
+    --bg-gradient: none;
+    --glass-blur: 0px;
+    --header-bg: var(--bg-secondary);
 }
 
 [data-theme="sunset"] {
@@ -60,47 +65,53 @@ public func get_default_css() : std::string_view {
     --accent-glow: rgba(245, 158, 11, 0.15);
     --border: #44403c;
     --code-bg: #292524;
-}
-
-/* Midnight Theme (Cyberpunk/Dev) */
-[data-theme="midnight"] {
-    --bg-primary: #030712;
-    --bg-secondary: #111827;
-    --bg-tertiary: #1f2937;
-    --text-primary: #f9fafb;
-    --text-secondary: #9ca3af;
-    --text-muted: #6b7280;
-    --accent: #3b82f6;
-    --accent-hover: #60a5fa;
-    --accent-glow: rgba(59, 130, 246, 0.2);
-    --border: #1f2937;
-    --code-bg: #111827;
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-    --radius: 4px;
-    --header-height: 64px;
-    --bg-gradient: linear-gradient(to bottom, #0f172a, #020617);
+    
+    /* Reset Visual Params */
+    --bg-gradient: none;
     --glass-blur: 0px;
+    --header-bg: var(--bg-secondary);
 }
 
-/* Cosmic Theme (Vibrant/Glass) */
+/* Aurora Theme (Northern Lights) */
+[data-theme="aurora"] {
+    --bg-primary: #001e2b;
+    --bg-secondary: #002b3d;
+    --bg-tertiary: #064e66;
+    --text-primary: #e0faff;
+    --text-secondary: #8ecbd6;
+    --text-muted: #4a7c87;
+    --accent: #00d4aa;
+    --accent-hover: #00f0c0;
+    --accent-glow: rgba(0, 212, 170, 0.15);
+    --border: #064e66;
+    --code-bg: #00151f;
+    --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    --radius: 8px;
+    --header-height: 64px;
+    --bg-gradient: radial-gradient(circle at top right, #00364d 0%, #001e2b 100%);
+    --glass-blur: 0px;
+    --header-bg: rgba(0, 30, 43, 0.9);
+}
+
+/* Cosmic Theme (Vibrant/Glass) - Softened */
 [data-theme="cosmic"] {
-    --bg-primary: #0f0c29;
-    --bg-secondary: rgba(22, 17, 58, 0.8);
-    --bg-tertiary: rgba(48, 43, 99, 0.4);
-    --text-primary: #ffffff;
-    --text-secondary: #e2e8f0;
-    --text-muted: #94a3b8;
-    --accent: #f472b6;
-    --accent-hover: #f9a8d4;
-    --accent-glow: rgba(244, 114, 182, 0.25);
-    --border: rgba(255, 255, 255, 0.1);
-    --code-bg: rgba(0, 0, 0, 0.3);
-    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    --bg-primary: #13111c;
+    --bg-secondary: rgba(29, 24, 46, 0.7);
+    --bg-tertiary: rgba(45, 40, 70, 0.5);
+    --text-primary: #e6e6f0;
+    --text-secondary: #a8a8b8;
+    --text-muted: #6c6c7d;
+    --accent: #c4b5fd; /* Softened Purple */
+    --accent-hover: #d8b4fe;
+    --accent-glow: rgba(196, 181, 253, 0.15);
+    --border: rgba(255, 255, 255, 0.08);
+    --code-bg: rgba(0, 0, 0, 0.25);
+    --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
     --radius: 12px;
     --header-height: 70px;
-    --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-    --glass-blur: 8px;
-    --header-bg: rgba(15, 12, 41, 0.7);
+    --bg-gradient: linear-gradient(180deg, #1e1b2e 0%, #13111c 100%); /* Much subtler */
+    --glass-blur: 12px;
+    --header-bg: rgba(19, 17, 28, 0.6);
 }
 
 /* Minimal Theme (Dark Modern) */
@@ -121,6 +132,11 @@ public func get_default_css() : std::string_view {
     --header-height: 64px;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --content-max-width: 900px;
+    
+    /* Reset Visual Params */
+    --bg-gradient: none;
+    --glass-blur: 0px;
+    --header-bg: rgba(0, 0, 0, 0.8); /* Slight transparency for minimal */
 }
 
 [data-theme="minimal"] .sidebar {
@@ -583,14 +599,14 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['default', 'light', 'sunset', 'minimal', 'midnight', 'cosmic'];
+    const themes = ['default', 'light', 'sunset', 'minimal', 'cosmic', 'aurora'];
     const themeNames = {
-        'default': 'Ocean Dark',
+        'default': 'Midnight',
         'light': 'Light',
         'sunset': 'Sunset',
         'minimal': 'Minimal',
-        'midnight': 'Midnight',
-        'cosmic': 'Cosmic'
+        'cosmic': 'Cosmic',
+        'aurora': 'Aurora'
     };
     
     // Create theme select

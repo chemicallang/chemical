@@ -11,6 +11,26 @@ public struct Summary {
     var items : std::vector<*mut SummaryItem>
 }
 
+func print_items(items : &std::vector<*mut SummaryItem>) {
+    var start = items.data()
+    var end = start + items.size()
+    while(start != end) {
+        var item = *start;
+        printf("- [%s](%s)\n", item.title.data(), item.link.data());
+        if(!item.children.empty()) {
+            printf("\t");
+            print_items(item.children);
+        }
+        start++
+    }
+}
+
+func print_summary(s : &Summary) {
+    if(!s.items.empty()) {
+        print_items(s.items);
+    }
+}
+
 // Traverse MD AST to build Summary
 // SUMMARY.md structure is:
 // # Title
@@ -24,13 +44,13 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
     var link = std::string();
     var children = std::vector<*mut SummaryItem>();
     
-    printf("  ListItem has %d children\n", item.children.size());
+    // printf("  ListItem has %d children\n", item.children.size());
     
     if(item.children.size() > 0) {
         var i = 0u;
         while(i < item.children.size()) {
             var child = item.children.get(i);
-            printf("    Child %d: kind=%d\n", i, child.kind);
+            // printf("    Child %d: kind=%d\n", i, child.kind);
             
             if(child.kind == md::MdNodeKind.Paragraph) {
                 var p = child as *mut md::MdParagraph;
@@ -39,7 +59,8 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                     var node = p.children.get(j);
                     if(node.kind == md::MdNodeKind.Link) {
                         var l = node as *mut md::MdLink;
-                        link = std::string(l.url);
+                        link.clear();
+                        link.append_view(l.url);  // Ensure proper copy
                         var k = 0u;
                         while(k < l.children.size()) {
                             var lc = l.children.get(k);
@@ -55,8 +76,9 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                 }
             } else if(child.kind == md::MdNodeKind.Link) {
                  var l = child as *mut md::MdLink;
-                 link = std::string(l.url);
-                 printf("    Found Link! URL='%s'\n", l.url.data());
+                 link.clear();
+                 link.append_view(l.url);  // Ensure proper copy
+                 // printf("    Found Link! URL='%s'\n", l.url.data());
                  var k = 0u;
                  while(k < l.children.size()) {
                     var lc = l.children.get(k);
@@ -66,11 +88,11 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                     k++;
                  }
             } else if(child.kind == md::MdNodeKind.Text) {
-                 printf("    Found Text: '%s'\n", (child as *mut md::MdText).value.data());
+                 // printf("    Found Text: '%s'\n", (child as *mut md::MdText).value.data());
                  title.append_view((child as *mut md::MdText).value);
             } else if(child.kind == md::MdNodeKind.List) {
                 var l = child as *mut md::MdList;
-                printf("    Found nested List with %d items\n", l.children.size());
+                // printf("    Found nested List with %d items\n", l.children.size());
                 var j = 0u;
                 while(j < l.children.size()) {
                     var subitem = parse_list_item(l.children.get(j) as *mut md::MdListItem, arena);
@@ -84,13 +106,23 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
     
     if(title.size() == 0 && children.size() == 0) return null;
     
-    printf("  => Created SummaryItem: title='%s' link='%s' children=%d\n", title.c_str(), link.c_str(), children.size());
-    
     var summary_item = new SummaryItem {
-        title : title,
-        link : link,
-        children : children
+        title : std::string(),
+        link : std::string(),
+        children : std::vector<*mut SummaryItem>()
     };
+    
+    // Explicitly copy fields after allocation
+    summary_item.title.append_view(title.to_view());
+    summary_item.link.append_view(link.to_view());
+    var i = 0u;
+    while(i < children.size()) {
+        summary_item.children.push_back(children.get(i));
+        i++;
+    }
+    
+    // printf("  => Created SummaryItem@%p: title='%s' link='%s' children=%d\n", summary_item, summary_item.title.c_str(), summary_item.link.c_str(), summary_item.children.size());
+    
     return summary_item;
 }
 

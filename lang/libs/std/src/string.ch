@@ -581,6 +581,12 @@ public struct string : Hashable, Eq {
         return find(needle) != NPOS
     }
 
+    func ends_with(&self, other : &std::string_view) : bool {
+        // If other_data is longer than data, data cannot end with other_data.
+        if (other.size() > size()) return false;
+        return memcmp(data() + size() - other.size(), other.data(), other.size()) == 0;
+    }
+
     func erase(&mut self, start : size_t, len : size_t) {
         const sz = size();
 
@@ -659,6 +665,10 @@ public struct string : Hashable, Eq {
                 return "";
             }
         }
+    }
+
+    func c_str(&self) : *char {
+        return data()
     }
 
     func mutable_data(&mut self) : *mut char {

@@ -73,6 +73,12 @@ public namespace std {
             return self_size == other.size() && strncmp(data(), other.data(), self_size) == 0;
         }
 
+        func ends_with(&self, other : &std::string_view) : bool {
+            // If other_data is longer than data, data cannot end with other_data.
+            if (other.size() > size()) return false;
+            return memcmp(data() + size() - other.size(), other.data(), other.size()) == 0;
+        }
+
         @override
         func hash(&self) : uint {
             return fnv1_hash_view(self) as uint

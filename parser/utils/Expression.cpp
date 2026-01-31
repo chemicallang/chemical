@@ -131,71 +131,6 @@ bool parseLambdaAfterComma(Parser *lexer, ASTAllocator& allocator, LambdaFunctio
     return lexer->parseLambdaAfterParamsList(allocator, func);
 }
 
-Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
-
-    lexNewLineChars();
-
-    // lambda with no params
-    if(consumeToken(TokenType::RParen)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));;
-        parseLambdaAfterParamsList(allocator, lamb);
-        return lamb;
-    }
-
-    const auto identifier = token;
-    if(identifier->type == TokenType::Identifier || identifier->type == TokenType::SelfKw) {
-        token++;
-    } else {
-        return nullptr;
-    }
-
-    if (consumeToken(TokenType::RParen)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
-        lamb->params.emplace_back(param);
-        parseLambdaAfterParamsList(allocator, lamb);
-        return lamb;
-    } else if (consumeToken(TokenType::ColonSym)) {
-        const auto typeLoc = parseTypeLoc(allocator);
-        auto type = typeLoc.getType();
-        if (type) {
-        } else {
-            unexpected_error("expected a type after ':' when lexing a lambda in parenthesized expression");
-        }
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), typeLoc, 0, nullptr, false, parent_node, loc_single(identifier));
-        lamb->params.emplace_back(param);
-        if (consumeToken(TokenType::CommaSym)) {
-            lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
-        }
-        parseLambdaAfterComma(this, allocator,  lamb);
-        return lamb;
-    } else if (consumeToken(TokenType::CommaSym)) {
-        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
-        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
-        lamb->params.emplace_back(param);
-        lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
-        parseLambdaAfterComma(this, allocator, lamb);
-        return lamb;
-    }
-
-    Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
-    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(identifier));
-    chain->values.emplace_back((Value*) first_value);
-    const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
-    const auto value = structValue ? structValue : singlify_chain(chain);
-    const auto finalValue = parseAfterValue(allocator, value, identifier);
-    auto expr = parseRemainingExpression(allocator, finalValue, identifier);
-    if(consumeToken(TokenType::RParen)) {
-        const auto afterVl = parseAfterValue(allocator, expr, identifier);
-        return parseRemainingExpression(allocator, afterVl, identifier);
-    } else {
-        error("expected ')' after the nested parenthesized expression");
-        return expr;
-    }
-
-}
-
 static Value* parseAccessChainAfterValue(Parser* parser, ASTAllocator& allocator, Value* head) {
 
     std::vector<Value*> values;
@@ -258,6 +193,82 @@ static Value* parseAccessChainAfterValue(Parser* parser, ASTAllocator& allocator
 
     if (values.size() == 1) return values.back();
     return new (allocator.allocate<AccessChain>()) AccessChain(std::move(values), head->encoded_location());
+}
+
+Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
+
+    lexNewLineChars();
+
+    // lambda with no params
+    if(consumeToken(TokenType::RParen)) {
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));;
+        parseLambdaAfterParamsList(allocator, lamb);
+        return lamb;
+    }
+
+    const auto identifier = token;
+    if(identifier->type == TokenType::Identifier || identifier->type == TokenType::SelfKw) {
+        token++;
+    } else {
+        return nullptr;
+    }
+
+    if (consumeToken(TokenType::RParen)) {
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
+        lamb->params.emplace_back(param);
+        parseLambdaAfterParamsList(allocator, lamb);
+        return lamb;
+    } else if (consumeToken(TokenType::ColonSym)) {
+        const auto typeLoc = parseTypeLoc(allocator);
+        auto type = typeLoc.getType();
+        if (type) {
+        } else {
+            unexpected_error("expected a type after ':' when lexing a lambda in parenthesized expression");
+        }
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), typeLoc, 0, nullptr, false, parent_node, loc_single(identifier));
+        lamb->params.emplace_back(param);
+        if (consumeToken(TokenType::CommaSym)) {
+            lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
+        }
+        parseLambdaAfterComma(this, allocator,  lamb);
+        return lamb;
+    } else if (consumeToken(TokenType::CommaSym)) {
+        auto lamb = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));
+        auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(allocate_view(allocator, identifier->value), nullptr, 0, nullptr, false, parent_node, loc_single(identifier));
+        lamb->params.emplace_back(param);
+        lamb->setIsVariadic(parseParameterList(allocator, lamb->params, true, false));
+        parseLambdaAfterComma(this, allocator, lamb);
+        return lamb;
+    }
+
+    // nested parenthesized expression
+    Value* first_value = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(allocate_view(allocator, identifier->value), loc_single(identifier), false);
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(loc_single(identifier));
+    chain->values.emplace_back((Value*) first_value);
+    const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
+    const auto value = structValue ? structValue : singlify_chain(chain);
+    const auto finalValue = parseAfterValue(allocator, value, identifier);
+    auto expr = parseRemainingExpression(allocator, finalValue, identifier);
+
+    if(!consumeToken(TokenType::RParen)) {
+        error("expected ')' after the nested parenthesized expression");
+        return expr;
+    }
+
+    if (token->type == TokenType::DotSym) {
+        expr = parseAccessChainAfterValue(this, allocator, expr);
+    }
+
+    // TODO check for bad syntax
+    // this allows (a as &Point).a as ubigint + 2
+    // as ubigint + 2 should not be allowed maybe ((a as &Point).a as ubigint) + 2
+
+    const auto afterVl = parseAfterValue(allocator, expr, identifier);
+
+    return parseRemainingExpression(allocator, afterVl, identifier);
+
 }
 
 Value* Parser::parseParenExpression(ASTAllocator& allocator) {

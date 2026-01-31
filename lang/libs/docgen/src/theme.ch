@@ -24,6 +24,7 @@ public func get_default_css() : std::string_view {
     --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     --header-height: 64px;
     --sidebar-width: 280px;
+    --content-max-width: 900px;
 }
 
 [data-theme="light"] {
@@ -83,49 +84,81 @@ public func get_default_css() : std::string_view {
     --code-bg: #1a1333;
 }
 
-/* Vercel Theme Overrides */
-[data-theme="vercel"] {
+/* Minimal Theme (ex-Vercel) */
+[data-theme="minimal"] {
     --bg-primary: #ffffff;
-    --bg-secondary: #fafafa;
-    --bg-tertiary: #eaeaea;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f4f4f5;
     --text-primary: #000000;
     --text-secondary: #666666;
     --text-muted: #888888;
     --accent: #000000;
     --accent-hover: #333333;
-    --accent-glow: rgba(0, 0, 0, 0.05);
+    --accent-glow: transparent;
     --border: #eaeaea;
-    --code-bg: #f5f5f5;
-    --shadow: 0 5px 10px rgba(0, 0, 0, 0.12);
-    --radius: 6px;
+    --code-bg: #fafafa;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --radius: 4px;
     --header-height: 60px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --content-max-width: 800px;
 }
 
-[data-theme="vercel"] .sidebar {
+[data-theme="minimal"] .sidebar {
     background: transparent;
     border-right: none;
     padding-right: 20px;
 }
 
-[data-theme="vercel"] .header {
+[data-theme="minimal"] .header {
     background: rgba(255, 255, 255, 0.8);
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: saturate(180%) blur(5px);
+    border-bottom: 1px solid transparent;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
 
-[data-theme="vercel"] .sidebar-item > a.active {
+[data-theme="minimal"] .sidebar-item > a {
+    border-radius: 0;
+    padding: 6px 0;
+    margin: 2px 0;
+    color: var(--text-secondary);
+}
+
+[data-theme="minimal"] .sidebar-item > a.active {
     background: transparent;
     color: var(--text-primary);
     font-weight: 600;
+    padding-left: 0; 
+    /* Dot indicator */
+    position: relative;
+}
+[data-theme="minimal"] .sidebar-item > a.active::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
 }
 
-[data-theme="vercel"] .sidebar-item > a:hover {
-    background: transparent;
-    color: var(--text-primary);
+[data-theme="minimal"] .sidebar-list ul {
+    border-left: 1px solid var(--border);
+    margin-left: 3px;
+    padding-left: 16px;
 }
 
-/* Shadcn Theme Overrides */
-[data-theme="shadcn"] {
+[data-theme="minimal"] .content blockquote {
+    border-left: none;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    font-style: italic;
+}
+
+/* Zinc Theme (ex-Shadcn) */
+[data-theme="zinc"] {
     --bg-primary: #ffffff;
     --bg-secondary: #f4f4f5;
     --bg-tertiary: #e4e4e7;
@@ -134,7 +167,7 @@ public func get_default_css() : std::string_view {
     --text-muted: #a1a1aa;
     --accent: #18181b;
     --accent-hover: #27272a;
-    --accent-glow: rgba(0, 0, 0, 0.1);
+    --accent-glow: rgba(0, 0, 0, 0.05);
     --border: #e4e4e7;
     --code-bg: #f4f4f5;
     --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -143,18 +176,25 @@ public func get_default_css() : std::string_view {
     --header-height: 56px;
 }
 
-[data-theme="shadcn"] .sidebar-item > a {
+[data-theme="zinc"] .sidebar-item > a {
     font-weight: 500;
-    padding: 6px 12px;
-}
-
-[data-theme="shadcn"] .sidebar {
-    border-right: 1px solid var(--border);
-}
-
-[data-theme="shadcn"] .button, [data-theme="shadcn"] .search-input {
+    padding: 8px 12px;
     border-radius: var(--radius);
+}
+
+[data-theme="zinc"] .sidebar-item > a.active {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    box-shadow: var(--shadow);
+}
+
+[data-theme="zinc"] .content pre {
     border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+[data-theme="zinc"] .search-input {
+    background: var(--bg-primary);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -395,7 +435,7 @@ body {
     flex: 1;
     margin-left: var(--sidebar-width);
     padding: 48px 64px;
-    max-width: 900px;
+    max-width: var(--content-max-width);
 }
 
 .content h1, .content h2, .content h3, .content h4 {
@@ -544,15 +584,15 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['default', 'light', 'forest', 'sunset', 'purple', 'vercel', 'shadcn'];
+    const themes = ['default', 'light', 'forest', 'sunset', 'purple', 'minimal', 'zinc'];
     const themeNames = {
         'default': 'Ocean Dark',
         'light': 'Light',
         'forest': 'Forest',
         'sunset': 'Sunset',
         'purple': 'Purple Haze',
-        'vercel': 'Vercel',
-        'shadcn': 'Shadcn'
+        'minimal': 'Minimal',
+        'zinc': 'Zinc'
     };
     
     // Create theme select
@@ -569,6 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
         themeSelect.value = saved;
         
         themeSelect.addEventListener('change', (e) => window.setTheme(e.target.value));
+    }
+    
+    // Scroll Active Sidebar Item into View
+    const activeItem = document.querySelector('.sidebar-item > a.active');
+    if (activeItem) {
+        activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
     }
     
     // Search Logic

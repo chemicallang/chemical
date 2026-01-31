@@ -92,9 +92,15 @@ public func parse_summary(path : std::string_view) : *mut Summary {
     
     var arena = md::Arena();
     
+    printf("Parsing summary from: %s\n", path.data());
     var tokens = md::lex(view);
+    printf("Lexed %d tokens\n", tokens.size());
+    
     var root = md::parse(&tokens, &mut arena);
-    if(root == null) return null;
+    if(root == null) {
+        printf("Parse failed (root is null)\n");
+        return null;
+    }
     
     var summary = new Summary {
         title : std::string("Summary"),
@@ -105,21 +111,27 @@ public func parse_summary(path : std::string_view) : *mut Summary {
     var i = 0u;
     while(i < root.children.size()) {
         var node = root.children.get(i);
+        // printf("Node kind: %d\n", node.kind);
         if(node.kind == md::MdNodeKind.Header) {
-            // Main title?
-            // User said: # Summary
+            // Header
         } else if(node.kind == md::MdNodeKind.List) {
             var list = node as *mut md::MdList;
+            printf("Found List with %d items\n", list.children.size());
             var j = 0u;
             while(j < list.children.size()) {
                 var item = parse_list_item(list.children.get(j) as *mut md::MdListItem, &mut arena);
-                if(item != null) summary.items.push_back(item);
+                if(item != null) {
+                    summary.items.push_back(item);
+                } else {
+                    printf("Failed to parse list item %d\n", j);
+                }
                 j++;
             }
         }
         i++;
     }
     
+    printf("Parsed summary with %d top-level items.\n", summary.items.size());
     return summary;
 }
 

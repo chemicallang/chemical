@@ -76,20 +76,62 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
 }
 
 func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content : std::string_view, output_path : std::string, relative_depth : int, current_md_path : std::string_view) {
-    var html = std::string("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>");
+    var html = std::string("""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>""");
     html.append_view(title);
     html.append_view(" - ");
     html.append_view(gen.config.site_name.to_view());
-    html.append_view("</title><style>");
+    html.append_view("""</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>""");
     html.append_view(get_default_css());
-    html.append_view("</style><script>");
-    html.append_view(get_default_js());
-    html.append_view("</script></head><body>");
-    
-    html.append_view("<div id=\"sidebar\">");
-    html.append_view("<div class=\"sidebar-title\">");
+    html.append_view("""</style>
+</head>
+<body>
+    <header class="header">
+        <a href=""");
+    html.append('"');
+    html.append_view(get_relative_path_to_root(relative_depth).to_view());
+    html.append_view("""introduction.html" class="header-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+            """);
     html.append_view(gen.config.site_name.to_view());
-    html.append_view("</div><ul class=\"sidebar-list\">");
+    html.append_view("""
+        </a>
+        <div class="header-spacer"></div>
+        <div class="search-container">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input type="text" id="search-input" class="search-input" placeholder="Search documentation...">
+            <span class="search-kbd">Ctrl+K</span>
+        </div>
+        <div class="header-controls">
+            <select id="theme-select" class="theme-select"></select>
+            <button id="dark-toggle" class="theme-toggle" title="Toggle dark mode">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+    
+    <div class="app-layout">
+        <nav class="sidebar">
+            <ul class="sidebar-list">
+""");
     
     // Render Sidebar
     var i = 0u;
@@ -98,13 +140,22 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         i++;
     }
     
-    html.append_view("</ul></div>");
-    
-    html.append_view("<div id=\"content\">");
+    html.append_view("""
+            </ul>
+        </nav>
+        
+        <main class="content">
+""");
     html.append_view(content); // Already HTML from md::to_html
-    html.append_view("</div>");
+    html.append_view("""
+        </main>
+    </div>
     
-    html.append_view("</body></html>");
+    <script>""");
+    html.append_view(get_default_js());
+    html.append_view("""</script>
+</body>
+</html>""");
     
     // Ensure parent dir exists
     var parent = fs::parent_path(output_path.to_view());

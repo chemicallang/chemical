@@ -25,6 +25,12 @@ public func get_default_css() : std::string_view {
     --header-height: 64px;
     --sidebar-width: 280px;
     --content-max-width: 900px;
+    
+    /* New Visual Variability Params */
+    --bg-gradient: none; /* Allows rich gradients */
+    --glass-blur: 0px;   /* For glassmorphism */
+    --header-bg: var(--bg-secondary); /* Separated for transparency */
+    --card-border: 1px solid var(--border);
 }
 
 [data-theme="light"] {
@@ -42,20 +48,6 @@ public func get_default_css() : std::string_view {
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme="forest"] {
-    --bg-primary: #022c22;
-    --bg-secondary: #064e3b;
-    --bg-tertiary: #065f46;
-    --text-primary: #ecfdf5;
-    --text-secondary: #a7f3d0;
-    --text-muted: #6ee7b7;
-    --accent: #34d399;
-    --accent-hover: #10b981;
-    --accent-glow: rgba(52, 211, 153, 0.15);
-    --border: #065f46;
-    --code-bg: #064e3b;
-}
-
 [data-theme="sunset"] {
     --bg-primary: #1c1917;
     --bg-secondary: #292524;
@@ -70,132 +62,89 @@ public func get_default_css() : std::string_view {
     --code-bg: #292524;
 }
 
-[data-theme="purple"] {
-    --bg-primary: #0f0a1e;
-    --bg-secondary: #1a1333;
-    --bg-tertiary: #2d2150;
-    --text-primary: #f3e8ff;
-    --text-secondary: #c4b5fd;
-    --text-muted: #a78bfa;
-    --accent: #a855f7;
-    --accent-hover: #9333ea;
-    --accent-glow: rgba(168, 85, 247, 0.15);
-    --border: #2d2150;
-    --code-bg: #1a1333;
+/* Midnight Theme (Cyberpunk/Dev) */
+[data-theme="midnight"] {
+    --bg-primary: #030712;
+    --bg-secondary: #111827;
+    --bg-tertiary: #1f2937;
+    --text-primary: #f9fafb;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-glow: rgba(59, 130, 246, 0.2);
+    --border: #1f2937;
+    --code-bg: #111827;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    --radius: 4px;
+    --header-height: 64px;
+    --bg-gradient: linear-gradient(to bottom, #0f172a, #020617);
+    --glass-blur: 0px;
 }
 
-/* Minimal Theme (ex-Vercel) */
+/* Cosmic Theme (Vibrant/Glass) */
+[data-theme="cosmic"] {
+    --bg-primary: #0f0c29;
+    --bg-secondary: rgba(22, 17, 58, 0.8);
+    --bg-tertiary: rgba(48, 43, 99, 0.4);
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #f472b6;
+    --accent-hover: #f9a8d4;
+    --accent-glow: rgba(244, 114, 182, 0.25);
+    --border: rgba(255, 255, 255, 0.1);
+    --code-bg: rgba(0, 0, 0, 0.3);
+    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    --radius: 12px;
+    --header-height: 70px;
+    --bg-gradient: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+    --glass-blur: 8px;
+    --header-bg: rgba(15, 12, 41, 0.7);
+}
+
+/* Minimal Theme (Dark Modern) */
 [data-theme="minimal"] {
-    --bg-primary: #ffffff;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #f4f4f5;
-    --text-primary: #000000;
-    --text-secondary: #666666;
-    --text-muted: #888888;
-    --accent: #000000;
-    --accent-hover: #333333;
-    --accent-glow: transparent;
-    --border: #eaeaea;
-    --code-bg: #fafafa;
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --radius: 4px;
-    --header-height: 60px;
-    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --content-max-width: 800px;
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #000000;
+    --bg-tertiary: #171717;
+    --text-primary: #ededed;
+    --text-secondary: #a1a1a1;
+    --text-muted: #666666;
+    --accent: #ffffff;
+    --accent-hover: #e5e5e5;
+    --accent-glow: rgba(255, 255, 255, 0.1);
+    --border: #333333;
+    --code-bg: #111111;
+    --shadow: 0 0 0 1px #333;
+    --radius: 6px;
+    --header-height: 64px;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --content-max-width: 900px;
 }
 
 [data-theme="minimal"] .sidebar {
-    background: transparent;
-    border-right: none;
-    padding-right: 20px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border);
 }
 
 [data-theme="minimal"] .header {
-    background: rgba(255, 255, 255, 0.8);
-    border-bottom: 1px solid transparent;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    background: rgba(0, 0, 0, 0.7);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
 }
 
 [data-theme="minimal"] .sidebar-item > a {
-    border-radius: 0;
-    padding: 6px 0;
-    margin: 2px 0;
+    border-radius: var(--radius);
     color: var(--text-secondary);
 }
 
 [data-theme="minimal"] .sidebar-item > a.active {
-    background: transparent;
-    color: var(--text-primary);
-    font-weight: 600;
-    padding-left: 0; 
-    /* Dot indicator */
-    position: relative;
-}
-[data-theme="minimal"] .sidebar-item > a.active::before {
-    content: '';
-    position: absolute;
-    left: -16px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-}
-
-[data-theme="minimal"] .sidebar-list ul {
-    border-left: 1px solid var(--border);
-    margin-left: 3px;
-    padding-left: 16px;
-}
-
-[data-theme="minimal"] .content blockquote {
-    border-left: none;
     background: var(--bg-tertiary);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    font-style: italic;
-}
-
-/* Zinc Theme (ex-Shadcn) */
-[data-theme="zinc"] {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f4f4f5;
-    --bg-tertiary: #e4e4e7;
-    --text-primary: #09090b;
-    --text-secondary: #71717a;
-    --text-muted: #a1a1aa;
-    --accent: #18181b;
-    --accent-hover: #27272a;
-    --accent-glow: rgba(0, 0, 0, 0.05);
-    --border: #e4e4e7;
-    --code-bg: #f4f4f5;
-    --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --radius: 0.5rem;
-    --font-sans: 'Inter', sans-serif;
-    --header-height: 56px;
-}
-
-[data-theme="zinc"] .sidebar-item > a {
+    color: var(--text-primary);
     font-weight: 500;
-    padding: 8px 12px;
-    border-radius: var(--radius);
 }
 
-[data-theme="zinc"] .sidebar-item > a.active {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    box-shadow: var(--shadow);
-}
-
-[data-theme="zinc"] .content pre {
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-}
-
-[data-theme="zinc"] .search-input {
-    background: var(--bg-primary);
-}
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -207,6 +156,15 @@ body {
     min-height: 100vh;
 }
 
+/* Global Gradient Background Support */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg-gradient);
+    z-index: -1;
+}
+
 /* Header */
 .header {
     position: fixed;
@@ -214,13 +172,24 @@ body {
     left: 0;
     right: 0;
     height: var(--header-height);
-    background: var(--bg-secondary);
+    background: var(--header-bg);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
     padding: 0 24px;
     z-index: 1000;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Mobile Menu Button */
+.menu-toggle {
+    display: none;
+    margin-right: 16px;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 4px;
 }
 
 .header-brand {
@@ -376,9 +345,17 @@ body {
     transition: var(--transition);
 }
 
-.sidebar::-webkit-scrollbar { width: 6px; }
-.sidebar::-webkit-scrollbar-track { background: transparent; }
-.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+html { scroll-behavior: smooth; }
+
+::selection {
+    background: var(--accent);
+    color: var(--bg-primary);
+}
 
 .sidebar-section { margin-bottom: 8px; }
 
@@ -530,10 +507,32 @@ body {
 
 /* Mobile Responsive */
 @media (max-width: 1024px) {
-    .sidebar { transform: translateX(-100%); }
+    .sidebar { 
+        transform: translateX(-100%); 
+        z-index: 2000;
+        background: var(--bg-primary); /* Ensure opaque on mobile usually, or match theme */
+        width: 280px;
+        box-shadow: 2px 0 12px rgba(0,0,0,0.5);
+    }
     .sidebar.open { transform: translateX(0); }
     .content { margin-left: 0; padding: 32px 24px; }
     .search-container { width: 200px; }
+    .menu-toggle { display: block; }
+
+    /* Mobile Backdrop */
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1999;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .sidebar.open + .sidebar-backdrop, .sidebar-backdrop.open {
+        display: block;
+        opacity: 1;
+    }
 }
 
 @media (max-width: 640px) {
@@ -584,15 +583,14 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['default', 'light', 'forest', 'sunset', 'purple', 'minimal', 'zinc'];
+    const themes = ['default', 'light', 'sunset', 'minimal', 'midnight', 'cosmic'];
     const themeNames = {
         'default': 'Ocean Dark',
         'light': 'Light',
-        'forest': 'Forest',
         'sunset': 'Sunset',
-        'purple': 'Purple Haze',
         'minimal': 'Minimal',
-        'zinc': 'Zinc'
+        'midnight': 'Midnight',
+        'cosmic': 'Cosmic'
     };
     
     // Create theme select
@@ -683,10 +681,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mobile sidebar
     const menuBtn = document.getElementById('menu-toggle');
     const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+
     if (menuBtn && sidebar) {
-        menuBtn.addEventListener('click', () => {
+        function toggleSidebar() {
             sidebar.classList.toggle('open');
-        });
+            backdrop.classList.toggle('open');
+        }
+        
+        menuBtn.addEventListener('click', toggleSidebar);
+        backdrop.addEventListener('click', toggleSidebar);
     }
 });
 """);

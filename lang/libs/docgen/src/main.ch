@@ -22,41 +22,35 @@ func mkdir_p(path : std::string_view) {
 }
 
 public func build_docs(root_path : *char, output_path : *char) : int {
-    var root = std::string(root_path);
+    var root_str = std::string(root_path);
     var summary_path = std::string();
+    var base_dir = std::string();
 
-    var root_view = root.to_view();
+    var root_view = root_str.to_view();
     if(root_view.ends_with("SUMMARY.md")) {
-        summary_path = root.copy();
+        summary_path = root_str.copy();
         // Strip SUMMARY.md from root
-        // Find last separator
-        var len = root.size();
+        var len = root_str.size();
         var i = len - 1;
         while(i > 0) {
-            const c = root.data()[i];
+            const c = root_str.data()[i];
             if(c == '/' || c == '\\') {
-                 // Found separator
-                 root = std::string(std::string_view(root.data(), i));
+                 base_dir = std::string(std::string_view(root_str.data(), i));
                  break;
             }
             i--;
         }
         if(i == 0) {
-             // Just "SUMMARY.md"?
-             var temp = std::string(".");
-             root = temp;
-        } else {
-             var temp = std::string();
-             temp.append_view(std::string_view(root.data(), i))
-             root = temp;
+             base_dir = std::string(".");
         }
     } else {
-        summary_path = root.copy();
+        base_dir = root_str.copy();
+        summary_path = base_dir.copy();
         summary_path.append_view("/SUMMARY.md");
     }
     
     // Parse Summary
-    printf("Resolved Root: %s\n", root.c_str());
+    printf("Resolved Root: %s\n", base_dir.c_str());
     printf("Resolved Summary Path: %s\n", summary_path.c_str());
     
     var summary = parse_summary(summary_path.to_view());
@@ -68,7 +62,7 @@ public func build_docs(root_path : *char, output_path : *char) : int {
     printf("Compiling documentation for: %s\n", summary.title.c_str());
     
     var config = DocConfig {
-        root_path : root.copy(),
+        root_path : base_dir.copy(),
         build_dir : std::string(),
         site_name : summary.title.copy()
     };
@@ -76,7 +70,7 @@ public func build_docs(root_path : *char, output_path : *char) : int {
     var out_view = std::string_view(output_path)
     if(out_view.equals("book")) {
          // Default case: make it relative to root
-         config.build_dir = root.copy();
+         config.build_dir = base_dir.copy();
          config.build_dir.append_view("/book");
     } else {
          // User provided path, keep as is (relative to CWD)

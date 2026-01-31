@@ -55,6 +55,19 @@ func parse_list_item(item : *mut md::MdListItem, arena : *mut md::Arena) : *mut 
                     }
                     j++;
                 }
+            } else if(child.kind == md::MdNodeKind.Link) {
+                 var l = child as *mut md::MdLink;
+                 link = std::string(l.url);
+                 var k = 0u;
+                 while(k < l.children.size()) {
+                    var lc = l.children.get(k);
+                    if(lc.kind == md::MdNodeKind.Text) {
+                         title.append_view((lc as *mut md::MdText).value);
+                    }
+                    k++;
+                 }
+            } else if(child.kind == md::MdNodeKind.Text) {
+                 title.append_view((child as *mut md::MdText).value);
             } else if(child.kind == md::MdNodeKind.List) {
                 // Nested list
                 var l = child as *mut md::MdList;

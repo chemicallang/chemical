@@ -145,6 +145,11 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
 </head>
 <body>
     <header class="header">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle Menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+        </button>
         <a href=""");
     html.append('"');
     html.append_view(get_relative_path_to_root(relative_depth).to_view());

@@ -2,17 +2,17 @@ public namespace docgen {
 
 public struct HtmlGenerator {
     var config : DocConfig
-    var summary : *mut Summary
+    var summary : *Summary
 }
 
-func replace_extension(path : std::string, old_ext : std::string_view, new_ext : std::string_view) : std::string {
+func replace_extension(path : &std::string, old_ext : std::string_view, new_ext : std::string_view) : std::string {
     if(path.ends_with(old_ext)) {
         var str = std::string();
         str.append_view(std::string_view(path.data(), path.size() - old_ext.size()))
         str.append_view(new_ext);
         return str;
     }
-    return path;
+    return path.copy();
 }
 
 func get_relative_path_to_root(depth : int) : std::string {
@@ -27,12 +27,12 @@ func get_relative_path_to_root(depth : int) : std::string {
 }
 
 // Recursively render sidebar
-func render_sidebar_item(item : *mut SummaryItem, current_path : std::string_view, depth : int) : std::string {
+func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, depth : int) : std::string {
     var html = std::string("<li class=\"sidebar-item\">");
     
     if(item.link.size() > 0) {
         // Fix link extension .md -> .html
-        var link = replace_extension(std::replace(item.link, std::string()), ".md", ".html");
+        var link = replace_extension(item.link, ".md", ".html");
         html.append_view("<a href=\"");
         // Need to handle relative paths properly!
         // For now assuming summary links are valid relative to root
@@ -114,7 +114,9 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
 }
 
 
-func (gen : &mut HtmlGenerator) process_item(item : *mut SummaryItem) {
+func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
+    printf("Processing@%p: '%s' link='%s' (link.size=%d) children=%d\n", item, item.title.c_str(), item.link.c_str(), item.link.size(), item.children.size());
+    
     if(item.link.size() > 0) {
         // Read MD file
         // Link is relative to root (where SUMMARY.md is)
@@ -149,6 +151,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *mut SummaryItem) {
 
     }
     
+    // Process children recursively
     var i = 0u;
     while(i < item.children.size()) {
         gen.process_item(item.children.get(i));
@@ -156,7 +159,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *mut SummaryItem) {
     }
 }
 
-public func generate(config : DocConfig, summary : *mut Summary) {
+public func generate(config : DocConfig, summary : *Summary) {
     // Create build dir
     fs::mkdir(config.build_dir.data());
     

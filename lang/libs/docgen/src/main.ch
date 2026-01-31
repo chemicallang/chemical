@@ -58,9 +58,11 @@ public func build_docs(root_path : *char, output_path : *char) : int {
         printf("Error: Could not parse SUMMARY.md at %s\n", summary_path.c_str());
         return 1;
     }
-    
+
+    printf("Summary:\n");
+    print_summary(*summary);
     printf("Compiling documentation for: %s\n", summary.title.c_str());
-    
+
     var config = DocConfig {
         root_path : base_dir.copy(),
         build_dir : std::string(),

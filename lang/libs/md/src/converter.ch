@@ -2,10 +2,11 @@ public namespace md {
 
 struct MdConverter {
     var str : std::string
+    var highlighter : (lang : std::string_view, code : std::string_view) => std::string
 }
 
-func render_to_html(root : *mut MdRoot) : std::string {
-    var converter = MdConverter { str : std::string() }
+func render_to_html(root : *mut MdRoot, highlighter : (lang : std::string_view, code : std::string_view) => std::string) : std::string {
+    var converter = MdConverter { str : std::string(), highlighter : highlighter }
     converter.convertMdRoot(root);
     return std::replace(converter.str, std::string())
 }
@@ -170,7 +171,17 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
                 converter.str.append_view(cb.language);
             }
             converter.str.append_view("\">");
-            converter.escapeHtml(cb.code);
+            
+            var highlighted = false;
+            var res = converter.highlighter(cb.language, cb.code);
+            if(res.size() > 0) {
+                converter.str.append_view(res.to_view());
+                highlighted = true;
+            }
+            
+            if(!highlighted) {
+                converter.escapeHtml(cb.code);
+            }
             converter.str.append_view("</code></pre>\n");
         }
         MdNodeKind.Blockquote => {

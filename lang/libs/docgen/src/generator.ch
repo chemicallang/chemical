@@ -6,6 +6,13 @@ public struct HtmlGenerator {
     var search_index : std::string
 }
 
+func highlight_chemical_wrapper(lang : std::string_view, code : std::string_view) : std::string {
+    if(lang.equals("chemical") || lang.equals("ch")) {
+        return highlight_chemical(code);
+    }
+    return std::string();
+}
+
 func replace_extension(path : &std::string, old_ext : std::string_view, new_ext : std::string_view) : std::string {
     if(path.ends_with(old_ext)) {
         var str = std::string();
@@ -108,6 +115,42 @@ func render_sidebar_item(item : *SummaryItem, current_path : std::string_view, d
     return html;
 }
 
+func str_vec_contains(vec : &std::vector<std::string>, val : std::string_view) : bool {
+    var i = 0u;
+    while(i < vec.size()) {
+        if(vec.get(i).equals_view(val)) return true;
+        i++;
+    }
+    return false;
+}
+
+func get_prism_includes(config : *DocConfig) : std::string {
+    var html = std::string();
+    var has_external = false;
+    
+    var i = 0u;
+    while(i < config.syntax_highlights.size()) {
+        const hl = config.syntax_highlights.get_ptr(i);
+        if(!hl.equals_view("chemical")) {
+            has_external = true;
+            break;
+        }
+        i++;
+    }
+    
+    if(has_external) {
+         // Core + Theme
+         html.append_view("<link href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\" rel=\"stylesheet\" />\n");
+         html.append_view("<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js\"></script>\n");
+         html.append_view("<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js\"></script>\n");
+         // We use autoloader so we don't need to manually list every language script, 
+         // but if the user provided specific list we could pre-load them.
+         // Autoloader is easier as it handles dependencies.
+    }
+    
+    return html;
+}
+
 func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content : std::string_view, output_path : std::string, relative_depth : int, current_md_path : std::string_view) {
     var html = std::string("""<!DOCTYPE html>
 <html lang="en">
@@ -140,6 +183,9 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     html.append_view("<script src=\"");
     html.append_view(get_relative_path_to_root(relative_depth).to_view());
     html.append_view("search_index.js\"></script>");
+    
+    // Syntax Highlighting
+    html.append_view(get_prism_includes(gen.config).to_view());
     
     html.append_view("""
 </head>
@@ -239,7 +285,12 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
         var out_rel = replace_extension(item.link, ".md", ".html");
         out_path.append_view(out_rel.to_view());
         
-        var content_html = md::file_to_html(path.data());
+        var highlighter : (lang : std::string_view, code : std::string_view) => std::string = () => { return std::string(""); };
+        if(str_vec_contains(gen.config.syntax_highlights, "chemical")) {
+            highlighter = highlight_chemical_wrapper;
+        }
+
+        var content_html = md::file_to_html(path.data(), highlighter);
 
         if(content_html is std::Result.Ok) {
             printf("Generating: %s -> %s (depth=%d)\n", item.link.c_str(), out_path.c_str(), depth);

@@ -21,7 +21,7 @@ func mkdir_p(path : std::string_view) {
     }
 }
 
-public func build_docs(root_path : *char, output_path : *char) : int {
+public func build_docs(root_path : *char, output_path : *char, syntax_args : *char) : int {
     var root_str = std::string(root_path);
     var summary_path = std::string();
     var base_dir = std::string();
@@ -66,8 +66,25 @@ public func build_docs(root_path : *char, output_path : *char) : int {
     var config = DocConfig {
         root_path : base_dir.copy(),
         build_dir : std::string(),
-        site_name : summary.title.copy()
+        site_name : summary.title.copy(),
+        syntax_highlights : std::vector<std::string>()
     };
+
+    if(syntax_args != null) {
+        var s = std::string_view(syntax_args);
+        var start = 0u;
+        var i = 0u;
+        while(i < s.size()) {
+            if(s.data()[i] == ',') {
+                 config.syntax_highlights.push_back(std::string(std::string_view(s.data() + start, i - start)));
+                 start = i + 1u;
+            }
+            i++;
+        }
+        if(start < s.size()) {
+            config.syntax_highlights.push_back(std::string(std::string_view(s.data() + start, s.size() - start)));
+        }
+    }
 
     var out_view = std::string_view(output_path)
     if(out_view.equals("book")) {
@@ -91,17 +108,35 @@ public func build_docs(root_path : *char, output_path : *char) : int {
 
 public func main(argc : int, argv : **char) : int {
     if(argc < 2) {
-        printf("Usage: docgen <root_dir> [output_dir]\n");
+        printf("Usage: docgen <root_dir> [output_dir] [--syntax-highlight list]\n");
         return 1;
     }
     
     var root = *argv_offset(argv, 1);
     var output = "book";
-    if(argc >= 3) {
-        output = *argv_offset(argv, 2);
+    var syntax_args : *char = null;
+
+    var i = 2;
+    while(i < argc) {
+        const arg_str = *argv_offset(argv, i);
+        var arg = std::string_view(arg_str, strlen(arg_str));
+        if(arg.equals("--syntax-highlight")) {
+            if(i + 1 < argc) {
+                syntax_args = *argv_offset(argv, i + 1);
+                i++;
+            }
+        } else {
+            // Assume it's output dir if not a flag
+             if(output == "book") { // Only set if still default
+                 output = arg.data() as *char; // casting for compatibility, careful with lifetimes, actually argv strings live efficiently long enough
+                 // wait, arg.data() is a pointer to the string view, which points to argv char*
+                 // argv items are null terminated, so this is safe
+             }
+        }
+        i++;
     }
     
-    return build_docs(root, output);
+    return build_docs(root, output, syntax_args);
 }
 
 func argv_offset(argv : **char, offset : int) : **char {

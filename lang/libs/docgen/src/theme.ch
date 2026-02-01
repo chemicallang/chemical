@@ -564,6 +564,21 @@ html { scroll-behavior: smooth; }
 }
 
 .content { animation: fadeIn 0.3s ease; }
+
+/* Chemical Syntax Highlighting */
+.chem-kwd { color: #f472b6; font-weight: 600; } /* Pink-400 */
+.chem-str { color: #a3e635; } /* Lime-400 */
+.chem-num { color: #fb923c; } /* Orange-400 */
+.chem-comment { color: #64748b; font-style: italic; } /* Slate-500 */
+.chem-func { color: #60a5fa; } /* Blue-400 */
+.chem-macro { color: #22d3ee; } /* Cyan-400 */
+
+[data-theme="light"] .chem-kwd { color: #d946ef; } /* Fuschia-500 */
+[data-theme="light"] .chem-str { color: #65a30d; } /* Lime-600 */
+[data-theme="light"] .chem-num { color: #d97706; } /* Amber-600 */
+[data-theme="light"] .chem-comment { color: #94a3b8; } /* Slate-400 */
+[data-theme="light"] .chem-func { color: #2563eb; } /* Blue-600 */
+[data-theme="light"] .chem-macro { color: #0891b2; } /* Cyan-600 */
 """);
 }
 

@@ -2,6 +2,7 @@ public struct MdParser {
     var dyn_values : *mut std::vector<*mut Value>
     var builder : *mut ASTBuilder
     var root : *mut MdRoot
+    var in_link : bool
 }
 
 // Helper to peek at next token without consuming
@@ -252,7 +253,7 @@ public func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut 
         support : SymResSupport {}
     }
     
-    var mdParser = MdParser { dyn_values : &mut root.dyn_values, builder : builder, root : root }
+    var mdParser = MdParser { dyn_values : &mut root.dyn_values, builder : builder, root : root, in_link : false }
     
     while(!isBlockEnd(parser.getToken().type)) {
         var node = mdParser.parseBlockNode(parser);
@@ -985,6 +986,66 @@ func (md : &mut MdParser) parseBoldOrItalic(parser : *mut Parser, marker : char)
         parser.increment();
     }
     
+    // Lookahead to ensure we have a closing marker on same line
+    var has_closing = false;
+    var look = 0;
+    while(true) {
+        const tok = peek_token_at(parser, look);
+        if(isLineEnd(tok.type)) break;
+        
+        // If inside a link, RBracket closes the scope for lookahead
+        if(md.in_link && isRBracketToken(tok.type)) break;
+        
+        if(tok.type == marker_type) {
+             if(count == 1) {
+                 has_closing = true;
+                 break;
+             } else {
+                 // For bold, we need 2 markers
+                 const next_tok = peek_token_at(parser, look + 1);
+                 if(next_tok.type == marker_type) {
+                      has_closing = true;
+                      break;
+                 }
+             }
+        }
+        look++;
+    }
+    
+    if(!has_closing) {
+        // Treat as text
+        if(count == 1) {
+             var text = builder.allocate<MdText>()
+             new (text) MdText {
+                 base : MdNode { kind : MdNodeKind.Text },
+                 value : builder.allocate_view(if(marker == '*') std::string_view("*") else std::string_view("_"))
+             }
+             return text as *mut MdNode;
+        }
+        if(count == 2) {
+             var text = builder.allocate<MdText>()
+             new (text) MdText {
+                 base : MdNode { kind : MdNodeKind.Text },
+                 value : builder.allocate_view(if(marker == '*') std::string_view("**") else std::string_view("__"))
+             }
+             return text as *mut MdNode;
+        }
+        
+        // General case - reconstruct text
+        var ptr = builder.allocate_size((count + 1) as size_t, 1) as *mut char;
+        unsafe {
+             var j = 0;
+             while(j < count) { *(ptr + j) = marker; j++; }
+             *(ptr + count) = '\0';
+        }
+        var text = builder.allocate<MdText>()
+        new (text) MdText {
+            base : MdNode { kind : MdNodeKind.Text },
+            value : std::string_view(ptr, count as size_t)
+        }
+        return text as *mut MdNode;
+    }
+    
     if(count == 1) {
         // Italic
         var italic = builder.allocate<MdItalic>()
@@ -1343,6 +1404,11 @@ func (md : &mut MdParser) parseUrl(parser : *mut Parser) : std::string_view {
 
 func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
     parser.increment(); // consume [
+    
+    // Save state
+    const prev_in_link = md.in_link;
+    md.in_link = true;
+    
     var text_children = std::vector<*mut MdNode>();
 
 
@@ -1350,6 +1416,9 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
         var child = md.parseInlineNode(parser);
         if(child != null) text_children.push(child);
     }
+    
+    // Restore state
+    md.in_link = prev_in_link;
 
     var builder = md.builder;
     

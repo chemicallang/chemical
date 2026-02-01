@@ -329,7 +329,7 @@ func highlight_chemical(code : std::string_view) : std::string {
 
 func highlight_chmod(code : std::string_view) : std::string {
     var kwds = std::vector<std::string>();
-    const list = "source|link|import|interface|var|const";
+    const list = "module|source|link|import|interface|var|const";
     var i = 0u; var start = 0u; var sv = std::string_view(list);
     while(i < sv.size()){ if(sv.data()[i] == '|') { kwds.push_back(std::string(std::string_view(sv.data() + start, i - start))); start = i + 1u; } i++; }
     kwds.push_back(std::string(std::string_view(sv.data() + start, sv.size() - start)));

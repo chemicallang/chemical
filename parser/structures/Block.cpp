@@ -81,10 +81,70 @@ std::optional<Scope> Parser::parseNestedBraceBlock(const std::string_view &forTh
     return scope;
 }
 
+std::optional<Scope> Parser::parseBraceBlockOrSingleStmt(const std::string_view &forThing, ASTNode* new_parent_node, ASTAllocator& allocator) {
+    
+    auto prev_parent = parent_node;
+    parent_node = new_parent_node;
+
+    // whitespace and new lines
+    bool has_new_lines = false;
+    while(true) {
+        if(token->type == TokenType::NewLine) {
+            token++;
+            has_new_lines = true;
+        } else {
+            break;
+        }
+    }
+
+    // starting brace
+    auto lb = consumeOfType(TokenType::LBrace);
+    if (!lb) {
+        if(has_new_lines) {
+            auto nested_stmt = parseNestedLevelStatementTokens(allocator, false, false);
+            if (nested_stmt) {
+                consumeNewLines();
+                if (consumeToken(TokenType::SemiColonSym)) {
+                    consumeNewLines();
+                }
+                return Scope{{nested_stmt}, parent_node, nested_stmt->encoded_location()};
+            }
+        }
+        error("expected a brace block { ... } or a single statement without new lines");
+        return std::nullopt;
+    }
+
+    Scope scope(parent_node, 0);
+
+    // multiple statements
+    parseNestedLevelMultipleStatementsTokens(allocator, scope.nodes, false, false);
+
+    // ending brace
+    auto rb = consumeOfType(TokenType::RBrace);
+    if (!rb) {
+        error() << "expected a closing brace '}' for [" << forThing << "]";
+        return scope;
+    }
+
+    scope.set_encoded_location(loc(lb->position, rb->position));
+
+    parent_node = prev_parent;
+
+    return scope;
+}
+
 std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator, const std::string_view& forThing, bool is_value, bool parse_value_node) {
 
     // whitespace and new lines
-    consumeNewLines();
+    bool has_new_lines = false;
+    while(true) {
+        if(token->type == TokenType::NewLine) {
+            token++;
+            has_new_lines = true;
+        } else {
+            break;
+        }
+    }
 
     // starting brace
     auto lb = consumeOfType(TokenType::LBrace);
@@ -101,15 +161,17 @@ std::optional<Scope> Parser::parseBraceBlockOrValueNode(ASTAllocator& allocator,
                 return std::nullopt;
             }
         }
-        consumeNewLines();
-        auto nested_stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
-        if (nested_stmt) {
-            consumeNewLines();
-            if (consumeToken(TokenType::SemiColonSym)) {
+        if(has_new_lines == false) {
+            auto nested_stmt = parseNestedLevelStatementTokens(allocator, is_value, parse_value_node);
+            if (nested_stmt) {
                 consumeNewLines();
+                if (consumeToken(TokenType::SemiColonSym)) {
+                    consumeNewLines();
+                }
+                return Scope{{nested_stmt}, parent_node, nested_stmt->encoded_location()};
             }
-            return Scope{{nested_stmt}, parent_node, nested_stmt->encoded_location()};
         }
+        error("expected a brace block { ... } or a single statement without new lines");
         return std::nullopt;
     }
 

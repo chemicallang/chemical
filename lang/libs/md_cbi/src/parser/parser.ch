@@ -1014,19 +1014,31 @@ func (md : &mut MdParser) parseBoldOrItalic(parser : *mut Parser, marker : char)
     
     if(!has_closing) {
         // Treat as text
+        var textVal = std::string_view("")
+        if(marker == '*') {
+            textVal = std::string_view("*");
+        } else {
+            textVal = std::string_view("_")
+        }
         if(count == 1) {
              var text = builder.allocate<MdText>()
              new (text) MdText {
                  base : MdNode { kind : MdNodeKind.Text },
-                 value : builder.allocate_view(if(marker == '*') std::string_view("*") else std::string_view("_"))
+                 value : builder.allocate_view(textVal)
              }
              return text as *mut MdNode;
         }
         if(count == 2) {
+            var textVal2 = std::string_view("")
+            if(marker == '*') {
+                textVal2 = std::string_view("**")
+            } else {
+                textVal2 = std::string_view("__")
+            }
              var text = builder.allocate<MdText>()
              new (text) MdText {
                  base : MdNode { kind : MdNodeKind.Text },
-                 value : builder.allocate_view(if(marker == '*') std::string_view("**") else std::string_view("__"))
+                 value : builder.allocate_view(textVal2)
              }
              return text as *mut MdNode;
         }

@@ -6,10 +6,15 @@ public struct HtmlGenerator {
     var search_index : std::string
 }
 
-func highlight_chemical_wrapper(lang : std::string_view, code : std::string_view) : std::string {
-    if(lang.equals("chemical") || lang.equals("ch")) {
-        return highlight_chemical(code);
-    }
+func highlight_wrapper(lang : std::string_view, code : std::string_view) : std::string {
+    if(lang.equals("chemical") || lang.equals("ch")) return highlight_chemical(code);
+    if(lang.equals("chemical.mod") || lang.equals("chmod")) return highlight_chmod(code);
+    if(lang.equals("c")) return highlight_c(code);
+    if(lang.equals("cpp") || lang.equals("c++")) return highlight_cpp(code);
+    if(lang.equals("js") || lang.equals("javascript")) return highlight_js(code);
+    if(lang.equals("bash") || lang.equals("sh")) return highlight_bash(code);
+    if(lang.equals("html")) return highlight_html(code);
+    if(lang.equals("css")) return highlight_css(code);
     return std::string();
 }
 
@@ -124,28 +129,37 @@ func str_vec_contains(vec : &std::vector<std::string>, val : std::string_view) :
     return false;
 }
 
+func is_server_side_supported(lang : std::string_view) : bool {
+    if(lang.equals("chemical") || lang.equals("ch")) return true;
+    if(lang.equals("chemical.mod") || lang.equals("chmod")) return true;
+    if(lang.equals("c")) return true;
+    if(lang.equals("cpp") || lang.equals("c++")) return true;
+    if(lang.equals("js") || lang.equals("javascript")) return true;
+    if(lang.equals("bash") || lang.equals("sh")) return true;
+    if(lang.equals("html")) return true;
+    if(lang.equals("css")) return true;
+    return false;
+}
+
 func get_prism_includes(config : *DocConfig) : std::string {
     var html = std::string();
-    var has_external = false;
+    var needs_external = false;
     
     var i = 0u;
     while(i < config.syntax_highlights.size()) {
         const hl = config.syntax_highlights.get_ptr(i);
-        if(!hl.equals_view("chemical")) {
-            has_external = true;
+        if(!is_server_side_supported(hl.to_view())) {
+            needs_external = true;
             break;
         }
         i++;
     }
     
-    if(has_external) {
+    if(needs_external) {
          // Core + Theme
          html.append_view("<link href=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css\" rel=\"stylesheet\" />\n");
          html.append_view("<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js\"></script>\n");
          html.append_view("<script src=\"https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js\"></script>\n");
-         // We use autoloader so we don't need to manually list every language script, 
-         // but if the user provided specific list we could pre-load them.
-         // Autoloader is easier as it handles dependencies.
     }
     
     return html;
@@ -285,11 +299,12 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
         var out_rel = replace_extension(item.link, ".md", ".html");
         out_path.append_view(out_rel.to_view());
         
-        var highlighter : (lang : std::string_view, code : std::string_view) => std::string = () => { return std::string(""); };
-        if(str_vec_contains(gen.config.syntax_highlights, "chemical")) {
-            highlighter = highlight_chemical_wrapper;
-        }
-
+        var highlighter : (lang : std::string_view, code : std::string_view) => std::string = (lang, code) => {
+            return highlight_wrapper(lang, code);
+        };
+        // If config is empty, maybe we should default to all? 
+        // No, user requirement implies explicit list.
+        
         var content_html = md::file_to_html(path.data(), highlighter);
 
         if(content_html is std::Result.Ok) {

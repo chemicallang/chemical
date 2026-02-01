@@ -5,6 +5,7 @@ public struct MdParser {
     var pos : size_t
     var arena : *mut Arena
     var root : *mut MdRoot
+    var in_link : bool
 }
 
 // Helpers
@@ -255,7 +256,7 @@ public func parse(tokens : *std::vector<Token>, arena : *mut Arena) : *mut MdRoo
         reference_defs : std::unordered_map<std::string, MdReference>()
     }
     
-    var mdParser = MdParser { tokens : tokens, pos : 0, arena : arena, root : root }
+    var mdParser = MdParser { tokens : tokens, pos : 0, arena : arena, root : root, in_link : false }
     
     while(!isBlockEnd(get_token(mdParser).type as int)) {
         var node = mdParser.parseBlockNode();
@@ -823,6 +824,61 @@ func (md : &mut MdParser) parseBoldOrItalic(marker : char) : *mut MdNode {
     }
     const arena = md.arena;
     
+    // Lookahead to ensure we have a closing marker on same line
+    var has_closing = false;
+    var look = 0u;
+    while(true) {
+        const tok = peek_token_at(md, look);
+        if(isLineEnd(tok.type as int)) break;
+        
+        // If inside a link, RBracket closes the scope for lookahead
+        if(md.in_link && isRBracketToken(tok.type as int)) break;
+        
+        if(tok.type as int == marker_type) {
+             if(count == 1) {
+                 has_closing = true;
+                 break;
+             } else {
+                 // For bold, we need 2 markers
+                 const next_tok = peek_token_at(md, look + 1u);
+                 if(next_tok.type as int == marker_type) {
+                      has_closing = true;
+                      break;
+                 }
+                 // If we have just 1 marker but we need 2, we continue looking?
+                 // Existing logic treats "**" as end of bold.
+                 // A single "*" inside bold is treated as text.
+             }
+        }
+        look++;
+    }
+    
+    if(!has_closing) {
+        // Treat as text
+        // Optimize for common cases
+        if(count == 1) {
+             var text = arena.allocate<MdText>();
+             new (text) MdText { base : MdNode { kind : MdNodeKind.Text }, value : if(marker == '*') std::string_view("*") else std::string_view("_") };
+             return text as *mut MdNode;
+        }
+        if(count == 2) {
+             var text = arena.allocate<MdText>();
+             new (text) MdText { base : MdNode { kind : MdNodeKind.Text }, value : if(marker == '*') std::string_view("**") else std::string_view("__") };
+             return text as *mut MdNode;
+        }
+        
+        // General case
+        var ptr = arena.allocate_size((count + 1) as size_t, 1) as *mut char;
+        unsafe {
+             var j = 0;
+             while(j < count) { *(ptr + j) = marker; j++; }
+             *(ptr + count) = '\0';
+        }
+        var text = arena.allocate<MdText>();
+        new (text) MdText { base : MdNode { kind : MdNodeKind.Text }, value : std::string_view(ptr, count as size_t) };
+        return text as *mut MdNode;
+    }
+    
     if(count == 1) {
         var italic = arena.allocate<MdItalic>();
         new (italic) MdItalic { base : MdNode { kind : MdNodeKind.Italic }, children : std::vector<*mut MdNode>() };
@@ -1142,11 +1198,19 @@ func (md : &mut MdParser) parseUrl() : std::string_view {
 
 func (md : &mut MdParser) parseLink() : *mut MdNode {
     increment(md); // [
+    
+    // Save state
+    const prev_in_link = md.in_link;
+    md.in_link = true;
+    
     var text_children = std::vector<*mut MdNode>();
     while(get_token(md).type != MdTokenType.RBracket && !isLineEnd(get_token(md).type as int)) {
         var child = md.parseInlineNode();
         if(child != null) text_children.push_back(child);
     }
+    
+    // Restore state
+    md.in_link = prev_in_link;
     
     const arena = md.arena;
     if(get_token(md).type == MdTokenType.RBracket) {

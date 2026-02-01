@@ -156,7 +156,19 @@ public func parse_summary(path : std::string_view) : *mut Summary {
         var node = root.children.get(i);
         // printf("Node kind: %d\n", node.kind);
         if(node.kind == md::MdNodeKind.Header) {
-            // Header
+            var h = node as *mut md::MdHeader;
+            if(h.level == 1) {
+                // Extract text from header children
+                summary.title.clear();
+                var k = 0u;
+                while(k < h.children.size()) {
+                    var c = h.children.get(k);
+                    if(c.kind == md::MdNodeKind.Text) {
+                        summary.title.append_view((c as *mut md::MdText).value);
+                    }
+                    k++;
+                }
+            }
         } else if(node.kind == md::MdNodeKind.List) {
             var list = node as *mut md::MdList;
             printf("Found List with %d items\n", list.children.size());

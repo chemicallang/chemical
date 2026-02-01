@@ -144,7 +144,7 @@ ForLoop* Parser::parseForLoop(ASTAllocator& allocator) {
     }
 
     // { statement(s) } with continue & break support
-    auto block = parseBraceBlock("forloop", loop, allocator);
+    auto block = parseBraceBlockOrSingleStmt("forloop", loop, allocator);
     if(block.has_value()) {
         loop->body = std::move(block.value());
     } else {

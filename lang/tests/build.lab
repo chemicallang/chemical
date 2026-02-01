@@ -15,6 +15,7 @@ import "@test_env/build.lab" as testEnvMod
 import "./libs/html/build.lab" as htmlTestMod
 import "./libs/css/build.lab" as cssTestMod
 import "./libs/js/build.lab" as jsTestMod
+import "./libs/md/build.lab" as mdTestMod
 import "./libs/runner/build.lab" as testLibsRunner
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
@@ -154,10 +155,14 @@ func run_test_lib_exe(ctx : *mut AppBuildContext, which : &std::string_view) {
         comptime_fnv1_hash("js") => {
             ctx.add_module(exe_job, jsTestMod.build(ctx, exe_job))
         }
+        comptime_fnv1_hash("md") => {
+            ctx.add_module(exe_job, mdTestMod.build(ctx, exe_job))
+        }
         default => {
             ctx.add_module(exe_job, htmlTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, cssTestMod.build(ctx, exe_job))
             ctx.add_module(exe_job, jsTestMod.build(ctx, exe_job))
+            ctx.add_module(exe_job, mdTestMod.build(ctx, exe_job))
         }
     }
     ctx.add_module(exe_job, testLibsRunner.build(ctx, exe_job))

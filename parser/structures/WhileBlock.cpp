@@ -45,7 +45,7 @@ WhileLoop* Parser::parseWhileLoop(ASTAllocator& allocator) {
     }
 
     // { statement(s) } with continue & break support
-    auto block = parseBraceBlock("whileloop", loop, allocator);
+    auto block = parseBraceBlockOrSingleStmt("whileloop", loop, allocator);
     if(block.has_value()) {
         auto& blk = block.value();
         loop->body.nodes = std::move(blk.nodes);

@@ -212,8 +212,7 @@ public namespace fs {
             do {
                 var name = &find_data.cFileName[0]; // Assumes cFileName is the correct field
 
-                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-                    continue;
+                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
                 // Construct full paths for source and destination
                 var src_path : [1024]char;
@@ -273,8 +272,7 @@ public namespace fs {
 
                 var name = &entry.d_name[0]; // Assumes d_name is the correct field
 
-                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-                    continue;
+                if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
                  // Construct full paths for source and destination
                 // Use forward slash on POSIX

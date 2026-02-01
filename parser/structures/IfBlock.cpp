@@ -15,7 +15,7 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
 
     auto lp = consumeOfType(TokenType::LParen);
     if (!lp) {
-        error("expected a starting parenthesis ( when lexing a if block");
+        error("expected a starting parenthesis '(' when parsing an if block");
         return std::nullopt;
     }
 
@@ -59,7 +59,7 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         if(valueExpr != nullptr) {
             expr = valueExpr;
         } else {
-            error("expected a conditional expression when lexing a if block");
+            error("expected a conditional expression when parsing an if block");
             return std::nullopt;
         }
     }
@@ -67,7 +67,7 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
     consumeNewLines();
 
     if (!consumeToken(TokenType::RParen)) {
-        error("expected a ending parenthesis ) when lexing a if block");
+        error("expected a ending parenthesis ')' when parsing an if block");
         return std::pair { expr, Scope { parent_node, loc_single(lp) } };
     }
 
@@ -76,7 +76,7 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         if(scope.has_value()) {
             return std::pair { expr, std::move(scope.value()) };
         } else {
-            error("expected a brace block after the else while lexing an if statement");
+            error("expected a brace block after the 'else' while parsing an if statement");
             return std::pair { expr, Scope { parent_node, loc_single(lp) } };
         }
     } else {
@@ -84,7 +84,7 @@ std::optional<std::pair<Value*, Scope>> Parser::parseIfExprAndBlock(ASTAllocator
         if(blk.has_value()) {
             return std::pair { expr, std::move(blk.value()) };
         } else {
-            error("expected a brace block when lexing a brace block");
+            error("expected a brace block when parsing an if block");
             return std::pair { expr, Scope { parent_node, loc_single(lp) } };
         }
     }

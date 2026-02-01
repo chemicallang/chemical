@@ -36,4 +36,25 @@ func test_failing_code() {
         }
     })
 
+    test("single statement block in if works - 1", () => {
+        var j = true
+        var x = 3
+        if(j) x = 6;
+        var f = 4
+        if(!j) f = 7;
+        return x == 6 && f == 4
+    })
+
+    test("single statement block in while works - 1", () => {
+        var x = 0;
+        while(x < 5) x++;
+        return x == 5
+    })
+
+    test("single statement block in for works - 1", () => {
+        var j = 2;
+        for(var x = 0; x < 5; x++) j = x;
+        return j == 4
+    })
+
 }

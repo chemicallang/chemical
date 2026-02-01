@@ -100,7 +100,7 @@ std::optional<Scope> Parser::parseBraceBlockOrSingleStmt(const std::string_view 
     // starting brace
     auto lb = consumeOfType(TokenType::LBrace);
     if (!lb) {
-        if(has_new_lines) {
+        if(has_new_lines == false) {
             auto nested_stmt = parseNestedLevelStatementTokens(allocator, false, false);
             if (nested_stmt) {
                 consumeNewLines();

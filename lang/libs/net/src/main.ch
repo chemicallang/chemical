@@ -255,19 +255,24 @@ public namespace io {
         }
 
         func append_bytes(&mut self, src:*u8, n: usize) {
-            var i = 0u;
-            while(i < n) { v.push_back(src[i]); i = i + 1u }
+            const old_sz = v.size();
+            v.resize(old_sz + n);
+            memcpy(v.get_ptr(old_sz), src, n);
+            v.resize_unsafe(old_sz + n);
         }
 
         func consume(&mut self, n: usize) {
             // simple consume: advance read_pos, and compact vector if large
             read_pos = read_pos + n;
             if(read_pos > 4096 && read_pos * 2 > v.size()) {
-                // compact
-                var new_v = std::vector<u8>();
-                var i = read_pos;
-                while(i < v.size()) { new_v.push_back(v.get(i)); i = i + 1u }
-                v = new_v;
+                // compact in-place using memmove
+                // get raw pointer to start of data
+                var ptr = v.get_ptr(0) as *mut u8;
+                var rem = v.size() - read_pos;
+                // move remaining bytes to front
+                memmove(ptr, ptr + read_pos, rem);
+                // resize vector to reflect new size (just changes size, doesn't realloc/free)
+                v.resize_unsafe(rem);
                 read_pos = 0u;
             }
         }
@@ -665,6 +670,7 @@ public namespace http {
         }
         func send_headers(&mut self, content_len: usize) {
             if(sent_headers) { return }
+
             var out = std::string();
             // Status line (HTTP requires CRLF)
             out.append_view(std::string_view("HTTP/1.1 "));
@@ -848,6 +854,7 @@ public namespace http {
             var n = net::recv_all(s, &mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { return std::Option.None<Request>() }
             buf.append_bytes(&mut tmp[0], n as usize);
+
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }
             // loop to check again
         }
@@ -1050,7 +1057,6 @@ public namespace server {
 
         // production handler: parse request, route, and respond
         func handle_conn(&self, s: net::Socket) {
-            printf("handle_conn: start socket=%d\n", s);
             if (s == 0u || (s as longlong) < 0) {
                 printf("handle_conn: invalid socket {}\n");
                 net::close_socket(s); return;
@@ -1059,10 +1065,10 @@ public namespace server {
             var buf = io.Buffer();
             var req_opt = http.read_request_incremental(s, buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
             if (req_opt is std::Option.None) {
-                printf("handle_conn: read_request_incremental -> None for socket=%d\n", s);
+                // printf("handle_conn: read_request_incremental -> None for socket=%d\n", s);
                 net::close_socket(s); return;
             }
-            printf("handle_conn: parsed request for socket=%d\n", s);
+            // printf("handle_conn: parsed request for socket=%d\n", s);
             var Some(req) = req_opt else unreachable;
 
             // do NOT read the body yet — create a lazy Body and give it to the handler via req.body_source
@@ -1080,54 +1086,51 @@ public namespace server {
             // attach body source to request (we avoid copying the buffer: pass pointer)
             req.body = http.Body.make_body(s, &mut buf as *mut io::Buffer, body_len, chunked, self.cfg.header_timeout_secs * 4, self.cfg.max_body_bytes);
 
-            printf("handle_conn: method='%s' path='%s'\n", req.method.data(), req.path.data());
+            // printf("handle_conn: method='%s' path='%s'\n", req.method.data(), req.path.data());
 
             var params = std::vector<std::pair<std::string,std::string>>();
             var hopt = self.router.match_route(req.method, req.path, &mut params);
 
             var resw = http.ResponseWriter(s);
 
-            printf("handle_conn: total headers in response writer = %d\n", resw.headers.headers.size());
+            // printf("handle_conn: total headers in response writer = %d\n", resw.headers.headers.size());
 
             if (hopt is std::Option.Some) {
                 var Some(handler) = hopt else unreachable;
-                printf("handle_conn: invoking handler for socket=%d\n", s);
+                // printf("handle_conn: invoking handler for socket=%d\n", s);
 
                 // call the handler with the actual Request object
                 handler(req_opt.take(), resw);
 
-                printf("handle_conn: handler returned for socket=%d\n", s);
+                // printf("handle_conn: handler returned for socket=%d\n", s);
             } else {
-                printf("handle_conn: no handler matched, sending 404 for socket=%d\n", s);
+                // printf("handle_conn: no handler matched, sending 404 for socket=%d\n", s);
                 resw.status = 404u;
                 resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
                 resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
             net::close_socket(s);
-            printf("handle_conn: closed socket=%d\n", s);
+            // printf("handle_conn: closed socket=%d\n", s);
         }
 
         // accept loop — submit work to threadpool
         // TEMP: accept inline to isolate threadpool / closure issues
         func accept_main(arg : *void) : *void {
             var S = arg as *mut Server;
-            printf("accept_main: starting\n");
             while (S.run) {
                 var s = net.accept_socket(S.listen_sock);
                 if (s == 0u || (s as longlong) < 0) {
-                    printf("accept_main: accept failed or would-block\n");
                     std.concurrent.sleep_ms(1u);
                     continue;
                 }
-                printf("accept_main: accepted %d\n", s);
 
                 // submit work to threadpool
                 S.pool.submit_void(|S, s|() => {
                     S.handle_conn(s);
                 });
             }
-            printf("accept_main: exiting\n");
+            // printf("accept_main: exiting\n");
             return null;
         }
 

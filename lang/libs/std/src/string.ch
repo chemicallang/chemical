@@ -192,12 +192,18 @@ public struct string : Hashable, Eq {
 
     // this is a private function
     // new_capacity is always > length
-    func resize_heap(&mut self, new_capacity : size_t) {
+    func resize_heap(&mut self, new_capacity : size_t) : bool {
         // +1 for the null terminator
         var data = realloc(storage.heap.data, new_capacity + 1) as *mut char
-        data[storage.heap.length] = '\0'
-        storage.heap.data = data;
-        storage.heap.capacity = new_capacity
+        if(data == null) {
+            panic("couldn't realloc in std::string -> resize_heap");
+            return false;
+        } else {
+            data[storage.heap.length] = '\0'
+            storage.heap.data = data;
+            storage.heap.capacity = new_capacity
+            return true;
+        }
     }
 
     // ensures that capacity is larger than length given and memory is mutable
@@ -210,9 +216,13 @@ public struct string : Hashable, Eq {
             if(state == '0') {
                 move_data_to_heap(storage.constant.data, storage.constant.length, length);
             } else if(state == '1') {
-                move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, length);
+                var new_cap = if (length < STR_BUFF_SIZE * 2u) STR_BUFF_SIZE * 2u else length * 2u;
+                move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, new_cap);
             } else if(storage.heap.capacity <= length) {
-                resize_heap(length);
+                var new_cap = if (length < storage.heap.capacity * 2) storage.heap.capacity * 2 else length;
+                // ensure at least some growth if capacity was small
+                if (new_cap < length + 16) { new_cap = length + 64; }
+                resize_heap(new_cap);
             }
         }
     }

@@ -27,11 +27,7 @@ public struct vector<T> {
                 data_ptr = new_data;
                 data_cap = new_cap;
             } else {
-                // Handle allocation failure
-                // fprintf(stderr, "Failed to resize vector\n");
-                printf("failed to resize vector to a capacity of %d\n", new_cap);
-                fflush(null)
-                // exit(1);
+                panic("failed to resize vector");
             }
         }
     }

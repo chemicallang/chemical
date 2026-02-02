@@ -665,20 +665,18 @@ public namespace http {
         }
         func send_headers(&mut self, content_len: usize) {
             if(sent_headers) { return }
-            var out = std::string::empty_str();
+            var out = std::string();
             // Status line (HTTP requires CRLF)
             out.append_view(std::string_view("HTTP/1.1 "));
-            var st = std::string::empty_str(); st.append_uinteger(status);
-            out.append_string(st);
+            out.append_uinteger(status);
             out.append_view(std::string_view(" OK\r\n"));
 
             // Server header
             out.append_view(std::string_view("Server: chemical-http\r\n"));
 
             // Content-Length
-            var clen = std::string::empty_str(); clen.append_uinteger(content_len as ubigint);
             out.append_view(std::string_view("Content-Length: "));
-            out.append_string(clen);
+            out.append_uinteger(content_len as ubigint);
             out.append_view(std::string_view("\r\n"));
 
             // Other headers

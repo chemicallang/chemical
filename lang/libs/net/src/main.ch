@@ -1040,7 +1040,6 @@ public namespace server {
         var listen_sock: net::Socket;
         var router: web.Router;
         var run: bool;
-        var accept_thread: std.concurrent.Thread;
 
         @constructor func constructor(cfg_: ServerConfig) {
             cfg = cfg_;
@@ -1049,7 +1048,6 @@ public namespace server {
             listen_sock = 0u;
             router = web.Router();
             run = false;
-            accept_thread = std.concurrent.spawn(||() => null, null as *void); // dummy
         }
 
         // production handler: parse request, route, and respond
@@ -1063,7 +1061,7 @@ public namespace server {
             var buf = io.Buffer();
             var req_opt = http.read_request_incremental(s, buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
             if (req_opt is std::Option.None) {
-                printf("handle_conn: read_request_incremental -> None for socket={}\n");
+                printf("handle_conn: read_request_incremental -> None for socket=%d\n", s);
                 net::close_socket(s); return;
             }
             printf("handle_conn: parsed request for socket=%d\n", s);
@@ -1109,7 +1107,7 @@ public namespace server {
             }
 
             net::close_socket(s);
-            printf("handle_conn: closed socket={}\n");
+            printf("handle_conn: closed socket=%d\n", s);
         }
 
         // accept loop — submit work to threadpool
@@ -1120,33 +1118,36 @@ public namespace server {
             while (S.run) {
                 var s = net.accept_socket(S.listen_sock);
                 if (s == 0u || (s as longlong) < 0) {
-                    printf("accept_main: accept failed or would-block socket={}\n");
+                    printf("accept_main: accept failed or would-block\n");
                     std.concurrent.sleep_ms(1u);
                     continue;
                 }
                 printf("accept_main: accepted %d\n", s);
 
-                // Call handler directly in the acceptor thread (isolate threadpool).
-                S.handle_conn(s);
-
-                printf("accept_main: finished handling {}\n");
+                // submit work to threadpool
+                S.pool.submit_void(|S, s|() => {
+                    S.handle_conn(s);
+                });
             }
             printf("accept_main: exiting\n");
             return null;
         }
 
-        func start(&mut self) {
+        func start(&mut self, port : uint = 8080u) {
             // parse addr into host and port
             // acceptor will call net.listen_addr
-            self.listen_sock = net.listen_addr("0.0.0.0", 8080u);
+            self.listen_sock = net.listen_addr("0.0.0.0", port);
             self.run = true;
-            var th = std.concurrent.spawn(accept_main, &mut self as *void);
-            accept_thread = th;
         }
 
-        func serve(&mut self) {
-            start();
-            accept_thread.join();
+        func serve(&mut self, port : uint = 8080u) {
+            start(port);
+            accept_main(&mut self as *void);
+        }
+
+        func serve_async(&mut self, port : uint = 8080u) : std.concurrent.Thread {
+            start(port);
+            return std.concurrent.spawn(accept_main, &mut self as *void);
         }
 
         func shutdown(&mut self) {

@@ -167,7 +167,10 @@ public namespace std {
                     break
                 }
                 if(P.q.size()>0u){
-                    var t=P.q.take_last();
+                    var first_ele = P.q.get_ptr(0);
+                    // move the task out by replacing it with a dummy, then remove
+                    var t = std::replace(*first_ele, Task { f : ||() => {} });
+                    P.q.remove(0);
                     opt = std.Option.Some<Task>(t)
                 }
                 P.m.unlock();

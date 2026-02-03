@@ -269,6 +269,7 @@ public namespace net {
                 var overlapped: OVERLAPPED;
                 var buffer: WSABUF;
                 var callback: std::function<(ctx: *mut AsyncContext, bytes: u32, ok: bool) => void>;
+                var accumulated: io::Buffer;
 
                 @constructor
                 func constructor(buf: *mut char, len: u32) {
@@ -286,6 +287,7 @@ public namespace net {
                             len : len
                         })
                         callback(() => {})
+                        accumulated(io::Buffer())
                     }
                 }
             }
@@ -1283,7 +1285,7 @@ public namespace server {
                     }
 
                     net.set_keep_alive(s, true);
-                    
+                
                     if(cp.register(s, s as usize)) {
                          // Allocate context and buffer
                          var buf_sz = 4096u;
@@ -1291,37 +1293,115 @@ public namespace server {
                          // AsyncContext on heap
                          var ctx = malloc(sizeof(net.iocp.AsyncContext)) as *mut net.iocp.AsyncContext;
                          new (ctx) net.iocp.AsyncContext(buf, buf_sz);
-                         ctx.callback = |s|(ctx: *mut net.iocp.AsyncContext, bytes: u32, ok: bool) => {
+                         
+                         ctx.callback = |s, self, buf_sz|(ctx: *mut net.iocp.AsyncContext, bytes: u32, ok: bool) => {
                              if(!ok || bytes == 0) {
                                  net.close_socket(s);
                                  free(ctx.buffer.buf);
                                  delete ctx;
                                  return;
                              }
-
-                             // Simple Async Response for Demo
-                             var resp = std::string_view("HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello Async!\n");
-                             if(bytes < 4096) {
-                                  // Reuse buffer
-                                  memcpy(ctx.buffer.buf, resp.data(), resp.size());
-                                  ctx.buffer.len = resp.size() as u32;
-
-                                  // Update callback for send completion
-                                  ctx.callback = |s|(ctx: *mut net.iocp.AsyncContext, bytes: u32, ok: bool) => {
-                                      net.close_socket(s);
-                                      free(ctx.buffer.buf);
-                                      delete ctx;
-                                  };
-
-                                  // Reset OVERLAPPED
-                                  ctx.overlapped.Internal = 0;
-                                  ctx.overlapped.InternalHigh = 0;
-                                  ctx.overlapped.Offset = 0;
-                                  ctx.overlapped.OffsetHigh = 0;
-
-                                  net.iocp.async_send(s, ctx);
+                             
+                             // Append read bytes to accumulated buffer
+                             ctx.accumulated.append_bytes(ctx.buffer.buf as *u8, bytes as usize);
+                             
+                             // Check for headers end
+                             var found = false;
+                             var crlfpos = 0u;
+                             var i = 0u; var abuf = &mut ctx.accumulated;
+                             if(abuf.len() >= 4) {
+                                  // scan only the last chunk + overlap? for simplicity scan all valid
+                                  // optimization: start scan from (len - bytes - 3)
+                                  // but accessing vector internals is tricky without 'get_byte'
+                                  while(i + 3 < abuf.len()) {
+                                      if(abuf.get_byte(i) == '\r' as u8 && abuf.get_byte(i+1u) == '\n' as u8 &&
+                                         abuf.get_byte(i+2u) == '\r' as u8 && abuf.get_byte(i+3u) == '\n' as u8) {
+                                          found = true;
+                                          crlfpos = i + 4u;
+                                          break;
+                                      }
+                                      i++;
+                                  }
+                             }
+                             
+                             if (!found) {
+                                 // Not full headers yet
+                                 if (abuf.len() > 65536) { // Max header size check
+                                     net.close_socket(s); free(ctx.buffer.buf); delete ctx; return;
+                                 }
+                                 // Read more
+                                 // Reset OVERLAPPED
+                                 ctx.overlapped.Internal = 0;
+                                 ctx.overlapped.InternalHigh = 0;
+                                 ctx.overlapped.Offset = 0;
+                                 ctx.overlapped.OffsetHigh = 0;
+                                 net.iocp.async_recv(s, ctx);
+                                 return;
+                             }
+                             
+                             // Headers complete: parse
+                             // parse_request_from_bytes expects raw pointer
+                             var ptr = abuf.as_ptr();
+                             var req_opt = http.parse_request_from_bytes(ptr, crlfpos, s);
+                             
+                             if (req_opt is std::Option.None) {
+                                 net.close_socket(s); free(ctx.buffer.buf); delete ctx; return;
+                             }
+                             
+                             // Consume headers from buffer
+                             abuf.consume(crlfpos);
+                             
+                             var Some(req) = req_opt else unreachable;
+                             
+                             // Prepare Body
+                             var body_len: isize = -1;
+                             var chunked = false;
+                             if(req.body_len > 0u) { body_len = req.body_len as isize; }
+                             var te_opt = req.headers.get("Transfer-Encoding");
+                             if(te_opt is std::Option.Some) {
+                                var Some(te) = te_opt else unreachable;
+                                if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
+                             }
+                             
+                             // Attach body source (borrowing accumulated buffer from context)
+                             // Note: handler is synchronous, so it will consume this immediately
+                             req.body = http.Body.make_body(s, abuf, body_len, chunked, 30, 1024u*1024u*10u);
+                             
+                             // Route
+                             var params = std::vector<std::pair<std::string,std::string>>();
+                             var hopt = self.router.match_route(req.method, req.path, &mut params);
+                             var resw = http.ResponseWriter(s);
+                             
+                             if (hopt is std::Option.Some) {
+                                 var Some(handler) = hopt else unreachable;
+                                 handler(req_opt.take(), resw);
                              } else {
-                                 // Buffer full/large request, just close for safety in this demo
+                                 resw.status = 404u;
+                                 resw.set_header(std::string::make_no_len("Content-Type"), std::string::make_no_len("text/plain; charset=utf-8"));
+                                 resw.write_string(std::string::make_no_len("Not Found\n"));
+                             }
+                             
+                             // Handler finished (synchronously)
+                             // Simple Keep-Alive check (always loop for now, unless 'Connection: close')
+                             var ka = true;
+                             var c_opt = req.headers.get("Connection");
+                             if(c_opt is std::Option.Some) {
+                                 var Some(cv) = c_opt else unreachable;
+                                 if(cv.equals_with_len("close", 5)) { ka = false; }
+                             }
+                             
+                             if(ka) {
+                                 // Reset for next request
+                                 // We keep leftovers in abuf (Body should have consumed body, leftovers are next req)
+                                 // If body not fully consumed, we have an issue, but for now assume well-behaved handler
+                                 
+                                 // Reset OVERLAPPED
+                                 ctx.overlapped.Internal = 0;
+                                 ctx.overlapped.InternalHigh = 0;
+                                 ctx.overlapped.Offset = 0;
+                                 ctx.overlapped.OffsetHigh = 0;
+                                 net.iocp.async_recv(s, ctx);
+                             } else {
                                  net.close_socket(s);
                                  free(ctx.buffer.buf);
                                  delete ctx;

@@ -16,8 +16,16 @@ bool parseMem(Parser& parser, ASTAllocator& allocator, StructValue* value, const
         parser.error() << "expected an expression after ':' for struct member " << id;
         return false;
     }
-    parser.consumeToken(TokenType::CommaSym);
-    return true;
+    // comma, semicolon or new line all allowed after member initializer
+    switch(parser.token->type) {
+        case TokenType::CommaSym:
+        case TokenType::SemiColonSym:
+        case TokenType::NewLine:
+            parser.token++;
+            return true;
+        default:
+            return true;
+    }
 }
 
 StructValue* Parser::parseStructValue(ASTAllocator& allocator, BaseType* refType, Position& start) {

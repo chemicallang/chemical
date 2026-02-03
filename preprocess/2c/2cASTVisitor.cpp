@@ -3634,7 +3634,7 @@ void ToCAstVisitor::prepare_translate() {
       );
     write("#if defined(_MSC_VER)\n"
           "    #define __chem_stdcall __stdcall\n"
-          "    #define __chem_dllimport __declspec((dllimport))\n"
+          "    #define __chem_dllimport __declspec(\"dllimport\")\n"
           "#else\n"
           "    #define __chem_stdcall __attribute__((stdcall))\n"
           "    #define __chem_dllimport __attribute__((dllimport))\n"
@@ -3644,7 +3644,7 @@ void ToCAstVisitor::prepare_translate() {
         "#if defined(__TINYC__)\n"
         "  #define __chx_thread_local\n"
         "#elif defined(_MSC_VER)\n"
-        "  #define __chx_thread_local __declspec(thread)\n"
+        "  #define __chx_thread_local __declspec(\"thread\")\n"
         "#elif defined(__cplusplus) && (__cplusplus >= 201103L)\n"
         "  #define __chx_thread_local thread_local\n"
         "#elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_THREADS__)\n"

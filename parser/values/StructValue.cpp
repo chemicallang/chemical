@@ -4,9 +4,14 @@
 #include "ast/values/StructValue.h"
 
 bool parseMem(Parser& parser, ASTAllocator& allocator, StructValue* value, const chem::string_view& id) {
-    if(!parser.consumeToken(TokenType::ColonSym)) {
-        parser.error() << "expected a ':' for initializing struct member " << id;
-        return false;
+    switch(parser.token->type) {
+        case TokenType::ColonSym:
+        case TokenType::EqualSym:
+            parser.token++;
+            break;
+        default:
+            parser.error() << "expected a ':' or '=' symbol for initializing struct member " << id;
+            return false;
     }
     auto expression = parser.parseExpressionOrArrayOrStruct(allocator);
     if(expression) {

@@ -1295,7 +1295,7 @@ public namespace server {
                          var ctx = malloc(sizeof(net.iocp.AsyncContext)) as *mut net.iocp.AsyncContext;
                          new (ctx) net.iocp.AsyncContext(buf, buf_sz);
                          
-                         ctx.callback = |s, self, buf_sz|(ctx: *mut net.iocp.AsyncContext, bytes: u32, ok: bool) => {
+                         ctx.callback = |s, self, buf_sz|(ctx, bytes, ok) => {
                              if(!ok || bytes == 0) {
                                  net.close_socket(s);
                                  free(ctx.buffer.buf);

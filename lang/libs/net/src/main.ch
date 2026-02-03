@@ -269,13 +269,13 @@ public namespace net {
                 var overlapped: OVERLAPPED;
                 var buffer: WSABUF;
                 var callback: std::function<(ctx: *mut AsyncContext, bytes: u32, ok: bool) => void>;
-                var accumulated: io::Buffer;
+                var accumulated: std::vector<u8>;
+                var read_pos: usize;
 
                 @constructor
                 func constructor(buf: *mut char, len: u32) {
                     init {
                         overlapped(OVERLAPPED {
-                            // Initialize OVERLAPPED to 0
                             Internal : 0,
                             InternalHigh : 0,
                             Offset : 0,
@@ -287,7 +287,8 @@ public namespace net {
                             len : len
                         })
                         callback(() => {})
-                        accumulated(io::Buffer())
+                        accumulated(std::vector<u8>())
+                        read_pos(0u)
                     }
                 }
             }
@@ -1302,20 +1303,23 @@ public namespace server {
                                  return;
                              }
                              
-                             // Append read bytes to accumulated buffer
-                             ctx.accumulated.append_bytes(ctx.buffer.buf as *u8, bytes as usize);
+                             // Append read bytes to accumulated buffer (manual vector push)
+                             var input_ptr = ctx.buffer.buf as *u8;
+                             var k = 0u;
+                             while(k < bytes) {
+                                 ctx.accumulated.push_back(input_ptr[k]);
+                                 k = k + 1u;
+                             }
                              
-                             // Check for headers end
+                             // Check for headers end in accumulated (starting from read_pos)
                              var found = false;
                              var crlfpos = 0u;
-                             var i = 0u; var abuf = &mut ctx.accumulated;
-                             if(abuf.len() >= 4) {
-                                  // scan only the last chunk + overlap? for simplicity scan all valid
-                                  // optimization: start scan from (len - bytes - 3)
-                                  // but accessing vector internals is tricky without 'get_byte'
-                                  while(i + 3 < abuf.len()) {
-                                      if(abuf.get_byte(i) == '\r' as u8 && abuf.get_byte(i+1u) == '\n' as u8 &&
-                                         abuf.get_byte(i+2u) == '\r' as u8 && abuf.get_byte(i+3u) == '\n' as u8) {
+                             var i = ctx.read_pos; 
+                             var abuf = &mut ctx.accumulated;
+                             if(abuf.size() >= 4) {
+                                  while(i + 3 < abuf.size()) {
+                                      if(abuf.get(i) == '\r' as u8 && abuf.get(i+1u) == '\n' as u8 &&
+                                         abuf.get(i+2u) == '\r' as u8 && abuf.get(i+3u) == '\n' as u8) {
                                           found = true;
                                           crlfpos = i + 4u;
                                           break;
@@ -1326,11 +1330,10 @@ public namespace server {
                              
                              if (!found) {
                                  // Not full headers yet
-                                 if (abuf.len() > 65536) { // Max header size check
+                                 if (abuf.size() > 65536) { // Max header size check
                                      net.close_socket(s); free(ctx.buffer.buf); delete ctx; return;
                                  }
                                  // Read more
-                                 // Reset OVERLAPPED
                                  ctx.overlapped.Internal = 0;
                                  ctx.overlapped.InternalHigh = 0;
                                  ctx.overlapped.Offset = 0;
@@ -1340,16 +1343,15 @@ public namespace server {
                              }
                              
                              // Headers complete: parse
-                             // parse_request_from_bytes expects raw pointer
-                             var ptr = abuf.as_ptr();
+                             // parse_request_from_bytes expects raw pointer to start of headers
+                             // In our flattened vector, headers start at 0 (since we clear after request)
+                             var ptr = abuf.data(); 
+                             
                              var req_opt = http.parse_request_from_bytes(ptr, crlfpos, s);
                              
                              if (req_opt is std::Option.None) {
                                  net.close_socket(s); free(ctx.buffer.buf); delete ctx; return;
                              }
-                             
-                             // Consume headers from buffer
-                             abuf.consume(crlfpos);
                              
                              var Some(req) = req_opt else unreachable;
                              
@@ -1363,9 +1365,18 @@ public namespace server {
                                 if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
                              }
                              
-                             // Attach body source (borrowing accumulated buffer from context)
-                             // Note: handler is synchronous, so it will consume this immediately
-                             req.body = http.Body.make_body(s, abuf, body_len, chunked, 30, 1024u*1024u*10u);
+                             // To support Body reading from leftovers, we pass a temporary io::Buffer containing leftovers.
+                             // Leftovers are bytes from crlfpos to end of abuf.
+                             var leftovers_sz = abuf.size() - crlfpos;
+                             
+                             // Construct temporary io::Buffer on heap to pass to Body
+                             var body_buf = new io::Buffer();
+                             if(leftovers_sz > 0) {
+                                 body_buf.append_bytes((ptr + crlfpos) as *u8, leftovers_sz);
+                             }
+                             
+                             // req.body needs *mut io::Buffer
+                             req.body = http.Body.make_body(s, body_buf, body_len, chunked, 30, 1024u*1024u*10u);
                              
                              // Route
                              var params = std::vector<std::pair<std::string,std::string>>();
@@ -1381,8 +1392,11 @@ public namespace server {
                                  resw.write_string(std::string::make_no_len("Not Found\n"));
                              }
                              
-                             // Handler finished (synchronously)
-                             // Simple Keep-Alive check (always loop for now, unless 'Connection: close')
+                             // Cleanup body buffer
+                             delete body_buf;
+                             
+                             // Handler finished
+                             // Simple Keep-Alive check
                              var ka = true;
                              var c_opt = req.headers.get("Connection");
                              if(c_opt is std::Option.Some) {
@@ -1391,11 +1405,10 @@ public namespace server {
                              }
                              
                              if(ka) {
-                                 // Reset for next request
-                                 // We keep leftovers in abuf (Body should have consumed body, leftovers are next req)
-                                 // If body not fully consumed, we have an issue, but for now assume well-behaved handler
+                                 // Reset context for next request
+                                 ctx.accumulated.clear();
+                                 ctx.read_pos = 0u;
                                  
-                                 // Reset OVERLAPPED
                                  ctx.overlapped.Internal = 0;
                                  ctx.overlapped.InternalHigh = 0;
                                  ctx.overlapped.Offset = 0;

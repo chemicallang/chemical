@@ -128,6 +128,14 @@ public namespace net {
         sock_setsockopt(s, SOL_SOCKET as int, SO_RCVTIMEO as int, ( &mut tv ) as *char, sizeof(timeval) as int);
     }
 
+    // helper: set keep alive
+    public func set_keep_alive(s:Socket, enable: bool) {
+        const SOL_SOCKET = 1;
+        const SO_KEEPALIVE = 8;
+        var optval: int = if(enable) 1 else 0;
+        sock_setsockopt(s, SOL_SOCKET as int, SO_KEEPALIVE as int, &optval as *char, sizeof(int) as int);
+    }
+
     public func htons_port(p: u16) : u16 {
         // portable byte-swap for 16-bit
         return ((p & 0x00FFu) << 8) as u16 | ((p & 0xFF00u) >> 8) as u16;
@@ -234,6 +242,100 @@ public namespace net {
     }
 
     public func close_socket(s: Socket) { sock_close(s) }
+    
+    // IOCP support
+    if(def.windows) {
+        public namespace iocp {
+            public struct OVERLAPPED {
+                var Internal: usize;
+                var InternalHigh: usize;
+                var Offset: u32;
+                var OffsetHigh: u32;
+                var hEvent: uintptr_t;
+            }
+            
+            public struct WSABUF {
+                var len: u32;
+                var buf: *mut char;
+            }
+            
+            @dllimport @stdcall @extern public func CreateIoCompletionPort(FileHandle: uintptr_t, ExistingCompletionPort: uintptr_t, CompletionKey: usize, NumberOfConcurrentThreads: u32) : uintptr_t;
+            @dllimport @stdcall @extern public func GetQueuedCompletionStatus(CompletionPort: uintptr_t, lpNumberOfBytesTransferred: *mut u32, lpCompletionKey: *mut usize, lpOverlapped: *mut *mut OVERLAPPED, dwMilliseconds: u32) : int;
+            @dllimport @stdcall @extern public func PostQueuedCompletionStatus(CompletionPort: uintptr_t, dwNumberOfBytesTransferred: u32, dwCompletionKey: usize, lpOverlapped: *mut OVERLAPPED) : int;
+            @dllimport @stdcall @extern public func WSARecv(s: uintptr_t, lpBuffers: *WSABUF, dwBufferCount: u32, lpNumberOfBytesRecvd: *mut u32, lpFlags: *mut u32, lpOverlapped: *mut OVERLAPPED, lpCompletionRoutine: *void) : int;
+            @dllimport @stdcall @extern public func WSASend(s: uintptr_t, lpBuffers: *WSABUF, dwBufferCount: u32, lpNumberOfBytesSent: *mut u32, dwFlags: u32, lpOverlapped: *mut OVERLAPPED, lpCompletionRoutine: *void) : int;
+
+            public struct AsyncContext {
+                var overlapped: OVERLAPPED;
+                var buffer: WSABUF;
+                var callback: std::function<(ctx: *mut AsyncContext, bytes: u32, ok: bool) => void>;
+
+                @constructor
+                func constructor(buf: *mut char, len: u32) {
+                    init {
+                        overlapped(OVERLAPPED {
+                            // Initialize OVERLAPPED to 0
+                            Internal : 0,
+                            InternalHigh : 0,
+                            Offset : 0,
+                            OffsetHigh : 0,
+                            hEvent : 0 as uintptr_t,
+                        })
+                        buffer(WSABUF {
+                            buf : buf,
+                            len : len
+                        })
+                        callback(() => {})
+                    }
+                }
+            }
+
+            public struct CompletionPort {
+                var handle: uintptr_t;
+
+                @constructor
+                func constructor(threads: u32) {
+                    // INVALID_HANDLE_VALUE is -1
+                    handle = CreateIoCompletionPort(-1 as uintptr_t, 0 as uintptr_t, 0, threads);
+                }
+
+                func register(&self, s: Socket, key: usize) : bool {
+                    var res = CreateIoCompletionPort(s as uintptr_t, handle, key, 0);
+                    return res == handle;
+                }
+
+                func poll(&self, timeout_ms: u32) : bool {
+                    var bytes: u32 = 0;
+                    var key: usize = 0;
+                    var ov_ptr: *mut OVERLAPPED = null;
+                    
+                    var ok = GetQueuedCompletionStatus(handle, &mut bytes, &mut key, &mut ov_ptr, timeout_ms);
+                    if (ov_ptr != null) {
+                        // Cast back to AsyncContext
+                        // AsyncContext has overlapped as first member, so pointers are same
+                        var ctx = ov_ptr as *mut AsyncContext;
+                        
+                        // Pass ctx to callback so it can manage itself
+                        ctx.callback(ctx, bytes, ok != 0);
+                        
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            public func async_recv(s: Socket, ctx: *mut AsyncContext) : int {
+                var bytes: u32 = 0;
+                var flags: u32 = 0;
+                return WSARecv(s as uintptr_t, &mut ctx.buffer, 1, &mut bytes, &mut flags, &mut ctx.overlapped, null);
+            }
+
+            public func async_send(s: Socket, ctx: *mut AsyncContext) : int {
+                var bytes: u32 = 0;
+                return WSASend(s as uintptr_t, &mut ctx.buffer, 1, &mut bytes, 0, &mut ctx.overlapped, null);
+            }
+        }
+    }
 }
 
 // ===== Buffer implementation =====
@@ -1124,6 +1226,9 @@ public namespace server {
                     std.concurrent.sleep_ms(1u);
                     continue;
                 }
+                
+                // Set Keep-Alive
+                net::set_keep_alive(s, true);
 
                 // submit work to threadpool
                 S.pool.submit_void(|S, s|() => {
@@ -1141,7 +1246,7 @@ public namespace server {
             self.run = true;
         }
 
-        func serve(&mut self, port : uint = 8080u) {
+        func serve_non_iocp(&mut self, port : uint = 8080u) {
             start(port);
             accept_main(&mut self as *void);
         }
@@ -1149,6 +1254,88 @@ public namespace server {
         func serve_async(&mut self, port : uint = 8080u) : std.concurrent.Thread {
             start(port);
             return std.concurrent.spawn(accept_main, &mut self as *void);
+        }
+
+        func serve(&mut self, port : uint = 8080u) {
+            comptime if(def.windows) {
+                start(port);
+                // Create Completion Port
+                var cp = malloc(sizeof(net.iocp.CompletionPort)) as *mut net.iocp.CompletionPort;
+                new (cp) net.iocp.CompletionPort(self.cfg.worker_count);
+                
+                // Register workers within logic (submit to standard pool or spawn new)
+                var i = 0u;
+                while(i < self.cfg.worker_count) {
+                    self.pool.submit_void(|cp|() => {
+                        while(true) { cp.poll(500); }
+                    });
+                    i = i + 1u;
+                }
+                
+                printf("Server running with IOCP on port %d\n", port);
+
+                // Accept loop
+                while (self.run) {
+                    var s = net.accept_socket(self.listen_sock);
+                    if (s == 0u || (s as longlong) < 0) {
+                         std.concurrent.sleep_ms(1u);
+                         continue;
+                    }
+
+                    net.set_keep_alive(s, true);
+                    
+                    if(cp.register(s, s as usize)) {
+                         // Allocate context and buffer
+                         var buf_sz = 4096u;
+                         var buf = malloc(buf_sz) as *mut char;
+                         // AsyncContext on heap
+                         var ctx = malloc(sizeof(net.iocp.AsyncContext)) as *mut net.iocp.AsyncContext;
+                         new (ctx) net.iocp.AsyncContext(buf, buf_sz);
+                         ctx.callback = |s|(ctx: *mut net.iocp.AsyncContext, bytes: u32, ok: bool) => {
+                             if(!ok || bytes == 0) {
+                                 net.close_socket(s);
+                                 free(ctx.buffer.buf);
+                                 delete ctx;
+                                 return;
+                             }
+
+                             // Simple Async Response for Demo
+                             var resp = std::string_view("HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello Async!\n");
+                             if(bytes < 4096) {
+                                  // Reuse buffer
+                                  memcpy(ctx.buffer.buf, resp.data(), resp.size());
+                                  ctx.buffer.len = resp.size() as u32;
+
+                                  // Update callback for send completion
+                                  ctx.callback = |s|(ctx: *mut net.iocp.AsyncContext, bytes: u32, ok: bool) => {
+                                      net.close_socket(s);
+                                      free(ctx.buffer.buf);
+                                      delete ctx;
+                                  };
+
+                                  // Reset OVERLAPPED
+                                  ctx.overlapped.Internal = 0;
+                                  ctx.overlapped.InternalHigh = 0;
+                                  ctx.overlapped.Offset = 0;
+                                  ctx.overlapped.OffsetHigh = 0;
+
+                                  net.iocp.async_send(s, ctx);
+                             } else {
+                                 // Buffer full/large request, just close for safety in this demo
+                                 net.close_socket(s);
+                                 free(ctx.buffer.buf);
+                                 delete ctx;
+                             }
+                         }
+                         
+                         net.iocp.async_recv(s, ctx);
+                    } else {
+                        net.close_socket(s);
+                    }
+                }
+            } else {
+                printf("serve_iocp not supported on this platform.\n");
+            }
         }
 
         func shutdown(&mut self) {

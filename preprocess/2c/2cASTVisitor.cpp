@@ -5812,8 +5812,9 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
                     write("this->");
                     write(init.first);
                     write(" = ");
-                    visit(struc_val);
+                    accept_mutating_value(variable.second, struc_val, false);
                     write(';');
+                    new_line_and_indent();
                     continue;
                 }
             }
@@ -5823,8 +5824,9 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
         write("this->");
         write(init.first);
         write(" = ");
-        visit(init.second.value);
+        accept_mutating_value(variable.second, init.second.value, false);
         write(';');
+        new_line_and_indent();
     }
 }
 

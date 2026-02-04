@@ -194,6 +194,20 @@ void ToCAstVisitor::translate_after_declaration(std::vector<ASTNode*>& nodes) {
     }
 }
 
+inline void fwd_declare_struct(ToCAstVisitor& visitor, ASTNode* node) {
+    visitor.new_line();
+    visitor.write("struct ");
+    visitor.mangle(node);
+    visitor.write(';');
+}
+
+inline void fwd_declare_union(ToCAstVisitor& visitor, ASTNode* node) {
+    visitor.new_line();
+    visitor.write("union ");
+    visitor.mangle(node);
+    visitor.write(';');
+}
+
 void ToCAstVisitor::fwd_declare(ASTNode* node) {
     switch(node->kind()) {
         case ASTNodeKind::NamespaceDecl:
@@ -203,35 +217,71 @@ void ToCAstVisitor::fwd_declare(ASTNode* node) {
             break;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
-            new_line();
-            write("struct ");
-            mangle(node);
-            write(';');
+            fwd_declare_struct(*this, node);
             break;
         case ASTNodeKind::UnionDecl:
-            new_line();
-            write("union ");
-            mangle(node);
-            write(';');
+            fwd_declare_union(*this, node);
             break;
         case ASTNodeKind::GenericStructDecl:{
             const auto decl = node->as_gen_struct_def_unsafe();
             for(const auto inst : decl->instantiations) {
-                fwd_declare(inst);
+                fwd_declare_struct(*this, inst);
             }
             break;
         }
         case ASTNodeKind::GenericVariantDecl:{
             const auto decl = node->as_gen_variant_decl_unsafe();
             for(const auto inst : decl->instantiations) {
-                fwd_declare(inst);
+                fwd_declare_struct(*this, inst);
             }
             break;
         }
         case ASTNodeKind::GenericUnionDecl:{
             const auto decl = node->as_gen_union_decl_unsafe();
             for(const auto inst : decl->instantiations) {
-                fwd_declare(inst);
+                fwd_declare_union(*this, inst);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void ToCAstVisitor::ext_fwd_declare(ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::NamespaceDecl:
+            for(const auto child : node->as_namespace_unsafe()->nodes) {
+                ext_fwd_declare(child);
+            }
+            break;
+        case ASTNodeKind::GenericStructDecl:{
+            const auto decl = node->as_gen_struct_def_unsafe();
+            auto start = decl->instantiations.data() + decl->total_declared_instantiations;
+            const auto end = decl->instantiations.data() + decl->instantiations.size();
+            while(start != end) {
+                fwd_declare_struct(*this, *start);
+                start++;
+            }
+            break;
+        }
+        case ASTNodeKind::GenericVariantDecl:{
+            const auto decl = node->as_gen_variant_decl_unsafe();
+            auto start = decl->instantiations.data() + decl->total_declared_instantiations;
+            const auto end = decl->instantiations.data() + decl->instantiations.size();
+            while(start != end) {
+                fwd_declare_struct(*this, *start);
+                start++;
+            }
+            break;
+        }
+        case ASTNodeKind::GenericUnionDecl:{
+            const auto decl = node->as_gen_union_decl_unsafe();
+            auto start = decl->instantiations.data() + decl->total_declared_instantiations;
+            const auto end = decl->instantiations.data() + decl->instantiations.size();
+            while(start != end) {
+                fwd_declare_union(*this, *start);
+                start++;
             }
             break;
         }

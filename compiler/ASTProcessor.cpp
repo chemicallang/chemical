@@ -1031,6 +1031,24 @@ int ASTProcessor::translate_module(
     // declare type aliases
     declare_type_aliases_in_c(c_visitor, this, module, "TypeAliasDeclare");
 
+    // we will forward declare the direct dependencies of this module
+    // only the newly introduced generics
+    for(const auto dep : dependencies) {
+        for(auto& file : dep->direct_files) {
+            if(file.result != nullptr) {
+
+                auto& body = file.result->unit.scope.body;
+
+#ifdef DEBUG
+                c_visitor.debug_comment(chem::string_view(("ExtFwdDeclare " + file.abs_path)));
+#endif
+                c_visitor.ext_fwd_declare(body.nodes);
+            } else {
+                CHEM_THROW_RUNTIME("result is null");
+            }
+        }
+    }
+
     // we will declare the direct dependencies of this module
     for(const auto dep : dependencies) {
         for(auto& file : dep->direct_files) {

@@ -877,7 +877,7 @@ void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclarat
     }
     visitor.write(var_name);
     visitor.write(", ");
-    visitor.accept_mutating_value_explicit(new_expected_type, value, false);
+    visitor.accept_mutating_value_explicit(new_expected_type, value);
     visitor.write(")");
 }
 
@@ -940,7 +940,7 @@ bool isRef(ToCAstVisitor& visitor, Value* value) {
     return type->canonical()->is_reference();
 }
 
-void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value, bool assigning_value) {
+void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value) {
     if(type) {
         // capturing function type
         if(value->kind() == ValueKind::LambdaFunc) {
@@ -1002,7 +1002,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
                                 write('&');
                             }
 
-                            accept_mutating_value_explicit(type, eval, assigning_value);
+                            accept_mutating_value_explicit(type, eval);
                             write(';');
                             write(" })");
 
@@ -1015,7 +1015,7 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
             }
         }
         // automatically passing address to a reference type
-        if(!assigning_value && type->kind() == BaseTypeKind::Reference && !isRef(*this, value)) {
+        if(type->kind() == BaseTypeKind::Reference && !isRef(*this, value)) {
             const auto ref_type = type->as_reference_type_unsafe();
             if(write_value_for_ref_type(*this, value, ref_type)) {
                 return;
@@ -1029,34 +1029,34 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value,
     visit(value);
 }
 
-void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value, bool assigning_value) {
+void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
     if(type) {
         const auto imp_cons = type->implicit_constructor_for(value);
         if (imp_cons) {
             if(imp_cons->is_comptime()) {
                 const auto imp_cons_call = call_with_arg(imp_cons, value, type, allocator, *this);
                 const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_cons_call);
-                accept_mutating_value_explicit(type, eval, assigning_value);
+                accept_mutating_value_explicit(type, eval);
             } else {
                 call_implicit_constructor(*this, imp_cons, value, false);
             }
             return;
         }
     }
-    accept_mutating_value_explicit(type, value, assigning_value);
+    accept_mutating_value_explicit(type, value);
 }
 
-void accept_movable_ref_value(ToCAstVisitor& visitor, BaseType* known_type, Value* value, bool assigning_value) {
+void accept_movable_ref_value(ToCAstVisitor& visitor, BaseType* known_type, Value* value) {
     if(value->is_ref_moved()) {
         // since we're moving the value here
         // what we must do is set the drop flag to false
         visitor.write("({ ");
         set_moved_ref_drop_flag(visitor, value);
         visitor.space();
-        visitor.accept_mutating_value(known_type, value, assigning_value);
+        visitor.accept_mutating_value(known_type, value);
         visitor.write("; })");
     } else {
-        visitor.accept_mutating_value(known_type, value, assigning_value);
+        visitor.accept_mutating_value(known_type, value);
     }
 }
 
@@ -1143,9 +1143,9 @@ void func_call_single_arg(
         visitor.write('(');
         visit_subscript_arr_type(visitor, base_type);
         visitor.write(")");
-        visitor.accept_mutating_value_explicit(param_type, val, false);
+        visitor.accept_mutating_value_explicit(param_type, val);
     } else {
-        visitor.accept_mutating_value_explicit(param_type, val, false);
+        visitor.accept_mutating_value_explicit(param_type, val);
     }
     if(is_movable_or_copyable_struct) {
         if(is_memcpy_ref_str) {
@@ -1426,7 +1426,7 @@ void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& ident
         write_type_post_id(visitor, type);
     }
     visitor.write(" = ");
-    accept_movable_ref_value(visitor, type, value, true);
+    accept_movable_ref_value(visitor, type, value);
     visitor.write(';');
 }
 
@@ -1809,11 +1809,11 @@ void write_variant_call(ToCAstVisitor& visitor, FunctionCall* call) {
         visitor.write(value.second->name);
         visitor.write(" = ");
         if(i < total_args) {
-            accept_movable_ref_value(visitor, value.second->type, call->values[i], false);
+            accept_movable_ref_value(visitor, value.second->type, call->values[i]);
         } else {
             const auto defValue = value.second->def_value;
             if(defValue) {
-                accept_movable_ref_value(visitor, value.second->type, defValue, false);
+                accept_movable_ref_value(visitor, value.second->type, defValue);
             } else {
                 visitor.error(call) << "no argument given for argument " << std::to_string(i) << ", no default value exists";
             }
@@ -1922,7 +1922,7 @@ void call_arg_accept(ToCAstVisitor& visitor, FunctionParam* param, Value* value)
     if(param_type->get_direct_linked_canonical_node() != nullptr) {
         visitor.write('&');
     }
-    visitor.accept_mutating_value(param_type, value, false);
+    visitor.accept_mutating_value(param_type, value);
 }
 
 void call_single_arg_operator_func(ToCAstVisitor& visitor, FunctionDeclaration* func, Value* value, const chem::string_view& name) {
@@ -2107,7 +2107,7 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
     }
     visitor.write('=');
     visitor.write(' ');
-    accept_movable_ref_value(visitor, type, assign->value, true);
+    accept_movable_ref_value(visitor, type, assign->value);
 
 }
 
@@ -3821,7 +3821,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
                 write("->");
                 write(mem.first);
                 write(" = ");
-                accept_movable_ref_value(*this, child_member ? child_member->known_type() : nullptr, mem.second.value, false);
+                accept_movable_ref_value(*this, child_member ? child_member->known_type() : nullptr, mem.second.value);
             }
             const auto container = struct_val->variables();
             for(const auto mem : container->variables()) {
@@ -3839,7 +3839,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
                         write("->");
                         write(mem->name);
                         write(" = ");
-                        accept_mutating_value(mem->known_type(), defValue, false);
+                        accept_mutating_value(mem->known_type(), defValue);
                     }
                 }
             }
@@ -3850,7 +3850,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
         write('*');
         write(struct_passed_param_name);
         write(" = ");
-        accept_mutating_value_explicit(type, val, false);
+        accept_mutating_value_explicit(type, val);
     } else if(val_type->isStructLikeType()) {
         write('*');
         write(struct_passed_param_name);
@@ -3860,7 +3860,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
         }
         visit(val);
     } else {
-        accept_mutating_value_explicit(type, val, false);
+        accept_mutating_value_explicit(type, val);
     }
 }
 
@@ -3910,7 +3910,7 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
                 write(saved_into_temp_var);
             } else if(!has_struct_like_return) {
                 write(' ');
-                accept_mutating_value_explicit(return_type, val, false);
+                accept_mutating_value_explicit(return_type, val);
             }
             write(';');
 //        } else {
@@ -5812,7 +5812,7 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
                     write("this->");
                     write(init.first);
                     write(" = ");
-                    accept_mutating_value(variable.second, struc_val, false);
+                    accept_mutating_value(variable.second, struc_val);
                     write(';');
                     new_line_and_indent();
                     continue;
@@ -5824,7 +5824,7 @@ void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
         write("this->");
         write(init.first);
         write(" = ");
-        accept_mutating_value(variable.second, init.second.value, false);
+        accept_mutating_value(variable.second, init.second.value);
         write(';');
         new_line_and_indent();
     }
@@ -6045,7 +6045,7 @@ void ToCAstVisitor::VisitArrayValue(ArrayValue *arr) {
     nested_value = true;
     const auto elem_type = arr->element_type(allocator);
     while(i < arr->values.size()) {
-        accept_movable_ref_value(*this, elem_type, arr->values[i], false);
+        accept_movable_ref_value(*this, elem_type, arr->values[i]);
         if(i != arr->values.size() - 1) {
             write(',');
         }
@@ -6122,7 +6122,7 @@ void default_initialize_struct_non_inh(ToCAstVisitor& visitor, ExtendableMembers
                 visitor.write('.');
                 visitor.write(var->name);
                 visitor.write(" = ");
-                visitor.accept_mutating_value(var->known_type(), defValue, false);
+                visitor.accept_mutating_value(var->known_type(), defValue);
             } else {
                 visitor.error(loc) << "no default value present for '" << var->name << "' in struct value";
             }
@@ -6187,7 +6187,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
         write('.');
         write(value.first);
         write(" = ");
-        accept_movable_ref_value(*this, member ? member->known_type() : nullptr, value.second.value, false);
+        accept_movable_ref_value(*this, member ? member->known_type() : nullptr, value.second.value);
     }
 
     // default initialize the direct variables
@@ -6206,7 +6206,7 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
                 write('.');
                 write(var->name);
                 write(" = ");
-                accept_mutating_value(var->known_type(), defValue, false);
+                accept_mutating_value(var->known_type(), defValue);
             } else if(!val->is_union()) {
                 const auto type = var->known_type();
                 const auto container = type->get_direct_linked_canonical_node();
@@ -6862,7 +6862,7 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
         if (cap->capture_by_ref && !is_value_param_hidden_pointer(&id)) {
             visitor.write('&');
         }
-        visitor.accept_mutating_value(id.getType(), &id, false);
+        visitor.accept_mutating_value(id.getType(), &id);
         if (i != func->captureList.size() - 1) {
             visitor.write(',');
         }

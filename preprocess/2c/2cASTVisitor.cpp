@@ -3337,21 +3337,17 @@ void vtable_type_name(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
     visitor.write("_vt_t");
 }
 
-void v_table_func_types(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
-    // type pointers
-    for(auto& func : interface->instantiated_functions()) {
-        auto self_param = func->get_self_param();
-        if(self_param) {
-            visitor.new_line_and_indent();
-            func_type_with_id_no_params(visitor, func, func->name_view());
-            visitor.write("void*");
-            visitor.space();
-            visitor.write(self_param->name);
-            func_type_params(visitor, func, 1, true);
-            visitor.write(')');
-            visitor.write(';');
-        }
-    }
+void vtable_func_type(ToCAstVisitor& visitor, FunctionDeclaration* func, const chem::string_view& func_name, const chem::string_view& self_name) {
+    func_type_with_id_no_params(visitor, func, func_name);
+    visitor.write("void*");
+    visitor.space();
+    visitor.write(self_name);
+    func_type_params(visitor, func, 1, true);
+    visitor.write(')');
+}
+
+inline void vtable_func_type(ToCAstVisitor& visitor, FunctionDeclaration* func, const chem::string_view& self_name) {
+    vtable_func_type(visitor, func, func->name_view(), self_name);
 }
 
 void v_table_func_types_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
@@ -3361,7 +3357,14 @@ void v_table_func_types_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
             v_table_func_types_recursive(visitor, inherited);
         }
     }
-    v_table_func_types(visitor, interface);
+    // type pointers
+    for(auto& func : interface->instantiated_functions()) {
+        auto self_param = func->get_self_param();
+        if(self_param) {
+            vtable_func_type(visitor, func, self_param->name);
+            visitor.write(';');
+        }
+    }
 }
 
 void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
@@ -3370,6 +3373,7 @@ void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface)
     vtable_type_name(visitor, interface);
     visitor.write(" {");
     visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
     interface->active_user = nullptr;
     v_table_func_types_recursive(visitor, interface);
     visitor.indentation_level -=1;
@@ -3380,15 +3384,6 @@ void create_v_table_type(ToCAstVisitor& visitor, InterfaceDefinition* interface)
     visitor.write(';');
 }
 
-void v_table_func_names(ToCAstVisitor& visitor, InterfaceDefinition* interface) {
-    for (auto& func: interface->instantiated_functions()) {
-        if (func->has_self_param()) {
-            visitor.new_line_and_indent();
-            visitor.mangle(func);
-            visitor.write(',');
-        }
-    }
-}
 
 void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
     for(auto& inh : interface->inherited) {
@@ -3397,10 +3392,25 @@ void v_table_func_names_recursive(ToCAstVisitor& visitor, InterfaceDefinition* i
             v_table_func_names_recursive(visitor, inherited, definition);
         }
     }
-    const auto prev_user = interface->active_user;
-    interface->active_user = definition;
-    v_table_func_names(visitor, interface);
-    interface->active_user = prev_user;
+    for (auto& func: interface->instantiated_functions()) {
+        auto self_param = func->get_self_param();
+        if(self_param) {
+            visitor.new_line_and_indent();
+
+            visitor.write('(');
+            vtable_func_type(visitor, func, "", self_param->name);
+            visitor.write(')');
+            visitor.write(' ');
+
+            const auto prev_user = interface->active_user;
+            interface->active_user = definition;
+            visitor.mangle(func);
+            interface->active_user = prev_user;
+
+            visitor.write(',');
+
+        }
+    }
 }
 
 void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, ExtendableMembersContainerNode* definition) {
@@ -3409,9 +3419,6 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Exte
     visitor.write("const");
     visitor.space();
     vtable_type_name(visitor, interface);
-
-    const auto prev_active = interface->active_user;
-    interface->active_user = definition;
 
     visitor.space();
     vtable_name(visitor, interface, definition);
@@ -3426,7 +3433,6 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Exte
     visitor.new_line_and_indent();
     visitor.write('}');
 
-    interface->active_user = prev_active;
     visitor.write(';');
 }
 
@@ -3444,11 +3450,23 @@ void create_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefiniti
     visitor.indentation_level += 1;
 
     // func pointer values
-    for (auto& func: def->instantiated_functions()) {
+    for(auto& func : interface->instantiated_functions()) {
         if (func->has_self_param()) {
-            visitor.new_line_and_indent();
-            visitor.mangle(func);
-            visitor.write(',');
+            auto self_param = func->get_self_param();
+            if(self_param) {
+                auto overrider = def->direct_child_function(func->name_view());
+                if(overrider) {
+                    visitor.new_line_and_indent();
+                    visitor.write('(');
+                    vtable_func_type(visitor, func, "", self_param->name);
+                    visitor.write(')');
+                    visitor.write(' ');
+                    visitor.mangle(overrider);
+                    visitor.write(',');
+                } else {
+                    visitor.error(def) << "couldn't find overridden function for '" << func->name_view() << "'";
+                }
+            }
         }
     }
 
@@ -3628,10 +3646,6 @@ void ToCAstVisitor::prepare_translate() {
         write("extern void* malloc(unsigned long size);\n");
     }
     write("extern void free(void* block);\n");
-    write("#pragma clang diagnostic ignored \"-Wincompatible-function-pointer-types\"\n"
-          "#pragma GCC diagnostic ignored \"-Wincompatible-function-pointer-types\"\n"
-          "#pragma warning(disable:4057)\n"
-      );
     write("#if defined(_MSC_VER)\n"
           "    #define __chem_stdcall __stdcall\n"
           "    #define __chem_dllimport __declspec(\"dllimport\")\n"

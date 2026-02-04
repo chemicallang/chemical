@@ -529,6 +529,11 @@ public:
     void fwd_declare(ASTNode* node);
 
     /**
+     * forward declare new instantiations of generics
+     */
+    void ext_fwd_declare(ASTNode* node);
+
+    /**
      * forward declare a node
      */
     void declare_type_alias(ASTNode* node);
@@ -544,6 +549,15 @@ public:
     void fwd_declare(std::vector<ASTNode*>& nodes) {
         for(const auto node : nodes) {
             fwd_declare(node);
+        }
+    }
+
+    /**
+     * forward declare new instantiations of generics
+     */
+    void ext_fwd_declare(std::vector<ASTNode*>& nodes) {
+        for(const auto node : nodes) {
+            ext_fwd_declare(node);
         }
     }
 

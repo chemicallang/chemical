@@ -101,7 +101,7 @@ public struct Arena {
 public comptime func <T> (builder : &mut md::Arena) allocate() : *mut T {
     var delete_fn = intrinsics::get_child_fn<T>("delete") as (obj : *void) => void;
     if(delete_fn != null) {
-        return intrinsics::wrap(builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn)) as *mut T
+        return intrinsics::wrap(builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn as (obj : *void) => void)) as *mut T
     } else {
         return intrinsics::wrap(builder.allocate_size(sizeof(T), alignof(T))) as *mut T
     }

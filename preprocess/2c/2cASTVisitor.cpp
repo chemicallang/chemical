@@ -6997,7 +6997,7 @@ void ToCAstVisitor::VisitFunctionType(FunctionType *type) {
         write('*');
         return;
     }
-    func_type_with_id(*this, type, "NOT_FOUND");
+    func_type_with_id(*this, type, "");
 }
 
 void ToCAstVisitor::VisitCapturingFunctionType(CapturingFunctionType* type) {

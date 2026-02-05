@@ -9,6 +9,7 @@
 #include <string_view>
 #include <charconv>
 #include <type_traits>
+#include <cmath>
 
 /**
  * this exists to abstract away and keep separate everything we need
@@ -200,12 +201,18 @@ public:
 
     void append_float(float v) noexcept {
         // max length for float in decimal ~ 48 chars (scientific)
-        ensure_total_capacity_for(48);
+        ensure_total_capacity_for(48 + 3); // +3 for ".0f"
         char* start = buf_ + pos_;
         char* end   = buf_ + cap_;
         auto [ptr, ec] = std::to_chars(start, end, v, std::chars_format::general, 9);
         if (ec == std::errc()) {
             pos_ += (ptr - start);
+            // If it's a finite whole number within fixed-point range [1e-4, 1e9), 
+            // std::to_chars (general) might omit the decimal point.
+            if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e9f) {
+                append(".0", 2);
+            }
+            append_char('f');
         } else {
             // fallback: shouldn't happen unless buffer too small
             append("NaN", 3);
@@ -214,12 +221,17 @@ public:
 
     void append_double(double v) noexcept {
         // max length for double in decimal ~ 64 chars (scientific)
-        ensure_total_capacity_for(64);
+        ensure_total_capacity_for(64 + 2); // +2 for ".0"
         char* start = buf_ + pos_;
         char* end   = buf_ + cap_;
         auto [ptr, ec] = std::to_chars(start, end, v, std::chars_format::general, 17);
         if (ec == std::errc()) {
             pos_ += (ptr - start);
+            // If it's a finite whole number within fixed-point range [1e-4, 1e17), 
+            // std::to_chars (general) might omit the decimal point.
+            if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e17) {
+                append(".0", 2);
+            }
         } else {
             append("NaN", 3);
         }

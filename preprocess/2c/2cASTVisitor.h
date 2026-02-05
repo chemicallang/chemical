@@ -839,6 +839,8 @@ public:
 
     void VisitDynamicValue(DynamicValue* value);
 
+    void VisitExpressiveString(ExpressiveString* value);
+
     // TYPES
 
     void VisitAnyType(AnyType* type);
@@ -886,6 +888,8 @@ public:
     void VisitMaybeRuntimeType(MaybeRuntimeType* type);
 
     void VisitRuntimeType(RuntimeType* type);
+
+    void VisitExpressiveStringType(ExpressiveStringType* type);
 
     // TODO expression type
     void VisitExpressionType(ExpressionType* type) {}

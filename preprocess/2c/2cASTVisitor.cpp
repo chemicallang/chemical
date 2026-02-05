@@ -6868,6 +6868,10 @@ void ToCAstVisitor::VisitDynamicValue(DynamicValue* dyn_value) {
     write('}');
 }
 
+void ToCAstVisitor::VisitExpressiveString(ExpressiveString* value) {
+    error("expressive string being used at runtime", value);
+}
+
 void ToCAstVisitor::VisitValueNode(ValueNode *node) {
     visit(node->value);
 }
@@ -6997,6 +7001,12 @@ void ToCAstVisitor::VisitMaybeRuntimeType(MaybeRuntimeType* type) {
 
 void ToCAstVisitor::VisitRuntimeType(RuntimeType* type) {
     visit(type->underlying);
+}
+
+void ToCAstVisitor::VisitExpressiveStringType(ExpressiveStringType* type) {
+    // just a placeholder, expressive strings aren't supposed to be used at runtime
+    // but typealiases sometimes generate code
+    write("void*");
 }
 
 void ToCAstVisitor::VisitArrayType(ArrayType *type) {

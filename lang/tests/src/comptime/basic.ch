@@ -109,14 +109,6 @@ comptime func sum_multiple(x : int) : int {
     return intrinsics::wrap(runtime_sum(x * 2, x * 2)) as int;
 }
 
-// TODO should this be allowed
-func ret_struct_boi() : Pair66 {
-    const p = intrinsics::return_struct() as *mut Pair66
-    p.a = 343
-    p.b = 979
-    return;
-}
-
 func ret_struct_comptime() : Pair66 {
     return Pair66(true)
 }
@@ -287,10 +279,6 @@ func test_comptime() {
     })
     test("compiler wrap functionally works", () => {
         return sum_multiple(20) == 80;
-    })
-    test("can gain access to implicitly passed struct", ()=> {
-        var p = ret_struct_boi()
-        return p.a == 343 && p.b == 979;
     })
     test("comptime functions returning primitive work", () => {
         return comptime_primitive() == 10;

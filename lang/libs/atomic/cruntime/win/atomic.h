@@ -22,7 +22,12 @@
 #define WIN32_LEAN_AND_MEAN
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <windows.h>
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 #ifdef _MSC_VER
 #define cpu_relax() _mm_pause()

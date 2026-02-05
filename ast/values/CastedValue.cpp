@@ -10,7 +10,7 @@
 #include "ast/types/PointerType.h"
 
 ASTNode *CastedValue::linked_node() {
-    return value->linked_node();
+    return getType()->linked_node();
 }
 
 Value* CastedValue::evaluated_value(InterpretScope &scope) {

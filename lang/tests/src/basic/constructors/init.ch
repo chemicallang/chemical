@@ -5,7 +5,7 @@ struct InitDefConsStruct {
 
     @make
     func make() {
-        init {
+        return InitDefConsStruct {
             a = 98
             b = 87
         }
@@ -25,7 +25,7 @@ struct InitBlockManualDefConsCall {
 
     @make
     func make() {
-        init {
+        return InitBlockManualDefConsCall {
             d = InitDefConsStruct()
         }
     }
@@ -38,8 +38,8 @@ struct InitBlockManualDefConsCall2 {
 
     @make
     func make() {
-        init {
-            d(InitDefConsStruct())
+        return InitBlockManualDefConsCall2 {
+            d : InitDefConsStruct()
         }
     }
 
@@ -52,7 +52,7 @@ struct InitBlockManualDefConsCall6 : InitDefConsStruct {
 
     @make
     func make() {
-        init {
+        return InitBlockManualDefConsCall6 {
             InitDefConsStruct = InitDefConsStruct()
         }
     }
@@ -63,8 +63,8 @@ struct InitBlockManualDefConsCall7 : InitDefConsStruct {
 
     @make
     func make() {
-        init {
-            InitDefConsStruct(InitDefConsStruct())
+        return InitBlockManualDefConsCall7 {
+            InitDefConsStruct : InitDefConsStruct()
         }
     }
 

@@ -21,8 +21,8 @@ struct CheckImpParam22 {
     @implicit
     @constructor
     func make(x : int) {
-        init {
-            a(x)
+        return CheckImpParam22 {
+            a = x
         }
     }
 }
@@ -137,9 +137,11 @@ struct ConstructedVertex {
     var z : int
     @make
     func make() {
-        x = 98
-        y = 97
-        z = 96
+        return ConstructedVertex {
+            x = 98
+            y = 97
+            z = 96
+        }
     }
 }
 

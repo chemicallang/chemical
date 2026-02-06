@@ -32,17 +32,17 @@ struct Pair66 {
 
     @constructor
     func first() {
-        init {
-            a(15)
-            b(15)
+        return Pair66 {
+            a = 15
+            b = 15
         }
     }
 
     @constructor
     func second() {
-        init {
-            a(20)
-            b(20)
+        return Pair66 {
+            a = 20
+            b = 20
         }
     }
 
@@ -133,6 +133,7 @@ struct CompTimeCounter {
     @constructor
     func actual(thing : *mut int, inc : int) {
         *thing = *thing + inc;
+        return CompTimeCounter {}
     }
 }
 

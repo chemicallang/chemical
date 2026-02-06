@@ -57,11 +57,11 @@ struct ShortPairGen {
     var pair : PairGen<short, short, short>
     @constructor
     func make() {
-        init {
-            pair(PairGen<short, short, short> {
+        return ShortPairGen {
+            pair = PairGen<short, short, short> {
                 a : 33,
                 b : 10
-            })
+            }
         }
     }
     func add(&self) : short {
@@ -258,7 +258,10 @@ struct gen_existence_89<T> {
     var x : T
     @make
     func make() {
-
+        var y : T
+        return gen_existence_89<T> {
+            x : y
+        }
     }
 }
 

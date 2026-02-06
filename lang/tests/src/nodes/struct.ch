@@ -10,9 +10,10 @@ struct Pair {
 
     @constructor
     func pair(c : int) {
-        init {
-            a(c / 2);
-            b(a);
+        const calc = c / 2
+        return {
+            a = calc;
+            b = calc;
         }
     }
 
@@ -109,8 +110,8 @@ struct ImpPair {
     @constructor
     @implicit
     func makexv(d : int) {
-        init {
-            data(d)
+        return {
+            data = d
         }
     }
 
@@ -123,6 +124,7 @@ struct ImpConstructorCallCheck {
     @make
     func make(d : int) {
         implicit_constructor_called_or_not = true;
+        return {}
     }
 }
 
@@ -166,10 +168,9 @@ struct EarlyReturnConstructor {
     @make
     func make(early : bool) {
         if(early) {
-            i = 2;
-            return;
+            return { i : 2 };
         }
-        i = 33;
+        return { i = 33 }
     }
 }
 
@@ -304,8 +305,10 @@ struct DefaultConstructedPoint {
     var b : int
     @make
     func make() {
-        a = 73
-        b = 953
+        return {
+            a = 73
+            b = 953
+        }
     }
 }
 

@@ -15,10 +15,12 @@ public struct Arena {
 
     @make
     func make() {
-        blocks = std::vector<*mut void>()
-        cleanup_fns = std::vector<CleanupEntry>()
-        current_ptr = null
-        end_ptr = null
+        return Arena {
+            blocks = std::vector<*mut void>()
+            cleanup_fns = std::vector<CleanupEntry>()
+            current_ptr = null
+            end_ptr = null
+        }
     }
 
     func allocate_block(&mut self, min_size : size_t) {

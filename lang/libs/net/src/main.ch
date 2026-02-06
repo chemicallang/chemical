@@ -1186,9 +1186,10 @@ public namespace server {
         var run: bool;
 
         @constructor func constructor(cfg_: ServerConfig) {
+            const count = cfg_.worker_count
             return Server {
                 cfg = cfg_;
-                pool : std.concurrent.create_pool(cfg.worker_count);
+                pool : std.concurrent.create_pool(count);
                 listen_sock = 0u;
                 router = web.Router();
                 run = false;

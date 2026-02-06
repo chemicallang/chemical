@@ -189,7 +189,34 @@ public func long_chain_merge(name_w : *u16) : bool {
     return !skip;
 }
 
+func test_not_branching_fix() : bool {
+    var a = true;
+    var b = false;
+    // !true && !false -> false && true -> false. Should go to else.
+    if (!a && !b) {
+        return false;
+    }
+
+    a = false;
+    b = true;
+    // !false && !true -> true && false -> false. Should go to else.
+    if (!a && !b) {
+        return false;
+    }
+
+    a = false;
+    b = false;
+    // !false && !false -> true && true -> true. Should go to then.
+    if (!a && !b) {
+        return true;
+    }
+    return false;
+}
+
 func test_bodmas() {
+    test("not branching regression", () => {
+        return test_not_branching_fix();
+    });
     test("4 + 2 / 2 == 5", () => {
         return (4 + 2 / 2) == 5;
     });

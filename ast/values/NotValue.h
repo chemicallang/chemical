@@ -55,6 +55,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
+    void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) override;
+
 #endif
 
     NotValue* copy(ASTAllocator& allocator) final {

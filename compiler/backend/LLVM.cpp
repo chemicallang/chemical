@@ -474,6 +474,10 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->CreateNot(val);
 }
 
+void NotValue::llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) {
+    value->llvm_conditional_branch(gen, otherwise_block, then_block);
+}
+
 llvm::AllocaInst* NotValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
     const auto val_type = value->getType();
     // check operator overloading

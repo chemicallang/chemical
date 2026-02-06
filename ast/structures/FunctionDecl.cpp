@@ -783,16 +783,19 @@ void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* d
     gen.di.start_function_scope(this, func);
 
     // initialize default struct values in the constructor
-    initialize_def_struct_values(gen, def, this, func);
-
-    // call constructors of members
-    code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
-        const auto decl = mem_def->default_constructor_func();
-        if(!decl) {
-            return;
-        }
-        create_call_member_func(gen, decl, def, func, index, true, location);
-    });
+    if(is_generated_fn()) {
+        // very important to only od this in generated functions
+        // otherwise we would be initializing structs twice
+        initialize_def_struct_values(gen, def, this, func);
+        // call constructors of members
+        code_gen_process_members(gen, def, func, body_location(), [](Codegen& gen, MembersContainer* mem_def, StructDefinition* def, llvm::Function* func, unsigned index, SourceLocation location) {
+            const auto decl = mem_def->default_constructor_func();
+            if (!decl) {
+                return;
+            }
+            create_call_member_func(gen, decl, def, func, index, true, location);
+        });
+    }
 
     // generate function body
     if(body.has_value() && !body->nodes.empty()) {

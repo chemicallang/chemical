@@ -471,6 +471,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("help", CmdOptionType::NoValue),
             CmdOption("minify-c", "minify-c", CmdOptionType::NoValue),
             CmdOption("emit-c", "emit-c", CmdOptionType::NoValue),
+            CmdOption("keepc", "keepc", CmdOptionType::NoValue),
             CmdOption("test", "test", CmdOptionType::NoValue),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue),
             CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue),
@@ -618,7 +619,7 @@ int compiler_main(int argc, char *argv[]) {
         opts->verbose = verbose;
         opts->verbose_link = options.has_value("verbose-link", "vl");
         opts->minify_c = options.has_value("minify-c");
-        opts->emit_c = options.has_value("emit-c");
+        opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
         opts->debug_info = options.has_value("", "g") || (opts->outMode == OutputMode::Debug || opts->outMode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();

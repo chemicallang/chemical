@@ -913,6 +913,18 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     const auto pure_type = getType()->canonical();
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::Pointer) {
         // casting integer to pointer
+        auto& mod = *gen.module;
+        auto ptr_bitwidth = mod.getDataLayout().getPointerSizeInBits();
+        auto from_num_type = (IntNType*) value_type;
+        const auto from_num_bits = from_num_type->num_bits(gen.comptime_scope.target_data);
+        if(from_num_bits < ptr_bitwidth) {
+            // we have to extend the integer
+            if(from_num_type->is_unsigned()) {
+                llvm_val = gen.builder->CreateZExt(llvm_val, gen.builder->getIntNTy(ptr_bitwidth));
+            } else {
+                llvm_val = gen.builder->CreateSExt(llvm_val, gen.builder->getIntNTy(ptr_bitwidth));
+            }
+        }
         const auto instr = gen.builder->CreateIntToPtr(llvm_val, pure_type->llvm_type(gen));
         return instr;
     }

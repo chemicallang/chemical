@@ -19,7 +19,9 @@ public struct JsonStringPrinter : JsonStringEmitter {
     var stream : CommandLineStream
     @make
     func make() {
-        stream = CommandLineStream {}
+        return JsonStringPrinter {
+            stream : CommandLineStream {}
+        }
     }
     @override
     func append_view(&self, view : &std::string_view) {
@@ -169,7 +171,9 @@ public struct DebugJsonSaxHandler {
     var stream : CommandLineStream
     @make
     func make() {
-        stream = CommandLineStream {}
+        return DebugJsonSaxHandler {
+            stream : CommandLineStream {}
+        }
     }
 
     func write_view(&self, view : &std::string_view) {
@@ -230,7 +234,12 @@ public struct ASTJsonHandler : public JsonSaxHandler {
 
     @make
     func make() {
-        root = JsonValue.Null()
+        return ASTJsonHandler {
+            stack : std::vector<JsonValue>(),
+            key_stack : std::vector<std::string>(),
+            root : JsonValue.Null(),
+            have_root : false
+        }
     }
 
     // helper: move value `v` into either current container or become the root

@@ -249,7 +249,8 @@ public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, na
 }
 
 public func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
-    const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, [  ]);
+    const deps : []*Module = []
+    const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, deps);
     return ctx.translate_to_chemical(mod, output_path);
 }
 

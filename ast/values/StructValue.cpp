@@ -311,9 +311,15 @@ std::vector<TypeLoc> StructValue::create_generic_list() {
 
 bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     if(is_union()) {
-        if(values.size() != 1) {
-            diagnoser.error(this) << "union '"
-                                  << definition->name_view() << "' must be initialized with a single member value";
+        if (values.size() != 1) {
+            auto& diag = diagnoser.error(this);
+            diag << "union '";
+            if (definition) {
+                diag << definition->name_view();
+            } else {
+                diag << "<unnamed>";
+            }
+            diag << "' must be initialized with a single member value";
             return false;
         } else {
             return true;
@@ -353,7 +359,15 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     }
     if(!missing.empty()) {
         for (auto& miss: missing) {
-            diagnoser.error(this) << "couldn't find value for member '" << miss << "' for initializing struct '" << definition->name_view() << "'";
+            auto& diag = diagnoser.error(this);
+            diag << "couldn't find value for member '";
+            diag << miss;
+            diag << "' for initializing struct '";
+            if(definition) {
+                diag << definition->name_view() << "'";
+            } else {
+                diag << "<unnamed>'";
+            }
         }
         return true;
     }

@@ -566,7 +566,7 @@ bool Value::isValueLiteral() {
     }
 }
 
-bool Value::isValueRValue(ASTAllocator& allocator) {
+bool Value::isValueRValue() {
     switch(kind()) {
         case ValueKind::Bool:
         case ValueKind::IntN:
@@ -579,7 +579,7 @@ bool Value::isValueRValue(ASTAllocator& allocator) {
         case ValueKind::FunctionCall:
             return isTypeRValue(getType());
         case ValueKind::AccessChain:
-            return as_access_chain_unsafe()->values.back()->isValueRValue(allocator);
+            return as_access_chain_unsafe()->values.back()->isValueRValue();
         case ValueKind::Identifier:{
             const auto linked = linked_node();
             switch(linked->kind()) {

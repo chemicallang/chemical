@@ -1701,15 +1701,14 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
         unsigned i = 0;
         const auto values_size = values.size();
         while (i < values_size) {
-            auto& value_ptr = values[i];
-            auto& value = *value_ptr;
+            auto& value = *values[i];
             const auto param = func_type->func_param_for_arg_at(i);
             if(param) {
                 const auto expected_type = param->type;
                 visitor.visit(&value, expected_type);
                 current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
             } else {
-                linker.error(value_ptr) << "too many arguments given, expected " << std::to_string(func_param_size) << " given " << std::to_string(values_size);
+                linker.error(&value) << "too many arguments given, expected " << std::to_string(func_param_size) << " given " << std::to_string(values_size);
             }
             i++;
         }
@@ -2661,7 +2660,15 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
     }
     if(exp_type && exp_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) exp_type;
-        elemType = arr_type->elem_type.copy(*linker.ast_allocator);
+        if(elemType == nullptr) {
+            elemType = arr_type->elem_type.copy(*linker.ast_allocator);
+        }
+        const auto valType = arrValue->getType();
+        if(valType->has_array_size() && arr_type->has_no_array_size()) {
+            arr_type->set_array_size(valType->get_array_size());
+        } else if(valType->has_no_array_size() && arr_type->has_array_size()) {
+            valType->set_array_size(arr_type->get_array_size());
+        }
     }
     if(elemType) {
         const auto def = elemType->get_direct_linked_struct();
@@ -2697,6 +2704,10 @@ void SymResLinkBody::VisitArrayValue(ArrayValue* arrValue) {
             }
         }
         i++;
+    }
+    if(known_elem_type == nullptr) {
+        known_elem_type = TypeLoc(linker.comptime_scope.typeBuilder.getVoidType(), arrValue->encoded_location());
+        linker.error("couldn't determine element type for array", arrValue);
     }
 }
 
@@ -3193,6 +3204,22 @@ void SymResLinkBody::VisitStringValue(StringValue* strValue) {
     }
 }
 
+bool isParentConstructorOf(FunctionDeclaration* decl, StructValue* structVal) {
+    if(!decl->is_constructor_fn()) return false;
+    const auto p = decl->parent();
+    const auto other_p = structVal->linked_extendable();
+    switch(p->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+            return p->as_gen_struct_def_unsafe()->master_impl == other_p;
+        case ASTNodeKind::GenericVariantDecl:
+            return p->as_gen_variant_decl_unsafe()->master_impl == other_p;
+        case ASTNodeKind::UnionDecl:
+            return p->as_gen_union_decl_unsafe()->master_impl == other_p;
+        default:
+            return p == other_p;
+    }
+}
+
 void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     // load the expected type before hand
     const auto exp_type = expected_type;
@@ -3213,7 +3240,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     structValue->diagnose_missing_members_for_init(linker);
     if(!structValue->allows_direct_init()) {
         const auto curr_func = linker.current_func_type->as_function();
-        if(curr_func == nullptr || curr_func->parent() != structValue->linked_extendable()) {
+        if(curr_func == nullptr || !isParentConstructorOf(curr_func, structValue)) {
             linker.error(structValue) << "struct with name '" << structValue->linked_extendable()->name_view() << "' has a constructor, use @direct_init to allow direct initialization";
         }
     }

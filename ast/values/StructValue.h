@@ -128,7 +128,7 @@ public:
             const auto k = definition->kind();
             return k == ASTNodeKind::UnionDecl || k == ASTNodeKind::UnnamedUnion;
         } else {
-            return getRefType()->kind() == BaseTypeKind::Union;
+            return getRefType()->isUnionType();
         }
     }
 

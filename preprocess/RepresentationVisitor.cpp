@@ -769,8 +769,14 @@ void RepresentationVisitor::VisitAnyType(AnyType *func) {
 }
 
 void RepresentationVisitor::VisitArrayType(ArrayType *type) {
+    if(type->has_array_size()) {
+        write('[');
+        write_str(std::to_string(type->get_array_size()));
+        write(']');
+    } else {
+        write("[]");
+    }
     visit(type->elem_type);
-    write("[]");
 }
 
 void RepresentationVisitor::VisitBoolType(BoolType *func) {

@@ -157,6 +157,11 @@ public:
     bool isStructLikeType();
 
     /**
+     * pointing to something union
+     */
+    bool isUnionType();
+
+    /**
      * check if given base type is of same type
      */
     virtual bool is_same(BaseType* type) = 0;

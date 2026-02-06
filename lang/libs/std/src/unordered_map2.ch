@@ -57,10 +57,14 @@ public struct unordered_map<Key : Hashable | Eq, Value> {
 
     @make
     func make() {
-        capacity = 16;
-        _size = 0;
-        table = malloc(capacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
-        memset(table, 0, capacity * sizeof(*mut unordered_map_node<Key, Value>));
+        const cap = 16u
+        const allocated = malloc(cap * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
+        memset(allocated, 0, cap * sizeof(*mut unordered_map_node<Key, Value>));
+        return unordered_map<Key, Value> {
+            table : allocated,
+            capacity : cap,
+            _size : 0
+        }
     }
 
     @delete

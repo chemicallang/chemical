@@ -33,6 +33,31 @@ std::string BaseType::representation() {
     return ostring.str();
 }
 
+inline bool isNodeUnion(ASTNode* node) {
+    switch (node->kind()) {
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::UnnamedUnion:
+            return true;
+        case ASTNodeKind::TypealiasStmt:
+            return node->as_typealias_unsafe()->actual_type->isUnionType();
+        default:
+            return false;
+    }
+}
+
+bool BaseType::isUnionType() {
+    switch(kind()) {
+        case BaseTypeKind::Union:
+            return true;
+        case BaseTypeKind::Linked:
+            return isNodeUnion(as_linked_type_unsafe()->linked);
+        case BaseTypeKind::Generic:
+            return isNodeUnion(as_generic_type_unsafe()->referenced->linked);
+        default:
+            return false;
+    }
+}
+
 bool BaseType::isStructLikeType() {
     switch(kind()) {
         case BaseTypeKind::Struct:

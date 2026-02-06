@@ -61,7 +61,9 @@ struct CustomDeletor<T> {
     var _value : *mut T
     @make
     func make(value: *mut T) {
-        _value = value
+        return CustomDeletor<T> {
+            _value : value
+        }
     }
     @delete
     func delete(&self) {

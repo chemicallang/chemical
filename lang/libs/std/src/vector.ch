@@ -8,16 +8,20 @@ public struct vector<T> {
 
     @constructor
     func make() {
-        data_ptr = null
-        data_size = 0
-        data_cap = 0
+        return vector<T> {
+            data_ptr : null,
+            data_size : 0,
+            data_cap : 0
+        }
     }
 
     @constructor
     func make_with_capacity(init_cap : size_t) {
-        data_ptr = malloc(sizeof(T) * init_cap) as *mut T
-        data_size = 0
-        data_cap = init_cap
+        return vector<T> {
+            data_ptr : malloc(sizeof(T) * init_cap) as *mut T,
+            data_size : 0,
+            data_cap : init_cap
+        }
     }
 
     func resize(&mut self, new_cap : size_t) {

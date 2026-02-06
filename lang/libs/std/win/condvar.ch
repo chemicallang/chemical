@@ -31,8 +31,10 @@ public namespace std {
 
         @constructor
         func constructor() {
+            var c = CondVar { storage : [] }
             // InitializeConditionVariable does not fail and requires no destroy.
-            InitializeConditionVariable(&mut storage[0])
+            InitializeConditionVariable(&mut c.storage[0])
+            return c;
         }
 
         // wait (blocking). Caller must hold mutex before calling.

@@ -35,8 +35,10 @@ public namespace std {
         // constructor: initialize native mutex
         @constructor
         func constructor() {
+            var m = mutex { storage : [] }
             // use a reasonable spin count (e.g., 4000)
-            InitializeCriticalSectionAndSpinCount(&mut storage[0], 4000u)
+            InitializeCriticalSectionAndSpinCount(&mut m.storage[0], 4000u)
+            return m;
         }
 
         // lock: blocking

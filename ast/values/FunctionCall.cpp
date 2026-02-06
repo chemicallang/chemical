@@ -226,7 +226,7 @@ llvm::Value* FunctionCall::arg_value(
             (isReferenceValue(value_kind) && pure_type->is_linked_struct())
     ))) {
         // passing r values as pointers by allocating them
-        if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue(gen.allocator)) {
+        if(is_param_ref && !param_type->as_reference_type_unsafe()->is_mutable && value->isValueRValue()) {
             argValue = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_arg_value(gen, param_type), value->encoded_location());
         } else {
             argValue = value->llvm_pointer(gen);

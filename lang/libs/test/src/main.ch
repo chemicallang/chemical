@@ -172,7 +172,9 @@ struct TestFunctionState {
 
     @make
     func make(t_fn : *mut TestFunction) {
-        fn = t_fn
+        return TestFunctionState {
+            fn : t_fn
+        }
     }
 
 }

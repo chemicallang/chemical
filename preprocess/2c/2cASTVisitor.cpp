@@ -3830,30 +3830,6 @@ void ToCAstVisitor::VisitImportStmt(ImportStatement *importStatement) {
     // leave imports alone
 }
 
-void struct_initialize_inside_braces(ToCAstVisitor& visitor, StructValue* val) {
-    visitor.write("(struct ");
-    visitor.write(val->linked_name_view());
-    visitor.write(")");
-    visitor.visit(val);
-}
-
-bool ToCAstVisitor::requires_return(Value* val) {
-    if(val->as_struct_value()) {
-        if (pass_structs_to_initialize) {
-            return false;
-        } else {
-            return true;
-        }
-    } else {
-        const auto valType = val->getType();
-        if(valType->isStructLikeType()) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-}
-
 chem::string_view get_struct_return_param_name(ToCAstVisitor& visitor) {
     const auto func = visitor.current_func_type->as_function();
     if(func && func->is_constructor_fn()) {
@@ -3879,54 +3855,49 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     const auto struct_val = val->as_struct_value();
     const auto val_type = val->getType();
     if(struct_val) {
-        if(pass_structs_to_initialize) {
 
             write('*');
             write(get_struct_return_param_name(*this));
             write(" = ");
             accept_mutating_value_explicit(type, val);
-            return;
 
-            auto size = struct_val->values.size();
-            bool has_value_before = false;
-            for(const auto& mem : struct_val->values) {
-                if(has_value_before) {
-                    write(';');
-                    new_line_and_indent();
-                } else  {
-                    has_value_before = true;
-                }
-                auto child_member = struct_val->child_member(mem.first);
-                write(get_struct_return_param_name(*this));
-                write("->");
-                write(mem.first);
-                write(" = ");
-                accept_movable_ref_value(*this, child_member ? child_member->known_type() : nullptr, mem.second.value);
-            }
-            const auto container = struct_val->variables();
-            for(const auto mem : container->variables()) {
-                if(has_value_before) {
-                    write(';');
-                    new_line_and_indent();
-                    has_value_before = false;
-                }
-                const auto defValue = mem->default_value();
-                if(defValue) {
-                    auto found = struct_val->values.find(mem->name);
-                    if(found == struct_val->values.end()) {
-                        has_value_before = true;
-                        write(get_struct_return_param_name(*this));
-                        write("->");
-                        write(mem->name);
-                        write(" = ");
-                        accept_mutating_value(mem->known_type(), defValue);
-                    }
-                }
-            }
-        } else {
-            // TODO: this branch doesn't work
-            struct_initialize_inside_braces(*this, (StructValue*) val);
-        }
+            // auto size = struct_val->values.size();
+            // bool has_value_before = false;
+            // for(const auto& mem : struct_val->values) {
+            //     if(has_value_before) {
+            //         write(';');
+            //         new_line_and_indent();
+            //     } else  {
+            //         has_value_before = true;
+            //     }
+            //     auto child_member = struct_val->child_member(mem.first);
+            //     write(get_struct_return_param_name(*this));
+            //     write("->");
+            //     write(mem.first);
+            //     write(" = ");
+            //     accept_movable_ref_value(*this, child_member ? child_member->known_type() : nullptr, mem.second.value);
+            // }
+            // const auto container = struct_val->variables();
+            // for(const auto mem : container->variables()) {
+            //     if(has_value_before) {
+            //         write(';');
+            //         new_line_and_indent();
+            //         has_value_before = false;
+            //     }
+            //     const auto defValue = mem->default_value();
+            //     if(defValue) {
+            //         auto found = struct_val->values.find(mem->name);
+            //         if(found == struct_val->values.end()) {
+            //             has_value_before = true;
+            //             write(get_struct_return_param_name(*this));
+            //             write("->");
+            //             write(mem->name);
+            //             write(" = ");
+            //             accept_mutating_value(mem->known_type(), defValue);
+            //         }
+            //     }
+            // }
+
     } else if(val->kind() == ValueKind::LambdaFunc && type->kind() == BaseTypeKind::CapturingFunction) {
         write('*');
         write(get_struct_return_param_name(*this));
@@ -4400,7 +4371,9 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             process_variant_members_using(visitor, variant_def, call_variant_member_copy_fn);
         }
     }
-    // initialize_def_struct_values_constructor(visitor, decl);
+    if(decl->is_generated_fn()) {
+        initialize_def_struct_values_constructor(visitor, decl);
+    }
     // before generating function's body, it's very important we clear the cached comptime calls
     // because multiple generic functions must re-evaluate the comptime function call
     visitor.evaluated_func_calls.clear();

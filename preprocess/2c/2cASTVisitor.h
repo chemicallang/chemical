@@ -583,11 +583,6 @@ public:
     void external_implement(std::vector<ASTNode*>& nodes);
 
     /**
-     * does the return value require 'return' keyword before it
-     */
-    bool requires_return(Value* val);
-
-    /**
      * its like writing a return statement
      */
     void writeReturnStmtFor(Value* value);

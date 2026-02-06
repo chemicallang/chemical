@@ -95,12 +95,15 @@ public namespace std {
             var future_dropped: bool;
 
             @constructor func constructor(){
-                ready=false;
-                future_dropped = false
-                // TODO: constructor already calls default constructors
-                // TODO: not removing because llvm backend might not
-                m=std.mutex();
-                cv=std.CondVar()
+                var xx : T
+                return Promise<T> {
+                    ready=false;
+                    future_dropped = false
+                    // TODO: poor way to initialize
+                    val : xx
+                    m=std.mutex()
+                    cv=std.CondVar()
+                }
             }
 
             func set(&mut self,x:T){

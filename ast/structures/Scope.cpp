@@ -3,7 +3,6 @@
 #include "Scope.h"
 #include <iostream>
 #include "ast/structures/LoopBlock.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ImplDefinition.h"
@@ -143,95 +142,4 @@ Value* LoopBlock::get_first_broken() {
 
 BaseType* LoopBlock::known_type() {
     return get_first_broken()->getType();
-}
-
-bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
-    const auto definition = getContainer();
-    const auto linked_kind = definition->kind();
-    auto& values = initializers;
-    if(linked_kind == ASTNodeKind::UnionDecl) {
-        if(values.size() != 1) {
-            diagnoser.error(this) << "union must be initialized with a single member value";
-            return false;
-        } else {
-            return true;
-        }
-    }
-    // if(values.size() < definition->init_values_req_size()) {
-    std::vector<chem::string_view> missing;
-    for(auto& mem : definition->inherited) {
-        auto& type = *mem.type;
-        const auto struct_def = type.get_direct_linked_struct();
-        if(struct_def) {
-            const auto cons = struct_def->default_constructor_func();
-            if(cons == nullptr) {
-                const auto& ref_type_name = mem.ref_type_name();
-                auto val = values.find(ref_type_name);
-                if (val == values.end()) {
-                    missing.emplace_back(ref_type_name);
-                }
-            }
-        }
-    }
-    for(const auto mem : definition->variables()) {
-        if(mem->default_value() == nullptr) {
-            const auto mem_type = mem->known_type();
-            const auto container = mem_type->get_members_container();
-            if(container) {
-                const auto cons= container->default_constructor_func();
-                if(cons == nullptr) {
-                    auto val = values.find(mem->name);
-                    if (val == values.end()) {
-                        missing.emplace_back(mem->name);
-                    }
-                }
-            } else {
-                auto val = values.find(mem->name);
-                if (val == values.end()) {
-                    missing.emplace_back(mem->name);
-                }
-            }
-        }
-    }
-    if(!missing.empty()) {
-        for (auto& miss: missing) {
-            diagnoser.error(this) << "couldn't find value for member '" << miss << "' for initializing struct";
-        }
-        return true;
-    }
-    return false;
-}
-
-MembersContainer* InitBlock::getContainer() {
-    auto func = parent()->as_function();
-    if(!func) {
-        return nullptr;
-    }
-    if(!func->is_constructor_fn()) {
-        return nullptr;
-    }
-    auto parent = func->parent();
-    if(!parent) {
-        return nullptr;
-    }
-    switch(parent->kind()) {
-        case ASTNodeKind::StructDecl:
-        case ASTNodeKind::InterfaceDecl:
-        case ASTNodeKind::UnionDecl:
-        case ASTNodeKind::VariantDecl:
-        case ASTNodeKind::ImplDecl:
-            return parent->as_extendable_members_container_unsafe();
-        case ASTNodeKind::GenericUnionDecl:
-            return parent->as_gen_union_decl_unsafe()->master_impl;
-        case ASTNodeKind::GenericStructDecl:
-            return parent->as_gen_struct_def_unsafe()->master_impl;
-        case ASTNodeKind::GenericInterfaceDecl:
-            return parent->as_gen_interface_decl_unsafe()->master_impl;
-        case ASTNodeKind::GenericVariantDecl:
-            return parent->as_gen_variant_decl_unsafe()->master_impl;
-        case ASTNodeKind::GenericImplDecl:
-            return parent->as_gen_impl_decl_unsafe()->master_impl;
-        default:
-            return nullptr;
-    }
 }

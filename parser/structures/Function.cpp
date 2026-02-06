@@ -12,7 +12,6 @@
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/UnsafeBlock.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/DestructStmt.h"
@@ -29,61 +28,6 @@ ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
             stmt->value = expr;
         }
         return stmt;
-    } else {
-        return nullptr;
-    }
-}
-
-InitBlock* Parser::parseConstructorInitBlock(ASTAllocator& allocator) {
-    auto& tok = *token;
-    if(tok.type == TokenType::InitKw) {
-        token++;
-        auto init = new (allocator.allocate<InitBlock>()) InitBlock(parent_node, loc_single(tok));
-        if(token->type == TokenType::LBrace) {
-            token++;
-        } else {
-            unexpected_error("expected '{' for beginning of init block");
-        }
-        while(true) {
-            consumeNewLines();
-            const auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                const auto has_lparen = token->type == TokenType::LParen;
-                if(has_lparen) {
-                    token++;
-                    consumeNewLines();
-                } else if(token->type == TokenType::EqualSym) {
-                    token++;
-                } else {
-                    unexpected_error("expected '(' or '=' for initializing the init member");
-                }
-                const auto value = parseExpression(allocator, true);
-                if(value) {
-                    init->initializers[allocate_view(allocator, id->value)] = { value };
-                } else {
-                    unexpected_error("expected an expression for initializing init member");
-                }
-                if(has_lparen) {
-                    consumeNewLines();
-                    if(token->type == TokenType::RParen) {
-                        token++;
-                    } else {
-                        unexpected_error("expected ')' for init member");
-                    }
-                }
-                if(token->type == TokenType::SemiColonSym) {
-                    token++;
-                }
-            } else {
-                break;
-            }
-        }
-        if(token->type == TokenType::RBrace) {
-            token++;
-        } else {
-            unexpected_error("expected '}' for ending the init block");
-        }
-        return init;
     } else {
         return nullptr;
     }

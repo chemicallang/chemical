@@ -695,17 +695,6 @@ public:
      */
     bool put_as_extension_function(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    /**
-     * ensure that function body has an init block (required in constructors)
-     * @return true if has init block, otherwise false
-     */
-    bool ensure_has_init_block();
-
-    /**
-     * a helper function that would put an error
-     */
-    void ensure_has_init_block(ASTDiagnoser& diagnoser);
-
     virtual Value *call(
         InterpretScope *call_scope,
         ASTAllocator& allocator,

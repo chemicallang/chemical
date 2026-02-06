@@ -146,8 +146,6 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, true, false);
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
-        case TokenType::InitKw:
-            return (ASTNode*) parseConstructorInitBlock(allocator);
         case TokenType::UnsafeKw:
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::BreakKw:

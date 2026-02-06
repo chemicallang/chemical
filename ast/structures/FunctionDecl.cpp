@@ -17,7 +17,6 @@
 #include "ast/statements/VarInit.h"
 #include "ast/values/CastedValue.h"
 #include "ast/types/LinkedType.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
@@ -763,25 +762,15 @@ void initialize_def_struct_values(
     FunctionDeclaration* decl,
     llvm::Function* func
 ) {
-    std::unordered_map<chem::string_view, InitBlockInitializerValue>* initializers = nullptr;
-    if(decl->body.has_value() && !decl->body->nodes.empty()) {
-        auto block = decl->body->nodes.front()->as_init_block();
-        if(block) {
-            initializers = &block->initializers;
-        }
-    }
     auto self_arg = func->getArg(0);
     auto parent_type = struct_def->llvm_type(gen);
     for(const auto var : struct_def->variables()) {
         const auto defValue = var->default_value();
         if(!defValue) continue;
-        auto has_not_been_initialized = !initializers || initializers->find(var->name) == initializers->end();
-        if(has_not_been_initialized) {
-            // couldn't move struct
-            auto variable = struct_def->variable_type_index(var->name, false);
-            std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
-            defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
-        }
+        // couldn't move struct
+        auto variable = struct_def->variable_type_index(var->name, false);
+        std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
+        defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
     }
 }
 
@@ -1075,18 +1064,6 @@ bool FunctionDeclaration::put_as_extension_function(ASTAllocator& allocator, AST
         container->add_extension_func(name_view(), this);
     }
     return true;
-}
-
-bool FunctionDeclaration::ensure_has_init_block() {
-    if(!body.has_value() || body->nodes.empty()) return false;
-    auto& first = body->nodes.front();
-    return ASTNode::isInitBlock(first->kind());
-}
-
-void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {
-    if(!ensure_has_init_block()) {
-        diagnoser.error("init block must be the first member of the constructor", (ASTNode*) this);
-    }
 }
 
 Value *FunctionDeclaration::call(

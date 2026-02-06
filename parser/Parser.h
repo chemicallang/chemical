@@ -781,11 +781,6 @@ public:
     ReturnStatement* parseReturnStatement(ASTAllocator& allocator);
 
     /**
-     * parses a constructor init block
-     */
-    InitBlock* parseConstructorInitBlock(ASTAllocator& allocator);
-
-    /**
      * parse a unsafe block
      */
     UnsafeBlock* parseUnsafeBlock(ASTAllocator& allocator);

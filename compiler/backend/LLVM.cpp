@@ -68,7 +68,6 @@
 #include "ast/values/IfValue.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/structures/EnumDeclaration.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/EmbeddedNode.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -2100,41 +2099,6 @@ void ProvideStmt::code_gen(Codegen &gen) {
 
 void ComptimeBlock::code_gen(Codegen& gen) {
     gen.comptime_scope.interpret(&body);
-}
-
-void InitBlock::code_gen(Codegen &gen) {
-    const auto container = getContainer();
-    auto self_arg = gen.current_function->getArg(0);
-    auto parent_type = container->llvm_type(gen);
-    auto is_union = container->kind() == ASTNodeKind::UnionDecl;
-    for(auto& init : initializers) {
-        auto value = init.second.value;
-        auto variable = container->variable_type_index(init.first, true);
-        std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
-        if(container->is_one_of_inherited_type(variable.second) && value->kind() == ValueKind::AccessChain) {
-            auto chain = value->as_access_chain_unsafe();
-            auto val = chain->values.back();
-            auto call = val->as_func_call();
-            auto called_struct = call->parent_val->linked_node();
-            if(call->values.size() == 1) {
-                auto struc_val = call->values[0]->as_struct_value();
-                if(struc_val && struc_val->linked_node() == called_struct) {
-                    // initializing directly using a struct
-                    auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
-                    struc_val->initialize_alloca(elementPtr, gen, nullptr);
-                    continue;
-                }
-            }
-            std::vector<llvm::Value*> args;
-            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
-            call->llvm_chain_value(gen, args, destructibles, elementPtr, nullptr, nullptr);
-            Value::destruct(gen, destructibles);
-        } else {
-            // couldn't move struct
-            value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
-        }
-    }
 }
 
 void ThrowStatement::code_gen(Codegen &gen) {

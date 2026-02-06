@@ -112,7 +112,6 @@
 #include "CValueDeclVisitor.h"
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
-#include "ast/structures/InitBlock.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 
 ToCAstVisitor::ToCAstVisitor(
@@ -4253,22 +4252,11 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
     }
     const auto struct_def = parent->as_struct_def();
     if(!struct_def) return;
-    std::unordered_map<chem::string_view, InitBlockInitializerValue>* initializers = nullptr;
-    if(decl->body.has_value() && !decl->body->nodes.empty()) {
-        auto block = decl->body->nodes.front()->as_init_block();
-        if(block) {
-            initializers = &block->initializers;
-        }
-    }
     for(auto& inh : struct_def->inherited) {
         auto& var = inh;
         const auto var_type = var.type->pure_type(visitor.allocator);
         const auto def = var_type->get_direct_linked_struct();
         if(def) {
-            auto has_initializer = initializers && initializers->find(def->name_view()) != initializers->end();
-            if(has_initializer) {
-                continue;
-            }
             const auto defConstructor = def->default_constructor_func();
             if(defConstructor) {
                 visitor.new_line_and_indent();
@@ -4281,12 +4269,6 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
     }
     for(const auto var : struct_def->variables()) {
         const auto defValue = var->default_value();
-        auto has_initializer = initializers && initializers->find(var->name) != initializers->end();
-        // TODO currently we check if the value has a initializer in the init block
-        // TODO we should check whether the value has an assignment in the function as well (or use that to initialize it)
-        if(has_initializer) {
-            continue;
-        }
         if(!defValue) {
             // since default value doesn't exist, however the variable maybe of type struct and have a default constructor
             // we must call the default non argument constructor automatically
@@ -5844,43 +5826,6 @@ void ToCAstVisitor::VisitFunctionCall(FunctionCall *call) {
 void ToCAstVisitor::VisitGenericTypeDecl(GenericTypeDecl* node) {
     for(const auto inst : node->instantiations) {
         visit(inst);
-    }
-}
-
-void ToCAstVisitor::VisitInitBlock(InitBlock *initBlock) {
-    const auto container = initBlock->getContainer();
-    auto& initializers = initBlock->initializers;
-    auto is_union = container->kind() == ASTNodeKind::UnionDecl;
-    for(auto& init : initializers) {
-        auto value = init.second.value;
-        auto variable = container->variable_type_index(init.first, true);
-        if(container->is_one_of_inherited_type(variable.second) && value->kind() == ValueKind::AccessChain) {
-            auto chain = value->as_access_chain_unsafe();
-            auto val = chain->values.back();
-            auto call = val->as_func_call();
-            auto called_struct = call->parent_val->linked_node();
-            if(call->values.size() == 1) {
-                auto struc_val = call->values[0]->as_struct_value();
-                if(struc_val && struc_val->linked_node() == called_struct) {
-                    // initializing directly using a struct
-                    write("this->");
-                    write(init.first);
-                    write(" = ");
-                    accept_mutating_value(variable.second, struc_val);
-                    write(';');
-                    new_line_and_indent();
-                    continue;
-                }
-            }
-            local_allocated[call] = "this->" + init.first.str();
-            before_stmt.visit(chain);
-        }
-        write("this->");
-        write(init.first);
-        write(" = ");
-        accept_mutating_value(variable.second, init.second.value);
-        write(';');
-        new_line_and_indent();
     }
 }
 

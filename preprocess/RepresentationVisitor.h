@@ -201,9 +201,6 @@ public:
 
     void VisitInterfaceDecl(InterfaceDefinition* node);
 
-    // TODO handle init block
-    void VisitInitBlock(InitBlock* node) {}
-
     void VisitStructDecl(StructDefinition* node);
 
     void VisitStructMember(StructMember* node);

@@ -35,7 +35,6 @@ public enum ASTNodeKind {
     MultiFunctionNode,
     ImplDecl,
     InterfaceDecl,
-    InitBlock,
     StructDecl,
     StructMember,
     StructMemberInitializer,

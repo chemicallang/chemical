@@ -253,7 +253,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_ASTBuildermake_generic_param", (void*) ASTBuildermake_generic_param },
         { "compiler_ASTBuildermake_if_stmt", (void*) ASTBuildermake_if_stmt },
         { "compiler_ASTBuildermake_impl_def", (void*) ASTBuildermake_impl_def },
-        { "compiler_ASTBuildermake_init_block", (void*) ASTBuildermake_init_block },
         { "compiler_ASTBuildermake_interface_def", (void*) ASTBuildermake_interface_def },
         { "compiler_ASTBuildermake_namespace", (void*) ASTBuildermake_namespace },
         { "compiler_ASTBuildermake_struct_def", (void*) ASTBuildermake_struct_def },
@@ -312,7 +311,6 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_UnionDefinitionadd_function", (void*) UnionDefinitionadd_function },
         { "compiler_VariantDefinitionadd_member", (void*) VariantDefinitionadd_member },
         { "compiler_VariantMemberadd_param", (void*) VariantMemberadd_param },
-        { "compiler_InitBlockadd_initializer", (void*) InitBlockadd_initializer },
         { "compiler_EmbeddedNodegetDataPtr", (void*) EmbeddedNodegetDataPtr },
         { "compiler_EmbeddedValuegetDataPtr", (void*) EmbeddedValuegetDataPtr },
 };

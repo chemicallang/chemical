@@ -349,12 +349,6 @@ public struct ImplDefinition : ASTNode {
 
 }
 
-public struct InitBlock : ASTNode {
-
-    func add_initializer(&self, name : &string_view, value : *Value);
-
-}
-
 public struct InterfaceDefinition : ASTNode {
 
     func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
@@ -655,8 +649,6 @@ public struct ASTBuilder {
     func make_if_stmt(&self, condition : *Value, parent_node : *ASTNode, location : ubigint) : *mut IfStatement
 
     func make_impl_def(&self, interface_type : *BaseType, struct_type : *BaseType, parent_node : *ASTNode, location : ubigint) : *mut ImplDefinition
-
-    func make_init_block(&self, parent_node : *ASTNode, location : ubigint) : *mut InitBlock
 
     func make_interface_def(&self, name : &string_view, name_loc : ubigint, specifier : AccessSpecifier, parent_node : *ASTNode, location : ubigint) : *mut InterfaceDefinition
 

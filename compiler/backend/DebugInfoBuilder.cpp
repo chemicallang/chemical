@@ -31,7 +31,6 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/statements/Unreachable.h"
 #include "ast/structures/If.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/structures/Namespace.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"

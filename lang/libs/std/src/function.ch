@@ -33,19 +33,18 @@ public struct default_function_instance {
 
     @make
     func make2(ptr : *mut void, cap : *mut void, destr : destructor_type, size_data : size_t, align_data : size_t) {
-        // copy the fat pointer
-        fn_pointer = ptr;
         // we get the captured struct from the lambda
         const captured = cap
         // since lambda has no captured data, we don't need to do anything else
         if(captured == null) {
-            fn_data_ptr = null;
-            is_heap = false;
-            dtor = null;
-            return;
+            return default_function_instance {
+                fn_pointer : ptr,
+                fn_data_ptr : null,
+                is_heap : false,
+                dtor : null,
+                buffer : []
+            }
         }
-        // set the destructor function for the given lambda
-        dtor = destr
         // now lets store the data into buffer
         //  because on move the pointer gets invalidated, so we are taking a shortcut and putting
         //  everything on heap until we can get this done
@@ -54,14 +53,25 @@ public struct default_function_instance {
             // TODO: malloc call should take alignment malloc(size_data, align_data)
             var allocated = malloc(size_data) as *mut char
             memcpy(allocated, captured, size_data)
-            fn_data_ptr = allocated
-            is_heap = true;
+            return default_function_instance {
+                fn_pointer : ptr,
+                fn_data_ptr : allocated,
+                is_heap : true,
+                dtor : destr,
+                buffer : []
+            }
         } else {
             // we are going to allocate it in buffer
-            var dest = &mut buffer[0]
-            memcpy(dest, captured, size_data)
-            fn_data_ptr = dest
-            is_heap = false;
+            var i = default_function_instance {
+                fn_pointer : ptr,
+                fn_data_ptr : null,
+                is_heap : false,
+                dtor : destr,
+                buffer : []
+            }
+            memcpy(&mut i.buffer[0], captured, size_data)
+            i.fn_data_ptr = &mut i.buffer[0]
+            return i;
         }
     }
 

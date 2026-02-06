@@ -34,39 +34,66 @@ public struct u16string {
 
     @constructor
     func constructor(value : *u16, length : size_t) {
-        storage.constant.data = value;
-        storage.constant.length = length;
-        state = '0'
-        ensure_mut(size())
+        var s = u16string {
+            storage : {
+                constant : {
+                    data : value,
+                    length : length
+                }
+            },
+            state : '0'
+        }
+        s.ensure_mut(length)
+        return s;
     }
 
     // the ensure parameter is added just to differentiate signature from constructor above it
     // this allows to keep literal strings as constants
     @constructor
     func constructor2(value : *u16, length : size_t, ensure : bool) {
-        storage.constant.data = value;
-        storage.constant.length = length;
-        state = '0'
+        var s = u16string {
+            storage : {
+                constant : {
+                    data : value,
+                    length : length
+                }
+            },
+            state : '0'
+        }
         if(ensure) {
             // this branch probably will never be taken
-            ensure_mut(size())
+            s.ensure_mut(length)
         }
+        return s;
     }
 
     @constructor
     func empty_str() {
-        storage.constant.data = &EMPTY_U16;
-        storage.constant.length = 0;
-        state = '0'
+        return u16string {
+            storage : {
+                constant : {
+                    data : &EMPTY_U16,
+                    length : 0
+                }
+            },
+            state : '0'
+        }
     }
 
     @constructor
     func make_no_len(value : *u16) {
         const length = u16_strlen(value)
-        storage.constant.data = value;
-        storage.constant.length = length;
-        state = '0'
-        ensure_mut(length)
+        var s = u16string {
+            storage : {
+                constant : {
+                    data : value,
+                    length : length
+                }
+            },
+            state : '0'
+        }
+        s.ensure_mut(length)
+        return s;
     }
 
     func size(&self) : size_t {

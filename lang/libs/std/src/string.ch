@@ -59,55 +59,97 @@ public struct string : Hashable, Eq {
 
     @constructor
     func constructor(value : *char, length : size_t) {
-        storage.constant.data = value;
-        storage.constant.length = length;
-        state = '0'
-        ensure_mut(size())
+        var s = string {
+            storage : {
+                constant : {
+                    data : value,
+                    length : length
+                }
+            },
+            state : '0'
+        }
+        s.ensure_mut(length)
+        return s;
     }
 
     @constructor
     func view_make(value : &std::string_view) {
-        storage.constant.data = value.data();
-        storage.constant.length = value.size();
-        state = '0'
-        ensure_mut(value.size())
+        var s = string {
+            storage : {
+                constant : {
+                    data : value.data(),
+                    length : value.size()
+                }
+            },
+            state : '0'
+        }
+        s.ensure_mut(value.size())
+        return s;
     }
 
     // the ensure parameter is added just to differentiate signature from constructor above it
     // this allows to keep literal strings as constants
     @constructor
     func constructor2(value : *char, length : size_t, ensure : bool) {
-        storage.constant.data = value;
-        storage.constant.length = length;
-        state = '0'
+        var s = string {
+            storage : {
+                constant : {
+                    data : value,
+                    length : length
+                }
+            },
+            state : '0'
+        }
         if(ensure) {
             // this branch probably will never be taken
-            ensure_mut(size())
+            s.ensure_mut(length)
         }
+        return s;
     }
 
     @constructor
     func empty_str() {
-        storage.constant.data = "";
-        storage.constant.length = 0;
-        state = '0'
+        return string {
+            storage : {
+                constant : {
+                    data : "",
+                    length : 0
+                }
+            },
+            state : '0'
+        }
     }
 
     @constructor
     func make_no_len(value : *char) {
         const length = strlen(value)
-        storage.constant.data = value;
-        storage.constant.length = length;
-        state = '0'
-        ensure_mut(length)
+        var s = string {
+            storage : {
+                constant : {
+                    data : value,
+                    length : length
+                }
+            },
+            state : '0'
+        }
+        s.ensure_mut(length)
+        return s;
     }
 
     @constructor
     func make_with_char(value : char) {
-        storage.sso.buffer[0] = value;
-        storage.sso.buffer[1] = '\0';
-        storage.sso.length = 1;
-        state = '1'
+        var s = string {
+            storage : {
+                sso : {
+                    buffer : [],
+                    length : 1
+                }
+            },
+            state : '1'
+        }
+        s.storage.sso.buffer[0] = value;
+        s.storage.sso.buffer[1] = '\0';
+        return s;
     }
 
     func size(&self) : size_t {

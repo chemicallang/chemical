@@ -274,21 +274,21 @@ public namespace net {
 
                 @constructor
                 func constructor(buf: *mut char, len: u32) {
-                    init {
-                        overlapped(OVERLAPPED {
+                    return AsyncContext {
+                        overlapped : OVERLAPPED {
                             Internal : 0,
                             InternalHigh : 0,
                             Offset : 0,
                             OffsetHigh : 0,
                             hEvent : 0 as uintptr_t,
-                        })
-                        buffer(WSABUF {
+                        }
+                        buffer : WSABUF {
                             buf : buf,
                             len : len
-                        })
-                        callback(() => {})
-                        accumulated(std::vector<u8>())
-                        read_pos(0u)
+                        }
+                        callback : () => {}
+                        accumulated : std::vector<u8>()
+                        read_pos : 0u
                     }
                 }
             }
@@ -299,7 +299,9 @@ public namespace net {
                 @constructor
                 func constructor(threads: u32) {
                     // INVALID_HANDLE_VALUE is -1
-                    handle = CreateIoCompletionPort(-1 as uintptr_t, 0 as uintptr_t, 0, threads);
+                    return CompletionPort {
+                        handle : CreateIoCompletionPort(-1 as uintptr_t, 0 as uintptr_t, 0, threads);
+                    }
                 }
 
                 func register(&self, s: Socket, key: usize) : bool {
@@ -348,8 +350,10 @@ public namespace io {
         var read_pos: usize; // how many bytes consumed from the front
 
         @constructor func constructor() {
-            v = std::vector<u8>();
-            read_pos = 0u;
+            return Buffer {
+                v : std::vector<u8>(),
+                read_pos : 0u
+            }
         }
 
         func len(&self) : usize { return if(v.size() >= read_pos) v.size() - read_pos else 0u }
@@ -399,6 +403,13 @@ public namespace http {
     public struct HeaderMap {
 
         var headers: std::vector<std::pair<std::string,std::string>>;
+
+        @make
+        func make() {
+            return HeaderMap {
+                headers : std::vector<std::pair<std::string,std::string>>()
+            }
+        }
 
         func empty(&self) : bool {
             return headers.empty()
@@ -466,15 +477,17 @@ public namespace http {
 
         @make
         func empty_make() {
-            sock = 0
-            buf = null
-            remaining = -1
-            chunked = false
-            timeout_secs = 0
-            max_body = 0
-            closed = false
-            cur_chunk_left = 0
-            seen_total = 0
+            return Body {
+                sock = 0
+                buf = null
+                remaining = -1
+                chunked = false
+                timeout_secs = 0
+                max_body = 0
+                closed = false
+                cur_chunk_left = 0
+                seen_total = 0
+            }
         }
 
         // construct body from request metadata (call from handle_conn after parsing headers)
@@ -747,12 +760,15 @@ public namespace http {
         var body : Body
 
         @constructor func constructor() {
-            method = std::string::empty_str();
-            path = std::string::empty_str();
-            proto = std::string::empty_str();
-            headers = HeaderMap();
-            body_len = 0u;
-            remote = std::string::empty_str();
+            return Request {
+                method = std::string::empty_str();
+                path = std::string::empty_str();
+                proto = std::string::empty_str();
+                headers = HeaderMap();
+                body_len = 0u;
+                remote = std::string::empty_str();
+                body : Body()
+            }
         }
 
     }
@@ -764,9 +780,12 @@ public namespace http {
         var sent_headers: bool;
 
         @constructor func constructor(s: net::Socket) {
-            sock = s;
-            status = 200u;
-            sent_headers = false
+            return ResponseWriter {
+                sock = s;
+                headers = HeaderMap()
+                status = 200u;
+                sent_headers = false
+            }
         }
 
         func set_header(&mut self, k: std::string, v: std::string) { headers.insert(k, v) }
@@ -1052,7 +1071,13 @@ public namespace web {
     public struct Router {
         var routes: std::vector<Route>;
         var middlewares: std::vector<Middleware>;
-        @constructor func constructor() { routes = std::vector<Route>(); middlewares = std::vector<Middleware>(); }
+
+        @constructor func constructor() {
+            return Router {
+                routes = std::vector<Route>(),
+                middlewares = std::vector<Middleware>()
+            }
+        }
 
         func add(&mut self, method: *char, pattern: *char, h: Handler) {
             routes.push_back(Route{ method: std::string::make_no_len(method), pattern: std::string::make_no_len(pattern), handler: h });
@@ -1102,12 +1127,12 @@ public namespace web {
         if(pseg.size() != tseg.size()) { return false }
         var i = 0u;
         while(i < pseg.size()) {
-            var ps = *pseg.get_ptr(i);
-            var ts = *tseg.get_ptr(i);
+            var ps = pseg.get_ptr(i);
+            var ts = tseg.get_ptr(i);
             if(ps.size() > 0 && ps.get(0) == ':' ) {
                 // param
                 var key = ps.substring(1, ps.size());
-                params_out.push_back(std::pair<std::string,std::string>{ first : key, second : ts });
+                params_out.push_back(std::pair<std::string,std::string>{ first : key, second : ts.copy() });
             } else {
                 if(!ps.equals_with_len(ts.data(), ts.size())) { return false }
             }
@@ -1141,7 +1166,16 @@ public namespace server {
         var max_header_bytes: usize;
         var max_headers: uint;
         var max_body_bytes: usize;
-        @constructor func constructor() { addr = std::string::make_no_len(":8080"); worker_count = std.concurrent.hardware_threads() as uint; header_timeout_secs = 5; max_header_bytes = 64u * 1024u; max_headers = 512u; max_body_bytes = 10u * 1024u * 1024u }
+        @constructor func constructor() {
+            return ServerConfig {
+                addr = std::string::make_no_len(":8080");
+                worker_count = std.concurrent.hardware_threads() as uint;
+                header_timeout_secs = 5;
+                max_header_bytes = 64u * 1024u;
+                max_headers = 512u;
+                max_body_bytes = 10u * 1024u * 1024u
+            }
+        }
     }
 
     public struct Server {
@@ -1152,12 +1186,13 @@ public namespace server {
         var run: bool;
 
         @constructor func constructor(cfg_: ServerConfig) {
-            cfg = cfg_;
-            // pool = std.concurrent.create_pool(cfg.worker_count);
-            new (&pool) std.concurrent.create_pool(cfg.worker_count);
-            listen_sock = 0u;
-            router = web.Router();
-            run = false;
+            return Server {
+                cfg = cfg_;
+                pool : std.concurrent.create_pool(cfg.worker_count);
+                listen_sock = 0u;
+                router = web.Router();
+                run = false;
+            }
         }
 
         // production handler: parse request, route, and respond

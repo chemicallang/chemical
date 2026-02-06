@@ -13,26 +13,34 @@ public namespace std {
 
         @constructor
         func empty_make() {
-            _data = ""
-            _size = 0
+            return string_view {
+                _data : "",
+                _size : 0
+            }
         }
 
         @constructor
         func constructor(value : *char, length : size_t) {
-            _data = value;
-            _size = length;
+            return string_view {
+                _data : value,
+                _size : length
+            }
         }
 
         @constructor
         func make_view(str : &std::string) {
-            _data = str.data()
-            _size = str.size()
+            return string_view {
+                _data : str.data(),
+                _size : str.size()
+            }
         }
 
         @constructor
         func make_no_len(value : *char) {
-            _data = value;
-            _size = strlen(value)
+            return string_view {
+                _data : value,
+                _size : strlen(value)
+            }
         }
 
         func data(&self) : *char {

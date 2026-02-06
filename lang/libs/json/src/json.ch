@@ -76,8 +76,15 @@ public struct JsonParser {
 
     @make
     func make(max_depth_ : size_t = 128, max_string_ : size_t = 4096) {
-        max_depth = if(max_depth_ > 0) max_depth_ else 128;
-        max_string = if(max_string_ > 0) max_string_ else 4096;
+        return JsonParser {
+            max_depth : if(max_depth_ > 0) max_depth_ else 128,
+            max_string : if(max_string_ > 0) max_string_ else 4096,
+            scratch : [],
+            s : null,
+            len : 0,
+            pos : 0,
+            handler : null
+        }
     }
 
     func parse(&mut self, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {

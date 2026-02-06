@@ -165,7 +165,7 @@ public:
     /**
      * check if given kind is a r value
      */
-    bool isValueRValue(ASTAllocator& allocator);
+    bool isValueRValue();
 
     /**
      * will check contents, are they of the same kind

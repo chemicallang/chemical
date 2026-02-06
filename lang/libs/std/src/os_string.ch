@@ -19,16 +19,22 @@ struct OsString {
 
     @make
     func make(str : native_string_t) {
-        data_ = str
+        return OsString {
+            data_ : str
+        }
     }
 
     // Construct from UTF-8. On POSIX this copies the bytes; on Windows this converts to UTF-16.
     @make
     func make2(utf8 : &std::string) {
         comptime if(def.windows) {
-            data_ = utf8_to_u16(utf8);
+            return OsString {
+                data_ = utf8_to_u16(utf8);
+            }
         } else {
-            data_ = utf8.copy();
+            return OsString {
+                data_ : utf8.copy();
+            }
         }
     }
 

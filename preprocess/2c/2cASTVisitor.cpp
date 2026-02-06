@@ -3854,6 +3854,15 @@ bool ToCAstVisitor::requires_return(Value* val) {
     }
 }
 
+chem::string_view get_struct_return_param_name(ToCAstVisitor& visitor) {
+    const auto func = visitor.current_func_type->as_function();
+    if(func && func->is_constructor_fn()) {
+        return "this";
+    } else {
+        return struct_passed_param_name;
+    }
+}
+
 void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     const auto type = non_canon_type->canonical();
     const auto imp_cons = type->implicit_constructor_for(val);
@@ -3863,7 +3872,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
             const auto eval = evaluated_func_val_proper(*this, imp_cons, imp_call);
             val = eval;
         } else {
-            call_implicit_constructor_no_alloc(*this, imp_cons, val, struct_passed_param_name, true);
+            call_implicit_constructor_no_alloc(*this, imp_cons, val, get_struct_return_param_name(*this), true);
             return;
         }
     }
@@ -3871,6 +3880,13 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
     const auto val_type = val->getType();
     if(struct_val) {
         if(pass_structs_to_initialize) {
+
+            write('*');
+            write(get_struct_return_param_name(*this));
+            write(" = ");
+            accept_mutating_value_explicit(type, val);
+            return;
+
             auto size = struct_val->values.size();
             bool has_value_before = false;
             for(const auto& mem : struct_val->values) {
@@ -3881,7 +3897,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
                     has_value_before = true;
                 }
                 auto child_member = struct_val->child_member(mem.first);
-                write(struct_passed_param_name);
+                write(get_struct_return_param_name(*this));
                 write("->");
                 write(mem.first);
                 write(" = ");
@@ -3899,7 +3915,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
                     auto found = struct_val->values.find(mem->name);
                     if(found == struct_val->values.end()) {
                         has_value_before = true;
-                        write(struct_passed_param_name);
+                        write(get_struct_return_param_name(*this));
                         write("->");
                         write(mem->name);
                         write(" = ");
@@ -3908,16 +3924,17 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
                 }
             }
         } else {
+            // TODO: this branch doesn't work
             struct_initialize_inside_braces(*this, (StructValue*) val);
         }
     } else if(val->kind() == ValueKind::LambdaFunc && type->kind() == BaseTypeKind::CapturingFunction) {
         write('*');
-        write(struct_passed_param_name);
+        write(get_struct_return_param_name(*this));
         write(" = ");
         accept_mutating_value_explicit(type, val);
     } else if(val_type->isStructLikeType()) {
         write('*');
-        write(struct_passed_param_name);
+        write(get_struct_return_param_name(*this));
         write(" = ");
         if(is_value_param_pointer_like(val)) {
             write('*');
@@ -4383,7 +4400,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             process_variant_members_using(visitor, variant_def, call_variant_member_copy_fn);
         }
     }
-    initialize_def_struct_values_constructor(visitor, decl);
+    // initialize_def_struct_values_constructor(visitor, decl);
     // before generating function's body, it's very important we clear the cached comptime calls
     // because multiple generic functions must re-evaluate the comptime function call
     visitor.evaluated_func_calls.clear();

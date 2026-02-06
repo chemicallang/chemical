@@ -4,8 +4,10 @@ public namespace std {
         var m : *mut mutex
         @constructor
         func constructor(mtx : &mut mutex) {
-            m = &mut mtx
-            m.lock()
+            mtx.lock()
+            return lock_guard {
+                m : &mut mtx
+            }
         }
         @delete
         func delete(&mut self) {

@@ -95,9 +95,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
 
-    output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", [ ";
+    output << "\tconst deps : []*mut Module = [ ";
 
     i = 0;
+    unsigned deps_size = 0;
     // calling get functions on dependencies
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {
@@ -105,6 +106,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 const auto stmt = node->as_import_stmt_unsafe();
                 writeAsIdentifier(stmt, i, output);
                 output << ".build(ctx, __chx_job), ";
+                deps_size++;
                 break;
             }
             default:
@@ -112,7 +114,9 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         }
         i++;
     }
-    output << "]);\n";
+
+    output << " ];\n";
+    output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<*Module>(deps, " << deps_size << "));\n";
     output << "\tctx.set_cached(__chx_job, mod)\n";
 
     if(!data.sources_list.empty()) {

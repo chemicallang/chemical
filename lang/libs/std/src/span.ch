@@ -19,9 +19,9 @@ public struct span<T> {
 
     @constructor
     func constructor(array_ptr : *T, array_size : size_t) {
-        init {
-            _data(array_ptr)
-            _size(array_size)
+        return span<T> {
+            _data : array_ptr,
+            _size : array_size
         }
     }
 

@@ -84,12 +84,17 @@ llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& ide
 }
 
 llvm::Value *ArrayValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    // Why is this here :
-    // Well when user declares a multidimensional array, we allocate memory for the whole thing
-    // then we call llvm_value on values, if we implement it, this would allocate memory for nested array as well
-    // resulting in allocating memory two times for an array
-    CHEM_THROW_RUNTIME("memory for array value wasn't allocated");
-    return nullptr;
+    std::vector<llvm::Constant*> llvm_vals;
+    auto known_child_t = element_type(gen.allocator)->canonical();
+    for(const auto val : values) {
+        const auto final_val = val->llvm_value(gen, known_child_t);
+        if(llvm::isa<llvm::Constant>(final_val)) {
+            llvm_vals.emplace_back((llvm::Constant*) final_val);
+        } else {
+            gen.error("expected value to result in a constant expression", val);
+        }
+    }
+    return llvm::ConstantArray::get((llvm::ArrayType*) llvm_type(gen), llvm_vals);
 }
 
 llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, BaseType* expected_type) {

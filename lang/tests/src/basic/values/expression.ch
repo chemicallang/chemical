@@ -2,6 +2,193 @@ func ret_log_expr_1() : bool {
     return (false || false) && !(false && false)
 }
 
+public func test_dot_filter(name_w : *char) : bool {
+    if (!(name_w[0] == '.' && name_w[1] == 0) &&
+        !(name_w[0] == '.' &&
+          name_w[1] == '.' &&
+          name_w[2] == 0)) {
+        return true;
+    }
+    return false;
+}
+
+public func test_dot_filter2(name_w : *u16) : bool {
+    // return true if name should be processed
+    // return false if name is "." or ".."
+
+    if (!(name_w[0] == '.' as u16 && name_w[1] == 0) &&
+        !(name_w[0] == '.' as u16 &&
+          name_w[1] == '.' as u16 &&
+          name_w[2] == 0)) {
+        return true;
+    }
+
+    return false;
+}
+
+// small no-op to create call boundaries
+public func noop_barrier(x : i32) : i32 { return x + 0; }
+
+// 1) Force stack temporaries: copy chars to local allocas then test.
+//    This reproduces the pattern in your big IR where values are stored into
+//    small allocas and then loaded before comparisons.
+public func temp_stack_copy_u16(name_w : *u16) : bool {
+    // allocate locals (will generate allocas)
+    var a0 : u16 = name_w[0];
+    var a1 : u16 = name_w[1];
+    var a2 : u16 = name_w[2];
+
+    // store into local variables explicitly (encourages store/load in IR)
+    var t0 : u16 = a0;
+    var t1 : u16 = a1;
+    var t2 : u16 = a2;
+
+    // re-load (in source it's a simple read, but generator may produce loads)
+    if (!(t0 == '.' as u16 && t1 == 0u16) &&
+        !(t0 == '.' as u16 && t1 == '.' as u16 && t2 == 0u16)) {
+        return true;
+    }
+    return false;
+}
+
+// 2) Interleaved calls between comparisons
+//    Calls create basic-block/call boundaries and can alter lowering/rescheduling.
+public func interleaved_calls_u16(name_w : *u16) : bool {
+    var c0 : u16 = name_w[0];
+    var c1 : u16 = name_w[1];
+    var c2 : u16 = name_w[2];
+
+    // interleave calls to force split blocks
+    var x = noop_barrier(1);
+    if (c0 == '.' as u16) {
+        x = noop_barrier(x + 1);
+        if (c1 == 0u16) { return false; }
+        x = noop_barrier(x + 1);
+        if (c1 == '.' as u16) {
+            x = noop_barrier(x + 1);
+            if (c2 == 0u16) { return false; }
+        }
+        return true;
+    } else {
+        x = noop_barrier(x + 1);
+        return true;
+    }
+}
+
+// 3) Pointer bitcasts and GEP with different index types
+public func gep_and_bitcast(name_w : *u16) : bool {
+    // bitcast to opaque pointer and back to force generator to emit casts
+    var p : *void = name_w as *void;
+    var p2 : *u16 = p as *u16;
+
+    // compute GEPs in slightly different ways
+    var second = p2[1];
+    var third = p2[2];
+
+    // similar test
+    if (!(p2[0] == '.' as u16 && second == 0u16) &&
+        !(p2[0] == '.' as u16 && second == '.' as u16 && third == 0u16)) {
+        return true;
+    }
+    return false;
+}
+
+// 4) Multi-way merging to create non-trivial PHI shapes (3 preds)
+public func multi_way_merge(name_w : *u16) : bool {
+    var partA : bool = false;
+    var partB : bool = false;
+
+    if (name_w[0] == '.' as u16) {
+        // block A
+        if (name_w[1] == 0u16) {
+            partA = true;
+            // fallthrough to merge
+        } else {
+            // block B
+            if (name_w[1] == '.' as u16 && name_w[2] == 0u16) {
+                partB = true;
+            } else {
+                // block C (first char '.' but not "." or "..")
+                // set nothing, but create an extra branch path
+                var dummy : i32 = 42;
+                dummy = noop_barrier(dummy);
+            }
+        }
+    } else {
+        // block D: first char not '.', another predecessor to merge
+        var dummy2 : i32 = 7;
+        dummy2 = noop_barrier(dummy2);
+    }
+
+    // now merge multiple predecessors and compute skip via combined condition
+    // this should create phi merges in IR
+    var skip : bool = false;
+    if (partA || partB) {
+        skip = true;
+    } else {
+        skip = false;
+    }
+    return !skip;
+}
+
+// 5) Recreate the exact pattern of storing last char into an alloca then loading it
+//    (as in your big IR: store last char into alloca and then read it to choose branch)
+public func store_last_then_compare(name_w : *u16) : bool {
+    // compute length-like behavior (but small)
+    var i : i32 = 0;
+    while (i < 3 && name_w[i] != 0u16) {
+        i = i + 1;
+    }
+
+    // store last char (if any) into a local that forces an alloca
+    var last : u16 = 0u16;
+    if (i > 0) {
+        last = name_w[i - 1];
+    } else {
+        last = 0u16;
+    }
+    // now compare using the alloca-backed local
+    if (!(name_w[0] == '.' as u16 && name_w[1] == 0u16) &&
+        !(name_w[0] == '.' as u16 && name_w[1] == '.' as u16 && name_w[2] == 0u16)) {
+        // make a small extra branch based on last to create more complex preds
+        if (last == '\\' as u16) {
+            return true;
+        }
+        return true;
+    }
+    return false;
+}
+
+// 6) Artificially long chain of tiny blocks that set booleans and eventually merge.
+//    This stresses phi predecessor ordering and many small basic blocks like the large function.
+public func long_chain_merge(name_w : *u16) : bool {
+    var b0 : bool = false;
+    var b1 : bool = false;
+    var b2 : bool = false;
+    var b3 : bool = false;
+
+    if (name_w[0] == '.' as u16) {
+        b0 = true;
+    } else {
+        b1 = true;
+    }
+
+    if (name_w[1] == 0u16) {
+        b2 = true;
+    } else {
+        b3 = true;
+    }
+
+    // many merges
+    var skip : bool = false;
+    if (b0 && b2) skip = true;
+    else if (b0 && b3) skip = false;
+    else if (b1 && b2) skip = false;
+    else skip = false;
+
+    return !skip;
+}
+
 func test_bodmas() {
     test("4 + 2 / 2 == 5", () => {
         return (4 + 2 / 2) == 5;
@@ -155,4 +342,70 @@ func test_bodmas() {
         var res = (false || false) && !(false && false)
         return !res;
     })
+    test("complex branching based on logical expression - 1", () => {
+        return test_dot_filter(".") == false;
+    })
+    test("complex branching based on logical expression - 2", () => {
+        return test_dot_filter("..") == false;
+    })
+    test("complex branching based on logical expression - 3", () => {
+        return test_dot_filter("a");
+    })
+    test("complex branching based on logical expression - 4", () => {
+        return test_dot_filter(".a")
+    })
+    test("complex branching based on logical expression - 5", () => {
+        const arr = ['.' as u16, 0u16]
+        return test_dot_filter2(&arr[0]) == false;
+    })
+    test("complex branching based on logical expression - 6", () => {
+        const arr = ['.' as u16, '.' as u16, 0u16]
+        return test_dot_filter2(&arr[0]) == false;
+    })
+    test("complex branching based on logical expression - 7", () => {
+        const arr = ['a' as u16, 0u16]
+        return test_dot_filter2(&arr[0]);
+    })
+    test("complex branching based on logical expression - 8", () => {
+        const arr = ['.' as u16, 'a' as u16, 0u16]
+        return test_dot_filter2(&arr[0])
+    })
+
+    // run every new test across those vectors
+    test("phi xor lowering \"temp_stack_copy_u16(.)\"", () => { return temp_stack_copy_u16(&dot_u16[0]) == false });
+    test("phi xor lowering \"temp_stack_copy_u16(..)\"", () => { return temp_stack_copy_u16(&dotdot_u16[0]) == false });
+    test("phi xor lowering \"temp_stack_copy_u16(a)\"", () => { return temp_stack_copy_u16(&a_u16[0]) == true });
+    test("phi xor lowering \"temp_stack_copy_u16(.a)\"", () => { return temp_stack_copy_u16(&dota_u16[0]) == true });
+
+    test("phi xor lowering \"interleaved_calls_u16(.)\"", () => { return interleaved_calls_u16(&dot_u16[0]) == false });
+    test("phi xor lowering \"interleaved_calls_u16(..)\"", () => { return interleaved_calls_u16(&dotdot_u16[0]) == false });
+    test("phi xor lowering \"interleaved_calls_u16(a)\"", () => { return interleaved_calls_u16(&a_u16[0]) == true });
+    test("phi xor lowering \"interleaved_calls_u16(.a)\"", () => { return interleaved_calls_u16(&dota_u16[0]) == true });
+
+    test("phi xor lowering \"gep_and_bitcast(.)\"", () => { return gep_and_bitcast(&dot_u16[0]) == false });
+    test("phi xor lowering \"gep_and_bitcast(..)\"", () => { return gep_and_bitcast(&dotdot_u16[0]) == false });
+    test("phi xor lowering \"gep_and_bitcast(a)\"", () => { return gep_and_bitcast(&a_u16[0]) == true });
+    test("phi xor lowering \"gep_and_bitcast(.a)\"", () => { return gep_and_bitcast(&dota_u16[0]) == true });
+
+    test("phi xor lowering \"multi_way_merge(.)\"", () => { return multi_way_merge(&dot_u16[0]) == false });
+    test("phi xor lowering \"multi_way_merge(..)\"", () => { return multi_way_merge(&dotdot_u16[0]) == false });
+    test("phi xor lowering \"multi_way_merge(a)\"", () => { return multi_way_merge(&a_u16[0]) == true });
+    test("phi xor lowering \"multi_way_merge(.a)\"", () => { return multi_way_merge(&dota_u16[0]) == true });
+
+    test("phi xor lowering \"store_last_then_compare(.)\"", () => { return store_last_then_compare(&dot_u16[0]) == false });
+    test("phi xor lowering \"store_last_then_compare(..)\"", () => { return store_last_then_compare(&dotdot_u16[0]) == false });
+    test("phi xor lowering \"store_last_then_compare(a)\"", () => { return store_last_then_compare(&a_u16[0]) == true });
+    test("phi xor lowering \"store_last_then_compare(.a)\"", () => { return store_last_then_compare(&dota_u16[0]) == true });
+
+    test("phi xor lowering \"long_chain_merge(.)\"", () => { return long_chain_merge(&dot_u16[0]) == false });
+    test("phi xor lowering \"long_chain_merge(..)\"", () => { return long_chain_merge(&dotdot_u16[0]) == true });
+    test("phi xor lowering \"long_chain_merge(a)\"", () => { return long_chain_merge(&a_u16[0]) == true });
+    test("phi xor lowering \"long_chain_merge(.a)\"", () => { return long_chain_merge(&dota_u16[0]) == true });
+
 }
+
+// test vectors (., .., a, .a)
+var dot_u16 : [3]u16 = ['.' as u16, 0u16, 0u16];
+var dotdot_u16 : [4]u16 = ['.' as u16, '.' as u16, 0u16, 0u16];
+var a_u16 : [3]u16 = ['a' as u16, 0u16, 0u16];
+var dota_u16 : [4]u16 = ['.' as u16, 'a' as u16, 0u16, 0u16];

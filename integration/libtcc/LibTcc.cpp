@@ -91,8 +91,10 @@ TCCState* tcc_new_state(const char* exe_path, const char* debug_file_name, TCCMo
         case TCCMode::None:
             break;
         case TCCMode::Debug:
-        case TCCMode::DebugComplete:
             tcc_set_options(s, "-g -bt 25");
+            break;
+        case TCCMode::DebugComplete:
+            tcc_set_options(s, "-g -bt 25 -b");
             break;
     }
 

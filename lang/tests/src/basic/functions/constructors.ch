@@ -79,7 +79,9 @@ struct Derived78 : Base89 {
     @make
     func make() {
         // manually generated default constructor
-        k = 30
+        return Derived78 {
+            k : 30
+        }
     }
 
 }
@@ -100,9 +102,10 @@ struct UselessImplInitialization : UselessInterface {
 
     var first : ComposedInitializableStruct
 
+    // TODO: user shouldn't need to write this
     @make
     func make() {
-
+        return UselessImplInitialization {}
     }
 
     @override

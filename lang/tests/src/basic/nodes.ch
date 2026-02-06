@@ -135,11 +135,6 @@ struct DefaultInitStruct {
     var b : int = 98
 
     @constructor
-    func make() {
-
-    }
-
-    @constructor
     func make2(check : bool) {
         init {
             a(20)

@@ -199,7 +199,9 @@ struct TDISC : TDISB {
     var c : int
     @make
     func make() {
-        c = 938
+        return TDISC {
+            c = 938
+        }
     }
 }
 

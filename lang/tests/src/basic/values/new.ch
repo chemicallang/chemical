@@ -11,8 +11,10 @@ struct PointNew13 {
 
     @make
     func make(x : int, y : int) {
-        a = x;
-        b = y;
+        return PointNew13 {
+            a = x;
+            b = y;
+        }
     }
 
 }

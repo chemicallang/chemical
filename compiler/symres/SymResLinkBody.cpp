@@ -636,6 +636,11 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
                 linker.unsatisfied_type_err(value, func_type->returnType);
             }
         }
+    } else {
+        const auto func_type = linker.current_func_type;
+        if(func_type->returnType && func_type->returnType->kind() != BaseTypeKind::Void) {
+            linker.error(node) << "function expects a non void return of type '" << func_type->returnType->representation() << "'";
+        }
     }
 }
 
@@ -1118,7 +1123,7 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
                 linker.comptime_context = true;
             }
             link_seq(*this, node->body.value());
-            if(!node->is_constructor_fn() && !node->is_copy_fn() && node->returnType->canonical()->kind() != BaseTypeKind::Void) {
+            if(!node->is_copy_fn() && node->returnType->canonical()->kind() != BaseTypeKind::Void) {
                 verify_has_return(linker, node->body.value(), node->encoded_location());
             }
             linker.comptime_context = false;

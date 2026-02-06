@@ -118,7 +118,7 @@ public namespace std {
         public struct Future<T>{
             var p:*mut Promise<T>
             @constructor func constructor(pp:*mut Promise<T>) {
-                p=pp
+                return Future<T> { p : pp }
             }
             func get(&mut self):T {
                 p.m.lock();

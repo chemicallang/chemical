@@ -238,7 +238,7 @@ struct my_string {
 
     @constructor
     func constructor(value : *char, length : ubigint) {
-
+        return my_string {}
     }
 
     @delete

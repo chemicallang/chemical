@@ -4,7 +4,9 @@ struct Base89 {
 
     @make
     func make() {
-        i = 10
+        return Base89 {
+            i = 10
+        }
     }
 
 }
@@ -15,7 +17,7 @@ struct Field88 {
 
     @make
     func make() {
-        j = 20
+        return Field88 { j = 20 }
     }
 
 }
@@ -33,14 +35,18 @@ struct constructable_obj_comptime {
 
     @constructor
     func constructor(value : *char, length : size_t) {
-        data = null;
-        size = length;
+        return constructable_obj_comptime {
+            data = null;
+            size = length;
+        }
     }
 
     @constructor
     func empty_make() {
-        data = null
-        size = 0
+        return constructable_obj_comptime {
+            data = null
+            size = 0
+        }
     }
 
 }
@@ -94,7 +100,7 @@ struct ComposedInitializableStruct {
     var i : int
     @make
     func make() {
-        i = 8372534
+        return ComposedInitializableStruct { i = 8372534 }
     }
 }
 
@@ -120,9 +126,12 @@ struct constructor_calls_self_function {
     var b : int
     @make
     func make(p : int) {
-        a = p;
-        b = p;
-        double_it()
+        var c = constructor_calls_self_function {
+            a = p;
+            b = p;
+        }
+        c.double_it()
+        return c;
     }
     func double_it(&mut self) {
         a *= 2

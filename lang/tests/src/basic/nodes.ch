@@ -136,9 +136,9 @@ struct DefaultInitStruct {
 
     @constructor
     func make2(check : bool) {
-        init {
-            a(20)
-            b(30)
+        return DefaultInitStruct {
+            a = 20
+            b = 30
         }
     }
 
@@ -167,7 +167,7 @@ struct DefConsStruct {
     var value : int
     @make
     func make() {
-        value = 897
+        return DefConsStruct { value = 897 }
     }
 }
 

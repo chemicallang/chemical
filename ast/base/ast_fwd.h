@@ -90,8 +90,6 @@ class StructDefinition;
 
 class WhileLoop;
 
-class InitBlock;
-
 class EnumMember;
 
 class VariantCaseVariable;

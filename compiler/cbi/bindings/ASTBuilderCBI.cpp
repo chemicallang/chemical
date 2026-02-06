@@ -67,7 +67,6 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/values/CastedValue.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/values/SizeOfValue.h"
@@ -517,10 +516,6 @@ ImplDefinition* ASTBuildermake_impl_def(ASTBuilder* builder, BaseType* interface
     return new (builder->allocate<ImplDefinition>()) ImplDefinition({interface_type, location}, {struct_type, location}, parent_node, location);
 }
 
-InitBlock* ASTBuildermake_init_block(ASTBuilder* builder, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<InitBlock>()) InitBlock(parent_node, location);
-}
-
 InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location) {
     return new (builder->allocate<InterfaceDefinition>()) InterfaceDefinition(LOC_ID(*name, name_location), parent_node, location, specifier);
 }
@@ -771,10 +766,6 @@ void VariantDefinitionadd_member(VariantDefinition* definition, BaseDefMember* m
 
 void VariantMemberadd_param(VariantMember* member, VariantMemberParam* param) {
     member->values[param->name] = param;
-}
-
-void InitBlockadd_initializer(InitBlock* block, chem::string_view* name, Value* value) {
-    block->initializers[*name] = { value };
 }
 
 void* EmbeddedNodegetDataPtr(EmbeddedNode* node) {

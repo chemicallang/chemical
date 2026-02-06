@@ -15,7 +15,6 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/statements/UsingStmt.h"
-#include "ast/structures/InitBlock.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/IncDecNode.h"
@@ -643,12 +642,6 @@ public:
         }
         for(auto& child_val : value->chemical_values) {
             visit_it(child_val);
-        }
-    }
-
-    void VisitInitBlock(InitBlock* node) {
-        for(auto& i : node->initializers) {
-            visit_it(i.second.value);
         }
     }
 

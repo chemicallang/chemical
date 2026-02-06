@@ -155,8 +155,6 @@ public:
 
     void VisitLoopBlock(LoopBlock* node);
 
-    void VisitInitBlock(InitBlock* node);
-
     void VisitUnionDecl(UnionDef* node);
 
     void VisitUnsafeBlock(UnsafeBlock* node);

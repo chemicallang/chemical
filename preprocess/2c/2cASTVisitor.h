@@ -688,8 +688,6 @@ public:
 
     void VisitInterfaceDecl(InterfaceDefinition* node);
 
-    void VisitInitBlock(InitBlock* node);
-
     void VisitGenericTypeDecl(GenericTypeDecl* node);
 
     void VisitStructDecl(StructDefinition* node);

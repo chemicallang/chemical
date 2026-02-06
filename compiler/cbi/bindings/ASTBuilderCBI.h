@@ -205,8 +205,6 @@ extern "C" {
 
     ImplDefinition* ASTBuildermake_impl_def(ASTBuilder* builder, BaseType* interface_type, BaseType* struct_type, ASTNode* parent_node, uint64_t location);
 
-    InitBlock* ASTBuildermake_init_block(ASTBuilder* builder, ASTNode* parent_node, uint64_t location);
-
     InterfaceDefinition* ASTBuildermake_interface_def(ASTBuilder* builder, chem::string_view* name, uint64_t name_loc, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);
 
     Namespace* ASTBuildermake_namespace(ASTBuilder* builder, chem::string_view* name, uint64_t name_location, AccessSpecifier specifier, ASTNode* parent_node, uint64_t location);

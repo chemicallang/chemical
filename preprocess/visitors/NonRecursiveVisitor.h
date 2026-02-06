@@ -154,9 +154,6 @@ public:
     inline void VisitInterfaceDecl(InterfaceDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
-    inline void VisitInitBlock(InitBlock* node) {
-        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
-    }
     inline void VisitStructDecl(StructDefinition* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
@@ -623,9 +620,6 @@ public:
             case ASTNodeKind::InterfaceDecl:
                 static_cast<Derived*>(this)->VisitInterfaceDecl((InterfaceDefinition*) node);
                 return;
-            case ASTNodeKind::InitBlock:
-                static_cast<Derived*>(this)->VisitInitBlock((InitBlock*) node);
-                return;
             case ASTNodeKind::StructDecl:
                 static_cast<Derived*>(this)->VisitStructDecl((StructDefinition*) node);
                 return;
@@ -1033,9 +1027,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(InterfaceDefinition* node) {
         static_cast<Derived*>(this)->VisitInterfaceDecl(node);
-    }
-    inline void VisitByPtrTypeNoNullCheck(InitBlock* node) {
-        static_cast<Derived*>(this)->VisitInitBlock(node);
     }
     inline void VisitByPtrTypeNoNullCheck(StructDefinition* node) {
         static_cast<Derived*>(this)->VisitStructDecl(node);

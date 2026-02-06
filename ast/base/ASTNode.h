@@ -434,10 +434,6 @@ public:
     // Helper is methods
     //---------------------------------------------
 
-    static inline constexpr bool isInitBlock(ASTNodeKind k) {
-        return k == ASTNodeKind::InitBlock;
-    }
-
     static inline constexpr bool isValueWrapperNode(ASTNodeKind k) {
         return k == ASTNodeKind::ValueWrapper;
     }
@@ -621,13 +617,6 @@ public:
     //---------------------------------------------
     // Helper as (safe) methods
     //---------------------------------------------
-
-    /**
-     * return as init block safely
-     */
-    inline InitBlock* as_init_block() {
-        return isInitBlock(kind()) ? (InitBlock*) this : nullptr;
-    }
 
     /**
      * get as value wrapper node safely
@@ -1154,14 +1143,6 @@ public:
     inline Namespace* as_namespace_unsafe() {
         CHECK_CAST(ASTNodeKind::NamespaceDecl);
         return (Namespace*) this;
-    }
-
-    /**
-     * as init block
-     */
-    inline InitBlock* as_init_block_unsafe() {
-        CHECK_CAST(ASTNodeKind::InitBlock);
-        return (InitBlock*) this;
     }
 
     /**

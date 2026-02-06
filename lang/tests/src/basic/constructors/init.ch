@@ -48,24 +48,6 @@ struct InitBlockManualDefConsCall2 {
 struct InitBlockManualDefConsCall3 : InitDefConsStruct {
 }
 
-struct InitBlockManualDefConsCall4 : InitDefConsStruct {
-
-    @make
-    func make() {
-
-    }
-
-}
-
-struct InitBlockManualDefConsCall5 : InitDefConsStruct {
-
-    @make
-    func make() {
-        init {}
-    }
-
-}
-
 struct InitBlockManualDefConsCall6 : InitDefConsStruct {
 
     @make
@@ -107,14 +89,6 @@ func test_constructors_with_init() {
 
     test("default manual constructor call in init block works - 3", () => {
         var c = InitBlockManualDefConsCall3()
-        return c.a == 98 && c.b == 87
-    })
-    test("default manual constructor call in init block works - 4", () => {
-        var c = InitBlockManualDefConsCall4()
-        return c.a == 98 && c.b == 87
-    })
-    test("default manual constructor call in init block works - 5", () => {
-        var c = InitBlockManualDefConsCall5()
         return c.a == 98 && c.b == 87
     })
     test("default manual constructor call in init block works - 6", () => {

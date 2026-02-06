@@ -54,8 +54,10 @@ struct MediaFeature {
     
     @make
     func make() {
-        leftOp = MediaFeatureComparison.None
-        rightOp = MediaFeatureComparison.None
+        return {
+            leftOp = MediaFeatureComparison.None
+            rightOp = MediaFeatureComparison.None
+        }
     }
     
 }
@@ -78,10 +80,12 @@ struct MediaCondition {
     
     @make
     func make() {
-        feature = null
-        op = MediaConditionOp.None
-        next = null
-        isNot = false
+        return {
+            feature = null
+            op = MediaConditionOp.None
+            next = null
+            isNot = false
+        }
     }
     
 }
@@ -106,9 +110,11 @@ struct MediaQuery {
     
     @make
     func make() {
-        modifier = MediaModifier.None
-        mediaType = MediaType.Unknown
-        condition = null
+        return {
+            modifier = MediaModifier.None
+            mediaType = MediaType.Unknown
+            condition = null
+        }
     }
     
 }

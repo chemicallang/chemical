@@ -23,7 +23,7 @@ struct CSSKeywordValueData {
 
     @make
     func make() {
-        kind = CSSKeywordKind.Unknown
+        return { kind = CSSKeywordKind.Unknown }
     }
 
 }
@@ -39,7 +39,7 @@ struct CSSLengthValueData {
 
     @make
     func make() {
-        kind = CSSLengthKind.Unknown
+        return { kind = CSSLengthKind.Unknown }
     }
 }
 
@@ -272,8 +272,10 @@ struct BackgroundImageData {
 
     @make
     func make() {
-        url = UrlData()
-        gradient = GradientData()
+        return {
+            url = UrlData()
+            gradient = GradientData()
+        }
     }
 
 }
@@ -325,7 +327,7 @@ struct CSSLinearEasingPoint {
 
     @make
     func make() {
-        next = null
+        return { next = null }
     }
 
 }
@@ -368,7 +370,12 @@ struct CSSEasingFunction {
 
     @make
     func make() {
-        kind = CSSKeywordKind.Unknown
+        return {
+            kind = CSSKeywordKind.Unknown,
+            data = {
+                steps : null
+            }
+        }
     }
 
 }
@@ -390,7 +397,7 @@ struct CSSTransitionValueData {
 
     @make
     func make() {
-        next = null
+        return { next = null }
     }
 
 }
@@ -403,7 +410,7 @@ struct CSSTransformLengthNode {
 
     @make
     func make() {
-        next = null
+        return { next = null }
     }
 
 }
@@ -418,8 +425,10 @@ struct CSSTransformValueData {
 
     @make
     func make() {
-        node = null
-        next = null
+        return {
+            node = null
+            next = null
+        }
     }
 
 }
@@ -437,8 +446,10 @@ struct CSSBoxShadowValueData {
 
     @make
     func empty() {
-        inset = false;
-        next = null
+        return {
+            inset = false;
+            next = null
+        }
     }
 
     func isEmpty(&self) : bool {
@@ -458,7 +469,7 @@ struct CSSTextShadowValueData {
 
     @make
     func empty() {
-        next = null
+        return { next = null }
     }
 
     func isEmpty(&self) : bool {
@@ -480,7 +491,7 @@ struct CSSBackdropFilterValueData {
 
     @make
     func empty() {
-        next = null
+        return { next = null }
     }
 
 };
@@ -527,8 +538,10 @@ struct CSSValue {
 
     @make
     func empty() {
-        kind = CSSValueKind.Unknown
-        data = null
+        return {
+            kind = CSSValueKind.Unknown
+            data = null
+        }
     }
 
     func isUnknown(&self) : bool {

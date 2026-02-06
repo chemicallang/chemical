@@ -12,7 +12,9 @@ struct ValueParserMap {
 
     @make
     func make() {
-        putAllCSSValueParsers(map)
+        var m = ValueParserMap{}
+        putAllCSSValueParsers(m.map)
+        return m;
     }
 
     func getParserFor(&self, name : &std::string_view) : *void {

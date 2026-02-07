@@ -55,10 +55,22 @@ public func <T : JsonStringEmitter> escape_string_into(emitter : &T, str: &std::
         switch (ch) {
             '"'  => emitter.append_view("\\\"");
             '\\' => emitter.append_view("\\\\");
+            '\b' => emitter.append_view("\\b");
+            '\f' => emitter.append_view("\\f");
             '\n' => emitter.append_view("\\n");
             '\r' => emitter.append_view("\\r");
             '\t' => emitter.append_view("\\t");
-            default => emitter.append_char(ch)
+            default => {
+                const uch = ch as uchar;
+                if (uch <= 0x1F) {
+                    emitter.append_view("\\u00");
+                    const hex = "0123456789abcdef";
+                    emitter.append_char(hex[(uch >> 4) & 0xF]);
+                    emitter.append_char(hex[uch & 0xF]);
+                } else {
+                    emitter.append_char(ch)
+                }
+            }
         }
         i++;
     }

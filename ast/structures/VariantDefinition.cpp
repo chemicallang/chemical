@@ -78,8 +78,27 @@ llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Type* def_
 
 llvm::Value* VariantDefinition::get_param_pointer(Codegen& gen, llvm::Value* pointer, VariantMemberParam* param) {
     const auto mem = param->parent();
-    const auto container_type = llvm_type_with_member(gen, mem);
-    return get_param_pointer(gen, container_type, pointer, param);
+    const auto def = mem->parent();
+    
+    // We must use the canonical type for the initial GEP to ensure the offset to the payload container (union) is correct.
+    // The canonical type is based on the largest member, which determines the alignment padding between the tag and the payload.
+    const auto canonical_type = def->llvm_type(gen);
+    
+    // 1. Get pointer to the variant payload container (the union-like struct) in the canonical layout.
+    // idxList: {0 (base), 1 + direct_inh_composed_structs (payload index)}
+    std::initializer_list<llvm::Value*> payloadIdxList { gen.builder->getInt32(0), gen.builder->getInt32(1 + direct_inh_composed_structs(def)) };
+    auto payload_ptr = gen.builder->CreateGEP(canonical_type, pointer, payloadIdxList, "", gen.inbounds);
+    
+    // 2. The payload field itself is an anonymous struct containing the member struct.
+    // We bitcast only the payload pointer to the specific member's payload field type.
+    std::vector<llvm::Type*> sub_elements { mem->llvm_raw_struct_type(gen) };
+    const auto specific_payload_type = llvm::StructType::get(*gen.ctx, sub_elements);
+    const auto casted_payload_ptr = gen.builder->CreateBitCast(payload_ptr, llvm::PointerType::getUnqual(specific_payload_type));
+    
+    // 3. Now we GEP into the member's parameters within that payload structure.
+    // idxList: {0 (base deref), 0 (inner struct), param->index}
+    std::initializer_list<llvm::Value*> paramIdxList { gen.builder->getInt32(0), gen.builder->getInt32(0), gen.builder->getInt32((int) param->index) };
+    return gen.builder->CreateGEP(specific_payload_type, casted_payload_ptr, paramIdxList, "", gen.inbounds);
 }
 
 llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {

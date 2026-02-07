@@ -48,17 +48,24 @@ public:
 #endif
 
     /**
+     * this changes with each job, currently it doesn't change in the middle of the job
+     * but we may support that for some modules
+     */
+    OutputMode out_mode = OutputMode::Debug;
+
+    /**
      * default output mode
      */
-    OutputMode outMode = OutputMode::Debug;
+    OutputMode def_out_mode = OutputMode::Debug;
 
     /**
      * plugin mode, plugins are compiled in this mode
+     * usually when user changes his mode using --mode we don't want to
      */
 #ifdef DEBUG
-    OutputMode pluginMode = OutputMode::Debug;
+    OutputMode def_plugin_mode = OutputMode::Debug;
 #else
-    OutputMode pluginMode = OutputMode::ReleaseFast;
+    OutputMode def_plugin_mode = OutputMode::ReleaseFast;
 #endif
 
     /**

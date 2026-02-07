@@ -83,8 +83,7 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
         job->target_triple.append(target_triple);
     }
     // setting the default output mode
-    job->mode = options->outMode;
-    set_job_mode(job->target_data, options->outMode);
+    set_job_mode(job->target_data, options->out_mode);
     // setting job specific variables
 #ifdef LSP_BUILD
     job->target_data.lsp = true;
@@ -243,7 +242,7 @@ LabJob* LabBuildContext::translate_to_chemical(
         LabModule* module,
         chem::string_view* out_path
 ) {
-    auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"));
+    auto job = new LabJob(LabJobType::ToChemicalTranslation, chem::string("ToChemicalJob"), compiler.options->def_out_mode);
     initialize_job(job, compiler.options);
     executables.emplace_back(job);
     job->abs_path.append(*out_path);
@@ -260,7 +259,7 @@ LabJob* LabBuildContext::translate_to_c(
         chem::string_view* name,
         chem::string_view* out_path
 ) {
-    auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name));
+    auto job = new LabJob(LabJobType::ToCTranslation, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(job, compiler.options);
     executables.emplace_back(job);
     set_build_dir(job);
@@ -271,7 +270,7 @@ LabJob* LabBuildContext::translate_to_c(
 LabJob* LabBuildContext::build_exe(
         chem::string_view* name
 ) {
-    auto exe = new LabJob(LabJobType::Executable, chem::string(*name));
+    auto exe = new LabJob(LabJobType::Executable, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
@@ -286,7 +285,7 @@ LabJob* LabBuildContext::build_exe(
 LabJob* LabBuildContext::run_jit_exe(
         chem::string_view* name
 ) {
-    auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name));
+    auto exe = new LabJob(LabJobType::JITExecutable, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
@@ -301,7 +300,7 @@ LabJob* LabBuildContext::run_jit_exe(
 LabJob* LabBuildContext::build_dynamic_lib(
         chem::string_view* name
 ) {
-    auto exe = new LabJob(LabJobType::Library, chem::string(*name));
+    auto exe = new LabJob(LabJobType::Library, chem::string(*name), compiler.options->def_out_mode);
     initialize_job(exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);
@@ -320,7 +319,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
 LabJob* LabBuildContext::build_cbi(
         chem::string_view* name
 ) {
-    auto exe = new LabJobCBI(chem::string(*name));
+    auto exe = new LabJobCBI(chem::string(*name), compiler.options->def_plugin_mode);
     initialize_job((LabJob*) exe, compiler.options);
     executables.emplace_back(exe);
     set_build_dir(exe);

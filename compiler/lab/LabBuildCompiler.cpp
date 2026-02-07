@@ -92,7 +92,7 @@ TCCMode to_tcc_mode(OutputMode mode, bool debug_info) {
 }
 
 inline TCCMode to_tcc_mode(LabBuildCompilerOptions* options) {
-    return to_tcc_mode(options->outMode, options->debug_info);
+    return to_tcc_mode(options->out_mode, options->debug_info);
 }
 
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
@@ -161,7 +161,13 @@ LabBuildCompiler::LabBuildCompiler(
 }
 
 int LabBuildCompiler::do_job(LabJob* job) {
+
+    // switch the mode to current job's mode
+    auto previous_mode = options->out_mode;
+    options->out_mode = job->mode;
+
     const auto bm = options->benchmark;
+    current_job = job;
 
     // benchmark
     BenchmarkResults bm_res;
@@ -204,6 +210,8 @@ int LabBuildCompiler::do_job(LabJob* job) {
         bm_res.benchmark_end();
         ASTProcessor::print_benchmarks(std::cout, "bm:job", job->name.to_view(), &bm_res);
     }
+
+    options->out_mode = previous_mode;
 
     return return_int;
 }
@@ -317,7 +325,7 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
         }
 
         // let's check if module timestamp file exists and is valid (files haven't changed)
-        if (compare_mod_timestamp(paths, mod_timestamp_file)) {
+        if (compare_mod_timestamp(paths, mod_timestamp_file, compiler->options->out_mode)) {
 
             if (verbose) {
 
@@ -336,7 +344,7 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
     } else {
 
         // let's check if module timestamp file exists and is valid (files haven't changed)
-        if (compare_mod_timestamp(direct_files, mod_timestamp_file)) {
+        if (compare_mod_timestamp(direct_files, mod_timestamp_file, compiler->options->out_mode)) {
 
             if (verbose) {
 
@@ -445,7 +453,7 @@ bool determine_if_files_have_changed(LabBuildCompiler* compiler, const std::vect
         }
 
         // let's check if module timestamp file exists and is valid (files haven't changed)
-        if (compare_mod_timestamp(files, mod_timestamp_file)) {
+        if (compare_mod_timestamp(files, mod_timestamp_file, compiler->options->out_mode)) {
 
             if (verbose) {
 
@@ -766,7 +774,7 @@ int LabBuildCompiler::process_module_tcc(
         auto partial_c_out = get_partial_c_path(build_dir, mod);
         writeToFile(partial_c_out, view);
         // save a mod timestamp
-        save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, true));
+        save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, true), options->out_mode);
     }
 
     if(verbose) {
@@ -964,7 +972,7 @@ int LabBuildCompiler::process_module_gen(
     CodegenEmitterOptions emitter_options;
     // emitter options allow to configure type of build (debug or release)
     // configuring the emitter options
-    configure_emitter_opts(options->outMode, &emitter_options);
+    configure_emitter_opts(options->out_mode, &emitter_options);
     if (options->def_lto_on) {
         emitter_options.lto = true;
     }
@@ -1005,7 +1013,7 @@ int LabBuildCompiler::process_module_gen(
     const bool save_result = gen.save_with_options(&emitter_options);
     if(save_result) {
         if(caching && !gen_path.empty()) {
-            save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, false));
+            save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, false), options->out_mode);
         }
     } else {
         std::cerr << "[lab] failed to emit file '" << gen_path << '\'' << std::endl;
@@ -1119,7 +1127,7 @@ int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const st
         for (auto& path: mod->paths) {
             paths.emplace_back(path.to_view());
         }
-        save_mod_timestamp(paths, mod_timestamp_file);
+        save_mod_timestamp(paths, mod_timestamp_file, compiler->options->out_mode);
     }
     return 0;
 }
@@ -1250,7 +1258,7 @@ int LabBuildCompiler::launch_tcc_jit_exe(LabJob* job, std::vector<LabModule*>& d
 
     // output mode argument
     char modebuf[64];
-    int written = snprintf(modebuf, sizeof(modebuf), "%s", to_string(options->outMode));
+    int written = snprintf(modebuf, sizeof(modebuf), "%s", to_string(options->out_mode));
     if (written <= 0) return -2;
     argv[argi++] = modebuf;
 
@@ -1280,7 +1288,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     // tiny cc links in some functions when using -b, which is used in debug complete
     // when we use cache, we output object files with -b, now if user changes the mode to release
     // we still use the same cache for plugins and without recompilation, there are link errors
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options->pluginMode, options->debug_info));
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
@@ -1703,7 +1711,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     create_or_rebind_container(this, global, resolver, job->target_data);
 
     // before compilation of the module, we prepare the target machine
-    const auto machine = gen.setup_for_target(gen.target_triple, is_debug(options->outMode));
+    const auto machine = gen.setup_for_target(gen.target_triple, is_debug(options->out_mode));
     if(machine == nullptr) {
         std::cerr << "[lab] " << "failure to create target machine" << std::endl;
         return 1;
@@ -1813,10 +1821,10 @@ int link_objects_now(
     }
 #ifdef COMPILER_BUILD
     if(use_tcc) {
-        return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));
+        return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->out_mode, options->debug_info));
     } else {
         LinkFlags linkFlags;
-        linkFlags.debug_info = options->debug_info || is_debug_or_compl(options->outMode);
+        linkFlags.debug_info = options->debug_info || is_debug_or_compl(options->out_mode);
         linkFlags.verbose = options->verbose_link;
         linkFlags.no_pie = options->no_pie;
         int link_result;
@@ -1831,7 +1839,7 @@ int link_objects_now(
         return link_result;
     }
 #else
-    return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->outMode, options->debug_info));
+    return link_objects_tcc(options->exe_path, objects, link_libs, output_path, to_tcc_mode(options->out_mode, options->debug_info));
 #endif
 }
 
@@ -2580,7 +2588,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     } else {
 
         // since object file compilation was successful, we should save a timestamp
-        save_mod_timestamp(module_files, std::string_view(buildLabTimestamp));
+        save_mod_timestamp(module_files, std::string_view(buildLabTimestamp), options->out_mode);
 
     }
 
@@ -2680,7 +2688,6 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
     return do_allocating((void*) job, [](LabBuildCompiler* compiler, void* data) {
 
         const auto job = (LabJob*) data;
-        compiler->current_job = job;
         return compiler->do_job(job);
 
     });
@@ -2700,7 +2707,7 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // a global interpret scope required to evaluate compile time things
     // empty target triple, because we are targeting the current system
-    GlobalInterpretScope global(options->outMode, targetData, nullptr, this, *job_allocator, type_builder, loc_man);
+    GlobalInterpretScope global(options->out_mode, targetData, nullptr, this, *job_allocator, type_builder, loc_man);
 
     // instantiations container holds the types
     InstantiationsContainer instContainer;
@@ -2744,7 +2751,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     create_dir(lab_mods_dir);
 
     // lets create the job for jit of build.lab/chemical.mod file
-    LabJob build_job(LabJobType::JITExecutable, chem::string("build"), chem::string(""), chem::string(options->build_dir));
+    LabJob build_job(LabJobType::JITExecutable, chem::string("build"), chem::string(""), chem::string(options->build_dir), options->def_out_mode);
     LabBuildContext::initialize_job(&build_job, options);;
 
     // get build lab file into a tcc state
@@ -2807,8 +2814,6 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     // generating outputs (executables)
     for(auto& exe : context.executables) {
-
-        current_job = exe.get();
 
         job_result = do_job(exe.get());
         if(job_result != 0) {

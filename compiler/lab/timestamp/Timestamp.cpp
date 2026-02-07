@@ -10,10 +10,15 @@ namespace fs = std::filesystem;
  * save mod timestamp data (modified date and file size) in a file that can be read later and compared
  * to check if files have changed
  */
-void save_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& output_file) {
+void save_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& output_file, OutputMode mode) {
     std::ofstream ofs(output_file.data(), std::ios::binary);
     size_t num_files = files.size();
     ofs.write(reinterpret_cast<const char*>(&num_files), sizeof(num_files));
+
+    // write the mode
+    int mode_int = static_cast<int>(mode);
+    ofs.write(reinterpret_cast<const char*>(&mode_int), sizeof(mode_int));
+
     for (const auto& file_abs_path : files) {
         fs::path file_path(file_abs_path);
         if (fs::exists(file_path)) {
@@ -28,26 +33,26 @@ void save_mod_timestamp(const std::vector<std::string_view>& files, const std::s
     }
 }
 
-void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& output_file) {
+void save_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& output_file, OutputMode mode) {
     std::vector<std::string_view> paths;
     paths.reserve(files.size());
     for(const auto& f : files) {
         paths.emplace_back(f.abs_path);
     }
-    save_mod_timestamp(paths, output_file);
+    save_mod_timestamp(paths, output_file, mode);
 }
 
-void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& output_file) {
+void save_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& output_file, OutputMode mode) {
     std::vector<std::string_view> paths;
     paths.reserve(files.size());
     for(const auto f : files) {
         // TODO: we should not be putting files that are external to module (imported using '@' usually)
         paths.emplace_back(f->abs_path);
     }
-    save_mod_timestamp(paths, output_file);
+    save_mod_timestamp(paths, output_file, mode);
 }
 
-bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file) {
+bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std::string_view& prev_timestamp_file, OutputMode mode) {
     std::ifstream ifs(prev_timestamp_file.data(), std::ios::binary);
 
     if (!ifs.is_open()) {
@@ -58,6 +63,13 @@ bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std
     ifs.read(reinterpret_cast<char*>(&prev_num_files), sizeof(prev_num_files));
 
     if (prev_num_files != files.size()) {
+        return false;
+    }
+
+    // read and compare the mode
+    int prev_mode_int;
+    ifs.read(reinterpret_cast<char*>(&prev_mode_int), sizeof(prev_mode_int));
+    if (prev_mode_int != static_cast<int>(mode)) {
         return false;
     }
 
@@ -90,20 +102,20 @@ bool compare_mod_timestamp(const std::vector<std::string_view>& files, const std
     return true;
 }
 
-bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& prev_timestamp_file) {
+bool compare_mod_timestamp(const std::vector<ASTFileMetaData>& files, const std::string_view& prev_timestamp_file, OutputMode mode) {
     std::vector<std::string_view> paths;
     paths.reserve(files.size());
     for(const auto& f : files) {
         paths.emplace_back(f.abs_path);
     }
-    return compare_mod_timestamp(paths, prev_timestamp_file);
+    return compare_mod_timestamp(paths, prev_timestamp_file, mode);
 }
 
-bool compare_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& prev_timestamp_file) {
+bool compare_mod_timestamp(const std::vector<ASTFileResult*>& files, const std::string_view& prev_timestamp_file, OutputMode mode) {
     std::vector<std::string_view> paths;
     paths.reserve(files.size());
     for(const auto f : files) {
         paths.emplace_back(f->abs_path);
     }
-    return compare_mod_timestamp(paths, prev_timestamp_file);
+    return compare_mod_timestamp(paths, prev_timestamp_file, mode);
 }

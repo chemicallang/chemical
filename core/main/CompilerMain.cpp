@@ -60,6 +60,7 @@ void print_help() {
                  "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
                  "configure           -[empty]      configures the compiler for this OS\n"
                  "--mode              -m            debug or release mode : debug, debug_quick, release_small, release_fast\n"
+                 "--plugin-mode       -pm           debug or release mode : debug, debug_quick, release_small, release_fast\n"
                  "--output            -o            specify a output file, output determined by it's extension\n"
                  "--out-ll  <path>    -[empty]      specify a path to output a .ll file containing llvm ir\n"
                  "--out-asm <path>    -[empty]      specify a path to output a .s file containing assembly\n"
@@ -402,7 +403,9 @@ OutputMode get_output_mode(std::optional<std::string_view>& mode_opt, bool verbo
     }
 #ifdef DEBUG
     else {
-        std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
+        if(verbose) {
+            std::cout << "mode: Debug Quick Enabled (debug_quick)" << std::endl;
+        }
         return OutputMode::DebugQuick;
     }
 #endif
@@ -467,6 +470,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("ranlib", CmdOptionType::SubCommand),
             CmdOption("lib", CmdOptionType::SubCommand),
             CmdOption("mode", "m", CmdOptionType::SingleValue),
+            CmdOption("plugin-mode", "pm", CmdOptionType::SingleValue),
             CmdOption("version", CmdOptionType::NoValue),
             CmdOption("help", CmdOptionType::NoValue),
             CmdOption("minify-c", "minify-c", CmdOptionType::NoValue),
@@ -628,6 +632,11 @@ int compiler_main(int argc, char *argv[]) {
         opts->use_mod_obj_format = !options.has_value("use-bc", "use-bitcode");
 #endif
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
+        auto mode_opt = options.option_new("plugin-mode", "pm");
+        if(mode_opt.has_value()) {
+            const auto mode = get_output_mode(mode_opt, false);
+            opts->pluginMode = mode;
+        }
         if(options.has_value("no-cache")) {
             opts->is_caching_enabled = false;
         }

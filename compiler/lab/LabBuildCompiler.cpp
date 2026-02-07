@@ -1276,7 +1276,11 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     auto& job_name = cbiJob->name;
     auto cbiName = cbiJob->name.to_std_string();
 
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
+    // plugin mode is used, reason its separate is because
+    // tiny cc links in some functions when using -b, which is used in debug complete
+    // when we use cache, we output object files with -b, now if user changes the mode to release
+    // we still use the same cache for plugins and without recompilation, there are link errors
+    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options->pluginMode, options->debug_info));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;

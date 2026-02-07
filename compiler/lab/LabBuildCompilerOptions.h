@@ -53,6 +53,15 @@ public:
     OutputMode outMode = OutputMode::Debug;
 
     /**
+     * plugin mode, plugins are compiled in this mode
+     */
+#ifdef DEBUG
+    OutputMode pluginMode = OutputMode::Debug;
+#else
+    OutputMode pluginMode = OutputMode::ReleaseFast;
+#endif
+
+    /**
      * should the generated c code be minified
      */
     bool minify_c = false;

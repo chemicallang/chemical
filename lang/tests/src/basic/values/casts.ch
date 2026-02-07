@@ -97,4 +97,11 @@ func test_casts() {
         const casted = can_implicit_cast_from_intN_typealias(18);
         return casted == 18;
     })
+    test("cast negative int to pointer (sign extension)", () => {
+        var i : int = -1;
+        var p = i as *void;
+        // if sign extended correctly, it should be -1L (64-bit)
+        // if zero extended (bug), it would be 4294967295L
+        return (p as long) == -1L;
+    })
 }

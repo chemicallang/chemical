@@ -249,42 +249,6 @@ LabModule* create_module(std::vector<std::unique_ptr<LabModule>>& modules, const
     return mod;
 }
 
-void include_mod_command_modules(
-        std::vector<std::unique_ptr<LabModule>>& modules,
-        const std::span<std::string_view>& command_values,
-        LabJob& job,
-        LabModule* main_mod
-) {
-    if(command_values.empty()) return;
-    for(auto& lib : command_values) {
-        auto found = lib.find('=');
-        if(found != std::string::npos) {
-            chem::string_view scope_name;
-            auto name = chem::string_view(lib.data(), found);
-            auto scope_name_sep = name.view().find(':');
-            if(scope_name_sep != std::string_view::npos) {
-                scope_name = chem::string_view(name.data(), scope_name_sep);
-                name = chem::string_view(name.data() + (scope_name_sep + 1));
-            }
-            auto path = chem::string_view(lib.data() + (found + 1));
-            const auto existing = find_module(modules, scope_name, name);
-            if(existing) {
-                existing->paths.emplace_back(path);
-            } else {
-                const auto mod = create_module(modules, scope_name, name, path, LabModuleType::Directory);
-                main_mod->add_dependency(mod);
-            }
-        } else {
-            std::cerr << rang::fg::red << "the argument to --mod must be formatted as <name>=<path>" << rang::fg::reset;
-        }
-    }
-}
-
-void include_mod_d_modules(std::vector<std::unique_ptr<LabModule>>& modules, CmdOptions& options, LabJob& job, LabModule* main_mod) {
-    auto libs = options.data.find("mod")->second.get_multi_opt_values();
-    include_mod_command_modules(modules, libs, job, main_mod);
-}
-
 void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& module, std::vector<std::unique_ptr<LabModule>>& dependencies) {
 
     // set the build directory for the job
@@ -297,8 +261,6 @@ void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& modul
     take_linked_libs(job, options);
 
     auto start = dependencies.size(); // where additional modules begin
-
-    include_mod_d_modules(dependencies, options, job, &module);
 
     // setting output for ll, bc, obj and asm files for corresponding modules
     const auto has_ll = options.has_value("out-ll-all");
@@ -316,59 +278,6 @@ void set_options_for_main_job(CmdOptions& options, LabJob& job, LabModule& modul
         start++;
     }
 
-}
-
-void build_cbi_modules(LabBuildCompiler& compiler, CmdOptions& options) {
-    auto libs = options.data.find("cbi-m")->second.get_multi_opt_values();
-    for(auto& lib : libs) {
-        auto found = lib.find(':');
-        if(found != std::string::npos) {
-            auto name = chem::string_view(lib.data(), found);
-            auto path = chem::string_view(lib.data() + (found + 1));
-
-            // creating the job and module and setting options for it
-            LabJob job(LabJobType::CBI, chem::string(name), chem::string(path), chem::string(compiler.options->build_dir));
-            LabModule mod(LabModuleType::Directory, chem::string(""), chem::string(name));
-            mod.paths.emplace_back(path);
-            job.dependencies.emplace_back(&mod);
-            std::vector<std::unique_ptr<LabModule>> dependencies;
-            set_options_for_main_job(options, job, mod, dependencies);
-
-            compiler.do_job_allocating(&job);
-            auto cbiDataItr = compiler.binder.data.find(name.str());
-            if(cbiDataItr != compiler.binder.data.end()) {
-                auto& cbiData = cbiDataItr->second;
-                if(cbiData.module == nullptr) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't have any data present" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                const auto module = cbiData.module;
-                auto sym = tcc_get_symbol(module, "initializeLexer");
-                if(!sym) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'initializeLexer'" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                auto sym2 = tcc_get_symbol(module, "parseMacroValue");
-                if(!sym2) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroValue'" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                auto sym3 = tcc_get_symbol(module, "parseMacroNode");
-                if(!sym3) {
-                    std::cerr << rang::fg::red << "cbi with name '" << name << "' doesn't contain function 'parseMacroNode'" << rang::fg::reset << std::endl;
-                    continue;
-                }
-                auto& cbi_name_ref = cbiDataItr->first;
-                auto cbi_name = chem::string_view(cbi_name_ref.data(), cbi_name_ref.size());
-                auto& binder = compiler.binder;
-                binder.registerHook(CBIFunctionType::InitializeLexer, cbi_name, sym);
-                binder.registerHook(CBIFunctionType::ParseMacroValue, cbi_name, sym2);
-                binder.registerHook(CBIFunctionType::ParseMacroNode, cbi_name, sym3);
-            }
-        } else {
-            std::cerr << rang::fg::red << "the argument to --cbi must be formatted as <name>:<directory_path>" << rang::fg::reset;
-        }
-    }
 }
 
 OutputMode get_output_mode(std::optional<std::string_view>& mode_opt, bool verbose) {
@@ -624,7 +533,7 @@ int compiler_main(int argc, char *argv[]) {
         opts->verbose_link = options.has_value("verbose-link", "vl");
         opts->minify_c = options.has_value("minify-c");
         opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
-        opts->debug_info = options.has_value("", "g") || (opts->outMode == OutputMode::Debug || opts->outMode == OutputMode::DebugComplete);
+        opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
         opts->use_tcc = options.has_value("use-tcc", "use-tcc");
@@ -635,7 +544,7 @@ int compiler_main(int argc, char *argv[]) {
         auto mode_opt = options.option_new("plugin-mode", "pm");
         if(mode_opt.has_value()) {
             const auto mode = get_output_mode(mode_opt, false);
-            opts->pluginMode = mode;
+            opts->def_plugin_mode = mode;
         }
         if(options.has_value("no-cache")) {
             opts->is_caching_enabled = false;
@@ -726,15 +635,13 @@ int compiler_main(int argc, char *argv[]) {
         compiler.set_cmd_options(&options);
 
         // Prepare compiler options
-        compiler_opts.outMode = mode;
+        compiler_opts.out_mode = mode;
+        compiler_opts.def_out_mode = mode;
         prepare_options(&compiler_opts);
-
-        // build cbi modules
-        build_cbi_modules(compiler, options);
 
         // translate the build.lab to a c file (for debugging)
         if(output.has_value() && output.value().ends_with(".c")) {
-            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir));
+            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir), mode);
             LabModule module(LabModuleType::Files, chem::string(""), chem::string("[BuildLabFile]"));
             module.paths.emplace_back(std::string(args[0]));
             job.dependencies.emplace_back(&module);
@@ -750,7 +657,6 @@ int compiler_main(int argc, char *argv[]) {
                 compiler.binder,
                 std::string(args[0])
         );
-        compiler_opts.outMode = mode;
 
         // giving build args to lab build context
         if(output.has_value()) {
@@ -783,7 +689,7 @@ int compiler_main(int argc, char *argv[]) {
             }
             auto job_type_opt = options.option_new("job-type", "jt");
             LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
-            LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(compiler_opts.build_dir));
+            LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(compiler_opts.build_dir), mode);
             LabBuildContext::initialize_job(&final_job, &compiler_opts);
             const auto result = compiler.build_mod_file(context, args[0], &final_job);
             return result;
@@ -803,11 +709,9 @@ int compiler_main(int argc, char *argv[]) {
     // set default compiler options
     // we disable cache (because its command line invocation)
     compiler_opts.is_caching_enabled = false;
-    compiler_opts.outMode = mode;
+    compiler_opts.out_mode = mode;
+    compiler_opts.def_out_mode = mode;
     prepare_options(&compiler_opts);
-
-    // build cbi modules
-    build_cbi_modules(compiler, options);
 
     // if not empty, this file will be removed at the end
     std::string_view temporary_obj;
@@ -869,7 +773,7 @@ int compiler_main(int argc, char *argv[]) {
 
     const auto defJobType = jit ? LabJobType::JITExecutable : LabJobType::Executable;
     auto job_type_opt = options.option_new("job-type", "jt");
-    LabJob job(getJobTypeFromOpt(job_type_opt, defJobType), chem::string("a"));
+    LabJob job(getJobTypeFromOpt(job_type_opt, defJobType), chem::string("a"), mode);
     job.mode = mode;
     if(!target.empty()) {
         // TODO: update the target data according to target triple

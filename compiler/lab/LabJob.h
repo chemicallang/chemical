@@ -99,8 +99,9 @@ struct LabJob {
      */
     inline LabJob(
             LabJobType type,
-            chem::string name
-    ) : type(type), name(std::move(name)) {
+            chem::string name,
+            OutputMode mode
+    ) : type(type), name(std::move(name)), mode(mode) {
 
     }
 
@@ -111,8 +112,9 @@ struct LabJob {
             LabJobType type,
             chem::string name,
             chem::string abs_path,
-            chem::string build_dir
-    ) : type(type), name(std::move(name)), abs_path(std::move(abs_path)), build_dir(std::move(build_dir)) {
+            chem::string build_dir,
+            OutputMode mode
+    ) : type(type), name(std::move(name)), abs_path(std::move(abs_path)), build_dir(std::move(build_dir)), mode(mode) {
 
     }
 
@@ -132,8 +134,9 @@ public:
      * constructor
      */
     inline LabJobCBI(
-            chem::string name
-    ) : LabJob(LabJobType::CBI, std::move(name)) {
+            chem::string name,
+            OutputMode mode
+    ) : LabJob(LabJobType::CBI, std::move(name), mode) {
 
     }
 
@@ -143,8 +146,9 @@ public:
     inline LabJobCBI(
             chem::string name,
             chem::string abs_path,
-            chem::string build_dir
-    ) : LabJob(LabJobType::CBI, std::move(name), std::move(abs_path), std::move(build_dir)) {
+            chem::string build_dir,
+            OutputMode mode
+    ) : LabJob(LabJobType::CBI, std::move(name), std::move(abs_path), std::move(build_dir), mode) {
 
     }
 

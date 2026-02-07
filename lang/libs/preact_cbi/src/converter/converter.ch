@@ -37,7 +37,7 @@ func (converter : &mut JsConverter) escapeJs(text : std::string_view) {
         } else if ((c1 & 0xE0) == 0xC0) {
             if (i + 1 < text.size()) {
                 const c2 = (text.data()[i+1] as uint) & 0xFF;
-                const codepoint = ((c1 & 0x1F) << 6) | (c2 & 0x3F);
+                const codepoint = ((c1 & 0x1F as uint) << 6u) | (c2 & 0x3F as uint);
                 str.append_view("\\u{");
                 converter.append_hex(codepoint);
                 str.append('}');
@@ -47,7 +47,7 @@ func (converter : &mut JsConverter) escapeJs(text : std::string_view) {
             if (i + 2 < text.size()) {
                 const c2 = (text.data()[i+1] as uint) & 0xFF;
                 const c3 = (text.data()[i+2] as uint) & 0xFF;
-                const codepoint = ((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
+                const codepoint = ((c1 & 0x0F as uint) << 12u) | ((c2 & 0x3F as uint) << 6u) | (c3 & 0x3F as uint);
                 str.append_view("\\u{");
                 converter.append_hex(codepoint);
                 str.append('}');
@@ -58,7 +58,7 @@ func (converter : &mut JsConverter) escapeJs(text : std::string_view) {
                 const c2 = (text.data()[i+1] as uint) & 0xFF;
                 const c3 = (text.data()[i+2] as uint) & 0xFF;
                 const c4 = (text.data()[i+3] as uint) & 0xFF;
-                const codepoint = ((c1 & 0x07) << 18) | ((c2 & 0x3F) << 12) | ((c3 & 0x3F) << 6) | (c4 & 0x3F);
+                const codepoint = ((c1 & 0x07 as uint) << 18u) | ((c2 & 0x3F as uint) << 12u) | ((c3 & 0x3F as uint) << 6u) | (c4 & 0x3F as uint);
                 str.append_view("\\u{");
                 converter.append_hex(codepoint);
                 str.append('}');
@@ -266,7 +266,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             const val = lit.value
             if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
                 converter.str.append(val.get(0));
-                converter.escapeJs(val.substr(1, val.size() - 2));
+                converter.escapeJs(val.subview(1, val.size() - 2));
                 converter.str.append(val.get(0));
             } else {
                 converter.str.append_view(val);

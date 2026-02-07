@@ -54,12 +54,7 @@ public:
      * this declares the functions inside the container (like MembersContainer) but it also
      * externally declares the extension functions inside this container
      */
-    void extendable_external_declare(Codegen& gen) {
-        external_declare(gen);
-        for(const auto decl : extension_functions) {
-            decl->code_gen_external_declare(gen);
-        }
-    }
+    void extendable_external_declare(Codegen& gen);
 
     /**
      * override declare this function

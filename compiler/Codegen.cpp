@@ -200,7 +200,8 @@ bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     return triple.isArch64Bit();
 }
 
-void Codegen::module_init(const chem::string_view& scope_name, const chem::string_view& module_name) {
+void Codegen::module_init(const chem::string_view& scope_name, const chem::string_view& module_name, ModuleScope* mod_scope) {
+    this->current_module = mod_scope;
 
     // final module name = 'scope_name' + '-' + 'module_name'
     std::string final_module_name;

@@ -177,6 +177,11 @@ public:
     llvm::TargetMachine* TargetMachine = nullptr;
 
     /**
+     * The module being compiled currently
+     */
+    ModuleScope* current_module = nullptr;
+
+    /**
      * The function being compiled currently
      */
     llvm::Function *current_function = nullptr;
@@ -288,7 +293,7 @@ public:
     /**
      * initializes the llvm module and context
      */
-    void module_init(const chem::string_view& scope_name, const chem::string_view& module_name);
+    void module_init(const chem::string_view& scope_name, const chem::string_view& module_name, ModuleScope* mod_scope = nullptr);
 
     /**
      * determine whether the system we are compiling for is 64bit or 32bit

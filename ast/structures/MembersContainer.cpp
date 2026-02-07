@@ -173,6 +173,22 @@ llvm::Function* declared_func(Codegen& gen, InterfaceDefinition* def, FunctionDe
     return ptr;
 }
 
+void ExtendableMembersContainerNode::extendable_external_declare(Codegen& gen) {
+    external_declare(gen);
+    for(const auto decl : extension_functions) {
+        if(gen.current_module == decl->get_mod_scope()) {
+            // this function is in the same module which is being compiled
+            // so we don't need to declare it
+            continue;
+        } else if(decl->specifier() < AccessSpecifier::Public) {
+            // the function exists in some other module and is non public
+            // user won't access it (should not be able to access it)
+            continue;
+        }
+        decl->code_gen_external_declare(gen);
+    }
+}
+
 void ExtendableMembersContainerNode::llvm_override_declare(Codegen& gen, FunctionDeclaration* function) {
     const auto inherited_func = inherited_function(function->name_view());
     if(inherited_func == nullptr) {

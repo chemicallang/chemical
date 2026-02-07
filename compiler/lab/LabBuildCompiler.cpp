@@ -857,7 +857,7 @@ int LabBuildCompiler::process_module_gen(
     cTranslator.module_begin();
 
     // prepare for code generation of this module
-    gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view());
+    gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view(), &mod->module_scope);
 
     // start a module scope in symbol resolver, that we can dispose later
     resolver.module_scope_start();

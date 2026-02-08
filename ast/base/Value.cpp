@@ -610,6 +610,12 @@ BaseType* Value::get_stored_value_type(ASTAllocator& allocator) {
 
 // stored pointer into a variable, that must be loaded, before using
 bool Value::is_stored_ptr_or_ref(ASTAllocator& allocator) {
+    switch(kind()) {
+        case ValueKind::CastedValue:
+            return as_casted_value_unsafe()->value->is_stored_ptr_or_ref(allocator);
+        default:
+            break;
+    }
     auto linked = linked_node();
     return linked != nullptr && linked->is_stored_ptr_or_ref(allocator);
 }

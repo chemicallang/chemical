@@ -93,7 +93,11 @@ public struct LongType : IntNType {}
 
 public struct LongLongType : IntNType {}
 
-public struct PointerType : BaseType {}
+public struct PointerType : BaseType {
+
+    func getChildType(&self) : *mut BaseType
+
+}
 
 public struct ReferenceType : BaseType {
 

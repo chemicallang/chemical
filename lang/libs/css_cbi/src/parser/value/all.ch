@@ -163,6 +163,7 @@ func putAllCSSValueParsers(
     map.put(std::string_view("font-optical-sizing"), CSSParser::parseFontOpticalSizing)
     map.put(std::string_view("scrollbar-gutter"), CSSParser::parseScrollbarGutter)
     map.put(std::string_view("grid-template-rows"), CSSParser::parseGridTemplateRows)
+    map.put(std::string_view("grid-template-columns"), CSSParser::parseGridTemplateColumns)
     map.put(std::string_view("backdrop-filter"), CSSParser::parseBackdropFilter)
 
 

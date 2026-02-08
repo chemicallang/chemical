@@ -142,6 +142,16 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
 func (converter : &mut ASTConverter) is_string_type(type : *mut BaseType) : bool {
     const kind = type.getKind()
     if(kind == BaseTypeKind.String) return true;
+    if(kind == BaseTypeKind.Pointer) {
+        const ptrType = type as *PointerType;
+        const child = ptrType.getChildType()
+        if(child != null && child.getKind() == BaseTypeKind.IntN) {
+            const intNType = child as *IntNType
+            if(intNType.get_intn_type_kind() == IntNTypeKind.Char) {
+                return true
+            }
+        }
+    }
     return false;
 }
 

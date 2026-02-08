@@ -608,6 +608,10 @@ LinkedType* GenericTypegetLinkedType(GenericType* type) {
     return type->referenced;
 }
 
+BaseType* PointerTypegetChildType(PointerType* type) {
+    return type->type;
+}
+
 BaseType* ReferenceTypegetChildType(ReferenceType* type) {
     return type->type;
 }

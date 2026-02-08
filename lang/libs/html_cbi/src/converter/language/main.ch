@@ -139,6 +139,12 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
     return call;
 }
 
+func (converter : &mut ASTConverter) is_string_type(type : *mut BaseType) : bool {
+    const kind = type.getKind()
+    if(kind == BaseTypeKind.String) return true;
+    return false;
+}
+
 @extern
 public func rand() : int;
 
@@ -570,19 +576,31 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
                     s.append_view(val.text)
                 }
                 AttributeValueKind.Chemical => {
-                    converter.emit_append_html_from_str(*s)
                     const val = attr.value as *mut ChemicalAttributeValue
+                    const type = val.value.getType()
+                    const is_str = converter.is_string_type(type)
+                    
+                    if(is_str) {
+                         s.append('"')
+                    }
+                    
+                    converter.emit_append_html_from_str(*s)
+                    
                     converter.put_chemical_value_in(val.value)
+                    
+                    if(is_str) {
+                        converter.put_char_chain('"')
+                    }
                 }
                 AttributeValueKind.ChemicalValues => {
                     converter.emit_append_html_from_str(*s)
                     const valuesNode = attr.value as *mut ChemicalAttributeValues
-                    converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("'")), location), 1)
+                    converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
                     for (var j : uint = 0; j < valuesNode.values.size(); j++) {
                         if (j > 0) converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view(" ")), location), 1)
                         converter.put_chemical_value_in(valuesNode.values.get(j))
                     }
-                    converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("'")), location), 1)
+                    converter.emit_append_html_call(builder.make_string_value(builder.allocate_view(std::string_view("\"")), location), 1)
                 }
             }
         } else {

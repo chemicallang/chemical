@@ -1,4 +1,17 @@
-func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : int {
+@extern
+struct pollfd {
+    var fd : int
+    var events : short
+    var revents : short
+}
+
+@extern
+func poll(fds : *mut pollfd, nfds : ulong, timeout : int) : int
+
+@extern
+func kill(pid : pid_t, sig : int) : int
+
+func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 
     // Build argv for posix_spawnp (must be a NULL-terminated array)
     var id_str = std::string();
@@ -52,8 +65,52 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
 
     var parent_fd = sv[0]
 
+    var start_sec : long = 0
+    var start_usec : long = 0
+
+        var start_tv = timeval()
+        gettimeofday(&mut start_tv, null)
+        start_sec = start_tv.tv_sec
+        start_usec = start_tv.tv_usec
+
+    var pfd = pollfd()
+    pfd.fd = parent_fd
+    pfd.events = 0x0001 // POLLIN
+    
+    var timed_out = false
+
     // read loop
     while(true) {
+        var now_tv = timeval()
+        gettimeofday(&mut now_tv, null)
+        var elapsed_ms = (now_tv.tv_sec - start_sec) * 1000 + (now_tv.tv_usec - start_usec) / 1000
+        
+        if(elapsed_ms >= timeout_ms as long) {
+            kill(pid, 9); // SIGKILL
+            var log = TestLog()
+            log.type = LogType.Error
+            log.message.append_view("Test timed out after 10s")
+            state.logs.push(log)
+            state.has_failed = true
+            timed_out = true
+            break;
+        }
+
+        var poll_res = poll(&mut pfd, 1, 100); // 100ms
+        if(poll_res == 0) {
+            // check if child is still alive
+            var status : int
+            // WNOHANG = 1
+            if(waitpid(pid, &mut status, 1) > 0) {
+                break;
+            }
+            continue;
+        }
+        if(poll_res < 0) {
+            if(get_errno() == 4) continue; // EINTR
+            break;
+        }
+
         var be_len : uint32_t;
         var r = read_exact(parent_fd, &be_len, sizeof(be_len))
         if(r < 0) {
@@ -112,17 +169,23 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
     close(parent_fd);
 
     var status : int
-    // try to reap child to avoid zombie
-    if(waitpid(pid, &mut status, 0) < 0) {
-        return -1;
+    if(!timed_out) {
+        // try to reap child to avoid zombie
+        if(waitpid(pid, &mut status, 0) < 0) {
+            return -1;
+        }
+
+        // set the exit code in state
+        state.exitCode = status;
+        if(status != 0 && !state.fn.pass_on_crash) {
+            state.has_failed = true;
+        }
+    } else {
+        // reap the killed process
+        waitpid(pid, &mut status, 0)
+        state.exitCode = 1
     }
 
-    // set the exit code in state
-    state.exitCode = status;
-    if(status != 0 && !state.fn.pass_on_crash) {
-        state.has_failed = true;
-    }
-
-    return -1;
+    return 0;
 
 }

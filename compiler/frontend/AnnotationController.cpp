@@ -331,7 +331,6 @@ void AnnotationController::initialize() {
             { "test.pass_on_crash", { nullptr, "test.pass_on_crash", AnnotationDefType::Marker }},
             { "test.ignore", { nullptr, "test.ignore", AnnotationDefType::Marker }},
             { "test.timeout", { nullptr, "test.timeout", AnnotationDefType::Marker }},
-            { "test.async", { nullptr, "test.async", AnnotationDefType::Marker }},
             { "test.retry", { nullptr, "test.retry", AnnotationDefType::Marker }},
             { "test.benchmark", { nullptr, "test.benchmark", AnnotationDefType::Marker }},
     };

@@ -31,6 +31,10 @@ enum CSSValueKind {
     TextDecoration,
     Outline,
     Grid,
+    GridRepeat,
+    GridLine,
+    Animation,
+    ListStyle,
     Calc,
     String,
 

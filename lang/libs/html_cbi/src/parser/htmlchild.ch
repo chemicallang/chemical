@@ -43,8 +43,6 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
         if(next.type == ChemicalTokenType.RBrace) {
             parser.increment();
         } else {
-            printf("boo has error %s\n", parser.getToken().value.data())
-            fflush(null)
             parser.error("expected a rbrace after the chemical value")
         }
 
@@ -74,8 +72,6 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
         if(next.type == ChemicalTokenType.RBrace) {
             parser.increment();
         } else {
-            printf("boo has error %s\n", parser.getToken().value.data())
-            fflush(null)
             parser.error("expected a rbrace after the chemical value")
         }
 

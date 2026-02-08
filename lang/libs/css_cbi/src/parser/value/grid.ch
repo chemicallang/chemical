@@ -38,12 +38,148 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
                  trackValue.data = kwVal
                  vals.values.push(trackValue)
                  continue
+             } else if(view.equals("repeat")) {
+                 parser.increment()
+                 if(parser.increment_if(TokenType.LParen as int)) {
+                     var repeatData = builder.allocate<GridRepeatData>()
+                     new (repeatData) GridRepeatData {
+                         count = CSSValue(),
+                         tracks = std::vector<CSSValue>()
+                     }
+                     
+                     // Parse count (number or keyword like auto-fill)
+                     if(!cssParser.parseRandomValue(parser, builder, repeatData.count)) {
+                         parser.error("expected repeat count")
+                     }
+                     
+                     if(!parser.increment_if(TokenType.Comma as int)) {
+                         parser.error("expected comma in repeat()")
+                     }
+                     
+                     // Parse tracks
+                     while(true) {
+                         const t2 = parser.getToken()
+                         if(t2.type == TokenType.RParen || t2.type == TokenType.Semicolon) break
+                         
+                         var v2 = CSSValue()
+                         if(cssParser.parseLength(parser, builder, v2)) {
+                             repeatData.tracks.push(v2)
+                         } else if(t2.type == TokenType.Identifier) {
+                             // Handle auto, min-content etc inside repeat
+                             parser.increment()
+                             var kwVal = builder.allocate<CSSKeywordValueData>()
+                             new (kwVal) CSSKeywordValueData {
+                                 kind = CSSKeywordKind.Auto, // simplified
+                                 value = builder.allocate_view(t2.value)
+                             }
+                             v2.kind = CSSValueKind.Keyword
+                             v2.data = kwVal
+                             repeatData.tracks.push(v2)
+                         } else {
+                             break
+                         }
+                     }
+                     
+                     if(!parser.increment_if(TokenType.RParen as int)) {
+                         parser.error("expected ) in repeat()")
+                     }
+                     
+                     trackValue.kind = CSSValueKind.GridRepeat
+                     trackValue.data = repeatData
+                     vals.values.push(trackValue)
+                     continue
+                 }
              }
         }
         
-        // If we reach here, it's an unknown track or we should break
-        // Support for repeat() could be added here
         break
+    }
+}
+
+func (cssParser : &mut CSSParser) parseGridLine(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) : bool {
+    const token = parser.getToken()
+    var is_span = false
+    if(token.type == TokenType.Identifier && token.value.equals("span")) {
+        parser.increment()
+        is_span = true
+    }
+    
+    var lineVal = CSSValue()
+    if(cssParser.parseRandomValue(parser, builder, lineVal)) {
+        var data = builder.allocate<GridLineData>()
+        new (data) GridLineData {
+            is_span = is_span,
+            value = lineVal
+        }
+        value.kind = CSSValueKind.GridLine
+        value.data = data
+        return true
+    }
+    return false
+}
+
+func (cssParser : &mut CSSParser) parseGridLineOrPair(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    if(!cssParser.parseGridLine(parser, builder, value)) return;
+    
+    if(parser.increment_if(TokenType.Divide as int)) {
+        var first = value
+        var second = CSSValue()
+        if(cssParser.parseGridLine(parser, builder, second)) {
+            var pair = builder.allocate<CSSValuePair>()
+            new (pair) CSSValuePair()
+            pair.first = value
+            pair.second = second;
+            value.kind = CSSValueKind.Pair
+            value.data = pair
+        }
+    }
+}
+
+func (cssParser : &mut CSSParser) parseGridColumn(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    cssParser.parseGridLineOrPair(parser, builder, value)
+}
+
+func (cssParser : &mut CSSParser) parseGridRow(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    cssParser.parseGridLineOrPair(parser, builder, value)
+}
+
+func (cssParser : &mut CSSParser) parseGridArea(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    // grid-area can have up to 4 values separated by /
+    cssParser.parseGridLine(parser, builder, value)
+    var current = value
+    while(parser.increment_if(TokenType.Divide as int)) {
+        var next = CSSValue()
+        if(cssParser.parseGridLine(parser, builder, next)) {
+            var pair = builder.allocate<CSSValuePair>()
+            new (pair) CSSValuePair {
+                first = *current,
+                second = next
+            }
+            current.kind = CSSValueKind.Pair
+            current.data = pair
+        } else {
+            break
+        }
     }
 }
 

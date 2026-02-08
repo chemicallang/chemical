@@ -16,26 +16,26 @@ func getCSSGlobalKeywordKind(view : &std::string_view) : CSSKeywordKind {
     }
 }
 
-func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) {
+func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder : *mut ASTBuilder, value : &mut CSSValue) : bool {
     const token = parser.getToken();
     switch(token.type) {
         TokenType.Number => {
             parser.increment();
             alloc_value_length(parser, builder, value, token.value, false);
-            return
+            return true;
         }
         TokenType.Identifier => {
             cssParser.parseIdentifierCSSColor(parser, builder, value, token)
-            return;
+            return true;
         }
         TokenType.HexColor => {
             cssParser.parseHexColor(parser, builder, token.value, value);
             parser.increment();
-            return;
+            return true;
         }
         TokenType.LBrace, TokenType.DollarLBrace => {
             cssParser.parseChemValueAfterLBrace(parser, builder, value)
-            return;
+            return true;
         }
         TokenType.SingleQuotedValue, TokenType.DoubleQuotedValue => {
             parser.increment();
@@ -46,10 +46,11 @@ func (cssParser : &mut CSSParser) parseRandomValue(parser : *mut Parser, builder
             }
             value.kind = CSSValueKind.String;
             value.data = str_data;
-            return;
+            return true;
         }
         default => {
             parser.error("unknown value token with data");
+            return false;
         }
     }
 }

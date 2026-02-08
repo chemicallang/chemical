@@ -402,6 +402,29 @@ struct CSSTransitionValueData {
 
 }
 
+struct CSSAnimationValueData {
+    var name : std::string_view
+    var duration : CSSLengthValueData
+    var easing : CSSEasingFunction
+    var delay : CSSLengthValueData
+    var iterationCount : CSSValue // Number or Keyword (infinite)
+    var direction : CSSKeywordValueData
+    var fillMode : CSSKeywordValueData
+    var playState : CSSKeywordValueData
+    var next : *mut CSSAnimationValueData
+
+    @make
+    func make() {
+        return { next = null }
+    }
+}
+
+struct CSSListStyleValueData {
+    var type : CSSKeywordValueData
+    var position : CSSKeywordValueData
+    var image : CSSValue
+}
+
 struct CSSTransformLengthNode {
 
     var length : CSSLengthValueData
@@ -525,6 +548,16 @@ struct CSSCalcOperationData {
     var op : char
 }
  
+struct GridRepeatData {
+    var count : CSSValue
+    var tracks : std::vector<CSSValue>
+}
+
+struct GridLineData {
+    var is_span : bool
+    var value : CSSValue // Number or Identifier
+}
+
 struct CSSCalcValueData {
     var expression : CSSCalcExpression
 };

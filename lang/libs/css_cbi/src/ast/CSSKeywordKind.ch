@@ -477,6 +477,8 @@ enum CSSKeywordKind {
     ClosestSide,
     ClosestCorner,
     FarthestSide,
-    FarthestCorner
+    FarthestCorner,
+
+    Infinite
 
 }

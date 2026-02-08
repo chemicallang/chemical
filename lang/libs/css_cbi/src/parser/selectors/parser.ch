@@ -135,8 +135,22 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                  // Pseudo-class (:)
                  simple = builder.allocate<SimpleSelector>();
                  simple.kind = SimpleSelectorKind.PseudoClass;
-                 simple.value = builder.allocate_view(next.value);
-                 parser.increment();
+                 
+                 var val = std::string(next.value)
+                 parser.increment()
+                 if(parser.increment_if(TokenType.LParen as int)) {
+                     val.append('(')
+                     while(true) {
+                         const t2 = parser.getToken()
+                         if(t2.type == TokenType.RParen || t2.type == TokenType.EndOfFile) break
+                         val.append_view(t2.value)
+                         parser.increment()
+                     }
+                     if(parser.increment_if(TokenType.RParen as int)) {
+                         val.append(')')
+                     }
+                 }
+                 simple.value = builder.allocate_view(val.view());
              } else {
                  // Unexpected token after :
                  break;

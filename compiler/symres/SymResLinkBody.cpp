@@ -854,10 +854,26 @@ void SymResLinkBody::VisitComptimeBlock(ComptimeBlock* node) {
     link_seq(*this, node->body);
 }
 
+void verify_bool_ptr_condition(ASTDiagnoser& linker, BaseType* condType, SourceLocation loc) {
+    const auto pure = condType->canonical();
+    switch(pure->kind()) {
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::Function:
+            return;
+        default:
+            linker.error("only integer / boolean / pointer types can be used as a condition", loc);
+
+    }
+}
+
 void SymResLinkBody::VisitDoWhileLoopStmt(DoWhileLoop* node) {
     linker.scope_start();
     link_seq(*this, node->body);
     visit(node->condition);
+    verify_bool_ptr_condition(linker, node->condition->getType(), node->condition->encoded_location());
     linker.scope_end();
 }
 
@@ -1324,10 +1340,12 @@ void IfStatement::link_conditions(SymbolResolver &linker) {
 void link_conditions_no_patt_match_expr(IfStatement* stmt, SymResLinkBody &symRes) {
     if(stmt->condition->kind() != ValueKind::PatternMatchExpr) {
         symRes.visit(stmt->condition);
+        verify_bool_ptr_condition(symRes.linker, stmt->condition->getType(), stmt->condition->encoded_location());
     }
     for (auto& cond: stmt->elseIfs) {
         if(cond.first->kind() != ValueKind::PatternMatchExpr) {
             symRes.visit(cond.first);
+            verify_bool_ptr_condition(symRes.linker, cond.first->getType(), cond.first->encoded_location());
         }
     }
 }
@@ -1497,6 +1515,7 @@ void SymResLinkBody::VisitVariantCaseVariable(VariantCaseVariable* node) {
 void SymResLinkBody::VisitWhileLoopStmt(WhileLoop* node) {
     linker.scope_start();
     visit(node->condition);
+    verify_bool_ptr_condition(linker, node->condition->getType(), node->condition->encoded_location());
     link_seq(*this, node->body);
     linker.scope_end();
 }

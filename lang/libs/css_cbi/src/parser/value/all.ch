@@ -164,6 +164,12 @@ func putAllCSSValueParsers(
     map.put(std::string_view("scrollbar-gutter"), CSSParser::parseScrollbarGutter)
     map.put(std::string_view("grid-template-rows"), CSSParser::parseGridTemplateRows)
     map.put(std::string_view("grid-template-columns"), CSSParser::parseGridTemplateColumns)
+    map.put(std::string_view("grid-column"), CSSParser::parseGridColumn)
+    map.put(std::string_view("grid-row"), CSSParser::parseGridRow)
+    map.put(std::string_view("grid-area"), CSSParser::parseGridArea)
+    map.put(std::string_view("animation"), CSSParser::parseAnimation)
+    map.put(std::string_view("animation-delay"), CSSParser::parseAnimationDelay)
+    map.put(std::string_view("list-style"), CSSParser::parseListStyle)
     map.put(std::string_view("backdrop-filter"), CSSParser::parseBackdropFilter)
 
 

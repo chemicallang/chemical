@@ -719,6 +719,39 @@ func writeTransition(ptr : &mut CSSTransitionValueData, str : &mut std::string) 
 
 }
 
+func (converter : &mut ASTConverter) writeAnimationValueData(value : &mut CSSAnimationValueData, str : &mut std::string) {
+    var has_val = false
+    if(!value.name.empty()) {
+        str.append_view(value.name)
+        has_val = true
+    }
+    if(value.duration.kind != CSSLengthKind.Unknown) {
+        if(has_val) str.append(' ')
+        writeLength(value.duration, str)
+        has_val = true
+    }
+    if(value.easing.kind != CSSKeywordKind.Unknown) {
+        if(has_val) str.append(' ')
+        writeEasing(value.easing, str)
+        has_val = true
+    }
+    if(value.delay.kind != CSSLengthKind.Unknown) {
+        if(has_val) str.append(' ')
+        writeLength(value.delay, str)
+        has_val = true
+    }
+    if(value.iterationCount.kind != CSSValueKind.Unknown) {
+        if(has_val) str.append(' ')
+        converter.writeValue(value.iterationCount)
+        has_val = true
+    }
+    if(value.next != null) {
+        str.append(',')
+        str.append(' ')
+        converter.writeAnimationValueData(*value.next, str)
+    }
+}
+
 func writeTransformNode(ptr : &mut CSSTransformLengthNode, str : &mut std::string) {
 
     writeLength(ptr.length, str)
@@ -1451,6 +1484,34 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
              converter.writeBackdropFilterValueData(*ptr, str)
         }
 
+        CSSValueKind.GridRepeat => {
+            const ptr = value.data as *mut GridRepeatData
+            str.append_view(std::string_view("repeat("))
+            converter.writeValue(ptr.count)
+            str.append(',')
+            str.append(' ')
+            var i : uint = 0;
+            const size = ptr.tracks.size();
+            const last = size - 1;
+            while(i < size) {
+                const value_ptr = ptr.tracks.get_ptr(i);
+                converter.writeValue(*value_ptr)
+                if(i < last) {
+                    str.append(' ');
+                }
+                i++;
+            }
+            str.append(')')
+        }
+
+        CSSValueKind.GridLine => {
+            const ptr = value.data as *mut GridLineData
+            if(ptr.is_span) {
+                str.append_view(std::string_view("span "))
+            }
+            converter.writeValue(ptr.value)
+        }
+
         CSSValueKind.Calc => {
             const ptr = value.data as *mut CSSCalcValueData
             str.append_view(std::string_view("calc("))
@@ -1471,6 +1532,29 @@ func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
             str.append('\'')
             converter.writeCssString(ptr.value)
             str.append('\'')
+        }
+
+        CSSValueKind.Animation => {
+            const ptr = value.data as *mut CSSAnimationValueData
+            converter.writeAnimationValueData(*ptr, str)
+        }
+
+        CSSValueKind.ListStyle => {
+            const ptr = value.data as *mut CSSListStyleValueData
+            var first = true
+            if(ptr.type.kind != CSSKeywordKind.Unknown) {
+                str.append_view(ptr.type.value)
+                first = false
+            }
+            if(ptr.position.kind != CSSKeywordKind.Unknown) {
+                if(!first) str.append(' ')
+                str.append_view(ptr.position.value)
+                first = false
+            }
+            if(ptr.image.kind != CSSValueKind.Unknown) {
+                if(!first) str.append(' ')
+                converter.writeValue(ptr.image)
+            }
         }
 
         CSSValueKind.Unknown => {

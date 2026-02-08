@@ -24,6 +24,8 @@ Value* NotValue::evaluated_value(InterpretScope &scope) {
     };
 }
 
+void verify_bool_ptr_condition(ASTDiagnoser& linker, BaseType* condType, SourceLocation loc);
+
 void NotValue::determine_type(ASTDiagnoser& diagnoser) {
     const auto type = getValue()->getType();
     // check if operator is overloaded
@@ -49,4 +51,6 @@ void NotValue::determine_type(ASTDiagnoser& diagnoser) {
     }
     // normal flow
     setType(type);
+    // check not value type is proper
+    verify_bool_ptr_condition(diagnoser, type, encoded_location());
 }

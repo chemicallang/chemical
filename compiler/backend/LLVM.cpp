@@ -463,7 +463,7 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     }
 #ifdef DEBUG
     if(!type->isIntegerTy()) {
-        CHEM_THROW_RUNTIME("only integer / boolean values can be used with not");
+        CHEM_THROW_RUNTIME("only integer / boolean / pointer values can be used with not");
     }
 #endif
     const auto bitWidth = type->getIntegerBitWidth();

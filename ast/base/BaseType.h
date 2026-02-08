@@ -138,6 +138,11 @@ public:
     bool isReferenceCanonical();
 
     /**
+     * check if this type is a pointer
+     */
+    bool isPointerCanonical();
+
+    /**
      * get loadable referred to type
      */
     BaseType* getLoadableReferredType();

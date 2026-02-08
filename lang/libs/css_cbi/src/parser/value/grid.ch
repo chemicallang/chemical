@@ -1,5 +1,4 @@
-
-func (cssParser : &mut CSSParser) parseGridTemplateRows(
+func (cssParser : &mut CSSParser) parseGridTemplateTracks(
     parser : *mut Parser,
     builder : *mut ASTBuilder,
     value : &mut CSSValue
@@ -21,22 +20,45 @@ func (cssParser : &mut CSSParser) parseGridTemplateRows(
         if(cssParser.parseLength(parser, builder, trackValue)) {
             vals.values.push(trackValue)
             continue
-        } else if(token.type == TokenType.Identifier && token.value.equals("auto")) {
-             parser.increment()
-             var autoVal = builder.allocate<CSSKeywordValueData>()
-             new (autoVal) CSSKeywordValueData {
-                 kind : CSSKeywordKind.Auto,
-                 value : builder.allocate_view(token.value)
+        } else if(token.type == TokenType.Identifier) {
+             const view = token.value;
+             if(view.equals("auto") || view.equals("min-content") || view.equals("max-content") || view.equals("fit-content")) {
+                 parser.increment()
+                 var kwKind = CSSKeywordKind.Auto
+                 if(view.equals("min-content")) kwKind = CSSKeywordKind.MinContent
+                 else if(view.equals("max-content")) kwKind = CSSKeywordKind.MaxContent
+                 else if(view.equals("fit-content")) kwKind = CSSKeywordKind.FitContent
+                 
+                 var kwVal = builder.allocate<CSSKeywordValueData>()
+                 new (kwVal) CSSKeywordValueData {
+                     kind : kwKind,
+                     value : builder.allocate_view(view)
+                 }
+                 trackValue.kind = CSSValueKind.Keyword
+                 trackValue.data = kwVal
+                 vals.values.push(trackValue)
+                 continue
              }
-             trackValue.kind = CSSValueKind.Keyword
-             trackValue.data = autoVal
-             vals.values.push(trackValue)
-             continue
-        } else {
-            // Support repeat() or other functions if needed later
-            // For now, if we can't parse it as length or auto, error/break
-            parser.error("unexpected token in grid-template-rows")
-            break
         }
+        
+        // If we reach here, it's an unknown track or we should break
+        // Support for repeat() could be added here
+        break
     }
+}
+
+func (cssParser : &mut CSSParser) parseGridTemplateRows(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    cssParser.parseGridTemplateTracks(parser, builder, value)
+}
+
+func (cssParser : &mut CSSParser) parseGridTemplateColumns(
+    parser : *mut Parser,
+    builder : *mut ASTBuilder,
+    value : &mut CSSValue
+) {
+    cssParser.parseGridTemplateTracks(parser, builder, value)
 }

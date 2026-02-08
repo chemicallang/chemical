@@ -31,6 +31,8 @@ extern "C" {
 
     LinkedType* GenericTypegetLinkedType(GenericType* type);
 
+    BaseType* PointerTypegetChildType(PointerType* type);
+
     BaseType* ReferenceTypegetChildType(ReferenceType* type);
 
     BaseType* TypealiasStatementgetActualType(TypealiasStatement* type);

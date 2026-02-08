@@ -1,4 +1,9 @@
-func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : int {
+@dllimport
+@extern
+@stdcall
+public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
+
+func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 
     var si : STARTUPINFOA
     var pi : PROCESS_INFORMATION;
@@ -91,14 +96,25 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState) : i
     }
 
     // Wait for process to finish
-    WaitForSingleObject(pi.hProcess, INFINITE as DWORD);
+    // WAIT_TIMEOUT is 258
+    var waitRes = WaitForSingleObject(pi.hProcess, timeout_ms as DWORD);
 
-    var exitCode : DWORD;
-    if (GetExitCodeProcess(pi.hProcess, &mut exitCode)) {
-        // set the exit code in state
-        state.exitCode = exitCode;
-        if(exitCode != 0 && !state.fn.pass_on_crash) {
-            state.has_failed = true;
+    if(waitRes == 258 as DWORD) {
+        TerminateProcess(pi.hProcess, 1)
+        var log = TestLog()
+        log.type = LogType.Error
+        log.message.append_view("Test timed out after 10s")
+        state.logs.push(log)
+        state.has_failed = true
+        state.exitCode = 1 // dummy exit code for timeout
+    } else {
+        var exitCode : DWORD;
+        if (GetExitCodeProcess(pi.hProcess, &mut exitCode)) {
+            // set the exit code in state
+            state.exitCode = exitCode;
+            if(exitCode != 0 && !state.fn.pass_on_crash) {
+                state.has_failed = true;
+            }
         }
     }
 

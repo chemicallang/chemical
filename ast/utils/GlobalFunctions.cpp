@@ -1646,7 +1646,7 @@ public:
 
                 // timeout
                 const auto timeArgs = controller.get_args(node.node, "test.timeout");
-                unsigned timeout = 1000 * 60 * 60 * 1; // 1 hour
+                unsigned timeout = 1000 * 10 * 1; // 10 seconds
                 if(timeArgs && !timeArgs->empty() && (*timeArgs)[0]->kind() == ValueKind::IntN) {
                     timeout = (*timeArgs)[0]->as_int_num_value_unsafe()->value;
                 }
@@ -1676,11 +1676,6 @@ public:
                 const auto pass_on_crash = controller.is_marked(node.node, "test.pass_on_crash");
                 const auto crashVal = new (allocator.allocate<BoolValue>()) BoolValue(pass_on_crash, typeBuilder.getBoolType(), call->encoded_location());
                 value->values.emplace("pass_on_crash", StructMemberInitializer{"pass_on_crash", crashVal});
-
-                // async
-                const auto testAsync = controller.is_marked(node.node, "test.async");
-                const auto asyncVal = new (allocator.allocate<BoolValue>()) BoolValue(testAsync, typeBuilder.getBoolType(), call->encoded_location());
-                value->values.emplace("is_async", StructMemberInitializer{"is_async", asyncVal});
 
                 // benchmark
                 const auto marked_bench = controller.is_marked(node.node, "test.benchmark");

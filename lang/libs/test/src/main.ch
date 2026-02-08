@@ -10,8 +10,6 @@ public struct TestFunction {
     var timeout : uint
     var retry : uint
     var pass_on_crash : bool
-    // means the function will be waited for on end (before displaying results for others)
-    var is_async : bool
     var benchmark : bool
     var lineNum : uint
     var charNum : uint
@@ -404,15 +402,15 @@ func append_integer(str : &mut std::string, dig : int) {
     str.append_char_ptr(buffStart);
 }
 
-func launch_test_with_retries(exe_path : *char, id : int, state : &mut TestFunctionState, tries : int) {
+func launch_test_with_retries(exe_path : *char, id : int, state : &mut TestFunctionState, tries : int, timeout_ms : uint) {
     // actual launch
-    launch_test(exe_path, id, state)
+    launch_test(exe_path, id, state, timeout_ms)
     // retry for number of times
     if(tries > 1) {
         tries--
         while(tries > 1 && state.has_failed) {
             state.logs.clear()
-            launch_test(exe_path, id, state)
+            launch_test(exe_path, id, state, timeout_ms)
             tries--
         }
     }
@@ -472,17 +470,22 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
             const test_id = test_start.id;
             const test_retry = test_start.retry as int
 
-            // actual launch
-            if(test_start.is_async) {
-                // launching the test on the thread pool instead
-                var job = pool.submit<int>(|exe_path, test_id, fn_state, test_retry|() => {
-                    launch_test_with_retries(exe_path, test_id, *fn_state, test_retry);
-                    return 0;
-                })
-                asyncJobs.push(job)
-            } else {
-                launch_test_with_retries(exe_path, test_id, *fn_state, test_retry);
+            // timeout in milliseconds
+            // by default 10 seconds
+            var timeout_ms = 10000;
+            if(test_start.timeout > 0) {
+                // assuming test_start.timeout is in milliseconds
+                // if it's in seconds, we should multiply by 1000
+                // but let's assume it's ms for flexibility
+                timeout_ms = test_start.timeout as int
             }
+
+            // actual launch on the thread pool
+            var job = pool.submit<int>(|exe_path, test_id, fn_state, test_retry, timeout_ms|() => {
+                launch_test_with_retries(exe_path, test_id, *fn_state, test_retry, timeout_ms as uint);
+                return 0;
+            })
+            asyncJobs.push(job)
 
             test_start++;
         }

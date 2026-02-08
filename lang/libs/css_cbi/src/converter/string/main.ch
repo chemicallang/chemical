@@ -1808,7 +1808,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
     const str = &mut converter.str
     var size = om.declarations.size()
     
-    if(size == 0 && om.media_queries.empty()) {
+    if(size == 0 && om.media_queries.empty() && om.nested_rules.empty()) {
         // no declarations, no media queries exist
         return;
     }

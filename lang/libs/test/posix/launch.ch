@@ -68,12 +68,12 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     var start_sec : long = 0
     var start_usec : long = 0
 
-        var start_tv = timeval()
+        var start_tv = timeval { tv_sec : 0, tv_usec : 0 }
         gettimeofday(&mut start_tv, null)
         start_sec = start_tv.tv_sec
         start_usec = start_tv.tv_usec
 
-    var pfd = pollfd()
+    var pfd = pollfd { fd : 0, events : 0, revents : 0 }
     pfd.fd = parent_fd
     pfd.events = 0x0001 // POLLIN
     
@@ -81,7 +81,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     // read loop
     while(true) {
-        var now_tv = timeval()
+        var now_tv = timeval { tv_sec : 0, tv_usec : 0 }
         gettimeofday(&mut now_tv, null)
         var elapsed_ms = (now_tv.tv_sec - start_sec) * 1000 + (now_tv.tv_usec - start_usec) / 1000
         

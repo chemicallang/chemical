@@ -1,5 +1,6 @@
 public namespace fs {
 
+using std::Result;
 
 // hard link / symlink
 func create_hard_link_native(existing : path_ptr, newpath : path_ptr) : Result<UnitTy, FsError> {

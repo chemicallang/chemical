@@ -1,5 +1,7 @@
 public namespace fs {
 
+using std::Result;
+
 func lock_file_shared(path : *char) : Result<File, FsError> {
     var opts : OpenOptions; opts.read = true; opts.write = false;
     var fo = file_open(path, opts);

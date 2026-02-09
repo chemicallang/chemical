@@ -244,8 +244,8 @@ LabJob* labJob_fromJson(lsp::json::Object& obj, ModuleStorage& storage) {
 
             // creating a lab job
             const auto job = labJobType == LabJobType::CBI ?
-                    new LabJobCBI(chem::string(nameStr)) :
-                    new LabJob(labJobType, chem::string(nameStr));
+                    new LabJobCBI(chem::string(nameStr), OutputMode::Debug) :
+                    new LabJob(labJobType, chem::string(nameStr), OutputMode::Debug);
 
             // lets get dependencies
             auto deps = obj.find("dependencies");

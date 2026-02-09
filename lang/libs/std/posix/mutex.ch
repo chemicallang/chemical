@@ -29,11 +29,13 @@ public namespace std {
         func constructor() {
             // pthread_mutex_init expects pointer to pthread_mutex_t; we pass raw bytes pointer
             // NULL attr -> default attributes
-            var res = pthread_mutex_init(&mut storage[0], null)
+            var m = mutex { storage : [] }
+            var res = pthread_mutex_init(&mut m.storage[0], null)
             // If initialization fails, we abort (you can change behavior to return an error)
             if(res != 0) {
                 panic("pthread_mutex_init failed")
             }
+            return m;
         }
 
         // lock: blocking

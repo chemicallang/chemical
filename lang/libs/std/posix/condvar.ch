@@ -53,10 +53,12 @@ public namespace std {
 
         @constructor
         func constructor() {
-            var res = pthread_cond_init(&mut storage[0], null)
+            var c = CondVar { storage : [] }
+            var res = pthread_cond_init(&mut c.storage[0], null)
             if(res != 0) {
                 panic("pthread_cond_init failed")
             }
+            return c;
         }
 
         // wait (blocking). Caller must hold mutex before calling.

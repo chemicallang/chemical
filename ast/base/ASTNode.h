@@ -18,7 +18,7 @@ class ChildResolver;
 
 class SymbolResolver;
 
-class LocatedIdentifier;
+struct LocatedIdentifier;
 
 class FunctionParam;
 

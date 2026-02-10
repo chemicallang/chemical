@@ -6,7 +6,7 @@
 
 class BaseType;
 class Value;
-class LabModule;
+struct LabModule;
 
 /**
  * an ASTUnit is the complete AST of a single file

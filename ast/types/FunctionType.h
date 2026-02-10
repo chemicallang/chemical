@@ -24,7 +24,7 @@ class ExtensionFunction;
 
 class FunctionDeclaration;
 
-class LocatedIdentifier;
+struct LocatedIdentifier;
 
 class Value;
 

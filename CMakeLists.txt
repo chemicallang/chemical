@@ -51,6 +51,13 @@ if (CMAKE_BUILD_TYPE MATCHES Debug)
     endif()
 endif ()
 
+# Treat mismatched struct/class tags as errors (causes runtime/linking issues)
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang|GNU")
+    add_compile_options(-Werror=mismatched-tags)
+elseif (MSVC)
+    add_compile_options(/we4099)
+endif()
+
 # Verbose builds (should) produce logs as well
 if (VERBOSE)
     add_definitions(-DVERBOSE) # Define VERBOSE macro

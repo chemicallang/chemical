@@ -4,7 +4,7 @@
 
 class Lexer;
 
-class Token;
+struct Token;
 
 class Parser;
 

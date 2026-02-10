@@ -7,7 +7,7 @@
 #include "std/chem_string_view.h"
 #include <cstddef>
 
-struct LabBuildContext;
+class LabBuildContext;
 
 struct LabModule;
 

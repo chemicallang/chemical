@@ -254,19 +254,20 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     // load the expected type beforehand
     const auto exp_type = expected_type;
     auto& values = chain->values;
+    const auto first_val = values[0];
 
-    link_val(*this, values[0], values.size() == 1 ? exp_type : nullptr, assignment);
+    link_val(*this, first_val, values.size() == 1 ? exp_type : nullptr, assignment);
 
     // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
-    auto linked = values[0]->linked_node();
-    if(linked) {
+    if(first_val->kind() == ValueKind::Identifier) {
+        const auto linked = first_val->as_identifier_unsafe()->linked;
         const auto linked_kind = linked->kind();
         if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
             auto self_param = linker.current_func_type->get_self_param();
             if (!self_param) {
                 //auto decl = linker.current_func_type->as_function();
                 //if (!decl || !decl->is_constructor_fn() && !decl->is_comptime()) {
-                    linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
+                linker.error(values[0]) << "unresolved identifier '" << values[0]->representation() << "', because function doesn't take a self argument";
                 //}
             }
         }

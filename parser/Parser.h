@@ -801,6 +801,11 @@ public:
     ASTNode* parseTypealiasStatement(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
+     * parses a single export statement
+     */
+    ASTNode* parseExportStatement(ASTAllocator& allocator);
+
+    /**
      * parses a single continue statement
      */
     ContinueStatement* parseContinueStatement(ASTAllocator& allocator);

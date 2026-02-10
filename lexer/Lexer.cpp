@@ -144,6 +144,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
 
                 // Top Level Statements
                 { "import", TokenType::ImportKw },
+                { "export", TokenType::ExportKw },
                 { "func", TokenType::FuncKw },
                 { "type", TokenType::TypeKw },
                 { "struct", TokenType::StructKw },

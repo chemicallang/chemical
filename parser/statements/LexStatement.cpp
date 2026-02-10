@@ -134,6 +134,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
             return (ASTNode*) parseFunctionStructureTokens(allocator, AccessSpecifier::Internal, false, true, comptime);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
+        case TokenType::ExportKw:
+            return parseExportStatement(allocator);
         default:
             return nullptr;
     }

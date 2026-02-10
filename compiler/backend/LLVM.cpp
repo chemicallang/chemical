@@ -83,6 +83,7 @@
 #include "ast/structures/LoopBlock.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/statements/Export.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/BlockValue.h"
@@ -2460,6 +2461,10 @@ void Namespace::code_gen_external_declare(Codegen &gen) {
     for(const auto node : nodes) {
         node->code_gen_external_declare(gen);
     }
+}
+
+void ExportStmt::code_gen_external_declare(Codegen& gen) {
+    linked_node->code_gen_external_declare(gen);
 }
 
 bool LLVMBackendContext::forget(ASTNode* targetNode) {

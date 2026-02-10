@@ -4,6 +4,7 @@
 
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/FileScope.h"
+#include "ast/statements/Export.h"
 #include "ast/structures/ModuleScope.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -61,6 +62,17 @@ public:
 template<typename T>
 void declare_node(NodeSymbolDeclarer<T>& declarer, ASTNode* node, AccessSpecifier at_least_spec) {
     switch(node->kind()) {
+        case ASTNodeKind::ExportStmt: {
+            const auto stmt = node->as_export_stmt_unsafe();
+            const auto& name_view = stmt->as_id.empty() ? stmt->ids.back() : stmt->as_id;
+#ifdef DEBUG
+            if(stmt->linked_node == nullptr) {
+                CHEM_THROW_RUNTIME("export statement is not linked with any node");
+            }
+#endif
+            declarer.casted_declare(name_view, stmt->linked_node);
+            break;
+        }
         case ASTNodeKind::NamespaceDecl: {
             const auto ns = node->as_namespace_unsafe();
             if (ns->specifier() >= at_least_spec) {

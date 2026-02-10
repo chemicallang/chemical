@@ -234,6 +234,11 @@ public:
     FunctionTypeBody* current_func_type = nullptr;
 
     /**
+     * the current module being symbol resolved
+     */
+    ModuleScope* current_mod_scope = nullptr;
+
+    /**
      * instead of declaring the file symbols right when they are found, we store the file symbols
      * and when we link the file, we take symbol range (start and end index) of the private symbols in this vector
      * and enable them in a nested file scope, which ends after linking the file dropping the private symbols

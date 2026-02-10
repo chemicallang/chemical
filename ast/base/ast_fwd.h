@@ -327,3 +327,5 @@ class DeallocStmt;
 class UsingStmt;
 
 class Namespace;
+
+class ExportStmt;

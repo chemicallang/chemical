@@ -2,6 +2,7 @@
 
 #include "ast/statements/Assignment.h"
 #include "ast/statements/UsingStmt.h"
+#include "ast/statements/Export.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/statements/DeallocStmt.h"
@@ -554,6 +555,56 @@ void SymResLinkBody::VisitUsingStmt(UsingStmt* node) {
         // file, symbols are dropped
         node->declare_symbols(linker);
     }
+}
+
+void SymResLinkBody::VisitExportStmt(ExportStmt* node) {
+    if (node->parent() && node->parent()->kind() != ASTNodeKind::FileScope) {
+        linker.error("Export statement can only be used as a top level statement", node);
+        return;
+    }
+
+    // resolution of chain
+    auto resolvedNode = linker.find(node->ids[0]);
+    if(resolvedNode == nullptr) {
+        linker.error(node->encoded_location()) << "unresolved symbol '" << node->ids[0] << "' in export statement";
+        return;
+    }
+    auto start = node->ids.data() + 1;
+    const auto end = node->ids.data() + node->ids.size();
+    while(start != end) {
+        resolvedNode = resolvedNode->child(*start);
+        if(resolvedNode == nullptr) {
+            linker.error(node->encoded_location()) << "unresolved symbol '" << *start << "' in parent";
+            return;
+        }
+        start++;
+    }
+
+    if (resolvedNode->get_mod_scope() == linker.current_mod_scope) {
+        linker.error("cannot export a symbol from the current module", node);
+        return;
+    }
+
+    switch (resolvedNode->kind()) {
+        case ASTNodeKind::NamespaceDecl:
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::GenericFuncDecl:
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericVariantDecl:
+        case ASTNodeKind::TypealiasStmt:
+            break;
+        default:
+            linker.error("unsupported declaration being used with export statement", node);
+            return;
+    }
+
+    node->linked_node = resolvedNode;
+
 }
 
 void SymResLinkBody::VisitBreakStmt(BreakStatement* node) {

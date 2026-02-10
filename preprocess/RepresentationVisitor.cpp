@@ -12,6 +12,7 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/DeallocStmt.h"
+#include "ast/statements/Export.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/VariantMember.h"
@@ -545,6 +546,21 @@ void RepresentationVisitor::VisitNamespaceDecl(Namespace *ns) {
     indentation_level--;
     new_line_and_indent();
     write('}');
+}
+
+void RepresentationVisitor::VisitExportStmt(ExportStmt* node) {
+    write("export ");
+    for (size_t i = 0; i < node->ids.size(); ++i) {
+        write(node->ids[i]);
+        if (i < node->ids.size() - 1) {
+            write("::");
+        }
+    }
+    if (!node->as_id.empty()) {
+        write(" as ");
+        write(node->as_id);
+    }
+    write(';');
 }
 
 void RepresentationVisitor::VisitTryStmt(TryCatch *statement) {

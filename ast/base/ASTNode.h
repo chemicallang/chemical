@@ -1297,5 +1297,13 @@ public:
         return (EmbeddedNode*) this;
     }
 
+    /**
+     * return as export statement
+     */
+    inline ExportStmt* as_export_stmt_unsafe() {
+        CHECK_CAST(ASTNodeKind::ExportStmt);
+        return (ExportStmt*) this;
+    }
+
 
 };

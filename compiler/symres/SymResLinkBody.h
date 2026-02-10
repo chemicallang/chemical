@@ -93,6 +93,8 @@ public:
 
     void VisitUsingStmt(UsingStmt* node);
 
+    void VisitExportStmt(ExportStmt* node);
+
     void VisitBreakStmt(BreakStatement* node);
 
     void VisitDeleteStmt(DestructStmt* node);

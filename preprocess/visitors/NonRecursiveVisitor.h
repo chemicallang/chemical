@@ -202,6 +202,9 @@ public:
     inline void VisitEmbeddedNode(EmbeddedNode* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
+    inline void VisitExportStmt(ExportStmt* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
 
     // ---------- Values ----------
 
@@ -673,6 +676,9 @@ public:
                 return;
             case ASTNodeKind::EmbeddedNode:
                 static_cast<Derived*>(this)->VisitEmbeddedNode((EmbeddedNode*) node);
+                return;
+            case ASTNodeKind::ExportStmt:
+                static_cast<Derived*>(this)->VisitExportStmt((ExportStmt*) node);
                 return;
 #ifdef DEBUG
             default:

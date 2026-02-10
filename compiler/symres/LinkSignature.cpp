@@ -439,8 +439,7 @@ void TopLevelLinkSignature::VisitAliasStmt(AliasStmt* stmt) {
     // we shouldn't use alias statement
     visit(stmt->value);
 
-    // TODO: linked_node shouldn't be called in link_signature
-    const auto node = value->linked_node();
+    const auto node = value->get_chain_last_linked();
     if (!node) {
         linker.error(stmt) << "cannot alias incompatible value";
         return;
@@ -885,28 +884,16 @@ void TopLevelLinkSignature::VisitImplDecl(ImplDefinition* node) {
     if (node->struct_type) {
         visit(node->struct_type);
     }
-    // TODO: linked_node calling is not allowed in link_signature
     // this code should be moved to type checking pass
-    const auto inter_linked = node->interface_type->linked_node();
-    if (inter_linked) {
-        const auto interface_def = inter_linked->as_interface_def();
-        if (interface_def) {
-            if (interface_def->is_static() && interface_def->has_implementation()) {
-                linker.error("static interface must have only a single implementation", node->encoded_location());
-            }
-            interface_def->register_impl(node);
-        } else {
-            linker.error("expected type to be an interface", node->encoded_location());
-        }
-    }
-
     const auto linked_node = node->interface_type->get_direct_linked_node();
-    if(!linked_node) {
-        return;
-    }
     const auto linked = linked_node->as_interface_def();
-    if(!linked) {
-        linker.error(node->interface_type.encoded_location()) << "couldn't find interface by this name for implementation";
+    if (linked) {
+        if (linked->is_static() && linked->has_implementation()) {
+            linker.error("static interface must have only a single implementation", node->encoded_location());
+        }
+        linked->register_impl(node);
+    } else {
+        linker.error("expected type to be an interface", node->encoded_location());
         return;
     }
     for(auto& func : node->master_functions()) {

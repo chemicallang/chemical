@@ -526,9 +526,9 @@ void SymResLinkBody::VisitAssignmentStmt(AssignStatement *assign) {
 }
 
 void UsingStmt::declare_symbols(SymbolResolver &linker) {
-    auto linked = chain->linked_node();
+    auto linked = chain->get_chain_last_linked();
     if(!linked) {
-        linker.error("couldn't find linked node", this);
+        linker.error(this) << "couldn't find symbol '" << chain->representation() << "'";
         return;
     }
     if(is_namespace()) {
@@ -1589,7 +1589,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
     auto& linker = visitor.linker;
 
     auto& current_func = *linker.current_func_type;
-    const auto parent = parent_val->linked_node();
+    const auto parent = parent_val->get_chain_last_linked();
     if(parent) {
         const auto variant_mem = parent->as_variant_member();
         if (variant_mem) {
@@ -1680,7 +1680,7 @@ void link_call_values(SymResLinkBody& visitor, FunctionCall* call) {
 void link_call_args_implicit_constructor(SymResLinkBody& visitor, FunctionCall* call){
     auto& linker = visitor.linker;
 
-    const auto parent = call->parent_val->linked_node();
+    const auto parent = call->parent_val->get_chain_last_linked();
     if(parent) {
         const auto variant_mem = parent->as_variant_member();
         if (variant_mem) {
@@ -1802,7 +1802,7 @@ Value* getNonComptimeValueByKind(BaseType* type, Value* value) {
             return getNonComptimeValueByKind(type, value->as_access_chain_unsafe()->values.back());
         case ValueKind::FunctionCall:{
             const auto call = value->as_func_call_unsafe();
-            const auto linked = call->parent_val->linked_node();
+            const auto linked = call->parent_val->get_chain_last_linked();
             if(linked->kind() == ASTNodeKind::FunctionDecl) {
                 const auto func = linked->as_function_unsafe();
                 if(!func->is_comptime()) {
@@ -1968,7 +1968,7 @@ void FunctionCall::verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_t
         if(func->is_comptime()) {
             // now if a compile time function is being called
             // we verify all the arguments are known at compile time
-            const auto final_linked = parent_val->linked_node();
+            const auto final_linked = parent_val->get_chain_last_linked();
             if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl) {
                 // TODO: verify arguments are not runtime
                 // verifyArgumentsAreNotRuntime(resolver, call, final_linked->as_function_unsafe());
@@ -1976,7 +1976,7 @@ void FunctionCall::verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_t
         } else {
             // now if a compile time function is being called
             // we verify all the arguments are known at compile time
-            const auto final_linked = parent_val->linked_node();
+            const auto final_linked = parent_val->get_chain_last_linked();
             if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
                 verifyArgumentsAreComptime(diagnoser, this, final_linked->as_function_unsafe());
             }
@@ -1984,7 +1984,7 @@ void FunctionCall::verifyArguments(ASTDiagnoser& diagnoser, FunctionType* func_t
     } else {
         // now if a compile time function is being called
         // we verify all the arguments are known at compile time
-        const auto final_linked = parent_val->linked_node();
+        const auto final_linked = parent_val->get_chain_last_linked();
         if (final_linked && final_linked->kind() == ASTNodeKind::FunctionDecl && final_linked->as_function_unsafe()->is_comptime()) {
             verifyArgumentsAreComptime(diagnoser, this, final_linked->as_function_unsafe());
         }
@@ -2034,7 +2034,7 @@ void FunctionCall::report_concrete_types(ASTAllocator& allocator, ASTDiagnoser& 
     const auto parent_val = call->parent_val;
     auto& values = call->values;
 
-    const auto parent = parent_val->linked_node();
+    const auto parent = parent_val->get_chain_last_linked();
     if(parent) {
         const auto variant_mem = parent->as_variant_member();
         if (variant_mem) {
@@ -2094,7 +2094,7 @@ bool check_chain_mutability(SymbolResolver& resolver, const std::vector<Value*>&
         // But for StructMember, check_is_mutable just sees the member definition.
         // We need to check if we are accessing a member of 'self', and if 'self' is mutable.
         if (i == 0) {
-            const auto linked = val->linked_node();
+            const auto linked = val->get_chain_last_linked();
             if (linked && linked->kind() == ASTNodeKind::StructMember) {
                 // Must be implicit self access
                 const auto curr_func_type = resolver.current_func_type;
@@ -2162,7 +2162,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
 
     }
 
-    const auto linked = parent_val->linked_node();
+    const auto linked = parent_val->get_chain_last_linked();
     // enum member being used as a no value
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
     const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
@@ -2204,7 +2204,7 @@ bool link_call_without_parent(SymResLinkBody& visitor, FunctionCall* call, BaseT
                              if (!first_value->check_is_mutable(false)) {
                                  is_mutable = false;
                              } else {
-                                const auto linked = first_value->linked_node();
+                                const auto linked = first_value->get_chain_last_linked();
                                 if (linked && linked->kind() == ASTNodeKind::StructMember) {
                                      // Implicit self check
                                     const auto curr_func_type = resolver.current_func_type;
@@ -2479,8 +2479,7 @@ void SymResLinkBody::VisitLinkedType(LinkedType* type) {
         const auto value_type = (LinkedValueType*) type;
         const auto value = value_type->value;
         visit(value);
-        // TODO: do not use linked node here
-        const auto linked = value->linked_node();
+        const auto linked = value->get_chain_last_linked();
         if(linked) {
             type->linked = linked;
         } else {
@@ -2560,7 +2559,7 @@ void SymResLinkBody::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     // which allows them to generate a variable and store themselves onto it
     // if they are of integer types
     // before the taking of address, the variables act immutable
-    const auto linked = value->linked_node();
+    const auto linked = value->get_chain_last_linked();
     if(linked) {
         switch (linked->kind()) {
             case ASTNodeKind::FunctionParam:

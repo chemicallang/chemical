@@ -12,7 +12,7 @@ class AnnotationController;
 
 class Parser;
 
-class Token;
+struct Token;
 
 class ASTNode;
 

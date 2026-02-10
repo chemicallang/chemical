@@ -6,7 +6,7 @@ class BatchAllocator;
 
 class Lexer;
 
-class Token;
+struct Token;
 
 extern "C" {
 

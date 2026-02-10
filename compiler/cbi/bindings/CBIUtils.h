@@ -7,7 +7,7 @@
 class Value;
 
 namespace chem {
-    class string;
+    struct string;
 }
 
 struct ValueSpan {

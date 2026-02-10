@@ -13,7 +13,7 @@ class CompilerBinder;
 class BatchAllocator;
 
 namespace chem {
-    class string;
+    struct string;
 }
 
 /**

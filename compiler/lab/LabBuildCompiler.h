@@ -23,7 +23,7 @@ class CTranslator;
 
 struct GlobalContainer;
 
-class CmdOptions;
+struct CmdOptions;
 
 class ToCAstVisitor;
 

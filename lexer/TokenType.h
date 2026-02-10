@@ -82,6 +82,7 @@ enum class TokenType {
     SizeOfKw,
     AlignOfKw,
     ImportKw,
+    ExportKw,
     FuncKw,
     TypeKw,
     StructKw,

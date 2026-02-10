@@ -83,6 +83,7 @@ enum class ASTNodeKind : uint8_t {
     ModuleScope,
 
     EmbeddedNode,
+    ExportStmt,
 
     UnresolvedDecl,
 

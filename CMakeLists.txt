@@ -593,6 +593,8 @@ set(COMMON_SOURCES
         preprocess/2c/CDestructionVisitor.h
         compiler/cbi/bindings/AnnotationControllerCBI.h
         compiler/cbi/bindings/AnnotationController.cpp
+        ast/statements/Export.h
+        parser/statements/Export.cpp
 )
 
 # Chemical LSP Executable Target

@@ -155,6 +155,8 @@ public:
 
     void VisitUsingStmt(UsingStmt* node);
 
+    void VisitExportStmt(ExportStmt* node);
+
     void VisitVarInitStmt(VarInitStatement* node);
 
     void VisitLoopBlock(LoopBlock* node);

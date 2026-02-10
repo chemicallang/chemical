@@ -235,6 +235,8 @@ void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int file
 
 int ASTProcessor::sym_res_module(LabModule* module) {
 
+    const auto prev_mod_scope = resolver->current_mod_scope;
+    resolver->current_mod_scope = &module->module_scope;
     const auto mod_index = resolver->module_scope_start();
 
     // declare symbols of directly imported modules
@@ -317,7 +319,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
     // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
     const auto main_func = resolver->find("main");
     if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
-        if(options->verbose) {
+        if (options->verbose) {
             std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
         }
         main_func->as_function_unsafe()->set_no_mangle(true);
@@ -325,6 +327,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
     resolver->module_scope_end(mod_index);
     resolver->stored_file_symbols.clear();
+    resolver->current_mod_scope = prev_mod_scope;
     return 0;
 }
 

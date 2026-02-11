@@ -101,10 +101,10 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     if(waitRes == 258 as DWORD) {
         TerminateProcess(pi.hProcess, 1)
-        var log = TestLog()
-        log.type = LogType.Error
-        log.message.append_view("Test timed out after 10s")
-        state.logs.push(log)
+        var l = TestLog()
+        l.type = LogType.Error
+        l.message.append_view("Test timed out after 10s")
+        state.logs.push(l)
         state.has_failed = true
         state.exitCode = 1 // dummy exit code for timeout
     } else {

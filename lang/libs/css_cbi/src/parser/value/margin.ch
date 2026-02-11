@@ -37,8 +37,8 @@ func (cssParser : &mut CSSParser) parseMargin(
                 i++;
 
             } else {
-                const next = parser.getToken();
-                if(next.type != TokenType.Semicolon) {
+                const next2 = parser.getToken();
+                if(next2.type != TokenType.Semicolon) {
                     parser.error("unknown value for margin");
                 }
                 break;

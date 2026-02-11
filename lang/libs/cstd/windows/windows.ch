@@ -227,13 +227,20 @@ public union LARGE_INTEGER { // Changed to union based on typical use
  * @struct ULARGE_INTEGER
  * @brief 64-bit unsigned integer value. Can be accessed as a whole or parts.
  */
-public union ULARGE_INTEGER {
+public union _ULARGE_INTEGER {
     struct {
-        var LowPart : DWORD
-        var HighPart : DWORD
-    }
-    var QuadPart : ULONGLONG
-}
+        var LowPart : DWORD;
+        var HighPart : DWORD;
+    } DUMMYSTRUCTNAME;
+    struct {
+        var LowPart : DWORD;
+        var HighPart : DWORD;
+    } u;
+    var QuadPart : ULONGLONG;
+};
+
+public type ULARGE_INTEGER = _ULARGE_INTEGER
+public type PULARGE_INTEGER = *mut ULARGE_INTEGER;
 
 
 /**

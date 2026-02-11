@@ -122,15 +122,15 @@ static BaseType* defaultType(SymbolResolver& resolver, BaseType* type) {
 void MembersContainer::declare_inherited_members(SymbolResolver& linker) {
     const auto container = this;
     for(const auto var : container->variables()) {
-        linker.declare(var->name, var);
+        linker.declare_or_shadow(var->name, var);
     }
     for (const auto func: container->functions()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
-                linker.declare(func->as_function_unsafe()->name_view(), func);
+                linker.declare_or_shadow(func->as_function_unsafe()->name_view(), func);
                 break;
             case ASTNodeKind::GenericFuncDecl:
-                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                linker.declare_or_shadow(func->as_gen_func_decl_unsafe()->name_view(), func);
                 break;
             default:
                 break;
@@ -159,15 +159,15 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
 
 void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
     for (const auto var: variables()) {
-        linker.declare(var->name, var);
+        linker.declare_or_shadow(var->name, var);
     }
     for(const auto func : functions()) {
         switch(func->kind()) {
             case ASTNodeKind::FunctionDecl:
-                linker.declare(func->as_function_unsafe()->name_view(), func);
+                linker.declare_or_shadow(func->as_function_unsafe()->name_view(), func);
                 break;
             case ASTNodeKind::GenericFuncDecl:
-                linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                linker.declare_or_shadow(func->as_gen_func_decl_unsafe()->name_view(), func);
                 break;
             default:
                 break;
@@ -198,10 +198,10 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
 #endif
             continue;
         } else {
-            linker.declare(var->name, var);
+            linker.declare_or_shadow(var->name, var);
         }
     }
-    SymbolResolverDeclarer declarer(linker);
+    SymbolResolverShadowDeclarer declarer(linker);
     // declare all the functions
     for(auto& func : container->functions()) {
         declare_node(declarer, func, AccessSpecifier::Private);
@@ -537,14 +537,14 @@ void UsingStmt::declare_symbols(SymbolResolver &linker) {
         if(ns) {
             for(auto& node_pair : ns->extended) {
                 const auto node = node_pair.second;
-                linker.declare(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
+                linker.declare_or_shadow(chem::string_view(node_pair.first.data(), node_pair.first.size()), node);
             }
         } else {
             linker.error("expected value to be a namespace, however it isn't", this);
         }
     } else {
         const auto& name_view = linked->get_located_id()->identifier;
-        linker.declare(name_view, linked);
+        linker.declare_or_shadow(name_view, linked);
     }
 }
 
@@ -557,8 +557,19 @@ void SymResLinkBody::VisitUsingStmt(UsingStmt* node) {
     }
 }
 
+bool isValidExportParent(ASTNode* parent) {
+    switch(parent->kind()) {
+        case ASTNodeKind::FileScope:
+            return true;
+        case ASTNodeKind::IfStmt:
+            return isValidExportParent(parent->as_if_stmt_unsafe()->parent());
+        default:
+            return false;
+    }
+}
+
 void SymResLinkBody::VisitExportStmt(ExportStmt* node) {
-    if (node->parent() && node->parent()->kind() != ASTNodeKind::FileScope) {
+    if (node->parent() && !isValidExportParent(node->parent())) {
         linker.error("Export statement can only be used as a top level statement", node);
         return;
     }
@@ -715,7 +726,7 @@ void create_var_case_var(VariableIdentifier* id, SymResLinkBody& linker, ASTAllo
     const auto param = varCase->member->values.find(id->value);
     if (param != varCase->member->values.end()) {
 
-        auto variable = new(allocator.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, 0);
+        auto variable = new(allocator.allocate<VariantCaseVariable>()) VariantCaseVariable(id->value, param->second, stmt, id->encoded_location());
         varCase->identifier_list.emplace_back(variable);
         linker.visit(variable);
 
@@ -933,7 +944,7 @@ void SymResLinkBody::VisitEnumMember(EnumMember* node) {
     if(node->init_value) {
         visit(node->init_value);
     }
-    linker.declare(node->name, node);
+    linker.declare_or_shadow(node->name, node);
 }
 
 void configure_members_by_inheritance(EnumDeclaration* current, int start) {
@@ -985,7 +996,7 @@ void SymResLinkBody::VisitEnumDecl(EnumDeclaration* node) {
     // since members is an unordered map, first we declare all enums
     // then we link their init values
     for(auto& mem : members) {
-        linker.declare(mem.first, mem.second);
+        linker.declare_or_shadow(mem.first, mem.second);
     }
     // since now all identifiers will be available regardless of order of the map
     for(auto& mem : members) {
@@ -1007,7 +1018,7 @@ void SymResLinkBody::VisitForLoopStmt(ForLoop* node) {
 }
 
 void SymResLinkBody::VisitFunctionParam(FunctionParam* node) {
-    linker.declare(node->name, node);
+    linker.declare_or_shadow(node->name, node);
 }
 
 void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
@@ -1223,7 +1234,7 @@ void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
         linker.error(node) << "unresolved identifier '" << node->name << "' captured";
         node->linked = linker.get_unresolved_decl();
     }
-    linker.declare(node->name, node);
+    linker.declare_or_shadow(node->name, node);
 }
 
 void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
@@ -1481,10 +1492,10 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
         for (const auto func: linked->functions()) {
             switch(func->kind()) {
                 case ASTNodeKind::FunctionDecl:
-                    linker.declare(func->as_function_unsafe()->name_view(), func);
+                    linker.declare_or_shadow(func->as_function_unsafe()->name_view(), func);
                     break;
                 case ASTNodeKind::GenericFuncDecl:
-                    linker.declare(func->as_gen_func_decl_unsafe()->name_view(), func);
+                    linker.declare_or_shadow(func->as_gen_func_decl_unsafe()->name_view(), func);
                     break;
                 default:
                     break;
@@ -1512,7 +1523,7 @@ void SymResLinkBody::VisitNamespaceDecl(Namespace* node) {
     if(node->root) {
         node->root->declare_extended_in_linker(linker);
     } else {
-        SymbolResolverDeclarer declarer(linker);
+        SymbolResolverShadowDeclarer declarer(linker);
         for(const auto child : node->nodes) {
             declare_node(declarer, child, AccessSpecifier::Private);
         }
@@ -1561,7 +1572,7 @@ void SymResLinkBody::VisitVariantCaseVariable(VariantCaseVariable* node) {
         return;
     }
     node->member_param = child->second;
-    linker.declare(node->name, node);
+    linker.declare_or_shadow(node->name, node);
 }
 
 void SymResLinkBody::VisitWhileLoopStmt(WhileLoop* node) {

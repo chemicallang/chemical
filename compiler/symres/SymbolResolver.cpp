@@ -39,11 +39,8 @@ UnresolvedDecl* SymbolResolver::get_unresolved_decl() {
 }
 
 void SymbolResolver::dup_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
-    warn(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
-}
-
-void SymbolResolver::dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node) {
-    error(new_node) << "duplicate runtime symbol being declared " << name << " symbol already exists";
+    error(new_node) << "duplicate symbol being declared, symbol '" << name << "' already exists";
+    error(previous) << "symbol has a conflict";
 }
 
 bool SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* node) {
@@ -51,9 +48,16 @@ bool SymbolResolver::declare_quietly(const chem::string_view& name, ASTNode* nod
     if(previous == nullptr) {
         return true;
     } else {
-        // shadow the current symbol
-        table.declare(name, node);
-        dup_sym_error(name, previous, node);
+        const auto p = node->parent();
+        // symbols with namespace as parents, aren't duplicates, they are hiding members
+        if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
+            // shadow the current symbol
+            table.declare(name, node);
+        } else {
+            // shadow the current symbol
+            table.declare(name, node);
+            dup_sym_error(name, previous, node);
+        }
         return false;
     }
 }
@@ -103,7 +107,7 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
     return false;
 }
 
-void SymbolResolver::declare_overriding(const chem::string_view &name, ASTNode* node) {
+void SymbolResolver::declare_or_shadow(const chem::string_view &name, ASTNode* node) {
 #ifdef DEBUG
     if(name.empty()) {
         std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
@@ -122,7 +126,13 @@ void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
         return;
     }
 #endif
-    table.declare(name, node);
+    const auto previous = table.declare_no_shadow(name, node);
+    if(previous) {
+        error(node) << "symbol with name '" << name << "' already exists";
+        error(previous) << "symbol has a conflict";
+        // shadow the symbol
+        table.declare(name, node);
+    }
 }
 
 void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTNode *node) {

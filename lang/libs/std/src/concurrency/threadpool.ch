@@ -1,8 +1,8 @@
 if(def.windows){
 
 @dllimport @stdcall @extern public func CreateThread(lpThreadAttributes:*void,dwStackSize:ulong,lpStartAddress:*void,lpParameter:*void,dwCreationFlags:ulong,lpThreadId:*mut ulong):HANDLE;
-@dllimport @stdcall @extern public func Sleep(ms:ulong):void
 
+export Sleep;
 
 public struct SYSTEM_INFO {
     var dwOemId: u32

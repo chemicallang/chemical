@@ -1504,11 +1504,11 @@ func (jsParser : &mut JsParser) parseExport(parser : *mut Parser, builder : *mut
     
     parser.increment_if(JsTokenType.SemiColon as int);
     
-    var exp = builder.allocate<JsExport>()
-    new (exp) JsExport {
+    var jsExp = builder.allocate<JsExport>()
+    new (jsExp) JsExport {
         base : JsNode { kind : JsNodeKind.Export },
         declaration : decl,
         is_default : is_default
     }
-    return exp as *mut JsNode;
+    return jsExp as *mut JsNode;
 }

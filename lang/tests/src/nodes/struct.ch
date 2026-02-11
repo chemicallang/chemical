@@ -484,14 +484,14 @@ func test_structs() {
         return p.pair.get_pair_sum() == 26
     })
     test("inline struct types work as well - 1", () => {
-        var point : struct Point { var a : int; var b : int; } = struct {
+        var point : struct Point223 { var a : int; var b : int; } = struct {
             a : 13,
             b : 6
         }
         return point.a + point.b == 19
     })
     test("inline struct types work as well - 2", () => {
-        var point : struct Point { var a : int; var b : int; } = Point {
+        var point : struct Point223 { var a : int; var b : int; } = Point223 {
             a : 11,
             b : 3
         }

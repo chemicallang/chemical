@@ -251,16 +251,16 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
             if(config.display_logs) {
                 if (s.logs.size() > 0) {
                     for (var li : size_t = 0; li < s.logs.size(); ++li) {
-                        const log = s.logs.get_ptr(li);
-                        const lt_color = log_type_color(log.type);
-                        const icon = log_type_icon(log.type);
-                        const lname = log_type_name(log.type);
+                        const l = s.logs.get_ptr(li);
+                        const lt_color = log_type_color(l.type);
+                        const icon = log_type_icon(l.type);
+                        const lname = log_type_name(l.type);
                         /* compose location string if present */
-                        if (log.line > 0 || log.character > 0) {
+                        if (l.line > 0 || l.character > 0) {
                             printf("     %s%s%s %s%s (line %zu:%zu)%s\n",
                                    lt_color, icon, col_reset(),
                                    lt_color, lname,
-                                   log.line, log.character,
+                                   l.line, l.character,
                                    col_reset());
                         } else {
                             printf("     %s%s%s %s%s%s\n",
@@ -268,8 +268,8 @@ func print_test_results(config : &mut TestDisplayConfig, states : *TestFunctionS
                                    lt_color, lname, col_reset());
                         }
                         /* message may be multiline; indent each line */
-                        if (!log.message.empty()) {
-                            print_log_multiline(get_stdout(), log.message.data())
+                        if (!l.message.empty()) {
+                            print_log_multiline(get_stdout(), l.message.data())
                         }
                     }
                 } else {

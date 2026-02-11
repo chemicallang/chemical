@@ -241,7 +241,7 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
     // declare symbols of directly imported modules
 
-    SymbolResolverDeclarer declarer(*resolver);
+    SymbolResolverShadowDeclarer declarer(*resolver);
     for(const auto dep : module->dependencies) {
         for(auto& file_ptr : dep->direct_files) {
             auto& file = *file_ptr.result;
@@ -336,7 +336,7 @@ int ASTProcessor::sym_res_module_seq(LabModule* module) {
 
     // declare symbols of directly imported modules
 
-    SymbolResolverDeclarer declarer(*resolver);
+    SymbolResolverShadowDeclarer declarer(*resolver);
     for(const auto dep : module->dependencies) {
         for(auto& file_ptr : dep->direct_files) {
             auto& file = *file_ptr.result;

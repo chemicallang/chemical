@@ -3,7 +3,7 @@
 // If you target macOS/BSD, ask and I'll provide a macOS/BSD variant.
 
 // Common typedefs used below
-public type time_t     = i64;
+// public type time_t     = i64;
 public type dev_t      = u64;
 public type ino_t      = u64;
 public type mode_t     = u32;

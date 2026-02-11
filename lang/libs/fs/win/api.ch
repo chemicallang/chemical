@@ -1,15 +1,6 @@
 public namespace fs {
 
-public comptime const FILE_SHARE_READ =                 0x00000001
-public comptime const FILE_SHARE_WRITE =                0x00000002
-public comptime const FILE_SHARE_DELETE =               0x00000004
-public comptime const FILE_ATTRIBUTE_READONLY =             0x00000001
-public comptime const FILE_ATTRIBUTE_HIDDEN =               0x00000002
-public comptime const FILE_ATTRIBUTE_SYSTEM =               0x00000004
-public comptime const FILE_ATTRIBUTE_DIRECTORY =            0x00000010
-public comptime const FILE_ATTRIBUTE_ARCHIVE =              0x00000020
 public comptime const FILE_ATTRIBUTE_DEVICE =               0x00000040
-public comptime const FILE_ATTRIBUTE_NORMAL =               0x00000080
 public comptime const FILE_ATTRIBUTE_TEMPORARY =            0x00000100
 public comptime const FILE_ATTRIBUTE_SPARSE_FILE =          0x00000200
 public comptime const FILE_ATTRIBUTE_REPARSE_POINT =        0x00000400
@@ -76,23 +67,6 @@ public comptime const FILE_SUPPORTS_BLOCK_REFCOUNTING =     0x08000000
 public comptime const FILE_SUPPORTS_SPARSE_VDL =            0x10000000
 public comptime const FILE_DAX_VOLUME =                     0x20000000
 public comptime const FILE_SUPPORTS_GHOSTING =              0x40000000
-
-
-
-public union _ULARGE_INTEGER {
-    struct {
-        var LowPart : DWORD;
-        var HighPart : DWORD;
-    } DUMMYSTRUCTNAME;
-    struct {
-        var LowPart : DWORD;
-        var HighPart : DWORD;
-    } u;
-    var QuadPart : ULONGLONG;
-};
-
-public type ULARGE_INTEGER = _ULARGE_INTEGER
-public type PULARGE_INTEGER = *mut ULARGE_INTEGER;
 
 @dllimport
 @stdcall
@@ -324,32 +298,25 @@ comptime const FILE_FLAG_OPEN_REPARSE_POINT =    0x00200000
 comptime const FILE_FLAG_OPEN_NO_RECALL =        0x00100000
 comptime const FILE_FLAG_FIRST_PIPE_INSTANCE =   0x00080000
 
-
-public struct FILETIME {
-    var dwLowDateTime: DWORD;
-    var dwHighDateTime: DWORD;
-}
-
-public struct WIN32_FIND_DATAW {
-    var dwFileAttributes: DWORD;
-    var ftCreationTime: FILETIME;
-    var ftLastAccessTime: FILETIME;
-    var ftLastWriteTime: FILETIME;
-    var nFileSizeHigh: DWORD;
-    var nFileSizeLow: DWORD;
-    var dwReserved0: DWORD;
-    var dwReserved1: DWORD;
-    var cFileName: [WIN_MAX_PATH]u16;
-    var cAlternateFileName: [14]u16;
-}
+// public struct WIN32_FIND_DATAW {
+//     var dwFileAttributes: DWORD;
+//     var ftCreationTime: FILETIME;
+//     var ftLastAccessTime: FILETIME;
+//     var ftLastWriteTime: FILETIME;
+//     var nFileSizeHigh: DWORD;
+//     var nFileSizeLow: DWORD;
+//     var dwReserved0: DWORD;
+//     var dwReserved1: DWORD;
+//     var cFileName: [WIN_MAX_PATH]u16;
+//     var cAlternateFileName: [14]u16;
+// }
 
 @extern @dllimport @stdcall public func FindFirstFileW(pattern : LPCWSTR, out : *mut WIN32_FIND_DATAW) : HANDLE;
 @extern @dllimport @stdcall public func FindNextFileW(h : HANDLE, out : *mut WIN32_FIND_DATAW) : BOOL;
-@extern @dllimport @stdcall public func FindClose(h : HANDLE) : BOOL;
-@extern @dllimport @stdcall public func DeleteFileW(path : LPCWSTR) : BOOL;
-@extern @dllimport @stdcall public func RemoveDirectoryW(path : LPCWSTR) : BOOL;
+// @extern @dllimport @stdcall public func FindClose(h : HANDLE) : BOOL;
+// @extern @dllimport @stdcall public func DeleteFileW(path : LPCWSTR) : BOOL;
+// @extern @dllimport @stdcall public func RemoveDirectoryW(path : LPCWSTR) : BOOL;
 
-const INVALID_HANDLE_VALUE : HANDLE = -1 as HANDLE;
 const CP_UTF8 = 65001u32;
 
 

@@ -118,11 +118,11 @@ public struct u16string {
     }
 
     func move_const_to_buffer(&mut self) {
-        const data = storage.constant.data;
+        const d = storage.constant.data;
         const length = storage.constant.length;
         unsafe {
             for(var i = 0; i < length; i++) {
-                storage.sso.buffer[i] = data[i];
+                storage.sso.buffer[i] = d[i];
             }
         }
         storage.sso.buffer[length] = 0u16
@@ -133,10 +133,10 @@ public struct u16string {
     func move_data_to_heap(&mut self, from_data : *u16, length : size_t, capacity : size_t) {
         // capacity multiplied by 2 because we need two bytes for a single character
         // +2 is for safety, we need to add a null terminator (always)
-        var data = malloc((capacity * 2) + 2) as *mut u16
-        memcpy(data, from_data, length * 2)
-        data[length] = 0u16
-        storage.heap.data = data;
+        var d = malloc((capacity * 2) + 2) as *mut u16
+        memcpy(d, from_data, length * 2)
+        d[length] = 0u16
+        storage.heap.data = d;
         storage.heap.length = length;
         storage.heap.capacity = capacity
         state = '2'
@@ -147,9 +147,9 @@ public struct u16string {
     func resize_heap(&mut self, new_capacity : size_t) {
         // new_capacity multiplied by 2 because we need two bytes for a single character
         // +2 for the null terminator
-        var data = realloc(storage.heap.data, (new_capacity * 2) + 2) as *mut u16
-        data[storage.heap.length] = 0u16
-        storage.heap.data = data;
+        var d = realloc(storage.heap.data, (new_capacity * 2) + 2) as *mut u16
+        d[storage.heap.length] = 0u16
+        storage.heap.data = d;
         storage.heap.capacity = new_capacity
     }
 

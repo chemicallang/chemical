@@ -44,9 +44,9 @@ public namespace net {
         ) : int;
 
         // constants used
-        comptime const GENERIC_READ = 0x80000000u;
-        comptime const FILE_SHARE_READ = 0x00000001u;
-        comptime const OPEN_EXISTING = 3u;
+        // comptime const GENERIC_READ = 0x80000000u;
+        // comptime const FILE_SHARE_READ = 0x00000001u;
+        // comptime const OPEN_EXISTING = 3u;
 
         public func startup() { var dummy : [32]char; WSAStartup(0x202 as ushort, &mut dummy[0]); }
         public func cleanup() { WSACleanup() }
@@ -1350,17 +1350,17 @@ public namespace server {
                              // Check for headers end in accumulated (starting from read_pos)
                              var found = false;
                              var crlfpos = 0u;
-                             var i = ctx.read_pos; 
+                             var j = ctx.read_pos;
                              var abuf = &mut ctx.accumulated;
                              if(abuf.size() >= 4) {
-                                  while(i + 3 < abuf.size()) {
-                                      if(abuf.get(i) == '\r' as u8 && abuf.get(i+1u) == '\n' as u8 &&
-                                         abuf.get(i+2u) == '\r' as u8 && abuf.get(i+3u) == '\n' as u8) {
+                                  while(j + 3 < abuf.size()) {
+                                      if(abuf.get(j) == '\r' as u8 && abuf.get(j+1u) == '\n' as u8 &&
+                                         abuf.get(j+2u) == '\r' as u8 && abuf.get(j+3u) == '\n' as u8) {
                                           found = true;
-                                          crlfpos = i + 4u;
+                                          crlfpos = j + 4u;
                                           break;
                                       }
-                                      i++;
+                                      j++;
                                   }
                              }
                              

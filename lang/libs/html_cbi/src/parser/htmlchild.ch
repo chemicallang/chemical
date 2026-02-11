@@ -214,12 +214,12 @@ func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, build
                 parser.error("expected '(' after 'else if'");
             }
 
-            const expr = parser.parseExpression(builder);
-            if(expr == null) {
+            const expr2 = parser.parseExpression(builder);
+            if(expr2 == null) {
                 parser.error("expected a chemical expression");
             } else {
-                elseif.condition = expr;
-                htmlParser.dyn_values.push(expr)
+                elseif.condition = expr2;
+                htmlParser.dyn_values.push(expr2)
             }
 
             if(!parser.increment_if(ChemicalTokenType.RParen as int)) {

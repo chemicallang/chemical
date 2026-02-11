@@ -52,7 +52,7 @@ public func css_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedVal
         str : std::string()
     }
     converter.convertCSSOM(root);
-    const view = builder.allocate_view(converter.str.to_view())
+    // const view2 = builder.allocate_view(converter.str.to_view())
     const classNameVal = builder.make_string_value(root.className, loc)
     block_val.setCalculatedValue(classNameVal)
     return block_val;

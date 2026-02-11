@@ -15,7 +15,7 @@ void Namespace::declare_node(SymbolResolver& linker, ASTNode* node, const chem::
 
 void Namespace::declare_extended_in_linker(SymbolResolver& linker) {
     for(auto& node_pair : extended) {
-        linker.declare(node_pair.first, node_pair.second);
+        linker.declare_or_shadow(node_pair.first, node_pair.second);
     }
 }
 

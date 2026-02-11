@@ -132,8 +132,8 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
             while(name_w[j] != 0) { child_ptr[i + j] = name_w[j]; j += 1; }
             child_ptr[i + j] = 0;
 
-            var is_dir = (finddata_ptr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-            if(is_dir) {
+            var is_dir2 = (finddata_ptr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+            if(is_dir2) {
                 var rem = remove_dir_all_recursive_native(child_ptr);
                 if(rem is Result.Err) { var Err(e) = rem else unreachable; FindClose(h); return Result.Err(e); }
             } else {
@@ -209,8 +209,8 @@ func read_dir(path : *char, callback : std::function<(name : *char, name_len : s
             return Result.Err(e)
         }
         var Ok(nlen) = conv2 else unreachable
-        var is_dir : bool = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
-        var cont = callback(&mut name_utf8[0], nlen, is_dir);
+        var is_dir2 : bool = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        var cont = callback(&mut name_utf8[0], nlen, is_dir2);
         if(!cont) { FindClose(h); return Result.Ok(UnitTy{}); }
         var ok = FindNextFileW(h, &mut findData);
         if(ok == 0) { var err = GetLastError(); if(err == ERROR_NO_MORE_FILES) { break; } FindClose(h); return Result.Err(winerr_to_fs(err as int)); }

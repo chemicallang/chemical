@@ -82,11 +82,11 @@ func check_str_hash32(s : *char) : HashingResult {
     }
 }
 
-comptime func comptime_murmur(s : *char) : uint32_t {
+comptime func comptime_murmur(s : *char) : u32 {
     return murmurhash(s, intrinsics::size(s), 0)
 }
 
-func wrap_murmur(s : *char) : uint32_t {
+func wrap_murmur(s : *char) : u32 {
     return murmurhash(s, strlen(s), 0)
 }
 

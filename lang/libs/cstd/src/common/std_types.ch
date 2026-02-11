@@ -29,6 +29,20 @@ if(def.win64) {
 }
 
 /**
+ * TODO: documentation
+ */
+if(def.win64) {
+    @extern
+    public type isize = bigint
+} else if(def.win32) {
+    @extern
+    public type isize = long
+} else {
+    @extern
+    public type isize = long
+}
+
+/**
  * max_align_t is a type whose alignment requirement is at least as strict (as large) as that of every scalar type.
  * @see https://en.cppreference.com/w/c/types/max_align_t
  */

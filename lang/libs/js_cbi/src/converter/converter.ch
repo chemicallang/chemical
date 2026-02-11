@@ -680,14 +680,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              converter.str.append_view(";")
         }
         JsNodeKind.Export => {
-             var exp = node as *mut JsExport
+             var jsExp = node as *mut JsExport
              converter.str.append_view("export ")
-             if(exp.is_default) converter.str.append_view("default ")
-             if(exp.declaration != null) {
-                 converter.convertJsNode(exp.declaration)
-                 if(exp.is_default && 
-                    exp.declaration.kind != JsNodeKind.FunctionDecl && 
-                    exp.declaration.kind != JsNodeKind.ClassDecl) {
+             if(jsExp.is_default) converter.str.append_view("default ")
+             if(jsExp.declaration != null) {
+                 converter.convertJsNode(jsExp.declaration)
+                 if(jsExp.is_default &&
+                    jsExp.declaration.kind != JsNodeKind.FunctionDecl &&
+                    jsExp.declaration.kind != JsNodeKind.ClassDecl) {
                      converter.str.append_view(";")
                  }
              }

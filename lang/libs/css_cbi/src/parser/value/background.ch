@@ -124,10 +124,10 @@ func (cssParser : &mut CSSParser) parseLinearGradient(parser : *mut Parser, buil
 
             const nSid = parser.getToken()
             if(nSid.type != TokenType.Comma) {
-                const kind = getSideOrCornerKeywordKind(nSid.fnv1())
-                if(kind != CSSKeywordKind.Unknown) {
+                const kind2 = getSideOrCornerKeywordKind(nSid.fnv1())
+                if(kind2 != CSSKeywordKind.Unknown) {
                     parser.increment()
-                    lin_data.to2.kind = kind
+                    lin_data.to2.kind = kind2
                     lin_data.to2.value = builder.allocate_view(nSid.value)
                 }
             }

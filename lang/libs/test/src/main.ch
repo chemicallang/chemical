@@ -372,13 +372,13 @@ func process_message(state : &mut TestFunctionState, msg : *char) {
             return;
         }
         MessageCommandType.Log => {
-            var log = TestLog();
-            parseLog(&mut msg, log);
-            if(log.type !in LogType.Information, LogType.Warning, LogType.Success) {
+            var l = TestLog();
+            parseLog(&mut msg, l);
+            if(l.type !in LogType.Information, LogType.Warning, LogType.Success) {
                 state.has_failed = true;
                 state.has_error_log = true;
             }
-            state.logs.push(log);
+            state.logs.push(l);
         }
         MessageCommandType.QuitGroup => {
             // TODO: quit current group

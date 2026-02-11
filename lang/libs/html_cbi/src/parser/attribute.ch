@@ -47,9 +47,9 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
                 htmlParser.dyn_values.push(expr)
             }
 
-            const next = parser.getToken();
+            const next2 = parser.getToken();
 
-            if(next.type == ChemicalTokenType.CommaSym) {
+            if(next2.type == ChemicalTokenType.CommaSym) {
 
                 // multiple values
 
@@ -93,7 +93,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
                 if(rb.type == ChemicalTokenType.RBrace) {
                     parser.increment();
                 } else {
-                    printf("WHAT ::::: type %d with value %s at line %d and char %d\n", next.type, next.value.data(), next.position.line, next.position.character)
+                    printf("WHAT ::::: type %d with value %s at line %d and char %d\n", next2.type, next2.value.data(), next2.position.line, next2.position.character)
                     fflush(null)
                     parser.error("expected a '}' after the multiple chemical expressions");
                 }
@@ -104,7 +104,7 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
 
                 // single value
 
-                if(next.type == ChemicalTokenType.RBrace) {
+                if(next2.type == ChemicalTokenType.RBrace) {
                     parser.increment();
                 } else {
                     parser.error("expected a '}' after the chemical expression");

@@ -207,12 +207,12 @@ public struct string : Hashable, Eq {
     }
 
     func move_const_to_buffer(&mut self) {
-        const data = storage.constant.data;
+        const d = storage.constant.data;
         const length = storage.constant.length;
         unsafe {
-            if(data != null) {
+            if(d != null) {
                 for(var i = 0; i < length; i++) {
-                    storage.sso.buffer[i] = data[i];
+                    storage.sso.buffer[i] = d[i];
                 }
             }
         }
@@ -223,10 +223,10 @@ public struct string : Hashable, Eq {
 
     func move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) {
         // +1 is for safety, we need to add a null terminator (always)
-        var data = malloc(capacity + 1) as *mut char
-        memcpy(data, from_data, length)
-        data[length] = '\0'
-        storage.heap.data = data;
+        var d = malloc(capacity + 1) as *mut char
+        memcpy(d, from_data, length)
+        d[length] = '\0'
+        storage.heap.data = d;
         storage.heap.length = length;
         storage.heap.capacity = capacity
         state = '2'
@@ -236,13 +236,13 @@ public struct string : Hashable, Eq {
     // new_capacity is always > length
     func resize_heap(&mut self, new_capacity : size_t) : bool {
         // +1 for the null terminator
-        var data = realloc(storage.heap.data, new_capacity + 1) as *mut char
-        if(data == null) {
+        var d = realloc(storage.heap.data, new_capacity + 1) as *mut char
+        if(d == null) {
             panic("couldn't realloc in std::string -> resize_heap");
             return false;
         } else {
-            data[storage.heap.length] = '\0'
-            storage.heap.data = data;
+            d[storage.heap.length] = '\0'
+            storage.heap.data = d;
             storage.heap.capacity = new_capacity
             return true;
         }

@@ -60,8 +60,8 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
         }
 
         // optional forward slash in self closing tags <br />
-        const fs = parser.getToken();
-        if(fs.type == TokenType.FwdSlash) {
+        const fwdSl = parser.getToken();
+        if(fwdSl.type == TokenType.FwdSlash) {
             parser.increment();
             isSelfClosing = true;
         }

@@ -1,27 +1,6 @@
-if(def.win64) {
-    @extern
-    public type size_t = ubigint
-} else if(def.win32) {
-    @extern
-    public type size_t = ulong
-} else {
-    @extern
-    public type size_t = ulong
-}
-
-public type usize = size_t
-
-if(def.win64) {
-    @extern
-    public type isize = bigint
-} else if(def.win32) {
-    @extern
-    public type isize = long
-} else {
-    @extern
-    public type isize = long
-}
-
+export size_t;
+export usize;
+export isize;
 export printf;
 export snprintf;
 export malloc;

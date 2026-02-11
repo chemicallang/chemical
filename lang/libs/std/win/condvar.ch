@@ -21,7 +21,6 @@ public func SleepConditionVariableCS(cond : *mut u8, cs : *mut u8, ms : ulong) :
 
 public namespace std {
 
-    comptime const CRITICAL_SECTION_SIZE = 40   // typical Win32 CRITICAL_SECTION (x64)
     comptime const CONDITION_VARIABLE_SIZE = 8  // typical Win32 CONDITION_VARIABLE (small user object)
 
     // Cross-platform CondVar (opaque storage)

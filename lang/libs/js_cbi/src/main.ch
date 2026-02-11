@@ -55,8 +55,8 @@ public func js_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValu
     
     converter.convertJsRoot(root);
     
-    const view = builder.allocate_view(converter.str.to_view())
-    const strValue = builder.make_string_value(view, loc)
+    const view2 = builder.allocate_view(converter.str.to_view())
+    const strValue = builder.make_string_value(view2, loc)
     block_val.setCalculatedValue(strValue)
     return block_val;
 }

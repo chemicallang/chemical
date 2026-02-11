@@ -21,24 +21,24 @@ func (cssParser : &mut CSSParser) parseGridTemplateTracks(
             vals.values.push(trackValue)
             continue
         } else if(token.type == TokenType.Identifier) {
-             const view = token.value;
-             if(view.equals("auto") || view.equals("min-content") || view.equals("max-content") || view.equals("fit-content")) {
+             const view2 = token.value;
+             if(view2.equals("auto") || view2.equals("min-content") || view2.equals("max-content") || view2.equals("fit-content")) {
                  parser.increment()
                  var kwKind = CSSKeywordKind.Auto
-                 if(view.equals("min-content")) kwKind = CSSKeywordKind.MinContent
-                 else if(view.equals("max-content")) kwKind = CSSKeywordKind.MaxContent
-                 else if(view.equals("fit-content")) kwKind = CSSKeywordKind.FitContent
+                 if(view2.equals("min-content")) kwKind = CSSKeywordKind.MinContent
+                 else if(view2.equals("max-content")) kwKind = CSSKeywordKind.MaxContent
+                 else if(view2.equals("fit-content")) kwKind = CSSKeywordKind.FitContent
                  
                  var kwVal = builder.allocate<CSSKeywordValueData>()
                  new (kwVal) CSSKeywordValueData {
                      kind : kwKind,
-                     value : builder.allocate_view(view)
+                     value : builder.allocate_view(view2)
                  }
                  trackValue.kind = CSSValueKind.Keyword
                  trackValue.data = kwVal
                  vals.values.push(trackValue)
                  continue
-             } else if(view.equals("repeat")) {
+             } else if(view2.equals("repeat")) {
                  parser.increment()
                  if(parser.increment_if(TokenType.LParen as int)) {
                      var repeatData = builder.allocate<GridRepeatData>()

@@ -402,14 +402,9 @@ public:
     }
 
     /**
-     * duplicate runtime symbol error
-     */
-    void dup_runtime_sym_error(const chem::string_view& name, ASTNode* previous, ASTNode* new_node);
-
-    /**
      * declare a symbol that will override the previous symbol if exists
      */
-    void declare_overriding(const chem::string_view &name, ASTNode* node);
+    void declare_or_shadow(const chem::string_view &name, ASTNode* node);
 
     /**
      * declare a symbol

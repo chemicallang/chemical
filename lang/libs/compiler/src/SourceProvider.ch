@@ -30,17 +30,17 @@ public struct SourceProvider {
     /**
      * read a utf8 code point
      */
-    func readCodePoint(provider : *mut SourceProvider) : uint32_t;
+    func readCodePoint(provider : *mut SourceProvider) : u32;
 
     /**
      * peek a utf8 code point, get the length
      */
-    func utf8_decode_peek(provider : *mut SourceProvider , out_len : &mut size_t) : uint32_t;
+    func utf8_decode_peek(provider : *mut SourceProvider , out_len : &mut size_t) : u32;
 
     /**
      * increment a utf8 code point (that you peeked), giving its length
      */
-    func incrementCodepoint(provider : *mut SourceProvider, cp : uint32_t, len : size_t);
+    func incrementCodepoint(provider : *mut SourceProvider, cp : u32, len : size_t);
 
     /**
      * checks the stream is at the end

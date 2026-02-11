@@ -173,7 +173,17 @@ unsigned int StructValue::store_in_array(
 }
 
 llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    return llvm_allocate(gen, "", nullptr);
+    std::vector<llvm::Constant*> llvm_vals;
+    for(auto& pair : values) {
+        const auto val = pair.second.value;
+        const auto final_val = val->llvm_value(gen, nullptr);
+        if(llvm::isa<llvm::Constant>(final_val)) {
+            llvm_vals.emplace_back((llvm::Constant*) final_val);
+        } else {
+            gen.error("expected value to result in a constant expression", val);
+        }
+    }
+    return llvm::ConstantStruct::get((llvm::StructType*) llvm_type(gen), llvm_vals);
 }
 
 void StructValue::llvm_assign_value(Codegen &gen, llvm::Value *lhsPtr, Value *lhs) {

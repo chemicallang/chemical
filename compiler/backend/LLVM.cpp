@@ -1577,7 +1577,7 @@ void dyn_initialize(Codegen& gen, DynamicValue* dyn_value, llvm::Value* fat_ptr)
     // get the object pointer
     llvm::Value* ptr;
     if(value->kind() == ValueKind::StructValue) {
-        ptr = value->llvm_value(gen);
+        ptr = value->as_struct_value_unsafe()->llvm_allocate(gen, "", nullptr);
     } else {
         if(Value::isValueKindRValue(value->kind())) {
             ptr = ASTNode::turnPtrValueToLoadablePtr(gen, value->llvm_value(gen), value->encoded_location());

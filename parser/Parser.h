@@ -217,7 +217,7 @@ public:
     ImportStatement* parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out = true);
 
     /**
-     * lexes import statement
+     * parsees import statement
      */
     ImportStatement* parseImportStatement(ASTAllocator& allocator);
 
@@ -399,7 +399,7 @@ public:
     std::vector<SavedAnnotation> annotations;
 
     /**
-     * initialize the lexer with this provider and path
+     * initialize the parseer with this provider and path
      */
     Parser(
         unsigned int file_id,
@@ -493,7 +493,7 @@ public:
     FunctionCall* parseFunctionCall(ASTAllocator& allocator, std::vector<Value*>& values);
 
     /**
-     * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)
+     * parsees a keyword access specifier public, private, internal & (if protect is true, then protected)
      */
     std::optional<AccessSpecifier> parseAccessSpecifier();
 
@@ -514,9 +514,9 @@ public:
 
     /**
      * after an identifier has been consumed
-     * we call this method to lex an access chain after it
+     * we call this method to parse an access chain after it
      * identifier .element1.element2.element3
-     * this is the method called by lexAccessChain after finding a identifier
+     * this is the method called by parseAccessChain after finding a identifier
      * @param assChain is the access chain in an assignment
      */
     Value* parseAccessChainAfterId(
@@ -529,7 +529,7 @@ public:
 
     /**
      * this method does not compound the access chain, so can be called recursively
-     * this method is called by lexAccessChain to not compound access chains nested in it
+     * this method is called by parseAccessChain to not compound access chains nested in it
      * @param assChain is the access chain in an assignment
      */
     Value* parseAccessChainRecursive(ASTAllocator& allocator, std::vector<Value*>& values, Position& start, bool parseStruct = false);
@@ -560,13 +560,13 @@ public:
     DereferenceValue* parseDereferenceValue(ASTAllocator& allocator);
 
     /**
-     * it lexes a access chain, but allows a '&' operator before it to get the address of value
+     * it parsees a access chain, but allows a '&' operator before it to get the address of value
      * so this allows a.b.c or &a.b.c
      */
     Value* parseLhsValue(ASTAllocator& allocator);
 
     /**
-     * it lexes a access chain, but allows a '&' operator before it to get the address of value
+     * it parsees a access chain, but allows a '&' operator before it to get the address of value
      * so this allows a.b.c or &a.b.c
      */
     Value* parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruct = false);
@@ -582,11 +582,11 @@ public:
     );
 
     /**
-     * lex allowDeclarations or initialization tokens
+     * parse allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;
      * @param allowDeclarations when true, it will allow allowDeclarations only without the value initialization
      * like #var x : int; when false however, it'll be strict initialization
-     * @return whether it was able to lex the tokens for the statement
+     * @return whether it was able to parse the tokens for the statement
      */
     ASTNode* parseVarInitializationTokens(
             ASTAllocator& allocator,
@@ -598,9 +598,15 @@ public:
     );
 
     /**
-     * lex assignment tokens
+     * parenthesized lhs or maybe parenthesized assignment
+     * for example (p as *mut Point).access = something;
+     */
+    ASTNode* parseParenLhsAssignment(ASTAllocator& allocator);
+
+    /**
+     * parse assignment tokens
      * like x = 5;
-     * @return whether it was able to lex teh tokens for the statement
+     * @return whether it was able to parse teh tokens for the statement
      */
     ASTNode* parseAssignmentStmt(ASTAllocator& allocator);
 
@@ -618,10 +624,10 @@ public:
     bool isGenericEndAhead();
 
     /**
-     * This lexes a operation token before assignment '='
+     * This parsees a operation token before assignment '='
      * for example +=, -=
      * in this case, equal sign is ignored and operation is determined solely based on the token before it
-     * @return whether the language operator token has been lexed
+     * @return whether the language operator token has been parseed
      */
     std::optional<Operation> parseAssignmentOperator();
 
@@ -704,14 +710,14 @@ public:
     ASTNode* parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier specifier, bool comptime);
 
     /**
-     * lexes a single top level statement, top level means in file scope, These include
+     * parses a single top level statement, top level means in file scope, These include
      * functions, structs, interfaces, implementations, enum, annotations
      * comments, variable initialization with value, constants
      */
     ASTNode* parseTopLevelStatement(ASTAllocator& allocator, bool comptime);
 
     /**
-     * lexes a single nested level statement, nested level means not top level (must not be in file scope)
+     * parses a single nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
     ASTNode* parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value = false, bool parse_value_node = false);
@@ -722,20 +728,20 @@ public:
     ThrowStatement* parseThrowStatement(ASTAllocator& allocator);
 
     /**
-     * All top levels statements lexed, These include
+     * All top levels statements parseed, These include
      * functions, structs, interfaces, implementations
      * comments, variable initialization with value, constants
      */
     void parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool break_at_no_stmt = false);
 
     /**
-     * All import statements defined at top level will be lexed
+     * All import statements defined at top level will be parseed
      * @param should cause error on invalid syntax, or stop
      */
     void parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes);
 
     /**
-     * lexes a multiple nested level statement, nested level means not top level (must not be in file scope)
+     * parses a multiple nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
     void parseNestedLevelMultipleStatementsTokens(ASTAllocator& allocator, std::vector<ASTNode*>& nodes, bool is_value = false, bool parse_value_node = false);
@@ -858,7 +864,7 @@ public:
     void parseLoopBlock(ASTAllocator& allocator, LoopBlock* block);
 
     /**
-     * lex loop block tokens
+     * parse loop block tokens
      */
     LoopBlock* parseLoopBlockTokens(ASTAllocator& allocator);
 
@@ -886,7 +892,7 @@ public:
     bool parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params);
 
     /**
-     * lexes a function block with parameters
+     * parses a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
     ASTNode* parseFunctionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier, bool member, bool allow_extensions, bool comptime);
@@ -917,7 +923,7 @@ public:
     void parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime);
 
     /**
-     * lexes a struct block
+     * parses a struct block
      */
     ASTNode* parseStructStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
@@ -932,7 +938,7 @@ public:
     bool parseAnyVariantMember(ASTAllocator& allocator, VariantDefinition* def, AccessSpecifier specifier, bool comptime);
 
     /**
-     * lexes a struct block
+     * parses a struct block
      */
     ASTNode* parseVariantStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
@@ -942,7 +948,7 @@ public:
     UnnamedUnion* parseUnnamedUnion(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * lexes a struct block
+     * parses a struct block
      */
     ASTNode* parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
@@ -952,7 +958,7 @@ public:
     ASTNode* parseImplTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * lexes a enum block
+     * parses a enum block
      */
     EnumDeclaration* parseEnumStructureTokens(ASTAllocator& allocator, AccessSpecifier specifier);
 
@@ -1046,7 +1052,7 @@ public:
      * 123 as int, or 123 is int, this function takes care of parsing
      * all values afterward a parsed value inside the expression
      */
-    Value* parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token);
+    Value* parseAfterValue(ASTAllocator& allocator, Value* value);
 
     /**
      * increment decrement node is parsed
@@ -1059,12 +1065,12 @@ public:
     Value* parsePreIncDecValue(ASTAllocator& allocator, bool increment);
 
     /**
-     * lexes access chain like x.y.z or a value like 10, could be int, string, char
+     * parses access chain like x.y.z or a value like 10, could be int, string, char
      */
     Value* parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool parseStruct = false);
 
     /**
-     * lexes access chain like x.y.z or a value like 10, could be int, string, char
+     * parses access chain like x.y.z or a value like 10, could be int, string, char
      */
     Value* parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct = false);
 
@@ -1074,7 +1080,7 @@ public:
     ValueNode* parseValueNode(ASTAllocator& allocator);
 
     /**
-     * lex lambda after params list
+     * parse lambda after params list
      * @return true if there are no errors
      */
     bool parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction* lambda);
@@ -1085,23 +1091,30 @@ public:
     LambdaFunction* parseLambdaValue(ASTAllocator& allocator);
 
     /**
-     * lexes remaining expression, this is used by lexExpressionTokens
-     * this lexes the expression tokens after the first identifier / value
-     * for example in expression a + b, after lexing a + b will lexed by this function
+     * parses remaining expression, this is used by parseExpressionTokens
+     * this parses the expression tokens after the first identifier / value
+     * for example in expression a + b, after parseing a + b will parseed by this function
      * @param start is the start of the expression, index in tokens vector !
      */
     Value* parseRemainingExpression(ASTAllocator& allocator, Value* first_value, Token* start_tok);
 
     /**
-     * it will lex a lambda meaning '() => {}' in a paren expression
+     * it will parse a lambda meaning '() => {}' in a paren expression
      * it assumes you've already consumed '('
      */
     Value* parseLambdaOrExprAfterLParen(ASTAllocator& allocator);
 
     /**
-     * parses a parenthesized expression
+     * parses a parenthesized expression but no after value
      */
-    Value* parseParenExpression(ASTAllocator& allocator);
+    Value* parseParenExpressionNoAfterValue(ASTAllocator& allocator);
+
+    /**
+     * parse a parenthesized expression, including after value
+     */
+    inline Value* parseParenExpression(ASTAllocator& allocator) {
+        return parseAfterValue(allocator, parseParenExpressionNoAfterValue(allocator));
+    }
 
     /**
      * just a helper function for parsing expressions
@@ -1119,8 +1132,8 @@ public:
     NegativeValue* parseNegativeValue(ASTAllocator& allocator);
 
     /**
-     * lexes an expression token which can contain access chain and values
-     * @return whether an expression has been lexed, the expression can also be a single identifier or value
+     * parses an expression token which can contain access chain and values
+     * @return whether an expression has been parseed, the expression can also be a single identifier or value
      */
     Value* parseExpression(ASTAllocator& allocator, bool parseStruct = false, bool parseLambda = true);
 
@@ -1130,7 +1143,7 @@ public:
     Value* parseExpressionOrArrayOrStruct(ASTAllocator& allocator, bool parseLambda = true);
 
     /**
-     * lexes switch block
+     * parses switch block
      */
     void parseSwitchStatementBlock(
             ASTAllocator& allocator,
@@ -1140,7 +1153,7 @@ public:
     );
 
     /**
-     * lexes switch block
+     * parses switch block
      */
     SwitchStatement* parseSwitchStatementBlock(ASTAllocator& allocator, bool is_value = false, bool parse_value_node = false);
 
@@ -1155,7 +1168,7 @@ public:
     TryCatch* parseTryCatch(ASTAllocator& allocator);
 
     /**
-     * lex using statement
+     * parse using statement
      */
     UsingStmt* parseUsingStatement(ASTAllocator& allocator);
 
@@ -1165,7 +1178,7 @@ public:
     AliasStmt* parseAliasStatement(ASTAllocator& allocator, AccessSpecifier specifier);
 
     /**
-     * lex provide statement
+     * parse provide statement
      */
     ProvideStmt* parseProvideStatement(ASTAllocator& allocator);
 
@@ -1175,7 +1188,7 @@ public:
     ComptimeBlock* parseComptimeBlockNoKw(ASTAllocator& allocator);
 
     /**
-     * lexes a comptime block
+     * parses a comptime block
      */
     ComptimeBlock* parseComptimeBlock(ASTAllocator& allocator) {
         if(token->type == TokenType::ComptimeKw) {

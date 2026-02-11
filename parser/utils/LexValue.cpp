@@ -670,10 +670,10 @@ Value* Parser::parsePostIncDec(ASTAllocator& allocator, Value* value, Token* sta
     }
 }
 
-Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, Token* start_token, bool is_negating) {
+Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, bool is_negating) {
     parser.token++;
     auto type = parser.parseTypeLoc(allocator);
-    auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, is_negating, parser.typeBuilder.getBoolType(), parser.loc_single(start_token));
+    auto isValue = new(allocator.allocate<IsValue>()) IsValue(value, type, is_negating, parser.typeBuilder.getBoolType(), value->encoded_location());
     if (!type) {
         isValue->type = { (BaseType*) parser.typeBuilder.getVoidType(), ZERO_LOC };
         parser.unexpected_error("expected a type after 'is' in expression");
@@ -681,9 +681,9 @@ Value* parseIsValue(Parser& parser, ASTAllocator& allocator, Value* value, Token
     return isValue;
 }
 
-Value* parseInValue(Parser& parser, ASTAllocator& allocator, Value* value, Token* start_token, bool is_negating) {
+Value* parseInValue(Parser& parser, ASTAllocator& allocator, Value* value, bool is_negating) {
     parser.token++;
-    auto inValue = new(allocator.allocate<InValue>()) InValue(value, is_negating, parser.typeBuilder.getBoolType(), parser.loc_single(start_token));
+    auto inValue = new(allocator.allocate<InValue>()) InValue(value, is_negating, parser.typeBuilder.getBoolType(), value->encoded_location());
     while(true) {
         const auto expr = parser.parseExpression(allocator, false, false);
         if(expr) {
@@ -698,19 +698,19 @@ Value* parseInValue(Parser& parser, ASTAllocator& allocator, Value* value, Token
     return inValue;
 }
 
-Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* start_token) {
+Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value) {
     switch(token->type) {
         case TokenType::DoublePlusSym: {
             token++;
-            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, true, true, loc_single(start_token));
+            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, true, true, value->encoded_location());
         }
         case TokenType::DoubleMinusSym: {
             token++;
-            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, false, true, loc_single(start_token));
+            return new (allocator.allocate<IncDecValue>()) IncDecValue(value, false, true, value->encoded_location());
         }
         case TokenType::AsKw: {
             token++;
-            const auto loc = loc_single(start_token);
+            const auto loc = value->encoded_location();
             auto type = parseTypeLoc(allocator);
             if (!type) {
                 type = TypeLoc((BaseType*) typeBuilder.getVoidType(), loc);
@@ -722,18 +722,18 @@ Value* Parser::parseAfterValue(ASTAllocator& allocator, Value* value, Token* sta
             token++;
             switch(token->type) {
                 case TokenType::IsKw:
-                    return parseIsValue(*this, allocator, value, start_token, true);
+                    return parseIsValue(*this, allocator, value, true);
                 case TokenType::InKw:
-                    return parseInValue(*this, allocator, value, start_token, true);
+                    return parseInValue(*this, allocator, value, true);
                 default:
                     error("expected 'is' after the '!'");
                     return value;
             }
         }
         case TokenType::IsKw:
-            return parseIsValue(*this, allocator, value, start_token, false);
+            return parseIsValue(*this, allocator, value, false);
         case TokenType::InKw:
-            return parseInValue(*this, allocator, value, start_token, false);
+            return parseInValue(*this, allocator, value, false);
         default:
             return value;
     }
@@ -817,8 +817,7 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
 }
 
 Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct) {
-    const auto start_token = token;
-    switch(start_token->type) {
+    switch(token->type) {
         case TokenType::IfKw:
             return (Value*) parseIfValue(allocator, false);
         case TokenType::SwitchKw:
@@ -826,36 +825,36 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::LoopKw:
             return (Value*) parseLoopValue(allocator);
         case TokenType::DoublePlusSym:
-            return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, true), start_token);
+            return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, true));
         case TokenType::DoubleMinusSym:
-            return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, false), start_token);
+            return parseAfterValue(allocator, (Value*) parsePreIncDecValue(allocator, false));
         case TokenType::NewKw:
             return parseNewValue(allocator);
         case TokenType::Char:
-            return parseAfterValue(allocator, (Value*) parseCharValue(allocator), start_token);
+            return parseAfterValue(allocator, (Value*) parseCharValue(allocator));
         case TokenType::String:
         case TokenType::MultilineString:
-            return parseAfterValue(allocator, (Value*) parseStringValue(allocator), start_token);
+            return parseAfterValue(allocator, (Value*) parseStringValue(allocator));
         case TokenType::BacktickString:
         case TokenType::StringExprStart:
-            return parseAfterValue(allocator, (Value*) parseExpressiveString(allocator), start_token);
+            return parseAfterValue(allocator, (Value*) parseExpressiveString(allocator));
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);
         case TokenType::Number:
-            return parseAfterValue(allocator, (Value*) parseNumberValue(allocator), start_token);
+            return parseAfterValue(allocator, (Value*) parseNumberValue(allocator));
         case TokenType::LParen:
             return parseParenExpression(allocator);
         case TokenType::NotSym:
-            return parseAfterValue(allocator, (Value*) parseNotValue(allocator), start_token);
+            return parseAfterValue(allocator, (Value*) parseNotValue(allocator));
         case TokenType::MinusSym:
-            return parseAfterValue(allocator, (Value*) parseNegativeValue(allocator), start_token);
+            return parseAfterValue(allocator, (Value*) parseNegativeValue(allocator));
         case TokenType::HashMacro:
-            return parseAfterValue(allocator, parseMacroValue(allocator), start_token);
+            return parseAfterValue(allocator, parseMacroValue(allocator));
         default:
             auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
             if(ac) {
-                return parseAfterValue(allocator, ac, start_token);
+                return parseAfterValue(allocator, ac);
             } else {
                 return nullptr;
             }

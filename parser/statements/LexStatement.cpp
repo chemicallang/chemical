@@ -214,6 +214,8 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return (ASTNode*) parseWhileLoop(allocator);
         case TokenType::LBrace:
             return (ASTNode*) parseBlockStmt(*this, allocator);
+        case TokenType::LParen:
+            return parseParenLhsAssignment(allocator);
         default:
             return parseAssignmentStmt(allocator);
 

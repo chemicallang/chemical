@@ -784,6 +784,10 @@ bool Value::check_is_mutable(bool assigning) {
             const auto expr = as_expression_unsafe();
             return expr->getType()->is_mutable();
         }
+        case ValueKind::CastedValue: {
+            const auto val = as_casted_value_unsafe();
+            return val->getType()->is_mutable();
+        }
         default:
             return false;
     }

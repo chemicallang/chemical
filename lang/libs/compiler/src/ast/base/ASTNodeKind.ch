@@ -70,6 +70,7 @@ public enum ASTNodeKind {
     ModuleScope,
 
     EmbeddedNode,
+    ExportStmt,
 
     UnresolvedDecl,
 

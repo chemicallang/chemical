@@ -141,6 +141,17 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
     }
 }
 
+ASTNode* parseBlockStmt(Parser& parser, ASTAllocator& allocator) {
+    const auto loc = parser.loc_single(parser.token);
+    const auto block = parser.parseNestedBraceBlock("scope", allocator);
+    const auto scope = new (allocator.allocate<Scope>()) Scope(nullptr, loc);
+    if(block.has_value()) {
+        scope->set_parent(block->parent());
+        scope->nodes = std::move(block->nodes);
+    }
+    return scope;
+}
+
 ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool is_value, bool parse_value_node) {
     switch(token->type) {
         case TokenType::VarKw:
@@ -201,6 +212,8 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return (ASTNode*) parseDoWhileLoop(allocator);
         case TokenType::WhileKw:
             return (ASTNode*) parseWhileLoop(allocator);
+        case TokenType::LBrace:
+            return (ASTNode*) parseBlockStmt(*this, allocator);
         default:
             return parseAssignmentStmt(allocator);
 

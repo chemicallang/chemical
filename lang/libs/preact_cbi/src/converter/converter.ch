@@ -266,7 +266,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             const val = lit.value
             if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
                 converter.str.append(val.get(0));
-                converter.escapeJs(val.subview(1, val.size() - 2));
+                converter.escapeJs(val.subview(1, val.size() - 1));
                 converter.str.append(val.get(0));
             } else {
                 converter.str.append_view(val);

@@ -266,7 +266,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             const val = lit.value
             if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
                 converter.str.append(val.get(0));
-                converter.escapeJs(val.subview(1, val.size() - 2));
+                converter.escapeJs(val.subview(1, val.size() - 1));
                 converter.str.append(val.get(0));
             } else {
                 converter.str.append_view(lit.value);
@@ -455,8 +455,16 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              // UNLESS they are already functions (ArrowFunction).
              if(container.expression.kind != JsNodeKind.ArrowFunction && container.expression.kind != JsNodeKind.FunctionDecl) {
                  converter.str.append_view("() => ");
+                 if(container.expression.kind == JsNodeKind.ObjectLiteral) {
+                     converter.str.append_view("(");
+                     converter.convertJsNode(container.expression);
+                     converter.str.append_view(")");
+                 } else {
+                     converter.convertJsNode(container.expression);
+                 }
+             } else {
+                 converter.convertJsNode(container.expression);
              }
-             converter.convertJsNode(container.expression);
         }
         JsNodeKind.JSXText => {
              var text = node as *mut JsJSXText
@@ -470,15 +478,16 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
 }
 
 func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttribute, isComponent : bool) {
+    const isStyle = attr.name.equals(std::string_view("style"));
     if(attr.value != null) {
          if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
              var container = attr.value as *mut JsJSXExpressionContainer
              // Check if it's an event handler (starts with 'on')
              var isEventHandler = attr.name.size() > 2 && attr.name.get(0) == 'o' && attr.name.get(1) == 'n' && attr.name.get(2) >= 'A' && attr.name.get(2) <= 'Z';
              
-             if(isEventHandler) {
+             if(isEventHandler || isStyle) {
                  // For event handlers, we don't want the getter wrap from convertJsNode.
-                 // So we convert the inner expression directly.
+                 // For style, user specifically requested to avoid lambda.
                  converter.convertJsNode(container.expression);
                  return;
              }

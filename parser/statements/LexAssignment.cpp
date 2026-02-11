@@ -6,6 +6,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/statements/IncDecNode.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/AccessChainNode.h"
 
 std::optional<Operation> Parser::parseOperation() {
@@ -118,6 +119,57 @@ inline Value* from_values(ASTAllocator& allocator, std::vector<Value*>& chain_va
         const auto loc = chain_values.front()->encoded_location();
         return new(allocator.allocate<AccessChain>()) AccessChain(std::move(chain_values), loc);
     }
+}
+
+ASTNode* Parser::parseParenLhsAssignment(ASTAllocator& allocator) {
+
+    const auto parenExpr = parseParenExpressionNoAfterValue(allocator);
+    if(parenExpr == nullptr) return nullptr;
+
+    // post increment or decrement (only when its an access chain)
+    auto& tok = *token;
+    switch(tok.type) {
+        case TokenType::DoublePlusSym: {
+            token++;
+            return new (allocator.allocate<IncDecNode>()) IncDecNode(parenExpr, true, true, loc_single(tok), parent_node);
+        }
+        case TokenType::DoubleMinusSym:{
+            token++;
+            return new (allocator.allocate<IncDecNode>()) IncDecNode(parenExpr, false, true, loc_single(tok), parent_node);
+        }
+        default:
+            break;
+    }
+
+    // lex the operator before the equal sign
+    auto assOp = parseAssignmentOperator();
+
+    // =
+    if (!consumeToken(TokenType::EqualSym)) {
+        if (assOp.has_value()) {
+            unexpected_error("expected an equal for assignment after the assignment operator");
+        }
+        return new (allocator.allocate<ValueWrapperNode>()) ValueWrapperNode(parenExpr, parent_node);
+    }
+
+    auto stmt = new (allocator.allocate<AssignStatement>()) AssignStatement(parenExpr, nullptr, Operation::Assignment, parent_node, parenExpr->encoded_location());
+
+    if(assOp.has_value()) {
+        stmt->assOp = assOp.value();
+    }
+
+    // value
+    auto expr = parseExpressionOrArrayOrStruct(allocator);
+    if(expr) {
+        stmt->value = expr;
+    } else {
+        unexpected_error("expected a value for variable assignment");
+        stmt->value = new (allocator.allocate<NullValue>()) NullValue(nullptr, ZERO_LOC);
+        return stmt;
+    }
+
+    return stmt;
+
 }
 
 ASTNode* Parser::parseAssignmentStmt(ASTAllocator& allocator) {

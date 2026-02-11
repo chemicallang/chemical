@@ -249,7 +249,7 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     chain->values.emplace_back((Value*) first_value);
     const auto structValue = parseAccessChainAfterId(allocator, chain->values, identifier->position);
     const auto value = structValue ? structValue : singlify_chain(chain);
-    const auto finalValue = parseAfterValue(allocator, value, identifier);
+    const auto finalValue = parseAfterValue(allocator, value);
     auto expr = parseRemainingExpression(allocator, finalValue, identifier);
 
     if(!consumeToken(TokenType::RParen)) {
@@ -265,20 +265,20 @@ Value* Parser::parseLambdaOrExprAfterLParen(ASTAllocator& allocator) {
     // this allows (a as &Point).a as ubigint + 2
     // as ubigint + 2 should not be allowed maybe ((a as &Point).a as ubigint) + 2
 
-    const auto afterVl = parseAfterValue(allocator, expr, identifier);
+    const auto afterVl = parseAfterValue(allocator, expr);
 
     return parseRemainingExpression(allocator, afterVl, identifier);
 
 }
 
-Value* Parser::parseParenExpression(ASTAllocator& allocator) {
+Value* Parser::parseParenExpressionNoAfterValue(ASTAllocator& allocator) {
     auto& tok = *token;
 
     if(tok.type == TokenType::LParen) {
 
         token++;
 
-        auto expression = parseExpression(allocator, false, false);
+        const auto expression = parseExpression(allocator, false, false);
         if(!expression) {
             error("expected a nested expression after '(' in the expression");
             return nullptr;
@@ -290,10 +290,10 @@ Value* Parser::parseParenExpression(ASTAllocator& allocator) {
         }
 
         if (token->type == TokenType::DotSym) {
-            expression = parseAccessChainAfterValue(this, allocator, expression);
+            return parseAccessChainAfterValue(this, allocator, expression);
         }
 
-        return parseAfterValue(allocator, expression, &tok);
+        return expression;
 
     } else {
         return nullptr;

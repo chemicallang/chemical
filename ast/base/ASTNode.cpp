@@ -373,6 +373,8 @@ AccessSpecifier ASTNode::specifier(AccessSpecifier def_specifier) {
             return as_var_init_unsafe()->specifier();
         case ASTNodeKind::TypealiasStmt:
             return as_typealias_unsafe()->specifier();
+        case ASTNodeKind::ExportStmt:
+            return AccessSpecifier::Public;
         default:
             return def_specifier;
     }

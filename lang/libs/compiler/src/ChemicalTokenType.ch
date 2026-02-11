@@ -78,6 +78,7 @@ public enum ChemicalTokenType {
     SizeOfKw,
     AlignOfKw,
     ImportKw,
+    ExportKw,
     FuncKw,
     TypeKw,
     StructKw,
@@ -127,6 +128,8 @@ public enum ChemicalTokenType {
     String,
     // a multiline string begins and ends with three double quotes
     MultilineString,
+    // string starting with a backtick
+    BacktickString,
     // #macro_name
     HashMacro,
     // @annotation
@@ -206,11 +209,16 @@ public enum ChemicalTokenType {
     SemiColonSym,
 
     // ...
-    // TODO remove this
     TripleDotSym,
 
     // =>
     LambdaSym,
+
+    // $
+    DollarSym,
+
+    // ?
+    QuestionMarkSym,
 
     // -------- END OPERATORS ------
 

@@ -3,7 +3,8 @@
 #include "parser/Parser.h"
 #include "ast/statements/Export.h"
 
-ASTNode* Parser::parseExportStatement(ASTAllocator& allocator) {
+ASTNode* Parser::parseExportStatement(ASTAllocator& passed_allocator) {
+    auto& allocator = global_allocator;
     const auto loc = loc_single(token);
     token++; // move past 'export'
 
@@ -11,12 +12,12 @@ ASTNode* Parser::parseExportStatement(ASTAllocator& allocator) {
 
     auto& ids = stmt->ids;
     if (token->type == TokenType::Identifier) {
-        ids.push_back(token->value);
+        ids.push_back(allocate_view(allocator, token->value));
         token++;
         while (token->type == TokenType::DoubleColonSym) {
             token++; // move past '::'
             if (token->type == TokenType::Identifier) {
-                ids.push_back(token->value);
+                ids.push_back(allocate_view(allocator, token->value));
                 token++;
             } else {
                 error("expected identifier after '::' in export statement");

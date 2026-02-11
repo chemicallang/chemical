@@ -672,3 +672,23 @@ public func srand(seed : uint)
  * TODO Type Generic Math
  * @see https://en.cppreference.com/w/c/numeric/tgmath
  */
+
+
+/**
+ * TODO: documentation
+ */
+@extern
+public func malloc(size : size_t) : *mut void
+
+
+/**
+ * TODO: documentation
+ */
+@extern
+public func realloc(block : *mut any, size : size_t) : *mut void
+
+/**
+ * TODO: documentation
+ */
+@extern
+public func free(block : *mut any)

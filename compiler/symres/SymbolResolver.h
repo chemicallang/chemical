@@ -407,6 +407,11 @@ public:
     void declare_or_shadow(const chem::string_view &name, ASTNode* node);
 
     /**
+     * declare a local variable
+     */
+    void declare_local_var(const chem::string_view &name, ASTNode *node, unsigned long lambda_scope_start, bool in_lambda_scope);
+
+    /**
      * declare a symbol
      */
     void declare(const chem::string_view &name, ASTNode *node);

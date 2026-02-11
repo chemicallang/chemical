@@ -119,6 +119,33 @@ void SymbolResolver::declare_or_shadow(const chem::string_view &name, ASTNode* n
     table.declare(name, node);
 }
 
+void SymbolResolver::declare_local_var(const chem::string_view &name, ASTNode *node, unsigned long lambda_scope_start, bool in_lambda_scope) {
+#ifdef DEBUG
+    if(name.empty()) {
+        std::cerr << rang::fg::red << "empty symbol being declared" << rang::fg::reset << std::endl;
+        return;
+    }
+#endif
+    const auto previous = table.declare_no_shadow_sym(name, node);
+    if(previous) {
+        if(in_lambda_scope && previous->index < lambda_scope_start) {
+            // previous symbol outside lambda scope, allow shadowing
+            table.declare(name, node);
+            return;
+        }
+        if(previous->activeNode->is_top_level()) {
+            // previous symbol is a top level symbol, allow shadowing
+            table.declare(name, node);
+            return;
+        }
+        // error out, symbol now allowed to be shadowed
+        error(node) << "symbol with name '" << name << "' already exists";
+        error(previous->activeNode) << "symbol has a conflict";
+        // shadow the symbol, why shadow ? so errors consider user's intention to shadow
+        table.declare(name, node);
+    }
+}
+
 void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
 #ifdef DEBUG
     if(name.empty()) {

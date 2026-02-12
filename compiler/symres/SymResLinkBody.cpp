@@ -3258,7 +3258,7 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
         const auto value = val_ptr;
         auto child_node = structValue->linked_member_or_struct_of(val.first);
         if(!child_node) {
-            linker.error(structValue) << "unresolved child '" << val.first << "' in struct declaration";
+            linker.error(value) << "unresolved child '" << val.first << "' in struct declaration";
             continue;
         }
         auto child_type = child_node->known_type();

@@ -4,6 +4,7 @@ func failing_socketpair(i : int) : int {
 
 struct ParenExprAccessTest2 {
     var d : int
+    func zero_d(&mut self) { d = 0; }
 }
 
 func access_on_patenthesized_gbi(cc : int) : int {
@@ -34,6 +35,20 @@ func test_failing_code() {
         } else {
             return false;
         }
+    })
+
+    test("parenthesized expressions as a statement work - 1", () => {
+        var d = ParenExprAccessTest2 { d : 234 }
+        var j = &d as *void
+        (j as *mut ParenExprAccessTest2).d = 934
+        return d.d == 934
+    })
+
+    test("parenthesized expressions as a statement work - 2", () => {
+        var d = ParenExprAccessTest2 { d : 234 }
+        var j = &d as *void
+        (j as *mut ParenExprAccessTest2).zero_d()
+        return d.d == 0
     })
 
     test("single statement block in if works - 1", () => {

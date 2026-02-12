@@ -107,13 +107,10 @@ void put_self_param(
         const auto grandparent_val = get_parent_from(call->parent_val);
         if (grandparent_val) {
             if(self_arg_val == nullptr) {
-                const auto is_func_call = grandparent_val->val_kind() == ValueKind::FunctionCall;
-                if (is_func_call || !is_node_decl(grandparent_val->linked_node())) {
-                    const auto grandpa = build_parent_chain(call->parent_val, gen.allocator);
-                    self_arg_val = getSelfArgFromGrandpa(gen, self_param, grandpa, call->encoded_location());
-                    if (is_func_call) {
-                        destructibles.emplace_back(grandpa, self_arg_val);
-                    }
+                const auto grandpa = build_parent_chain(call->parent_val, gen.allocator);
+                self_arg_val = getSelfArgFromGrandpa(gen, self_param, grandpa, call->encoded_location());
+                if (grandparent_val->val_kind() == ValueKind::FunctionCall) {
+                    destructibles.emplace_back(grandpa, self_arg_val);
                 }
             }
             if(self_arg_val) {

@@ -920,7 +920,7 @@ public:
     /**
      * parses members of a container, for example (struct / union members) or even compile time if statements
      */
-    void parseContainerMembersInto(VariablesContainer* container, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime);
+    void parseContainerMembersInto(VariablesContainerBase* container, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime);
 
     /**
      * parses a struct block

@@ -42,6 +42,8 @@ class MultiFunctionNode;
 
 class VariablesContainer;
 
+class VariablesContainerBase;
+
 class MembersContainer;
 
 class GenericTypeParameter;

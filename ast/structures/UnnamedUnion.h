@@ -7,7 +7,7 @@
 #include "ast/types/UnionType.h"
 #include "ast/types/LinkedType.h"
 
-class UnnamedUnion : public BaseDefMember, public VariablesContainer {
+class UnnamedUnion : public BaseDefMember, public VariablesContainerBase {
 public:
 
     AccessSpecifier specifier;
@@ -25,15 +25,6 @@ public:
 
     }
 
-
-//    VariablesContainer *variables_container() final {
-//        return this;
-//    }
-
-    VariablesContainer *as_variables_container() final {
-        return this;
-    }
-
     bool get_is_const() final {
         // TODO allow user to mark unnamed struct's const
         return false;
@@ -41,7 +32,7 @@ public:
 
     UnnamedUnion* copy_member(ASTAllocator &allocator) final {
         auto unnamed = new (allocator.allocate<UnnamedUnion>()) UnnamedUnion(name, parent(), encoded_location());
-        VariablesContainer::copy_into(*unnamed, allocator, this);
+        VariablesContainerBase::copy_direct_variables_into(*unnamed, allocator, this);
         return unnamed;
     }
 

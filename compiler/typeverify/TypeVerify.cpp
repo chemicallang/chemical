@@ -46,17 +46,15 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
 
 void TypeVerifier::VisitStructValue(StructValue* structValue) {
     RecursiveVisitor<TypeVerifier>::VisitStructValue(structValue);
-    const auto container = structValue->variables();
     for (auto &val: structValue->values) {
         auto& val_ptr = val.second.value;
         const auto value = val_ptr;
-        auto child_node = container->child_member_or_inherited_struct(val.first);
+        auto child_node = structValue->linked_member_or_struct_of(val.first);
         if(!child_node) {
             diagnoser.error(structValue) << "unresolved child '" << val.first << "' in struct declaration";
             continue;
         }
-        // auto child_type = child_node->known_type();
-        const auto member = container->direct_variable(val.first);
+        const auto member = structValue->direct_variable(val.first);
         if(member) {
             const auto mem_type = member->known_type();
             auto implicit = mem_type->implicit_constructor_for(val_ptr);

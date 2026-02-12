@@ -12,7 +12,7 @@ class UnionTypeCopy : public BaseType {
     BaseType * copy(ASTAllocator &allocator) override;
 };
 
-class UnionType : public UnionTypeCopy, public ASTNode, public VariablesContainer {
+class UnionType : public UnionTypeCopy, public VariablesContainer {
 public:
 
     chem::string_view name;
@@ -24,7 +24,7 @@ public:
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::UnionType, parent, location), UnionTypeCopy(BaseTypeKind::Union), name(name) {
+    ) : VariablesContainer(ASTNodeKind::UnionType, parent, location), UnionTypeCopy(BaseTypeKind::Union), name(name) {
 
     }
 

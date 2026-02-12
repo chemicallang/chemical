@@ -2568,7 +2568,7 @@ void SymResLinkBody::VisitCapturingFunctionType(CapturingFunctionType* type) {
     visit(type->instance_type);
 }
 
-void link_container(SymResLinkBody& visitor, VariablesContainer* container) {
+void link_container(SymResLinkBody& visitor, VariablesContainerBase* container) {
     for(const auto var : container->variables()) {
         switch(var->kind()) {
             case ASTNodeKind::StructMember:
@@ -3256,14 +3256,14 @@ void SymResLinkBody::VisitStructValue(StructValue* structValue) {
     for (auto &val: structValue->values) {
         auto& val_ptr = val.second.value;
         const auto value = val_ptr;
-        auto child_node = structValue->variables()->child_member_or_inherited_struct(val.first);
+        auto child_node = structValue->linked_member_or_struct_of(val.first);
         if(!child_node) {
             linker.error(structValue) << "unresolved child '" << val.first << "' in struct declaration";
             continue;
         }
         auto child_type = child_node->known_type();
         visit(val_ptr, child_type);
-        const auto member = structValue->variables()->direct_variable(val.first);
+        const auto member = structValue->direct_variable(val.first);
         if(member) {
             const auto mem_type = member->known_type();
             current_func_type.mark_moved_value(linker.allocator, val.second.value, mem_type, linker);

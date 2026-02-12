@@ -37,7 +37,7 @@ struct FunctionOverridingInfo {
 
 };
 
-class MembersContainer : public ASTNode, public VariablesContainer {
+class MembersContainer : public VariablesContainer {
 private:
 
     /**
@@ -68,6 +68,12 @@ public:
      */
     bool has_implemented = false;
 
+    /**
+     * this is set to true once the indexes for this container have been built
+     * indexes contain all the functions/variables an object of this container can access
+     */
+    bool built_indexes = false;
+
 private:
 
     /**
@@ -86,7 +92,7 @@ public:
         ASTNodeKind k,
         ASTNode* parent,
         SourceLocation loc
-    ) noexcept : ASTNode(k, parent, loc) {
+    ) noexcept : VariablesContainer(k, parent, loc) {
         // does nothing
     }
 

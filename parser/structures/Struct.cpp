@@ -188,7 +188,7 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& fn_allocator, AccessSpeci
     }
 }
 
-void Parser::parseContainerMembersInto(VariablesContainer* decl, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime) {
+void Parser::parseContainerMembersInto(VariablesContainerBase* decl, ASTAllocator& allocator, AccessSpecifier specifier, bool comptime) {
     auto& nodes = decl->get_parsed_nodes_container();
     do {
         const auto tokenType = token->type;

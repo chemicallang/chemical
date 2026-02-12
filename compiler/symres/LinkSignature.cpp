@@ -551,7 +551,7 @@ void TopLevelLinkSignature::VisitFunctionDecl(FunctionDeclaration* node) {
     }
 }
 
-void TopLevelLinkSignature::LinkVariablesNoScope(VariablesContainer* container) {
+void TopLevelLinkSignature::LinkVariablesNoScope(VariablesContainerBase* container) {
     for (const auto var: container->variables()) {
         visit(var);
     }
@@ -588,7 +588,7 @@ void TopLevelLinkSignature::LinkMembersContainerNoScopeExposed(MembersContainer*
     }
 }
 
-void TopLevelLinkSignature::LinkVariables(VariablesContainer* container) {
+void TopLevelLinkSignature::LinkVariables(VariablesContainerBase* container) {
     linker.scope_start();
     LinkVariablesNoScope(container);
     linker.scope_end();

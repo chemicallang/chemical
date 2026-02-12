@@ -31,38 +31,40 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
     const auto parent_type = llvm_type(gen);
 
     // default initialize inherited values in struct
-    unsigned inherited_index = 0;
-    for(auto& inh : container->inherited) {
-        const auto node = inh.type->get_direct_linked_canonical_node();
-        if (node->kind() == ASTNodeKind::StructDecl) {
-            const auto decl = node->as_struct_def_unsafe();
-            if(values.find(decl->name_view()) == values.end()) {
-                const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(inherited_index) });
-                gen.default_initialize_struct(decl, ptr, this);
+    if(definition) {
+        unsigned inherited_index = 0;
+        for (auto& inh: definition->inherited) {
+            const auto node = inh.type->get_direct_linked_canonical_node();
+            if (node->kind() == ASTNodeKind::StructDecl) {
+                const auto decl = node->as_struct_def_unsafe();
+                if (values.find(decl->name_view()) == values.end()) {
+                    const auto ptr = gen.builder->CreateGEP(parent_type, inst, {gen.builder->getInt32(inherited_index)});
+                    gen.default_initialize_struct(decl, ptr, this);
+                }
+                // increase the inherited index
+                inherited_index++;
             }
-            // increase the inherited index
-            inherited_index++;
         }
     }
 
     for (auto &value: values) {
         auto& value_ptr = value.second.value;
-        auto variable = container->variable_type_index(value.first);
-        if (variable.first == -1) {
+        auto variable = child_type_w_index(value.first);
+        if (variable.second == -1) {
             gen.error(this) << "couldn't get struct child " << value.first << " in definition with name " << definition->name_view();
         } else {
 
-            const auto pure_type = variable.second->canonical();
+            const auto pure_type = variable.first->canonical();
 
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-            const auto elem_index = is_union() ? 0 : variable.first;
+            const auto elem_index = is_union() ? 0 : variable.second;
 
-            auto implicit = variable.second->implicit_constructor_for(value_ptr);
+            auto implicit = variable.first->implicit_constructor_for(value_ptr);
             if(implicit) {
                 // replace values that call implicit constructors
-                value_ptr = (Value*) call_with_arg(implicit, value_ptr, variable.second, gen.allocator, gen);
+                value_ptr = (Value*) call_with_arg(implicit, value_ptr, variable.first, gen.allocator, gen);
             } else {
-                const auto type_kind = variable.second->kind();
+                const auto type_kind = variable.first->kind();
                 if(type_kind == BaseTypeKind::Reference) {
                     // store pointer only, since user want's a reference
                     auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, elem_index);
@@ -86,24 +88,24 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             const auto defValue = value->default_value();
             if (defValue) {
 
-                auto variable = container->variable_type_index(value->name);
+                auto variable = child_type_w_index(value->name);
                 auto value_ptr = defValue;
 
-                auto implicit = variable.second->implicit_constructor_for(value_ptr);
+                auto implicit = variable.first->implicit_constructor_for(value_ptr);
                 if(implicit) {
                     // replace values that call implicit constructors
-                    value_ptr = (Value*) call_with_arg(implicit, value_ptr, variable.second, gen.allocator, gen);
+                    value_ptr = (Value*) call_with_arg(implicit, value_ptr, variable.first, gen.allocator, gen);
                 }
 
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-                value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
+                value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.second, variable.first);
             } else if(!isUnion) {
                 const auto type = value->known_type();
                 const auto node = type->get_direct_linked_canonical_node();
                 if (node->kind() == ASTNodeKind::StructDecl) {
-                    auto variable = container->variable_type_index(value->name);
+                    auto variable = child_type_w_index(value->name);
                     const auto decl = node->as_struct_def_unsafe();
-                    const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(0), gen.builder->getInt32(variable.first) });
+                    const auto ptr = gen.builder->CreateGEP(parent_type, inst, { gen.builder->getInt32(0), gen.builder->getInt32(variable.second) });
                     gen.default_initialize_struct(decl, ptr, this);
                 } else {
                     gen.error(this) << "expected a default value for '" << value->name << "'";
@@ -336,15 +338,19 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
         }
     }
     std::vector<chem::string_view> missing;
-    for(auto& mem : container->inherited) {
-        auto& type = *mem.type;
-        const auto linked_struct = type.get_direct_linked_struct();
-        if(linked_struct) {
-            const auto& ref_type_name = mem.ref_type_name();
-            auto val = values.find(ref_type_name);
-            if (val == values.end()) {
-                if(!linked_struct->getAllMembersDefaultInitialized()) {
-                    missing.emplace_back(ref_type_name);
+
+    // checking the inherited members
+    if(definition) {
+        for (auto& mem: definition->inherited) {
+            auto& type = *mem.type;
+            const auto linked_struct = type.get_direct_linked_struct();
+            if (linked_struct) {
+                const auto& ref_type_name = mem.ref_type_name();
+                auto val = values.find(ref_type_name);
+                if (val == values.end()) {
+                    if (!linked_struct->getAllMembersDefaultInitialized()) {
+                        missing.emplace_back(ref_type_name);
+                    }
                 }
             }
         }

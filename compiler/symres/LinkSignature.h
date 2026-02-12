@@ -121,13 +121,13 @@ public:
 
     void VisitComptimeBlock(ComptimeBlock* node);
 
-    void LinkVariablesNoScope(VariablesContainer* container);
+    void LinkVariablesNoScope(VariablesContainerBase* container);
 
     void LinkMembersContainerNoScope(MembersContainer* container);
 
     void LinkMembersContainerNoScopeExposed(MembersContainer* container);
 
-    void LinkVariables(VariablesContainer* container);
+    void LinkVariables(VariablesContainerBase* container);
 
     void LinkMembersContainer(MembersContainer* container);
 

@@ -6,7 +6,7 @@
 #include "BaseDefMember.h"
 #include "ast/types/StructType.h"
 
-class UnnamedStruct : public BaseDefMember, public VariablesContainer {
+class UnnamedStruct : public BaseDefMember, public VariablesContainerBase {
 public:
 
     AccessSpecifier specifier;
@@ -26,10 +26,6 @@ public:
 
     }
 
-    VariablesContainer *as_variables_container() final {
-        return this;
-    }
-
     bool get_is_const() final {
         // TODO allow user to mark unnamed structs const
         return false;
@@ -37,7 +33,7 @@ public:
 
     UnnamedStruct* copy_member(ASTAllocator &allocator) final {
         const auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent(), encoded_location());
-        VariablesContainer::copy_into(*unnamed, allocator, this);
+        VariablesContainerBase::copy_direct_variables_into(*unnamed, allocator, this);
         return unnamed;
     }
 
@@ -78,7 +74,7 @@ public:
             std::vector<llvm::Value *> &indexes,
             const chem::string_view &name
     ) final {
-        return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
+        return VariablesContainerBase::llvm_variables_child_index(gen, indexes, name);
     }
 
 #endif

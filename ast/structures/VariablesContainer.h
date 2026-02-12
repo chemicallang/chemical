@@ -11,49 +11,37 @@
 
 class ASTDiagnoser;
 
-class VariablesContainer {
+/**
+ * this class exists solely for containing variables in a container
+ * it can contain other nodes like if statement which then contains variables inside (for comptime conditional)
+ * but the sole purpose is to contain variables, be able to traverse variables chronologically, be able to
+ * find a variable using a given name
+ */
+class VariablesContainerBase {
 protected:
 
     /**
-     * the nodes can be any type of node, when we parse, we put all nodes into this vector
-     * then specialized functions are called during symbol resolution, to take variables
-     * and functions into their specific maps
-     * this allows putting nodes like if statement, for conditional compilation or a node
-     * that may not be a member variable or function
-     */
+      * the nodes can be any type of node, when we parse, we put all nodes into this vector
+      * then specialized functions are called during symbol resolution, to take variables
+      * and functions into their specific maps
+      * this allows putting nodes like if statement, for conditional compilation or a node
+      * that may not be a member variable or function
+      */
     std::vector<ASTNode*> nodes;
 
 public:
-
-    /**
-     * indexes are maintained to nodes by their names, this allows us to get the function or variable in a single check
-     * the pair contains the pointer to the node, which could be a variable, function (maybe generic), the second
-     * the second in the pair is an int index, which if -1 means that we don't know what is it's index
-     * the index for a variable means index of the variable -> inside the variables vector, this allows us to quickly
-     * get the index to the variable, with the name, since llvm works with indexes and not names
-     */
-    std::unordered_map<chem::string_view, ASTNode*> indexes;
-
-protected:
 
     /**
      * the variables, this vector is just calculated so we can traverse over it fast
      */
     std::vector<BaseDefMember*> variables_container;
 
-#ifdef COMPILER_BUILD
-
     /**
-     * need to keep track of extension functions, because llvm backend
-     * requires to declare the functions, we must know which extension functions are being declared
+     * indexes are maintained to nodes by their names, this allows us to get the function or variable in a single check
+     * contains the pointer to the node, which could be a variable, function (maybe generic)
+     * indexes are passed to containers that inherit this container
      */
-    std::vector<ASTNode*> extension_functions;
-
-#endif
-
-public:
-
-    std::vector<InheritedType> inherited;
+    std::unordered_map<chem::string_view, ASTNode*> indexes;
 
     /**
      * get the variables container
@@ -63,35 +51,17 @@ public:
     }
 
     /**
-     * get the variable type along with index
+     * gets any child (inherited or direct)
      */
-    std::pair<long, BaseType*> variable_type_index(const chem::string_view &name, bool consider_inherited_structs = true);
-
-    long variable_index(const chem::string_view& name, bool consider_inherited_structs = true) {
-        return variable_type_index(name, consider_inherited_structs).first;
-    }
-
-    long direct_mem_index(BaseDefMember* member);
-
-    long direct_child_index(const chem::string_view &varName);
-
-    uint64_t total_byte_size(TargetData& target);
-
-    uint64_t largest_member_byte_size(TargetData& target);
-
-    ASTNode* get_child(const chem::string_view& name) {
+    ASTNode* any_child(const chem::string_view& name) {
         auto found = indexes.find(name);
         return found != indexes.end() ? found->second : nullptr;
     }
 
-    // no longer gives direct child, can also find inherited
-    [[deprecated]]
-    ASTNode* direct_child(const chem::string_view& name) {
-        auto found = indexes.find(name);
-        return found != indexes.end() ? found->second : nullptr;
-    }
-
-    BaseDefMember *child_def_member(const chem::string_view& name) {
+    /**
+     * any child variable (member) inherited / direct
+     */
+    BaseDefMember* any_child_def_member(const chem::string_view& name) {
         auto found = indexes.find(name);
         if(found == indexes.end()) return nullptr;
         const auto node = found->second;
@@ -105,37 +75,53 @@ public:
         }
     }
 
-    void copy_variables_in_place(ASTAllocator& allocator, ASTNode* new_parent) {
-        int i = 0;
-        for(auto& var : variables_container) {
-            const auto copied = var->copy_member(allocator);
-            copied->set_parent(new_parent);
-            var = copied;
-            indexes[copied->name] = copied;
-            i++;
-        }
+    /**
+     * any child variable (member) inherited or direct
+     */
+    inline BaseDefMember* child_member(const chem::string_view& name) {
+        return any_child_def_member(name);
     }
 
-    inline BaseDefMember *direct_variable(const chem::string_view& name) {
-        return child_def_member(name);
+    /**
+     * any child variable (member) inherited or direct
+     */
+    inline BaseDefMember* any_child_variable(const chem::string_view& name) {
+        return any_child_def_member(name);
     }
 
-    // searches for member or a inherited struct by the given name
-    ASTNode *child_member_or_inherited_struct(const chem::string_view& name);
+    /**
+     * get the index of given variable (should be direct child)
+     */
+    long direct_mem_index(BaseDefMember* member);
 
-    // member of this name that exists in inherited structs
-    BaseDefMember *inherited_member(const chem::string_view& name);
+    /**
+     * get direct variable with its index
+     */
+    std::pair<BaseType*, long> variable_type_w_index_no_inherited(const chem::string_view &name) {
+        auto found = indexes.find(name);
+        if(found == indexes.end()) return { nullptr, -1 };
+        const auto mem = found->second->as_base_def_member();
+        if(!mem) return { nullptr, -1 };
+        return { mem->known_type(), direct_mem_index(found->second->as_base_def_member_unsafe()) };
+    }
 
-    // direct member or inherited member
-    BaseDefMember *child_member(const chem::string_view& name);
+    /**
+     * get index of a direct variable
+     */
+    long direct_variable_index_no_inherited(const chem::string_view& varName) {
+        auto found = indexes.find(varName);
+        return found == indexes.end() ? -1 : direct_mem_index(found->second->as_base_def_member_unsafe());
+    }
 
+    /**
+     * get the largest member (calculated by comparing byte_size)
+     */
     BaseDefMember* largest_member();
 
     /**
-     * ensure the inherited variables refer to structs / interfaces / unions that
-     * are at least this spec
+     * calculate the total byte size of the variables
      */
-    void ensure_inherited_visibility(ASTDiagnoser& diagnoser, AccessSpecifier at_least_spec);
+    uint64_t total_byte_size(TargetData& target);
 
     /**
      * this will remove all the variables and their indexes
@@ -175,15 +161,6 @@ public:
         return nodes;
     }
 
-    bool is_one_of_inherited_type(BaseType* type) {
-        for(auto& inh : inherited) {
-            if(inh.type == type) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /**
      * this method will automatically take variables from parsed nodes
      */
@@ -206,6 +183,140 @@ public:
             declare_parsed_nodes(linker, nodes);
         }
     }
+
+    /**
+     * deep copies this container into the given container
+     */
+    void copy_direct_variables_into(VariablesContainerBase& other, ASTAllocator& allocator, ASTNode* new_parent) {
+        other.variables_container.reserve(variables_container.size());
+        for(auto& var : variables_container) {
+            const auto var_copy = var->copy_member(allocator);
+            var_copy->set_parent(new_parent);
+            other.insert_variable_no_check(var_copy);
+        }
+    }
+
+
+#ifdef COMPILER_BUILD
+
+    /**
+     * get types of all direct variables into a vector
+     */
+    std::vector<llvm::Type*> direct_variables_type(Codegen &gen);
+
+    /**
+     * get types of all direct variables into a vector considering that member with given index is being
+     * accessed, this propagates the index forward to the member so it can give accurate type based on union
+     * member access
+     */
+    std::vector<llvm::Type*> direct_variables_type(Codegen &gen, std::vector<Value*>& chain, unsigned index);
+
+    /**
+     * add the child index for the given struct variable
+     */
+    bool llvm_variables_child_index(
+            Codegen &gen,
+            std::vector<llvm::Value *> &indexes,
+            const chem::string_view &name
+    );
+
+    /**
+     * add the child index for member of given name if considering the current container
+     * is a union
+     */
+    bool llvm_union_child_index(
+            Codegen &gen,
+            std::vector<llvm::Value *> &indexes,
+            const chem::string_view &name
+    );
+
+#endif
+
+};
+
+class VariablesContainer : public ASTNode, public VariablesContainerBase {
+protected:
+
+#ifdef COMPILER_BUILD
+
+    /**
+     * need to keep track of extension functions, because llvm backend
+     * requires to declare the functions, we must know which extension functions are being declared
+     */
+    std::vector<ASTNode*> extension_functions;
+
+#endif
+
+public:
+
+    /**
+     * the inherited types
+     */
+    std::vector<InheritedType> inherited;
+
+    /**
+     * constructor
+     */
+    VariablesContainer(ASTNodeKind k, ASTNode* parent, SourceLocation loc) : ASTNode(k, parent, loc) {
+
+    }
+
+    /**
+     * get the variable type along with index
+     */
+    std::pair<BaseType*, long> variable_type_w_index(const chem::string_view &name, bool check_inherited_names = true);
+
+    /**
+     * get index of the given variable
+     */
+    inline long variable_index(const chem::string_view& name, bool check_inherited_names = true) {
+        return variable_type_w_index(name, check_inherited_names).second;
+    }
+
+    long direct_child_index(const chem::string_view &varName);
+
+    uint64_t largest_member_byte_size(TargetData& target);
+
+    /**
+     * checks the given node is a direct chil of this container
+     */
+    bool isDirectChild(ASTNode* node);
+
+    /**
+     * child member (variable / function) direct only (NOT inherited)
+     */
+    ASTNode* direct_child(const chem::string_view& name) {
+        const auto c = any_child(name);
+        return c ? isDirectChild(c) ? c : nullptr : nullptr;
+    }
+
+    /**
+     * child variable (member) direct only (NOT inherited)
+     */
+    BaseDefMember *direct_variable(const chem::string_view& name) {
+        const auto c = any_child_def_member(name);
+        return c ? isDirectChild(c) ? c : nullptr : nullptr;
+    }
+
+    void copy_variables_in_place(ASTAllocator& allocator, ASTNode* new_parent) {
+        int i = 0;
+        for(auto& var : variables_container) {
+            const auto copied = var->copy_member(allocator);
+            copied->set_parent(new_parent);
+            var = copied;
+            indexes[copied->name] = copied;
+            i++;
+        }
+    }
+
+    // searches for member or a inherited struct by the given name
+    ASTNode *child_member_or_inherited_struct(const chem::string_view& name);
+
+    /**
+     * ensure the inherited variables refer to structs / interfaces / unions that
+     * are at least this spec
+     */
+    void ensure_inherited_visibility(ASTDiagnoser& diagnoser, AccessSpecifier at_least_spec);
 
     /**
      * when child is located up somewhere in inheritance tree, we build the path to it
@@ -283,12 +394,6 @@ public:
     std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<Value*>& chain, unsigned index);
 
     bool llvm_struct_child_index(
-            Codegen &gen,
-            std::vector<llvm::Value *> &indexes,
-            const chem::string_view &name
-    );
-
-    bool llvm_union_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
             const chem::string_view &name

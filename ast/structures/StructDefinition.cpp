@@ -209,11 +209,11 @@ llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<Value*> 
 }
 
 llvm::Type* UnnamedStruct::llvm_type(Codegen &gen) {
-    return llvm::StructType::get(*gen.ctx, elements_type(gen));
+    return llvm::StructType::get(*gen.ctx, direct_variables_type(gen));
 }
 
 llvm::Type* UnnamedStruct::llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) {
-    return llvm::StructType::get(*gen.ctx, elements_type(gen, values, index));
+    return llvm::StructType::get(*gen.ctx, direct_variables_type(gen, values, index));
 }
 
 #endif

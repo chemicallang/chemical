@@ -11,6 +11,10 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/values/StructValue.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
@@ -30,6 +34,22 @@
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
+
+bool VariablesContainerBase::llvm_variables_child_index(
+        Codegen &gen,
+        std::vector<llvm::Value *> &indexes,
+        const chem::string_view &child_name
+) {
+    auto index = direct_variable_index_no_inherited(child_name);
+    if (indexes.empty()) {
+        indexes.emplace_back(gen.builder->getInt32(0));
+    }
+    if (index == -1) {
+        return false;
+    }
+    indexes.emplace_back(gen.builder->getInt32(index));
+    return true;
+}
 
 bool VariablesContainer::llvm_struct_child_index(
         Codegen &gen,
@@ -61,7 +81,7 @@ bool VariablesContainer::llvm_struct_child_index(
     return true;
 }
 
-bool VariablesContainer::llvm_union_child_index(
+bool VariablesContainerBase::llvm_union_child_index(
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
         const chem::string_view &name
@@ -80,6 +100,36 @@ bool VariablesContainer::llvm_union_child_index(
         return true;
     }
     return true;
+}
+
+std::vector<llvm::Type *> VariablesContainerBase::direct_variables_type(Codegen &gen) {
+    auto vec = std::vector<llvm::Type *>();
+    vec.reserve(variables().size());
+    for (auto &var: variables()) {
+        vec.emplace_back(var->llvm_type(gen));
+    }
+    return vec;
+}
+
+std::vector<llvm::Type *> VariablesContainerBase::direct_variables_type(Codegen &gen, std::vector<Value*>& chain, unsigned index) {
+    auto vec = std::vector<llvm::Type *>();
+    vec.reserve(variables().size());
+    if(index + 1 < chain.size()) {
+        const auto linked = ((Value*) chain[index + 1])->linked_node();
+        for (const auto var: variables()) {
+            if(linked == var) {
+                vec.emplace_back(var->llvm_chain_type(gen, chain, index + 1));
+            } else {
+                vec.emplace_back(var->llvm_type(gen));
+            }
+        }
+    } else {
+        for (const auto var: variables()) {
+            vec.emplace_back(var->llvm_type(gen));
+        }
+    }
+
+    return vec;
 }
 
 std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
@@ -265,26 +315,18 @@ ASTNode *VariablesContainer::child_member_or_inherited_struct(const chem::string
     return nullptr;
 }
 
-BaseDefMember *VariablesContainer::inherited_member(const chem::string_view& name) {
-    for(auto& inherits : inherited) {
-        const auto struct_def = inherits.type->get_direct_linked_struct();
-        if(struct_def) {
-            const auto mem = struct_def->child_member(name);
-            if(mem) return mem;
-        }
-    }
-    return nullptr;
-}
+// BaseDefMember *VariablesContainer::inherited_member(const chem::string_view& name) {
+//     for(auto& inherits : inherited) {
+//         const auto struct_def = inherits.type->get_direct_linked_struct();
+//         if(struct_def) {
+//             const auto mem = struct_def->child_member(name);
+//             if(mem) return mem;
+//         }
+//     }
+//     return nullptr;
+// }
 
-BaseDefMember *VariablesContainer::child_member(const chem::string_view& name) {
-    const auto direct_mem = direct_variable(name);
-    if(direct_mem) return direct_mem;
-    const auto inherited_mem = inherited_member(name);
-    if(inherited_mem) return inherited_mem;
-    return nullptr;
-}
-
-BaseDefMember* VariablesContainer::largest_member() {
+BaseDefMember* VariablesContainerBase::largest_member() {
     BaseDefMember* member = nullptr;
     // TODO: using default target data
     // this function is being used by other functions
@@ -308,7 +350,7 @@ void VariablesContainer::ensure_inherited_visibility(ASTDiagnoser& diagnoser, Ac
     }
 }
 
-uint64_t VariablesContainer::total_byte_size(TargetData& target) {
+uint64_t VariablesContainerBase::total_byte_size(TargetData& target) {
     size_t offset = 0;
     size_t maxAlignment = 1;
     for (const auto member : variables()) {
@@ -338,6 +380,23 @@ uint64_t VariablesContainer::largest_member_byte_size(TargetData& target) {
         }
     }
     return size;
+}
+
+bool VariablesContainer::isDirectChild(ASTNode* node) {
+    const auto p = node->parent();
+    if(p == nullptr) return false;
+    switch(p->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+            return p->as_gen_struct_def_unsafe()->master_impl == this;
+        case ASTNodeKind::GenericUnionDecl:
+            return p->as_gen_union_decl_unsafe()->master_impl == this;
+        case ASTNodeKind::GenericVariantDecl:
+            return p->as_gen_variant_decl_unsafe()->master_impl == this;
+        case ASTNodeKind::GenericInterfaceDecl:
+            return p->as_gen_interface_decl_unsafe()->master_impl == this;
+        default:
+            return p == this;
+    }
 }
 
 unsigned int MembersContainer::init_values_req_size() {
@@ -631,6 +690,43 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
     return nullptr;
 }
 
+bool all_variables_type_require(VariablesContainerBase& container, bool(*requirement)(BaseType*, Value*), bool variant_container) {
+    if(variant_container) {
+        for(const auto var : container.variables()) {
+            const auto mem = var->as_variant_member_unsafe();
+            for(auto& val : mem->values) {
+                if(!requirement(val.second->type, val.second->def_value)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    } else {
+        for(const auto var : container.variables()) {
+            switch(var->kind()) {
+                case ASTNodeKind::UnnamedStruct:
+                    if(!all_variables_type_require(*var->as_unnamed_struct_unsafe(), requirement, false)){
+                        return false;
+                    }
+                    break;
+                case ASTNodeKind::UnnamedUnion:
+                    if(!all_variables_type_require(*var->as_unnamed_union_unsafe(), requirement, false)){
+                        return false;
+                    }
+                    break;
+                case ASTNodeKind::StructMember:
+                    if(!requirement(var->as_struct_member_unsafe()->type, var->as_struct_member_unsafe()->defValue)) {
+                        return false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return true;
+    }
+}
+
 bool all_variables_type_require(VariablesContainer& container, bool(*requirement)(BaseType*, Value*), bool variant_container) {
     for(const auto& inh : container.inherited) {
         if(!requirement(inh.type, nullptr)) {
@@ -670,6 +766,43 @@ bool all_variables_type_require(VariablesContainer& container, bool(*requirement
             }
         }
         return true;
+    }
+}
+
+bool variables_type_require(VariablesContainerBase& container, bool(*requirement)(BaseType*), bool variant_container) {
+    if(variant_container) {
+        for(const auto var : container.variables()) {
+            const auto mem = var->as_variant_member_unsafe();
+            for(auto& val : mem->values) {
+                if(requirement(val.second->type->canonical())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    } else {
+        for(const auto var : container.variables()) {
+            switch(var->kind()) {
+                case ASTNodeKind::UnnamedStruct:
+                    if(variables_type_require(*var->as_unnamed_struct_unsafe(), requirement, false)){
+                        return true;
+                    }
+                    break;
+                case ASTNodeKind::UnnamedUnion:
+                    if(variables_type_require(*var->as_unnamed_union_unsafe(), requirement, false)){
+                        return true;
+                    }
+                    break;
+                case ASTNodeKind::StructMember:
+                    if(requirement(var->as_struct_member_unsafe()->type->canonical())) {
+                        return true;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return false;
     }
 }
 
@@ -896,27 +1029,27 @@ bool MembersContainer::extends_node(ASTNode* other) {
     return false;
 }
 
-std::pair<long, BaseType*> VariablesContainer::variable_type_index(const chem::string_view& varName, bool consider_inherited_structs) {
+std::pair<BaseType*, long> VariablesContainer::variable_type_w_index(const chem::string_view& varName, bool check_inherited_names) {
     long parents_size = 0;
     for(auto& inherits : inherited) {
         const auto struct_def = inherits.type->linked_node()->as_struct_def();
         if(struct_def) {
-            if(consider_inherited_structs && struct_def->name_view() == varName) {
+            if(check_inherited_names && struct_def->name_view() == varName) {
                 // user wants the struct
-                return { parents_size, inherits.type };
+                return { inherits.type, parents_size };
             }
             parents_size += 1;
         }
     }
     auto found = indexes.find(varName);
     if(found == indexes.end()) {
-        return { -1, nullptr };
+        return { nullptr, -1 };
     } else {
-        return { direct_mem_index(found->second->as_base_def_member_unsafe()) + parents_size, found->second->known_type() };
+        return { found->second->known_type(), direct_mem_index(found->second->as_base_def_member_unsafe()) + parents_size };
     }
 }
 
-long VariablesContainer::direct_mem_index(BaseDefMember* member) {
+long VariablesContainerBase::direct_mem_index(BaseDefMember* member) {
     // calculating index of child by looping over direct variables
     long i = 0;
     for(const auto var : variables()) {
@@ -929,7 +1062,7 @@ long VariablesContainer::direct_mem_index(BaseDefMember* member) {
 }
 
 long VariablesContainer::direct_child_index(const chem::string_view& varName) {
-    const auto c = get_child(varName);
+    const auto c = direct_child(varName);
     if(c == nullptr) return -1;
     return direct_mem_index(c->as_base_def_member_unsafe());
 }
@@ -990,7 +1123,7 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const chem:
     return false;
 }
 
-void VariablesContainer::take_variables_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
+void VariablesContainerBase::take_variables_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
     for(const auto node : from_nodes) {
         switch(node->kind()) {
             case ASTNodeKind::StructMember:
@@ -1018,7 +1151,7 @@ void VariablesContainer::take_variables_from_parsed_nodes(SymbolResolver& linker
     }
 }
 
-void VariablesContainer::declare_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
+void VariablesContainerBase::declare_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
     for(const auto node : nodes) {
         switch(node->kind()) {
             case ASTNodeKind::AliasStmt:{

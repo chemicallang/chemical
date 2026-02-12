@@ -688,7 +688,7 @@ ASTNode* child(ImportStatement* stmt, const chem::string_view &name) {
     }
 }
 
-ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
+ASTNode* child(VariablesContainerBase* container, const chem::string_view& name) {
     auto found = container->indexes.find(name);
     return found != container->indexes.end() ? found->second : nullptr;
 }
@@ -806,20 +806,19 @@ ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::strin
 }
 
 // get inherited or direct child from a members container (like struct gives)
-ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl, const chem::string_view& name) {
-    // TODO: this function should resolve the child in a single check
+inline ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl, const chem::string_view& name) {
     auto node = ::child(decl, name);
-    if (node) {
-        return node;
-    } else if (!decl->inherited.empty()) {
-        for (auto& inherits : decl->inherited) {
-            if (inherits.specifier == AccessSpecifier::Public) {
-                const auto thing = provide_child(resolver, inherits.type, name, decl);
-                if (thing) return thing;
-            }
-        }
-    };
-    return nullptr;
+     if (node) {
+         return node;
+     } else if (!decl->inherited.empty()) {
+         for (auto& inherits : decl->inherited) {
+             if (inherits.specifier == AccessSpecifier::Public) {
+                 const auto thing = provide_child(resolver, inherits.type, name, decl);
+                 if (thing) return thing;
+             }
+         }
+     };
+     return nullptr;
 }
 
 ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) noexcept {
@@ -902,9 +901,11 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
         }
         case ASTNodeKind::StructType:
         case ASTNodeKind::UnionType:
-        case ASTNodeKind::UnnamedUnion:
-        case ASTNodeKind::UnnamedStruct:
             return ::child(as_variables_container(), name);
+        case ASTNodeKind::UnnamedStruct:
+            return ::child(as_unnamed_struct_unsafe(), name);
+        case ASTNodeKind::UnnamedUnion:
+            return ::child(as_unnamed_union_unsafe(), name);
         case ASTNodeKind::VariantMember: {
             const auto mem = as_variant_member_unsafe();
             auto found = mem->values.find(name);

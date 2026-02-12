@@ -13,7 +13,7 @@ public:
     BaseType* copy(ASTAllocator &allocator) override;
 };
 
-class StructType : public StructTypeCopy, public ASTNode, public VariablesContainer {
+class StructType : public StructTypeCopy, public VariablesContainer {
 public:
 
     chem::string_view name;
@@ -25,7 +25,7 @@ public:
         chem::string_view name,
         ASTNode* parent,
         SourceLocation location
-    ) : ASTNode(ASTNodeKind::StructType, parent, location), StructTypeCopy(BaseTypeKind::Struct), name(name) {
+    ) : VariablesContainer(ASTNodeKind::StructType, parent, location), StructTypeCopy(BaseTypeKind::Struct), name(name) {
 
     }
 

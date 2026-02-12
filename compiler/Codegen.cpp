@@ -266,9 +266,9 @@ void Codegen::default_initialize_struct(ExtendableMembersContainerNode* decl, ll
         for(const auto var : decl->variables()) {
             auto defValue = var->default_value();
             if (defValue) {
-                auto variable = decl->variable_type_index(var->name);
+                auto variable = decl->variable_type_w_index(var->name);
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-                defValue->store_in_struct(gen, parent_value, ptr, decl_type, idx, variable.first, variable.second);
+                defValue->store_in_struct(gen, parent_value, ptr, decl_type, idx, variable.second, variable.first);
             } else {
                 error(parent_value) << "expected a default value for '" <<  var->name << "'";
             }

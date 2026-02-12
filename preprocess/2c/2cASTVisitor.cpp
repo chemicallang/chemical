@@ -2836,7 +2836,7 @@ inline void declare_inherited(ToCAstVisitor& visitor, VariablesContainer* def) {
     }
 }
 
-void early_declare_variables(ToCAstVisitor& visitor, VariablesContainer* def, ASTNode* container) {
+void early_declare_variables(ToCAstVisitor& visitor, VariablesContainerBase* def, ASTNode* container) {
     // declare sub variables
     for(const auto var : def->variables()) {
         const auto known_t = var->known_type();
@@ -6234,13 +6234,16 @@ void ToCAstVisitor::VisitStructValue(StructValue *val) {
     }
 
     // default initialize the inherited structs
-    for(auto& inh : val->variables()->inherited) {
-        auto container = inh.type->get_direct_linked_canonical_node();
-        if(container) {
-            const auto def = container->as_struct_def();
-            if (def) {
-                if(val->values.find(def->name_view()) == val->values.end()) {
-                    default_initialize_struct(*this, def, has_value_before, val->encoded_location());
+    const auto definition = val->linked_extendable();
+    if(definition) {
+        for (auto& inh: definition->inherited) {
+            auto container = inh.type->get_direct_linked_canonical_node();
+            if (container) {
+                const auto def = container->as_struct_def();
+                if (def) {
+                    if (val->values.find(def->name_view()) == val->values.end()) {
+                        default_initialize_struct(*this, def, has_value_before, val->encoded_location());
+                    }
                 }
             }
         }

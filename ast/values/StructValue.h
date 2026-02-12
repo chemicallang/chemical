@@ -19,7 +19,7 @@ private:
 
     // we store the reference to container, if the linked container
     // is not a extendable members container which is that it cannot supply
-    VariablesContainer* container = nullptr;
+    VariablesContainerBase* container = nullptr;
 
     // we only store pointer to definition, if found
     ExtendableMembersContainerNode *definition = nullptr;
@@ -42,14 +42,14 @@ public:
     StructValue(
         BaseType* refType,
         ExtendableMembersContainerNode *definition,
-        VariablesContainer* container,
+        VariablesContainerBase* container,
         SourceLocation location
     ) : Value(ValueKind::StructValue, refType, location), definition(definition), container(container)
     {
 
     }
 
-    inline VariablesContainer* variables() {
+    inline VariablesContainerBase* variables() {
         return container;
     }
 
@@ -95,11 +95,36 @@ public:
 
     StructValue *copy(ASTAllocator& allocator) final;
 
+    std::pair<BaseType*, long> child_type_w_index(const chem::string_view& name) {
+        if(definition) {
+            return definition->variable_type_w_index(name);
+        } else {
+            return container->variable_type_w_index_no_inherited(name);
+        }
+    }
+
     ASTNode* child(const chem::string_view& name) {
         if(definition) {
             return definition->ASTNode::child(name);
         } else {
-            return container->direct_child(name);
+            // TODO: we used to use direct_child, however container now is container base
+            return container->any_child(name);
+        }
+    }
+
+    ASTNode* linked_member_or_struct_of(const chem::string_view& name) {
+        if(definition) {
+            return definition->child_member_or_inherited_struct(name);
+        } else {
+            return container->any_child_variable(name);
+        }
+    }
+
+    BaseDefMember* direct_variable(const chem::string_view& name) {
+        if(definition) {
+            return definition->direct_variable(name);
+        } else {
+            return container->any_child_variable(name);
         }
     }
 

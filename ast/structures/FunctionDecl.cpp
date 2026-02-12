@@ -768,9 +768,9 @@ void initialize_def_struct_values(
         const auto defValue = var->default_value();
         if(!defValue) continue;
         // couldn't move struct
-        auto variable = struct_def->variable_type_index(var->name, false);
+        auto variable = struct_def->variable_type_w_index(var->name, false);
         std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
-        defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
+        defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.second, variable.first);
     }
 }
 

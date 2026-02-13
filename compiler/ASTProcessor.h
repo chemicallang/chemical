@@ -432,6 +432,11 @@ public:
     static void print_benchmarks(std::ostream& stream, const std::string_view& TAG, BenchmarkResults* results);
 
     /**
+     * verifies the types of the module using parallel threads
+     */
+    bool type_verify_module_parallel(ctpl::thread_pool& pool, LabModule* module);
+
+    /**
      * print given benchmark results with file path
      */
     static void print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& Name, BenchmarkResults* results);

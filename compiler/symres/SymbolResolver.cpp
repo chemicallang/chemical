@@ -292,11 +292,6 @@ void SymbolResolver::after_link_signature_file(
     // symbol resolve the scope
     sym_res_after_signature(*this, &scope);
     file_scope_end(scope_index);
-    // when linking signature is done, we should type verify only the top level var init decls
-    if(!has_errors) {
-        // we only do this if there are no errors (everything symbol resolved properly)
-        type_verify(*this, allocator, scope.nodes);
-    }
 }
 
 void SymbolResolver::link_file(

@@ -992,7 +992,7 @@ void SymResLinkBody::VisitEnumDecl(EnumDeclaration* node) {
             underlying_integer_type = inherited->underlying_integer_type;
         } else {
             linker.error("given type is not an enum or integer type", node->encoded_location());
-            underlying_integer_type = new (linker.ast_allocator->allocate<IntType>()) IntType();
+            underlying_integer_type = linker.comptime_scope.typeBuilder.getIntType();
         }
     }
     linker.scope_start();

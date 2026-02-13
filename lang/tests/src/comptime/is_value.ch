@@ -116,4 +116,89 @@ func test_is_value() {
         type T = any
         return !(T is int || T is long || T is char || T is double || T is bool || T is float || T is ulong || T is uint || T is bigint || T is ubigint || T is uchar || T is void || T is *void || T is []int)
     })
+
+    test("unsigned integer literals can coerce to the referenced integer type - 1", () => {
+        var i = 0u8
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("unsigned integer literals can coerce to the referenced integer type - 2", () => {
+        var i = 0u16
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("unsigned integer literals can coerce to the referenced integer type - 3", () => {
+        var i = 0u32
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("unsigned integer literals can coerce to the referenced integer type - 4", () => {
+        var i = 0u64
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+
+    test("signed integer literals can coerce to the referenced integer type - 1", () => {
+        var i = 0i8
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("signed integer literals can coerce to the referenced integer type - 2", () => {
+        var i = 0i16
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("signed integer literals can coerce to the referenced integer type - 3", () => {
+        var i = 0i32
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("signed integer literals can coerce to the referenced integer type - 4", () => {
+        var i = 0i64
+        var j = i + 10
+        return intrinsics::is_same_type(i, j)
+    })
+
+    test("larger type is used with expressions between two integer literals - 1", () => {
+        var i = 0i8
+        var j = 0i8 + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("larger type is used with expressions between two integer literals - 2", () => {
+        var i = 0i16
+        var j = 0i16 + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("larger type is used with expressions between two integer literals - 3", () => {
+        var i = 0i32
+        var j = 0i32 + 10
+        return intrinsics::is_same_type(i, j)
+    })
+    test("larger type is used with expressions between two integer literals - 4", () => {
+        var i = 0i64
+        var j = 0i64 + 10
+        return intrinsics::is_same_type(i, j)
+    })
+
+    test("larger type is used with expressions between two integer literals - 5", () => {
+        var i = 0i8
+        var j = 10 + 0i8
+        return intrinsics::is_same_type(i, j)
+    })
+    test("larger type is used with expressions between two integer literals - 6", () => {
+        var i = 0i16
+        var j = 10 + 0i16
+        return intrinsics::is_same_type(i, j)
+    })
+    test("larger type is used with expressions between two integer literals - 7", () => {
+        var i = 0i32
+        var j = 10 + 0i32
+        return intrinsics::is_same_type(i, j)
+    })
+    test("larger type is used with expressions between two integer literals - 8", () => {
+        var i = 0i64
+        var j = 10 + 0i64
+        return intrinsics::is_same_type(i, j)
+    })
+
 }

@@ -1051,6 +1051,34 @@ public:
     }
 };
 
+class InterpretIs : public FunctionDeclaration {
+public:
+    explicit InterpretIs(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("is"),
+            {cache.getBoolType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+    inline Value* get_bool(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool value) {
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        if(call->generic_list.size() != 2) {
+            call_scope->error("intrinsics::is requires 2 generic arguments", call);
+            return get_bool(allocator, typeBuilder, false);
+        }
+        const auto type1 = call->generic_list[0];
+        const auto type2 = call->generic_list[1];
+        return get_bool(allocator, typeBuilder, type1->is_same(type2->canonical()));
+    }
+};
+
 class InterpretValueSatisfies : public FunctionDeclaration {
 public:
 
@@ -1086,6 +1114,47 @@ public:
         const auto first_type = val_one->getType();
         if(first_type) {
             return get_bool(allocator, typeBuilder, first_type->satisfies(val_two, false));
+        } else {
+            return get_bool(allocator, typeBuilder, false);
+        }
+    }
+};
+
+class InterpretIsSameType : public FunctionDeclaration {
+public:
+
+    FunctionParam valueParam;
+    FunctionParam valueParam2;
+
+    explicit InterpretIsSameType(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            ZERO_LOC_ID("is_same_type"),
+            {cache.getBoolType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ),  valueParam("value", { cache.getMaybeRuntimeAnyType(), ZERO_LOC }, 0, nullptr, false, this, ZERO_LOC),
+                                                                                 valueParam2("value2", { cache.getMaybeRuntimeAnyType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
+    {
+        set_compiler_decl(true);
+        params.emplace_back(&valueParam);
+        params.emplace_back(&valueParam2);
+    }
+    inline Value* get_bool(ASTAllocator& allocator, TypeBuilder& typeBuilder, bool value) {
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, typeBuilder.getBoolType(), ZERO_LOC);
+    }
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.size() != 2) {
+            call_scope->error("intrinsics::value_is requires 2 arguments", call);
+            return nullptr;
+        }
+        auto& typeBuilder = call_scope->global->typeBuilder;
+        const auto val_one = call->values[0];
+        const auto val_two = call->values[1];
+        const auto first_type = val_one->getType();
+        if(first_type) {
+            return get_bool(allocator, typeBuilder, first_type->is_same(val_two->getType()->canonical()));
         } else {
             return get_bool(allocator, typeBuilder, false);
         }
@@ -2860,6 +2929,8 @@ public:
     InterpretSize sizeFn;
     InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
+    InterpretIs isFn;
+    InterpretIsSameType isSameTypeFn;
     InterpretValueSatisfies satisfiesValueFn;
 
     InterpretGetRawLocation get_raw_location;
@@ -2908,8 +2979,8 @@ public:
         llvmNamespace(cache, this), memNamespace(cache, this), ptrNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         wrapFn(cache, this), unwrapFn(cache, this), retStructPtr(cache, this), verFn(cache, this), isTccFn(cache, this), isClangFn(cache, this),
-        sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), satisfiesValueFn(cache, this), get_target_fn(cache, this),
-        get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
+        sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
+        get_target_fn(cache, this), get_build_dir(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
@@ -2922,10 +2993,10 @@ public:
         nodes = {
             &llvmNamespace, &memNamespace, &ptrNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &wrapFn, &unwrapFn,
-            &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &satisfiesValueFn, &get_raw_location,
-            &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no, &get_caller_char_no,
-            &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_single_marked_decl_ptr,
-            &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
+            &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
+            &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
+            &get_caller_char_no, &get_target_fn, &get_build_dir, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
+            &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
             &expr_str_blk_val, &get_backend_name, &emit_raw, &raw_literal,
             &multiple_value, &get_libs_dir

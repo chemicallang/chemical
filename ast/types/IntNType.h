@@ -141,15 +141,24 @@ public:
     }
 
     /**
+     * check if the given int n type kind is unsigned
+     */
+    static inline bool is_unsigned(IntNTypeKind k) {
+        return static_cast<int>(k) >= static_cast<int>(IntNTypeKind::UnsignedStart);
+    }
+
+    /**
+     * check if the given int n type kind is signed
+     */
+    static inline bool is_signed(IntNTypeKind k) {
+        return static_cast<int>(k) < static_cast<int>(IntNTypeKind::UnsignedStart);
+    }
+
+    /**
      * converts a kind to unsigned kind
      */
     static IntNTypeKind to_unsigned_kind(IntNTypeKind k) {
-        auto otherK = static_cast<int>(k);
-        if(otherK < static_cast<int>(IntNTypeKind::UnsignedStart)) {
-            return static_cast<IntNTypeKind>(otherK + static_cast<int>(IntNTypeKind::UnsignedStart));
-        } else {
-            return k;
-        }
+        return is_signed(k) ? static_cast<IntNTypeKind>(static_cast<int>(k) + static_cast<int>(IntNTypeKind::UnsignedStart)): k;
     }
 
     /**

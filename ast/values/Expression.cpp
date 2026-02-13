@@ -69,6 +69,11 @@ FunctionDeclaration* get_overloaded_func(Expression* expr) {
     }
 }
 
+bool isUntypedIntegerLiteral(Value* value, IntNType* type) {
+    if(type->IntNKind() != IntNTypeKind::Int) return false;
+    return value->kind() == ValueKind::IntN;
+}
+
 BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
     auto firstType = expr->firstValue->getType();
     auto secondType = expr->secondValue->getType();
@@ -176,7 +181,17 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
         const auto first_intN = first->as_intn_type_unsafe();
         const auto second_intN = second->as_intn_type_unsafe();
-        return first_intN->greater_than_in_bits(second_intN) ? first : second;
+        const auto first_literal = isUntypedIntegerLiteral(expr->firstValue, first_intN);
+        const auto second_literal = isUntypedIntegerLiteral(expr->secondValue, second_intN);
+        if(first_literal && !second_literal) {
+            expr->firstValue->setType(second);
+            return second;
+        } else if(!first_literal && second_literal) {
+            expr->secondValue->setType(first);
+            return first;
+        } else {
+            return first_intN->greater_than_in_bits(second_intN) ? first : second;
+        }
     }
     // addition or subtraction of integer value into a pointer
     if((expr->operation == Operation::Addition || expr->operation == Operation::Subtraction) && (first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::IntN) || (first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::Pointer)) {

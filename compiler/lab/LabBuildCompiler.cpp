@@ -719,6 +719,14 @@ int LabBuildCompiler::process_module_tcc(
         return sym_res_status;
     }
 
+    // type verify the module
+    if(!processor.type_verify_module_parallel(pool, mod)) {
+        if(verbose) {
+            std::cout << "[lab] " << "failure during type verification in the module " << *mod << std::endl;
+        }
+        return 1;
+    }
+
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (we make the check when setting the boolean)
     if(mod->has_changed.has_value() && !mod->has_changed.value()) {
@@ -912,6 +920,11 @@ int LabBuildCompiler::process_module_gen(
     // symbol resolve all the files in the module
     const auto sym_res_status = processor.sym_res_module(mod);
     if(sym_res_status != 0) {
+        return 1;
+    }
+
+    // type verify the module
+    if(!processor.type_verify_module_parallel(pool, mod)) {
         return 1;
     }
 
@@ -2475,6 +2488,11 @@ TCCState* LabBuildCompiler::built_lab_file(
     // symbol resolve all the files in the module
     const auto sym_res_status = lab_processor.sym_res_module_seq(&chemical_lab_module);
     if(sym_res_status != 0) {
+        return nullptr;
+    }
+
+    // type verify the module
+    if(!lab_processor.type_verify_module_parallel(pool, &chemical_lab_module)) {
         return nullptr;
     }
 

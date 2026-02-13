@@ -5,6 +5,7 @@
 #include <memory>
 #include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
+#include "compiler/typeverify/TypeVerifyAPI.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"
 #include <sstream>
@@ -480,6 +481,56 @@ bool ASTProcessor::import_chemical_files_direct(
     }
 
     return true;
+}
+
+struct TypeVerifyFileResult {
+    bool has_errors = false;
+    std::vector<Diag> diagnostics;
+};
+
+TypeVerifyFileResult type_verify_file_task(
+    ASTProcessor* processor,
+    ASTFileResult* file
+) {
+    TypeVerifyFileResult result;
+    // make a local diagnoser
+    ASTDiagnoser diagnoser(processor->loc_man);
+
+    // run verification
+    type_verify(diagnoser, processor->file_allocator, file->unit.scope.body.nodes);
+
+    result.has_errors = diagnoser.has_errors;
+    result.diagnostics = std::move(diagnoser.diagnostics);
+    return result;
+}
+
+bool ASTProcessor::type_verify_module_parallel(ctpl::thread_pool& pool, LabModule* module) {
+    std::vector<std::future<TypeVerifyFileResult>> futures;
+    futures.reserve(module->direct_files.size());
+
+    for(auto& fileData : module->direct_files) {
+        // push task
+        futures.emplace_back(pool.push([this, &fileData](int id){
+            return type_verify_file_task(this, fileData.result);
+        }));
+    }
+
+    bool success = true;
+    int i = 0;
+    for(auto& f : futures) {
+        auto res = f.get();
+        if(res.has_errors) {
+            success = false;
+        }
+        if(!res.diagnostics.empty()) {
+            std::lock_guard<std::mutex> guard(print_mutex);
+            // print diagnostics
+            Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(module->direct_files[i].abs_path), "TypeCheck");
+        }
+        i++;
+    }
+
+    return success;
 }
 
 bool ASTProcessor::import_chemical_files_recursive(

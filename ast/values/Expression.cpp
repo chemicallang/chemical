@@ -69,12 +69,36 @@ FunctionDeclaration* get_overloaded_func(Expression* expr) {
     }
 }
 
-bool isUntypedIntegerLiteral(Value* value, IntNType* type) {
-    if(type->IntNKind() != IntNTypeKind::Int) return false;
+bool isUntypedIntegerLiteral(Value* value, IntNTypeKind k) {
+    if(k != IntNTypeKind::Int) return false;
     return value->kind() == ValueKind::IntN;
 }
 
-BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
+bool fits_into(IntNumValue* value, IntNType* type, TargetData& targetData) {
+    const auto bits = type->num_bits(targetData);
+    const auto is_unsigned = type->is_unsigned();
+    const auto val = value->get_num_value();
+
+    // if the value is unsigned, we just check if it fits in bits
+    // but if the type is signed, we must check if it fits in bits - 1
+    // because 1 bit is used for sign
+
+    if(is_unsigned) {
+        if(bits >= 64) return true;
+        // check if value fits in bits
+        return (val >> bits) == 0;
+    } else {
+        // if value is signed, we must check if it fits in bits - 1
+        // however the value we have is uint64_t, so we must check if it fits in int64_t
+        // and then check if it fits in bits - 1
+        if(bits >= 64) return true; // assuming it fits in 64 bits (int64_t)
+        // check if value fits in bits - 1
+        const auto max = (1ULL << (bits - 1)) - 1;
+        return val <= max;
+    }
+}
+
+BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser, TargetData& targetData) {
     auto firstType = expr->firstValue->getType();
     auto secondType = expr->secondValue->getType();
     if(expr->operation >= Operation::IndexBooleanReturningStart && expr->operation <= Operation::IndexBooleanReturningEnd) {
@@ -181,16 +205,46 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     if(first_kind == BaseTypeKind::IntN && second_kind == BaseTypeKind::IntN) {
         const auto first_intN = first->as_intn_type_unsafe();
         const auto second_intN = second->as_intn_type_unsafe();
-        const auto first_literal = isUntypedIntegerLiteral(expr->firstValue, first_intN);
-        const auto second_literal = isUntypedIntegerLiteral(expr->secondValue, second_intN);
+        const auto firstIntNKind = first_intN->IntNKind();
+        const auto secondIntNKind = second_intN->IntNKind();
+        const auto first_literal = isUntypedIntegerLiteral(expr->firstValue, firstIntNKind);
+        const auto second_literal = isUntypedIntegerLiteral(expr->secondValue, secondIntNKind);
+        // coercing literals to the other value's type
         if(first_literal && !second_literal) {
-            expr->firstValue->setType(second);
-            return second;
+            if(fits_into(expr->firstValue->as_int_num_value_unsafe(), second_intN, targetData)) {
+                expr->firstValue->setType(second);
+                return second;
+            }
         } else if(!first_literal && second_literal) {
-            expr->secondValue->setType(first);
-            return first;
+            if(fits_into(expr->secondValue->as_int_num_value_unsafe(), first_intN, targetData)) {
+                expr->secondValue->setType(first);
+                return first;
+            }
+        }
+        // selecting appropriate types based on first and second signed ness and bitwidth
+        // we are matching c's behavior with this logic
+        const auto is_first_greater_in_bits = first_intN->greater_than_in_bits(second_intN);
+        const auto is_first_unsigned = first_intN->is_unsigned();
+        const auto is_second_unsigned = second_intN->is_unsigned();
+        if(is_first_unsigned && !is_second_unsigned) {
+            if(is_first_greater_in_bits) {
+                // first is greater in bits, but its unsigned
+                // we want a signed type but equal to first's bitwidth
+                return typeBuilder.getIntNType(IntNType::to_signed_kind(firstIntNKind));
+            } else {
+                return second;
+            }
+        } else if(!is_first_unsigned && is_second_unsigned) {
+            if(is_first_greater_in_bits) {
+                return first;
+            } else {
+                // second is greater in bits, but its unsigned
+                // we want a signed type but equal to second's bitwidth
+                return typeBuilder.getIntNType(IntNType::to_signed_kind(secondIntNKind));
+            }
         } else {
-            return first_intN->greater_than_in_bits(second_intN) ? first : second;
+            // both signed or unsigned
+            return is_first_greater_in_bits ? first : second;
         }
     }
     // addition or subtraction of integer value into a pointer
@@ -204,8 +258,8 @@ BaseType* determine_type(Expression* expr, TypeBuilder& typeBuilder, ASTDiagnose
     return first;
 }
 
-void Expression::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser) {
-    setType(::determine_type(this, typeBuilder, diagnoser));
+void Expression::determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser, TargetData& targetData) {
+    setType(::determine_type(this, typeBuilder, diagnoser, targetData));
 }
 
 uint64_t Expression::byte_size(TargetData& target) {

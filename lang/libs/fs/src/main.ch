@@ -12,7 +12,7 @@ public struct UnitTy {}
 public namespace fs {
 
 public comptime const PATH_MAX_BUF = 4096;
-public comptime const WIN_MAX_PATH = 32768;
+public comptime const WIN_MAX_PATH = 32768u;
 public comptime const COPY_CHUNK = 64 * 1024; // 64 KiB
 public comptime const DIR_ENT_NAME_MAX = 256;
 public comptime const TEMP_NAME_MAX = 64;

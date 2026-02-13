@@ -273,7 +273,7 @@ private:
                     /* expect 4 hex digits */
                     if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
                     var code : uint32_t = 0;
-                    for (var k : int = 0; k < 4; ++k) {
+                    for (var k : uint = 0; k < 4; ++k) {
                         var hc = s[pos + k] as uchar;
                         code <<= 4;
                         if (hc >= '0' && hc <= '9') code |= (hc - '0');
@@ -289,7 +289,7 @@ private:
                         pos += 2;
                         if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
                         var lo : uint32_t = 0;
-                        for (var k : int = 0; k < 4; ++k) {
+                        for (var k : uint = 0; k < 4; ++k) {
                             var hc = s[pos + k] as uchar;
                             lo <<= 4;
                             if (hc >= '0' && hc <= '9') lo |= (hc - '0');

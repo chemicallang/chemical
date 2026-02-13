@@ -69,6 +69,11 @@ public:
     SourceLocation type_location = 0;
 
     /**
+     * target data
+     */
+    TargetData& targetData;
+
+    /**
      * constructor
      * the allocator must be an ast allocator
      */
@@ -78,8 +83,9 @@ public:
         InstantiationsContainer& container,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser,
-        TypeBuilder& typeBuilder
-    ) : child_resolver(child_resolver), binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder) {
+        TypeBuilder& typeBuilder,
+        TargetData& targetData
+    ) : child_resolver(child_resolver), binder(binder), container(container), allocator_ptr(&allocator), diagnoser(diagnoser), table(), typeBuilder(typeBuilder), targetData(targetData) {
 
     }
 

@@ -14,7 +14,7 @@ protected impl Hashable for uchar {
 
 protected impl Hashable for short {
     func hash(&self) : size_t {
-        return *self * KnuthsMultiplicativeConstant;
+        return (*self * KnuthsMultiplicativeConstant) as size_t;
     }
 }
 

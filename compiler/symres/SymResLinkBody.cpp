@@ -2735,7 +2735,7 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
 void SymResLinkBody::VisitExpression(Expression* value) {
     visit(value->firstValue);
     visit(value->secondValue);
-    value->determine_type(linker.comptime_scope.typeBuilder, linker);
+    value->determine_type(linker.comptime_scope.typeBuilder, linker, linker.comptime_scope.target_data);
 }
 
 void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {

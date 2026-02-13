@@ -162,6 +162,13 @@ public:
     }
 
     /**
+     * converts a kind to unsigned kind
+     */
+    static IntNTypeKind to_signed_kind(IntNTypeKind k) {
+        return is_unsigned(k) ? static_cast<IntNTypeKind>(static_cast<int>(k) - static_cast<int>(IntNTypeKind::UnsignedStart)): k;
+    }
+
+    /**
      * checks if this type is bigger in terms of bit width, than the given type
      */
     bool greater_than_in_bits(IntNType* type) {

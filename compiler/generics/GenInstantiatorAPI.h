@@ -43,7 +43,8 @@ public:
         InstantiationsContainer& container,
         ASTAllocator& astAllocator,
         ASTDiagnoser& diagnoser,
-        TypeBuilder& typeBuilder
+        TypeBuilder& typeBuilder,
+        TargetData& targetData
     );
 
     /**

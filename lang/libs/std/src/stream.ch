@@ -193,7 +193,7 @@ public struct CommandLineStream : Stream {
                 k = k + 1;
             }
             // adjust dst_i to after the new integer
-            dst_i = offset_sign + new_int_len;
+            dst_i = (offset_sign + new_int_len) as size_t;
             // append '.' again
             out_buf[dst_i] = '.';
             dst_i = dst_i + 1;

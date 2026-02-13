@@ -201,4 +201,57 @@ func test_is_value() {
         return intrinsics::is_same_type(i, j)
     })
 
+    test("correct type is selected when signedness and bitwidth differ - 1", () => {
+        var i = 0i32
+        var j = 0i64
+        var k = i + j
+        return intrinsics::is_same_type(j, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 2", () => {
+        var i = 0i64
+        var j = 0i32
+        var k = i + j
+        return intrinsics::is_same_type(i, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 3", () => {
+        var i = 0u32
+        var j = 0i64
+        var k = i + j
+        return intrinsics::is_same_type(j, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 4", () => {
+        var i = 0i64
+        var j = 0u32
+        var k = i + j
+        return intrinsics::is_same_type(i, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 5", () => {
+        var i = 0i32
+        var j = 0u64
+        var k = i + j
+        var f = 0i64
+        return intrinsics::is_same_type(f, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 6", () => {
+        var i = 0u64
+        var j = 0i32
+        var k = i + j
+        var f = 0i64
+        return intrinsics::is_same_type(f, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 7", () => {
+        var i = 0u32
+        var j = 0u64
+        var k = i + j
+        var f = 0u64
+        return intrinsics::is_same_type(f, k)
+    })
+    test("correct type is selected when signedness and bitwidth differ - 8", () => {
+        var i = 0u64
+        var j = 0u32
+        var k = i + j
+        var f = 0u64
+        return intrinsics::is_same_type(f, k)
+    })
+
 }

@@ -70,7 +70,7 @@ public:
 
 #endif
 
-    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser);
+    void determine_type(TypeBuilder& typeBuilder, ASTDiagnoser& diagnoser, TargetData& targetData);
 
     bool primitive() final;
 

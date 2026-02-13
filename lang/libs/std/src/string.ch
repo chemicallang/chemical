@@ -1,6 +1,6 @@
 public namespace std {
 
-public comptime const STR_BUFF_SIZE = 16;
+public comptime const STR_BUFF_SIZE = 16u;
 
 union u64_double_union {
     var u : u64

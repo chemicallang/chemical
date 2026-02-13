@@ -82,7 +82,7 @@ func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result
         return Result.Ok(b_len);
     }
     var need_sep : bool = false; if(a[a_len-1] != '/' && a[a_len-1] != '\\') { need_sep = true }
-    var total = a_len + (if(need_sep) 1 else 0) + b_len;
+    var total = a_len + (if(need_sep) 1u else 0u) + b_len;
     if(total + 1 > out_len) { return Result.Err(FsError.PathTooLong()); }
     var pos : size_t = 0; var i : size_t = 0;
     while(i < a_len) { out[pos++] = a[i++]; }

@@ -12,9 +12,9 @@ func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
     m.is_file = ((mode & 0xF000) == 0x8000);
     m.is_symlink = ((mode & 0xF000) == 0xA000);
     m.len = st.st_size as size_t;
-    m.modified = st.st_mtime as i64;
-    m.accessed = st.st_atime as i64;
-    m.created = st.st_ctime as i64;
+    m.modified = st.st_mtime.tv_sec as i64;
+    m.accessed = st.st_atime.tv_sec as i64;
+    m.created = st.st_ctime.tv_sec as i64;
     m.perms = (st.st_mode & 0x1FF) as u32;
     return Result.Ok(m);
 }

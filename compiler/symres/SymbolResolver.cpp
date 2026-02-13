@@ -197,7 +197,7 @@ void SymbolResolver::declare_node(const chem::string_view& name, ASTNode* node, 
 //            }
             return;
         case AccessSpecifier::Internal:
-            declare(name, node);
+            declare_quietly(name, node);
             return;
     }
 }

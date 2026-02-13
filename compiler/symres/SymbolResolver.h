@@ -121,9 +121,16 @@ private:
                 overload_function(name, previous->activeNode, declaration);
                 return false;
             } else {
-                dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
-                // shadow the symbol
-                table.declare(name, (ASTNode*) declaration);
+                const auto p = ((ASTNode*) declaration)->parent();
+                // symbols with namespace as parents, aren't duplicates, they are hiding members
+                if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
+                    // shadow the current symbol
+                    table.declare(name, (ASTNode*) declaration);
+                } else {
+                    // shadow the current symbol
+                    table.declare(name, (ASTNode*) declaration);
+                    dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
+                }
                 return true;
             };
         }

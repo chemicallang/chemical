@@ -1,40 +1,18 @@
-if(def.win64) {
+public type INT_PTR = bigint
+public type PINT_PTR = *mut INT_PTR
 
-    public type INT_PTR = bigint
-    public type PINT_PTR = *mut INT_PTR
+public type UINT_PTR = ubigint
+public type PUINT_PTR = *mut UINT_PTR
 
-    public type UINT_PTR = ubigint
-    public type PUINT_PTR = *mut UINT_PTR
+public type LONG_PTR = bigint
+public type PLONG_PTR = *mut LONG_PTR
 
-    public type LONG_PTR = bigint
-    public type PLONG_PTR = *mut LONG_PTR
+public type ULONG_PTR = ubigint
+public type PULONG_PTR = *mut ULONG_PTR
 
-    public type ULONG_PTR = ubigint
-    public type PULONG_PTR = *mut ULONG_PTR
-
-    //TODO: verify these
-    public type usize = ubigint
-    public type UINT = uint
-
-} else {
-
-    public type INT_PTR = int
-    public type PINT_PTR = *mut INT_PTR
-
-    public type UINT_PTR = uint
-    public type PUINT_PTR = *mut UINT_PTR
-
-    public type LONG_PTR = long
-    public type PLONG_PTR = *mut LONG_PTR
-
-    public type ULONG_PTR = ulong
-    public type PULONG_PTR = *mut ULONG_PTR
-
-    //TODO: verify these
-    public type usize = ubigint
-    public type UINT = uint
-
-}
+//TODO: verify these
+public type usize = ubigint
+public type UINT = uint
 
 /** @brief Windows handle type. */
 public type HANDLE = *mut void

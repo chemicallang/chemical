@@ -15,10 +15,6 @@ public func pthread_mutex_destroy(m : *mut u8) : int
 
 public namespace std {
 
-    // Opaque pthread types as bytes (we don't inspect internals)
-    // size chosen conservatively; if your platform requires a different size adjust it.
-    comptime const PTHREAD_MUTEX_T_SIZE = 40  // common Linux x86_64 size; adjust if needed
-
     // ----- std::mutex implementation -----
     public struct mutex {
 

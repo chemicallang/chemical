@@ -518,6 +518,15 @@ public:
     );
 
     /**
+     * link the signatures in the file
+     */
+    void after_link_signature_file(
+            Scope& scope,
+            unsigned int fileId,
+            const SymbolRange& range
+    );
+
+    /**
      * should be called, after tld_declare_file, if file's top level symbols have already been declared
      */
     void link_file(

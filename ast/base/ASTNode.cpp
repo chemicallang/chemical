@@ -807,18 +807,18 @@ ASTNode* provide_child(ChildResolver* resolver, Value* parent, const chem::strin
 
 // get inherited or direct child from a members container (like struct gives)
 inline ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl, const chem::string_view& name) {
-    auto node = ::child(decl, name);
-     if (node) {
-         return node;
-     } else if (!decl->inherited.empty()) {
-         for (auto& inherits : decl->inherited) {
-             if (inherits.specifier == AccessSpecifier::Public) {
-                 const auto thing = provide_child(resolver, inherits.type, name, decl);
-                 if (thing) return thing;
-             }
-         }
-     };
-     return nullptr;
+    return ::child(decl, name);
+     // if (node) {
+     //     return node;
+     // } else if (!decl->inherited.empty()) {
+     //     for (auto& inherits : decl->inherited) {
+     //         if (inherits.specifier == AccessSpecifier::Public) {
+     //             const auto thing = provide_child(resolver, inherits.type, name, decl);
+     //             if (thing) return thing;
+     //         }
+     //     }
+     // };
+     // return nullptr;
 }
 
 ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) noexcept {

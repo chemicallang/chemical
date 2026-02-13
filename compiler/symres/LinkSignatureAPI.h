@@ -19,3 +19,8 @@ void sym_res_before_signature(SymbolResolver& resolver, Scope* scope);
  * link signature of given scope
  */
 void sym_res_signature(SymbolResolver& resolver, Scope* scope);
+
+/**
+ * must run after link signature
+ */
+void sym_res_after_signature(SymbolResolver& resolver, Scope* scope);

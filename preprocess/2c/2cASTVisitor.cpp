@@ -4490,7 +4490,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
     if(linked_struct && !linked_struct->does_override(linked_interface)) {
         linked_interface->active_user = linked_struct;
         for (auto& func: linked_interface->instantiated_functions()) {
-            if (!def->contains_func(func->name_view())) {
+            if (!def->contains_direct_func(func->name_view())) {
                 contained_func_decl(*this, func, false, linked_struct);
             }
         }
@@ -4501,7 +4501,7 @@ void ToCAstVisitor::VisitImplDecl(ImplDefinition *def) {
             if (overridden) {
                 overridden->active_user = linked_struct;
                 for (auto& func: overridden->instantiated_functions()) {
-                    if (!def->contains_func(func->name_view())) {
+                    if (!def->contains_direct_func(func->name_view())) {
                         contained_func_decl(*this, func, false, linked_struct);
                     }
                 }
@@ -4654,7 +4654,7 @@ void ToCAstVisitor::VisitStructDecl(StructDefinition *def) {
             }
             overridden->active_user = def;
             for (auto& func: overridden->instantiated_functions()) {
-                if (!def->contains_func(func->name_view())) {
+                if (!def->contains_direct_func(func->name_view())) {
                     contained_func_decl(*this, func, false, def);
                 }
             }
@@ -4715,7 +4715,7 @@ void ToCAstVisitor::VisitUnionDecl(UnionDef *def) {
         const auto overridden = inherits.type->linked_node()->as_interface_def();
         if (overridden) {
             for (auto& func: overridden->instantiated_functions()) {
-                if (!def->contains_func(func->name_view())) {
+                if (!def->contains_direct_func(func->name_view())) {
                     contained_func_decl(*this, func, false, def);
                 }
             }

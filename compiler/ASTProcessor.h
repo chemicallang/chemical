@@ -384,6 +384,16 @@ public:
     );
 
     /**
+     * links the signature of the file
+     */
+    void sym_res_after_link_sig_file(
+            Scope& scope,
+            unsigned int fileId,
+            const std::string& abs_path,
+            const SymbolRange& range
+    );
+
+    /**
      * this function is used to resolve symbols inside the file, the scope_index is used to enable
      * the file's private symbols
      */

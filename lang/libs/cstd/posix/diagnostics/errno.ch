@@ -6,14 +6,6 @@
 @extern
 public func __errno_location() : *mut int
 
-/**
- * @brief Return human‑readable string for an error code.
- * @param errnum Error number.
- * @return Pointer to descriptive, null‑terminated string.
- */
-@extern
-public func strerror(errnum : int) : *mut char
-
 public func get_errno() : int {
     return *__errno_location();
 }

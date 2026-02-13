@@ -79,7 +79,6 @@ public namespace net {
 
         // file I/O + sendfile
         @extern public func open(path:*char, flags:int, mode:int): int;
-        @extern public func close(fd:int): int;
         @extern public func lseek(fd:int, offset: longlong, whence:int): longlong;
         // Linux sendfile: ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
         @extern public func sendfile(out_fd:int, in_fd:int, offset:*longlong, count:size_t) : longlong;

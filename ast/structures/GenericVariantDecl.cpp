@@ -77,9 +77,8 @@ VariantDefinition* GenericVariantDecl::register_generic_args(GenericInstantiator
 
     } else if(signature_linked) {
 
-        // copy over the extension functions, if more functions were linked because of link_signature called upon function declarations
-        // TODO unsure this line is needed
-        // impl->extension_functions = master_impl->extension_functions;
+        // indexes of containers need not be copied
+        // because children are resolved through master implementation
 
         // signature and body both have been linked for master_impl
         // so all we need to do is

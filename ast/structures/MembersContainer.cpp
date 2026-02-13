@@ -559,25 +559,6 @@ void MembersContainer::register_use_to_inherited_interfaces(ExtendableMembersCon
     }
 }
 
-FunctionDeclaration* MembersContainer::inherited_function(const chem::string_view& name) {
-    for(auto& inherits : inherited) {
-        const auto linked = inherits.type->get_direct_linked_node();
-        const auto container = linked ? linked->as_members_container() : nullptr;
-        if(container) {
-            const auto func = container->direct_child_function(name);
-            if(func) return func;
-            const auto func2 = container->inherited_function(name);
-            if(func2) return func2;
-        }
-    }
-    return nullptr;
-}
-
-FunctionDeclaration *MembersContainer::direct_child_function(const chem::string_view& name) {
-    auto func = indexes.find(name);
-    return func != indexes.end() ? func->second->as_function() : nullptr;
-}
-
 FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclaration* function) {
     if(inherited.empty()) return { nullptr, nullptr, nullptr };
     for(auto& inherits : inherited) {
@@ -988,10 +969,6 @@ bool MembersContainer::insert_multi_func(ASTAllocator& astAllocator, FunctionDec
     return true;
 }
 
-bool MembersContainer::contains_func(const chem::string_view& name) {
-    return indexes.find(name) != indexes.end();
-}
-
 BaseType* MembersContainer::create_linked_type(const chem::string_view& name, ASTAllocator& allocator) {
     const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(this);
     return linked_type;
@@ -1045,7 +1022,12 @@ std::pair<BaseType*, long> VariablesContainer::variable_type_w_index(const chem:
     if(found == indexes.end()) {
         return { nullptr, -1 };
     } else {
-        return { found->second->known_type(), direct_mem_index(found->second->as_base_def_member_unsafe()) + parents_size };
+        const auto mem_index = direct_mem_index(found->second->as_base_def_member_unsafe());
+        if(mem_index == -1) {
+            // must not be a direct child
+            return { nullptr, - 1 };
+        }
+        return { found->second->known_type(), mem_index + parents_size };
     }
 }
 

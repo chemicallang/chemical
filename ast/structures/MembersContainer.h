@@ -175,18 +175,48 @@ public:
      */
     void register_use_to_inherited_interfaces(ExtendableMembersContainerNode* definition);
 
-    FunctionDeclaration* inherited_function(const chem::string_view& name);
-
-    FunctionDeclaration *direct_child_function(const chem::string_view& name);
-
-    inline FunctionDeclaration* direct_or_inherited_function(const chem::string_view& name) {
-        const auto func = direct_child_function(name);
-        if(func) return func;
-        return inherited_function(name);
+    /**
+     * get inherited or child function or extension function with given name
+     */
+    FunctionDeclaration* any_child_function(const chem::string_view& name) {
+        auto func = indexes.find(name);
+        return func != indexes.end() ? func->second->as_function() : nullptr;
     }
 
+    /**
+     * get direct child function with given name
+     */
+    FunctionDeclaration *direct_child_function(const chem::string_view& name) {
+        const auto f = any_child_function(name);
+        return f ? isDirectChild(f) ? f : nullptr : nullptr;
+    }
+
+    /**
+     * get inherited or direct child function with given name
+     */
+    inline FunctionDeclaration* direct_or_inherited_function(const chem::string_view& name) {
+        return any_child_function(name);
+    }
+
+    /**
+     * get direct child function with given name
+     */
     inline FunctionDeclaration *member(const chem::string_view &name) {
         return direct_child_function(name);
+    }
+
+    /**
+     * get inherited function by given name
+     */
+    FunctionDeclaration* inherited_function(const chem::string_view& name) {
+        for(auto& inh : inherited) {
+            const auto container = inh.type->get_members_container();
+            if(container) {
+                const auto f = container->direct_or_inherited_function(name);
+                if(f) return f;
+            }
+        }
+        return nullptr;
     }
 
     /**
@@ -363,7 +393,16 @@ public:
     /**
      * is there a function with this name
      */
-    bool contains_func(const chem::string_view& name);
+    inline bool contains_func(const chem::string_view& name) {
+        return any_child_function(name) != nullptr;
+    }
+
+    /**
+     * is there a function with this name
+     */
+    bool contains_direct_func(const chem::string_view& name) {
+        return direct_child_function(name) != nullptr;
+    }
 
     /**
      * this creates a linked type to this members container, so that

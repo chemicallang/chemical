@@ -1064,3 +1064,69 @@ void TopLevelLinkSignature::VisitUnnamedUnion(UnnamedUnion* node) {
     node->take_variables_from_parsed_nodes(linker);
     LinkVariables(node);
 }
+
+void buildContainerIndexes(MembersContainer* container) {
+    for(auto& inh : container->inherited) {
+        const auto sub_container = inh.type->get_members_container();
+        if(sub_container) {
+            // first build indexes on inherited containers
+            // since we want to do multi-level inheritance
+            buildContainerIndexes(sub_container);
+            // putting all index of this container
+            // except we will never override, respecting already present indexes
+            // because we want to support function hiding, function in container will hide function in inherited container (with same name)
+            auto& container_indexes = container->indexes;
+            auto& sub_container_indexes = sub_container->indexes;
+            container_indexes.reserve(container_indexes.size() + sub_container_indexes.size());
+            for(auto& index : sub_container_indexes) {
+                container_indexes.try_emplace(index.first, index.second);
+            }
+        }
+    }
+}
+
+void BuildIndexes(std::vector<ASTNode*>& nodes) {
+    for(const auto node : nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::UnionDecl:
+            case ASTNodeKind::VariantDecl:
+            case ASTNodeKind::InterfaceDecl:
+                buildContainerIndexes(node->as_members_container_unsafe());
+                continue;
+            // for generic containers, we only need to build indexes of the master container
+            // because that's where children are resolved from
+            case ASTNodeKind::GenericStructDecl:
+                buildContainerIndexes(node->as_gen_struct_def_unsafe()->master_impl);
+                continue;
+            case ASTNodeKind::GenericUnionDecl:
+                buildContainerIndexes(node->as_gen_union_decl_unsafe()->master_impl);
+                continue;
+            case ASTNodeKind::GenericVariantDecl:
+                buildContainerIndexes(node->as_gen_variant_decl_unsafe()->master_impl);
+                continue;
+            case ASTNodeKind::GenericInterfaceDecl:
+                buildContainerIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
+                continue;
+            case ASTNodeKind::NamespaceDecl:
+                BuildIndexes(node->as_namespace_unsafe()->nodes);
+                continue;
+            case ASTNodeKind::IfStmt:{
+                const auto stmt = node->as_if_stmt_unsafe();
+                if(stmt->computed_scope.has_value()) {
+                    const auto scope = stmt->computed_scope.value();
+                    if(scope) {
+                        BuildIndexes(scope->nodes);
+                    }
+                }
+                continue;
+            }
+            default:
+                continue;
+        }
+    }
+}
+
+void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
+    BuildIndexes(scope->nodes);
+}

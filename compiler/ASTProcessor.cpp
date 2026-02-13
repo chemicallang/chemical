@@ -199,6 +199,28 @@ void ASTProcessor::sym_res_link_sig_file(Scope& scope, unsigned int fileId, cons
     }
 }
 
+void ASTProcessor::sym_res_after_link_sig_file(
+        Scope& scope,
+        unsigned int fileId,
+        const std::string& abs_path,
+        const SymbolRange& range
+) {
+    // doing stuff
+    auto prev_has_errors = resolver->has_errors;
+    BenchmarkResults bm_results;
+    if(options->benchmark_files) {
+        bm_results.benchmark_begin();
+    }
+    resolver->after_link_signature_file(scope, fileId, range);
+    if(options->benchmark_files) {
+        bm_results.benchmark_end();
+        print_benchmarks(std::cout, "SymRes:after_link_sig", abs_path, &bm_results);
+    }
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(chem::string_view(abs_path), "SymRes:after_link_sig");
+    }
+}
+
 void ASTProcessor::sym_res_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path, const SymbolRange& range) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
@@ -289,6 +311,21 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         auto& file = *file_ptr.result;
 
         sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
+        // report and clear diagnostics
+        if (resolver->has_errors && !options->ignore_errors) {
+            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
+            return 1;
+        }
+        resolver->reset_errors();
+
+    }
+
+    // after link the signature of the files
+    for(auto& file_ptr : module->direct_files) {
+
+        auto& file = *file_ptr.result;
+
+        sym_res_after_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
             std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;

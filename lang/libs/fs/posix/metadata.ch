@@ -5,7 +5,7 @@ using std::Result;
 func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
     var st : Stat;
     var r = lstat(path, &mut st);
-    if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
+    if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     var m : Metadata;
     var mode : int = st.st_mode as int;
     m.is_dir = ((mode & 0xF000) == 0x4000);

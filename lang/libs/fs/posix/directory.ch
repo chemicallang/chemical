@@ -4,7 +4,7 @@ using std::Result;
 
 public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
     var r = posix_mkdir(path, 0o777);
-    if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
+    if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
 }
 
@@ -50,7 +50,7 @@ public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 // remove_dir (non-recursive) and remove_dir_all (recursive)
 public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
     var r = rmdir(path);
-    if(r != 0) { return Result.Err(posix_errno_to_fs(-r)); }
+    if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
 }
 
@@ -65,7 +65,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
     if(ddup < 0) {
         var e = get_errno();
         // printf("dup(%d) failed: errno=%d (%s)\n", dirfd, e, strerror(e));
-        return Result.Err(posix_errno_to_fs(-e));
+        return Result.Err(posix_errno_to_fs(e));
     }
 
     var dir = fdopendir(ddup);
@@ -73,7 +73,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
         var e = get_errno();
         // printf("fdopendir(%d) failed: errno=%d (%s)\n", ddup, e, strerror(e));
         close(ddup);
-        return Result.Err(posix_errno_to_fs(-e));
+        return Result.Err(posix_errno_to_fs(e));
     }
 
     loop {
@@ -86,7 +86,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                 var re = get_errno();
                 // printf("readdir(dirfd=%d) returned NULL with errno=%d (%s)\n", dirfd, re, strerror(re));
                 closedir(dir);
-                return Result.Err(posix_errno_to_fs(-re));
+                return Result.Err(posix_errno_to_fs(re));
             }
             // end of directory
             break;
@@ -110,7 +110,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                 continue;
             } else {
                 closedir(dir);
-                return Result.Err(posix_errno_to_fs(-e));
+                return Result.Err(posix_errno_to_fs(e));
             }
         }
 
@@ -128,7 +128,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                     continue;
                 } else {
                     closedir(dir);
-                    return Result.Err(posix_errno_to_fs(-e2));
+                    return Result.Err(posix_errno_to_fs(e2));
                 }
             }
 
@@ -151,7 +151,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                     continue;
                 } else {
                     closedir(dir);
-                    return Result.Err(posix_errno_to_fs(-e3));
+                    return Result.Err(posix_errno_to_fs(e3));
                 }
             } else {
                 // printf("  unlinkat(AT_REMOVEDIR) succeeded for '%s'\n", &ent.d_name[0]);
@@ -168,7 +168,7 @@ func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
                     continue;
                 } else {
                     closedir(dir);
-                    return Result.Err(posix_errno_to_fs(-e4));
+                    return Result.Err(posix_errno_to_fs(e4));
                 }
             } else {
                 // printf("  unlinkat succeeded for '%s'\n", &ent.d_name[0]);
@@ -191,7 +191,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     if(dirfd < 0) {
         var e = get_errno();
         // printf("open('%s') -> errno=%d (%s)\n", path, e, strerror(e));
-        return Result.Err(posix_errno_to_fs(-e));
+        return Result.Err(posix_errno_to_fs(e));
     }
 
     var rem = remove_dir_all_at(dirfd);
@@ -210,7 +210,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
             // printf("rmdir: ENOENT: directory already removed — treating as success\n");
             return Result.Ok(UnitTy{});
         }
-        return Result.Err(posix_errno_to_fs(-er));
+        return Result.Err(posix_errno_to_fs(er));
     }
     // printf("remove_dir_all_recursive: removed directory '%s' OK\n", path);
     return Result.Ok(UnitTy{});
@@ -226,7 +226,7 @@ func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
 func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
     var d = opendir(path);
-    if(d == null) { return Result.Err(FsError.Io(-1, "opendir failed\0")); }
+    if(d == null) { return Result.Err(posix_errno_to_fs(get_errno())); }
     while(true) {
         var ent = readdir(d);
         if(ent == null) { break; }

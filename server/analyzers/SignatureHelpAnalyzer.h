@@ -8,7 +8,7 @@
 #include "CaretPositionAnalyzer.h"
 #include "lsp/types.h"
 
-class ASTResult;
+struct ASTResult;
 
 class SignatureHelpAnalyzer{
 public:

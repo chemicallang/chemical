@@ -9,7 +9,7 @@
 
 class LocationManager;
 
-class LexResult;
+struct LexResult;
 
 class GotoDefAnalyzer {
 public:

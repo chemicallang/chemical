@@ -7,7 +7,7 @@
 
 #include "ast/base/ASTNode.h"
 
-class LexResult;
+struct LexResult;
 
 class LocationManager;
 

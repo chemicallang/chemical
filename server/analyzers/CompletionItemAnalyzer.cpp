@@ -312,7 +312,7 @@ void CompletionItemAnalyzer::VisitScope(Scope *scope) {
     }
 }
 
-void put_variables_of(CompletionItemAnalyzer* analyzer, VariablesContainer* node) {
+void put_variables_of(CompletionItemAnalyzer* analyzer, VariablesContainerBase* node) {
     for(auto& var : node->variables()) {
         //TODO: put_with_doc(analyzer, var->name_view(), lsCompletionItemKind::Field, var);
     }

@@ -16,7 +16,7 @@ class Position;
 
 using caret_pos_type = Position;
 
-class LexResult;
+struct LexResult;
 
 struct LabModule;
 

@@ -6,7 +6,7 @@
 #include <vector>
 #include "core/diag/Location.h"
 
-class LexResult;
+struct LexResult;
 
 class DocumentLinksAnalyzer {
 public:

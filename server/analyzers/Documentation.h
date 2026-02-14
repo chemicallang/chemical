@@ -5,7 +5,7 @@
 #include <string>
 #include "std/chem_string_view.h"
 
-class LexResult;
+struct LexResult;
 
 /**
  * responsible for putting the documentation of the given node into the given value

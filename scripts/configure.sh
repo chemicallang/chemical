@@ -180,7 +180,8 @@ if [ -z "${TAG}" ]; then
     LATEST_JSON=$(curl -sL "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest")
     
     # Extract tag_name using grep/sed to avoid jq dependency
-    TAG=$(echo "$LATEST_JSON" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/')
+    # Use || true to prevent set -e from killing the script if grep doesn't find a match
+    TAG=$(echo "$LATEST_JSON" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' || true)
     
     if [ -z "${TAG}" ]; then
         echo "Error: Could not determine latest release tag. GitHub API rate limit might be exceeded." >&2

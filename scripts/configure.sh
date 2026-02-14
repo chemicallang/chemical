@@ -176,18 +176,38 @@ TAG="${ARG_TAG}"
 
 if [ -z "${TAG}" ]; then
     echo "Fetching latest stable release tag from GitHub..."
-    # We use the releases/latest endpoint which only returns the latest STABLE release (not pre-release).
-    LATEST_JSON=$(curl -sL "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest")
+    # Robust temporary file creation for macOS/Linux
+    LATEST_JSON_FILE=$(mktemp 2>/dev/null || mktemp -t 'tcc_latest_json')
     
-    # Extract tag_name using grep/sed to avoid jq dependency
-    # Use || true to prevent set -e from killing the script if grep doesn't find a match
-    TAG=$(echo "$LATEST_JSON" | grep '"tag_name":' | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' || true)
-    
-    if [ -z "${TAG}" ]; then
-        echo "Error: Could not determine latest release tag. GitHub API rate limit might be exceeded." >&2
-        echo "Response excerpt: $(echo "$LATEST_JSON" | head -n 5)" >&2
+    # Use User-Agent as required by GitHub API best practices.
+    # We disable set -e temporarily to handle curl exit code manually.
+    set +e
+    curl -sL -f -A "ChemicalLang-Bootstrap" \
+         "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" \
+         -o "$LATEST_JSON_FILE"
+    CURL_EXIT=$?
+    set -e
+
+    if [ $CURL_EXIT -ne 0 ]; then
+        echo "Error: GitHub API request failed with exit code $CURL_EXIT." >&2
+        echo "This might be due to network issues or API rate limits." >&2
+        rm -f "$LATEST_JSON_FILE"
         exit 1
     fi
+
+    # Extract tag_name using grep/sed. head -n 1 ensures we only get the first match if multiple exist.
+    TAG=$(grep '"tag_name":' "$LATEST_JSON_FILE" | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' | head -n 1)
+    
+    if [ -z "${TAG}" ]; then
+        echo "Error: Could not find 'tag_name' in GitHub API response." >&2
+        echo "Full API response was:" >&2
+        cat "$LATEST_JSON_FILE" >&2
+        echo ""
+        rm -f "$LATEST_JSON_FILE"
+        exit 1
+    fi
+    
+    rm -f "$LATEST_JSON_FILE"
     echo "Latest stable release is: ${TAG}"
 else
     echo "Using specified tag: ${TAG}"

@@ -5,13 +5,10 @@ using std::Result;
 func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsError> {
     // POSIX open
     var flags : int = 0;
-    if(opts.read && !opts.write) { flags = 0; /** O_RDONLY **/
-    } else if(opts.read && opts.write) { flags = 2; /** O_RDWR **/
-    } else if(!opts.read && opts.write) { flags = 1; /** O_WRONLY **/ }
-    const O_CREAT = 0x40;
-    const O_TRUNC = 0x200;
-    const O_EXCL  = 0x80;
-    const O_APPEND = 0x400;
+    if(opts.read && !opts.write) { flags = O_RDONLY;
+    } else if(opts.read && opts.write) { flags = O_RDWR;
+    } else if(!opts.read && opts.write) { flags = O_WRONLY; }
+    
     if(opts.create) { flags = flags | O_CREAT; }
     if(opts.truncate) { flags = flags | O_TRUNC; }
     if(opts.create_new) { flags = flags | O_EXCL; }
@@ -119,7 +116,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
     tmpl[p + r] = 0;
     // mkstemp modifies template
     var fd = mkstemp(&mut tmpl[0]); // user-provided extern
-    if(fd < 0) { return Result.Err(FsError.Io(get_errno(), "mkstemp failed\0")); }
+    if(fd < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     // return path
     var i : size_t = 0; while(tmpl[i] != 0) { out_path[i] = tmpl[i]; i++ } out_path[i] = 0;
     // wrap fd into File

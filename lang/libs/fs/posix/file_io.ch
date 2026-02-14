@@ -64,7 +64,8 @@ func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy
 
 func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> {
     // POSIX: open src, dst and copy in chunks
-    var srcopts : OpenOptions; srcopts.read = true; srcopts.write = false; srcopts.create = false;
+    var srcopts : OpenOptions; 
+    srcopts.read = true; srcopts.write = false; srcopts.append = false; srcopts.create = false; srcopts.create_new = false; srcopts.truncate = false; srcopts.binary = true;
     var sres = file_open(src, srcopts);
     if(sres is Result.Err) {
         var Err(e) = sres else unreachable
@@ -72,7 +73,8 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
     }
     var Ok(sf) = sres else unreachable
 
-    var dstopts : OpenOptions; dstopts.read = false; dstopts.write = true; dstopts.create = true; dstopts.truncate = true;
+    var dstopts : OpenOptions; 
+    dstopts.read = false; dstopts.write = true; dstopts.append = false; dstopts.create = true; dstopts.create_new = false; dstopts.truncate = true; dstopts.binary = true;
     var dres = file_open(dst, dstopts);
     if(dres is Result.Err) {
         file_close(&mut sf)

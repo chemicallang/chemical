@@ -30,16 +30,25 @@ interface Calculator {
 
 }
 
-impl Calculator {
-    func divide(x : int, y : int) : int {
-        return x / y;
-    }
-}
-
 struct Point : Calculator {
 
     var x : int
     var y : int
+
+    @override
+    func divide(x : int, y : int) : int {
+        return x / y;
+    }
+
+    @override
+    func divideP(&self) : int {
+        return self.x / self.y;
+    }
+
+    @override
+    func avg(&self) : int {
+        return sumP() / 2;
+    }
 
     // add override keyword to indicate its overriding function present above
     @override
@@ -71,6 +80,26 @@ struct Point : Calculator {
 
 }
 
+interface SeparateInterfaceForPoint {
+    func separate_sum_point(&self) : int
+}
+
+impl SeparateInterfaceForPoint for Point {
+    func separate_sum_point(&self) : int {
+        return x + y;
+    }
+}
+
+interface DirectlyCallableInterface {
+    func give_num() : int
+}
+
+impl DirectlyCallableInterface {
+    func give_num() : int {
+        return 98722;
+    }
+}
+
 type PPoint = *Point
 
 func sum_ppoint(p : PPoint) : int {
@@ -88,15 +117,6 @@ func (point : &Point) double_sum() : int {
 struct Container {
     var point : [2]int
     var is_cool : bool
-}
-
-impl Calculator for Point {
-    func divideP(&self) : int {
-        return self.x / self.y;
-    }
-    func avg(&self) : int {
-        return sumP() / 2;
-    }
 }
 
 interface Summer {
@@ -316,11 +336,14 @@ func test_nodes() {
     test("can call functions declared below call", () => {
         return declared_below() == 1;
     })
-    test("can call interface defined functions directly", () => {
+    test("can call interface defined functions directly - 1", () => {
         return Calculator.multiply(5, 5) == 25;
     })
-    test("can call interface declared functions directly", () => {
+    test("can call interface declared functions directly - 2", () => {
         return Calculator.sum(5, 5) == 10;
+    })
+    test("can call interface declared functions directly - 3", () => {
+        return DirectlyCallableInterface.give_num() == 98722;
     })
     test("call interface method from overridden struct value", () => {
          var p = Point {
@@ -337,7 +360,7 @@ func test_nodes() {
             x : 7,
             y : 6
         };
-        return p.divide(10, 5) == 2;
+        return p.separate_sum_point() == 13;
     })
     test("functions inside struct can call functions inherited directly", () => {
         var p = Point {

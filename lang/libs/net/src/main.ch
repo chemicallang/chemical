@@ -1462,7 +1462,7 @@ public namespace server {
                     }
                 }
             } else {
-                printf("serve_iocp not supported on this platform.\n");
+                serve_non_iocp(port);
             }
         }
 

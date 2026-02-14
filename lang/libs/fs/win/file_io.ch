@@ -90,7 +90,8 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
     var res = GetTempFileNameW(dir as LPCWSTR, prefix as LPCWSTR, 0, out_path as LPWSTR);
     if(res == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     // open file
-    var opts : OpenOptions; opts.read = true; opts.write = true; opts.create = false;
+    var opts : OpenOptions; 
+    opts.read = true; opts.write = true; opts.append = false; opts.create = false; opts.create_new = false; opts.truncate = false; opts.binary = true;
     var fo = file_open_native(out_path, opts);
     if(fo is Result.Err) {
         var Err(e) = fo else unreachable

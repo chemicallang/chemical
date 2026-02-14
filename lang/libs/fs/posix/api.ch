@@ -66,16 +66,6 @@ public namespace fs {
     // ssize_t readlink(const char *path, char *buf, size_t bufsiz);
     @extern public func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t;
 
-
-    // POSIX externs
-    // type DIR = *void;
-    struct dirent { var d_name : [PATH_MAX_BUF]char; }
-    struct stat { var st_mode : u32; }
-
-    // @extern public func opendir(path : *char) : DIR;
-    // @extern public func readdir(dir : DIR) : *mut dirent;
-    // @extern public func closedir(dir : DIR) : int;
-    // @extern public func lstat(path : *char, out : *mut Stat) : int;
     @extern public func unlink(path : *char) : int;
     @extern public func rmdir(path : *char) : int;
 

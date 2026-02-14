@@ -55,7 +55,7 @@ if(def.windows) {
 
     public struct Stat {
         var st_dev : __dev_t;		/* Device.  */
-        var st_ino : __ino_t;		/* File serial number.	*
+        var st_ino : __ino_t;		/* File serial number.	*/
         var st_nlink : __nlink_t;		/* Link count.  */
         var st_mode : __mode_t;		/* File mode.  */
         var st_uid : __uid_t;		/* User ID of the file's owner.	*/

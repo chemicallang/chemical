@@ -175,40 +175,25 @@ echo "Detected platform asset: ${ASSET_NAME}"
 TAG="${ARG_TAG}"
 
 if [ -z "${TAG}" ]; then
-    echo "Fetching latest stable release tag from GitHub..."
-    # Robust temporary file creation for macOS/Linux
-    LATEST_JSON_FILE=$(mktemp 2>/dev/null || mktemp -t 'tcc_latest_json')
+    echo "Fetching latest tag from GitHub..."
+    # Use git ls-remote to avoid GitHub API network issues (like error 56) and rate limits.
+    # We sort by version and take the last one.
+    TAG=$(git ls-remote --tags "https://github.com/${REPO_OWNER}/${REPO_NAME}.git" | \
+          grep -v '\^{}' | \
+          cut -d '/' -f 3 | \
+          sort -V 2>/dev/null || \
+          git ls-remote --tags "https://github.com/${REPO_OWNER}/${REPO_NAME}.git" | \
+          grep -v '\^{}' | \
+          cut -d '/' -f 3 | \
+          sort) # Fallback if sort -V is not supported
     
-    # Use User-Agent as required by GitHub API best practices.
-    # We disable set -e temporarily to handle curl exit code manually.
-    set +e
-    curl -sL -f -A "ChemicalLang-Bootstrap" \
-         "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest" \
-         -o "$LATEST_JSON_FILE"
-    CURL_EXIT=$?
-    set -e
+    TAG=$(echo "$TAG" | tail -n 1)
 
-    if [ $CURL_EXIT -ne 0 ]; then
-        echo "Error: GitHub API request failed with exit code $CURL_EXIT." >&2
-        echo "This might be due to network issues or API rate limits." >&2
-        rm -f "$LATEST_JSON_FILE"
-        exit 1
-    fi
-
-    # Extract tag_name using grep/sed. head -n 1 ensures we only get the first match if multiple exist.
-    TAG=$(grep '"tag_name":' "$LATEST_JSON_FILE" | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' | head -n 1)
-    
     if [ -z "${TAG}" ]; then
-        echo "Error: Could not find 'tag_name' in GitHub API response." >&2
-        echo "Full API response was:" >&2
-        cat "$LATEST_JSON_FILE" >&2
-        echo ""
-        rm -f "$LATEST_JSON_FILE"
+        echo "Error: Could not determine latest release tag via git ls-remote." >&2
         exit 1
     fi
-    
-    rm -f "$LATEST_JSON_FILE"
-    echo "Latest stable release is: ${TAG}"
+    echo "Latest release is: ${TAG}"
 else
     echo "Using specified tag: ${TAG}"
 fi
@@ -219,21 +204,19 @@ TEMP_ZIP="tcclib_download.zip"
 
 # Remove old checkout if exists
 if [ -d "${TARGET_DIR}" ]; then
-    echo "Removing old ${TARGET_DIR}"
     rm -rf "${TARGET_DIR}"
 fi
 
-echo "Downloading ${DOWNLOAD_URL}..."
-http_code=$(curl -sL -w "%{http_code}" -o "${TEMP_ZIP}" "${DOWNLOAD_URL}")
-
-if [ "$http_code" != "200" ]; then
-    echo "Error: Failed to download asset (HTTP $http_code)." >&2
+echo "Downloading tcclib..."
+# Use -sS to show errors but hide progress meter
+if ! curl -sSLf -o "${TEMP_ZIP}" "${DOWNLOAD_URL}"; then
+    echo "Error: Failed to download asset." >&2
     echo "URL: ${DOWNLOAD_URL}" >&2
     rm -f "${TEMP_ZIP}"
     exit 1
 fi
 
-echo "Extracting to ${TARGET_DIR}..."
+echo "Extracting..."
 # Create target directory (parent)
 mkdir -p "$(dirname "${TARGET_DIR}")"
 

@@ -23,10 +23,6 @@ public namespace fs {
     @extern public func realpath(path : *char, resolved : *mut char) : *char;
     @extern public func chmod(path : *char, mode : u32) : int;
 
-    public type blksize_t = i64;
-    public type fsblkcnt_t = u64;
-    public type fsfilcnt_t = u64;
-
     const AT_FDCWD = -100;               // use current working directory
     const AT_SYMLINK_NOFOLLOW = 0x100;   // do not follow symlinks (Linux typical)
     @extern public func utimensat(dirfd : int, pathname : *char, times : *timespec, flags : int) : int;
@@ -78,14 +74,9 @@ public namespace fs {
 
     @extern public func unlinkat(dirfd : int, pathname : *char, flags : int) : int;
 
-    // common flags (Linux values)
-    const O_RDONLY = 0;
+    const O_EXCL  = 0x80;
+    const O_APPEND = 0x400;
     const O_DIRECTORY = 0x20000;           // typical Linux value; adjust if your platform differs
     const AT_REMOVEDIR = 0x200;            // unlinkat flag to remove a directory (Linux)
-
-    const FILE_ATTRIBUTE_DIRECTORY = 0x10;
-
-    const S_IFMT  = 0xF000;
-    const S_IFDIR = 0x4000;
 
 }

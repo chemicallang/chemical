@@ -199,7 +199,7 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 //        return 1;
     }
 
-    std::cout << rang::fg::green << "\nSuccessfully configured Chemical Compiler for your OS" << rang::fg::reset << std::endl;
+    std::cout << rang::fg::green << "\nSuccessfully configured Chemical Compiler for your OS, You can close this window" << rang::fg::reset << std::endl;
 
     if(stay) {
         std::cin.get();

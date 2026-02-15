@@ -216,7 +216,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     return Result.Ok(UnitTy{});
 }
 
-func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var tmp : *char = "/tmp\0";
     var i : size_t = 0; while(tmp[i] != 0) { out[i] = tmp[i]; i++ }
     out[i] = 0;
@@ -224,7 +224,7 @@ func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 }
 
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
-func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
     var d = opendir(path);
     if(d == null) { return Result.Err(posix_errno_to_fs(get_errno())); }
     while(true) {

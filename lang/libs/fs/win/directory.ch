@@ -163,7 +163,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
     return Result.Ok(UnitTy{});
 }
 
-func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var wbuf : [WIN_MAX_PATH]u16;
     var n = GetTempPathW(WIN_MAX_PATH as u32, (&mut wbuf[0]) as LPWSTR);
     if(n == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
@@ -177,7 +177,7 @@ func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 }
 
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
-func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
     // Windows implementation using FindFirstFileW / FindNextFileW
     var wpath : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &mut wpath[0], WIN_MAX_PATH as size_t);

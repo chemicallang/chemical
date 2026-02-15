@@ -6,7 +6,7 @@ public type path_ptr = if(def.windows) *u16 else *char
 
 public type mut_path_ptr = if(def.windows) *mut u16 else *mut char
 
-func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var len : size_t = 0;
     while(path[len] != 0) { len++ }
     if(len == 0) {
@@ -29,7 +29,7 @@ func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, 
     return Result.Ok(comp_len);
 }
 
-func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var len : size_t = 0;
     while(path[len] != 0) { len++ }
     if(len == 0) {
@@ -53,7 +53,7 @@ func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, F
 }
 
 // extension (returns extension starting at '.' or empty)
-func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var base_buf : [PATH_MAX_BUF]char;
     var r = basename(path, &mut base_buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err<size_t, FsError>(e); }
@@ -73,7 +73,7 @@ func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t,
 }
 
 // join path a + b -> out (normalizes separators). Caller must provide out buffer.
-func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var a_len : size_t = 0; while(a[a_len] != 0) { a_len++ }
     var b_len : size_t = 0; while(b[b_len] != 0) { b_len++ }
     if(a_len == 0) {
@@ -93,7 +93,7 @@ func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result
 
 // normalize_path: resolve "." and ".." (does not resolve symlinks). Uses stack arrays for components.
 // normalize path removing "." and resolving ".." relative components (no symlink resolution)
-func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
     var len : size_t = 0; while(path_in[len] != 0) { len++ }
     const MAX_COMPS = 512;
     var offs : [MAX_COMPS]size_t;

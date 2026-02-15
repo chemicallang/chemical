@@ -10,7 +10,7 @@ import "@json/build.lab" as jsonMod
 import "@atomic/build.lab" as atomicMod
 import "@fs/build.lab" as fsMod
 import "@net/build.lab" as netMod
-import "@md/build.lab" as mdMod
+import "@docgen/build.lab" as docgenMod
 import "@test/build.lab" as testMod
 import "@test_env/build.lab" as testEnvMod
 import "./libs/html/build.lab" as htmlTestMod
@@ -105,11 +105,11 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     // the net module
     const net_module = netMod.build(ctx, job)
 
-    // the md module
-    const md_module = mdMod.build(ctx, job)
+    // the docgen module
+    const docgen_module = docgenMod.build(ctx, job)
 
     // currently the last dependency becomes null if we don't take it out like this
-    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, json_module, atomic_module, fs_module, net_module, md_module, test_env_module, test_module ]
+    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, json_module, atomic_module, fs_module, net_module, docgen_module, test_env_module, test_module ]
     const main_mod_path = lab::rel_path_to("src");
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("main"), std::string_view(main_mod_path), dependencies);
 

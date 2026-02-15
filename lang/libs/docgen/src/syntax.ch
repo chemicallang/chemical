@@ -266,7 +266,7 @@ func highlight_chemical(code : std::string_view) : std::string {
             // Easier: just let Clike handle it and post-process? No.
             // Let's just copy-paste the Clike loop here structure since Chemical has specifics.
             
-            const start = lexer.cursor;
+            const start2 = lexer.cursor;
             const c = lexer.peek();
              if(is_whitespace(c)) {
                 html.append(lexer.advance());
@@ -288,7 +288,7 @@ func highlight_chemical(code : std::string_view) : std::string {
              } else if(c == '"' || c == '\'') {
                  // Strings (same as Clike)
                  const quote = lexer.advance();
-                 var startc = start;
+                 var startc = start2;
                  var escaped = false;
                  while(lexer.cursor < lexer.source.size()) {
                      const ch = lexer.peek();
@@ -299,16 +299,16 @@ func highlight_chemical(code : std::string_view) : std::string {
                  }
                  html.append_view(make_span("tok-str", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
              } else if(is_digit(c)) {
-                 var startc = start;
+                 var startc = start2;
                  while(lexer.cursor < lexer.source.size() && (is_alphanum(lexer.peek()) || lexer.peek() == '.')) { lexer.advance() };
                  html.append_view(make_span("tok-num", std::string_view(lexer.source.data() + startc, lexer.cursor - startc)).to_view());
              } else if(is_alpha(c)) {
-                 var startc = start;
+                 var startc = start2;
                  while(lexer.cursor < lexer.source.size() && is_alphanum(lexer.peek())) { lexer.advance() };
                  var text = std::string_view(lexer.source.data() + startc, lexer.cursor - startc);
                  
                  var is_kwd = false;
-                 var i = 0u; while(i < kwds.size()) { if(kwds.get(i).equals_view(text)) { is_kwd = true; break; } i++; }
+                 i = 0u; while(i < kwds.size()) { if(kwds.get(i).equals_view(text)) { is_kwd = true; break; } i++; }
                  
                  if(is_kwd) html.append_view(make_span("tok-kwd", text).to_view());
                  else {

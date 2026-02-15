@@ -185,7 +185,8 @@ trap cleanup_tmp EXIT
 
 # Choose install directory (writable)
 choose_install_dir() {
-  if [ "$(uname -s 2>/dev/null || echo '')" = "Windows_NT" ]; then
+  uname_s="$(uname -s 2>/dev/null || echo '')"
+  if [[ "$uname_s" == "Windows_NT" || "$uname_s" == MINGW* || "$uname_s" == MSYS* ]]; then
     # Native Windows Git Bash / MSYS
     if [ -n "${USERPROFILE:-}" ]; then
       echo "${USERPROFILE//\\//}/.chemical"

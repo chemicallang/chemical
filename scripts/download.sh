@@ -15,6 +15,10 @@ set -euo pipefail
 #   GITHUB_REPO (default chemical)
 
 VERSION="${VERSION:-latest}"
+RELEASE_PLATFORM="${RELEASE_PLATFORM:-}"
+VARIANT="${VARIANT:-}"
+ARCH_OVERRIDE="${ARCH_OVERRIDE:-}"
+
 GITHUB_OWNER="${GITHUB_OWNER:-chemicallang}"
 GITHUB_REPO="${GITHUB_REPO:-chemical}"
 

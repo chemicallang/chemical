@@ -349,12 +349,12 @@ download_and_extract() {
 
 download_and_extract
 
-# Add to PATH for current shell (the Dockerfile should set PATH too)
-export PATH="/opt/chemical:${PATH}"
-
 # Optional: run configure if binary available
-if command -v chemical >/dev/null 2>&1; then
-  chemical --configure || true
+# We use the full path to avoid conflicts with existing versions in PATH
+if [ -x "$tmpdir/chemical" ]; then
+  "$tmpdir/chemical" --configure || true
+elif [ -x "$tmpdir/chemical.exe" ]; then
+  "$tmpdir/chemical.exe" --configure || true
 fi
 
 echo "Done install-chemical.sh"

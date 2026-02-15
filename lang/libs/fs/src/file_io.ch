@@ -57,7 +57,7 @@ func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
     return pos;
 }
 
-func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
     // write to temp in same dir then rename
     // compose tmp path: path + ".tmpXXXX"
     var dir_buf : [PATH_MAX_BUF]char;
@@ -197,7 +197,7 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
     return Result.Ok(UnitTy{});
 }
 
-func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
+public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
     var r = rename(src, dst);
     if(r == 0) { return Result.Ok(UnitTy{}); }
     // if rename fails (e.g. cross-device) fallback to copy+remove

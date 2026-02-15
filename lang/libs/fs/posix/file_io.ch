@@ -19,7 +19,7 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
     return Result.Ok(f);
 }
 
-func file_close(f : *mut File) : Result<UnitTy, FsError> {
+public func file_close(f : *mut File) : Result<UnitTy, FsError> {
     if(!f.valid) { return Result.Ok(UnitTy{}); }
     var r = close(f.unix.fd);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
@@ -27,19 +27,19 @@ func file_close(f : *mut File) : Result<UnitTy, FsError> {
     return Result.Ok(UnitTy{});
 }
 
-func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
     var n = read(f.unix.fd, buf as *mut void, buf_len);
     if(n < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(n as size_t);
 }
 
-func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
+public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
     var n = write(f.unix.fd, buf as *void, buf_len);
     if(n < 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(n as size_t);
 }
 
-func file_flush(f : *mut File) : Result<UnitTy, FsError> {
+public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
     var r = fsync(f.unix.fd);
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(UnitTy{});
@@ -138,11 +138,11 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
     return create_temp_file_in_native(dir, prefix, out_path, fh)
 }
 
-func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
     return file_open_native(path, opts)
 }
 
-func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
     return set_times_native(path, atime, mtime)
 }
 

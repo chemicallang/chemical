@@ -34,7 +34,7 @@ func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsErro
     return Result.Ok(f);
 }
 
-func file_close(f : *mut File) : Result<UnitTy, FsError> {
+public func file_close(f : *mut File) : Result<UnitTy, FsError> {
     if(!f.valid) { return Result.Ok(UnitTy{}); }
     var ok = CloseHandle(f.win.handle);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
@@ -42,21 +42,21 @@ func file_close(f : *mut File) : Result<UnitTy, FsError> {
     return Result.Ok(UnitTy{});
 }
 
-func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
     var read_out : u32 = 0;
     var ok = ReadFile(f.win.handle, buf as *mut void, buf_len as u32, (&mut read_out) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(read_out as size_t);
 }
 
-func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
+public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
     var written : u32 = 0;
     var ok = WriteFile(f.win.handle, buf as *void, buf_len as u32, (&mut written) as *mut DWORD, null);
     if(ok == 0) { var err = GetLastError(); return Result.Err(winerr_to_fs(err as int)); }
     return Result.Ok(written as size_t);
 }
 
-func file_flush(f : *mut File) : Result<UnitTy, FsError> {
+public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
     var ok = FlushFileBuffers(f.win.handle);
     if(ok == 0) { var e = GetLastError(); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(UnitTy{});
@@ -149,7 +149,7 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
     return result
 }
 
-func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
     // Convert path to UTF-16 and call CreateFileW
     var wbuf : [WIN_MAX_PATH]u16;
     var r = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
@@ -160,7 +160,7 @@ func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
     return file_open_native(&mut wbuf[0], opts)
 }
 
-func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
     var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {

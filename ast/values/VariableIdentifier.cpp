@@ -49,6 +49,7 @@ void VariableIdentifier::process_linked(ASTDiagnoser* diagnoser, FunctionTypeBod
                     const auto curr_parent = curr_func->get_parent();
                     if(parent != curr_parent) {
                         diagnoser->error(this) << "cannot access private function '" << value << '\'';
+                        diagnoser->info(func) << "private function being accessed";
                     }
                     return;
                 }
@@ -58,6 +59,7 @@ void VariableIdentifier::process_linked(ASTDiagnoser* diagnoser, FunctionTypeBod
                     const auto currMod = curr_func->get_parent()->get_mod_scope();
                     if(funcMod != currMod) {
                         diagnoser->error(this) << "cannot access internal function '" << value << '\'';
+                        diagnoser->info(func) << "internal function being accessed";
                     }
                     return;
                 }

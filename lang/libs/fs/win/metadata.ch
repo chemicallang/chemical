@@ -20,7 +20,7 @@ func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
     return Result.Ok(m);
 }
 
-func metadata(path : *char) : Result<Metadata, FsError> {
+public func metadata(path : *char) : Result<Metadata, FsError> {
     var wbuf : [WIN_MAX_PATH]u16;
     var conv = utf8_to_utf16(path, &mut wbuf[0], WIN_MAX_PATH as size_t);
     if(conv is Result.Err) {

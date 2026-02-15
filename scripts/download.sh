@@ -14,13 +14,29 @@ set -euo pipefail
 #   GITHUB_OWNER (default chemicallang)
 #   GITHUB_REPO (default chemical)
 
-VERSION="${VERSION:-v0.0.30}"
-RELEASE_PLATFORM="${RELEASE_PLATFORM:-}"
-VARIANT="${VARIANT:-}"
-ARCH_OVERRIDE="${ARCH_OVERRIDE:-}"
-
+VERSION="${VERSION:-latest}"
 GITHUB_OWNER="${GITHUB_OWNER:-chemicallang}"
 GITHUB_REPO="${GITHUB_REPO:-chemical}"
+
+# Fetch latest version if requested
+if [[ "$VERSION" == "latest" || -z "$VERSION" ]]; then
+  echo "Checking for latest stable release..."
+  # Use git ls-remote to find the latest tag (sorted by version)
+  # This avoids dependancy on GitHub CLI or API rate limits
+  if command -v git >/dev/null 2>&1; then
+    LATEST_TAG=$(git ls-remote --tags --sort="v:refname" "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git" | tail -n1 | awk '{print $2}' | cut -d/ -f3)
+    if [ -n "$LATEST_TAG" ]; then
+      VERSION="$LATEST_TAG"
+      echo "Latest version detected: $VERSION"
+    else
+      VERSION="v0.0.30"
+      echo "Warning: No tags found, falling back to $VERSION"
+    fi
+  else
+    VERSION="v0.0.30"
+    echo "Warning: git not found, falling back to $VERSION"
+  fi
+fi
 
 cd "${TMPDIR:-/tmp}"
 

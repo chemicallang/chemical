@@ -21,7 +21,7 @@ func mkdir_p(path : std::string_view) {
     }
 }
 
-public func build_docs(root_path : *char, output_path : *char, syntax_args : *char, explicit_output : bool) : int {
+public func build_docs(root_path : *char, output_path : *char, index_path : *char, syntax_args : *char, explicit_output : bool) : int {
     var root_str = std::string(root_path);
     var summary_path = std::string();
     var base_dir = std::string();
@@ -67,6 +67,7 @@ public func build_docs(root_path : *char, output_path : *char, syntax_args : *ch
         root_path : base_dir.copy(),
         build_dir : std::string(),
         site_name : summary.title.copy(),
+        index_path : (if(index_path != null) std::string(index_path) else std::string()),
         syntax_highlights : std::vector<std::string>()
     };
 
@@ -108,12 +109,13 @@ public func build_docs(root_path : *char, output_path : *char, syntax_args : *ch
 
 public func main(argc : int, argv : **char) : int {
     if(argc < 2) {
-        printf("Usage: docgen <root_dir> [-o output_dir] [--syntax-highlight list]\n");
+        printf("Usage: docgen <root_dir> [-o output_dir] [--index index.html] [--syntax-highlight list]\n");
         return 1;
     }
     
     var root = *argv_offset(argv, 1);
     var output = "book";
+    var index_file : *char = null;
     var explicit_output = false;
     var syntax_args : *char = null;
 
@@ -124,6 +126,11 @@ public func main(argc : int, argv : **char) : int {
         if(arg.equals("--syntax-highlight")) {
             if(i + 1 < argc) {
                 syntax_args = *argv_offset(argv, i + 1);
+                i++;
+            }
+        } else if(arg.equals("--index")) {
+            if(i + 1 < argc) {
+                index_file = *argv_offset(argv, i + 1);
                 i++;
             }
         } else if(arg.equals("-o") || arg.equals("--output")) {
@@ -142,7 +149,7 @@ public func main(argc : int, argv : **char) : int {
         i++;
     }
     
-    return build_docs(root, output, syntax_args, explicit_output);
+    return build_docs(root, output, index_file, syntax_args, explicit_output);
 }
 
 func argv_offset(argv : **char, offset : int) : **char {

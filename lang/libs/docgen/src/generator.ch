@@ -373,6 +373,18 @@ public func generate(config : DocConfig, summary : *Summary) {
     
     fs::write_to_file(index_path.data(), js_content.data());
     printf("Generated search index at %s\n", index_path.c_str());
+
+    // Copy custom index if provided
+    if (config.index_path.size() > 0) {
+        var out_index = config.build_dir.copy();
+        out_index.append_view("/index.html");
+        var custom_index = fs::copy_file(config.index_path.data(), out_index.data());
+        if (custom_index is std::Result.Ok) {
+            printf("Copied custom index from %s to %s\n", config.index_path.c_str(), out_index.c_str());
+        } else {
+            printf("Error: Could not read custom index file at %s\n", config.index_path.c_str());
+        }
+    }
 }
 
 }

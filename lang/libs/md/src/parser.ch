@@ -1049,8 +1049,31 @@ func (md : &mut MdParser) parseMark() : *mut MdNode {
 }
 
 func (md : &mut MdParser) parseInsert() : *mut MdNode {
-    increment(md); increment(md);
     const arena = md.arena;
+    
+    // Lookahead to check for valid closing ++ before consuming
+    var has_closing = false;
+    var look = 2u; // skip the two + tokens we're about to consume
+    while(true) {
+        const tok = peek_token_at(md, look);
+        if(isLineEnd(tok.type as int)) break;
+        if(md.in_link && isRBracketToken(tok.type as int)) break;
+        if(isPlusToken(tok.type as int) && isPlusToken(peek_token_at(md, look + 1u).type as int)) {
+            has_closing = true;
+            break;
+        }
+        look++;
+    }
+    
+    if(!has_closing) {
+        // No valid closing ++, treat as text
+        increment(md); increment(md);
+        var text = arena.allocate<MdText>();
+        new (text) MdText { base : MdNode { kind : MdNodeKind.Text }, value : std::string_view("++") };
+        return text as *mut MdNode;
+    }
+    
+    increment(md); increment(md);
     var ins = arena.allocate<MdInsert>();
     new (ins) MdInsert { base : MdNode { kind : MdNodeKind.Insert }, children : std::vector<*mut MdNode>() };
     while(true) {

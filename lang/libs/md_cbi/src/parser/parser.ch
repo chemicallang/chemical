@@ -1252,9 +1252,35 @@ func (md : &mut MdParser) parseMark(parser : *mut Parser) : *mut MdNode {
 }
 
 func (md : &mut MdParser) parseInsert(parser : *mut Parser) : *mut MdNode {
-    parser.increment(); // +
-    parser.increment(); // +
     var builder = md.builder;
+    
+    // Lookahead to check for valid closing ++ before consuming
+    var has_closing = false;
+    var look = 2; // skip the two + tokens we're about to consume
+    while(true) {
+        const tok = peek_token_at(parser, look);
+        if(isLineEnd(tok.type)) break;
+        if(md.in_link && isRBracketToken(tok.type)) break;
+        if(isPlusToken(tok.type) && isPlusToken(peek_token_at(parser, look + 1).type)) {
+            has_closing = true;
+            break;
+        }
+        look++;
+    }
+    
+    if(!has_closing) {
+        // No valid closing ++, treat as text
+        parser.increment(); parser.increment();
+        var text = builder.allocate<MdText>()
+        new (text) MdText {
+            base : MdNode { kind : MdNodeKind.Text },
+            value : builder.allocate_view(std::string_view("++"))
+        }
+        return text as *mut MdNode;
+    }
+    
+    parser.increment(); // +
+    parser.increment(); // +
     var ins = builder.allocate<MdInsert>()
     new (ins) MdInsert {
         base : MdNode { kind : MdNodeKind.Insert },

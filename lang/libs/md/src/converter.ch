@@ -3,10 +3,11 @@ public namespace md {
 struct MdConverter {
     var str : std::string
     var highlighter : (lang : std::string_view, code : std::string_view) => std::string
+    var link_rewriter : (url : std::string_view) => std::string
 }
 
-func render_to_html(root : *mut MdRoot, highlighter : (lang : std::string_view, code : std::string_view) => std::string) : std::string {
-    var converter = MdConverter { str : std::string(), highlighter : highlighter }
+func render_to_html(root : *mut MdRoot, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) : std::string {
+    var converter = MdConverter { str : std::string(), highlighter : highlighter, link_rewriter : link_rewriter }
     converter.convertMdRoot(root);
     return std::replace(converter.str, std::string())
 }
@@ -124,7 +125,12 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
         MdNodeKind.Link => {
             var link = node as *mut MdLink;
             converter.str.append_view("<a class=\"md-link\" href=\"");
-            converter.str.append_view(link.url);
+            if(converter.link_rewriter != null) {
+                var rewritten = converter.link_rewriter(link.url);
+                converter.str.append_view(rewritten.to_view());
+            } else {
+                converter.str.append_view(link.url);
+            }
             converter.str.append_view("\"");
             if(link.title.size() > 0) {
                 converter.str.append_view(" title=\"");

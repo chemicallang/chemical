@@ -213,7 +213,7 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         <a href=""");
     html.append('"');
     html.append_view(get_relative_path_to_root(relative_depth).to_view());
-    html.append_view("introduction.html");
+    html.append_view("index.html");
     html.append('"');
     html.append_view(""" class="header-brand">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

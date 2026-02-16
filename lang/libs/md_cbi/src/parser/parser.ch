@@ -497,7 +497,6 @@ func (md : &mut MdParser) parseFencedCodeBlock(parser : *mut Parser) : *mut MdNo
 func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
     var depth = 0;
     while(isGreaterThanToken(parser.getToken().type)) {
-```
         depth++;
         parser.increment();
         // Skip space after matching >
@@ -511,14 +510,14 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
     
     var alert_type = std::string_view("");
     if (isLBracketToken(parser.getToken().type)) {
-        const next1 = parser.peekToken();
+        const next1 = parser.getToken() + 1
         if (isExclamationToken(next1.type)) {
-            const next2 = parser.peekTokenAt(2);
+            const next2 = parser.getToken() + 2
             if (isTextToken(next2.type)) {
-                const next3 = parser.peekTokenAt(3);
+                const next3 = parser.getToken() + 3
                 if (isRBracketToken(next3.type)) {
                     const type = next2.value;
-                    if (type == "NOTE" || type == "TIP" || type == "IMPORTANT" || type == "WARNING" || type == "CAUTION") {
+                    if (type.equals("NOTE") || type.equals("TIP") || type.equals("IMPORTANT") || type.equals("WARNING") || type.equals("CAUTION")) {
                         alert_type = type;
                         parser.increment(); // [
                         parser.increment(); // !
@@ -572,13 +571,13 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
         var next_depth = 0;
         
         while(true) {
-            const tok = parser.peekTokenAtOffset(next_pos_offset);
+            const tok = parser.getToken() + next_pos_offset;
             if (isGreaterThanToken(tok.type)) {
                 next_depth++;
                 next_pos_offset++;
-                // Skip optional space
-                const ntok = parser.peekTokenAtOffset(next_pos_offset);
-                if (isTextToken(ntok.type) && ntok.value.size() > 0 && ntok.value.data()[0] == ' ') {
+                // Skip optional space ONLY if it's a single space token
+                const ntok = parser.getToken() + next_pos_offset;
+                if (isTextToken(ntok.type) && ntok.value.size() == 1 && ntok.value.data()[0] == ' ') {
                     next_pos_offset++;
                 }
             } else {
@@ -587,9 +586,11 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
         }
 
         if (next_depth > 0 && next_depth == depth) {
-            // Fast forward parser to next_pos_offset
-            for (var i = 0; i < next_pos_offset; i++) {
+            // Fast forward parser
+            var i = 0;
+            while (i < next_pos_offset) {
                 parser.increment();
+                i++;
             }
             
             // Add a spacer between lines

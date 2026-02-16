@@ -493,15 +493,48 @@ func (md : &mut MdParser) parseBlockquote() : *mut MdNode {
         }
     }
     
+    var alert_type = std::string_view("");
+    if (isLBracketToken(get_token(md).type as int)) {
+        const next1 = peek_token(md);
+        if (isExclamationToken(next1.type as int)) {
+            const next2 = peek_token_at(md, 2);
+            if (isTextToken(next2.type as int)) {
+                const next3 = peek_token_at(md, 3);
+                if (isRBracketToken(next3.type as int)) {
+                    const type = next2.value;
+                    if (type.equals("NOTE") || type.equals("TIP") || type.equals("IMPORTANT") || type.equals("WARNING") || type.equals("CAUTION")) {
+                        alert_type = type;
+                        increment(md); // [
+                        increment(md); // !
+                        increment(md); // TYPE
+                        increment(md); // ]
+                        // Optional space after ]
+                        if (isTextToken(get_token(md).type as int) && get_token(md).value.size() > 0 && get_token(md).value.data()[0] == ' ') {
+                             if(get_token(md).value.size() == 1) increment(md);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     const arena = md.arena;
     var root_bq = arena.allocate<MdBlockquote>();
-    new (root_bq) MdBlockquote { base : MdNode { kind : MdNodeKind.Blockquote }, children : std::vector<*mut MdNode>() };
+    new (root_bq) MdBlockquote { 
+        base : MdNode { kind : MdNodeKind.Blockquote }, 
+        alert_type : alert_type,
+        children : std::vector<*mut MdNode>() 
+    };
     
     var current_container = root_bq;
     var d = 1;
     while(d < depth) {
         var nested = arena.allocate<MdBlockquote>();
-        new (nested) MdBlockquote { base : MdNode { kind : MdNodeKind.Blockquote }, children : std::vector<*mut MdNode>() };
+        new (nested) MdBlockquote { 
+            base : MdNode { kind : MdNodeKind.Blockquote }, 
+            alert_type : std::string_view(""),
+            children : std::vector<*mut MdNode>() 
+        };
         current_container.children.push_back(nested as *mut MdNode);
         current_container = nested;
         d++;
@@ -511,6 +544,19 @@ func (md : &mut MdParser) parseBlockquote() : *mut MdNode {
         var node = md.parseInlineNode();
         if(node != null) current_container.children.push_back(node);
     }
+
+    // Trim leading space after [!TYPE] if we consumed it but it was part of a larger text token
+    // or if it was just there. Actually, the lexer might have kept " content" as one token.
+    if (alert_type.size() > 0 && current_container.children.size() > 0) {
+        var first = current_container.children.get(0);
+        if (first.kind == MdNodeKind.Text) {
+            var txtNode = first as *mut MdText;
+            if (txtNode.value.size() > 0 && txtNode.value.data()[0] == ' ') {
+                 txtNode.value = std::string_view(txtNode.value.data() + 1, txtNode.value.size() - 1);
+            }
+        }
+    }
+
     if(isNewlineToken(get_token(md).type as int)) increment(md);
     return root_bq as *mut MdNode;
 }

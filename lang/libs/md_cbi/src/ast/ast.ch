@@ -151,6 +151,7 @@ public struct MdCodeBlock {
 
 public struct MdBlockquote {
     var base : MdNode
+    var alert_type : std::string_view
     var children : std::vector<*mut MdNode>
 }
 

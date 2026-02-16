@@ -241,7 +241,24 @@ func (converter : &mut MdConverter) convertMdNode(node : *mut MdNode) {
         }
         MdNodeKind.Blockquote => {
             var bq = node as *mut MdBlockquote;
-            converter.str.append_view("<blockquote class=\"md-blockquote\">");
+            if (bq.alert_type.size() > 0) {
+                converter.str.append_view("<blockquote class=\"md-blockquote md-alert md-alert-");
+                var i = 0u;
+                while (i < bq.alert_type.size()) {
+                    const c = bq.alert_type.data()[i];
+                    if (c >= 'A' && c <= 'Z') {
+                        converter.str.append((c as int + 32) as char);
+                    } else {
+                        converter.str.append(c);
+                    }
+                    i++;
+                }
+                converter.str.append_view("\">\n<div class=\"md-alert-title\">");
+                converter.str.append_view(bq.alert_type);
+                converter.str.append_view("</div>");
+            } else {
+                converter.str.append_view("<blockquote class=\"md-blockquote\">");
+            }
             converter.convertChildren(bq.children);
             converter.str.append_view("</blockquote>\n");
         }

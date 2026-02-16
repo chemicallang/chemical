@@ -486,9 +486,10 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
     if(type->kind() == BaseTypeKind::Array) {
         visitor.write('[');
         auto arrType = ((ArrayType*) type);
-        if(arrType->has_array_size()) {
-            // TODO write to stream directly, do not convert to string
-            visitor.write_str(std::to_string(arrType->get_array_size()));
+        if (arrType->has_array_size()) {
+            visitor.writer << arrType->get_array_size();
+        } else if(arrType->array_size_value) {
+            visitor.visit(arrType->array_size_value);
         }
         visitor.write(']');
         if(arrType->elem_type->kind() == BaseTypeKind::Array) {
@@ -6953,6 +6954,8 @@ void ToCAstVisitor::VisitArrayType(ArrayType *type) {
         write('[');
         if (type->has_array_size()) {
             writer << type->get_array_size();
+        } else if(type->array_size_value) {
+            visit(type->array_size_value);
         }
         write(']');
     } else {

@@ -497,25 +497,48 @@ func (md : &mut MdParser) parseFencedCodeBlock(parser : *mut Parser) : *mut MdNo
 func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
     var depth = 0;
     while(isGreaterThanToken(parser.getToken().type)) {
+```
         depth++;
         parser.increment();
         // Skip space after matching >
         if(isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
              const txt = parser.getToken().value;
-             // Only consume if it's a single space, or effectively if we want to skip 1 char?
-             // Simple approach: if it starts with space, consume one space logic is implied by loop
-             // But tokens are chunks.
-             // If token is just " ", consume it.
              if(txt.size() == 1) {
-                 parser.increment();
-             }
+                  parser.increment();
+              }
         }
     }
     
+    var alert_type = std::string_view("");
+    if (isLBracketToken(parser.getToken().type)) {
+        const next1 = parser.peekToken();
+        if (isExclamationToken(next1.type)) {
+            const next2 = parser.peekTokenAt(2);
+            if (isTextToken(next2.type)) {
+                const next3 = parser.peekTokenAt(3);
+                if (isRBracketToken(next3.type)) {
+                    const type = next2.value;
+                    if (type == "NOTE" || type == "TIP" || type == "IMPORTANT" || type == "WARNING" || type == "CAUTION") {
+                        alert_type = type;
+                        parser.increment(); // [
+                        parser.increment(); // !
+                        parser.increment(); // TYPE
+                        parser.increment(); // ]
+                        // Optional space after ]
+                        if (isTextToken(parser.getToken().type) && parser.getToken().value.size() > 0 && parser.getToken().value.data()[0] == ' ') {
+                             if(parser.getToken().value.size() == 1) parser.increment();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     var builder = md.builder;
     var root_bq = builder.allocate<MdBlockquote>();
     new (root_bq) MdBlockquote {
         base : MdNode { kind : MdNodeKind.Blockquote },
+        alert_type : alert_type,
         children : std::vector<*mut MdNode>()
     }
     
@@ -525,6 +548,7 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
          var nested = builder.allocate<MdBlockquote>();
          new (nested) MdBlockquote {
              base : MdNode { kind : MdNodeKind.Blockquote },
+             alert_type : std::string_view(""),
              children : std::vector<*mut MdNode>()
          }
          current_container.children.push(nested as *mut MdNode);
@@ -532,14 +556,60 @@ func (md : &mut MdParser) parseBlockquote(parser : *mut Parser) : *mut MdNode {
          d++;
     }
     
-    // Parse content until newline
-    while(!isLineEnd(parser.getToken().type)) {
-        var node = md.parseInlineNode(parser);
-        if(node != null) current_container.children.push(node);
+    while(true) {
+        // Parse content until newline
+        while(!isLineEnd(parser.getToken().type)) {
+            var node = md.parseInlineNode(parser);
+            if(node != null) current_container.children.push(node);
+        }
+        
+        if(isNewlineToken(parser.getToken().type)) {
+            parser.increment();
+        }
+
+        // Peek next line to see if it's a blockquote of SAME depth
+        var next_pos_offset = 0;
+        var next_depth = 0;
+        
+        while(true) {
+            const tok = parser.peekTokenAtOffset(next_pos_offset);
+            if (isGreaterThanToken(tok.type)) {
+                next_depth++;
+                next_pos_offset++;
+                // Skip optional space
+                const ntok = parser.peekTokenAtOffset(next_pos_offset);
+                if (isTextToken(ntok.type) && ntok.value.size() > 0 && ntok.value.data()[0] == ' ') {
+                    next_pos_offset++;
+                }
+            } else {
+                break;
+            }
+        }
+
+        if (next_depth > 0 && next_depth == depth) {
+            // Fast forward parser to next_pos_offset
+            for (var i = 0; i < next_pos_offset; i++) {
+                parser.increment();
+            }
+            
+            // Add a spacer between lines
+            var space = builder.allocate<MdText>();
+            new (space) MdText { base : MdNode { kind : MdNodeKind.Text }, value : std::string_view(" ") };
+            current_container.children.push(space as *mut MdNode);
+        } else {
+            break;
+        }
     }
-    
-    if(isNewlineToken(parser.getToken().type)) {
-        parser.increment();
+
+    // Trim leading space after [!TYPE] if we consumed it but it was part of a larger text token
+    if (alert_type.size() > 0 && current_container.children.size() > 0) {
+        var first = current_container.children.get(0);
+        if (first.kind == MdNodeKind.Text) {
+            var txtNode = first as *mut MdText;
+            if (txtNode.value.size() > 0 && txtNode.value.data()[0] == ' ') {
+                 txtNode.value = std::string_view(txtNode.value.data() + 1, txtNode.value.size() - 1);
+            }
+        }
     }
     
     return root_bq as *mut MdNode;

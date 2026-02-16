@@ -176,6 +176,86 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     html.append_view(" - ");
     html.append_view(gen.config.site_name.to_view());
     html.append_view("""</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">""");
+    
+    // Favicon
+    if(gen.config.favicon_path.size() > 0) {
+        var favicon_name_buf : [fs::PATH_MAX_BUF]char;
+        var r = fs::basename(gen.config.favicon_path.data(), &mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable;
+            html.append_view("\n\t<link rel=\"icon\" type=\"image/png\" href=\"");
+            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            html.append_view(std::string_view(&favicon_name_buf[0], len));
+            html.append_view("\">");
+        }
+    }
+    
+    // SEO Meta Tags
+    if(gen.config.description.size() > 0) {
+        html.append_view("\n\t<meta name=\"description\" content=\"");
+        html.append_view(gen.config.description.to_view());
+        html.append_view("\">");
+    }
+    if(gen.config.author.size() > 0) {
+        html.append_view("\n\t<meta name=\"author\" content=\"");
+        html.append_view(gen.config.author.to_view());
+        html.append_view("\">");
+    }
+    if(gen.config.keywords.size() > 0) {
+        html.append_view("\n\t<meta name=\"keywords\" content=\"");
+        html.append_view(gen.config.keywords.to_view());
+        html.append_view("\">");
+    }
+    
+    // Open Graph Meta Tags
+    html.append_view("\n\t<meta property=\"og:title\" content=\"");
+    html.append_view(title);
+    html.append_view(" - ");
+    html.append_view(gen.config.site_name.to_view());
+    html.append_view("\">");
+    if(gen.config.description.size() > 0) {
+        html.append_view("\n\t<meta property=\"og:description\" content=\"");
+        html.append_view(gen.config.description.to_view());
+        html.append_view("\">");
+    }
+    html.append_view("\n\t<meta property=\"og:type\" content=\"website\">");
+    if(gen.config.logo_path.size() > 0) {
+        var logo_name_buf : [fs::PATH_MAX_BUF]char;
+        var r = fs::basename(gen.config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable;
+            html.append_view("\n\t<meta property=\"og:image\" content=\"");
+            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            html.append_view(std::string_view(&logo_name_buf[0], len));
+            html.append_view("\">");
+        }
+    }
+    
+    // Twitter Card Meta Tags
+    html.append_view("\n\t<meta name=\"twitter:card\" content=\"summary\">\n\t<meta name=\"twitter:title\" content=\"");
+    html.append_view(title);
+    html.append_view(" - ");
+    html.append_view(gen.config.site_name.to_view());
+    html.append_view("\">");
+    if(gen.config.description.size() > 0) {
+        html.append_view("\n\t<meta name=\"twitter:description\" content=\"");
+        html.append_view(gen.config.description.to_view());
+        html.append_view("\">");
+    }
+    if(gen.config.logo_path.size() > 0) {
+        var logo_name_buf : [fs::PATH_MAX_BUF]char;
+        var r = fs::basename(gen.config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable;
+            html.append_view("\n\t<meta name=\"twitter:image\" content=\"");
+            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            html.append_view(std::string_view(&logo_name_buf[0], len));
+            html.append_view("\">");
+        }
+    }
+    
+    html.append_view("""
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -215,13 +295,27 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
     html.append_view(get_relative_path_to_root(relative_depth).to_view());
     html.append_view("index.html");
     html.append('"');
-    html.append_view(""" class="header-brand">
+    html.append_view(""" class="header-brand">""");
+    
+    // Logo - use image if configured, otherwise SVG
+    if(gen.config.logo_path.size() > 0) {
+        var logo_name_buf : [fs::PATH_MAX_BUF]char;
+        var r = fs::basename(gen.config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable;
+            html.append_view("<img src=\"");
+            html.append_view(get_relative_path_to_root(relative_depth).to_view());
+            html.append_view(std::string_view(&logo_name_buf[0], len));
+            html.append_view("\" alt=\"Logo\" style=\"height:48px;width:auto;margin-right:8px\">");
+        }
+    } else {
+        html.append_view("""
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                 <path d="M2 17l10 5 10-5"/>
                 <path d="M2 12l10 5 10-5"/>
-            </svg>
-            """);
+            </svg>""");
+    }
     html.append_view(gen.config.site_name.to_view());
     html.append_view("""
         </a>
@@ -388,6 +482,48 @@ public func generate(config : DocConfig, summary : *Summary) {
             printf("Copied custom index from %s to %s\n", config.index_path.c_str(), out_index.c_str());
         } else {
             printf("Error: Could not read custom index file at %s\n", config.index_path.c_str());
+        }
+    }
+    
+    // Copy favicon if provided
+    if (config.favicon_path.size() > 0) {
+        var favicon_src = config.favicon_path.copy();
+        
+        var favicon_name_buf : [fs::PATH_MAX_BUF]char;
+        var r = fs::basename(config.favicon_path.data(), &mut favicon_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable;
+            var favicon_dest = config.build_dir.copy();
+            favicon_dest.append('/');
+            favicon_dest.append_view(std::string_view(&favicon_name_buf[0], len));
+            
+            var result = fs::copy_file(favicon_src.data(), favicon_dest.data());
+            if (result is std::Result.Ok) {
+                printf("Copied favicon from %s to %s\n", favicon_src.c_str(), favicon_dest.c_str());
+            } else {
+                printf("Error: Could not copy favicon file from %s\n", favicon_src.c_str());
+            }
+        }
+    }
+    
+    // Copy logo if provided
+    if (config.logo_path.size() > 0) {
+        var logo_src = config.logo_path.copy()
+        
+        var logo_name_buf : [fs::PATH_MAX_BUF]char;
+        var r = fs::basename(config.logo_path.data(), &mut logo_name_buf[0], fs::PATH_MAX_BUF as size_t);
+        if(r is std::Result.Ok) {
+            var Ok(len) = r else unreachable;
+            var logo_dest = config.build_dir.copy();
+            logo_dest.append('/');
+            logo_dest.append_view(std::string_view(&logo_name_buf[0], len));
+            
+            var result = fs::copy_file(logo_src.data(), logo_dest.data());
+            if (result is std::Result.Ok) {
+                printf("Copied logo from %s to %s\n", logo_src.c_str(), logo_dest.c_str());
+            } else {
+                printf("Error: Could not copy logo file from %s\n", logo_src.c_str());
+            }
         }
     }
 }

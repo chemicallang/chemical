@@ -21,7 +21,7 @@ func mkdir_p(path : std::string_view) {
     }
 }
 
-public func build_docs(root_path : *char, output_path : *char, syntax_args : *char) : int {
+public func build_docs(root_path : *char, output_path : *char, syntax_args : *char, explicit_output : bool) : int {
     var root_str = std::string(root_path);
     var summary_path = std::string();
     var base_dir = std::string();
@@ -87,7 +87,7 @@ public func build_docs(root_path : *char, output_path : *char, syntax_args : *ch
     }
 
     var out_view = std::string_view(output_path)
-    if(out_view.equals("book")) {
+    if(!explicit_output && out_view.equals("book")) {
          // Default case: make it relative to root
          config.build_dir = base_dir.copy();
          config.build_dir.append_view("/book");
@@ -108,12 +108,13 @@ public func build_docs(root_path : *char, output_path : *char, syntax_args : *ch
 
 public func main(argc : int, argv : **char) : int {
     if(argc < 2) {
-        printf("Usage: docgen <root_dir> [output_dir] [--syntax-highlight list]\n");
+        printf("Usage: docgen <root_dir> [-o output_dir] [--syntax-highlight list]\n");
         return 1;
     }
     
     var root = *argv_offset(argv, 1);
     var output = "book";
+    var explicit_output = false;
     var syntax_args : *char = null;
 
     var i = 2;
@@ -125,18 +126,23 @@ public func main(argc : int, argv : **char) : int {
                 syntax_args = *argv_offset(argv, i + 1);
                 i++;
             }
+        } else if(arg.equals("-o") || arg.equals("--output")) {
+            if(i + 1 < argc) {
+                output = *argv_offset(argv, i + 1);
+                explicit_output = true;
+                i++;
+            }
         } else {
-            // Assume it's output dir if not a flag
-             if(output == "book") { // Only set if still default
-                 output = arg.data() as *char; // casting for compatibility, careful with lifetimes, actually argv strings live efficiently long enough
-                 // wait, arg.data() is a pointer to the string view, which points to argv char*
-                 // argv items are null terminated, so this is safe
+            // Assume it's output dir if not a flag and not already set
+             if(!explicit_output) { 
+                 output = arg.data() as *char; 
+                 explicit_output = true;
              }
         }
         i++;
     }
     
-    return build_docs(root, output, syntax_args);
+    return build_docs(root, output, syntax_args, explicit_output);
 }
 
 func argv_offset(argv : **char, offset : int) : **char {

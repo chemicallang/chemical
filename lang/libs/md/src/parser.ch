@@ -540,13 +540,47 @@ func (md : &mut MdParser) parseBlockquote() : *mut MdNode {
         d++;
     }
     
-    while(!isLineEnd(get_token(md).type as int)) {
-        var node = md.parseInlineNode();
-        if(node != null) current_container.children.push_back(node);
+    while(true) {
+        // Parse content until newline
+        while(!isLineEnd(get_token(md).type as int)) {
+            var node = md.parseInlineNode();
+            if(node != null) current_container.children.push_back(node);
+        }
+        
+        if(isNewlineToken(get_token(md).type as int)) increment(md);
+
+        // Peek next line to see if it's a blockquote of SAME depth
+        var next_pos = md.pos;
+        var next_depth = 0;
+        while(next_pos < md.tokens.size()) {
+            const t = md.tokens.get(next_pos).type as int;
+            if (isGreaterThanToken(t)) {
+                next_depth++;
+                next_pos++;
+                // Skip optional space ONLY if it's a single space token
+                if(next_pos < md.tokens.size()) {
+                    const nt = md.tokens.get(next_pos);
+                    if (isTextToken(nt.type as int) && nt.value.size() == 1 && nt.value.data()[0] == ' ') {
+                        next_pos++;
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+
+        if (next_depth > 0 && next_depth == depth) {
+            md.pos = next_pos;
+            // Add a spacer between lines
+            var space = arena.allocate<MdText>();
+            new (space) MdText { base : MdNode { kind : MdNodeKind.Text }, value : std::string_view(" ") };
+            current_container.children.push_back(space as *mut MdNode);
+        } else {
+            break;
+        }
     }
 
     // Trim leading space after [!TYPE] if we consumed it but it was part of a larger text token
-    // or if it was just there. Actually, the lexer might have kept " content" as one token.
     if (alert_type.size() > 0 && current_container.children.size() > 0) {
         var first = current_container.children.get(0);
         if (first.kind == MdNodeKind.Text) {
@@ -557,7 +591,6 @@ func (md : &mut MdParser) parseBlockquote() : *mut MdNode {
         }
     }
 
-    if(isNewlineToken(get_token(md).type as int)) increment(md);
     return root_bq as *mut MdNode;
 }
 

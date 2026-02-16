@@ -302,10 +302,15 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
         var highlighter : (lang : std::string_view, code : std::string_view) => std::string = (lang, code) => {
             return highlight_wrapper(lang, code);
         };
+
+        var link_rewriter : (url : std::string_view) => std::string = (url) => {
+            var url_str = std::string(url);
+            return replace_extension(url_str, ".md", ".html");
+        };
         // If config is empty, maybe we should default to all? 
         // No, user requirement implies explicit list.
         
-        var content_html = md::file_to_html(path.data(), highlighter);
+        var content_html = md::file_to_html(path.data(), highlighter, link_rewriter);
 
         if(content_html is std::Result.Ok) {
             printf("Generating: %s -> %s (depth=%d)\n", item.link.c_str(), out_path.c_str(), depth);

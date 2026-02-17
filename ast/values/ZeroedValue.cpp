@@ -18,6 +18,13 @@ llvm::Value* ZeroedValue::llvm_value(Codegen &gen, BaseType *type) {
     return llvm::Constant::getNullValue(llvm_type(gen));
 }
 
+llvm::Value* ZeroedValue::llvm_arg_value(Codegen &gen, BaseType *expected_type) {
+    const auto type = llvm_type(gen);
+    const auto alloca = gen.builder->CreateAlloca(type, nullptr);
+    gen.builder->CreateStore(llvm::Constant::getNullValue(type), alloca);
+    return (llvm::AllocaInst*) alloca;
+}
+
 llvm::Value* ZeroedValue::llvm_ret_value(Codegen &gen, Value *returnValue) {
     const auto type = llvm_type(gen);
     if (type->isAggregateType()) {

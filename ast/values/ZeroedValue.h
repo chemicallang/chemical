@@ -32,6 +32,8 @@ public:
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type) override;
 
+    llvm::Value* llvm_arg_value(Codegen &gen, BaseType *expected_type) override;
+
     llvm::Value* llvm_ret_value(Codegen &gen, Value *returnValue) override;
 
     llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;

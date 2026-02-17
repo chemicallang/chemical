@@ -117,8 +117,6 @@ public:
 
     void VisitEmbeddedValue(EmbeddedValue* value);
 
-    void VisitDynamicValue(DynamicValue* value);
-
     void VisitComptimeBlock(ComptimeBlock* node);
 
     void LinkVariablesNoScope(VariablesContainerBase* container);

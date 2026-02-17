@@ -3283,6 +3283,25 @@ void SymResLinkBody::VisitExpressiveString(ExpressiveString* value) {
     }
 }
 
+void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
+    visit(value->getType(), value->type_location);
+
+    // typechecking code (better move there)
+    if(value->is_unsafe) return;
+    const auto type = value->getType()->canonical();
+    const auto linked = type->get_direct_linked_node();
+    if(linked) {
+        const auto container = linked->get_master_members_container();
+        if (container) {
+            if(container->allow_zeroed) return;
+            bool has_ctor_or_dtor = container->has_constructor() || container->has_destructor();
+            if (has_ctor_or_dtor) {
+                linker.error(value) << "type '" << type->representation() << "' has a constructor or destructor, " << "zero-initialization is not allowed unless marked with '@allow_zeroed' or use 'zeroed:unsafe'";
+            }
+        }
+    }
+}
+
 void SymResLinkBody::VisitDynamicValue(DynamicValue* value) {
     visit(value->getType());
     visit(value->value);

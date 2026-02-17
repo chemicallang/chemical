@@ -200,6 +200,8 @@ class LoopValue;
 
 class DynamicValue;
 
+class ZeroedValue;
+
 class NegativeValue;
 
 class NotValue;

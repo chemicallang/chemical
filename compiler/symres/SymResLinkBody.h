@@ -276,4 +276,6 @@ public:
 
     void VisitDynamicValue(DynamicValue* value);
 
+    void VisitZeroedValue(ZeroedValue* value);
+
 };

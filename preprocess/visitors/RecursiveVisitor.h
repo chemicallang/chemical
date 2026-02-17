@@ -104,6 +104,7 @@
 #include "ast/values/NewValue.h"
 #include "ast/values/PlacementNewValue.h"
 #include "ast/values/PatternMatchExpr.h"
+#include "ast/values/ZeroedValue.h"
 
 template<typename Derived>
 class RecursiveVisitor : public NonRecursiveVisitor<Derived> {
@@ -626,6 +627,10 @@ public:
         visit_it(value->getType()->referenced);
         visit_it(value->value);
     }
+
+    //inline void VisitZeroedValue(ZeroedValue* value) {
+    //
+    //}
 
     void VisitEmbeddedNode(EmbeddedNode* node) {
         for(auto& child_node : node->chemical_nodes) {

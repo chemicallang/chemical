@@ -103,6 +103,7 @@ enum class TokenType {
     IsKw,
     InKw,
     DynKw,
+    ZeroedKw,
     ConstKw,
 
     // -------

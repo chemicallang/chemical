@@ -34,6 +34,7 @@
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
+#include "ast/values/ZeroedValue.h"
 #include "ast/values/InValue.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
@@ -905,6 +906,51 @@ Value* Parser::parseDynamicValue(ASTAllocator& allocator) {
 
     return value;
 
+}
+
+Value* Parser::parseZeroedValue(ASTAllocator& allocator) {
+    const auto loc = loc_single(token);
+    bool is_unsafe = false;
+
+    if (consumeToken(TokenType::ColonSym)) {
+        const auto unsafe_tok = consumeIdentifier();
+        if (unsafe_tok && unsafe_tok->value == "unsafe") {
+            is_unsafe = true;
+        } else {
+            unexpected_error("expected 'unsafe' after ':' in zeroed value");
+        }
+    }
+
+    if (token->type == TokenType::LessThanSym) {
+        token++;
+    } else {
+        unexpected_error("expected '<' for zeroed value");
+        return nullptr;
+    }
+
+    auto type = parseTypeLoc(allocator);
+    if (!type) {
+        unexpected_error("expected a type in zeroed value");
+        return nullptr;
+    }
+
+    if (!consumeGenericClose()) {
+        unexpected_error("expected '>' after the type in zeroed value");
+    }
+
+    if (token->type == TokenType::LParen) {
+        token++;
+    } else {
+        unexpected_error("expected '(' after the type in zeroed value");
+    }
+
+    if (token->type == TokenType::RParen) {
+        token++;
+    } else {
+        unexpected_error("expected ')' after the '(' in zeroed value");
+    }
+
+    return new (allocator.allocate<ZeroedValue>()) ZeroedValue(type, loc, is_unsafe);
 }
 
 Value* Parser::parseSizeOfValue(ASTAllocator& allocator) {

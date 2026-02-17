@@ -69,6 +69,11 @@ public:
     bool has_implemented = false;
 
     /**
+     * this is set to true if the type is allowed to be zeroed
+     */
+    bool allow_zeroed = false;
+
+    /**
      * this is set to true once the indexes for this container have been built
      * indexes contain all the functions/variables an object of this container can access
      */
@@ -262,6 +267,14 @@ public:
      * checks if this struct type requires a copy function
      */
     bool any_member_has_copy_func();
+
+
+    /**
+     * does struct has any destructor ?
+     */
+    inline bool has_destructor() {
+        return destructor_func() != nullptr;
+    }
 
     /**
      * this means struct must be moved by calling move constructor and

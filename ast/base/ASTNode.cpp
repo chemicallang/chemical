@@ -259,6 +259,34 @@ MembersContainer* ASTNode::get_members_container() {
     }
 }
 
+MembersContainer* ASTNode::get_master_members_container() {
+    switch(kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::ImplDecl:
+            return (MembersContainer*) this;
+        case ASTNodeKind::GenericStructDecl:
+            return as_gen_struct_def_unsafe()->master_impl;
+        case ASTNodeKind::GenericUnionDecl:
+            return as_gen_union_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericVariantDecl:
+            return as_gen_variant_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericInterfaceDecl:
+            return as_gen_interface_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericImplDecl:
+            return as_gen_impl_decl_unsafe()->master_impl;
+        case ASTNodeKind::TypealiasStmt: {
+            const auto stmt = as_typealias_unsafe();
+            const auto node = stmt->actual_type->get_direct_linked_node();
+            return node->get_master_members_container();
+        }
+        default:
+            return nullptr;
+    }
+}
+
 LocatedIdentifier* ASTNode::get_located_id() {
     switch(kind()) {
         case ASTNodeKind::VarInitStmt:

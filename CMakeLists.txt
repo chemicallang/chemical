@@ -579,6 +579,8 @@ set(COMMON_SOURCES
         compiler/symres/ChildResolver.h
         std/chem_string_view_fast.h
         ast/values/DynamicValue.h
+        ast/values/ZeroedValue.h
+        ast/values/ZeroedValue.cpp
         ast/types/IfType.h
         ast/types/IfType.cpp
         ast/values/MultipleValue.h

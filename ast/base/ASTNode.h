@@ -315,6 +315,13 @@ public:
      */
     MembersContainer* get_members_container();
 
+
+    /**
+     * get members container (takes into account type aliases and generic containers)
+     * for generic containers, it gains the master members container
+     */
+    MembersContainer* get_master_members_container();
+
     /**
      * This would return the representation of the node
      */

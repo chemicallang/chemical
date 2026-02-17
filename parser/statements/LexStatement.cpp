@@ -368,6 +368,10 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             token++;
             return parseDynamicValue(allocator);
         }
+        case TokenType::ZeroedKw: {
+            token++;
+            return parseZeroedValue(allocator);
+        }
         default:
             return (Value*) parseAccessChain(allocator, false);
     }

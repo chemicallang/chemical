@@ -795,6 +795,8 @@ public:
 
     void VisitSizeOfValue(SizeOfValue* value);
 
+    void VisitZeroedValue(ZeroedValue* value);
+
     // TODO handle unsafe value
     void VisitUnsafeValue(UnsafeValue* value) {}
 

@@ -7199,6 +7199,15 @@ void ToCAstVisitor::VisitNullPtrType(NullPtrType* type) {
     write("void*");
 }
 
+void ToCAstVisitor::VisitZeroedValue(ZeroedValue* value) {
+    write("((");
+    auto prev = array_types_as_subscript;
+    array_types_as_subscript = true;
+    visit(value->getType());
+    array_types_as_subscript = prev;
+    write("){0})");
+}
+
 bool ToCBackendContext::forget(ASTNode* targetNode) {
     auto& jobs = visitor->destructor.destruct_jobs;
     auto it = std::find_if(

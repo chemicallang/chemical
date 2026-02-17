@@ -913,8 +913,7 @@ Value* Parser::parseZeroedValue(ASTAllocator& allocator) {
     bool is_unsafe = false;
 
     if (consumeToken(TokenType::ColonSym)) {
-        const auto unsafe_tok = consumeIdentifier();
-        if (unsafe_tok && unsafe_tok->value == "unsafe") {
+        if (consumeToken(TokenType::UnsafeKw)) {
             is_unsafe = true;
         } else {
             unexpected_error("expected 'unsafe' after ':' in zeroed value");

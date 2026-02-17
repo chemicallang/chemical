@@ -225,9 +225,14 @@ public:
     }
 
     /**
-     * get first function with annotation
+     * get first function with annotation make/constructor
      */
     FunctionDeclaration* get_first_constructor();
+
+    /**
+     * get first user defined constructor
+     */
+    FunctionDeclaration* get_first_user_defined_constructor();
 
     /**
      * will check if any function with constructor annotation exists
@@ -267,7 +272,6 @@ public:
      * checks if this struct type requires a copy function
      */
     bool any_member_has_copy_func();
-
 
     /**
      * does struct has any destructor ?

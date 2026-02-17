@@ -626,6 +626,15 @@ FunctionDeclaration* MembersContainer::get_first_constructor() {
     return nullptr;
 }
 
+FunctionDeclaration* MembersContainer::get_first_user_defined_constructor() {
+    for(const auto function : non_gen_range()) {
+        if(function->is_constructor_fn() && !function->is_generated_fn()) {
+            return function;
+        }
+    }
+    return nullptr;
+}
+
 FunctionDeclaration* MembersContainer::destructor_func() {
     for (const auto function : non_gen_range()) {
         if(function->is_delete_fn()) {

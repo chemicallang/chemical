@@ -3294,7 +3294,7 @@ void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
         const auto container = linked->get_master_members_container();
         if (container) {
             if(container->allow_zeroed) return;
-            bool has_ctor_or_dtor = container->has_constructor() || container->has_destructor();
+            bool has_ctor_or_dtor = container->get_first_user_defined_constructor() != nullptr || container->has_destructor();
             if (has_ctor_or_dtor) {
                 linker.error(value) << "type '" << type->representation() << "' has a constructor or destructor, " << "zero-initialization is not allowed unless marked with '@allow_zeroed' or use 'zeroed:unsafe'";
             }

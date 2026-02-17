@@ -1023,6 +1023,11 @@ public:
     Value* parseDynamicValue(ASTAllocator& allocator);
 
     /**
+     * parses a single zeroed value
+     */
+    Value* parseZeroedValue(ASTAllocator& allocator);
+
+    /**
      * parses the sizeof value
      */
     Value* parseSizeOfValue(ASTAllocator& allocator);

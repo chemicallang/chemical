@@ -388,6 +388,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitZeroedValue(ZeroedValue* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     // Types begin here
 
     inline void VisitAnyType(AnyType* type) {
@@ -797,6 +801,9 @@ public:
                 return;
             case ValueKind::VariantCase:
                 static_cast<Derived*>(this)->VisitVariantCase((VariantCase*) value);
+                return;
+            case ValueKind::ZeroedValue:
+                static_cast<Derived*>(this)->VisitZeroedValue((ZeroedValue*) value);
                 return;
             case ValueKind::AddrOfValue:
                 static_cast<Derived*>(this)->VisitAddrOfValue((AddrOfValue*) value);

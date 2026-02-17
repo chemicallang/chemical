@@ -168,6 +168,7 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "is", TokenType::IsKw },
                 { "in", TokenType::InKw },
                 { "dyn", TokenType::DynKw },
+                { "zeroed", TokenType::ZeroedKw },
                 { "const", TokenType::ConstKw },
         }
 };

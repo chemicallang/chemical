@@ -44,5 +44,10 @@ public enum ValueKind {
     EmbeddedValue,
 
     ExpressiveString,
+    DynamicValue,
+    ZeroedValue,
+    Multiple,
+
+    RawLiteral,
 
 }

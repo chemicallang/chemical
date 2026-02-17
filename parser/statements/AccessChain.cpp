@@ -207,6 +207,10 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             token++;
             return parseDynamicValue(allocator);
         }
+        case TokenType::ZeroedKw: {
+            token++;
+            return parseZeroedValue(allocator);
+        }
         case TokenType::StructKw: {
             auto& t = *token;
             token++;

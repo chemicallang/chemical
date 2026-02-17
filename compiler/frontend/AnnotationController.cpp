@@ -10,6 +10,9 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/UsingStmt.h"
+#include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericVariantDecl.h"
 
 void annot_handler_inline(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     auto func = node->as_function();
@@ -281,6 +284,15 @@ void annot_handler_align(Parser* parser, ASTNode* node, std::vector<Value*>& arg
     // TODO:
 }
 
+void annot_handler_allow_zeroed(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    const auto container = node->get_master_members_container();
+    if (container) {
+        container->allow_zeroed = true;
+    } else {
+        parser->error("attribute @allow_zeroed can only be applied to structs, unions or variants");
+    }
+}
+
 void AnnotationController::initialize() {
 
     // initialize intrinsic annotations
@@ -319,6 +331,7 @@ void AnnotationController::initialize() {
             { "static", { annot_handler_static, "static", AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
+            { "allow_zeroed", { annot_handler_allow_zeroed, "allow_zeroed", AnnotationDefType::Handler } },
 
             // single marker annotations
             {"test.before_each", { .policy = SingleMarkerMultiplePolicy::Override, .name = "test.before_each", .type = AnnotationDefType::SingleMarker }},

@@ -3284,12 +3284,22 @@ void SymResLinkBody::VisitExpressiveString(ExpressiveString* value) {
 }
 
 void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
-    visit(value->getType(), value->type_location);
+
+    auto type = value->getType();
+    if(type == nullptr) {
+        if(expected_type == nullptr) {
+            linker.error(value) << "couldn't infer type for zeroed value";
+            return;
+        }
+        type = expected_type;
+    }
+
+    visit(type, value->type_location);
 
     // typechecking code (better move there)
     if(value->is_unsafe) return;
-    const auto type = value->getType()->canonical();
-    const auto linked = type->get_direct_linked_node();
+    const auto can_type = type->canonical();
+    const auto linked = can_type->get_direct_linked_node();
     if(linked) {
         const auto container = linked->get_master_members_container();
         if (container) {

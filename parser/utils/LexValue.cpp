@@ -920,21 +920,21 @@ Value* Parser::parseZeroedValue(ASTAllocator& allocator) {
         }
     }
 
+    TypeLoc type = {nullptr, loc};
+
     if (token->type == TokenType::LessThanSym) {
         token++;
-    } else {
-        unexpected_error("expected '<' for zeroed value");
-        return nullptr;
-    }
 
-    auto type = parseTypeLoc(allocator);
-    if (!type) {
-        unexpected_error("expected a type in zeroed value");
-        return nullptr;
-    }
+        type = parseTypeLoc(allocator);
+        if (!type) {
+            unexpected_error("expected a type in zeroed value");
+            return nullptr;
+        }
 
-    if (!consumeGenericClose()) {
-        unexpected_error("expected '>' after the type in zeroed value");
+        if (!consumeGenericClose()) {
+            unexpected_error("expected '>' after the type in zeroed value");
+        }
+
     }
 
     if (token->type == TokenType::LParen) {

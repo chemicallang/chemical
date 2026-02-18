@@ -1396,11 +1396,11 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     }
 
     // process remote imports
-    process_remote_imports(job);
+    auto ri_res = process_remote_imports(job);
+    if(ri_res != 0) return ri_res;
 
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
-
 
     // index the modules, so imports can be resolved
     mod_storage.index_modules(dependencies);
@@ -1653,7 +1653,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     }
 
     // process remote imports
-    process_remote_imports(job);
+    auto ri_res = process_remote_imports(job);
+    if(ri_res != 0) return ri_res;
 
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
@@ -2970,35 +2971,8 @@ LabBuildCompiler::~LabBuildCompiler() {
     GlobalInterpretScope::dispose_container(container);
 }
 
-void LabBuildCompiler::process_remote_imports(LabJob* job) {
-    if(job->remote_imports.empty()) {
-        return;
-    }
-
-    std::cout << "[lab] processing " << job->remote_imports.size() << " remote imports..." << std::endl;
-
-    std::mutex mutex;
-    std::vector<std::future<void>> futures;
-    futures.reserve(job->remote_imports.size());
-
-    std::atomic<int> completed = 0;
-    const int total = job->remote_imports.size();
-
-    for(auto& import : job->remote_imports) {
-        futures.emplace_back(pool.push([this, job, &import, &mutex, &completed, total](int id) {
-            download_remote_import(job, &import, mutex);
-            const int done = ++completed;
-            std::cout << "[lab] downloaded " << done << "/" << total << " remote imports\r" << std::flush;
-        }));
-    }
-
-    for(auto& f : futures) {
-        f.get();
-    }
-    std::cout << std::endl;
-}
-
-void LabBuildCompiler::download_remote_import(
+int download_remote_import(
+    LabBuildCompiler* compiler,
     LabJob* job,
     RemoteImport* import,
     std::mutex& mutex
@@ -3083,34 +3057,54 @@ void LabBuildCompiler::download_remote_import(
                  
                  // 2. git init
                  cmd = "git -C " + target_dir + " init";
-                 if(system(cmd.c_str()) != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return; }
+                 auto result2 = system(cmd.c_str());
+                 if(result2 != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return result2; }
                  
                  // 3. git remote add origin <url>
                  cmd = "git -C " + target_dir + " remote add origin " + import->from.to_std_string();
-                 if(system(cmd.c_str()) != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return; }
+                 auto result3 = system(cmd.c_str());
+                 if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
                  
                  // 4. git fetch --depth 1 origin <commit>
                  cmd = "git -C " + target_dir + " fetch --depth 1 origin " + import->version.to_std_string();
-                 if(system(cmd.c_str()) != 0) { 
+                 auto result4 = system(cmd.c_str());
+                 if(result4 != 0) {
                      // Fallback: maybe it's a tag that looks like a commit? or commit is deep?
                      // Try full fetch? Or error out?
                      std::cerr << "Failed to fetch commit " << import->version << ". It might not be reachable from any branch or --depth 1 failed." << std::endl; 
-                     return; 
+                     return result4;
                  }
                  
                  // 5. git checkout <commit> (FETCH_HEAD)
                  cmd = "git -C " + target_dir + " checkout FETCH_HEAD";
             } else {
                 // Assume tag/branch
-                cmd = "git clone --depth 1 --branch " + import->version.to_std_string() + " " + import->from.to_std_string() + " " + target_dir;
+                if(import->version.empty()) {
+                    cmd = "git clone --depth 1 " + import->from.to_std_string() + " " + target_dir;
+                } else {
+                    cmd = "git clone --depth 1 --branch " + import->version.to_std_string() + " " + import->from.to_std_string() + " " + target_dir;
+                }
             }
         }
-        
-        if(!cmd.empty() && system(cmd.c_str()) != 0) {
-            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download/clone remote import '" << import->id << "'" << std::endl;
-            // Clean up potentially empty/partial dir?
-            return;
+
+        if(!cmd.empty()) {
+            auto result5 = system(cmd.c_str());
+            if(result5 != 0) {
+                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download remote import";
+                if(!import->id.empty()) {
+                    std::cerr << " '" << import->id << '\'';
+                }
+                std::cerr << " from '" << import->from << '\'';
+                if(!import->version.empty()) {
+                    std::cerr << " version '" << import->version << '\'';
+                }
+                std::cerr << "\nfailed command: " << cmd;
+                std::cerr << std::endl;
+                // Clean up potentially empty/partial dir?
+                return result5;
+            }
         }
+
 
     }
 
@@ -3126,7 +3120,7 @@ void LabBuildCompiler::download_remote_import(
     // Add to storage and dependencies
     {
         std::lock_guard<std::mutex> lock(mutex);
-        mod_storage.insert_module_ptr_dangerous(mod);
+        compiler->mod_storage.insert_module_ptr_dangerous(mod);
         if(import->requester) {
             import->requester->add_dependency(mod);
         } else {
@@ -3134,5 +3128,43 @@ void LabBuildCompiler::download_remote_import(
         }
     }
 
+    return 0;
+
 }
 
+int LabBuildCompiler::process_remote_imports(LabJob* job) {
+
+    if(job->remote_imports.empty()) {
+        return 0;
+    }
+
+    std::cout << "[lab] processing " << job->remote_imports.size() << " remote imports..." << std::endl;
+
+    std::mutex mutex;
+    std::vector<std::future<int>> futures;
+    futures.reserve(job->remote_imports.size());
+
+    std::atomic<int> completed = 0;
+    const int total = job->remote_imports.size();
+
+    for(auto& import : job->remote_imports) {
+        futures.emplace_back(pool.push([this, job, &import, &mutex, &completed, total](int id) {
+            auto result = download_remote_import(this, job, &import, mutex);
+            const int done = ++completed;
+            if(result == 0) {
+                std::cout << "[lab] downloaded " << done << "/" << total << " remote imports\r" << std::flush;
+            }
+            return result;
+        }));
+    }
+
+    for(auto& f : futures) {
+        auto status = f.get();
+        if(status != 0) {
+            return status;
+        }
+    }
+    std::cout << std::endl;
+    return 0;
+
+}

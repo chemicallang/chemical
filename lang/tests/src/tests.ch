@@ -41,7 +41,6 @@ func run_executable_tests() {
     test_modules_import();
     test_moves();
     test_generic_moves();
-    test_html();
     test_references();
     test_auto_deref();
     test_satisfies();

@@ -111,4 +111,17 @@ extern "C" {
 
     int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr);
 
+
+    struct RemoteImportCBI {
+        chem::string_view id;
+        chem::string_view from;
+        chem::string_view subdir;
+        chem::string_view version;
+    };
+
+    void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep);
+
+    void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep);
+
+
 }

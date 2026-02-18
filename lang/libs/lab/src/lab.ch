@@ -200,7 +200,21 @@ public interface BuildContext {
     // invoke ar with given cli args
     func invoke_ar (&self, string_arr : std::span<std::string_view>) : int;
 
+    // fetches a remote dependency for the job
+    func fetch_job_dependency(&self, job : *mut LabJob, dep : &ImportRepo);
+
+    // fetches a remote dependency for the module
+    func fetch_mod_dependency(&self, job : *mut LabJob, mod : *mut Module, dep : &ImportRepo);
+
 }
+
+public struct ImportRepo {
+    var id : std::string_view
+    var from : std::string_view
+    var subdir : std::string_view
+    var version : std::string_view
+}
+
 
 @compiler.interface
 public interface AppBuildContext : BuildContext {

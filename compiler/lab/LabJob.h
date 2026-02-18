@@ -14,6 +14,15 @@
 
 struct LabModule;
 
+struct RemoteImport {
+    chem::string id;
+    chem::string from;
+    chem::string subdir;
+    chem::string version;
+    LabModule* requester = nullptr;
+};
+
+
 enum class LabJobStatus : int {
     Pending = 0,
     Launched = 1,
@@ -81,6 +90,12 @@ struct LabJob {
      * these modules will be compiled first
      */
     std::vector<LabModule*> dependencies;
+
+    /**
+     * remote imports to be downloaded and added as dependencies
+     */
+    std::vector<RemoteImport> remote_imports;
+
 
     /**
      * path aliases are used to basically alias a path using '@'

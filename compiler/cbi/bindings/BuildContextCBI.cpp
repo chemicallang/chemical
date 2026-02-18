@@ -268,3 +268,24 @@ int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr) {
     return -1;
 #endif
 }
+
+void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep) {
+    job->remote_imports.emplace_back(
+        chem::string(dep->id),
+        chem::string(dep->from),
+        chem::string(dep->subdir),
+        chem::string(dep->version),
+        nullptr
+    );
+}
+
+void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep) {
+    job->remote_imports.emplace_back(
+        chem::string(dep->id),
+        chem::string(dep->from),
+        chem::string(dep->subdir),
+        chem::string(dep->version),
+        mod
+    );
+}
+

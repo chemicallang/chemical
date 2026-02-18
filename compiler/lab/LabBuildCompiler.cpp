@@ -3031,11 +3031,17 @@ int download_remote_import(
         // Ensure parent dir exists
         fs::create_directories(fs::path(target_dir).parent_path());
 
+        // Prepare the URL
+        std::string url = import->from.to_std_string();
+        if (url.find("://") == std::string::npos && url.find("git@") != 0) {
+            url = "https://" + url;
+        }
+
         std::string cmd;
         if(import->version.empty()) {
             // Default: shallow clone depth 1
              cmd = "git clone --depth 1 ";
-             cmd.append(import->from.to_std_string()); // Assuming 'from' is usable as URL/path
+             cmd.append(url);
              cmd.append(" ");
              cmd.append(target_dir);
         } else {
@@ -3061,7 +3067,7 @@ int download_remote_import(
                  if(result2 != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return result2; }
                  
                  // 3. git remote add origin <url>
-                 cmd = "git -C " + target_dir + " remote add origin " + import->from.to_std_string();
+                 cmd = "git -C " + target_dir + " remote add origin " + url;
                  auto result3 = system(cmd.c_str());
                  if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
                  
@@ -3080,12 +3086,13 @@ int download_remote_import(
             } else {
                 // Assume tag/branch
                 if(import->version.empty()) {
-                    cmd = "git clone --depth 1 " + import->from.to_std_string() + " " + target_dir;
+                    cmd = "git clone --depth 1 " + url + " " + target_dir;
                 } else {
-                    cmd = "git clone --depth 1 --branch " + import->version.to_std_string() + " " + import->from.to_std_string() + " " + target_dir;
+                    cmd = "git clone --depth 1 --branch " + import->version.to_std_string() + " " + url + " " + target_dir;
                 }
             }
         }
+
 
         if(!cmd.empty()) {
             auto result5 = system(cmd.c_str());

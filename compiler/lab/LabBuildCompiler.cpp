@@ -3038,22 +3038,15 @@ int download_remote_import(
         }
 
         std::string cmd;
+        std::string git_base = "git -c advice.detachedHead=false ";
         if(import->version.empty()) {
             // Default: shallow clone depth 1
-             cmd = "git clone --depth 1 ";
+             cmd = git_base + "clone --quiet --depth 1 ";
              cmd.append(url);
              cmd.append(" ");
              cmd.append(target_dir);
         } else {
             // With version
-            // Check if it looks like a commit hash (hex, 40 chars, or at least some length)
-            // Or tag/branch.
-            // Heuristic: if it's 40 chars hex, it's likely a commit. 
-            // Also user said: "Commit Hash support (essential for 'pinning' code)".
-            // Git cannot shallow clone a specific commit directly easily without --depth 1 if it's the tip, 
-            // but if it's history, we need full clone OR fetch.
-            // Efficient way for commit: init, remote add, fetch --depth 1 <sha>, checkout
-            
             bool is_likely_commit = import->version.size() >= 7 && std::all_of(import->version.begin(), import->version.end(), ::isxdigit);
             
             if(is_likely_commit) {
@@ -3062,36 +3055,35 @@ int download_remote_import(
                  fs::create_directories(target_dir);
                  
                  // 2. git init
-                 cmd = "git -C " + target_dir + " init";
+                 cmd = git_base + "-C " + target_dir + " init --quiet";
                  auto result2 = system(cmd.c_str());
                  if(result2 != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return result2; }
                  
                  // 3. git remote add origin <url>
-                 cmd = "git -C " + target_dir + " remote add origin " + url;
+                 cmd = git_base + "-C " + target_dir + " remote add origin " + url;
                  auto result3 = system(cmd.c_str());
                  if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
                  
                  // 4. git fetch --depth 1 origin <commit>
-                 cmd = "git -C " + target_dir + " fetch --depth 1 origin " + import->version.to_std_string();
+                 cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + import->version.to_std_string();
                  auto result4 = system(cmd.c_str());
                  if(result4 != 0) {
-                     // Fallback: maybe it's a tag that looks like a commit? or commit is deep?
-                     // Try full fetch? Or error out?
                      std::cerr << "Failed to fetch commit " << import->version << ". It might not be reachable from any branch or --depth 1 failed." << std::endl; 
                      return result4;
                  }
                  
                  // 5. git checkout <commit> (FETCH_HEAD)
-                 cmd = "git -C " + target_dir + " checkout FETCH_HEAD";
+                 cmd = git_base + "-C " + target_dir + " checkout --quiet FETCH_HEAD";
             } else {
                 // Assume tag/branch
                 if(import->version.empty()) {
-                    cmd = "git clone --depth 1 " + url + " " + target_dir;
+                    cmd = git_base + "clone --quiet --depth 1 " + url + " " + target_dir;
                 } else {
-                    cmd = "git clone --depth 1 --branch " + import->version.to_std_string() + " " + url + " " + target_dir;
+                    cmd = git_base + "clone --quiet --depth 1 --branch " + import->version.to_std_string() + " " + url + " " + target_dir;
                 }
             }
         }
+
 
 
         if(!cmd.empty()) {

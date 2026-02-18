@@ -23,11 +23,41 @@ bool parseImportFromPart(BasicParser& parser, ASTAllocator& allocator, ImportSta
         auto str2 = parser.parseString(allocator);
         if(str2.has_value()) {
             stmt->filePath = str2.value();
+
+            // parse version and subdir
+            while(true) {
+                if(parser.token->type == TokenType::Identifier) {
+                    if(parser.token->value == "version") {
+                        parser.token++;
+                        auto ver = parser.parseString(allocator);
+                        if(ver.has_value()) {
+                            stmt->version = ver.value();
+                            continue;
+                        } else {
+                            parser.unexpected_error("expected string literal after 'version'");
+                            return false;
+                        }
+                    } else if(parser.token->value == "subdir") {
+                        parser.token++;
+                        auto sub = parser.parseString(allocator);
+                        if(sub.has_value()) {
+                            stmt->subdir = sub.value();
+                            continue;
+                        } else {
+                            parser.unexpected_error("expected string literal after 'subdir'");
+                            return false;
+                        }
+                    }
+                }
+                break;
+            }
+
             return true;
         } else {
             parser.unexpected_error("expected path after 'from' in import statement");
             return false;
         }
+
     } else {
         return true;
     }

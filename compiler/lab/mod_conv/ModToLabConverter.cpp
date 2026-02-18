@@ -65,6 +65,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
+                if(!stmt->version.empty() || !stmt->subdir.empty()) {
+                    // skip remote imports here
+                    continue;
+                }
                 if(stmt->filePath.empty()) {
                     output << "import \"@";
                     writeWithSep(stmt->identifier, ':', output);
@@ -94,19 +98,42 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
-
+    
+    // Create module first so we can add dependencies later
+    // We cannot create module with dependencies array directly if we have remote imports that need to be fetched and added
+    // So we will create module with empty array and then add dependencies?
+    // Wait, `new_module` takes dependencies array.
+    // If we have remote imports, we need to fetch them. The fetch function takes `mod` pointer.
+    // So we need `mod` to call `fetch_mod_dependency`.
+    // But `new_module` needs `deps`.
+    // We can collect local ops first.
+    // But remote imports are also modules.
+    // If we fetch them, `fetch_mod_dependency` adds them to `job->remote_imports`.
+    // They are NOT added to the module dependencies immediately.
+    // `process_remote_imports` downloads them and THEN adds them to the module dependencies.
+    // So we can create the module with local dependencies, and then call fetch for remote ones.
+    
     output << "\tconst deps : []*mut Module = [ ";
 
     i = 0;
     unsigned deps_size = 0;
     // calling get functions on dependencies
+    // identifiers for remote imports: import a from "..." -> a
+    // we need to know which ones are remote. 
+    // We iterate again.
+    
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
-                writeAsIdentifier(stmt, i, output);
-                output << ".build(ctx, __chx_job), ";
-                deps_size++;
+                if(!stmt->version.empty() || !stmt->subdir.empty()) {
+                    // remote import, skip adding to deps list for now
+                } else {
+                    // local import
+                    writeAsIdentifier(stmt, i, output);
+                    output << ".build(ctx, __chx_job), ";
+                    deps_size++;
+                }
                 break;
             }
             default:
@@ -118,6 +145,67 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << " ];\n";
     output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<*Module>(deps, " << deps_size << "));\n";
     output << "\tctx.set_cached(__chx_job, mod)\n";
+    
+    // Now handle remote imports
+    i = 0;
+    for(const auto node : data.scope.body.nodes) {
+        switch(node->kind()) {
+            case ASTNodeKind::ImportStmt: {
+                const auto stmt = node->as_import_stmt_unsafe();
+                if(!stmt->version.empty() || !stmt->subdir.empty()) {
+                    // remote import
+                    // Generate: var __imp_repo_X = ImportRepo(...);
+                    // ctx.fetch_mod_dependency(__chx_job, mod, &__imp_repo_X);
+                    
+                    std::string id_str;
+                    if(!stmt->as_identifier.empty()) {
+                         id_str = stmt->as_identifier.str();
+                    } else if(stmt->identifier.empty()) {
+                         // identifier list is empty but file path present?
+                         // "import ... from ..."
+                         // If no identifier, how do we use it?
+                         // "import 'path'"?
+                         // Assuming there is an identifier for `as`.
+                         // If not, we generate a unique ID based on index.
+                         id_str = "__mod_" + std::to_string(i) + "_stmt"; // Or just use index
+                    } else {
+                        // use first identifier?
+                         if(stmt->identifier.size() == 1) {
+                             id_str = stmt->identifier[0].str();
+                         } else {
+                             // complex import?
+                             id_str = "__mod_" + std::to_string(i);
+                         }
+                    }
+                    
+                    // Actually `ImportRepo` needs `id`. This `id` is the module name/id in `RemoteImport`.
+                    // User said: "identifier is the actual identifier".
+                    // If `import glib from ...`, id is `glib`.
+                    
+                    if(!stmt->identifier.empty()) {
+                         id_str = stmt->identifier[0].str();
+                    } else if(!stmt->as_identifier.empty()){
+                         id_str = stmt->as_identifier.str();
+                    } else {
+                         id_str = "remote_" + std::to_string(i);
+                    }
+
+                    output << "\tvar __imp_repo_" << i << " = ImportRepo(\n";
+                    output << "\t\t\"" << id_str << "\",\n"; // id
+                    output << "\t\t\"" << stmt->filePath << "\",\n"; // from
+                    output << "\t\t\"" << stmt->subdir << "\",\n"; // subdir
+                    output << "\t\t\"" << stmt->version << "\"\n"; // version
+                    output << "\t);\n";
+                    output << "\tctx.fetch_mod_dependency(__chx_job, mod, &__imp_repo_" << i << ");\n";
+                }
+                break;
+            }
+            default:
+                break;
+        }
+        i++;
+    }
+
 
     if(!data.sources_list.empty()) {
         for(auto& src : data.sources_list) {

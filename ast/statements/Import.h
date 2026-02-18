@@ -26,7 +26,10 @@ public:
      */
     std::vector<chem::string_view> identifier;
     chem::string_view filePath; ///< The file path to import.
+    chem::string_view version;
+    chem::string_view subdir;
     chem::string_view as_identifier;
+
     IffyBase* if_condition = nullptr;
     std::unordered_map<chem::string_view, ASTNode*>* symbols = nullptr;
 
@@ -70,8 +73,11 @@ public:
         );
         stmt->identifier = identifier;
         stmt->as_identifier = as_identifier;
+        stmt->version = version;
+        stmt->subdir = subdir;
         stmt->if_condition = if_condition;
         return stmt;
+
     }
 
 #ifdef COMPILER_BUILD

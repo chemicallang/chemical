@@ -351,17 +351,7 @@ public:
     /**
      * process remote imports for the job
      */
-    void process_remote_imports(LabJob* job);
-
-    /**
-     * download a single remote import
-     */
-    void download_remote_import(
-        LabJob* job,
-        RemoteImport* import,
-        std::mutex& mutex
-    );
-
+    int process_remote_imports(LabJob* job);
 
     /**
      * will build the lab file and return the callable tcc state

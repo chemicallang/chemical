@@ -302,6 +302,7 @@ public func (ctx : &BuildContext) job_dir_path(job : *mut LabJob) : std::string 
 
 public func (ctx : &BuildContext) build_mod_file_path(job_name : &std::string_view, mod_scope : &std::string_view, mod_name : &std::string_view, file : &std::string_view) : std::string {
     var str = ctx.build_job_dir_path(job_name)
+    str.append_view("modules/")
     if(!mod_scope.empty()) {
         str.append_view(mod_scope)
         str.append('.');

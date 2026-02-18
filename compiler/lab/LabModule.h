@@ -102,15 +102,22 @@ struct LabModule {
 #endif
 
     /**
-     * formats the scope name module name into a single string separated by colon
+     * helper for formatting scope name and mod name with a separator
      */
-    static std::string format(const chem::string_view& scope_name, const chem::string_view& mod_name, char sep) {
-        std::string str;
+    static void format(std::string& str, const chem::string_view& scope_name, const chem::string_view& mod_name, char sep) {
         if(!scope_name.empty()) {
             str.append(scope_name.data(), scope_name.size());
             str.append(1, sep);
         }
         str.append(mod_name.data(), mod_name.size());
+    }
+
+    /**
+     * formats the scope name module name into a single string separated by separator
+     */
+    static inline std::string format(const chem::string_view& scope_name, const chem::string_view& mod_name, char sep) {
+        std::string str;
+        format(str, scope_name, mod_name, sep);
         return str;
     }
 

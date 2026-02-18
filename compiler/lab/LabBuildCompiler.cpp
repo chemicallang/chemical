@@ -374,6 +374,12 @@ bool determine_change_in_files(LabBuildCompiler* compiler, LabModule* mod, const
 
 }
 
+std::string get_mod_dir(LabJob* job, LabModule* mod) {
+    auto dir = std::string("modules/");
+    LabModule::format(dir, mod->scope_name.to_chem_view(), mod->name.to_chem_view(), '.');
+    return resolve_rel_child_path_str(job->build_dir.to_view(), dir);
+}
+
 std::string get_mod_timestamp_path(const std::string_view& build_dir, LabModule* mod, bool use_tcc) {
     auto f = mod->format('.');
     f.append(use_tcc ? "/timestamp_tcc.dat" : "/timestamp.dat");
@@ -1196,10 +1202,6 @@ void create_job_build_dir(bool verbose, const std::string& build_dir) {
     }
 }
 
-inline void create_job_build_dir(LabBuildCompiler* compiler, LabJob* job) {
-    create_job_build_dir(compiler->options->verbose, job->build_dir.to_std_string());
-}
-
 const char* to_string(OutputMode mode) {
     switch(mode) {
         case OutputMode::Debug:
@@ -1386,8 +1388,6 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     begin_job_print(job);
 
-    create_job_build_dir(this, job);
-
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
 
@@ -1411,6 +1411,15 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
     // build dir
     auto build_dir = exe->build_dir.to_std_string();
 
+    // creating the job build directory
+    create_job_build_dir(verbose, build_dir);
+
+    // we put all modules of a job in this directory
+    auto mods_dir = resolve_rel_child_path_str(build_dir, "modules");
+
+    // creating the modules direcotry
+    create_dir(mods_dir);
+
     // outputting an object file
     auto job_obj_path = resolve_rel_child_path_str(build_dir, "object_tcc.o");
 
@@ -1424,7 +1433,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         mod->has_changed = std::nullopt;
 
         // creating the module directory and getting the timestamp file path
-        create_mod_dir(this, exe->type, build_dir, mod);
+        create_mod_dir(this, exe->type, mods_dir, mod);
 
     }
 
@@ -1439,7 +1448,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
             // checking which modules have changed
             for (const auto mod: exe->dependencies) {
-                auto has_changed = has_module_changed(this, mod, build_dir, true);
+                auto has_changed = has_module_changed(this, mod, mods_dir, true);
                 if (has_changed) {
                     has_any_changed = true;
                 }
@@ -1532,7 +1541,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
                 case LabModuleType::CPPFile:
                 case LabModuleType::CFile: {
                     if(!mod->has_changed.has_value() || mod->has_changed.value()) {
-                        const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(build_dir, mod, true));
+                        const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, true));
                         if (c_res == 0) {
                             job->objects.emplace_back(mod->object_path.copy());
                             continue;
@@ -1563,7 +1572,7 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         }
 
         // the actual translation happens here
-        const auto result = process_module_tcc_bm(mod, processor, c_visitor, build_dir);
+        const auto result = process_module_tcc_bm(mod, processor, c_visitor, mods_dir);
         if(result != 0) {
             return result;
         }
@@ -1643,8 +1652,6 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     begin_job_print(job);
 
-    create_job_build_dir(this, job);
-
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
 
@@ -1659,12 +1666,20 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
 
-
     // index the modules, so imports can be resolved
     mod_storage.index_modules(dependencies);
 
     // build dir
     auto build_dir = job->build_dir.to_std_string();
+
+    // creating the job build directory
+    create_job_build_dir(verbose, build_dir);
+
+    // we put all modules of a job in this directory
+    auto mods_dir = resolve_rel_child_path_str(build_dir, "modules");
+
+    // creating the modules direcotry
+    create_dir(mods_dir);
 
     // for each module, let's determine its files and whether it has changed
     for(const auto mod : dependencies) {
@@ -1676,7 +1691,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         mod->has_changed = std::nullopt;
 
         // creating the module directory and getting the timestamp file path
-        create_mod_dir(this, job->type, build_dir, mod);
+        create_mod_dir(this, job->type, mods_dir, mod);
 
     }
 
@@ -1686,7 +1701,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         bool has_any_changed = false;
 
         for(const auto mod : job->dependencies) {
-            const auto changed = has_module_changed(this, mod, build_dir, false);
+            const auto changed = has_module_changed(this, mod, mods_dir, false);
             if(changed) {
                 has_any_changed = true;
             }
@@ -1759,7 +1774,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             case LabModuleType::CFile:
             case LabModuleType::CPPFile: {
                 if(!mod->has_changed.has_value() || mod->has_changed.value()) {
-                    const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(build_dir, mod, false));
+                    const auto c_res = compile_c_or_cpp_module(this, mod, get_mod_timestamp_path(mods_dir, mod, false));
                     if(c_res == 0) {
                         if(is_use_obj_format) {
                             job->objects.emplace_back(mod->object_path.copy());
@@ -1788,7 +1803,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             mod->bitcode_path.clear();
         }
 
-        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, build_dir);
+        const auto result = process_module_gen_bm(mod, processor, gen, cTranslator, mods_dir);
         if(result != 0) {
             return result;
         }
@@ -2937,7 +2952,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
         if(has_ll || has_asm) {
             for(auto& modPtr : mod_storage.get_modules()) {
                 auto& module = *modPtr.get();
-                const auto mod_dir = resolve_rel_child_path_str(final_job->build_dir.to_view(), module.name.to_view());
+                const auto mod_dir = get_mod_dir(final_job, &module);
                 if (has_ll) {
                     module.llvm_ir_path.append(resolve_rel_child_path_str(mod_dir, "llvm_ir.ll"));
                 }
@@ -2978,7 +2993,7 @@ int download_remote_import(
     std::mutex& mutex
 ) {
     const auto job_build_dir = job->build_dir.to_std_string();
-    auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote_mods");
+    auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
     // Determine storage directory from 'from' (e.g. github.com/user/repo -> user/repo)
     // If 'from' has no slashes, fallback to 'id'
@@ -2987,7 +3002,7 @@ int download_remote_import(
     
     // Logic to strip domain if present (simple heuristic)
     // We want unique path, so using the full 'from' path inside remote_mods is safest
-    // e.g. remote_mods/github.com/user/repo
+    // e.g. remote/github.com/user/repo
     // But user asked for "scope identifier and repo name".
     // If input is "github.com/my-org/tools", we might want "my-org/tools".
     // But "gitlab.com/my-org/tools" should probably be separate?

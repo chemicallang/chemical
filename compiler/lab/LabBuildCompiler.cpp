@@ -50,7 +50,15 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/CmdUtils.h"
+#include "utils/CmdUtils.h"
 #include "ast/base/TypeBuilder.h"
+#include <mutex>
+#include <future>
+#include <atomic>
+#include <algorithm>
+#include <cctype>
+
+
 
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
@@ -1387,8 +1395,12 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         std::cout << "[lab] " << "flattening the module structure" << std::endl;
     }
 
+    // process remote imports
+    process_remote_imports(job);
+
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
+
 
     // index the modules, so imports can be resolved
     mod_storage.index_modules(dependencies);
@@ -1640,8 +1652,12 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
         std::cout << "[lab] " << "flattening the module structure" << std::endl;
     }
 
+    // process remote imports
+    process_remote_imports(job);
+
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
+
 
     // index the modules, so imports can be resolved
     mod_storage.index_modules(dependencies);
@@ -2503,6 +2519,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     constexpr auto nameBufferSize = 50;
     char nameBuffer[nameBufferSize];
 
+
     // what we must do is check that each build.lab gets an as_identifier + build.lab index as scope_name
     // which will mangle it differently from other build.lab files, and stop conflicts
     int i = 0;
@@ -2952,3 +2969,170 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
 LabBuildCompiler::~LabBuildCompiler() {
     GlobalInterpretScope::dispose_container(container);
 }
+
+void LabBuildCompiler::process_remote_imports(LabJob* job) {
+    if(job->remote_imports.empty()) {
+        return;
+    }
+
+    std::cout << "[lab] processing " << job->remote_imports.size() << " remote imports..." << std::endl;
+
+    std::mutex mutex;
+    std::vector<std::future<void>> futures;
+    futures.reserve(job->remote_imports.size());
+
+    std::atomic<int> completed = 0;
+    const int total = job->remote_imports.size();
+
+    for(auto& import : job->remote_imports) {
+        futures.emplace_back(pool.push([this, job, &import, &mutex, &completed, total](int id) {
+            download_remote_import(job, &import, mutex);
+            const int done = ++completed;
+            std::cout << "[lab] downloaded " << done << "/" << total << " remote imports\r" << std::flush;
+        }));
+    }
+
+    for(auto& f : futures) {
+        f.get();
+    }
+    std::cout << std::endl;
+}
+
+void LabBuildCompiler::download_remote_import(
+    LabJob* job,
+    RemoteImport* import,
+    std::mutex& mutex
+) {
+    const auto job_build_dir = job->build_dir.to_std_string();
+    auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote_mods");
+
+    // Determine storage directory from 'from' (e.g. github.com/user/repo -> user/repo)
+    // If 'from' has no slashes, fallback to 'id'
+    std::string storage_path;
+    auto from_view = import->from.to_view();
+    
+    // Logic to strip domain if present (simple heuristic)
+    // We want unique path, so using the full 'from' path inside remote_mods is safest
+    // e.g. remote_mods/github.com/user/repo
+    // But user asked for "scope identifier and repo name".
+    // If input is "github.com/my-org/tools", we might want "my-org/tools".
+    // But "gitlab.com/my-org/tools" should probably be separate?
+    // Let's use the full string but ensure it's a valid path.
+    // Actually, user example: "my-org/tools".
+    // Let's just use import->from as the relative path structure.
+    storage_path = import->from.to_std_string();
+    
+    // Sanitize path? For now assume it's a valid relative path.
+    auto target_dir = resolve_rel_child_path_str(remote_mods_dir, storage_path);
+
+    // Extract scope and name for LabModule
+    // "my-org/tools" -> scope="my-org", name="tools"
+    // "tools" -> scope="", name="tools"
+    chem::string mod_scope, mod_name;
+    auto last_slash = storage_path.find_last_of('/');
+    if(last_slash != std::string::npos) {
+        mod_name.append(std::string_view(storage_path).substr(last_slash + 1));
+        auto parent = std::string_view(storage_path).substr(0, last_slash);
+        // If parent has more slashes, take the last part as scope? 
+        // Or take the immediate parent?
+        // User said: "organization or user's username".
+        // In "github.com/org/repo", "org" is scope.
+        // In "org/repo", "org" is scope.
+        // Let's try to find the second to last slash.
+        auto second_slash = parent.find_last_of('/');
+        if (second_slash != std::string::npos) {
+             mod_scope.append(std::string_view(parent).substr(second_slash + 1));
+        } else {
+             mod_scope.append(parent);
+        }
+    } else {
+        mod_name.append(storage_path);
+    }
+    
+    if(mod_name.empty()) mod_name.append(import->id.to_view());
+
+    if(!fs::exists(target_dir)) {
+        // Need to download
+        
+        // Ensure parent dir exists
+        fs::create_directories(fs::path(target_dir).parent_path());
+
+        std::string cmd;
+        if(import->version.empty()) {
+            // Default: shallow clone depth 1
+             cmd = "git clone --depth 1 ";
+             cmd.append(import->from.to_std_string()); // Assuming 'from' is usable as URL/path
+             cmd.append(" ");
+             cmd.append(target_dir);
+        } else {
+            // With version
+            // Check if it looks like a commit hash (hex, 40 chars, or at least some length)
+            // Or tag/branch.
+            // Heuristic: if it's 40 chars hex, it's likely a commit. 
+            // Also user said: "Commit Hash support (essential for 'pinning' code)".
+            // Git cannot shallow clone a specific commit directly easily without --depth 1 if it's the tip, 
+            // but if it's history, we need full clone OR fetch.
+            // Efficient way for commit: init, remote add, fetch --depth 1 <sha>, checkout
+            
+            bool is_likely_commit = import->version.size() >= 7 && std::all_of(import->version.begin(), import->version.end(), ::isxdigit);
+            
+            if(is_likely_commit) {
+                 // Manual fetch sequence
+                 // 1. mkdir target_dir
+                 fs::create_directories(target_dir);
+                 
+                 // 2. git init
+                 cmd = "git -C " + target_dir + " init";
+                 if(system(cmd.c_str()) != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return; }
+                 
+                 // 3. git remote add origin <url>
+                 cmd = "git -C " + target_dir + " remote add origin " + import->from.to_std_string();
+                 if(system(cmd.c_str()) != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return; }
+                 
+                 // 4. git fetch --depth 1 origin <commit>
+                 cmd = "git -C " + target_dir + " fetch --depth 1 origin " + import->version.to_std_string();
+                 if(system(cmd.c_str()) != 0) { 
+                     // Fallback: maybe it's a tag that looks like a commit? or commit is deep?
+                     // Try full fetch? Or error out?
+                     std::cerr << "Failed to fetch commit " << import->version << ". It might not be reachable from any branch or --depth 1 failed." << std::endl; 
+                     return; 
+                 }
+                 
+                 // 5. git checkout <commit> (FETCH_HEAD)
+                 cmd = "git -C " + target_dir + " checkout FETCH_HEAD";
+            } else {
+                // Assume tag/branch
+                cmd = "git clone --depth 1 --branch " + import->version.to_std_string() + " " + import->from.to_std_string() + " " + target_dir;
+            }
+        }
+        
+        if(!cmd.empty() && system(cmd.c_str()) != 0) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download/clone remote import '" << import->id << "'" << std::endl;
+            // Clean up potentially empty/partial dir?
+            return;
+        }
+
+    }
+
+    // Create module
+    auto mod = new LabModule(LabModuleType::Directory, std::move(mod_scope), std::move(mod_name));
+    // Add path
+    if(import->subdir.empty()) {
+        mod->paths.emplace_back(target_dir);
+    } else {
+        mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, import->subdir.to_view()));
+    }
+
+    // Add to storage and dependencies
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        mod_storage.insert_module_ptr_dangerous(mod);
+        if(import->requester) {
+            import->requester->add_dependency(mod);
+        } else {
+            job->dependencies.emplace_back(mod);
+        }
+    }
+
+}
+

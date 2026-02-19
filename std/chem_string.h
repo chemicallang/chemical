@@ -92,8 +92,8 @@ namespace chem {
                     storage.heap.length = other.storage.heap.length;
                     storage.heap.capacity = other.storage.heap.capacity;
                     other.state = '0';
-                    other.storage.constant.data = storage.heap.data;
-                    other.storage.constant.length = storage.heap.length;
+                    other.storage.constant.data = "";
+                    other.storage.constant.length = 0;
                     break;
             }
         }

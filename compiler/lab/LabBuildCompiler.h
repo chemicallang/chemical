@@ -107,6 +107,11 @@ public:
     LabJob* current_job;
 
     /**
+     * used to resolve remote imports conflicts manually, via command line
+     */
+    std::unordered_map<std::string, std::string> resolved_remote_imports;
+
+    /**
      * the global allocator is used for things allocated for multiple jobs
      * like inside type builder to allocate types once
      */
@@ -352,6 +357,11 @@ public:
      * process remote imports for the job
      */
     int process_remote_imports(LabJob* job);
+
+    /**
+     * resolves a conflict between two remote imports
+     */
+    int resolve_remote_import_conflict(RemoteImport& existing, RemoteImport& current);
 
     /**
      * will build the lab file and return the callable tcc state

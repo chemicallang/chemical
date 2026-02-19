@@ -92,6 +92,23 @@ ModuleIdentifier ImportPathHandler::get_mod_identifier_from_import_path(const st
     return { chem::string_view(directive_view.data(), found), chem::string_view(directive_view.data() + found, directive_view.size() - found) };
 }
 
+std::string ImportPathHandler::resolve_native_lib(const chem::string_view& mod_name) {
+    auto lib_path = std::string("libs/");
+    lib_path.append(mod_name.view());
+#ifdef DEBUG
+    const auto libsStd = resolve_sibling(exe_path, lib_path);
+    if (std::filesystem::exists(libsStd)) {
+        // debug executable launched in a folder that contains libs/std
+        return libsStd;
+    } else {
+        // debug executable launched with working dir = project source dir
+        return resolve_rel_child_path_str(PROJECT_SOURCE_DIR, "lang/" + lib_path);
+    }
+#else
+    return resolve_sibling(exe_path, lib_path);
+#endif
+}
+
 AtReplaceResult ImportPathHandler::resolve_lib_dir_path(const chem::string_view& scope_name, const chem::string_view& mod_name) {
     // TODO currently we don't handle the scope name
     return lib_path_resolver(mod_name.str(), *this);
@@ -236,72 +253,61 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
     return { resolve_sibling(base_path, import_path), "" };
 }
 
-void ImportPathHandler::figure_out_mod_dep_using_imports(
+inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {
+    ASTDiagnoser diagnoser(loc_man);
+    diagnoser.error(loc) << message;
+    diagnoser.print_diagnostics("lab");
+}
+
+int ImportPathHandler::figure_out_mod_dep_using_imports(
+        LocationManager& loc_man,
         TargetData& targetData,
         const std::string_view& base_path,
         std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
         std::vector<ASTNode*>& nodes
 ) {
-    // some variables for processing
-    std::string imp_module_dir_path;
-    chem::string imp_scope_name;
-    chem::string imp_mod_name;
+    for(const auto stmtNode : nodes) {
+        if(stmtNode->kind() == ASTNodeKind::ImportStmt) {
 
-    for(const auto stmt : nodes) {
-        if(stmt->kind() == ASTNodeKind::ImportStmt) {
-            const auto impStmt = stmt->as_import_stmt_unsafe();
-            if(!impStmt->filePath.empty() && impStmt->filePath.ends_with(".lab")) {
+            const auto stmt = stmtNode->as_import_stmt_unsafe();
+            // skip remote imports
+            if(!stmt->isLocalModuleImport()) {
                 continue;
             }
-            if(impStmt->if_condition != nullptr) {
-                auto enabled = resolve_target_condition(targetData, impStmt->if_condition);
+
+            // check are we even supposed to include this import
+            if(stmt->if_condition != nullptr) {
+                auto enabled = resolve_target_condition(targetData, stmt->if_condition);
                 if(enabled.has_value()) {
                     if(!enabled.value()) {
                         continue;
                     }
                 } else {
-                    // TODO error occurred, no such condition
-                    continue;
+
+                    return 1;
                 }
             }
-            imp_module_dir_path.clear();
-            imp_scope_name.clear();
-            imp_mod_name.clear();
-            if(impStmt->identifier.empty() && !impStmt->filePath.empty()) {
+
+            // handle native libs: import std
+            if(stmt->isNativeLibImport()) {
+                buildLabModuleDependencies.emplace_back(resolve_native_lib(stmt->getSourcePath()));
+                continue;
+            }
+
+            // check relative imports to directory
+            auto& sourcePath = stmt->getSourcePath();
+            if(sourcePath.starts_with("./") || sourcePath.starts_with("../")) {
                 // user has given relative path to a directory / file
-                auto final_path = resolve_sibling(base_path, impStmt->filePath.view());
-                auto fs_path = std::filesystem::path(final_path);
-                if(std::filesystem::is_directory(fs_path)) {
-                    buildLabModuleDependencies.emplace_back(std::move(final_path));
-                    continue;
-                } else {
-                    // TODO, this path is not a directory and is a file
-                    continue;
-                }
-            } else if(!impStmt->identifier.empty()) {
-                const auto idSize = impStmt->identifier.size();
-                if (idSize == 1) {
-                    imp_mod_name.append(impStmt->identifier[0]);
-                } else if (idSize == 2) {
-                    imp_scope_name.append(impStmt->identifier[0]);
-                    imp_mod_name.append(impStmt->identifier[1]);
-                } else {
-                    // TODO handle the error
-                }
+                auto final_path = resolve_sibling(base_path, sourcePath.view());
+                buildLabModuleDependencies.emplace_back(std::move(final_path));
+                continue;
             }
-            if(!imp_mod_name.empty()) {
-                auto result = resolve_lib_dir_path(imp_scope_name.to_chem_view(), imp_mod_name.to_chem_view());
-                if(result.error.empty()) {
-                    imp_module_dir_path.append(result.replaced);
-                } else {
-                    // TODO handle the error
-                }
-            }
-            if(!impStmt->filePath.empty() && !impStmt->identifier.empty()) {
-                // TODO: explicit import for a directory with scope name and module name
-                imp_module_dir_path.append(impStmt->filePath.data(), impStmt->filePath.size());
-            }
-            buildLabModuleDependencies.emplace_back(std::move(imp_module_dir_path));
+
+            error_out(loc_man, stmt->encoded_location(), "couldn't determine import for the local module");
+            return 1;
+
         }
     }
+
+    return 0;
 }

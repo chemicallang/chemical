@@ -222,11 +222,6 @@ public:
     ImportStatement* parseImportStatement(ASTAllocator& allocator);
 
     /**
-     * parses a single or multiple import statements
-     */
-    bool parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes);
-
-    /**
      * get file path for the current file id
      */
     chem::string_view get_file_path();

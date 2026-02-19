@@ -39,7 +39,7 @@ FileNodesIterator get_iterator(SymbolResolver& linker, ImportStatement* stmt) {
     if(p && p->kind() == ASTNodeKind::FileScope) {
         const auto current_file = p->as_file_scope_unsafe();
 //        const auto curr_mod = current_file->parent();
-        const auto result = linker.path_handler.resolve_import_path(current_file->file_path.view(), stmt->filePath.view());
+        const auto result = linker.path_handler.resolve_import_path(current_file->file_path.view(), stmt->getSourcePath().view());
 //        const auto id = linker.path_handler.get_mod_identifier_from_import_path(result.replaced);
         if (result.error.empty()) {
             auto found = linker.declared_files.find(chem::string_view(result.replaced));
@@ -67,10 +67,11 @@ FileNodesIterator get_iterator(SymbolResolver& linker, ImportStatement* stmt) {
 }
 
 void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
-    if (!stmt->as_identifier.empty()) {
-        linker.declare(stmt->as_identifier, stmt);
+    const auto& alias = stmt->getTopLevelAlias();
+    if (!alias.empty()) {
+        linker.declare(alias, stmt);
         stmt->symbols = new std::unordered_map<chem::string_view, ASTNode*>();
-        const auto is_external_module = stmt->filePath[0] == '@';
+        const auto is_external_module = stmt->isExternalModuleLabImport();
         auto itr = get_iterator(linker, stmt);
         if (itr.start) {
             const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;

@@ -113,10 +113,11 @@ extern "C" {
 
 
     struct RemoteImportCBI {
-        chem::string_view id;
         chem::string_view from;
         chem::string_view subdir;
         chem::string_view version;
+        chem::string_view branch;
+        chem::string_view commit;
     };
 
     void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep);

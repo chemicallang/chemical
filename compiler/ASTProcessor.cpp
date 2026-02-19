@@ -581,7 +581,13 @@ bool ASTProcessor::import_chemical_files_recursive(
 
 }
 
-void ASTProcessor::figure_out_direct_imports(
+inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {
+    ASTDiagnoser diagnoser(loc_man);
+    diagnoser.error(loc) << message;
+    diagnoser.print_diagnostics("lab");
+}
+
+bool ASTProcessor::figure_out_direct_imports(
         ASTFileMetaData& fileData,
         std::vector<ASTNode*>& fileNodes,
         std::vector<ASTFileMetaData>& outImports
@@ -592,14 +598,15 @@ void ASTProcessor::figure_out_direct_imports(
 
             auto stmt = node->as_import_stmt_unsafe();
 
-            if(stmt->filePath.empty()) {
-                // this must be 'import std' in build.lab
-                // file path is only in double quotes import "file.ch"
+            if(!stmt->isLocalFileImport()) {
+                // skip native, local or remote module imports
                 continue;
             }
 
+            const auto& path = stmt->getSourcePath();
+
             // resolve the import path of this import statement
-            auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, stmt->filePath.view());
+            auto replaceResult = path_handler.resolve_import_path(fileData.abs_path, path.view());
 
             if(replaceResult.error.empty()) {
 
@@ -609,13 +616,13 @@ void ASTProcessor::figure_out_direct_imports(
 
                 // here since this path begins with '@'
                 // we must determine which module it belongs to, we index modules based on 'scope_name:module_name' format
-                // this format, we expect users to use for importing something for example -> import "@wakaztahir:socket/connect.ch"
                 // sometimes the scope is empty, so user can directly use -> import "@std/fs.ch"
-                if(stmt->filePath[0] == '@') {
+                if(path[0] == '@') {
 
-                    const auto atDirective = path_handler.get_atDirective(stmt->filePath.view());
+                    // get at directive, which contains module name
+                    const auto atDirective = path_handler.get_atDirective(path.view());
 
-                    // TODO this should be present in replace result, and that should be renamed to PathResolutionResult
+                    // determine module
                     const auto found = mod_storage.find_module(atDirective.replaced);
                     if(found) {
 
@@ -626,31 +633,33 @@ void ASTProcessor::figure_out_direct_imports(
                         // this is an error, because we couldn't determine the module for this file
                         // even though it's path begins with a '@' which means it's external to module
 
-                        // however currently we do allow user to declare an alias for a path using '@'
-                        // it could be an alias as well, however checking alias for each import would lead to bad performance
-
-                        // we should do alias for modules instead, because then a module would be resolved by find_module call
-                        // and if not, we can error out based on a flag, because build.lab's direct imports can include modules
-                        // that haven't been created yet, so we must not error there
-
-                        // we could do also alias for paths inside external modules, we can still resolve the module, and change the
-                        // path appropriately, it would require some changes in our path resolver
+                        // TODO: error out here because we couldn't find the module
+                        // error_out(loc_man, stmt->encoded_location(), "couldn't determine module");
+                        // return false;
 
                     }
 
                 }
 
-                outImports.emplace_back(fileId, module, stmt->filePath.str(), std::move(replaceResult.replaced), stmt->as_identifier.str());
+                outImports.emplace_back(fileId, module, path.str(), std::move(replaceResult.replaced), stmt->getTopLevelAlias().str());
 
             } else {
-                std::cerr <<  rang::fg::red << "error:" << rang::fg::reset <<  " resolving import path '" << stmt->filePath << "' in file '" << fileData.abs_path << "' because " << replaceResult.error << std::endl;
+
+                error_out(loc_man, stmt->encoded_location(), "couldn't replace '@' in the path");
+                return false;
+
             }
 
         } else {
+
+            // import statements are supposed to be at the top
             break;
+
         }
 
     }
+
+    return true;
 
 }
 
@@ -780,7 +789,10 @@ bool ASTProcessor::import_chemical_file_recursive(
     }
 
     // figure out files imported by this file
-    figure_out_direct_imports(parentFileData, result.unit.scope.body.nodes, result.imports);
+    const auto success2 = figure_out_direct_imports(parentFileData, result.unit.scope.body.nodes, result.imports);
+    if(!success2) {
+        return false;
+    }
 
     // handle the imports of this file
     return import_chemical_files_recursive(pool, state, result.imports, use_job_allocator);

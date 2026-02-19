@@ -209,10 +209,11 @@ public interface BuildContext {
 }
 
 public struct ImportRepo {
-    var id : std::string_view
     var from : std::string_view
     var subdir : std::string_view
     var version : std::string_view
+    var branch : std::string_view
+    var commit : std::string_view
 }
 
 

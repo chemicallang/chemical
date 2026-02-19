@@ -249,8 +249,7 @@ AtReplaceResult ImportPathHandler::resolve_import_path(const std::string_view& b
             return { "", result.error };
         }
     }
-    // resolve sibling never returns empty path
-    return { resolve_sibling(base_path, import_path), "" };
+    return { absolute_path(resolve_sibling(base_path, import_path)), "" };
 }
 
 inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {

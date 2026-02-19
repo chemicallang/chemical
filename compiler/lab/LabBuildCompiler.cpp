@@ -2993,64 +2993,76 @@ LabBuildCompiler::~LabBuildCompiler() {
     GlobalInterpretScope::dispose_container(container);
 }
 
-int download_remote_import(
+struct RemoteRepoInfo {
+    chem::string mod_scope, mod_name;
+    std::string storage_path;
+    std::string target_dir;
+    bool has_remote_origin = false;
+};
+
+static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const RemoteImport* import) {
+    RemoteRepoInfo info;
+    auto from_path_view = import->from.to_view();
+    auto last_slash = from_path_view.find_last_of('/');
+
+    if(last_slash != std::string::npos) {
+        info.mod_name.append(from_path_view.substr(last_slash + 1));
+        auto parent = from_path_view.substr(0, last_slash);
+        auto second_slash = parent.find_last_of('/');
+        if (second_slash != std::string::npos) {
+             info.has_remote_origin = true;
+             info.mod_scope.append(std::string_view(parent).substr(second_slash + 1));
+        } else {
+             info.mod_scope.append(parent);
+        }
+    } else {
+        info.mod_name.append(from_path_view);
+    }
+
+    info.storage_path = import->from.to_std_string();
+    if(!info.has_remote_origin) {
+        info.storage_path = "github.com/" + info.storage_path;
+    }
+
+    info.target_dir = resolve_rel_child_path_str(remote_mods_dir, info.storage_path);
+    return info;
+}
+
+int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, RemoteImport& current) {
+    // 1 - if the versions / commit hash / branch are same, this means its just a duplicate
+    if (existing.version == current.version && 
+        existing.branch == current.branch && 
+        existing.commit == current.commit &&
+        existing.subdir == current.subdir) {
+        return 0;
+    }
+
+    // placeholder for command line resolution
+    // if(resolved_remote_imports.find(...) != resolved_remote_imports.end()) ...
+
+    std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
+    std::cerr << "version conflict detected for remote import '" << existing.from << "'\n";
+    std::cerr << "  first requested version: " << (existing.version.empty() ? (existing.commit.empty() ? existing.branch : existing.commit) : existing.version) << "\n";
+    std::cerr << "  second requested version: " << (current.version.empty() ? (current.commit.empty() ? current.branch : current.commit) : current.version) << "\n";
+    std::cerr << "  conflict resolution via command line is currently not supported, but planned." << std::endl;
+
+    return 1;
+}
+
+int download_remote_import_group(
     LabBuildCompiler* compiler,
     LabJob* job,
-    RemoteImport* import,
+    std::span<RemoteImport*> imports,
     std::mutex& mutex
 ) {
+    if (imports.empty()) return 0;
+
+    RemoteImport* main_import = imports[0];
     const auto job_build_dir = job->build_dir.to_std_string();
     auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
-    // is github.com or gitlab.com given before the my-org/tools for example
-    // if not given, we use github.com by default
-    // if two slashes present -> origin is present
-    bool has_remote_origin = false;
-
-    // Extract scope and name for LabModule
-    // "my-org/tools" -> scope="my-org", name="tools"
-    // "tools" -> scope="", name="tools"
-    chem::string mod_scope, mod_name;
-    auto from_path_view = import->from.to_view();
-    auto last_slash = from_path_view.find_last_of('/');
-    if(last_slash != std::string::npos) {
-        mod_name.append(from_path_view.substr(last_slash + 1));
-        auto parent = from_path_view.substr(0, last_slash);
-        // If parent has more slashes, take the last part as scope? 
-        // Or take the immediate parent?
-        // User said: "organization or user's username".
-        // In "github.com/org/repo", "org" is scope.
-        // In "org/repo", "org" is scope.
-        // Let's try to find the second to last slash.
-        auto second_slash = parent.find_last_of('/');
-        if (second_slash != std::string::npos) {
-             has_remote_origin = true;
-             mod_scope.append(std::string_view(parent).substr(second_slash + 1));
-        } else {
-             mod_scope.append(parent);
-        }
-    } else {
-        mod_name.append(from_path_view);
-    }
-
-    // Logic to strip domain if present (simple heuristic)
-    // We want unique path, so using the full 'from' path inside remote_mods is safest
-    // e.g. remote/github.com/user/repo
-    // But user asked for "scope identifier and repo name".
-    // If input is "github.com/my-org/tools", we might want "my-org/tools".
-    // But "gitlab.com/my-org/tools" should probably be separate?
-    // Let's use the full string but ensure it's a valid path.
-    // Actually, user example: "my-org/tools".
-    // Let's just use import->from as the relative path structure.
-    auto storage_path = import->from.to_std_string();
-
-    // prepend with github.com/ by default if remote origin not present
-    if(!has_remote_origin) {
-        storage_path = "github.com/" + storage_path;
-    }
-
-    // Sanitize path? For now assume it's a valid relative path.
-    auto target_dir = resolve_rel_child_path_str(remote_mods_dir, storage_path);
+    auto info = get_remote_repo_info(remote_mods_dir, main_import);
+    auto target_dir = std::move(info.target_dir);
 
     if(!fs::exists(target_dir)) {
         // Need to download
@@ -3059,7 +3071,7 @@ int download_remote_import(
         fs::create_directories(fs::path(target_dir).parent_path());
 
         // Prepare the URL
-        auto url = storage_path;
+        auto url = info.storage_path;
 
         // prepend with https by default if not present
         if (url.find("://") == std::string::npos && url.find("git@") != 0) {
@@ -3069,7 +3081,7 @@ int download_remote_import(
         std::string cmd;
         std::string git_base = "git -c advice.detachedHead=false ";
         // With version
-        if(!import->commit.empty()) {
+        if(!main_import->commit.empty()) {
              // Manual fetch sequence
              // 1. mkdir target_dir
              fs::create_directories(target_dir);
@@ -3085,17 +3097,17 @@ int download_remote_import(
              if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
 
              // 4. git fetch --depth 1 origin <commit>
-             cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + import->commit.to_std_string();
+             cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + main_import->commit.to_std_string();
              auto result4 = system(cmd.c_str());
              if(result4 != 0) {
-                 std::cerr << "Failed to fetch commit " << import->commit << ". It might not be reachable from any branch or --depth 1 failed." << std::endl;
+                 std::cerr << "Failed to fetch commit " << main_import->commit << ". It might not be reachable from any branch or --depth 1 failed." << std::endl;
                  return result4;
              }
 
              // 5. git checkout <commit> (FETCH_HEAD)
              cmd = git_base + "-C " + target_dir + " checkout --quiet FETCH_HEAD";
         } else {
-            auto& version_or_branch = import->version.empty() ? import->branch : import->version;
+            auto& version_or_branch = main_import->version.empty() ? main_import->branch : main_import->version;
             // Assume tag/branch
             if(version_or_branch.empty()) {
                 cmd = git_base + "clone --quiet --depth 1 " + url + " " + target_dir;
@@ -3108,11 +3120,11 @@ int download_remote_import(
             auto result5 = system(cmd.c_str());
             if(result5 != 0) {
                 std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download remote import";
-                std::cerr << " from '" << import->from << '\'';
-                if(!import->version.empty()) {
-                    std::cerr << " version '" << import->version << '\'';
-                } else if(!import->branch.empty()) {
-                    std::cerr << " branch '" << import->branch << '\'';
+                std::cerr << " from '" << main_import->from << '\'';
+                if(!main_import->version.empty()) {
+                    std::cerr << " version '" << main_import->version << '\'';
+                } else if(!main_import->branch.empty()) {
+                    std::cerr << " branch '" << main_import->branch << '\'';
                 }
                 // std::cerr << "\nfailed command: " << cmd;
                 std::cerr << std::endl;
@@ -3125,22 +3137,27 @@ int download_remote_import(
     }
 
     // Create module
-    auto mod = new LabModule(LabModuleType::Directory, std::move(mod_scope), std::move(mod_name));
-    // Add path
-    if(import->subdir.empty()) {
+    auto mod = new LabModule(LabModuleType::Directory, std::move(info.mod_scope), std::move(info.mod_name));
+
+    // we must only add the path once, even if another import requests a subdir
+    // because if we add the import path twice, it will cause duplicate symbols
+    if(main_import->subdir.empty()) {
         mod->paths.emplace_back(target_dir);
     } else {
-        mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, import->subdir.to_view()));
+        mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, main_import->subdir.to_view()));
     }
 
-    // Add to storage and dependencies
+    // Add path to storage and link requesters
     {
         std::lock_guard<std::mutex> lock(mutex);
         compiler->mod_storage.insert_module_ptr_dangerous(mod);
-        if(import->requester) {
-            import->requester->add_dependency(mod);
-        } else {
-            job->dependencies.emplace_back(mod);
+        
+        for (auto import : imports) {
+            if(import->requester) {
+                import->requester->add_dependency(mod);
+            } else {
+                job->dependencies.emplace_back(mod);
+            }
         }
     }
 
@@ -3154,21 +3171,67 @@ int LabBuildCompiler::process_remote_imports(LabJob* job) {
         return 0;
     }
 
-    std::cout << "[lab] processing " << job->remote_imports.size() << " remote imports..." << std::endl;
+    const auto job_build_dir = job->build_dir.to_std_string();
+    auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
-    std::mutex mutex;
-    std::vector<std::future<int>> futures;
-    futures.reserve(job->remote_imports.size());
-
-    std::atomic<int> completed = 0;
-    const int total = job->remote_imports.size();
+    // 1 - Deduplicate and group imports by target repo
+    struct ImportInfo {
+        RemoteImport* import;
+        std::string target_dir;
+    };
+    std::vector<ImportInfo> infos;
+    infos.reserve(job->remote_imports.size());
 
     for(auto& import : job->remote_imports) {
-        futures.emplace_back(pool.push([this, job, &import, &mutex, &completed, total](int id) {
-            auto result = download_remote_import(this, job, &import, mutex);
+        infos.push_back({&import, get_remote_repo_info(remote_mods_dir, &import).target_dir});
+    }
+
+    // sort by target_dir to group them
+    std::sort(infos.begin(), infos.end(), [](const ImportInfo& a, const ImportInfo& b) {
+        return a.target_dir < b.target_dir;
+    });
+
+    // Create groups of imports that point to the same repo
+    std::vector<RemoteImport*> group_ptrs;
+    group_ptrs.reserve(infos.size());
+    struct Group {
+        size_t offset;
+        size_t size;
+    };
+    std::vector<Group> groups;
+
+    for (size_t i = 0; i < infos.size(); ) {
+        size_t start = i;
+        RemoteImport* first = infos[i].import;
+        group_ptrs.push_back(first);
+        i++;
+        while (i < infos.size() && infos[i].target_dir == infos[start].target_dir) {
+            if (resolve_remote_import_conflict(*first, *infos[i].import) != 0) {
+                return 1;
+            }
+            group_ptrs.push_back(infos[i].import);
+            i++;
+        }
+        groups.push_back({group_ptrs.size() - (i - start), i - start});
+    }
+
+    // 2 - Launch downloads in parallel
+    std::mutex mutex;
+    std::vector<std::future<int>> futures;
+    futures.reserve(groups.size());
+
+    std::atomic<int> completed = 0;
+    const auto total = groups.size();
+
+    std::cout << "[lab] processing " << total << " remote imports" << std::endl;
+
+    for(const auto& group : groups) {
+        std::span<RemoteImport*> import_span(&group_ptrs[group.offset], group.size);
+        futures.emplace_back(pool.push([this, job, import_span, &mutex, &completed, total](int id) {
+            auto result = download_remote_import_group(this, job, import_span, mutex);
             const int done = ++completed;
             if(result == 0) {
-                std::cout << "[lab] downloaded " << done << "/" << total << " remote imports\r" << std::flush;
+                std::cout << "[lab] downloaded " << done << "/" << total << " remote import groups\r" << std::flush;
             }
             return result;
         }));

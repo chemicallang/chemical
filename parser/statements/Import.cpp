@@ -18,103 +18,157 @@ inline bool consumeDotOrDCol(BasicParser& parser) {
     }
 }
 
-bool parseImportFromPart(BasicParser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
-    if (parser.consumeToken(TokenType::FromKw)) {
-        auto str2 = parser.parseString(allocator);
-        if(str2.has_value()) {
-            stmt->filePath = str2.value();
-
-            // parse version and subdir
-            while(true) {
-                if(parser.token->type == TokenType::Identifier) {
-                    if(parser.token->value == "version") {
-                        parser.token++;
-                        auto ver = parser.parseString(allocator);
-                        if(ver.has_value()) {
-                            stmt->version = ver.value();
-                            continue;
-                        } else {
-                            parser.unexpected_error("expected string literal after 'version'");
-                            return false;
-                        }
-                    } else if(parser.token->value == "subdir") {
-                        parser.token++;
-                        auto sub = parser.parseString(allocator);
-                        if(sub.has_value()) {
-                            stmt->subdir = sub.value();
-                            continue;
-                        } else {
-                            parser.unexpected_error("expected string literal after 'subdir'");
-                            return false;
-                        }
-                    }
-                }
-                break;
-            }
-
-            return true;
+/**
+ * Helper to parse symbol paths like a.b.c or a::b::c
+ */
+bool parseSymbolPath(BasicParser& parser, ASTAllocator& allocator, std::vector<chem::string_view>& parts) {
+    do {
+        auto id = parser.consumeIdentifierOrKeyword();
+        if (id) {
+            parts.push_back(parser.allocate_view(allocator, id->value));
         } else {
-            parser.unexpected_error("expected path after 'from' in import statement");
+            break;
+        }
+    } while (consumeDotOrDCol(parser));
+    return !parts.empty();
+}
+
+/**
+ * Helper to parse a single item: "some.symbol as alias"
+ */
+bool parseImportItem(BasicParser& parser, ASTAllocator& allocator, ImportItem& item) {
+    if (!parseSymbolPath(parser, allocator, item.parts)) return false;
+
+    if (parser.consumeToken(TokenType::AsKw)) {
+        auto alias = parser.consumeIdentifierOrKeyword();
+        if (alias) {
+            item.alias = parser.allocate_view(allocator, alias->value);
+        } else {
+            parser.unexpected_error("expected identifier after 'as' in import item");
             return false;
         }
+    }
+    return true;
+}
 
-    } else {
-        return true;
+/**
+ * Parses the tail end of an import: version "x" subdir "y" branch "z" etc.
+ */
+void parseImportMetadata(BasicParser& parser, ASTAllocator& allocator, ImportStatement* stmt) {
+    while (true) {
+        if (parser.token->type != TokenType::Identifier) break;
+
+        chem::string_view key = parser.token->value;
+        parser.token++; // consume key
+
+        auto val = parser.parseString(allocator);
+        if (!val.has_value()) {
+            parser.unexpected_error("expected string literal after metadata key");
+            return;
+        }
+
+        if (key == "version") stmt->setVersion(val.value());
+        else if (key == "subdir") stmt->setSubdir(val.value());
+        else if (key == "branch") stmt->setBranch(val.value());
+        else if (key == "commit") stmt->setCommit(val.value());
+        else {
+            parser.unexpected_error("unknown import metadata keyword");
+        }
     }
 }
 
 ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bool error_out) {
-    auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement("", parent_node, loc_single(token));
-    auto str = parseString(allocator);
-    if (str.has_value()) {
-        stmt->filePath = str.value();
-        if(consumeToken(TokenType::AsKw)) {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                stmt->as_identifier = allocate_view(allocator, id->value);
-            } else {
-                unexpected_error("expected identifier after 'as' in import statement");
-                return stmt;
-            }
-        }
-    } else {
+    auto loc = loc_single(token);
+    auto stmt = new (allocator.allocate<ImportStatement>()) ImportStatement(ImportStatementKind::NativeLib, "", parent_node, loc);
+
+    // 1. Handle { symbol1, symbol2 }
+    if (consumeToken(TokenType::LBrace)) {
         do {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                stmt->identifier.emplace_back(allocate_view(allocator, id->value));
-            } else {
-                break;
+            ImportItem item;
+            if (parseImportItem(*this, allocator, item)) {
+                stmt->addImportItem(std::move(item));
             }
-        } while (consumeDotOrDCol(*this));
-        if(stmt->identifier.empty()) {
-            if(error_out) {
-                unexpected_error("expected a single identifier or a string path in import statement");
-                return stmt;
-            } else {
-                return nullptr;
-            }
-        }
-        if(!parseImportFromPart(*this, allocator, stmt)) {
+            if (token->type == TokenType::RBrace) break;
+        } while (consumeToken(TokenType::CommaSym));
+
+        if (!consumeToken(TokenType::RBrace)) {
+            unexpected_error("expected '}' after import list");
             return stmt;
         }
-        if(consumeToken(TokenType::AsKw)) {
-            auto id = consumeIdentifierOrKeyword();
-            if(id) {
-                stmt->as_identifier = allocate_view(allocator, id->value);
-            } else {
-                unexpected_error("expected identifier after 'as' in import statement");
-                return stmt;
+
+        if (!consumeToken(TokenType::FromKw)) {
+            unexpected_error("expected 'from' after brace-enclosed import list");
+            return stmt;
+        }
+
+        auto source = parseString(allocator);
+        if (source.has_value()) {
+            stmt->setSourcePath(source.value());
+            stmt->setImportStmtKindDangerously(ImportStatementKind::LocalOrRemote);
+        } else {
+            // Handle 'from std' (identifier as source)
+            std::vector<chem::string_view> pathParts;
+            if (parseSymbolPath(*this, allocator, pathParts)) {
+                // For simplicity, join parts back or store as string
+                stmt->setSourcePath(pathParts[0]); // assuming single ID for native modules
             }
         }
     }
-    if(consumeToken(TokenType::IfKw)) {
-        const auto iffy = parseIffyConditional(allocator);;
-        if(iffy) {
-            stmt->if_condition = iffy;
+        // 2. Handle "path/string" as alias
+    else if (auto str = parseString(allocator)) {
+        stmt->setSourcePath(str.value());
+        stmt->setImportStmtKindDangerously(ImportStatementKind::LocalOrRemote);
+    }
+        // 3. Handle identifier based: import a.b.c [from "path"] [as alias]
+    else {
+        std::vector<chem::string_view> primaryPath;
+        if (parseSymbolPath(*this, allocator, primaryPath)) {
+            // Check if this is "import symbol from source"
+            if (consumeToken(TokenType::FromKw)) {
+                ImportItem item;
+                item.parts = std::move(primaryPath);
+                stmt->addImportItem(std::move(item));
+
+                auto source = parseString(allocator);
+                if (source.has_value()) {
+                    stmt->setSourcePath(source.value());
+                    stmt->setImportStmtKindDangerously(ImportStatementKind::LocalOrRemote);
+                }
+                else {
+                    std::vector<chem::string_view> srcParts;
+                    if(parseSymbolPath(*this, allocator, srcParts)) stmt->setSourcePath(srcParts[0]);
+                }
+            } else {
+                // It's just "import std" or "import std.sub"
+                // We treat the first part as the source for the compatibility layer
+                stmt->setSourcePath(primaryPath[0]);
+                if (primaryPath.size() > 1) {
+                    ImportItem item;
+                    item.parts = std::move(primaryPath); // The whole path is the symbol
+                    stmt->addImportItem(std::move(item));
+                }
+            }
         } else {
-            unexpected_error("expected if condition identifier in import statement");
+            if (error_out) unexpected_error("expected identifier or string in import");
+            return nullptr;
         }
     }
+
+    // 4. Global Alias: import ... as alias
+    if (consumeToken(TokenType::AsKw)) {
+        auto id = consumeIdentifierOrKeyword();
+        if (id) stmt->setTopLevelAlias(allocate_view(allocator, id->value));
+    }
+
+    // 5. Remote Metadata (version, subdir, etc)
+    parseImportMetadata(*this, allocator, stmt);
+
+    // 6. Conditionals: if condition
+    if (consumeToken(TokenType::IfKw)) {
+        const auto iffy = parseIffyConditional(allocator);
+        if (iffy) stmt->if_condition = iffy;
+    }
+
     return stmt;
 }
 
@@ -125,85 +179,4 @@ ImportStatement* BasicParser::parseImportStatement(ASTAllocator& allocator) {
     }
     token++;
     return parseImportStmtAfterKw(allocator, false);
-}
-
-bool BasicParser::parseSingleOrMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
-    auto& kw_tok = *token;
-    if (kw_tok.type != TokenType::ImportKw) {
-        return false;
-    }
-    token++;
-    if(token->type == TokenType::LParen) {
-        token++;
-
-        const auto start = nodes.size();
-
-        // parse imports optionally
-        while(true) {
-            consumeNewLines();
-            const auto single = parseImportStmtAfterKw(allocator, false);
-            if(single) {
-                nodes.emplace_back(single);
-            } else {
-                break;
-            }
-        }
-
-        if(token->type == TokenType::RParen) {
-            token++;
-        }
-
-        if(start == nodes.size()) {
-            error("not a single import inside the import list found");
-            return true;
-        }
-
-        if(token->type == TokenType::FromKw) {
-
-            const auto first = nodes[start]->as_import_stmt_unsafe();
-            if(!first->filePath.empty()) {
-                error("import statement inside the import list contains a path even though list has a path");
-                return true;
-            }
-
-            if(!parseImportFromPart(*this, allocator, first)) {
-                return true;
-            }
-
-            // give all imports the path
-            unsigned i = start;
-            while(i < nodes.size()) {
-                const auto imp = nodes[i]->as_import_stmt_unsafe();
-                if(imp->filePath.empty()) {
-                   imp->filePath = first->filePath;
-                } else {
-                    error("import statement inside the import list already has a path");
-                }
-                i++;
-            }
-
-        } else {
-            // check all imports have paths
-            unsigned i = start;
-            while(i < nodes.size()) {
-                const auto imp = nodes[i]->as_import_stmt_unsafe();
-                if(imp->filePath.empty()) {
-                    error("import statement inside the import list is missing a path");
-                }
-                i++;
-            }
-        }
-
-        return true;
-
-    } else {
-        const auto single = parseImportStmtAfterKw(allocator, false);
-        if(single) {
-            nodes.emplace_back(single);
-            return true;
-        } else {
-            unexpected_error("expected an import inside the import list");
-            return false;
-        }
-    }
 }

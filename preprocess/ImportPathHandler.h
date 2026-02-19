@@ -10,6 +10,8 @@
 
 struct GlobalContainer;
 
+class LocationManager;
+
 std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
 /**
@@ -75,6 +77,11 @@ public:
     ModuleIdentifier get_mod_identifier_from_import_path(const std::string_view& path);
 
     /**
+     * resolve path to native library
+     */
+    std::string resolve_native_lib(const chem::string_view& mod_name);
+
+    /**
      * finds the directory path from scope and mod name
      */
     AtReplaceResult resolve_lib_dir_path(const chem::string_view& scope_name, const chem::string_view& mod_name);
@@ -108,7 +115,8 @@ public:
      * in .mod or build.lab files imports on modules are done using import statements
      * this function figures out those dependencies
      */
-    void figure_out_mod_dep_using_imports(
+    int figure_out_mod_dep_using_imports(
+            LocationManager& loc_man,
             TargetData& targetData,
             const std::string_view& base_path,
             std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,

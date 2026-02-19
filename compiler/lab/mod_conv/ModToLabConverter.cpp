@@ -19,16 +19,16 @@ void writeWithSep(std::vector<chem::string_view>& list, char sep, std::ostream& 
 }
 
 void writeAsIdentifier(ImportStatement* stmt, unsigned index, std::ostream& output) {
-    if(!stmt->as_identifier.empty()) {
+    if(!stmt->getTopLevelAlias().empty()) {
         output << "__mod_";
-        output << stmt->as_identifier;
+        output << stmt->getTopLevelAlias();
     } else {
-        if(stmt->identifier.empty()) {
+        //if(stmt->identifier.empty()) {
             output << "__mod_" << index << "_stmt";
-        } else {
-            output << "__mod_";
-            writeWithSep(stmt->identifier, '_', output);
-        }
+        //} else {
+        //    output << "__mod_";
+        //    writeWithSep(stmt->identifier, '_', output);
+        //}
     }
 }
 
@@ -65,20 +65,16 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
-                if(!stmt->version.empty() || !stmt->subdir.empty()) {
+                if(stmt->isRemoteImport()) {
                     // skip remote imports here
                     continue;
                 }
-                if(stmt->filePath.empty()) {
-                    output << "import \"@";
-                    writeWithSep(stmt->identifier, ':', output);
-                    output << "/build.lab\" as ";
+                if(stmt->isNativeLibImport()) {
+                    output << "import \"@" << stmt->getSourcePath() << "/build.lab\" as ";
                     writeAsIdentifier(stmt, i, output);
                     output << '\n';
                 } else {
-                    output << "import \"";
-                    output << stmt->filePath;
-                    output << "/build.lab\" as ";
+                    output << "import \"" << stmt->getSourcePath() << "/build.lab\" as ";
                     writeAsIdentifier(stmt, i, output);
                     output << '\n';
                 }
@@ -126,14 +122,14 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
-                if(!stmt->version.empty() || !stmt->subdir.empty()) {
+                if(stmt->isRemoteImport()) {
                     // remote import, skip adding to deps list for now
-                } else {
-                    // local import
-                    writeAsIdentifier(stmt, i, output);
-                    output << ".build(ctx, __chx_job), ";
-                    deps_size++;
+                    continue;
                 }
+                // local import
+                writeAsIdentifier(stmt, i, output);
+                output << ".build(ctx, __chx_job), ";
+                deps_size++;
                 break;
             }
             default:
@@ -152,51 +148,16 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
                 const auto stmt = node->as_import_stmt_unsafe();
-                if(!stmt->version.empty() || !stmt->subdir.empty()) {
+                if(stmt->isRemoteImport()) {
                     // remote import
-                    // Generate: var __imp_repo_X = ImportRepo(...);
-                    // ctx.fetch_mod_dependency(__chx_job, mod, &__imp_repo_X);
-                    
-                    std::string id_str;
-                    if(!stmt->as_identifier.empty()) {
-                         id_str = stmt->as_identifier.str();
-                    } else if(stmt->identifier.empty()) {
-                         // identifier list is empty but file path present?
-                         // "import ... from ..."
-                         // If no identifier, how do we use it?
-                         // "import 'path'"?
-                         // Assuming there is an identifier for `as`.
-                         // If not, we generate a unique ID based on index.
-                         id_str = "__mod_" + std::to_string(i) + "_stmt"; // Or just use index
-                    } else {
-                        // use first identifier?
-                         if(stmt->identifier.size() == 1) {
-                             id_str = stmt->identifier[0].str();
-                         } else {
-                             // complex import?
-                             id_str = "__mod_" + std::to_string(i);
-                         }
-                    }
-                    
-                    // Actually `ImportRepo` needs `id`. This `id` is the module name/id in `RemoteImport`.
-                    // User said: "identifier is the actual identifier".
-                    // If `import glib from ...`, id is `glib`.
-                    
-                    if(!stmt->identifier.empty()) {
-                         id_str = stmt->identifier[0].str();
-                    } else if(!stmt->as_identifier.empty()){
-                         id_str = stmt->as_identifier.str();
-                    } else {
-                         id_str = "remote_" + std::to_string(i);
-                    }
-
-                    output << "\tvar __imp_repo_" << i << " = ImportRepo(\n";
-                    output << "\t\t\"" << id_str << "\",\n"; // id
-                    output << "\t\t\"" << stmt->filePath << "\",\n"; // from
-                    output << "\t\t\"" << stmt->subdir << "\",\n"; // subdir
-                    output << "\t\t\"" << stmt->version << "\"\n"; // version
-                    output << "\t);\n";
-                    output << "\tctx.fetch_mod_dependency(__chx_job, mod, &__imp_repo_" << i << ");\n";
+                    // ctx.fetch_mod_dependency(__chx_job, mod, ImportRepo{...});
+                    output << "\tctx.fetch_mod_dependency(__chx_job, mod, ImportRepo {\n";
+                    output << "\t\tfrom: \"" << stmt->getSourcePath() << "\",\n"; // from
+                    if(!stmt->getSubdir().empty()) output << "\t\tsubdir: \"" << stmt->getSubdir() << "\",\n"; // subdir
+                    if(!stmt->getVersion().empty()) output << "\t\tversion: \"" << stmt->getVersion() << "\",\n"; // version
+                    if(!stmt->getBranch().empty()) output << "\t\tbranch: \"" << stmt->getBranch() << "\",\n"; // branch
+                    if(!stmt->getCommit().empty()) output << "\t\tcommit: \"" << stmt->getCommit() << "\",\n"; // commit
+                    output << "\t});\n";
                 }
                 break;
             }

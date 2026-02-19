@@ -237,8 +237,9 @@ public:
     /**
      * figures out direct imports of the given file (fileData), the fileNodes are the nodes
      * that are contained inside the file
+     * returns true on success
      */
-    void figure_out_direct_imports(
+    bool figure_out_direct_imports(
             ASTFileMetaData& fileData,
             std::vector<ASTNode*>& fileNodes,
             std::vector<ASTFileMetaData>& outImports

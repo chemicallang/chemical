@@ -83,6 +83,36 @@ namespace chem {
             return { data_, size_ };
         }
 
+        // --- STARTS WITH ---
+
+        bool starts_with(const char* other, size_t other_len) const {
+            if (other_len > size())
+                return false;
+            return std::memcmp(data(), other, other_len) == 0;
+        }
+
+        inline bool starts_with(const char* Str) const {
+            return starts_with(Str, Str ?
+                                    #if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
+                                    __builtin_strlen(Str)
+                                    #else
+                                    std::char_traits<char>::length(Str)
+                                    #endif
+                                        : 0);
+        }
+
+        [[nodiscard]]
+        inline bool starts_with(const std::string_view& other) const {
+            return starts_with(other.data(), other.size());
+        }
+
+        [[nodiscard]]
+        inline bool starts_with(const chem::string_view& other) const {
+            return starts_with(other.data(), other.size());
+        }
+
+        // --- ENDS WITH ---
+
         bool ends_with(const char* other, size_t other_len) const {
             // If other_data is longer than data, data cannot end with other_data.
             if (other_len > size())

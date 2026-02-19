@@ -15,10 +15,12 @@
 struct LabModule;
 
 struct RemoteImport {
-    chem::string id;
     chem::string from;
     chem::string subdir;
+    // either a commit or a version should be given
     chem::string version;
+    chem::string branch;
+    chem::string commit;
     LabModule* requester = nullptr;
 };
 

@@ -52,22 +52,10 @@ uint64_t BasicParser::loc_single(Position& pos, unsigned int length) {
     return loc_man.addLocation(file_id, pos.line, pos.character, pos.line, pos.character + length);
 }
 
-ASTNode* parseImportLevelStmt(Parser* parser, ASTAllocator& allocator) {
-    while(true) {
-        const auto type = parser->token->type;
-        if(type == TokenType::NewLine) {
-            parser->token++;
-        } else {
-            break;
-        }
-    }
-    return (ASTNode*) parser->parseImportStatement(allocator);
-}
-
 void Parser::parseTopLevelMultipleImportStatements(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     while (true) {
         consumeNewLines();
-        const auto node = parseImportLevelStmt(this, allocator);
+        const auto node = parseImportStatement(allocator);
         if(node) {
             nodes.emplace_back((ASTNode*) node);
         } else {
@@ -151,8 +139,9 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                 break;
             }
             case TokenType::ImportKw: {
-                if(!parseSingleOrMultipleImportStatements(allocator, nodes)) {
-                    goto loop_break;
+                const auto stmt = parseImportStatement(allocator);
+                if(stmt) {
+                    nodes.emplace_back((ASTNode*) stmt);
                 }
                 break;
             }

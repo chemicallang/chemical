@@ -225,11 +225,81 @@ void RepresentationVisitor::VisitContinueStmt(ContinueStatement *continueStateme
     write("continue;");
 }
 
+void write_import_item(RepresentationVisitor& visitor, const ImportItem& item) {
+    bool first_item = true;
+    for(const auto& part : item.parts) {
+        if(first_item) {
+            first_item = false;
+        } else {
+            visitor.write('.');
+        }
+        visitor.write(part);
+    }
+    if(!item.alias.empty()) {
+        visitor.write(" as ");
+        visitor.write(item.alias);
+    }
+}
+
 void RepresentationVisitor::VisitImportStmt(ImportStatement *stmt) {
     write("import ");
-    write('\'');
-    write(stmt->filePath);
-    write('\'');
+
+    auto& import_items = stmt->getImportItems();
+    if(!import_items.empty()) {
+        write("{ ");
+        bool first_item = true;
+        for(const auto& item : import_items) {
+            if(first_item) {
+                first_item = false;
+            } else {
+                write(", ");
+            }
+            write_import_item(*this, item);
+        }
+        write(" } from ");
+    }
+
+    if(stmt->isNativeLibImport()) {
+        write(stmt->getSourcePath());
+    } else {
+        write('"');
+        write(stmt->getSourcePath());
+        write('"');
+    }
+
+    const auto& alias = stmt->getTopLevelAlias();
+    if(!alias.empty()) {
+        write(" as ");
+        write(alias);
+    }
+
+    const auto& version = stmt->getVersion();
+    const auto& subdir = stmt->getSubdir();
+    const auto& branch = stmt->getBranch();
+    const auto& commit = stmt->getCommit();
+
+    if(!version.empty()) {
+        write(" version ");
+        write(version);
+    }
+
+    if(!subdir.empty()) {
+        write(" subdir ");
+        write(subdir);
+    }
+
+    if(!branch.empty()) {
+        write(" branch ");
+        write(branch);
+    }
+
+    if(!commit.empty()) {
+        write(" commit ");
+        write(commit);
+    }
+
+    // TODO: write the if conditional
+
 }
 
 void RepresentationVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {

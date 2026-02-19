@@ -2209,12 +2209,14 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
 
     // this function figures out dependencies based on import statements
-    path_handler.figure_out_mod_dep_using_imports(
+    auto figure_dep_imports_status = path_handler.figure_out_mod_dep_using_imports(
+            loc_man,
             job->target_data,
             modFilePathView,
             buildLabModuleDependencies,
             modFileData.scope.body.nodes
     );
+    if(figure_dep_imports_status != 0) return nullptr;
 
     // these are modules imported by the build.lab
     // however we must build their build.lab or chemical.mod into a LabModule*
@@ -2290,7 +2292,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // figure out direct imported by this build.lab file
     auto& direct_files_in_lab = labFileResult.imports;
-    lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, direct_files_in_lab);
+    auto direct_imports_success = lab_processor.figure_out_direct_imports(buildLabMetaData, labFileResult.unit.scope.body.nodes, direct_files_in_lab);
+    if(!direct_imports_success) {
+        return nullptr;
+    }
 
     if(verbose) {
         std::cout << "[lab] figured out direct imports, importing files" << std::endl;
@@ -2371,12 +2376,14 @@ TCCState* LabBuildCompiler::built_lab_file(
     // based on imports figures out which modules have been imported
     // TODO: we aren't determining module dependency from other imported build.lab files
     // this just determines module dependencies from a single (root build.lab) file
-    path_handler.figure_out_mod_dep_using_imports(
+    auto figure_dep_imports_status = path_handler.figure_out_mod_dep_using_imports(
+        loc_man,
         job->target_data,
         path_view,
         buildLabModuleDependencies,
         labFileResult.unit.scope.body.nodes
     );
+    if(figure_dep_imports_status != 0) return nullptr;
 
     // direct module dependencies (in no valid order)
     auto& mod_dependencies = chemical_lab_module.dependencies;
@@ -2995,11 +3002,37 @@ int download_remote_import(
     const auto job_build_dir = job->build_dir.to_std_string();
     auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
-    // Determine storage directory from 'from' (e.g. github.com/user/repo -> user/repo)
-    // If 'from' has no slashes, fallback to 'id'
-    std::string storage_path;
-    auto from_view = import->from.to_view();
-    
+    // is github.com or gitlab.com given before the my-org/tools for example
+    // if not given, we use github.com by default
+    // if two slashes present -> origin is present
+    bool has_remote_origin = false;
+
+    // Extract scope and name for LabModule
+    // "my-org/tools" -> scope="my-org", name="tools"
+    // "tools" -> scope="", name="tools"
+    chem::string mod_scope, mod_name;
+    auto from_path_view = import->from.to_view();
+    auto last_slash = from_path_view.find_last_of('/');
+    if(last_slash != std::string::npos) {
+        mod_name.append(from_path_view.substr(last_slash + 1));
+        auto parent = from_path_view.substr(0, last_slash);
+        // If parent has more slashes, take the last part as scope? 
+        // Or take the immediate parent?
+        // User said: "organization or user's username".
+        // In "github.com/org/repo", "org" is scope.
+        // In "org/repo", "org" is scope.
+        // Let's try to find the second to last slash.
+        auto second_slash = parent.find_last_of('/');
+        if (second_slash != std::string::npos) {
+             has_remote_origin = true;
+             mod_scope.append(std::string_view(parent).substr(second_slash + 1));
+        } else {
+             mod_scope.append(parent);
+        }
+    } else {
+        mod_name.append(from_path_view);
+    }
+
     // Logic to strip domain if present (simple heuristic)
     // We want unique path, so using the full 'from' path inside remote_mods is safest
     // e.g. remote/github.com/user/repo
@@ -3009,36 +3042,15 @@ int download_remote_import(
     // Let's use the full string but ensure it's a valid path.
     // Actually, user example: "my-org/tools".
     // Let's just use import->from as the relative path structure.
-    storage_path = import->from.to_std_string();
-    
+    auto storage_path = import->from.to_std_string();
+
+    // prepend with github.com/ by default if remote origin not present
+    if(!has_remote_origin) {
+        storage_path = "github.com/" + storage_path;
+    }
+
     // Sanitize path? For now assume it's a valid relative path.
     auto target_dir = resolve_rel_child_path_str(remote_mods_dir, storage_path);
-
-    // Extract scope and name for LabModule
-    // "my-org/tools" -> scope="my-org", name="tools"
-    // "tools" -> scope="", name="tools"
-    chem::string mod_scope, mod_name;
-    auto last_slash = storage_path.find_last_of('/');
-    if(last_slash != std::string::npos) {
-        mod_name.append(std::string_view(storage_path).substr(last_slash + 1));
-        auto parent = std::string_view(storage_path).substr(0, last_slash);
-        // If parent has more slashes, take the last part as scope? 
-        // Or take the immediate parent?
-        // User said: "organization or user's username".
-        // In "github.com/org/repo", "org" is scope.
-        // In "org/repo", "org" is scope.
-        // Let's try to find the second to last slash.
-        auto second_slash = parent.find_last_of('/');
-        if (second_slash != std::string::npos) {
-             mod_scope.append(std::string_view(parent).substr(second_slash + 1));
-        } else {
-             mod_scope.append(parent);
-        }
-    } else {
-        mod_name.append(storage_path);
-    }
-    
-    if(mod_name.empty()) mod_name.append(import->id.to_view());
 
     if(!fs::exists(target_dir)) {
         // Need to download
@@ -3047,72 +3059,62 @@ int download_remote_import(
         fs::create_directories(fs::path(target_dir).parent_path());
 
         // Prepare the URL
-        std::string url = import->from.to_std_string();
+        auto url = storage_path;
+
+        // prepend with https by default if not present
         if (url.find("://") == std::string::npos && url.find("git@") != 0) {
             url = "https://" + url;
         }
 
         std::string cmd;
         std::string git_base = "git -c advice.detachedHead=false ";
-        if(import->version.empty()) {
-            // Default: shallow clone depth 1
-             cmd = git_base + "clone --quiet --depth 1 ";
-             cmd.append(url);
-             cmd.append(" ");
-             cmd.append(target_dir);
+        // With version
+        if(!import->commit.empty()) {
+             // Manual fetch sequence
+             // 1. mkdir target_dir
+             fs::create_directories(target_dir);
+
+             // 2. git init
+             cmd = git_base + "-C " + target_dir + " init --quiet";
+             auto result2 = system(cmd.c_str());
+             if(result2 != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return result2; }
+
+             // 3. git remote add origin <url>
+             cmd = git_base + "-C " + target_dir + " remote add origin " + url;
+             auto result3 = system(cmd.c_str());
+             if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
+
+             // 4. git fetch --depth 1 origin <commit>
+             cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + import->commit.to_std_string();
+             auto result4 = system(cmd.c_str());
+             if(result4 != 0) {
+                 std::cerr << "Failed to fetch commit " << import->commit << ". It might not be reachable from any branch or --depth 1 failed." << std::endl;
+                 return result4;
+             }
+
+             // 5. git checkout <commit> (FETCH_HEAD)
+             cmd = git_base + "-C " + target_dir + " checkout --quiet FETCH_HEAD";
         } else {
-            // With version
-            bool is_likely_commit = import->version.size() >= 7 && std::all_of(import->version.begin(), import->version.end(), ::isxdigit);
-            
-            if(is_likely_commit) {
-                 // Manual fetch sequence
-                 // 1. mkdir target_dir
-                 fs::create_directories(target_dir);
-                 
-                 // 2. git init
-                 cmd = git_base + "-C " + target_dir + " init --quiet";
-                 auto result2 = system(cmd.c_str());
-                 if(result2 != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return result2; }
-                 
-                 // 3. git remote add origin <url>
-                 cmd = git_base + "-C " + target_dir + " remote add origin " + url;
-                 auto result3 = system(cmd.c_str());
-                 if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
-                 
-                 // 4. git fetch --depth 1 origin <commit>
-                 cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + import->version.to_std_string();
-                 auto result4 = system(cmd.c_str());
-                 if(result4 != 0) {
-                     std::cerr << "Failed to fetch commit " << import->version << ". It might not be reachable from any branch or --depth 1 failed." << std::endl; 
-                     return result4;
-                 }
-                 
-                 // 5. git checkout <commit> (FETCH_HEAD)
-                 cmd = git_base + "-C " + target_dir + " checkout --quiet FETCH_HEAD";
+            auto& version_or_branch = import->version.empty() ? import->branch : import->version;
+            // Assume tag/branch
+            if(version_or_branch.empty()) {
+                cmd = git_base + "clone --quiet --depth 1 " + url + " " + target_dir;
             } else {
-                // Assume tag/branch
-                if(import->version.empty()) {
-                    cmd = git_base + "clone --quiet --depth 1 " + url + " " + target_dir;
-                } else {
-                    cmd = git_base + "clone --quiet --depth 1 --branch " + import->version.to_std_string() + " " + url + " " + target_dir;
-                }
+                cmd = git_base + "clone --quiet --depth 1 --branch " + version_or_branch.to_std_string() + " " + url + " " + target_dir;
             }
         }
-
-
 
         if(!cmd.empty()) {
             auto result5 = system(cmd.c_str());
             if(result5 != 0) {
                 std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download remote import";
-                if(!import->id.empty()) {
-                    std::cerr << " '" << import->id << '\'';
-                }
                 std::cerr << " from '" << import->from << '\'';
                 if(!import->version.empty()) {
                     std::cerr << " version '" << import->version << '\'';
+                } else if(!import->branch.empty()) {
+                    std::cerr << " branch '" << import->branch << '\'';
                 }
-                std::cerr << "\nfailed command: " << cmd;
+                // std::cerr << "\nfailed command: " << cmd;
                 std::cerr << std::endl;
                 // Clean up potentially empty/partial dir?
                 return result5;

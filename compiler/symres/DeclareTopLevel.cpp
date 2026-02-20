@@ -7,6 +7,7 @@
 #include "ast/statements/Import.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/ChildrenMapNode.h"
 #include "ast/statements/EmbeddedNode.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -69,13 +70,14 @@ FileNodesIterator get_iterator(SymbolResolver& linker, ImportStatement* stmt) {
 void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
     const auto& alias = stmt->getTopLevelAlias();
     if (!alias.empty()) {
-        linker.declare(alias, stmt);
-        stmt->symbols = new std::unordered_map<chem::string_view, ASTNode*>();
+        const auto children = linker.ast_allocator->allocate<ChildrenMapNode>();
+        new (children) ChildrenMapNode(stmt->parent(), stmt->encoded_location());
+        linker.declare(alias, children);
         const auto is_external_module = stmt->isExternalModuleLabImport();
         auto itr = get_iterator(linker, stmt);
         if (itr.start) {
             const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;
-            MapSymbolDeclarer d(*stmt->symbols);
+            MapSymbolDeclarer d(children->symbols);
             while (itr.start != itr.end) {
                 const auto node = *itr.start;
                 declare_node(d, node, at_least_spec);

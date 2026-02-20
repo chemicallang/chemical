@@ -26,6 +26,7 @@
 #include "ast/structures/GenericImplDecl.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/statements/EmbeddedNode.h"
+#include "ast/statements/ChildrenMapNode.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -704,18 +705,6 @@ bool ASTNode::requires_moving(ASTNodeKind k) {
     }
 }
 
-ASTNode* child(ImportStatement* stmt, const chem::string_view &name) {
-    if(stmt->symbols) {
-        auto found = stmt->symbols->find(name);
-        return found != stmt->symbols->end() ? found->second : nullptr;
-    } else {
-#ifdef DEBUG
-        CHEM_THROW_RUNTIME("symbols pointer doesn't exist in import statement");
-#endif
-        return nullptr;
-    }
-}
-
 ASTNode* child(VariablesContainerBase* container, const chem::string_view& name) {
     auto found = container->indexes.find(name);
     return found != container->indexes.end() ? found->second : nullptr;
@@ -851,6 +840,11 @@ inline ASTNode* container_child(ChildResolver* resolver, MembersContainer* decl,
 
 ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) noexcept {
     switch(kind()) {
+        case ASTNodeKind::ChildrenMapNode: {
+            const auto n = as_children_map_node_unsafe();
+            auto found = n->symbols.find(name);
+            return found != n->symbols.end() ? found->second : nullptr;
+        }
         case ASTNodeKind::VarInitStmt: {
             const auto stmt = as_var_init_unsafe();
             if (stmt->type) {
@@ -919,8 +913,6 @@ ASTNode* ASTNode::child(ChildResolver* resolver, const chem::string_view &name) 
         case ASTNodeKind::TypealiasStmt: {
             return provide_child(resolver, as_typealias_unsafe()->actual_type, name, this);
         }
-        case ASTNodeKind::ImportStmt:
-            return ::child(as_import_stmt_unsafe(), name);
         case ASTNodeKind::InterfaceDecl:
         case ASTNodeKind::UnionDecl:
             return ::container_child(resolver, as_members_container_unsafe(), name);

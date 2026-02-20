@@ -78,6 +78,8 @@ class InterfaceDefinition;
 
 class Scope;
 
+class ChildrenMapNode;
+
 class FileScope;
 
 class ModuleScope;

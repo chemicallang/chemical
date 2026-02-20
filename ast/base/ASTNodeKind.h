@@ -84,6 +84,7 @@ enum class ASTNodeKind : uint8_t {
 
     EmbeddedNode,
     ExportStmt,
+    ChildrenMapNode,
 
     UnresolvedDecl,
 

@@ -7,7 +7,6 @@
 #pragma once
 
 #include <utility>
-#include <unordered_map>
 #include "ast/utils/IffyConditional.h"
 #include "ast/base/ASTNode.h"
 
@@ -46,8 +45,6 @@ private:
     chem::string_view m_commit;
 
 public:
-    // This remains public as it's a post-parsing resolution map
-    std::unordered_map<chem::string_view, ASTNode*>* symbols = nullptr;
     IffyBase* if_condition = nullptr;
 
     constexpr ImportStatement(
@@ -174,7 +171,4 @@ public:
         return stmt;
     }
 
-    ~ImportStatement() final {
-        delete symbols;
-    }
 };

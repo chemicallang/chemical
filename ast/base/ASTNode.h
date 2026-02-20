@@ -1314,5 +1314,12 @@ public:
         return (ExportStmt*) this;
     }
 
+    /**
+     * return as children map node
+     */
+    inline ChildrenMapNode* as_children_map_node_unsafe() {
+        CHECK_CAST(ASTNodeKind::ChildrenMapNode);
+        return (ChildrenMapNode*) this;
+    }
 
 };

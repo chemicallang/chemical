@@ -157,6 +157,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     if(!stmt->getVersion().empty()) output << "\t\tversion: \"" << stmt->getVersion() << "\",\n"; // version
                     if(!stmt->getBranch().empty()) output << "\t\tbranch: \"" << stmt->getBranch() << "\",\n"; // branch
                     if(!stmt->getCommit().empty()) output << "\t\tcommit: \"" << stmt->getCommit() << "\",\n"; // commit
+                    output << "\t\tlocation: intrinsics::get_raw_location(),\n";
                     output << "\t});\n";
                 }
                 break;

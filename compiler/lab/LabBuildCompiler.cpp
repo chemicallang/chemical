@@ -3049,7 +3049,9 @@ int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, Rem
     std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
     std::cerr << "version conflict detected for remote import '" << existing.from << "'\n";
     std::cerr << "  first requested version: " << (existing.version.empty() ? (existing.commit.empty() ? existing.branch : existing.commit) : existing.version) << "\n";
+    std::cerr << " at " << loc_man.formatLocation(existing.location) << '\n';
     std::cerr << "  second requested version: " << (current.version.empty() ? (current.commit.empty() ? current.branch : current.commit) : current.version) << "\n";
+    std::cerr << " at " << loc_man.formatLocation(current.location) << '\n';
     std::cerr << "  conflict resolution via command line is currently not supported, but planned." << std::endl;
 
     return 1;

@@ -214,6 +214,7 @@ public struct ImportRepo {
     var version : std::string_view
     var branch : std::string_view
     var commit : std::string_view
+    var location : u64
 }
 
 

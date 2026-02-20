@@ -276,6 +276,7 @@ inline void add_remote_import(LabJob* job, RemoteImportCBI* dep, LabModule* mod)
             chem::string(dep->version),
             chem::string(dep->branch),
             chem::string(dep->commit),
+            dep->location,
             mod
     );
 }

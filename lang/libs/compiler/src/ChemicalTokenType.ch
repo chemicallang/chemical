@@ -99,6 +99,7 @@ public enum ChemicalTokenType {
     IsKw,
     InKw,
     DynKw,
+    ZeroedKw,
     ConstKw,
 
     // -------

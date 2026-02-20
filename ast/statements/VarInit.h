@@ -85,6 +85,12 @@ struct VarInitAttributes {
      */
     bool has_address_taken = false;
 
+    /**
+     * top level var inits can have this annotation to store destructible structs
+     * that we will never destruct
+     */
+    bool never_destructed = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -118,7 +124,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ASTNode(ASTNodeKind::VarInitStmt, parent_node, location),
-        attrs(specifier, false, false, false, false, is_const, is_reference, false, false, true, type != nullptr),
+        attrs(specifier, false, false, false, false, is_const, is_reference, false, false, true, type != nullptr, false),
         located_id(identifier), type(type), value(value) {
 
     }
@@ -272,6 +278,14 @@ public:
 
     inline bool is_linkage_public() {
         return ::is_linkage_public(specifier());
+    }
+
+    inline bool is_never_destructed() {
+        return attrs.never_destructed;
+    }
+
+    inline void set_never_destructed(bool value) {
+        attrs.never_destructed = value;
     }
 
     Value* holding_value() final {

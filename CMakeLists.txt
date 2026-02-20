@@ -597,6 +597,7 @@ set(COMMON_SOURCES
         compiler/cbi/bindings/AnnotationController.cpp
         ast/statements/Export.h
         parser/statements/Export.cpp
+        ast/statements/ChildrenMapNode.h
 )
 
 # Chemical LSP Executable Target

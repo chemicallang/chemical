@@ -5,9 +5,8 @@
 <h1>The Chemical Programming Language</h1>
 
 [Website](https://chemicallang.com)
-| [Docs](https://chemicallang.github.io/learn-chemical)
+| [Docs](https://docs.chemicallang.com)
 | [Changelog](https://github.com/chemicallang/chemical/releases)
-| [Speed](https://chemicallang.com/speed)
 | [Contributing & compiler design](https://github.com/chemicallang/chemical/blob/main/CONTRIBUTING.md)
 
 </div>

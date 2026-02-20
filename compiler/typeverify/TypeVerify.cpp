@@ -125,6 +125,10 @@ void type_verify(ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<AST
                 if(value) {
                     verifier.visit(stmt->value);
                 }
+                // check var init is non-destructible type
+                if(stmt->is_never_destructed() == false && stmt->known_type()->get_destructor() != nullptr) {
+                    diagnoser.error(stmt) << "top level variables or constants must be non-destructible, or must use @never_destructed annotation";
+                }
                 break;
             }
             case ASTNodeKind::NamespaceDecl: {

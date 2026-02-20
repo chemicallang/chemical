@@ -293,6 +293,14 @@ void annot_handler_allow_zeroed(Parser* parser, ASTNode* node, std::vector<Value
     }
 }
 
+void annot_handler_never_destructed(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if(node->kind() == ASTNodeKind::VarInitStmt) {
+        node->as_var_init_unsafe()->set_never_destructed(true);
+    } else {
+        parser->error("@never_destructed only applies to top level variables or constants");
+    }
+}
+
 void AnnotationController::initialize() {
 
     // initialize intrinsic annotations
@@ -312,6 +320,7 @@ void AnnotationController::initialize() {
             { "delete", { annot_handler_delete, "delete", AnnotationDefType::Handler } },
             { "override", { annot_handler_override, "override", AnnotationDefType::Handler } },
             { "unsafe", { annot_handler_unsafe, "unsafe", AnnotationDefType::Handler } },
+            { "never_destructed", { annot_handler_never_destructed, "never_destructed", AnnotationDefType::Handler } },
             { "stdcall", { annot_handler_stdcall, "stdcall", AnnotationDefType::Handler } },
             { "dllimport", { annot_handler_dllimport, "dllimport", AnnotationDefType::Handler } },
             { "dllexport", { annot_handler_dllexport, "dllexport", AnnotationDefType::Handler } },

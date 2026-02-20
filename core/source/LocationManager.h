@@ -141,4 +141,9 @@ public:
      */
     uint32_t getLineStartFast(SourceLocation data);
 
+    /**
+     * format the location
+     */
+    std::string formatLocation(SourceLocation location);
+
 };

@@ -118,6 +118,7 @@ extern "C" {
         chem::string_view version;
         chem::string_view branch;
         chem::string_view commit;
+        uint64_t location;
     };
 
     void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep);

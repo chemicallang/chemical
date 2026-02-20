@@ -21,6 +21,7 @@ struct RemoteImport {
     chem::string version;
     chem::string branch;
     chem::string commit;
+    uint64_t location;
     LabModule* requester = nullptr;
 };
 

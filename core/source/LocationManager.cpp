@@ -25,6 +25,21 @@ int LocationManager::encodeExistingFile(const std::string& filePath) {
     }
 }
 
+std::string LocationManager::formatLocation(SourceLocation location) {
+    auto data = getLocation(location);
+    std::string formatted;
+    if(data.fileId < file_paths.size()) {
+        formatted.append(getPathForFileId(data.fileId));
+    } else {
+        formatted.append("unknown_file");
+    }
+    formatted.append(std::to_string(data.lineStart));
+    formatted.append(1, ':');
+    formatted.append(std::to_string(data.charStart));
+    formatted.append(1, ':');
+    return std::move(formatted);
+}
+
 std::string_view LocationManager::getPathForFileId(unsigned int fileId) {
     return (file_paths.begin() + fileId)->first;
 }

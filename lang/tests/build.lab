@@ -116,7 +116,8 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     // adding a remote module
     ctx.fetch_mod_dependency(job, module, ImportRepo{
         from : "github.com/chemicallang/example",
-        version : "v1.0"
+        version : "v1.0",
+        location : intrinsics::get_raw_location()
     })
 
     if(do_llvm_ir) {

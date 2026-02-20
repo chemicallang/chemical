@@ -61,12 +61,12 @@ struct ASTFileResult : ASTFileMetaData {
     /**
      * constructor
      */
-    ASTFileResult(
+    constexpr ASTFileResult(
             unsigned int file_id,
             std::string abs_path,
             ModuleScope* module
-    ) : ASTFileMetaData(file_id, module, std::move(abs_path)), continue_processing(true),
-        unit(file_id, chem::string_view(this->abs_path), module)
+    ) : ASTFileMetaData(file_id, module, std::move(abs_path)),
+        continue_processing(true), unit(*this, module)
     {
 
     }

@@ -3,19 +3,15 @@
 #pragma once
 
 #include "ast/structures/Scope.h"
+#include "compiler/processor/ASTFileMetaData.h"
 
 class FileScope : public ASTNode {
 public:
 
     /**
-     * the file id for location manager
+     * the pointer back to file result
      */
-    unsigned int file_id;
-
-    /**
-     * the file path
-     */
-    chem::string_view file_path;
+    ASTFileMetaData& meta;
 
     /**
      * the body contains the nodes inside the body
@@ -25,14 +21,26 @@ public:
     /**
      * constructor
      */
-    explicit FileScope(
-            unsigned int file_id,
-            const chem::string_view& file_path,
+    explicit constexpr FileScope(
+            ASTFileMetaData& meta,
             ModuleScope* moduleScope
     ) : ASTNode(ASTNodeKind::FileScope, (ASTNode*) moduleScope, 0),
-        file_id(file_id), file_path(file_path), body(this, 0)
-    {
+        meta(meta), body(this, 0) {
 
+    }
+
+    /**
+     * get the file id for this file scope
+     */
+    inline unsigned int getFileId() {
+        return meta.file_id;
+    }
+
+    /**
+     * get the absolute path to this file
+     */
+    inline const std::string& getAbsPath() {
+        return meta.abs_path;
     }
 
     /**
@@ -47,24 +55,6 @@ public:
      */
     inline void set_parent(ModuleScope* parent) {
         return ASTNode::set_parent((ASTNode*) parent);
-    }
-
-    /**
-     * move constructor
-     */
-    FileScope(
-        FileScope&& other
-    ) noexcept : ASTNode(ASTNodeKind::FileScope, (ASTNode*) other.parent(), 0), file_path(other.file_path), body(std::move(other.body)) {
-
-    }
-
-    /**
-     * move assignment
-     */
-    FileScope& operator =(FileScope&& other) noexcept {
-        file_path = other.file_path;
-        body = std::move(other.body);
-        return *this;
     }
 
 };

@@ -11,6 +11,8 @@ class ModuleScope;
 
 struct ASTFileResult;
 
+class ImportStatement;
+
 struct ASTFileMetaData {
 
     /**
@@ -29,19 +31,15 @@ struct ASTFileMetaData {
     ModuleScope* module;
 
     /**
-     * the path used when user imported the file
-     */
-    std::string import_path;
-
-    /**
      * the absolute path determined to the file
      */
     std::string abs_path;
 
     /**
-     * the as identifier is used with import statements to import files
+     * the import statement used to import this file
+     * only set when there exists a import statement, this will be nullptr for most files
      */
-    std::string as_identifier;
+    ImportStatement* stmt = nullptr;
 
     /**
      * this contains the parse result of the file
@@ -51,7 +49,7 @@ struct ASTFileMetaData {
     /**
      * the file meta data
      */
-    ASTFileMetaData(
+    constexpr ASTFileMetaData(
             unsigned int file_id,
             ModuleScope* module
     ) : file_id(file_id), private_symbol_range(0, 0), module(module) {
@@ -61,7 +59,7 @@ struct ASTFileMetaData {
     /**
      * the file meta data
      */
-    ASTFileMetaData(
+    constexpr ASTFileMetaData(
             unsigned int file_id,
             ModuleScope* module,
             std::string abs_path
@@ -75,12 +73,10 @@ struct ASTFileMetaData {
     ASTFileMetaData(
             unsigned int file_id,
             ModuleScope* module,
-            std::string import_path,
             std::string abs_path,
-            std::string as_identifier
+            ImportStatement* stmt
     ) : file_id(file_id), private_symbol_range(0, 0), module(module),
-        import_path(std::move(import_path)), abs_path(std::move(abs_path)), as_identifier(std::move(as_identifier))
-    {
+        abs_path(std::move(abs_path)), stmt(stmt) {
 
     }
 

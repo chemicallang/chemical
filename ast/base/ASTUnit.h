@@ -23,11 +23,10 @@ public:
     /**
      * empty constructor
      */
-    ASTUnit(
-        unsigned int file_id,
-        const chem::string_view& file_path,
+    constexpr ASTUnit(
+        ASTFileMetaData& meta,
         ModuleScope* modScope
-    ) : scope(file_id, file_path, modScope) {
+    ) : scope(meta, modScope) {
 
     }
 
@@ -37,25 +36,10 @@ public:
     ASTUnit(const ASTUnit& other) = delete;
 
     /**
-     * default move constructor
-     */
-    ASTUnit(ASTUnit&& other) noexcept = default;
-
-    /**
-     * move assignment operator
-     */
-    ASTUnit& operator =(ASTUnit&& other) noexcept = default;
-
-    /**
      * update module scope this unit belongs to
      */
     void set_parent(ModuleScope* modScope) {
         scope.set_parent(modScope);
     }
-
-    /**
-     * the destructor
-     */
-    ~ASTUnit() = default;
 
 };

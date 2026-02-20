@@ -1709,7 +1709,7 @@ public:
                 const auto fileScope = decl->get_file_scope();
                 auto fileVal = emptyStringVal;
                 if(fileScope) {
-                    fileVal = new (allocator.allocate<StringValue>()) StringValue(fileScope->file_path, typeBuilder.getStringType(), call->encoded_location());
+                    fileVal = new (allocator.allocate<StringValue>()) StringValue(chem::string_view(fileScope->getAbsPath()), typeBuilder.getStringType(), call->encoded_location());
                 }
                 value->values.emplace("file", StructMemberInitializer{"file", fileVal});
 

@@ -12,6 +12,7 @@
 
 class Diag;
 class ASTDiagnoser;
+struct ASTFileResult;
 
 /**
  * Represents a specific item being imported.
@@ -47,6 +48,14 @@ private:
 public:
     IffyBase* if_condition = nullptr;
 
+    /**
+     * we set this if it imports a file and once its parsed
+     */
+    ASTFileResult* result = nullptr;
+
+    /**
+     * constructor
+     */
     constexpr ImportStatement(
             ImportStatementKind import_kind,
             chem::string_view sourcePath,

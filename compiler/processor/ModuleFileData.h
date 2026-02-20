@@ -92,9 +92,8 @@ public:
      * doesn't belong to a module
      */
     ModuleFileData(
-            unsigned int fileId,
-            const chem::string_view& filePath
-    ) : scope(fileId, filePath, nullptr) {
+            ASTFileMetaData& meta
+    ) : scope(meta, nullptr) {
 
     }
 

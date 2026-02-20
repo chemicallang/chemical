@@ -258,55 +258,41 @@ inline static void error_out(LocationManager& loc_man, SourceLocation loc, const
     diagnoser.print_diagnostics("lab");
 }
 
-int ImportPathHandler::figure_out_mod_dep_using_imports(
-        LocationManager& loc_man,
-        TargetData& targetData,
-        const std::string_view& base_path,
-        std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
-        std::vector<ASTNode*>& nodes
+ImportedModuleDepResult ImportPathHandler::resolve_mod_dep_import(
+    ImportStatement* stmt,
+    TargetData& targetData,
+    const std::string_view& base_path
 ) {
-    for(const auto stmtNode : nodes) {
-        if(stmtNode->kind() == ASTNodeKind::ImportStmt) {
 
-            const auto stmt = stmtNode->as_import_stmt_unsafe();
-            // skip remote imports
-            if(!stmt->isLocalModuleImport()) {
-                continue;
+    // skip remote imports
+    if(!stmt->isLocalModuleImport()) {
+        return ImportedModuleDepResult { };
+    }
+
+    // check are we even supposed to include this import
+    if(stmt->if_condition != nullptr) {
+        auto enabled = resolve_target_condition(targetData, stmt->if_condition);
+        if(enabled.has_value()) {
+            if(!enabled.value()) {
+                return ImportedModuleDepResult { };
             }
-
-            // check are we even supposed to include this import
-            if(stmt->if_condition != nullptr) {
-                auto enabled = resolve_target_condition(targetData, stmt->if_condition);
-                if(enabled.has_value()) {
-                    if(!enabled.value()) {
-                        continue;
-                    }
-                } else {
-
-                    return 1;
-                }
-            }
-
-            // handle native libs: import std
-            if(stmt->isNativeLibImport()) {
-                buildLabModuleDependencies.emplace_back(resolve_native_lib(stmt->getSourcePath()));
-                continue;
-            }
-
-            // check relative imports to directory
-            auto& sourcePath = stmt->getSourcePath();
-            if(sourcePath.starts_with("./") || sourcePath.starts_with("../")) {
-                // user has given relative path to a directory / file
-                auto final_path = resolve_sibling(base_path, sourcePath.view());
-                buildLabModuleDependencies.emplace_back(std::move(final_path));
-                continue;
-            }
-
-            error_out(loc_man, stmt->encoded_location(), "couldn't determine import for the local module");
-            return 1;
-
+        } else {
+            return ImportedModuleDepResult { .error_message = "couldn't evaluate the if condition" };
         }
     }
 
-    return 0;
+    // handle native libs: import std
+    auto& sourcePath = stmt->getSourcePath();
+    if(stmt->isNativeLibImport()) {
+        return ImportedModuleDepResult { .directory_path = resolve_native_lib(sourcePath) };
+    }
+
+    // check relative imports to directory
+    if(sourcePath.starts_with("./") || sourcePath.starts_with("../")) {
+        // user has given relative path to a directory / file
+        return ImportedModuleDepResult { .directory_path = resolve_sibling(base_path, sourcePath.view()) };
+    }
+
+    return ImportedModuleDepResult { .error_message = "couldn't determine import for module" };
+
 }

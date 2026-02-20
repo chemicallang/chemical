@@ -2084,8 +2084,10 @@ int LabBuildCompiler::translate_mod_file_to_lab(
 
 }
 
-static bool neg_it(bool neg_flag, bool result) {
-    return neg_flag ? !result : result;
+inline static void error_out(LocationManager& loc_man, SourceLocation loc, const chem::string_view& message) {
+    ASTDiagnoser diagnoser(loc_man);
+    diagnoser.error(loc) << message;
+    diagnoser.print_diagnostics("lab");
 }
 
 LabModule* LabBuildCompiler::build_module_from_mod_file(
@@ -2205,24 +2207,23 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
     }
 
-    // module dependencies we determined from directly imported files
-    std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
-
-    // this function figures out dependencies based on import statements
-    auto figure_dep_imports_status = path_handler.figure_out_mod_dep_using_imports(
-            loc_man,
-            job->target_data,
-            modFilePathView,
-            buildLabModuleDependencies,
-            modFileData.scope.body.nodes
-    );
-    if(figure_dep_imports_status != 0) return nullptr;
-
-    // these are modules imported by the build.lab
-    // however we must build their build.lab or chemical.mod into a LabModule*
-    for(auto& mod_ptr : buildLabModuleDependencies) {
+    // based on imports figures out which modules have been imported
+    for(const auto node : modFileData.scope.body.nodes) {
+        if(node->kind() != ASTNodeKind::ImportStmt) {
+            break;
+        }
+        auto result = path_handler.resolve_mod_dep_import(node->as_import_stmt_unsafe(), job->target_data, modFilePathView);
+        if(result.isSkipped()) {
+            continue;
+        }
+        if(!result.error_message.empty()) {
+            error_out(loc_man, node->encoded_location(), chem::string_view(result.error_message));
+            return nullptr;
+        }
         // get the module pointer
-        const auto modDependency = create_module_for_dependency(context, mod_ptr, job);
+        // we must build their build.lab or chemical.mod into a LabModule*
+        auto record = ModuleDependencyRecord{std::move(result.directory_path)};
+        const auto modDependency = create_module_for_dependency(context, record, job);
         if(modDependency == nullptr) {
             return nullptr;
         }
@@ -2366,44 +2367,36 @@ TCCState* LabBuildCompiler::built_lab_file(
     const auto buildLabObj = resolve_rel_child_path_str(labModDir, "build.lab.o");
     const auto buildLabTimestamp = resolve_rel_child_path_str(labModDir, "build.lab.dat");
 
-    // module dependencies we determined from directly imported files
-    std::vector<ModuleDependencyRecord> buildLabModuleDependencies;
-
     if(verbose) {
-        std::cout << "[lab] figuring out module dependencies from imports" << std::endl;
+        std::cout << "[lab] processing build files of module dependencies from imports" << std::endl;
     }
-
-    // based on imports figures out which modules have been imported
-    // TODO: we aren't determining module dependency from other imported build.lab files
-    // this just determines module dependencies from a single (root build.lab) file
-    auto figure_dep_imports_status = path_handler.figure_out_mod_dep_using_imports(
-        loc_man,
-        job->target_data,
-        path_view,
-        buildLabModuleDependencies,
-        labFileResult.unit.scope.body.nodes
-    );
-    if(figure_dep_imports_status != 0) return nullptr;
 
     // direct module dependencies (in no valid order)
     auto& mod_dependencies = chemical_lab_module.dependencies;
 
-    if(verbose) {
-        std::cout << "[lab] processing build files of dependency modules" << std::endl;
-    }
-
-    // these are modules imported by the build.lab
-    // however we must build their build.lab or chemical.mod into a LabModule*
-    for(auto& mod_ptr : buildLabModuleDependencies) {
-
-        // get the module pointer
-        const auto mod = create_module_for_dependency(context, mod_ptr, job);
-        if(mod == nullptr) {
-            return nullptr;
+    // based on imports figures out which modules have been imported
+    for(auto& file : direct_files_in_lab) {
+        for(const auto node : file.result->unit.scope.body.nodes) {
+            if(node->kind() != ASTNodeKind::ImportStmt) {
+                break;
+            }
+            auto result = path_handler.resolve_mod_dep_import(node->as_import_stmt_unsafe(), job->target_data, path_view);
+            if(result.isSkipped()) {
+                continue;
+            }
+            if(!result.error_message.empty()) {
+                error_out(loc_man, node->encoded_location(), chem::string_view(result.error_message));
+                return nullptr;
+            }
+            // get the module pointer
+            // we must build their build.lab or chemical.mod into a LabModule*
+            auto record = ModuleDependencyRecord{std::move(result.directory_path)};
+            const auto mod = create_module_for_dependency(context, record, job);
+            if(mod == nullptr) {
+                return nullptr;
+            }
+            mod_dependencies.emplace_back(mod);
         }
-
-        mod_dependencies.emplace_back(mod);
-
     }
 
     if(verbose) {

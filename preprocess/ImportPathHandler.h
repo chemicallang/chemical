@@ -12,6 +12,14 @@ struct GlobalContainer;
 
 class LocationManager;
 
+struct ImportedModuleDepResult {
+    std::string error_message;
+    std::string directory_path;
+    inline bool isSkipped() {
+        return error_message.empty() && directory_path.empty();
+    }
+};
+
 std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
 /**
@@ -112,15 +120,13 @@ public:
     AtReplaceResult resolve_import_path(const std::string_view& base_path, const std::string_view& import_path);
 
     /**
-     * in .mod or build.lab files imports on modules are done using import statements
-     * this function figures out those dependencies
+     * resolves module dependency using the import statement
+     * gives error, or the directory path to the module, if both empty should be skipped
      */
-    int figure_out_mod_dep_using_imports(
-            LocationManager& loc_man,
+    ImportedModuleDepResult resolve_mod_dep_import(
+            ImportStatement* stmt,
             TargetData& targetData,
-            const std::string_view& base_path,
-            std::vector<ModuleDependencyRecord>& buildLabModuleDependencies,
-            std::vector<ASTNode*>& nodes
+            const std::string_view& base_path
     );
 
 

@@ -207,11 +207,6 @@ public:
     std::unordered_map<chem::string_view, Value*> implicit_args;
 
     /**
-     * the files we've declared
-     */
-    std::unordered_map<chem::string_view, Scope&> declared_files;
-
-    /**
      * is the codegen for arch 64bit
      */
     bool is64Bit;
@@ -571,7 +566,6 @@ public:
      */
     void clear() {
         table.clear();
-        declared_files.clear();
         stored_file_symbols.clear();
         current_func_type = nullptr;
     }

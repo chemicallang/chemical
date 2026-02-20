@@ -85,6 +85,11 @@ public:
     unsigned int encodeFile(const std::string& filePath);
 
     /**
+     * encodes the file to get a file id only if it already exists, otherwise returns -1
+     */
+    int encodeExistingFile(const std::string& filePath);
+
+    /**
      * the file id can be used to get absolute path to the file
      */
     std::string_view getPathForFileId(unsigned int fileId);

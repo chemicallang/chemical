@@ -15,6 +15,16 @@ unsigned int LocationManager::encodeFile(const std::string& filePath) {
     }
 }
 
+int LocationManager::encodeExistingFile(const std::string& filePath) {
+    std::lock_guard guard(file_mutex);
+    auto itr = file_paths.find(filePath);
+    if(itr == file_paths.end()) {
+        return -1;
+    } else {
+        return (int) (itr - file_paths.begin());
+    }
+}
+
 std::string_view LocationManager::getPathForFileId(unsigned int fileId) {
     return (file_paths.begin() + fileId)->first;
 }

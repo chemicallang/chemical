@@ -88,14 +88,14 @@ void ASTProcessor::determine_module_files(
     switch(module->type) {
         case LabModuleType::Files: {
             for (auto& str: module->paths) {
-                auto abs_path = canonical_path(str.to_view());
+                auto abs_path = canonical(str.to_view());
                 if (abs_path.empty()) {
                     std::cerr << rang::fg::red << "error: " << rang::fg::reset << "couldn't determine canonical path for file '" << str.data() << "' in module '" << module->name << '\'' << std::endl;
                     continue;
                 }
                 auto fileId = loc_man.encodeFile(abs_path);
                 // all these files belong to the given module, so it's scope will be used
-                files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                files.emplace_back(fileId, &module->module_scope, std::move(abs_path), nullptr);
             }
             return;
         }
@@ -115,7 +115,7 @@ void ASTProcessor::determine_module_files(
                     getFilesInDirectory(filePaths, dir_path_p);
                     for (auto& abs_path : filePaths) {
                         auto fileId = loc_man.encodeFile(abs_path);
-                        files.emplace_back(fileId, &module->module_scope, abs_path, abs_path, "");
+                        files.emplace_back(fileId, &module->module_scope, abs_path, nullptr);
                     }
                 } else if(dir_path.ends_with(".ch")) {
                     auto dir_path_view = dir_path.to_view();
@@ -125,7 +125,7 @@ void ASTProcessor::determine_module_files(
                         continue;
                     } else {
                         auto fileId = loc_man.encodeFile(abs_path);
-                        files.emplace_back(fileId, &module->module_scope, std::string(dir_path.to_view()), abs_path, "");
+                        files.emplace_back(fileId, &module->module_scope, abs_path, nullptr);
                     }
                 } else {
                     std::cerr << rang::fg::red << "error: " << rang::fg::reset << "path '" << dir_path << "' in module '" << *module << "' is not a directory or a chemical file" << std::endl;
@@ -556,12 +556,20 @@ bool ASTProcessor::import_chemical_files_recursive(
             auto found = cache.find(abs_path);
             if (found != cache.end()) {
                 fileData.result = found->second.get();
+                // inform the import statement about the file result
+                if(fileData.stmt) {
+                    fileData.stmt->result = fileData.result;
+                }
                 continue;
             }
 
             // we must try to store chem::string_view into the fileData, from the beginning
             const auto ptr = new ASTFileResult(file_id, "", fileData.module);
             fileData.result = ptr;
+            // inform the import statement about the file result
+            if(fileData.stmt) {
+                fileData.stmt->result = ptr;
+            }
             *static_cast<ASTFileMetaData*>(ptr) = fileData;
             cache.emplace(abs_path, ptr);
         }
@@ -641,7 +649,7 @@ bool ASTProcessor::figure_out_direct_imports(
 
                 }
 
-                outImports.emplace_back(fileId, module, path.str(), std::move(replaceResult.replaced), stmt->getTopLevelAlias().str());
+                outImports.emplace_back(fileId, module, std::move(replaceResult.replaced), stmt);
 
             } else {
 
@@ -675,7 +683,7 @@ bool ASTProcessor::import_mod_file_as_lab(
     const auto modFileId = meta.file_id;
 
     // importing .mod file into data
-    ModuleFileData data(modFileId, chem::string_view(modFile));
+    ModuleFileData data(meta);
     auto importModFileRes = import_chemical_mod_file(file_allocator, file_allocator, loc_man, data, modFileId, modFile, inp_source);
     if(!importModFileRes) {
         return false;
@@ -721,25 +729,7 @@ bool import_file_in_lab(
     const auto err = inp_source.error();
     if(err == nullptr) {
         // import the file into result (lex and parse)
-        const auto import_res = proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
-        // we don't inject any get method, a module is built right when it is needed
-//        if(import_res && abs_path.ends_with("build.lab")) {
-//            // we inject a get method into every build.lab file
-//            // it has to be specifically named build.lab so other lab files that are there for just
-//            // imports don't get injected a get method which needs the build method to work
-//            // it must also not be the last build.lab file
-//            auto& typeBuilder = proc.type_builder;
-//            auto& allocator = use_job_allocator ? proc.job_allocator : proc.mod_allocator;
-//            const auto parentNode = &result.unit.scope;
-//            const auto buildFlag = default_build_lab_build_flag(allocator, typeBuilder, parentNode);
-//            const auto cachedPtr = default_build_lab_cached_ptr(allocator, typeBuilder, parentNode);
-//            const auto getMethod = default_build_lab_get_method(allocator, typeBuilder, parentNode, buildFlag->name_view(), cachedPtr->name_view());
-//            auto& nodes = result.unit.scope.body.nodes;
-//            nodes.emplace_back(buildFlag);
-//            nodes.emplace_back(cachedPtr);
-//            nodes.emplace_back(getMethod);
-//        }
-        return import_res;
+        return proc.import_chemical_file(result, fileId, abs_path, &inp_source, use_job_allocator);
     }
 
     // since an error occurred, if this is an import for build.lab file
@@ -820,7 +810,6 @@ bool ASTProcessor::import_chemical_file(
     result.private_symbol_range = { 0, 0 };
     result.continue_processing = true;
     result.diCompileUnit = nullptr;
-    result.unit.scope.file_path = chem::string_view(result.abs_path);
 
     auto& unit = result.unit;
 
@@ -844,7 +833,7 @@ bool ASTProcessor::import_chemical_file(
         return true;
     } else if(tokens[total_toks - 1].type == TokenType::Unexpected) {
         auto& last = tokens[total_toks - 1];
-        lexer.diagnoser.diagnostic(last.value, result.unit.scope.file_path, last.position, last.position, DiagSeverity::Error);
+        lexer.diagnoser.diagnostic(last.value, chem::string_view(result.unit.scope.getAbsPath()), last.position, last.position, DiagSeverity::Error);
     }
 
     // move lexer diagnostics

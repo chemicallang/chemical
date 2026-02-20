@@ -2048,8 +2048,10 @@ int LabBuildCompiler::translate_mod_file_to_lab(
     chem::string_view module_name(temp_module_name, mod_name_size);
 
     // module file data
-    auto modFileId = loc_man.encodeFile(modFilePath.str());
-    ModuleFileData modFileData(modFileId, modFilePath);
+    auto filePathStr__ = modFilePath.str(); // two underscores at the end so hard to access (moved)
+    auto modFileId = loc_man.encodeFile(filePathStr__);
+    ASTFileMetaData meta(modFileId, nullptr, std::move(filePathStr__));
+    ModuleFileData modFileData(meta);
 
     // set those module names
     modFileData.scope_name = scope_name;
@@ -2127,19 +2129,19 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         std::cout << "[lab] " << "parsing mod file '" << modFilePathView << '\'' << std::endl;
     }
 
-    std::string modFilePath(modFilePathView);
-
     // module file data
     auto modFilePathChemView = chem::string_view(modFilePathView);
-    auto modFileId = loc_man.encodeFile(modFilePath);
-    ModuleFileData modFileData(modFileId, modFilePathChemView);
+    std::string modFilePath__(modFilePathView); // two underscores at the end so hard to access (moved)
+    auto modFileId = loc_man.encodeFile(modFilePath__);
+    ASTFileMetaData meta(modFileId, nullptr, std::move(modFilePath__));
+    ModuleFileData modFileData(meta);
 
     // set those module names
     modFileData.scope_name = scope_name;
     modFileData.module_name = module_name;
 
     // import the file into result (lex and parse)
-    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePath);
+    const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePathView);
 
     // printing the diagnostics for the file
     Diagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");
@@ -2270,7 +2272,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     LabModule chemical_lab_module(LabModuleType::Files, chem::string("chemical"), chem::string("lab"));
     std::string path(path_view);
     auto buildLabFileId = loc_man.encodeFile(path);
-    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module.module_scope, path, path, "");
+    ASTFileMetaData buildLabMetaData(buildLabFileId, &chemical_lab_module.module_scope, path, nullptr);
     ASTFileResult labFileResult(buildLabFileId, path, &chemical_lab_module.module_scope);
 
     // import the file into result (lex and parse)
@@ -2562,9 +2564,20 @@ TCCState* LabBuildCompiler::built_lab_file(
 
         } else if (file.abs_path.ends_with(".lab") || file.abs_path.ends_with("chemical.mod")) {
 
-            if (file.as_identifier.empty()) {
+            chem::string_view as_identifier = "";
+            if(file.stmt == nullptr) {
+#ifdef DEBUG
+                CHEM_THROW_RUNTIME("stmt is nullptr");
+#endif
+            } else {
+                as_identifier = file.stmt->getTopLevelAlias();
+            }
+
+            if (as_identifier.empty()) {
+
                 std::cerr << "[lab] " << rang::fg::red << "error:" << rang::fg::reset << " lab file cannot be imported without an 'as' identifier in import statement '" << file.abs_path << '\'' << std::endl;
                 return nullptr;
+
             } else {
 
                 auto found = find_lab_build_method(file.abs_path, file.unit.scope.body.nodes);
@@ -2586,10 +2599,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 #endif
 
                 // building the name string, for the build.lab which will be as_identifier + '_' + file_index
-                const auto name_size = file.as_identifier.size() + total_written;
+                const auto name_size = as_identifier.size() + total_written;
                 const auto name_str = job_allocator->allocate_released_size(name_size + 1, 1); // 1 for the null terminator
-                std::memcpy(name_str, file.as_identifier.data(), file.as_identifier.size());
-                std::memcpy(name_str + file.as_identifier.size(), nameBuffer, static_cast<size_t>(total_written));
+                std::memcpy(name_str, as_identifier.data(), as_identifier.size());
+                std::memcpy(name_str + as_identifier.size(), nameBuffer, static_cast<size_t>(total_written));
                 name_str[name_size] = '\0';
 
                 // now we create a new module scope on the job allocator, we will set this scope as parent of this file

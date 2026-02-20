@@ -71,6 +71,7 @@ public enum ASTNodeKind {
 
     EmbeddedNode,
     ExportStmt,
+    ChildrenMapNode,
 
     UnresolvedDecl,
 

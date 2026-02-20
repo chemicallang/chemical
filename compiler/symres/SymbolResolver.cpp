@@ -239,9 +239,6 @@ SymbolRange SymbolResolver::tld_declare_file(
 ) {
     instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
-    // TODO abs_path could be referencing a path that would freed
-    declared_files.emplace(chem::string_view(abs_path), scope);
-    auto& linker = *this;
     const auto start = stored_file_symbols.size();
     TopLevelDeclSymDeclare declarer(*this);
     declarer.VisitScope(&scope);
@@ -311,9 +308,6 @@ void SymbolResolver::link_file(
 void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
     instContainer.current_file_id = fileId;
     const auto scope_index = file_scope_start();
-    // TODO abs_path could be referencing a path that would freed
-    declared_files.emplace(chem::string_view(abs_path), scope);
-    auto& linker = *this;
     const auto start = stored_file_symbols.size();
     TopLevelDeclSymDeclare declarer(*this);
     declarer.VisitScope(&scope);

@@ -458,7 +458,7 @@ bool ASTProcessor::import_chemical_files_direct(
         fileData.result = ptr;
         // cache uses std::unique_ptr to destruct it
         // we must store in cache, otherwise we'll have a memory leak
-        cache.emplace(abs_path, ptr);
+        cache.emplace(file_id, ptr);
 
 #if defined(DEBUG_FUTURE) && DEBUG_FUTURE
         std::promise<bool> promise;
@@ -553,7 +553,7 @@ bool ASTProcessor::import_chemical_files_recursive(
 
         {
             std::lock_guard<std::mutex> guard(import_mutex);
-            auto found = cache.find(abs_path);
+            auto found = cache.find(file_id);
             if (found != cache.end()) {
                 fileData.result = found->second.get();
                 // inform the import statement about the file result
@@ -571,7 +571,7 @@ bool ASTProcessor::import_chemical_files_recursive(
                 fileData.stmt->result = ptr;
             }
             *static_cast<ASTFileMetaData*>(ptr) = fileData;
-            cache.emplace(abs_path, ptr);
+            cache.emplace(file_id, ptr);
         }
 
         // this is done inside the mutex lock, so to prevent race conditions when appending

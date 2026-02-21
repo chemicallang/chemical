@@ -55,9 +55,26 @@ void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
             linker.declare(alias, children);
             return;
         }
-        case ImportResultKind::Module:
-            linker.declare(alias, stmt->getModuleResult()->module_scope.children);
+        case ImportResultKind::Module: {
+            const auto module = stmt->getModuleResult();
+
+            // create a children map node for the given file
+            const auto children = linker.ast_allocator->allocate<ChildrenMapNode>();
+            new (children) ChildrenMapNode(stmt->parent(), stmt->encoded_location());
+
+            // declare symbols into the children map node
+            MapSymbolDeclarer d(children->symbols);
+            for(auto& file_ptr : module->direct_files) {
+                auto& file = *file_ptr.result;
+                for(const auto node : file.unit.scope.body.nodes) {
+                    declare_node(d, node, AccessSpecifier::Public);
+                }
+            }
+
+            // declare the children map node so user can access symbols through it
+            linker.declare(alias, children);
             return;
+        }
     }
 }
 

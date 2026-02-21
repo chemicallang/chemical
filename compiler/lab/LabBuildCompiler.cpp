@@ -727,9 +727,7 @@ int LabBuildCompiler::process_module_tcc(
     // symbol resolve all the files in the module
     const auto sym_res_status = processor.sym_res_module(mod);
     if(sym_res_status != 0) {
-        if(verbose) {
-            std::cout << "[lab] " << "failure during symbol resolution in the module " << *mod << std::endl;
-        }
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during symbol resolution in the module " << *mod << std::endl;
         return sym_res_status;
     }
 

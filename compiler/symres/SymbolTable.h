@@ -274,6 +274,11 @@ public:
     }
 
     /**
+     * never copy the symbol table
+     */
+    SymbolTable(const SymbolTable& other) = delete;
+
+    /**
      * @brief Constructs a SymbolTable with a specified initial bucket count.
      *
      * The bucket count is rounded up to the next power of two.

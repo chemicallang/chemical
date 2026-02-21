@@ -29,24 +29,35 @@
 #include "DeclareTopLevel.h"
 #include "compiler/cbi/model/CBIFunctionType.h"
 #include "compiler/cbi/model/CompilerBinder.h"
+#include "compiler/lab/LabModule.h"
 
 void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
     const auto& alias = stmt->getTopLevelAlias();
-    if (!alias.empty()) {
-        const auto children = linker.ast_allocator->allocate<ChildrenMapNode>();
-        new (children) ChildrenMapNode(stmt->parent(), stmt->encoded_location());
-        linker.declare(alias, children);
-        const auto is_external_module = stmt->isExternalModuleLabImport();
-        const auto result = stmt->result;
-        if(result == nullptr) {
-            linker.error(stmt) << "couldn't import the file '" << stmt->getSourcePath() << "' because of missing ast";
+    if(alias.empty()) return;
+    switch(stmt->getResultKind()) {
+        case ImportResultKind::None:
+            linker.error(stmt) << "couldn't import file/module '" << stmt->getSourcePath() << "' because of missing result";
+            return;
+        case ImportResultKind::File: {
+            // create a children map node for the given file
+            const auto children = linker.ast_allocator->allocate<ChildrenMapNode>();
+            new (children) ChildrenMapNode(stmt->parent(), stmt->encoded_location());
+
+            // declare symbols into the children map node
+            const auto is_external_module = stmt->isExternalModuleLabImport();
+            const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;
+            MapSymbolDeclarer d(children->symbols);
+            for(const auto node : stmt->getFileResult()->unit.scope.body.nodes) {
+                declare_node(d, node, at_least_spec);
+            }
+
+            // declare the children map node so user can access symbols through it
+            linker.declare(alias, children);
             return;
         }
-        const auto at_least_spec = is_external_module ? AccessSpecifier::Public : AccessSpecifier::Internal;
-        MapSymbolDeclarer d(children->symbols);
-        for(const auto node : result->unit.scope.body.nodes) {
-            declare_node(d, node, at_least_spec);
-        }
+        case ImportResultKind::Module:
+            linker.declare(alias, stmt->getModuleResult()->module_scope.children);
+            return;
     }
 }
 

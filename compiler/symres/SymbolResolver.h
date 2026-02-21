@@ -268,6 +268,13 @@ public:
     UnresolvedDecl* get_unresolved_decl();
 
     /**
+     * get a constant reference to underlying symbol table
+     */
+    inline const SymbolTable& getSymbolTable() {
+        return table;
+    }
+
+    /**
      * change the ast allocator to given allocator
      */
     void setASTAllocator(ASTAllocator& newASTAllocator) {

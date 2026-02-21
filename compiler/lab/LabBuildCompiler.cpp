@@ -2214,7 +2214,8 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         if(node->kind() != ASTNodeKind::ImportStmt) {
             break;
         }
-        auto result = path_handler.resolve_mod_dep_import(node->as_import_stmt_unsafe(), job->target_data, modFilePathView);
+        const auto stmt = node->as_import_stmt_unsafe();
+        auto result = path_handler.resolve_mod_dep_import(stmt, job->target_data, modFilePathView);
         if(result.isSkipped()) {
             continue;
         }
@@ -2229,6 +2230,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
         if(modDependency == nullptr) {
             return nullptr;
         }
+        stmt->setResult(modDependency);
         module->add_dependency(modDependency);
     }
 
@@ -2382,7 +2384,8 @@ TCCState* LabBuildCompiler::built_lab_file(
             if(node->kind() != ASTNodeKind::ImportStmt) {
                 break;
             }
-            auto result = path_handler.resolve_mod_dep_import(node->as_import_stmt_unsafe(), job->target_data, path_view);
+            const auto stmt = node->as_import_stmt_unsafe();
+            auto result = path_handler.resolve_mod_dep_import(stmt, job->target_data, path_view);
             if(result.isSkipped()) {
                 continue;
             }
@@ -2397,6 +2400,7 @@ TCCState* LabBuildCompiler::built_lab_file(
             if(mod == nullptr) {
                 return nullptr;
             }
+            stmt->setResult(mod);
             mod_dependencies.emplace_back(mod);
         }
     }

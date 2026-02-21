@@ -9,10 +9,12 @@
 #include <utility>
 #include "ast/utils/IffyConditional.h"
 #include "ast/base/ASTNode.h"
+#include "std/except.h"
 
 class Diag;
 class ASTDiagnoser;
 struct ASTFileResult;
+struct LabModule;
 
 /**
  * Represents a specific item being imported.
@@ -28,15 +30,30 @@ enum class ImportStatementKind : uint8_t {
     LocalOrRemote, // example: import "./local" or import "org/repo"
 };
 
+enum class ImportResultKind : uint8_t {
+    None,
+    File,
+    Module
+};
+
 class ImportStatement final : public ASTNode {
 private:
 
     ImportStatementKind import_kind;
 
+    /**
+     * set once the import has been processed by the compiler
+     */
+    ImportResultKind result_kind = ImportResultKind::None;
+
     // --- New Internal State ---
     chem::string_view m_sourcePath;       // "std", "./local", or "org/repo"
     chem::string_view m_topLevelAlias;    // the 'as' at the very end of the statement
 
+    /**
+     * import item is a single symbol with an optional alias
+     * when specified, we only import these symbols
+     */
     std::vector<ImportItem> m_importItems;
 
     // Remote Metadata
@@ -45,13 +62,23 @@ private:
     chem::string_view m_branch;
     chem::string_view m_commit;
 
-public:
-    IffyBase* if_condition = nullptr;
+    // only pointers should be contained in the union (size should be 8 bytes)
+    union {
+        /**
+         * we set this if it imports a file and once its parsed
+         */
+        ASTFileResult* file = nullptr;
+        /**
+         * we set this if it imports a module
+         */
+        LabModule* module;
+    } result;
 
+public:
     /**
-     * we set this if it imports a file and once its parsed
+     * contains an if condition that is used as a guard for this import
      */
-    ASTFileResult* result = nullptr;
+    IffyBase* if_condition = nullptr;
 
     /**
      * constructor
@@ -178,6 +205,61 @@ public:
         stmt->m_commit = m_commit;
         stmt->if_condition = if_condition; // Note: You might want to copy_iffy here
         return stmt;
+    }
+
+    // ---------- Result
+
+    inline bool hasResult() {
+        return result_kind != ImportResultKind::None;
+    }
+
+    inline bool hasNoResult() {
+        return result_kind == ImportResultKind::None;
+    }
+
+    inline bool isFileResult() {
+        return result_kind == ImportResultKind::File;
+    }
+
+    inline bool isModuleResult() {
+        return result_kind == ImportResultKind::Module;
+    }
+
+    inline ImportResultKind getResultKind() {
+        return result_kind;
+    }
+
+    inline void setResult(ASTFileResult* fileResult) {
+        result_kind = ImportResultKind::File;
+        result.file = fileResult;
+    }
+
+    inline void setResult(LabModule* modulePtr) {
+        result_kind = ImportResultKind::Module;
+        result.module = modulePtr;
+    }
+
+    inline void unsetResult() {
+        result_kind = ImportResultKind::None;
+        result.file = nullptr;
+    }
+
+    inline ASTFileResult* getFileResult() {
+#ifdef DEBUG
+        if(result_kind != ImportResultKind::File) {
+            CHEM_THROW_RUNTIME("expected result kind to be of file");
+        }
+#endif
+        return result.file;
+    }
+
+    inline LabModule* getModuleResult() {
+#ifdef DEBUG
+        if(result_kind != ImportResultKind::Module) {
+            CHEM_THROW_RUNTIME("expected result kind to be of module");
+        }
+#endif
+        return result.module;
     }
 
 };

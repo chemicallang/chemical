@@ -26,6 +26,12 @@ public:
     LabModule* container;
 
     /**
+     * this is calculated when module has been completely symbol resolved
+     * it contains all the top level accessible symbols in the module
+     */
+    ChildrenMapNode* children = nullptr;
+
+    /**
      * constructor
      */
     ModuleScope(

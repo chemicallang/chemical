@@ -15,6 +15,7 @@
 #include "rang.hpp"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/statements/ChildrenMapNode.h"
 #include "ast/statements/VarInit.h"
 #include <filesystem>
 #include "lexer/Lexer.h"
@@ -264,6 +265,10 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
     // declare symbols of directly imported modules
 
+    // TODO: this should be removed
+    // alias for an entire symbol should be required or assigned by the compiler
+    // this would allow faster access of symbols without overhead of walking the ast to declare symbols
+    // of dependencies
     SymbolResolverShadowDeclarer declarer(*resolver);
     for(const auto dep : module->dependencies) {
         for(auto& file_ptr : dep->direct_files) {
@@ -274,8 +279,12 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         }
     }
 
-    // declare symbols for all files once in the module
+    // record this for
+    auto& table = resolver->getSymbolTable();
+    auto& symbols = table.get_symbols();
+    const auto module_symbols_start = symbols.size();
 
+    // declare symbols for all files once in the module
     for(auto& file_ptr : module->direct_files) {
 
         auto& file = *file_ptr.result;
@@ -361,6 +370,29 @@ int ASTProcessor::sym_res_module(LabModule* module) {
             std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
         }
         main_func->as_function_unsafe()->set_no_mangle(true);
+    }
+
+
+    // before the module scope ends
+    // we will store all the module symbols in a map
+    auto top_level_symbols = std::span(symbols.data() + module_symbols_start, symbols.size() - module_symbols_start);
+    if(!top_level_symbols.empty()) {
+
+        // create a children map node to put all the top-level symbols of the module
+        auto childrenMapNode = resolver->ast_allocator->allocate<ChildrenMapNode>();
+        auto& module_scope = module->module_scope;
+        new (childrenMapNode) ChildrenMapNode(&module_scope, module_scope.encoded_location());
+
+        // put all the symbols in the children map node
+        auto& sym_map = childrenMapNode->symbols;
+        sym_map.reserve(top_level_symbols.size());
+        for(auto& sym : top_level_symbols) {
+            sym_map.emplace(sym.key, sym.node);
+        }
+
+        // make children map node accessible from module scope
+        module_scope.children = childrenMapNode;
+
     }
 
     resolver->module_scope_end(mod_index);
@@ -558,7 +590,7 @@ bool ASTProcessor::import_chemical_files_recursive(
                 fileData.result = found->second.get();
                 // inform the import statement about the file result
                 if(fileData.stmt) {
-                    fileData.stmt->result = fileData.result;
+                    fileData.stmt->setResult(fileData.result);
                 }
                 continue;
             }
@@ -568,7 +600,7 @@ bool ASTProcessor::import_chemical_files_recursive(
             fileData.result = ptr;
             // inform the import statement about the file result
             if(fileData.stmt) {
-                fileData.stmt->result = ptr;
+                fileData.stmt->setResult(ptr);
             }
             *static_cast<ASTFileMetaData*>(ptr) = fileData;
             cache.emplace(file_id, ptr);

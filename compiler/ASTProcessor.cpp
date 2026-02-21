@@ -279,10 +279,13 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         }
     }
 
-    // record this for
+    // get symbol table
     auto& table = resolver->getSymbolTable();
     auto& symbols = table.get_symbols();
     const auto module_symbols_start = symbols.size();
+
+    // tiny flag for checking error
+    bool errored = false;
 
     // declare symbols for all files once in the module
     for(auto& file_ptr : module->direct_files) {
@@ -293,12 +296,14 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-            return 1;
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
         resolver->reset_errors();
 
     }
+
+    if(errored) return 1;
 
     // before link the signature of the files
     for(auto& file_ptr : module->direct_files) {
@@ -308,12 +313,14 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         sym_res_before_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-            return 1;
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
         resolver->reset_errors();
 
     }
+
+    if(errored) return 1;
 
     // link the signature of the files
     for(auto& file_ptr : module->direct_files) {
@@ -323,12 +330,14 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         sym_res_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-            return 1;
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
         resolver->reset_errors();
 
     }
+
+    if(errored) return 1;
 
     // after link the signature of the files
     for(auto& file_ptr : module->direct_files) {
@@ -338,12 +347,14 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         sym_res_after_link_sig_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         // report and clear diagnostics
         if (resolver->has_errors && !options->ignore_errors) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-            return 1;
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
         resolver->reset_errors();
 
     }
+
+    if(errored) return 1;
 
     // sequentially symbol resolve all the files in the module
     for(auto& file_ptr : module->direct_files) {
@@ -352,8 +363,8 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 
         sym_res_link_file(file.unit.scope.body, file.file_id, file.abs_path, file.private_symbol_range);
         if (resolver->has_errors && !options->ignore_errors) {
-            std::cerr << rang::fg::red << "couldn't perform job due to errors during symbol resolution" << rang::fg::reset << std::endl;
-            return 1;
+            if(options->stop_on_file_error) return 1;
+            errored = true;
         }
         resolver->reset_errors();
 
@@ -361,6 +372,8 @@ int ASTProcessor::sym_res_module(LabModule* module) {
         file_allocator.clear();
 
     }
+
+    if(errored) return 1;
 
     // we need to search for main function in each module and make it no_mangle
     // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
@@ -370,29 +383,6 @@ int ASTProcessor::sym_res_module(LabModule* module) {
             std::cout << "[lab] " << "making found 'main' function no_mangle" << std::endl;
         }
         main_func->as_function_unsafe()->set_no_mangle(true);
-    }
-
-
-    // before the module scope ends
-    // we will store all the module symbols in a map
-    auto top_level_symbols = std::span(symbols.data() + module_symbols_start, symbols.size() - module_symbols_start);
-    if(!top_level_symbols.empty()) {
-
-        // create a children map node to put all the top-level symbols of the module
-        auto childrenMapNode = resolver->ast_allocator->allocate<ChildrenMapNode>();
-        auto& module_scope = module->module_scope;
-        new (childrenMapNode) ChildrenMapNode(&module_scope, module_scope.encoded_location());
-
-        // put all the symbols in the children map node
-        auto& sym_map = childrenMapNode->symbols;
-        sym_map.reserve(top_level_symbols.size());
-        for(auto& sym : top_level_symbols) {
-            sym_map.emplace(sym.key, sym.node);
-        }
-
-        // make children map node accessible from module scope
-        module_scope.children = childrenMapNode;
-
     }
 
     resolver->module_scope_end(mod_index);

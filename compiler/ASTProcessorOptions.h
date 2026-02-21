@@ -53,14 +53,19 @@ public:
     bool emit_c = false;
 
     /**
-     * the target triple, which codegen is for
+     * stops if finds errors in a single file, printing less errors to console
      */
-    std::string target_triple;
+    bool stop_on_file_error = true;
 
     /**
      * is target system 64Bit
      */
     bool is64Bit;
+
+    /**
+     * the target triple, which codegen is for
+     */
+    std::string target_triple;
 
     /**
      * path to resources, give only if import's c files

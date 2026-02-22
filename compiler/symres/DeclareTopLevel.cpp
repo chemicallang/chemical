@@ -63,7 +63,15 @@ static void append_alias_and_part(Diag& d, const std::vector<chem::string_view>&
 void declareChildren(SymbolResolver& linker, ChildrenMapNode* node, ImportStatement* stmt) {
     auto& import_items = stmt->getImportItems();
     if(import_items.empty() && !stmt->is_force_empty_import_items()) {
-        linker.declare(stmt->getTopLevelAlias(), node);
+        auto& alias = stmt->getTopLevelAlias();
+        if(alias.empty()) {
+            // user asked to declare all the symbols
+            for(auto& sym : node->symbols) {
+                linker.declare_or_shadow(sym.first, sym.second);
+            }
+        } else {
+            linker.declare(alias, node);
+        }
         return;
     } else {
         auto& symbols = node->symbols;
@@ -103,7 +111,6 @@ void declareChildren(SymbolResolver& linker, ChildrenMapNode* node, ImportStatem
 }
 
 void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
-    if(stmt->getTopLevelAlias().empty()) return;
     switch(stmt->getResultKind()) {
         case ImportResultKind::None:
             linker.error(stmt) << "couldn't import file/module '" << stmt->getSourcePath() << "' because of missing result";

@@ -143,9 +143,10 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
                 // We treat the first part as the source for the compatibility layer
                 stmt->setSourcePath(primaryPath[0]);
                 if (primaryPath.size() > 1) {
-                    ImportItem item;
-                    item.parts = std::move(primaryPath); // The whole path is the symbol
-                    stmt->addImportItem(std::move(item));
+                    // remove the first item, before assigning
+                    // import std.sub means import { sub } from std
+                    primaryPath.erase(primaryPath.begin());
+                    stmt->addImportItem(ImportItem{ .parts = std::move(primaryPath) });
                 }
             }
         } else {

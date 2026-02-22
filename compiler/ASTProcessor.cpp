@@ -394,18 +394,6 @@ int ASTProcessor::sym_res_module(LabModule* module) {
 int ASTProcessor::sym_res_module_seq(LabModule* module) {
     const auto mod_index = resolver->module_scope_start();
 
-    // declare symbols of directly imported modules
-
-    SymbolResolverShadowDeclarer declarer(*resolver);
-    for(const auto dep : module->dependencies) {
-        for(auto& file_ptr : dep->direct_files) {
-            auto& file = *file_ptr.result;
-            for(const auto node : file.unit.scope.body.nodes) {
-                declare_node(declarer, node, AccessSpecifier::Public);
-            }
-        }
-    }
-
     // declare symbols for all files once in the module
 
     for(auto& file_ptr : module->direct_files) {

@@ -1,11 +1,3 @@
-import "/ast/CSSDeclaration.ch"
-import "/lexer/TokenType.ch"
-import "/parser/value/length.ch"
-import "/parser/CSSParser.ch"
-import "/ast/CSSColorKind.ch"
-import "/ast/CSSKeywordKind.ch"
-import "/utils/color_utils.ch"
-
 func (cssParser : &mut CSSParser) parsePadding(
     parser : *mut Parser,
     builder : *mut ASTBuilder,

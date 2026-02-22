@@ -93,6 +93,11 @@ struct LabModule {
      */
     std::optional<bool> has_changed = std::nullopt;
 
+    /**
+     * calculated once for caching purposes
+     */
+    ChildrenMapNode* children = nullptr;
+
 #ifdef LSP_BUILD
     /**
      * compiler interfaces strings are retained in lsp build, so they can

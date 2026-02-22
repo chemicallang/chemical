@@ -36,15 +36,29 @@ enum class ImportResultKind : uint8_t {
     Module
 };
 
+struct ImportStatementAttributes {
+
+    bool force_empty_import_items = false;
+
+};
+
 class ImportStatement final : public ASTNode {
 private:
 
+    /**
+     * what kind of import statement is this
+     */
     ImportStatementKind import_kind;
 
     /**
      * set once the import has been processed by the compiler
      */
     ImportResultKind result_kind = ImportResultKind::None;
+
+    /**
+     * the attributes on the import statement
+     */
+    ImportStatementAttributes attrs;
 
     // --- New Internal State ---
     chem::string_view m_sourcePath;       // "std", "./local", or "org/repo"
@@ -93,6 +107,10 @@ public:
     // dangerously
     void setImportStmtKindDangerously(ImportStatementKind k) {
         import_kind = k;
+    }
+
+    inline bool is_force_empty_import_items() {
+        return attrs.force_empty_import_items;
     }
 
     void setSourcePath(chem::string_view path) { m_sourcePath = path; }

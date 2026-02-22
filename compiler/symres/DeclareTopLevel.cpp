@@ -31,14 +31,90 @@
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
 
+static void append_parts(Diag& diag, const std::vector<chem::string_view>& parts) {
+    bool is_first = true;
+    for(auto& part : parts) {
+        if(is_first) {
+            is_first = false;
+        } else {
+            diag << '.';
+        }
+        diag << part;
+    }
+}
+
+inline static void append_alias(Diag& diag, const chem::string_view& alias) {
+    if(!alias.empty()) {
+        diag << " as ";
+        diag << alias;
+    }
+}
+
+static void append_alias_and_part(Diag& d, const std::vector<chem::string_view>& parts, const chem::string_view& alias) {
+    if(parts.size() > 1) {
+        d << " part from '";
+        append_parts(d, parts);
+        d << "'";
+    }
+    append_alias(d, alias);
+}
+
+// this checks for the import items too
+void declareChildren(SymbolResolver& linker, ChildrenMapNode* node, ImportStatement* stmt) {
+    auto& import_items = stmt->getImportItems();
+    if(import_items.empty() && !stmt->is_force_empty_import_items()) {
+        linker.declare(stmt->getTopLevelAlias(), node);
+        return;
+    } else {
+        auto& symbols = node->symbols;
+        for(auto& item : import_items) {
+            auto found = symbols.find(item.parts[0]);
+            if(found == symbols.end()) {
+                auto& d = linker.error(stmt) << "couldn't find symbol '" << item.parts[0] << "'";
+                append_alias_and_part(d, item.parts, item.alias);
+                continue;
+            }
+            if(item.parts.size() == 1) {
+                // import { file as f } from std <-- single part (file), alias 'f' or 'file' (the first part)
+                auto& name = item.alias.empty() ? item.parts[0] : item.alias;
+                linker.declare(name, node);
+                continue;
+            }
+            // import { file.change as c } from std <--- multiple parts, alias 'c' or 'change' (the last part)
+            ASTNode* current = found->second;
+            auto start = item.parts.data() + 1;
+            const auto end = item.parts.data() + item.parts.size();
+            while (start != end) {
+                const auto child = current->child(*start);
+                if(child == nullptr) {
+                    auto& d = linker.error(stmt) << "couldn't find child symbol '" << *start << "'";
+                    append_alias_and_part(d, item.parts, item.alias);
+                    current = nullptr;
+                    break;
+                }
+                current = child;
+                start++;
+            }
+            if(current) {
+                linker.declare(item.alias.empty() ? *(end - 1) : item.alias, current);
+            }
+        }
+    }
+}
+
 void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
-    const auto& alias = stmt->getTopLevelAlias();
-    if(alias.empty()) return;
+    if(stmt->getTopLevelAlias().empty()) return;
     switch(stmt->getResultKind()) {
         case ImportResultKind::None:
             linker.error(stmt) << "couldn't import file/module '" << stmt->getSourcePath() << "' because of missing result";
             return;
         case ImportResultKind::File: {
+            const auto res = stmt->getFileResult();
+            if(res->children != nullptr) {
+                declareChildren(linker, res->children, stmt);
+                return;
+            }
+
             // create a children map node for the given file
             const auto children = linker.ast_allocator->allocate<ChildrenMapNode>();
             new (children) ChildrenMapNode(stmt->parent(), stmt->encoded_location());
@@ -51,12 +127,19 @@ void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
                 declare_node(d, node, at_least_spec);
             }
 
+            // store it for caching
+            res->children = children;
+
             // declare the children map node so user can access symbols through it
-            linker.declare(alias, children);
+            declareChildren(linker, children, stmt);
             return;
         }
         case ImportResultKind::Module: {
             const auto module = stmt->getModuleResult();
+            if(module->children != nullptr) {
+                declareChildren(linker, module->children, stmt);
+                return;
+            }
 
             // create a children map node for the given file
             const auto children = linker.ast_allocator->allocate<ChildrenMapNode>();
@@ -71,8 +154,11 @@ void TopLevelDeclSymDeclare::VisitImportStmt(ImportStatement* stmt) {
                 }
             }
 
+            // store it for caching
+            module->children = children;
+
             // declare the children map node so user can access symbols through it
-            linker.declare(alias, children);
+            declareChildren(linker, children, stmt);
             return;
         }
     }

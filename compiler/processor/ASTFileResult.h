@@ -21,6 +21,11 @@ struct ASTFileResult : ASTFileMetaData {
     ASTUnit unit;
 
     /**
+     * we calculate this once if import is present in build.lab
+     */
+    ChildrenMapNode* children = nullptr;
+
+    /**
      * the compile unit
      */
     llvm::DICompileUnit* diCompileUnit = nullptr;

@@ -107,10 +107,11 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
             stmt->setImportStmtKindDangerously(ImportStatementKind::LocalOrRemote);
         } else {
             // Handle 'from std' (identifier as source)
-            std::vector<chem::string_view> pathParts;
-            if (parseSymbolPath(*this, allocator, pathParts)) {
-                // For simplicity, join parts back or store as string
-                stmt->setSourcePath(pathParts[0]); // assuming single ID for native modules
+            const auto path = consumeIdentifierOrKeyword();
+            if(path) {
+                stmt->setSourcePath(allocate_view(allocator, path->value));
+            } else {
+                unexpected_error("expected an identifier after the 'from'");
             }
         }
     }
@@ -125,9 +126,7 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
         if (parseSymbolPath(*this, allocator, primaryPath)) {
             // Check if this is "import symbol from source"
             if (consumeToken(TokenType::FromKw)) {
-                ImportItem item;
-                item.parts = std::move(primaryPath);
-                stmt->addImportItem(std::move(item));
+                stmt->addImportItem(ImportItem { .parts = std::move(primaryPath) });
 
                 auto source = parseString(allocator);
                 if (source.has_value()) {
@@ -135,8 +134,13 @@ ImportStatement* BasicParser::parseImportStmtAfterKw(ASTAllocator& allocator, bo
                     stmt->setImportStmtKindDangerously(ImportStatementKind::LocalOrRemote);
                 }
                 else {
-                    std::vector<chem::string_view> srcParts;
-                    if(parseSymbolPath(*this, allocator, srcParts)) stmt->setSourcePath(srcParts[0]);
+                    // Handle 'from std' (identifier as source)
+                    const auto path = consumeIdentifierOrKeyword();
+                    if(path) {
+                        stmt->setSourcePath(allocate_view(allocator, path->value));
+                    } else {
+                        unexpected_error("expected an identifier after the 'from'");
+                    }
                 }
             } else {
                 // It's just "import std" or "import std.sub"

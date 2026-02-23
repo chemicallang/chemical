@@ -57,6 +57,8 @@
 #include <atomic>
 #include <algorithm>
 #include <cctype>
+#include <thread>
+#include <chrono>
 
 
 
@@ -3105,9 +3107,15 @@ struct RemoteImportProgress {
     }
 
     void finish() {
-        std::cout << "\r";
-        for (int i = 0; i < last_width; ++i) std::cout << " ";
-        std::cout << "\r" << std::flush;
+        if (completed >= total && errors.empty() && total > 0) {
+            // Keep the 100% status on screen and move to next line
+            std::cout << std::endl;
+        } else {
+            // Clear the line if there were errors or if it was interrupted
+            std::cout << "\r";
+            for (int i = 0; i < last_width; ++i) std::cout << " ";
+            std::cout << "\r" << std::flush;
+        }
         if (!errors.empty()) {
             for (const auto& err : errors) {
                 std::cerr << err;
@@ -3271,6 +3279,25 @@ int LabBuildCompiler::process_remote_imports(LabJob* job) {
     RemoteImportProgress progress((int)groups.size());
     std::vector<std::future<int>> futures;
     futures.reserve(groups.size());
+
+    // --- PROGRESS BAR SIMULATION START (REMOVE THIS BLOCK LATER) ---
+    // This simulates 300 imports to test the progress bar UI
+    // if (groups.size() > 0) {
+    //     std::cout << "[lab] testing progress bar with 300 simulated imports..." << std::endl;
+    //     RemoteImportProgress sim_progress(300);
+    //     std::vector<std::future<int>> sim_futures;
+    //     for (int i = 0; i < 300; ++i) {
+    //         sim_futures.emplace_back(pool.push([&sim_progress](int id) {
+    //             std::this_thread::sleep_for(std::chrono::milliseconds(300 + (rand() % 30)));
+    //             sim_progress.update();
+    //             return 0;
+    //         }));
+    //     }
+    //     for (auto& f : sim_futures) f.get();
+    //     sim_progress.finish();
+    //     std::cout << "[lab] progress bar test finished, proceeding with actual downloads." << std::endl;
+    // }
+    // --- PROGRESS BAR SIMULATION END ---
 
     if (groups.size() > 0) {
         std::cout << "[lab] processing " << groups.size() << " remote imports" << std::endl;

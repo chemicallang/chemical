@@ -42,18 +42,6 @@ LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* sc
     return self->files_module(*scope_name, *name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
-    return self->c_file_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
-}
-
-LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
-    return self->cpp_file_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
-}
-
-LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path) {
-    return self->obj_file_module(*scope_name, *name, path);
-}
-
 void BuildContextput_job_before(LabBuildContext* self, LabJob* newJob, LabJob* existingJob) {
     self->put_job_before(newJob, existingJob);
 }
@@ -320,9 +308,12 @@ static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, Dependen
     return info;
 }
 
-LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
+LabModule* BuildContextnew_module(LabBuildContext* self, int type, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
     auto& allocator = self->compiler.global_allocator;
-    auto mod = new LabModule(LabModuleType::Directory, chem::string(*scope_name), chem::string(*name));
+    if(type < 0 || type > static_cast<int>(LabModuleType::Last)) {
+        return nullptr;
+    }
+    auto mod = new LabModule(static_cast<LabModuleType>(type), chem::string(*scope_name), chem::string(*name));
     self->storage.insert_module_ptr_dangerous(mod);
     if(dependencies && dependencies->size > 0) {
         mod->reserve_dependencies(dependencies->size);

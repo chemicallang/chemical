@@ -278,43 +278,6 @@ public:
     }
 
     /**
-     * add the given module as a c translation unit
-     */
-    LabModule* c_file_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
-            chem::string_view* path,
-            LabModule** dependencies,
-            unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::CFile, scope_name, module_name, &path, 1, dependencies, dep_len);
-    }
-
-    /**
-     * add the given module as a c translation unit
-     */
-    LabModule* cpp_file_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
-            chem::string_view* path,
-            LabModule** dependencies,
-            unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::CPPFile, scope_name, module_name, &path, 1, dependencies, dep_len);
-    }
-
-    /**
-     * add the given module as an obj file, that'll be linked with final executable
-     */
-    LabModule* obj_file_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
-            chem::string_view* path
-    ) {
-        return add_with_type(LabModuleType::ObjFile, scope_name, module_name, &path, 1, nullptr, 0);
-    }
-
-    /**
      * puts the given job before the existing job
      */
     void put_job_before(LabJob* newJob, LabJob* existingJob);

@@ -102,7 +102,7 @@ public interface BuildContext {
 
     func getAnnotationController(&self) : *mut AnnotationController
 
-    func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
+    func new_module(&self, type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
 
     func set_module_symbol_info(&self, module : *mut Module, index : uint, info : &DependencySymbolInfo);
 
@@ -117,15 +117,6 @@ public interface BuildContext {
 
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
-
-    // a single .c file
-    func c_file_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
-
-    // a single .cpp file
-    func cpp_file_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
-
-    // a single .o file
-    func object_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module
 
     // put the given before the existing job, so it is done before it
     func put_job_before(&self, newJob : *mut LabJob, existingJob : *mut LabJob);
@@ -218,8 +209,11 @@ public interface BuildContext {
 
 }
 
-public func (ctx : &BuildContext) new_module_with_deps(scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
-    var vec = std::vector<ModuleDependency>()
+public func (ctx : &BuildContext) directory_module(scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module {
+    return ctx.new_module(ModuleType.Directory, scope_name, name, dependencies);
+}
+
+func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::span<*mut Module>) {
     vec.reserve(dependencies.size())
     var start = dependencies.data()
     const end = start + dependencies.size()
@@ -227,11 +221,41 @@ public func (ctx : &BuildContext) new_module_with_deps(scope_name : &std::string
         vec.push(ModuleDependency { module : *start as *mut Module, info : null })
         start++;
     }
-    return ctx.new_module(scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
+}
+
+public func (ctx : &BuildContext) new_module_with_deps(scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
+    var vec = std::vector<ModuleDependency>()
+    make_deps(vec, dependencies)
+    return ctx.new_module(ModuleType.Directory, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
+}
+
+// a single .c file
+public func (ctx : &BuildContext) c_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+    var vec = std::vector<ModuleDependency>()
+    make_deps(vec, dependencies)
+    const mod = ctx.new_module(ModuleType.CFile, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
+    ctx.add_path(mod, path)
+    return mod;
+}
+
+// a single .cpp file
+public func (ctx : &BuildContext) cpp_file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+    var vec = std::vector<ModuleDependency>()
+    make_deps(vec, dependencies)
+    const mod = ctx.new_module(ModuleType.CPPFile, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()));
+    ctx.add_path(mod, path)
+    return mod;
+}
+
+// a single .o file
+public func (ctx : &BuildContext) object_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view) : *mut Module {
+    const mod = ctx.new_module(ModuleType.ObjFile, scope_name, name, std::span<ModuleDependency>());
+    ctx.add_path(mod, path)
+    return mod;
 }
 
 // directory module
-public func (ctx : &BuildContext) chemical_dir_module (scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+public func (ctx : &BuildContext) chemical_dir_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
     const mod = ctx.new_module_with_deps(scope_name, name, dependencies);
     ctx.add_path(mod, path);
     return mod;

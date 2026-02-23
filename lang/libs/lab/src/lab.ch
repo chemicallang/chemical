@@ -120,9 +120,6 @@ public interface BuildContext {
     // support's paths with .o, .c and .ch extensions
     func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
 
-    // directory module
-    func chemical_dir_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
-
     // a single .c file
     func c_file_module (&self, scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module
 
@@ -221,6 +218,13 @@ public interface BuildContext {
     // fetches a remote dependency for the module
     func fetch_mod_dependency(&self, job : *mut LabJob, mod : *mut Module, dep : &ImportRepo);
 
+}
+
+// directory module
+public func (ctx : &BuildContext) chemical_dir_module (scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
+    const mod = ctx.new_module(scope_name, name, dependencies);
+    ctx.add_path(mod, path);
+    return mod;
 }
 
 public struct ImportSymbol {

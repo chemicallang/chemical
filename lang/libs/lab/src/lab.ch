@@ -86,12 +86,27 @@ public enum CBIFunctionType {
     FoldingRangesPut
 }
 
+public struct DependencySymbolInfo {
+    var symbols : std::span<ImportSymbol>
+    var alias : std::string_view
+    var location : u64
+};
+
+public struct ModuleDependency {
+    var module : *mut Module
+    var info : *mut DependencySymbolInfo
+};
+
 @compiler.interface
 public interface BuildContext {
 
     func getAnnotationController(&self) : *mut AnnotationController
 
     func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*Module>) : *mut Module
+
+    func new_module_and_deps(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
+
+    func set_module_symbol_info(&self, module : *mut Module, index : uint, info : &DependencySymbolInfo);
 
     func get_cached(&self, job : *LabJob, scope_name : &std::string_view, name : &std::string_view) : *mut Module
 

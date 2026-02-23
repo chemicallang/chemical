@@ -35,6 +35,11 @@ enum class LabModuleType : int {
      * files inside are sorted so that independent files that don't depend on other files
      * are compiled first
      */
-    Directory = 4
+    Directory = 4,
+
+    /**
+     * the last item in the enum, always should equal the last item
+     */
+    Last = Directory,
 
 };

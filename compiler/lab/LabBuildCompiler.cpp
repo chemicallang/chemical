@@ -1115,12 +1115,16 @@ void create_or_rebind_container(LabBuildCompiler* compiler, GlobalInterpretScope
 int compile_c_or_cpp_module(LabBuildCompiler* compiler, LabModule* mod, const std::string& mod_timestamp_file) {
 #ifndef COMPILER_BUILD
     if(mod->type == LabModuleType::CPPFile) {
-        std::cerr << rang::fg::yellow << "[lab] skipping compilation of C++ module '" << *mod << '\'' << rang::fg::reset << std::endl;
+        std::cerr << "[lab] " << rang::fg::yellow << "warning: " << rang::fg::reset << "skipping compilation of c++ module '" << *mod << '\'' << std::endl;
         return 2;
     }
 #endif
     const auto is_use_obj_format = compiler->options->use_mod_obj_format;
     const auto caching = compiler->options->is_caching_enabled;
+    if(mod->paths.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "non-existent path in a c/c++ module '" << *mod << '\'' << std::endl;
+        return 1;
+    }
     std::cout << rang::bg::gray << rang::fg::black << "[lab] ";
     if(mod->type == LabModuleType::CFile) {
         std::cout << "compiling c ";

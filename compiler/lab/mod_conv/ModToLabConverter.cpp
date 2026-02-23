@@ -163,7 +163,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     output << " ];\n";
-    output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<ModuleDependency>(deps, " << deps_size << "));\n";
+    output << "\tconst mod = ctx.new_module(ModuleType.Directory, \"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<ModuleDependency>(deps, " << deps_size << "));\n";
     output << "\tctx.set_cached(__chx_job, mod)\n";
     
     // Now handle remote imports

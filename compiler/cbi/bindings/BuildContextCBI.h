@@ -81,7 +81,7 @@ extern "C" {
 
     AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self);
 
-    LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies);
+    LabModule* BuildContextnew_module(LabBuildContext* self, int type, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies);
 
     void BuildContextset_module_symbol_info(LabBuildContext* self, LabModule* module, unsigned int index, DependencySymbolInfoCBI* info);
 
@@ -94,12 +94,6 @@ extern "C" {
     void BuildContextadd_module(LabBuildContext* self, LabJob* job, LabModule* module);
 
     LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);
-
-    LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
-
-    LabModule* BuildContextcpp_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies);
-
-    LabModule* BuildContextobject_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path);
 
     void BuildContextput_job_before(LabBuildContext* self, LabJob* newJob, LabJob* existingJob);
 

@@ -208,12 +208,19 @@ public interface BuildContext {
 
 }
 
+public struct ImportSymbol {
+    var parts : std::span<std::string_view>;
+    var alias : std::string_view;
+};
+
 public struct ImportRepo {
     var from : std::string_view
     var subdir : std::string_view
     var version : std::string_view
     var branch : std::string_view
     var commit : std::string_view
+    var alias : std::string_view
+    var symbols : std::span<ImportSymbol>
     var location : u64
 }
 

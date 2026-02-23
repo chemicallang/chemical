@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <optional>
 
-std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
+std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<ModuleDependency>& modules);
 
 class ImportPathHandler;
 
@@ -177,7 +177,7 @@ public:
     /**
      * add given dependencies to the given module
      */
-    static void add_dependencies(std::vector<LabModule*>& into, LabModule** dependencies, unsigned int dep_len);
+    static void add_dependencies(std::vector<ModuleDependency>& into, LabModule** dependencies, unsigned int dep_len);
 
     /**
      * add given dependencies to the given module, this should be used when putting dependencies

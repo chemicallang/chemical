@@ -39,7 +39,7 @@ void BuildContextadd_path(LabBuildContext* self, LabModule* module, chem::string
 }
 
 void BuildContextadd_module(LabBuildContext* self, LabJob* job, LabModule* module) {
-    job->dependencies.emplace_back(module);
+    job->add_dependency(module);
 }
 
 LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies) {
@@ -269,23 +269,53 @@ int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr) {
 #endif
 }
 
-inline void add_remote_import(LabJob* job, RemoteImportCBI* dep, LabModule* mod) {
+inline static chem::string_view allocate_view(ASTAllocator& allocator, const chem::string_view& v) {
+    if(v.empty()) return "";
+    return {allocator.allocate_str(v.data(), v.size())};
+}
+
+static std::span<chem::string_view> allocate_parts(ASTAllocator& allocator, const std::span<chem::string_view>& parts) {
+    const auto ptr = (chem::string_view*) allocator.allocate_released_size(sizeof(chem::string_view) * parts.size(), alignof(chem::string_view));
+    auto current = ptr;
+    for(auto& sym : parts) {
+        *current = allocate_view(allocator, sym);
+        current++;
+    }
+    return {ptr, parts.size()};
+}
+
+static std::span<ImportSymbol> allocate_symbols(ASTAllocator& allocator, const std::span<RemoteImportSymbolCBI>& symbols) {
+    const auto ptr = (ImportSymbol*) allocator.allocate_released_size(sizeof(ImportSymbol) * symbols.size(), alignof(ImportSymbol));
+    auto current = ptr;
+    for(auto& sym : symbols) {
+        *current = ImportSymbol { allocate_parts(allocator, std::span(sym.symbol.ptr, sym.symbol.size)), allocate_view(allocator, sym.alias) };
+        current++;
+    }
+    return {ptr, symbols.size()};
+}
+
+inline void add_remote_import(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep, LabModule* mod) {
+    auto& allocator = self->compiler.global_allocator;
     job->remote_imports.emplace_back(
-            chem::string(dep->from),
-            chem::string(dep->subdir),
-            chem::string(dep->version),
-            chem::string(dep->branch),
-            chem::string(dep->commit),
-            dep->location,
+            allocate_view(allocator, dep->from),
+            allocate_view(allocator, dep->subdir),
+            allocate_view(allocator, dep->version),
+            allocate_view(allocator, dep->branch),
+            allocate_view(allocator, dep->commit),
+            DependencySymbolInfo{
+                    allocate_symbols(allocator, std::span(dep->symbols.ptr, dep->symbols.size)),
+                    allocate_view(allocator, dep->alias),
+                    dep->location,
+            },
             mod
     );
 }
 
 void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep) {
-    add_remote_import(job, dep, nullptr);
+    add_remote_import(self, job, dep, nullptr);
 }
 
 void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep) {
-    add_remote_import(job, dep, mod);
+    add_remote_import(self, job, dep, mod);
 }
 

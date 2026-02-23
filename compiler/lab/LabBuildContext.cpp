@@ -8,36 +8,40 @@
 #include <span>
 #include "LabBuildCompiler.h"
 
-void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule **dependencies, unsigned int dep_len) {
+void LabBuildContext::add_dependencies(std::vector<ModuleDependency>& into, LabModule **dependencies, unsigned int dep_len) {
     if(!dependencies || dep_len == 0) return;
+    // reserve the size
+    into.reserve(dep_len);
+    // add the dependencies
     auto ptr = dependencies;
-    unsigned i = 0;
-    while (i < dep_len) {
-        into.emplace_back(*ptr);
+    const auto end = ptr + dep_len;
+    while (ptr != end) {
+        into.emplace_back(*ptr, nullptr);
         ptr++;
-        i++;
     }
 }
 
 void LabBuildContext::add_dependencies(LabModule* module, LabModule** dependencies, unsigned int dep_len) {
     if(!dependencies || dep_len == 0) return;
+    // reserve the size
+    module->reserve_dependencies(dep_len);
     auto ptr = dependencies;
-    unsigned i = 0;
-    while (i < dep_len) {
+    const auto end = ptr + dep_len;
+    while (ptr != end) {
         module->add_dependency(*ptr);
         ptr++;
-        i++;
     }
 }
 
 void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len) {
     if(!paths || path_len == 0) return;
+    // reserve the size
+    into.reserve(path_len);
     auto ptr = paths;
-    unsigned i = 0;
-    while (i < path_len) {
+    const auto end = ptr + path_len;
+    while (ptr != end) {
         into.emplace_back(**ptr);
         ptr++;
-        i++;
     }
 }
 
@@ -131,13 +135,13 @@ void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {
         declare_alias(job->path_aliases, module->name.to_std_string(), module->paths[0].to_std_string());
     }
     for(auto dep : module->get_dependencies()) {
-        put_path_aliases(job, dep);
+        put_path_aliases(job, dep.module);
     }
 }
 
 void LabBuildContext::init_path_aliases(LabJob* job) {
     for(auto dep : job->dependencies) {
-        put_path_aliases(job, dep);
+        put_path_aliases(job, dep.module);
     }
 }
 
@@ -153,7 +157,7 @@ LabModule* LabBuildContext::add_with_type(
     auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
     storage.insert_module_ptr_dangerous(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
-    LabBuildContext::add_dependencies(mod, dependencies, dep_len);
+    LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
     return mod;
 }
 
@@ -246,7 +250,7 @@ LabJob* LabBuildContext::translate_to_chemical(
     initialize_job(job, compiler.options);
     executables.emplace_back(job);
     job->abs_path.append(*out_path);
-    job->dependencies.emplace_back(module);
+    job->add_dependency(module);
     return job;
 }
 

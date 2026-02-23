@@ -117,6 +117,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     ctx.fetch_mod_dependency(job, module, ImportRepo{
         from : "github.com/chemicallang/example",
         version : "v1.0",
+        symbols : std::span<ImportSymbol>(),
         location : intrinsics::get_raw_location()
     })
 

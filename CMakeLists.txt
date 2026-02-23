@@ -598,6 +598,10 @@ set(COMMON_SOURCES
         ast/statements/Export.h
         parser/statements/Export.cpp
         ast/statements/ChildrenMapNode.h
+        compiler/lab/import_model/ImportSymbol.h
+        compiler/lab/import_model/RemoteImport.h
+        compiler/lab/import_model/DependencySymbolInfo.h
+        compiler/lab/import_model/ModuleDependency.h
 )
 
 # Chemical LSP Executable Target

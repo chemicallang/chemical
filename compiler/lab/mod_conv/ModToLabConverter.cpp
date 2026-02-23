@@ -157,6 +157,31 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     if(!stmt->getVersion().empty()) output << "\t\tversion: \"" << stmt->getVersion() << "\",\n"; // version
                     if(!stmt->getBranch().empty()) output << "\t\tbranch: \"" << stmt->getBranch() << "\",\n"; // branch
                     if(!stmt->getCommit().empty()) output << "\t\tcommit: \"" << stmt->getCommit() << "\",\n"; // commit
+
+                    auto alias = stmt->getTopLevelAlias();
+                    if(!alias.empty()) output << "\t\talias: \"" << alias << "\",\n"; // alias
+
+                    auto& items = stmt->getImportItems();
+                    if(items.empty()) {
+                        output << "\t\tsymbols : std::span<ImportSymbol>(),\n";
+                    } else {
+                        output << "\t\tsymbols: [ ";
+                        for(auto& sym : items) {
+                            output << "ImportSymbol { parts : ";
+                            if(sym.parts.empty()) {
+                                output << "std::span<std::string_view>(), ";
+                            } else {
+                                output << "[ ";
+                                for (auto& part: sym.parts) {
+                                    output << "std::string_view(\"" << part << "\"),";
+                                }
+                                output << "], ";
+                            }
+                            output << "alias: \"" << sym.alias << "\" }, ";
+                        }
+                        output << " ],\n";
+                    }
+
                     output << "\t\tlocation: intrinsics::get_raw_location(),\n";
                     output << "\t});\n";
                 }

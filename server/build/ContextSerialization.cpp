@@ -292,7 +292,7 @@ void labBuildContext_fromJson(BasicBuildContext& context, lsp::json::Object& obj
             if(val.isString()) {
                 const auto depFound = context.storage.find_module(val.string());
                 if(depFound != nullptr) {
-                    modRef.dependencies.emplace_back(depFound);
+                    modRef.add_dependency(depFound);
                 }
             }
         }

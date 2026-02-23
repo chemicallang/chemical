@@ -22,10 +22,6 @@ AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self)
     return &self->compiler.controller;
 }
 
-LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies) {
-    return self->new_module(*scope_name, *name, dependencies->ptr, dependencies->size);
-}
-
 LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* scope_name, chem::string_view* name) {
     return self->get_cached(job, *scope_name, *name);
 }
@@ -324,7 +320,7 @@ static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, Dependen
     return info;
 }
 
-LabModule* BuildContextnew_module_and_deps(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
+LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
     auto& allocator = self->compiler.global_allocator;
     auto mod = new LabModule(LabModuleType::Directory, chem::string(*scope_name), chem::string(*name));
     self->storage.insert_module_ptr_dangerous(mod);

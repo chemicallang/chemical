@@ -102,9 +102,7 @@ public interface BuildContext {
 
     func getAnnotationController(&self) : *mut AnnotationController
 
-    func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*Module>) : *mut Module
-
-    func new_module_and_deps(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
+    func new_module(&self, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<ModuleDependency>) : *mut Module
 
     func set_module_symbol_info(&self, module : *mut Module, index : uint, info : &DependencySymbolInfo);
 
@@ -220,9 +218,21 @@ public interface BuildContext {
 
 }
 
+public func (ctx : &BuildContext) new_module_with_deps(scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
+    var vec = std::vector<ModuleDependency>()
+    vec.reserve(dependencies.size())
+    var start = dependencies.data()
+    const end = start + dependencies.size()
+    while(start != end) {
+        vec.push(ModuleDependency { module : *start as *mut Module, info : null })
+        start++;
+    }
+    return ctx.new_module(scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
+}
+
 // directory module
 public func (ctx : &BuildContext) chemical_dir_module (scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
-    const mod = ctx.new_module(scope_name, name, dependencies);
+    const mod = ctx.new_module_with_deps(scope_name, name, dependencies);
     ctx.add_path(mod, path);
     return mod;
 }

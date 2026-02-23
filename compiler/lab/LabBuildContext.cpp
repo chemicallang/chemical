@@ -8,43 +8,6 @@
 #include <span>
 #include "LabBuildCompiler.h"
 
-void LabBuildContext::add_dependencies(std::vector<ModuleDependency>& into, LabModule **dependencies, unsigned int dep_len) {
-    if(!dependencies || dep_len == 0) return;
-    // reserve the size
-    into.reserve(dep_len);
-    // add the dependencies
-    auto ptr = dependencies;
-    const auto end = ptr + dep_len;
-    while (ptr != end) {
-        into.emplace_back(*ptr, nullptr);
-        ptr++;
-    }
-}
-
-void LabBuildContext::add_dependencies(LabModule* module, LabModule** dependencies, unsigned int dep_len) {
-    if(!dependencies || dep_len == 0) return;
-    // reserve the size
-    module->reserve_dependencies(dep_len);
-    auto ptr = dependencies;
-    const auto end = ptr + dep_len;
-    while (ptr != end) {
-        module->add_dependency(*ptr);
-        ptr++;
-    }
-}
-
-void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len) {
-    if(!paths || path_len == 0) return;
-    // reserve the size
-    into.reserve(path_len);
-    auto ptr = paths;
-    const auto end = ptr + path_len;
-    while (ptr != end) {
-        into.emplace_back(**ptr);
-        ptr++;
-    }
-}
-
 void set_job_mode(TargetData& data, OutputMode mode) {
     data.debug = is_debug(mode);
     data.debug_quick = mode == OutputMode::DebugQuick;
@@ -143,22 +106,6 @@ void LabBuildContext::init_path_aliases(LabJob* job) {
     for(auto dep : job->dependencies) {
         put_path_aliases(job, dep.module);
     }
-}
-
-LabModule* LabBuildContext::add_with_type(
-        LabModuleType type,
-        const chem::string_view& scope_name,
-        const chem::string_view& module_name,
-        chem::string_view** paths,
-        unsigned int path_len,
-        LabModule** dependencies,
-        unsigned int dep_len
-) {
-    auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
-    storage.insert_module_ptr_dangerous(mod);
-    LabBuildContext::add_paths(mod->paths, paths, path_len);
-    LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
-    return mod;
 }
 
 void LabBuildContext::put_job_before(LabJob* newJob, LabJob* existingJob) {

@@ -156,8 +156,7 @@ public:
         LabBuildCompiler& compiler,
         ImportPathHandler& path_handler,
         ModuleStorage& storage,
-        CompilerBinder& binder,
-        std::string lab_file
+        CompilerBinder& binder
     ) : handler(path_handler), compiler(compiler), BasicBuildContext(storage, binder) {
 
     }
@@ -166,22 +165,6 @@ public:
      * initialize a new job from compiler options
      */
     static void initialize_job(LabJob* job, LabBuildCompilerOptions* options);
-
-    /**
-     * add given dependencies to the given module
-     */
-    static void add_dependencies(std::vector<ModuleDependency>& into, LabModule** dependencies, unsigned int dep_len);
-
-    /**
-     * add given dependencies to the given module, this should be used when putting dependencies
-     * into a module, because this takes care of informing about dependents as well
-     */
-    static void add_dependencies(LabModule* module, LabModule** dependencies, unsigned int dep_len);
-
-    /**
-     * add given dependencies to the given module
-     */
-    static void add_paths(std::vector<chem::string>& into, chem::string_view** paths, unsigned int path_len);
 
     /**
      * declare alias for a path
@@ -224,38 +207,23 @@ public:
     static void init_path_aliases(LabJob* job);
 
     /**
-     * adds the given module with type
-     */
-    LabModule* add_with_type(
-            LabModuleType type,
-            const chem::string_view& scope_name,
-            const chem::string_view& name,
-            chem::string_view** paths,
-            unsigned int path_len,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
-
-    /**
      * add the given module as a directory module
      */
     LabModule* new_module(
+            LabModuleType type,
             const chem::string_view& scope_name,
             const chem::string_view& module_name
     ) {
-        return add_with_type(LabModuleType::Directory, scope_name, module_name, nullptr, 0, nullptr, 0);
+        auto mod = new LabModule(type, chem::string(scope_name), chem::string(module_name));
+        storage.insert_module_ptr_dangerous(mod);
+        return mod;
     }
 
     /**
      * add the given module as a directory module
      */
-    inline LabModule* new_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
-            LabModule** dependencies,
-            unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::Directory, scope_name, module_name, nullptr, 0, dependencies, dep_len);
+    inline LabModule* new_module(const chem::string_view& scope_name, const chem::string_view& module_name) {
+        return new_module(LabModuleType::Directory, scope_name, module_name);
     }
 
     /**

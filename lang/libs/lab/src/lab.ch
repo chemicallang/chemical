@@ -112,6 +112,8 @@ public interface BuildContext {
 
     func add_path(&self, module : *mut Module, path : &std::string_view);
 
+    func add_dependency(&self, job : *mut LabJob, module : *mut Module, info : *mut DependencySymbolInfo);
+
     // adds the module to given job (as a dependency)
     func add_module(&self, job : *mut LabJob, module : *mut Module);
 

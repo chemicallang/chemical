@@ -654,8 +654,7 @@ int compiler_main(int argc, char *argv[]) {
                 compiler,
                 compiler.path_handler,
                 compiler.mod_storage,
-                compiler.binder,
-                std::string(args[0])
+                compiler.binder
         );
 
         // giving build args to lab build context

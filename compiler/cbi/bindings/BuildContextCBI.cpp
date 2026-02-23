@@ -304,6 +304,10 @@ static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, Dependen
     return info;
 }
 
+void BuildContextadd_dependency(LabBuildContext* self, LabJob* job, LabModule* module, DependencySymbolInfoCBI* cbi) {
+    job->add_dependency(module, allocate_dep_info(self->compiler.global_allocator, cbi));
+}
+
 LabModule* BuildContextnew_module(LabBuildContext* self, int type, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
     auto& allocator = self->compiler.global_allocator;
     if(type < 0 || type > static_cast<int>(LabModuleType::Last)) {
@@ -311,7 +315,7 @@ LabModule* BuildContextnew_module(LabBuildContext* self, int type, chem::string_
     }
     auto mod = new LabModule(static_cast<LabModuleType>(type), chem::string(*scope_name), chem::string(*name));
     self->storage.insert_module_ptr_dangerous(mod);
-    if(dependencies && dependencies->size > 0) {
+    if(dependencies->size > 0) {
         mod->reserve_dependencies(dependencies->size);
         for(size_t i = 0; i < dependencies->size; i++) {
             auto& dep = dependencies->ptr[i];

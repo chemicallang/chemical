@@ -27,6 +27,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_BuildContextset_cached", (void*) BuildContextset_cached },
         { "lab_BuildContextadd_path", (void*) BuildContextadd_path },
         { "lab_BuildContextadd_module", (void*) BuildContextadd_module },
+        { "lab_BuildContextadd_dependency", (void*) BuildContextadd_dependency },
         { "lab_BuildContextput_job_before", (void*) BuildContextput_job_before },
         { "lab_BuildContextlink_system_lib", (void*) BuildContextlink_system_lib },
         { "lab_BuildContextadd_compiler_interface", (void*) BuildContextadd_compiler_interface },

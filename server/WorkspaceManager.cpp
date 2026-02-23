@@ -190,7 +190,7 @@ LabBuildContext* WorkspaceManager::compile_lab(const std::string& exe_path, cons
 
     // creating context, this allows separation, we don't want to reuse
     // we do not want to share data between labs because lab files are very flexible
-    auto context_ptr = new LabBuildContext(compiler, compiler.path_handler, storage, binder, lab_path);
+    auto context_ptr = new LabBuildContext(compiler, compiler.path_handler, storage, binder);
     std::unique_ptr<LabBuildContext> context(context_ptr);
 
     // allocating ast allocators

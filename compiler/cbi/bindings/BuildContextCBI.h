@@ -81,9 +81,7 @@ extern "C" {
 
     AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self);
 
-    LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies);
-
-    LabModule* BuildContextnew_module_and_deps(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies);
+    LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies);
 
     void BuildContextset_module_symbol_info(LabBuildContext* self, LabModule* module, unsigned int index, DependencySymbolInfoCBI* info);
 

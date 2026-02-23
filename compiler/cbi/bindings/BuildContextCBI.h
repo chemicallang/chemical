@@ -93,8 +93,6 @@ extern "C" {
 
     void BuildContextadd_module(LabBuildContext* self, LabJob* job, LabModule* module);
 
-    LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view** path, unsigned int path_len, ModuleSpan* dependencies);
-
     void BuildContextput_job_before(LabBuildContext* self, LabJob* newJob, LabJob* existingJob);
 
     void BuildContextlink_system_lib(LabBuildContext* self, LabJob* job, chem::string_view* name, LabModule* module);

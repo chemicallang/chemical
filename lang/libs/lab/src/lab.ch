@@ -115,9 +115,6 @@ public interface BuildContext {
     // adds the module to given job (as a dependency)
     func add_module(&self, job : *mut LabJob, module : *mut Module);
 
-    // support's paths with .o, .c and .ch extensions
-    func files_module (&self, scope_name : &std::string_view, name : &std::string_view, paths : **std::string_view, paths_len : uint, dependencies : std::span<*Module>) : *mut Module;
-
     // put the given before the existing job, so it is done before it
     func put_job_before(&self, newJob : *mut LabJob, existingJob : *mut LabJob);
 
@@ -223,10 +220,10 @@ func make_deps(vec : &mut std::vector<ModuleDependency>, dependencies : std::spa
     }
 }
 
-public func (ctx : &BuildContext) new_module_with_deps(scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
+public func (ctx : &BuildContext) new_module_with_deps(type : ModuleType, scope_name : &std::string_view, name : &std::string_view, dependencies : std::span<*mut Module>) : *mut Module {
     var vec = std::vector<ModuleDependency>()
     make_deps(vec, dependencies)
-    return ctx.new_module(ModuleType.Directory, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
+    return ctx.new_module(type, scope_name, name, std::span<ModuleDependency>(vec.data(), vec.size()))
 }
 
 // a single .c file
@@ -256,7 +253,7 @@ public func (ctx : &BuildContext) object_module(scope_name : &std::string_view, 
 
 // directory module
 public func (ctx : &BuildContext) chemical_dir_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
-    const mod = ctx.new_module_with_deps(scope_name, name, dependencies);
+    const mod = ctx.new_module_with_deps(ModuleType.Directory, scope_name, name, dependencies);
     ctx.add_path(mod, path);
     return mod;
 }
@@ -320,12 +317,27 @@ public func (ctx : &BuildContext) default_get(buildFlag : *mut bool, cached : *m
 }
 
 public func (ctx : &BuildContext) file_module(scope_name : &std::string_view, name : &std::string_view, path : &std::string_view, dependencies : std::span<*Module>) : *mut Module {
-    var path_ptr = &path;
-    return ctx.files_module(scope_name, name, &path_ptr, 1, dependencies);
+    if(path.ends_with(".c")) {
+        const mod = ctx.new_module_with_deps(ModuleType.CFile, scope_name, name, dependencies);
+        ctx.add_path(mod, path);
+        return mod;
+    } else if(path.ends_with(".cpp")) {
+        const mod = ctx.new_module_with_deps(ModuleType.CPPFile, scope_name, name, dependencies);
+        ctx.add_path(mod, path);
+        return mod;
+    } else if(path.ends_with(".o")) {
+        const mod = ctx.new_module_with_deps(ModuleType.ObjFile, scope_name, name, dependencies);
+        ctx.add_path(mod, path);
+        return mod;
+    } else {
+        const mod = ctx.new_module_with_deps(ModuleType.Directory, scope_name, name, dependencies);
+        ctx.add_path(mod, path);
+        return mod;
+    }
 }
 
 public func (ctx : &BuildContext) translate_file_to_chemical (c_path : &std::string_view, output_path : &std::string_view) : *mut LabJob {
-    const deps : []*Module = []
+    const deps : []*mut Module = []
     const mod = ctx.file_module(std::string_view(""), std::string_view("CFile"), c_path, deps);
     return ctx.translate_to_chemical(mod, output_path);
 }

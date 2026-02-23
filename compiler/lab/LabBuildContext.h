@@ -147,13 +147,6 @@ public:
      */
     LabBuildCompiler& compiler;
 
-private:
-
-    /**
-     * get a module with file path, of type
-     */
-    LabModule* create_of_type(LabModuleType type, chem::string_view* path, unsigned number);
-
 public:
 
     /**
@@ -237,18 +230,6 @@ public:
             LabModuleType type,
             const chem::string_view& scope_name,
             const chem::string_view& name,
-            chem::string_view** paths,
-            unsigned int path_len,
-            LabModule** dependencies,
-            unsigned int dep_len
-    );
-
-    /**
-     * adds the given module with type multiple files
-     */
-    LabModule* files_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
             chem::string_view** paths,
             unsigned int path_len,
             LabModule** dependencies,

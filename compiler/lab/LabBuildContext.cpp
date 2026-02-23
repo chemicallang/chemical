@@ -161,58 +161,6 @@ LabModule* LabBuildContext::add_with_type(
     return mod;
 }
 
-LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string_view* path, unsigned number) {
-    const char* prefix;
-    switch(type) {
-        case LabModuleType::CFile:
-            prefix = "CFile-";
-            break;
-        case LabModuleType::ObjFile:
-            prefix = "ObjFile-";
-            break;
-        default:
-            prefix = "UnkFile-";
-            break;
-    }
-    chem::string mod_name;
-    mod_name.append(prefix);
-    mod_name.append(std::to_string(storage.modules_size()));
-    mod_name.append('-');
-    mod_name.append(std::to_string(number));
-    // TODO scope_name here is empty
-    auto mod = add_with_type(type, "", mod_name.to_chem_view(), nullptr, 0, nullptr, 0);
-    mod->paths.emplace_back(*path);
-    return mod;
-}
-
-LabModule* LabBuildContext::files_module(
-        const chem::string_view& scope_name,
-        const chem::string_view& module_name,
-        chem::string_view** paths,
-        unsigned int path_len,
-        LabModule** dependencies,
-        unsigned int dep_len
-) {
-    // create a module with no files
-    auto mod = add_with_type(LabModuleType::Directory, scope_name, module_name, nullptr, 0, dependencies, dep_len);
-    if(paths && path_len != 0) {
-        auto ptr = *paths;
-        unsigned i = 0;
-        while (i < path_len) {
-            if(ptr->ends_with(".c")) {
-                mod->add_dependency(create_of_type(LabModuleType::CFile, ptr, i));
-            } else if(ptr->ends_with(".o")) {
-                mod->add_dependency(create_of_type(LabModuleType::ObjFile, ptr, i));
-            } else {
-                mod->paths.emplace_back(*ptr);
-            }
-            ptr++;
-            i++;
-        }
-    }
-    return mod;
-}
-
 void LabBuildContext::put_job_before(LabJob* newJob, LabJob* existingJob) {
     // lets first remove the job (scanning backwards)
     auto& v = executables;

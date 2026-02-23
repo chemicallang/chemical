@@ -34,7 +34,7 @@ struct RemoteImportSymbolPartsSpan {
 };
 
 struct RemoteImportSymbolCBI {
-    RemoteImportSymbolPartsSpan symbol;
+    RemoteImportSymbolPartsSpan parts;
     chem::string_view alias;
 };
 
@@ -54,6 +54,22 @@ struct RemoteImportCBI {
     uint64_t location;
 };
 
+struct DependencySymbolInfoCBI {
+    RemoteImportSymbolCBISpan symbols;
+    chem::string_view alias;
+    uint64_t location;
+};
+
+struct ModuleDependencyCBI {
+    LabModule* module;
+    DependencySymbolInfoCBI* info;
+};
+
+struct ModuleDependencyCBISpan {
+    ModuleDependencyCBI* ptr;
+    size_t size;
+};
+
 class AnnotationController;
 
 extern "C" {
@@ -66,6 +82,10 @@ extern "C" {
     AnnotationController* BuildContextgetAnnotationController(LabBuildContext* self);
 
     LabModule* BuildContextnew_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleSpan* dependencies);
+
+    LabModule* BuildContextnew_module_and_deps(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies);
+
+    void BuildContextset_module_symbol_info(LabBuildContext* self, LabModule* module, unsigned int index, DependencySymbolInfoCBI* info);
 
     LabModule* BuildContextget_cached(LabBuildContext* self, LabJob* job, chem::string_view* scope_name, chem::string_view* name);
 

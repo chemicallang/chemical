@@ -2062,7 +2062,7 @@ int LabBuildCompiler::translate_mod_file_to_lab(
     ASTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePath, "Parser");
 
     // check
-    if(isModFileOk) {
+    if(!isModFileOk) {
         return 1;
     }
 

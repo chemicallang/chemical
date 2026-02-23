@@ -288,7 +288,7 @@ static std::span<ImportSymbol> allocate_symbols(ASTAllocator& allocator, const s
     const auto ptr = (ImportSymbol*) allocator.allocate_released_size(sizeof(ImportSymbol) * symbols.size(), alignof(ImportSymbol));
     auto current = ptr;
     for(auto& sym : symbols) {
-        *current = ImportSymbol { allocate_parts(allocator, std::span(sym.symbol.ptr, sym.symbol.size)), allocate_view(allocator, sym.alias) };
+        *current = ImportSymbol { allocate_parts(allocator, std::span(sym.parts.ptr, sym.parts.size)), allocate_view(allocator, sym.alias) };
         current++;
     }
     return {ptr, symbols.size()};
@@ -317,5 +317,35 @@ void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, Remote
 
 void BuildContextfetch_mod_dependency(LabBuildContext* self, LabJob* job, LabModule* mod, RemoteImportCBI* dep) {
     add_remote_import(self, job, dep, mod);
+}
+
+static DependencySymbolInfo* allocate_dep_info(ASTAllocator& allocator, DependencySymbolInfoCBI* cbi_info) {
+    if(!cbi_info) return nullptr;
+    const auto info = (DependencySymbolInfo*) allocator.allocate_released_size(sizeof(DependencySymbolInfo), alignof(DependencySymbolInfo));
+    info->symbols = allocate_symbols(allocator, std::span(cbi_info->symbols.ptr, cbi_info->symbols.size));
+    info->alias = allocate_view(allocator, cbi_info->alias);
+    info->location = cbi_info->location;
+    return info;
+}
+
+LabModule* BuildContextnew_module_and_deps(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, ModuleDependencyCBISpan* dependencies) {
+    auto& allocator = self->compiler.global_allocator;
+    auto mod = new LabModule(LabModuleType::Directory, chem::string(*scope_name), chem::string(*name));
+    self->storage.insert_module_ptr_dangerous(mod);
+    if(dependencies && dependencies->size > 0) {
+        mod->reserve_dependencies(dependencies->size);
+        for(size_t i = 0; i < dependencies->size; i++) {
+            auto& dep = dependencies->ptr[i];
+            mod->add_dependency(dep.module, allocate_dep_info(allocator, dep.info));
+        }
+    }
+    return mod;
+}
+
+void BuildContextset_module_symbol_info(LabBuildContext* self, LabModule* module, unsigned int index, DependencySymbolInfoCBI* info) {
+    if (index < module->dependencies.size()) {
+        auto& dep = module->dependencies[index];
+        dep.info = allocate_dep_info(self->compiler.global_allocator, info);
+    }
 }
 

@@ -51,6 +51,41 @@ void writeIfConditional(ModFileIfBase* if_base, std::ostream& output) {
     }
 }
 
+void writeSymbolInfo(std::ostream& output, ImportStatement* stmt, const chem::string_view& indent) {
+
+    auto alias = stmt->getTopLevelAlias();
+    auto& items = stmt->getImportItems();
+    if(alias.empty() && items.empty()) {
+        output << "info: null";
+        return;
+    }
+
+    output << "info: &DependencySymbolInfo {\n";
+    output << indent << "\talias: \"" << alias << "\",\n"; // alias
+
+    if(items.empty()) {
+        output << indent << "\tsymbols : std::span<ImportSymbol>(),\n";
+    } else {
+        output << indent << "\tsymbols: [ ";
+        for(auto& sym : items) {
+            output << "ImportSymbol { parts : ";
+            if(sym.parts.empty()) {
+                output << "std::span<std::string_view>(), ";
+            } else {
+                output << "[ ";
+                for (auto& part: sym.parts) {
+                    output << "std::string_view(\"" << part << "\"),";
+                }
+                output << "], ";
+            }
+            output << "alias: \"" << sym.alias << "\" }, ";
+        }
+        output << " ],\n";
+    }
+    output << indent << "\tlocation: intrinsics::get_raw_location(),\n";
+    output << indent << "}";
+}
+
 void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     // writing imports for modules
@@ -94,22 +129,8 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
 
     output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, \"" << data.scope_name << "\", \"" << data.module_name << "\");\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
-    
-    // Create module first so we can add dependencies later
-    // We cannot create module with dependencies array directly if we have remote imports that need to be fetched and added
-    // So we will create module with empty array and then add dependencies?
-    // Wait, `new_module` takes dependencies array.
-    // If we have remote imports, we need to fetch them. The fetch function takes `mod` pointer.
-    // So we need `mod` to call `fetch_mod_dependency`.
-    // But `new_module` needs `deps`.
-    // We can collect local ops first.
-    // But remote imports are also modules.
-    // If we fetch them, `fetch_mod_dependency` adds them to `job->remote_imports`.
-    // They are NOT added to the module dependencies immediately.
-    // `process_remote_imports` downloads them and THEN adds them to the module dependencies.
-    // So we can create the module with local dependencies, and then call fetch for remote ones.
-    
-    output << "\tconst deps : []*mut Module = [ ";
+
+    output << "\tconst deps : []ModuleDependency = [ ";
 
     i = 0;
     unsigned deps_size = 0;
@@ -127,8 +148,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     continue;
                 }
                 // local import
+                output << "ModuleDependency { module: ";
                 writeAsIdentifier(stmt, i, output);
                 output << ".build(ctx, __chx_job), ";
+                writeSymbolInfo(output, stmt, "\t\t");
+                output << " }, ";
                 deps_size++;
                 break;
             }
@@ -139,7 +163,7 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     }
 
     output << " ];\n";
-    output << "\tconst mod = ctx.new_module(\"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<*Module>(deps, " << deps_size << "));\n";
+    output << "\tconst mod = ctx.new_module_and_deps(\"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<ModuleDependency>(deps, " << deps_size << "));\n";
     output << "\tctx.set_cached(__chx_job, mod)\n";
     
     // Now handle remote imports

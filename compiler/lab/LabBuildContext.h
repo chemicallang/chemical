@@ -278,19 +278,6 @@ public:
     }
 
     /**
-     * add the given module as a directory module
-     */
-    LabModule* chemical_dir_module(
-            const chem::string_view& scope_name,
-            const chem::string_view& module_name,
-            chem::string_view* path,
-            LabModule** dependencies,
-            unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::Directory, scope_name, module_name, &path, 1, dependencies, dep_len);
-    }
-
-    /**
      * add the given module as a c translation unit
      */
     LabModule* c_file_module(

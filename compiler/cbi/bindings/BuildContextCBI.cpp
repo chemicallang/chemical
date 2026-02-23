@@ -46,10 +46,6 @@ LabModule* BuildContextfiles_module(LabBuildContext* self, chem::string_view* sc
     return self->files_module(*scope_name, *name, path, path_len, dependencies->ptr, dependencies->size);
 }
 
-LabModule* BuildContextchemical_dir_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
-    return self->chemical_dir_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
-}
-
 LabModule* BuildContextc_file_module(LabBuildContext* self, chem::string_view* scope_name, chem::string_view* name, chem::string_view* path, ModuleSpan* dependencies) {
     return self->c_file_module(*scope_name, *name, path, dependencies->ptr, dependencies->size);
 }

@@ -257,6 +257,32 @@ void ASTProcessor::sym_res_declare_and_link_file(Scope& scope, unsigned int file
     }
 }
 
+inline void declareAllSymbols(SymbolResolver& resolver, ChildrenMapNode* children) {
+    // user didn't give any alias or symbols
+    // declare everything
+    for (auto& sym: children->symbols) {
+        resolver.declare_or_shadow(sym.first, sym.second);
+    }
+}
+
+static void declareChildren(SymbolResolver& resolver, ModuleDependency& dep, ChildrenMapNode* children) {
+    if(dep.info == nullptr) {
+        declareAllSymbols(resolver, children);
+        return;
+    }
+    if(!dep.info->alias.empty()) {
+        // does not shadow
+        resolver.declare(dep.info->alias, children);
+    } else if(!dep.info->symbols.empty()) {
+        // declare imported symbols only
+        for(auto& sym : dep.info->symbols) {
+            resolver.declareImportedSymbol(children, sym.parts, sym.alias, dep.info->location);
+        }
+    } else {
+        declareAllSymbols(resolver, children);
+    }
+}
+
 int ASTProcessor::sym_res_module(LabModule* module) {
 
     const auto prev_mod_scope = resolver->current_mod_scope;
@@ -264,19 +290,33 @@ int ASTProcessor::sym_res_module(LabModule* module) {
     const auto mod_index = resolver->module_scope_start();
 
     // declare symbols of directly imported modules
+    for(auto& dep : module->dependencies) {
 
-    // TODO: this should be removed
-    // alias for an entire symbol should be required or assigned by the compiler
-    // this would allow faster access of symbols without overhead of walking the ast to declare symbols
-    // of dependencies
-    SymbolResolverShadowDeclarer declarer(*resolver);
-    for(const auto dep : module->dependencies) {
-        for(auto& file_ptr : dep->direct_files) {
+        // checking if already cached
+        if(dep.module->children != nullptr) {
+            declareChildren(*resolver, dep, dep.module->children);
+            continue;
+        }
+
+        // creating new children map node
+        const auto children = resolver->ast_allocator->allocate<ChildrenMapNode>();
+        new (children) ChildrenMapNode(&module->module_scope, module->module_scope.encoded_location());
+
+        // traversing the dependencies to store children into the map
+        MapSymbolDeclarer declarer(children->symbols);
+        for(auto& file_ptr : dep.module->direct_files) {
             auto& file = *file_ptr.result;
             for(const auto node : file.unit.scope.body.nodes) {
                 declare_node(declarer, node, AccessSpecifier::Public);
             }
         }
+
+        // storing the children for caching
+        dep.module->children = children;
+
+        // declare children
+        declareChildren(*resolver, dep, children);
+
     }
 
     // get symbol table
@@ -1060,8 +1100,8 @@ void ASTProcessor::external_implement_in_c(
  * 3 - a module will only appear once, however inMods could contain the module as many times as it wants
  */
 void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::unordered_map<LabModule*, bool>& modsMap, LabModule* mod) {
-    for(const auto dep : mod->dependencies) {
-        shallow_dedupe_sorted(outMods, modsMap, dep);
+    for(auto& dep : mod->dependencies) {
+        shallow_dedupe_sorted(outMods, modsMap, dep.module);
     }
     auto found = modsMap.find(mod);
     if(found != modsMap.end() && found->second) {
@@ -1069,14 +1109,14 @@ void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::unordered_map<
         found->second = false;
     }
 }
-void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<LabModule*>& inMods) {
-    std::unordered_map<LabModule*, bool> direct_mods(inMods.size());
+void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<ModuleDependency>& deps) {
+    std::unordered_map<LabModule*, bool> direct_mods(deps.size());
     // save these modules in direct_mods
-    for(const auto mod : inMods) {
-        direct_mods[mod] = true;
+    for(auto& mod : deps) {
+        direct_mods[mod.module] = true;
     }
-    for(const auto mod : inMods) {
-        shallow_dedupe_sorted(outMods, direct_mods, mod);
+    for(auto& dep : deps) {
+        shallow_dedupe_sorted(outMods, direct_mods, dep.module);
     }
 }
 

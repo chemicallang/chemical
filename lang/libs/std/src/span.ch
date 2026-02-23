@@ -25,6 +25,14 @@ public struct span<T> {
         }
     }
 
+    @constructor
+    func empty_make() {
+        return span<T> {
+            _data : null,
+            _size : 0
+        }
+    }
+
     func data(&self) : *T {
         return _data;
     }

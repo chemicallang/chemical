@@ -14,6 +14,7 @@
 #include "LinkSignatureAPI.h"
 #include "SymResLinkBodyAPI.h"
 #include "ast/statements/UnresolvedDecl.h"
+#include "ast/statements/ChildrenMapNode.h"
 #include "ast/base/TypeBuilder.h"
 
 SymbolResolver::SymbolResolver(
@@ -105,6 +106,73 @@ bool SymbolResolver::overload_function(const chem::string_view& name, ASTNode* c
         return true;
     }
     return false;
+}
+
+static void append_parts(Diag& diag, const std::span<chem::string_view>& parts) {
+    bool is_first = true;
+    for(auto& part : parts) {
+        if(is_first) {
+            is_first = false;
+        } else {
+            diag << '.';
+        }
+        diag << part;
+    }
+}
+
+inline static void append_alias(Diag& diag, const chem::string_view& alias) {
+    if(!alias.empty()) {
+        diag << " as ";
+        diag << alias;
+    }
+}
+
+static void append_alias_and_part(Diag& d, const std::span<chem::string_view>& parts, const chem::string_view& alias) {
+    if(parts.size() > 1) {
+        d << " part from '";
+        append_parts(d, parts);
+        d << "'";
+    }
+    append_alias(d, alias);
+}
+
+void SymbolResolver::declareImportedSymbol(
+        ChildrenMapNode* node,
+        const std::span<chem::string_view>& parts,
+        const chem::string_view& alias,
+        SourceLocation loc
+) {
+    auto& symbols = node->symbols;
+    auto found = symbols.find(parts[0]);
+    if(found == symbols.end()) {
+        auto& d = error(loc) << "couldn't find symbol '" << parts[0] << "'";
+        append_alias_and_part(d, parts, alias);
+        return;
+    }
+    if(parts.size() == 1) {
+        // import { file as f } from std <-- single part (file), alias 'f' or 'file' (the first part)
+        auto& name = alias.empty() ? parts[0] : alias;
+        declare(name, found->second);
+        return;
+    }
+    // import { file.change as c } from std <--- multiple parts, alias 'c' or 'change' (the last part)
+    ASTNode* current = found->second;
+    auto start = parts.data() + 1;
+    const auto end = parts.data() + parts.size();
+    while (start != end) {
+        const auto child = current->child(*start);
+        if(child == nullptr) {
+            auto& d = error(loc) << "couldn't find child symbol '" << *start << "'";
+            append_alias_and_part(d, parts, alias);
+            current = nullptr;
+            break;
+        }
+        current = child;
+        start++;
+    }
+    if(current) {
+        declare(alias.empty() ? *(end - 1) : alias, current);
+    }
 }
 
 void SymbolResolver::declare_or_shadow(const chem::string_view &name, ASTNode* node) {

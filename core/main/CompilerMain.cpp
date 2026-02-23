@@ -644,7 +644,7 @@ int compiler_main(int argc, char *argv[]) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir), mode);
             LabModule module(LabModuleType::Files, chem::string(""), chem::string("[BuildLabFile]"));
             module.paths.emplace_back(std::string(args[0]));
-            job.dependencies.emplace_back(&module);
+            job.add_dependency(&module);
             std::vector<std::unique_ptr<LabModule>> dependencies;
             set_options_for_main_job(options, job, module, dependencies);
             return compiler.do_job_allocating(&job);
@@ -788,13 +788,13 @@ int compiler_main(int argc, char *argv[]) {
             auto dep = new LabModule(LabModuleType::CFile, chem::string(""), chem::string(""));
             dependencies.emplace_back(dep);
             dep->paths.emplace_back(arg);
-            job.dependencies.emplace_back(dep);
+            job.add_dependency(dep);
         } else if(arg.ends_with(".o")) {
             auto index = std::to_string(i);
             auto dep = new LabModule(LabModuleType::ObjFile, chem::string(""), chem::string(""));
             dependencies.emplace_back(dep);
             dep->paths.emplace_back(arg);
-            job.dependencies.emplace_back(dep);
+            job.add_dependency(dep);
         } else {
             module.paths.emplace_back(std::string(arg));
         }
@@ -802,7 +802,7 @@ int compiler_main(int argc, char *argv[]) {
     }
     // add the module if paths is not empty
     if(!module.paths.empty()) {
-        job.dependencies.emplace_back(&module);
+        job.add_dependency(&module);
     }
 
     set_options_for_main_job(options, job, module, dependencies);

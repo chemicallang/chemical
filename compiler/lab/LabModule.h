@@ -10,6 +10,7 @@
 #include "compiler/processor/ASTFileMetaData.h"
 #include <span>
 #include <optional>
+#include "import_model/ModuleDependency.h"
 
 struct LabModule {
 
@@ -84,7 +85,7 @@ struct LabModule {
      * dependencies are the pointers to modules that this module depends on
      * these modules will be compiled first
      */
-    std::vector<LabModule*> dependencies;
+    std::vector<ModuleDependency> dependencies;
 
     /**
      * this flag is calculated before compilation based on whether the module's files
@@ -152,24 +153,22 @@ struct LabModule {
     /**
      * get the dependencies of this module
      */
-    const std::vector<LabModule*>& get_dependencies() {
+    const std::vector<ModuleDependency>& get_dependencies() {
         return dependencies;
+    }
+
+    /**
+     * reserve total dependencies before adding
+     */
+    void reserve_dependencies(std::size_t size) {
+        dependencies.reserve(size);
     }
 
     /**
      * add a module dependency into this module
      */
-    inline void add_dependency(LabModule* dependency) {
-        dependencies.emplace_back(dependency);
-    }
-
-    /**
-     * will add the given dependencies into this module
-     */
-    void add_dependencies(const std::vector<LabModule*>& deps) {
-        for(const auto dep : deps) {
-            add_dependency(dep);
-        }
+    void add_dependency(LabModule* dependency, DependencySymbolInfo* info = nullptr) {
+        dependencies.emplace_back(dependency, info);
     }
 
     /**

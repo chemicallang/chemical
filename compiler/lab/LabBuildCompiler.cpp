@@ -123,8 +123,8 @@ static bool verify_app_build_func_type(FunctionDeclaration* found, const std::st
 }
 
 void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
-    for(auto nested : file->get_dependencies()) {
-        recursive_dedupe(nested, imported, flat_map);
+    for(auto& nested : file->get_dependencies()) {
+        recursive_dedupe(nested.module, imported, flat_map);
     }
     auto found = imported.find(file);
     if(found == imported.end()) {
@@ -137,11 +137,11 @@ void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imp
  * same as above, only it operates on multiple modules, it de-dupes the dependencies modules
  * of the given list of modules and also sorts them
  */
-std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules) {
+std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<ModuleDependency>& dependencies) {
     std::vector<LabModule*> new_modules;
     std::unordered_map<LabModule*, bool> imported;
-    for(auto mod : modules) {
-        recursive_dedupe(mod, imported, new_modules);
+    for(auto& dep : dependencies) {
+        recursive_dedupe(dep.module, imported, new_modules);
     }
     return new_modules;
 }
@@ -426,8 +426,8 @@ bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module,
         }
     }
     bool has_deps_changed = false;
-    for(const auto dep : module->dependencies) {
-        if(has_module_changed_recursive(compiler, dep, build_dir, use_tcc)) {
+    for(auto& dep : module->dependencies) {
+        if(has_module_changed_recursive(compiler, dep.module, build_dir, use_tcc)) {
             has_deps_changed = true;
         }
     }
@@ -761,8 +761,8 @@ int LabBuildCompiler::process_module_tcc(
         // which means generic decls won't generate those instantiations again
         // it will also set all structs/variants as declared, so they won't be defined twice (in generated c)
         process_cached_module(processor, mod->direct_files, true);
-        for(const auto dep : mod->dependencies) {
-            process_cached_module(processor, dep->direct_files, true);
+        for(auto& dep : mod->dependencies) {
+            process_cached_module(processor, dep.module->direct_files, true);
         }
 
         // removing non public nodes, because these would be disposed when allocator clears
@@ -1445,8 +1445,8 @@ int LabBuildCompiler::process_job_tcc(LabJob* job) {
         if (!fs::exists(job_obj_path)) {
 
             // checking which modules have changed
-            for (const auto mod: exe->dependencies) {
-                auto has_changed = has_module_changed(this, mod, mods_dir, true);
+            for (auto& dep: exe->dependencies) {
+                auto has_changed = has_module_changed(this, dep.module, mods_dir, true);
                 if (has_changed) {
                     has_any_changed = true;
                 }
@@ -2442,8 +2442,8 @@ TCCState* LabBuildCompiler::built_lab_file(
         bool has_any_changed = false;
 
         // check which modules have changed
-        for (const auto mod: mod_dependencies) {
-            const auto changed = has_module_changed(this, mod, lab_mods_dir, true);
+        for (auto& dep: mod_dependencies) {
+            const auto changed = has_module_changed(this, dep.module, lab_mods_dir, true);
             if (changed) {
                 has_any_changed = true;
             }
@@ -2979,7 +2979,7 @@ int LabBuildCompiler::build_mod_file(LabBuildContext& context, const std::string
     }
 
     // just put main the module as this job's dependency
-    final_job->dependencies.emplace_back(main_module);
+    final_job->add_dependency(main_module);
 
     current_job = final_job;
 
@@ -3010,7 +3010,7 @@ struct RemoteRepoInfo {
 
 static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, const RemoteImport* import) {
     RemoteRepoInfo info;
-    auto from_path_view = import->from.to_view();
+    auto from_path_view = import->from.view();
     auto last_slash = from_path_view.find_last_of('/');
 
     if(last_slash != std::string::npos) {
@@ -3027,7 +3027,7 @@ static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, c
         info.mod_name.append(from_path_view);
     }
 
-    info.storage_path = import->from.to_std_string();
+    info.storage_path = import->from.str();
     if(!info.has_remote_origin) {
         info.storage_path = "github.com/" + info.storage_path;
     }
@@ -3051,9 +3051,9 @@ int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, Rem
     std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
     std::cerr << "version conflict detected for remote import '" << existing.from << "'\n";
     std::cerr << "  first requested version: " << (existing.version.empty() ? (existing.commit.empty() ? existing.branch : existing.commit) : existing.version) << "\n";
-    std::cerr << " at " << loc_man.formatLocation(existing.location) << '\n';
+    std::cerr << " at " << loc_man.formatLocation(existing.symbol_info.location) << '\n';
     std::cerr << "  second requested version: " << (current.version.empty() ? (current.commit.empty() ? current.branch : current.commit) : current.version) << "\n";
-    std::cerr << " at " << loc_man.formatLocation(current.location) << '\n';
+    std::cerr << " at " << loc_man.formatLocation(current.symbol_info.location) << '\n';
     std::cerr << "  conflict resolution via command line is currently not supported, but planned." << std::endl;
 
     return 1;
@@ -3107,7 +3107,7 @@ int download_remote_import_group(
              if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
 
              // 4. git fetch --depth 1 origin <commit>
-             cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + main_import->commit.to_std_string();
+             cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + main_import->commit.str();
              auto result4 = system(cmd.c_str());
              if(result4 != 0) {
                  std::cerr << "Failed to fetch commit " << main_import->commit << ". It might not be reachable from any branch or --depth 1 failed." << std::endl;
@@ -3122,7 +3122,7 @@ int download_remote_import_group(
             if(version_or_branch.empty()) {
                 cmd = git_base + "clone --quiet --depth 1 " + url + " " + target_dir;
             } else {
-                cmd = git_base + "clone --quiet --depth 1 --branch " + version_or_branch.to_std_string() + " " + url + " " + target_dir;
+                cmd = git_base + "clone --quiet --depth 1 --branch " + version_or_branch.str() + " " + url + " " + target_dir;
             }
         }
 
@@ -3154,7 +3154,7 @@ int download_remote_import_group(
     if(main_import->subdir.empty()) {
         mod->paths.emplace_back(target_dir);
     } else {
-        mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, main_import->subdir.to_view()));
+        mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, main_import->subdir.view()));
     }
 
     // Add path to storage and link requesters
@@ -3164,9 +3164,10 @@ int download_remote_import_group(
         
         for (auto import : imports) {
             if(import->requester) {
-                import->requester->add_dependency(mod);
+                const auto req = import->requester;
+                req->add_dependency(mod, &import->symbol_info);
             } else {
-                job->dependencies.emplace_back(mod);
+                job->add_dependency(mod, &import->symbol_info);
             }
         }
     }

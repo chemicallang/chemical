@@ -11,20 +11,10 @@
 #include "compiler/cbi/model/CBIFunctionIndex.h"
 #include "TargetData.h"
 #include "compiler/OutputMode.h"
+#include "import_model/RemoteImport.h"
+#include "import_model/ModuleDependency.h"
 
 struct LabModule;
-
-struct RemoteImport {
-    chem::string from;
-    chem::string subdir;
-    // either a commit or a version should be given
-    chem::string version;
-    chem::string branch;
-    chem::string commit;
-    uint64_t location;
-    LabModule* requester = nullptr;
-};
-
 
 enum class LabJobStatus : int {
     Pending = 0,
@@ -92,13 +82,12 @@ struct LabJob {
      * dependencies are the pointers to modules that this job depends on
      * these modules will be compiled first
      */
-    std::vector<LabModule*> dependencies;
+    std::vector<ModuleDependency> dependencies;
 
     /**
      * remote imports to be downloaded and added as dependencies
      */
     std::vector<RemoteImport> remote_imports;
-
 
     /**
      * path aliases are used to basically alias a path using '@'
@@ -134,6 +123,20 @@ struct LabJob {
             OutputMode mode
     ) : type(type), name(std::move(name)), abs_path(std::move(abs_path)), build_dir(std::move(build_dir)), mode(mode) {
 
+    }
+
+    /**
+     * add a module dependency on this job
+     */
+    void add_dependency(LabModule* dependency, DependencySymbolInfo* info = nullptr) {
+        dependencies.emplace_back(dependency, info);
+    }
+
+    /**
+     * reserve total dependencies before adding
+     */
+    void reserve_dependencies(std::size_t size) {
+        dependencies.reserve(size);
     }
 
 };

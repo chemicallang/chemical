@@ -28,6 +28,32 @@ struct StringViewSpan {
     size_t size;
 };
 
+struct RemoteImportSymbolPartsSpan {
+    chem::string_view* ptr;
+    size_t size;
+};
+
+struct RemoteImportSymbolCBI {
+    RemoteImportSymbolPartsSpan symbol;
+    chem::string_view alias;
+};
+
+struct RemoteImportSymbolCBISpan {
+    RemoteImportSymbolCBI* ptr;
+    size_t size;
+};
+
+struct RemoteImportCBI {
+    chem::string_view from;
+    chem::string_view subdir;
+    chem::string_view version;
+    chem::string_view branch;
+    chem::string_view commit;
+    chem::string_view alias;
+    RemoteImportSymbolCBISpan symbols;
+    uint64_t location;
+};
+
 class AnnotationController;
 
 extern "C" {
@@ -110,16 +136,6 @@ extern "C" {
     int BuildContextinvoke_lib(LabBuildContext* self, StringViewSpan* string_arr);
 
     int BuildContextinvoke_ar(LabBuildContext* self, StringViewSpan* string_arr);
-
-
-    struct RemoteImportCBI {
-        chem::string_view from;
-        chem::string_view subdir;
-        chem::string_view version;
-        chem::string_view branch;
-        chem::string_view commit;
-        uint64_t location;
-    };
 
     void BuildContextfetch_job_dependency(LabBuildContext* self, LabJob* job, RemoteImportCBI* dep);
 

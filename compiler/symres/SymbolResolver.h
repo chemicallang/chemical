@@ -500,6 +500,16 @@ public:
     }
 
     /**
+     * declare imported symbol from the given children map node
+     */
+    void declareImportedSymbol(
+            ChildrenMapNode* node,
+            const std::span<chem::string_view>& parts,
+            const chem::string_view& alias,
+            SourceLocation loc
+    );
+
+    /**
      * top level declare all the symbols in a file
      */
     SymbolRange tld_declare_file(

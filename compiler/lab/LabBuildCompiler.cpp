@@ -3017,13 +3017,13 @@ static RemoteRepoInfo get_remote_repo_info(const std::string& remote_mods_dir, c
     auto from_path_view = import->from.view();
     auto last_slash = from_path_view.find_last_of('/');
 
-    if(last_slash != std::string::npos) {
+    if(last_slash != std::string_view::npos) {
         info.mod_name.append(from_path_view.substr(last_slash + 1));
         auto parent = from_path_view.substr(0, last_slash);
         auto second_slash = parent.find_last_of('/');
-        if (second_slash != std::string::npos) {
+        if (second_slash != std::string_view::npos) {
              info.has_remote_origin = true;
-             info.mod_scope.append(std::string_view(parent).substr(second_slash + 1));
+             info.mod_scope.append(parent.substr(second_slash + 1));
         } else {
              info.mod_scope.append(parent);
         }
@@ -3063,11 +3063,82 @@ int LabBuildCompiler::resolve_remote_import_conflict(RemoteImport& existing, Rem
     return 1;
 }
 
-int download_remote_import_group(
+struct RemoteImportProgress {
+    std::mutex mutex;
+    int total;
+    std::atomic<int> completed{0};
+    int last_width = 0;
+    std::vector<std::string> errors;
+
+    RemoteImportProgress(int total) : total(total) {}
+
+    void add_error(std::string msg) {
+        std::lock_guard<std::mutex> lock(mutex);
+        errors.push_back(std::move(msg));
+    }
+
+    void update() {
+        int done = ++completed;
+        std::lock_guard<std::mutex> lock(mutex);
+        
+        float progress = (float)done / total;
+        int bar_width = 30;
+        int pos = (int)(bar_width * progress);
+
+        std::string bar = "[";
+        for (int i = 0; i < bar_width; ++i) {
+            if (i < pos) bar += "=";
+            else if (i == pos) bar += ">";
+            else bar += " ";
+        }
+        bar += "] ";
+
+        auto text = "[lab] downloading " + bar + std::to_string((int)(progress * 100)) + "% (" + std::to_string(done) + "/" + std::to_string(total) + ")";
+        std::cout << "\r" << text;
+        
+        int current_width = (int)text.size();
+        if (current_width < last_width) {
+            for (int i = 0; i < last_width - current_width; ++i) std::cout << " ";
+        }
+        last_width = current_width;
+        std::cout << std::flush;
+    }
+
+    void finish() {
+        std::cout << "\r";
+        for (int i = 0; i < last_width; ++i) std::cout << " ";
+        std::cout << "\r" << std::flush;
+        if (!errors.empty()) {
+            for (const auto& err : errors) {
+                std::cerr << err;
+            }
+        }
+    }
+};
+
+static int run_git_and_capture(const std::string& cmd, std::string& output) {
+#ifdef _WIN32
+    FILE* pipe = _popen(cmd.c_str(), "r");
+#else
+    FILE* pipe = popen(cmd.c_str(), "r");
+#endif
+    if (!pipe) return -1;
+    char buffer[4096];
+    while (fgets(buffer, sizeof(buffer), pipe)) {
+        output += buffer;
+    }
+#ifdef _WIN32
+    return _pclose(pipe);
+#else
+    return pclose(pipe);
+#endif
+}
+
+static int download_remote_import_group(
     LabBuildCompiler* compiler,
     LabJob* job,
     std::span<RemoteImport*> imports,
-    std::mutex& mutex
+    RemoteImportProgress& progress
 ) {
     if (imports.empty()) return 0;
 
@@ -3076,100 +3147,67 @@ int download_remote_import_group(
     auto remote_mods_dir = resolve_rel_child_path_str(job_build_dir, "remote");
 
     auto info = get_remote_repo_info(remote_mods_dir, main_import);
-    auto target_dir = std::move(info.target_dir);
+    auto target_dir = info.target_dir;
 
     if(!fs::exists(target_dir)) {
-        // Need to download
-        
-        // Ensure parent dir exists
         fs::create_directories(fs::path(target_dir).parent_path());
 
-        // Prepare the URL
         auto url = info.storage_path;
-
-        // prepend with https by default if not present
         if (url.find("://") == std::string::npos && url.find("git@") != 0) {
             url = "https://" + url;
         }
 
-        std::string cmd;
         std::string git_base = "git -c advice.detachedHead=false ";
-        // With version
+        std::vector<std::string> arg_list;
+        
         if(!main_import->commit.empty()) {
-             // Manual fetch sequence
-             // 1. mkdir target_dir
              fs::create_directories(target_dir);
-
-             // 2. git init
-             cmd = git_base + "-C " + target_dir + " init --quiet";
-             auto result2 = system(cmd.c_str());
-             if(result2 != 0) { std::cerr << "Failed to init git repo " << target_dir << std::endl; return result2; }
-
-             // 3. git remote add origin <url>
-             cmd = git_base + "-C " + target_dir + " remote add origin " + url;
-             auto result3 = system(cmd.c_str());
-             if(result3 != 0) { std::cerr << "Failed to add remote " << target_dir << std::endl; return result3; }
-
-             // 4. git fetch --depth 1 origin <commit>
-             cmd = git_base + "-C " + target_dir + " fetch --quiet --depth 1 origin " + main_import->commit.str();
-             auto result4 = system(cmd.c_str());
-             if(result4 != 0) {
-                 std::cerr << "Failed to fetch commit " << main_import->commit << ". It might not be reachable from any branch or --depth 1 failed." << std::endl;
-                 return result4;
-             }
-
-             // 5. git checkout <commit> (FETCH_HEAD)
-             cmd = git_base + "-C " + target_dir + " checkout --quiet FETCH_HEAD";
+             auto commit_str = main_import->commit.str();
+             // Individual commands for better shell compatibility (PowerShell, Git Bash, etc.)
+             arg_list.push_back("-C \"" + target_dir + "\" init --quiet");
+             arg_list.push_back("-C \"" + target_dir + "\" remote add origin \"" + url + "\"");
+             arg_list.push_back("-C \"" + target_dir + "\" fetch --quiet --depth 1 origin \"" + commit_str + "\"");
+             arg_list.push_back("-C \"" + target_dir + "\" checkout --quiet FETCH_HEAD");
         } else {
             auto& version_or_branch = main_import->version.empty() ? main_import->branch : main_import->version;
-            // Assume tag/branch
             if(version_or_branch.empty()) {
-                cmd = git_base + "clone --quiet --depth 1 " + url + " " + target_dir;
+                arg_list.push_back("clone --quiet --depth 1 \"" + url + "\" \"" + target_dir + "\"");
             } else {
-                cmd = git_base + "clone --quiet --depth 1 --branch " + version_or_branch.str() + " " + url + " " + target_dir;
+                arg_list.push_back("clone --quiet --depth 1 --branch \"" + version_or_branch.str() + "\" \"" + url + "\" \"" + target_dir + "\"");
             }
         }
 
-        if(!cmd.empty()) {
-            auto result5 = system(cmd.c_str());
-            if(result5 != 0) {
-                std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download remote import";
-                std::cerr << " from '" << main_import->from << '\'';
-                if(!main_import->version.empty()) {
-                    std::cerr << " version '" << main_import->version << '\'';
-                } else if(!main_import->branch.empty()) {
-                    std::cerr << " branch '" << main_import->branch << '\'';
-                }
-                // std::cerr << "\nfailed command: " << cmd;
-                std::cerr << std::endl;
-                // Clean up potentially empty/partial dir?
-                return result5;
+        for (const auto& args : arg_list) {
+            // 2>&1 works on nearly every shell (CMD, SH, PS) to combine stdout/stderr
+            std::string cmd = git_base + args + " 2>&1";
+            std::string output;
+            int result = run_git_and_capture(cmd, output);
+            if (result != 0) {
+                std::stringstream ss;
+                ss << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to download remote import";
+                ss << " from '" << main_import->from << "'\n";
+                ss << "[git] " << output << "\n";
+                progress.add_error(ss.str());
+                return result;
             }
         }
-
-
     }
 
-    // Create module
     auto mod = new LabModule(LabModuleType::Directory, std::move(info.mod_scope), std::move(info.mod_name));
 
-    // we must only add the path once, even if another import requests a subdir
-    // because if we add the import path twice, it will cause duplicate symbols
     if(main_import->subdir.empty()) {
         mod->paths.emplace_back(target_dir);
     } else {
         mod->paths.emplace_back(resolve_rel_child_path_str(target_dir, main_import->subdir.view()));
     }
 
-    // Add path to storage and link requesters
     {
-        std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> lock(progress.mutex);
         compiler->mod_storage.insert_module_ptr_dangerous(mod);
         
         for (auto import : imports) {
             if(import->requester) {
-                const auto req = import->requester;
-                req->add_dependency(mod, &import->symbol_info);
+                import->requester->add_dependency(mod, &import->symbol_info);
             } else {
                 job->add_dependency(mod, &import->symbol_info);
             }
@@ -3177,7 +3215,6 @@ int download_remote_import_group(
     }
 
     return 0;
-
 }
 
 int LabBuildCompiler::process_remote_imports(LabJob* job) {
@@ -3231,34 +3268,31 @@ int LabBuildCompiler::process_remote_imports(LabJob* job) {
     }
 
     // 2 - Launch downloads in parallel
-    std::mutex mutex;
+    RemoteImportProgress progress((int)groups.size());
     std::vector<std::future<int>> futures;
     futures.reserve(groups.size());
 
-    std::atomic<int> completed = 0;
-    const auto total = groups.size();
-
-    std::cout << "[lab] processing " << total << " remote imports" << std::endl;
+    if (groups.size() > 0) {
+        std::cout << "[lab] processing " << groups.size() << " remote imports" << std::endl;
+    }
 
     for(const auto& group : groups) {
         std::span<RemoteImport*> import_span(&group_ptrs[group.offset], group.size);
-        futures.emplace_back(pool.push([this, job, import_span, &mutex, &completed, total](int id) {
-            auto result = download_remote_import_group(this, job, import_span, mutex);
-            const int done = ++completed;
-            if(result == 0) {
-                std::cout << "[lab] downloaded " << done << "/" << total << " remote import groups\r" << std::flush;
-            }
+        futures.emplace_back(pool.push([this, job, import_span, &progress](int id) {
+            auto result = download_remote_import_group(this, job, import_span, progress);
+            progress.update();
             return result;
         }));
     }
 
+    int final_status = 0;
     for(auto& f : futures) {
         auto status = f.get();
         if(status != 0) {
-            return status;
+            final_status = status;
         }
     }
-    std::cout << std::endl;
-    return 0;
-
+    
+    progress.finish();
+    return final_status;
 }
